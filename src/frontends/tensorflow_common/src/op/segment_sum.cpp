@@ -5,6 +5,7 @@
 #include "common_op_table.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
+#include "helper_ops/complex_type_mark.hpp"
 #include "openvino/op/embedding_segments_sum.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reduce_max.hpp"
@@ -21,9 +22,11 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 OutputVector translate_segment_sum_op(const NodeContext& node) {
-    default_op_checks(node, 2, {"SegmentSum"});
+    default_op_checks(node, 2, {"SegmentSum"},true);
     auto data = node.get_input(0);
     auto segment_ids = node.get_input(1);
+    auto complex_type_mark = as_type_ptr<ComplexTypeMark>(data.get_node_shared_ptr());
+
 
     // create auxiliary constants
     auto const_one = create_same_type_const_scalar<int32_t>(segment_ids, 1);
@@ -45,9 +48,17 @@ OutputVector translate_segment_sum_op(const NodeContext& node) {
     auto num_indices = make_shared<v0::Squeeze>(segment_ids_shape, squeeze_axis);
     auto indices = make_shared<v4::Range>(const_zero, num_indices, const_one, indices_type);
 
+    if (complex_type_mark) {
+        data = complex_type_mark->input_value(0);
+        auto emb_segment_sum_complex = make_shared<v3::EmbeddingSegmentsSum>(data, indices, segment_ids, num_segments);
+        set_node_name(node.get_name(), emb_segment_sum_complex);
+        return {emb_segment_sum_complex->output(0)};
+    }
+    
     auto emb_segment_sum = make_shared<v3::EmbeddingSegmentsSum>(data, indices, segment_ids, num_segments);
     set_node_name(node.get_name(), emb_segment_sum);
     return {emb_segment_sum};
+    
 }
 }  // namespace op
 }  // namespace tensorflow
