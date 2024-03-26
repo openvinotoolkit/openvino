@@ -384,7 +384,7 @@ Convert the model to OpenVINO Intermediate Representation (IR)
 
 BLIP-Diffusion pipeline has the following structure:
 
-.. image:: 258-blip-diffusion-subject-generation-with-output_files/1c472f1f-1fce-4a13-9d44-b10f6f760ddb.png
+.. figure:: 258-blip-diffusion-subject-generation-with-output_files/1c472f1f-1fce-4a13-9d44-b10f6f760ddb.png
 
 
 The output of the BLIP-2 multimodal encoder is connected to the input of

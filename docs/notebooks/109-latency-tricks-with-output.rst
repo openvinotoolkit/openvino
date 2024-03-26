@@ -141,7 +141,7 @@ requirements of this particular object detection model.
 
 .. parsed-literal::
 
-    <DisplayHandle display_id=7a4c7ef25e26f28ca0d4358f0a5c8e27>
+    <DisplayHandle display_id=67724bc798c83ef5552e341604517c53>
 
 
 
@@ -197,22 +197,22 @@ PyTorch Hub and small enough to see the difference in performance.
 .. parsed-literal::
 
 
-  0%|          | 0.00/3.87M [00:00<?, ?B/s]
+   0%|          | 0.00/3.87M [00:00<?, ?B/s]
 
 .. parsed-literal::
 
 
-  8%|▊         | 304k/3.87M [00:00<00:01, 3.08MB/s]
+   7%|▋         | 296k/3.87M [00:00<00:01, 2.97MB/s]
 
 .. parsed-literal::
 
 
- 64%|██████▎   | 2.47M/3.87M [00:00<00:00, 14.6MB/s]
+   64%|██████▍   | 2.48M/3.87M [00:00<00:00, 14.6MB/s]
 
 .. parsed-literal::
 
 
-   100%|██████████| 3.87M/3.87M [00:00<00:00, 18.6MB/s]
+   100%|██████████| 3.87M/3.87M [00:00<00:00, 18.3MB/s]
 
 
 
@@ -434,12 +434,12 @@ optimizations applied. We will treat it as our baseline.
 
 .. parsed-literal::
 
-    PyTorch model on CPU. First inference time: 0.0266 seconds
+    PyTorch model on CPU. First inference time: 0.0264 seconds
 
 
 .. parsed-literal::
 
-    PyTorch model on CPU: 0.0216 seconds per image (46.33 FPS)
+    PyTorch model on CPU: 0.0217 seconds per image (46.18 FPS)
 
 
 ONNX model
@@ -489,12 +489,12 @@ Representation (IR) to leverage the OpenVINO Runtime.
 
 .. parsed-literal::
 
-    ONNX model on CPU. First inference time: 0.0164 seconds
+    ONNX model on CPU. First inference time: 0.0157 seconds
 
 
 .. parsed-literal::
 
-    ONNX model on CPU: 0.0125 seconds per image (80.25 FPS)
+    ONNX model on CPU: 0.0122 seconds per image (81.72 FPS)
 
 
 OpenVINO IR model
@@ -531,12 +531,12 @@ accuracy drop. That’s why we skip that step in this notebook.
 
 .. parsed-literal::
 
-    OpenVINO model on CPU. First inference time: 0.0163 seconds
+    OpenVINO model on CPU. First inference time: 0.0154 seconds
 
 
 .. parsed-literal::
 
-    OpenVINO model on CPU: 0.0123 seconds per image (81.26 FPS)
+    OpenVINO model on CPU: 0.0121 seconds per image (82.49 FPS)
 
 
 OpenVINO IR model on GPU
@@ -597,12 +597,12 @@ If it is the case, don’t use it.
 
 .. parsed-literal::
 
-    OpenVINO model + more threads on CPU. First inference time: 0.0151 seconds
+    OpenVINO model + more threads on CPU. First inference time: 0.0152 seconds
 
 
 .. parsed-literal::
 
-    OpenVINO model + more threads on CPU: 0.0124 seconds per image (80.94 FPS)
+    OpenVINO model + more threads on CPU: 0.0121 seconds per image (82.63 FPS)
 
 
 OpenVINO IR model in latency mode
@@ -633,12 +633,12 @@ devices as well.
 
 .. parsed-literal::
 
-    OpenVINO model on AUTO. First inference time: 0.0158 seconds
+    OpenVINO model on AUTO. First inference time: 0.0152 seconds
 
 
 .. parsed-literal::
 
-    OpenVINO model on AUTO: 0.0126 seconds per image (79.53 FPS)
+    OpenVINO model on AUTO: 0.0124 seconds per image (80.62 FPS)
 
 
 OpenVINO IR model in latency mode + shared memory
@@ -673,12 +673,12 @@ performance!
 
 .. parsed-literal::
 
-    OpenVINO model + shared memory on AUTO. First inference time: 0.0103 seconds
+    OpenVINO model + shared memory on AUTO. First inference time: 0.0109 seconds
 
 
 .. parsed-literal::
 
-    OpenVINO model + shared memory on AUTO: 0.0054 seconds per image (185.55 FPS)
+    OpenVINO model + shared memory on AUTO: 0.0054 seconds per image (185.81 FPS)
 
 
 Other tricks

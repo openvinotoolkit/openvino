@@ -85,14 +85,14 @@ Imports
 
 .. parsed-literal::
 
-    2024-03-12 22:46:23.659626: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-03-12 22:46:23.694199: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-03-25 22:47:33.852769: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-03-25 22:47:33.887712: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 
 
 .. parsed-literal::
 
-    2024-03-12 22:46:24.261905: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-03-25 22:47:34.454395: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Download, quantize and sparsify the model, using Hugging Face Optimum API
@@ -129,11 +129,6 @@ model card on Hugging Face.
 .. parsed-literal::
 
     Compiling the model to CPU ...
-
-
-.. parsed-literal::
-
-    device must be of type <class 'str'> but got <class 'torch.device'> instead
 
 
 .. parsed-literal::
@@ -212,10 +207,6 @@ as an example. It is recommended to tune based on your applications.
     [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
     [ INFO ] 
     [ INFO ] Device info:
-
-
-.. parsed-literal::
-
     [ INFO ] CPU
     [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
     [ INFO ] 
@@ -228,7 +219,7 @@ as an example. It is recommended to tune based on your applications.
 
 .. parsed-literal::
 
-    [ INFO ] Read model took 60.53 ms
+    [ INFO ] Read model took 80.17 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [?,?]
@@ -243,7 +234,7 @@ as an example. It is recommended to tune based on your applications.
 
 .. parsed-literal::
 
-    [ INFO ] Reshape model took 23.14 ms
+    [ INFO ] Reshape model took 40.96 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [1,64]
@@ -256,7 +247,7 @@ as an example. It is recommended to tune based on your applications.
 
 .. parsed-literal::
 
-    [ INFO ] Compile model took 1247.60 ms
+    [ INFO ] Compile model took 1241.46 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: torch_jit
@@ -291,21 +282,21 @@ as an example. It is recommended to tune based on your applications.
 
 .. parsed-literal::
 
-    [ INFO ] First inference took 28.98 ms
+    [ INFO ] First inference took 28.25 ms
 
 
 .. parsed-literal::
 
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            8968 iterations
-    [ INFO ] Duration:         60028.76 ms
+    [ INFO ] Count:            8920 iterations
+    [ INFO ] Duration:         60031.19 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        26.62 ms
-    [ INFO ]    Average:       26.65 ms
-    [ INFO ]    Min:           25.60 ms
-    [ INFO ]    Max:           42.76 ms
-    [ INFO ] Throughput:   149.40 FPS
+    [ INFO ]    Median:        26.69 ms
+    [ INFO ]    Average:       26.72 ms
+    [ INFO ]    Min:           25.34 ms
+    [ INFO ]    Max:           41.34 ms
+    [ INFO ] Throughput:   148.59 FPS
 
 
 Benchmark quantized sparse inference performance
@@ -370,7 +361,7 @@ for which a layer will be enabled.
 
 .. parsed-literal::
 
-    [ INFO ] Read model took 84.42 ms
+    [ INFO ] Read model took 64.24 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [?,?]
@@ -381,7 +372,11 @@ for which a layer will be enabled.
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'input_ids': [1,64], 'attention_mask': [1,64], 'token_type_ids': [1,64]
-    [ INFO ] Reshape model took 23.54 ms
+
+
+.. parsed-literal::
+
+    [ INFO ] Reshape model took 23.09 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [1,64]
@@ -390,10 +385,6 @@ for which a layer will be enabled.
     [ INFO ] Model outputs:
     [ INFO ]     logits (node: logits) : f32 / [...] / [1,2]
     [Step 7/11] Loading the model to the device
-
-
-.. parsed-literal::
-
     [ ERROR ] Exception from src/inference/src/cpp/core.cpp:106:
     Exception from src/inference/src/dev/plugin.cpp:54:
     Exception from src/plugins/intel_cpu/src/config.cpp:208:
@@ -401,9 +392,9 @@ for which a layer will be enabled.
     
     
     Traceback (most recent call last):
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 408, in main
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-642/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 408, in main
         compiled_model = benchmark.core.compile_model(model, benchmark.device, device_config)
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/runtime/ie_api.py", line 515, in compile_model
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-642/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/runtime/ie_api.py", line 515, in compile_model
         super().compile_model(model, device_name, {} if config is None else config),
     RuntimeError: Exception from src/inference/src/cpp/core.cpp:106:
     Exception from src/inference/src/dev/plugin.cpp:54:

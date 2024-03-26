@@ -107,12 +107,16 @@ use ``pip install openvino-tokenizers[transformers]``.
 .. parsed-literal::
 
     Found existing installation: openvino 2024.0.0
-    Uninstalling openvino-2024.0.0:
 
 
 .. parsed-literal::
 
+    Uninstalling openvino-2024.0.0:
       Successfully uninstalled openvino-2024.0.0
+
+
+.. parsed-literal::
+
     WARNING: Skipping openvino-nightly as it is not installed.
     Found existing installation: openvino-dev 2024.0.0
 
@@ -287,14 +291,14 @@ one:
 
 .. parsed-literal::
 
-    2024-03-12 23:13:39.058345: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-03-12 23:13:39.093394: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-03-25 23:15:55.543337: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-03-25 23:15:55.577896: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 
 
 .. parsed-literal::
 
-    2024-03-12 23:13:39.592323: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-03-25 23:15:56.074720: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -485,7 +489,7 @@ models and tokenizers simplifies memory management.
 
 .. parsed-literal::
 
-    2024-03-12 23:13:56.117320: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-03-25 23:16:12.957675: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -505,6 +509,12 @@ models and tokenizers simplifies memory management.
 
 .. parsed-literal::
 
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-642/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/utils/import_utils.py:519: FutureWarning: `is_torch_tpu_available` is deprecated and will be removed in 4.41.0. Please use the `is_torch_xla_available` instead.
+      warnings.warn(
+
+
+.. parsed-literal::
+
     Framework not specified. Using pt to export the model.
 
 
@@ -519,7 +529,11 @@ models and tokenizers simplifies memory management.
     Using framework PyTorch: 2.1.0+cpu
     Overriding 1 configuration item(s)
     	- use_cache -> False
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4193: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-642/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4225: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
 
 
@@ -539,6 +553,10 @@ models and tokenizers simplifies memory management.
 .. parsed-literal::
 
     Converting Huggingface Tokenizer to OpenVINO...
+
+
+.. parsed-literal::
+
     RegexNormalization pattern is not supported, operation output might differ from the original tokenizer.
 
 

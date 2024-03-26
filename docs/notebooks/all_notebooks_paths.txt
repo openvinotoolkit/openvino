@@ -70,6 +70,7 @@ notebooks/228-clip-zero-shot-image-classification/228-clip-zero-shot-classificat
 notebooks/229-distilbert-sequence-classification/229-distilbert-sequence-classification.ipynb
 notebooks/230-yolov8-optimization/230-yolov8-instance-segmentation.ipynb
 notebooks/230-yolov8-optimization/230-yolov8-keypoint-detection.ipynb
+notebooks/230-yolov8-optimization/230-yolov8-obb.ipynb
 notebooks/230-yolov8-optimization/230-yolov8-object-detection.ipynb
 notebooks/231-instruct-pix2pix-image-editing/231-instruct-pix2pix-image-editing.ipynb
 notebooks/232-clip-language-saliency-map/232-clip-language-saliency-map.ipynb
@@ -83,8 +84,7 @@ notebooks/236-stable-diffusion-v2/236-stable-diffusion-v2-text-to-image.ipynb
 notebooks/237-segment-anything/237-segment-anything.ipynb
 notebooks/238-deepfloyd-if/238-deep-floyd-if-convert.ipynb
 notebooks/238-deepfloyd-if/238-deep-floyd-if-optimize.ipynb
-notebooks/239-image-bind/239-image-bind-convert.ipynb
-notebooks/239-image-bind/239-image-bind-quantize.ipynb
+notebooks/239-image-bind/239-image-bind.ipynb
 notebooks/240-dolly-2-instruction-following/240-dolly-2-instruction-following.ipynb
 notebooks/241-riffusion-text-to-music/241-riffusion-text-to-music.ipynb
 notebooks/242-freevc-voice-conversion/242-freevc-voice-conversion.ipynb
@@ -141,6 +141,8 @@ notebooks/286-instant-id/286-instant-id.ipynb
 notebooks/287-yolov9-optimization/287-yolov9-optimization.ipynb
 notebooks/288-grounded-segment-anything/288-grounded-segment-anything.ipynb
 notebooks/289-mobileclip-video-search/289-mobileclip-video-search.ipynb
+notebooks/290-magika-content-type-recognition/290-magika-content-type-recognition.ipynb
+notebooks/291-stable-diffusion-keras-cv/291-stable-diffusion-keras-cv.ipynb
 notebooks/301-tensorflow-training-openvino/301-tensorflow-training-openvino.ipynb
 notebooks/301-tensorflow-training-openvino/301-tensorflow-training-openvino-nncf.ipynb
 notebooks/302-pytorch-quantization-aware-training/302-pytorch-quantization-aware-training.ipynb

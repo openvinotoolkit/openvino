@@ -32,13 +32,14 @@ the method. It incorporates three crucial components:
    instantid-components.png
 
 The difference InstantID from previous works in the following aspects:
+
 1. do not involve UNet training, so it can preserve the generation
-ability of the original text-to-image model and be compatible with
-existing pre-trained models and ControlNets in the community; 2. doesn’t
-require test-time tuning, so for a specific character, there is no need
-to collect multiple images for fine-tuning, only a single image needs to
-be inferred once; 3. achieve better face fidelity, and retain the
-editability of text.
+   ability of the original text-to-image model and be compatible with
+   existing pre-trained models and ControlNets in the community;
+2. doesn’t require test-time tuning, so for a specific character, there is no need
+   to collect multiple images for fine-tuning, only a single image needs to
+   be inferred once;
+3. achieve better face fidelity, and retain the editability of text.
 
 You can find more details about the approach with `project web
 page <https://instantid.github.io/>`__,
@@ -90,6 +91,7 @@ Table of contents:
 - `Interactive demo <#interactive-demo>`__
 
 .. |applications.png| image:: https://github.com/InstantID/InstantID/blob/main/assets/applications.png?raw=true
+
 
 Prerequisites
 -------------
@@ -512,9 +514,6 @@ Now, let’s see models inference result
 
 Select Inference Device for Face Recognition
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-### Select Inference Device for
-Face Recognition
 
 .. code:: ipython3
 
@@ -1804,7 +1803,6 @@ Select inference device for InstantID
 Create pipeline
 ~~~~~~~~~~~~~~~
 
-### Create pipeline
 
 .. code:: ipython3
 
@@ -1823,7 +1821,6 @@ Create pipeline
 Run inference
 ~~~~~~~~~~~~~
 
-### Run inference
 
 .. code:: ipython3
 
@@ -2452,7 +2449,7 @@ to launch the interactive demo.
         [examples_dir / "face_4.png", "a girl", "Snow", ""]
     ]
 
-    pipeline = int8_pipe if use_quantized_model.value else ov_pipe
+    pipeline = int8_pipe if use_quantized_models.value else ov_pipe
 
 
     if not examples_dir.exists():

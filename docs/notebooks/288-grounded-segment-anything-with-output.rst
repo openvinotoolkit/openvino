@@ -70,12 +70,13 @@ Clone repositories and install requirements
 .. parsed-literal::
 
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    paddleclas 2.5.1 requires faiss-cpu==1.7.1.post2, but you have faiss-cpu 1.8.0 which is incompatible.
-    paddleclas 2.5.1 requires gast==0.3.3, but you have gast 0.4.0 which is incompatible.
+    paddleclas 2.5.2 requires gast==0.3.3, but you have gast 0.4.0 which is incompatible.
+    paddleclas 2.5.2 requires opencv-python==4.6.0.66, but you have opencv-python 4.9.0.80 which is incompatible.
     ppgan 2.1.0 requires imageio==2.9.0, but you have imageio 2.34.0 which is incompatible.
     ppgan 2.1.0 requires librosa==0.8.1, but you have librosa 0.9.2 which is incompatible.
     ppgan 2.1.0 requires opencv-python<=4.6.0.66, but you have opencv-python 4.9.0.80 which is incompatible.
     pyannote-audio 2.0.1 requires torchaudio<1.0,>=0.10, but you have torchaudio 2.2.1+cpu which is incompatible.
+    tensorflow 2.12.0 requires protobuf!=4.21.0,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<5.0.0dev,>=3.20.3, but you have protobuf 5.26.0 which is incompatible.
 
 
 .. parsed-literal::
@@ -143,172 +144,172 @@ segmentation you can select vanilla ``SAM``.
 
     remote: Enumerating objects: 379, done.[K
     remote: Counting objects:   0% (1/177)[K
-remote: Counting objects:   1% (2/177)[K
-remote: Counting objects:   2% (4/177)[K
-remote: Counting objects:   3% (6/177)[K
-remote: Counting objects:   4% (8/177)[K
-remote: Counting objects:   5% (9/177)[K
-remote: Counting objects:   6% (11/177)[K
-remote: Counting objects:   7% (13/177)[K
-remote: Counting objects:   8% (15/177)[K
-remote: Counting objects:   9% (16/177)[K
-remote: Counting objects:  10% (18/177)[K
-remote: Counting objects:  11% (20/177)[K
-remote: Counting objects:  12% (22/177)[K
-remote: Counting objects:  13% (24/177)[K
-remote: Counting objects:  14% (25/177)[K
-remote: Counting objects:  15% (27/177)[K
-remote: Counting objects:  16% (29/177)[K
-remote: Counting objects:  17% (31/177)[K
-remote: Counting objects:  18% (32/177)[K
-remote: Counting objects:  19% (34/177)[K
-remote: Counting objects:  20% (36/177)[K
-remote: Counting objects:  21% (38/177)[K
-remote: Counting objects:  22% (39/177)[K
-remote: Counting objects:  23% (41/177)[K
-remote: Counting objects:  24% (43/177)[K
-remote: Counting objects:  25% (45/177)[K
-remote: Counting objects:  26% (47/177)[K
-remote: Counting objects:  27% (48/177)[K
-remote: Counting objects:  28% (50/177)[K
-remote: Counting objects:  29% (52/177)[K
-remote: Counting objects:  30% (54/177)[K
-remote: Counting objects:  31% (55/177)[K
-remote: Counting objects:  32% (57/177)[K
-remote: Counting objects:  33% (59/177)[K
-remote: Counting objects:  34% (61/177)[K
-remote: Counting objects:  35% (62/177)[K
-remote: Counting objects:  36% (64/177)[K
-remote: Counting objects:  37% (66/177)[K
-remote: Counting objects:  38% (68/177)[K
-remote: Counting objects:  39% (70/177)[K
-remote: Counting objects:  40% (71/177)[K
-remote: Counting objects:  41% (73/177)[K
-remote: Counting objects:  42% (75/177)[K
-remote: Counting objects:  43% (77/177)[K
-remote: Counting objects:  44% (78/177)[K
-remote: Counting objects:  45% (80/177)[K
-remote: Counting objects:  46% (82/177)[K
-remote: Counting objects:  47% (84/177)[K
-remote: Counting objects:  48% (85/177)[K
-remote: Counting objects:  49% (87/177)[K
-remote: Counting objects:  50% (89/177)[K
-remote: Counting objects:  51% (91/177)[K
-remote: Counting objects:  52% (93/177)[K
-remote: Counting objects:  53% (94/177)[K
-remote: Counting objects:  54% (96/177)[K
-remote: Counting objects:  55% (98/177)[K
-remote: Counting objects:  56% (100/177)[K
-remote: Counting objects:  57% (101/177)[K
-remote: Counting objects:  58% (103/177)[K
-remote: Counting objects:  59% (105/177)[K
-remote: Counting objects:  60% (107/177)[K
-remote: Counting objects:  61% (108/177)[K
-remote: Counting objects:  62% (110/177)[K
-remote: Counting objects:  63% (112/177)[K
-remote: Counting objects:  64% (114/177)[K
-remote: Counting objects:  65% (116/177)[K
-remote: Counting objects:  66% (117/177)[K
-remote: Counting objects:  67% (119/177)[K
-remote: Counting objects:  68% (121/177)[K
-remote: Counting objects:  69% (123/177)[K
-remote: Counting objects:  70% (124/177)[K
-remote: Counting objects:  71% (126/177)[K
-remote: Counting objects:  72% (128/177)[K
-remote: Counting objects:  73% (130/177)[K
-remote: Counting objects:  74% (131/177)[K
-remote: Counting objects:  75% (133/177)[K
-remote: Counting objects:  76% (135/177)[K
-remote: Counting objects:  77% (137/177)[K
-remote: Counting objects:  78% (139/177)[K
-remote: Counting objects:  79% (140/177)[K
-remote: Counting objects:  80% (142/177)[K
-remote: Counting objects:  81% (144/177)[K
-remote: Counting objects:  82% (146/177)[K
-remote: Counting objects:  83% (147/177)[K
-remote: Counting objects:  84% (149/177)[K
-remote: Counting objects:  85% (151/177)[K
-remote: Counting objects:  86% (153/177)[K
-remote: Counting objects:  87% (154/177)[K
-remote: Counting objects:  88% (156/177)[K
-remote: Counting objects:  89% (158/177)[K
-remote: Counting objects:  90% (160/177)[K
-remote: Counting objects:  91% (162/177)[K
-remote: Counting objects:  92% (163/177)[K
-remote: Counting objects:  93% (165/177)[K
-remote: Counting objects:  94% (167/177)[K
-remote: Counting objects:  95% (169/177)[K
-remote: Counting objects:  96% (170/177)[K
-remote: Counting objects:  97% (172/177)[K
-remote: Counting objects:  98% (174/177)[K
-remote: Counting objects:  99% (176/177)[K
-remote: Counting objects: 100% (177/177)[K
-remote: Counting objects: 100% (177/177), done.[K
+    remote: Counting objects:   1% (2/177)[K
+    remote: Counting objects:   2% (4/177)[K
+    remote: Counting objects:   3% (6/177)[K
+    remote: Counting objects:   4% (8/177)[K
+    remote: Counting objects:   5% (9/177)[K
+    remote: Counting objects:   6% (11/177)[K
+    remote: Counting objects:   7% (13/177)[K
+    remote: Counting objects:   8% (15/177)[K
+    remote: Counting objects:   9% (16/177)[K
+    remote: Counting objects:  10% (18/177)[K
+    remote: Counting objects:  11% (20/177)[K
+    remote: Counting objects:  12% (22/177)[K
+    remote: Counting objects:  13% (24/177)[K
+    remote: Counting objects:  14% (25/177)[K
+    remote: Counting objects:  15% (27/177)[K
+    remote: Counting objects:  16% (29/177)[K
+    remote: Counting objects:  17% (31/177)[K
+    remote: Counting objects:  18% (32/177)[K
+    remote: Counting objects:  19% (34/177)[K
+    remote: Counting objects:  20% (36/177)[K
+    remote: Counting objects:  21% (38/177)[K
+    remote: Counting objects:  22% (39/177)[K
+    remote: Counting objects:  23% (41/177)[K
+    remote: Counting objects:  24% (43/177)[K
+    remote: Counting objects:  25% (45/177)[K
+    remote: Counting objects:  26% (47/177)[K
+    remote: Counting objects:  27% (48/177)[K
+    remote: Counting objects:  28% (50/177)[K
+    remote: Counting objects:  29% (52/177)[K
+    remote: Counting objects:  30% (54/177)[K
+    remote: Counting objects:  31% (55/177)[K
+    remote: Counting objects:  32% (57/177)[K
+    remote: Counting objects:  33% (59/177)[K
+    remote: Counting objects:  34% (61/177)[K
+    remote: Counting objects:  35% (62/177)[K
+    remote: Counting objects:  36% (64/177)[K
+    remote: Counting objects:  37% (66/177)[K
+    remote: Counting objects:  38% (68/177)[K
+    remote: Counting objects:  39% (70/177)[K
+    remote: Counting objects:  40% (71/177)[K
+    remote: Counting objects:  41% (73/177)[K
+    remote: Counting objects:  42% (75/177)[K
+    remote: Counting objects:  43% (77/177)[K
+    remote: Counting objects:  44% (78/177)[K
+    remote: Counting objects:  45% (80/177)[K
+    remote: Counting objects:  46% (82/177)[K
+    remote: Counting objects:  47% (84/177)[K
+    remote: Counting objects:  48% (85/177)[K
+    remote: Counting objects:  49% (87/177)[K
+    remote: Counting objects:  50% (89/177)[K
+    remote: Counting objects:  51% (91/177)[K
+    remote: Counting objects:  52% (93/177)[K
+    remote: Counting objects:  53% (94/177)[K
+    remote: Counting objects:  54% (96/177)[K
+    remote: Counting objects:  55% (98/177)[K
+    remote: Counting objects:  56% (100/177)[K
+    remote: Counting objects:  57% (101/177)[K
+    remote: Counting objects:  58% (103/177)[K
+    remote: Counting objects:  59% (105/177)[K
+    remote: Counting objects:  60% (107/177)[K
+    remote: Counting objects:  61% (108/177)[K
+    remote: Counting objects:  62% (110/177)[K
+    remote: Counting objects:  63% (112/177)[K
+    remote: Counting objects:  64% (114/177)[K
+    remote: Counting objects:  65% (116/177)[K
+    remote: Counting objects:  66% (117/177)[K
+    remote: Counting objects:  67% (119/177)[K
+    remote: Counting objects:  68% (121/177)[K
+    remote: Counting objects:  69% (123/177)[K
+    remote: Counting objects:  70% (124/177)[K
+    remote: Counting objects:  71% (126/177)[K
+    remote: Counting objects:  72% (128/177)[K
+    remote: Counting objects:  73% (130/177)[K
+    remote: Counting objects:  74% (131/177)[K
+    remote: Counting objects:  75% (133/177)[K
+    remote: Counting objects:  76% (135/177)[K
+    remote: Counting objects:  77% (137/177)[K
+    remote: Counting objects:  78% (139/177)[K
+    remote: Counting objects:  79% (140/177)[K
+    remote: Counting objects:  80% (142/177)[K
+    remote: Counting objects:  81% (144/177)[K
+    remote: Counting objects:  82% (146/177)[K
+    remote: Counting objects:  83% (147/177)[K
+    remote: Counting objects:  84% (149/177)[K
+    remote: Counting objects:  85% (151/177)[K
+    remote: Counting objects:  86% (153/177)[K
+    remote: Counting objects:  87% (154/177)[K
+    remote: Counting objects:  88% (156/177)[K
+    remote: Counting objects:  89% (158/177)[K
+    remote: Counting objects:  90% (160/177)[K
+    remote: Counting objects:  91% (162/177)[K
+    remote: Counting objects:  92% (163/177)[K
+    remote: Counting objects:  93% (165/177)[K
+    remote: Counting objects:  94% (167/177)[K
+    remote: Counting objects:  95% (169/177)[K
+    remote: Counting objects:  96% (170/177)[K
+    remote: Counting objects:  97% (172/177)[K
+    remote: Counting objects:  98% (174/177)[K
+    remote: Counting objects:  99% (176/177)[K
+    remote: Counting objects: 100% (177/177)[K
+    remote: Counting objects: 100% (177/177), done.[K
     remote: Compressing objects:   1% (1/64)[K
-remote: Compressing objects:   3% (2/64)[K
-remote: Compressing objects:   4% (3/64)[K
-remote: Compressing objects:   6% (4/64)[K
-remote: Compressing objects:   7% (5/64)[K
-remote: Compressing objects:   9% (6/64)[K
-remote: Compressing objects:  10% (7/64)[K
-remote: Compressing objects:  12% (8/64)[K
-remote: Compressing objects:  14% (9/64)[K
-remote: Compressing objects:  15% (10/64)[K
-remote: Compressing objects:  17% (11/64)[K
-remote: Compressing objects:  18% (12/64)[K
-remote: Compressing objects:  20% (13/64)[K
-remote: Compressing objects:  21% (14/64)[K
-remote: Compressing objects:  23% (15/64)[K
-remote: Compressing objects:  25% (16/64)[K
-remote: Compressing objects:  26% (17/64)[K
-remote: Compressing objects:  28% (18/64)[K
-remote: Compressing objects:  29% (19/64)[K
-remote: Compressing objects:  31% (20/64)[K
-remote: Compressing objects:  32% (21/64)[K
-remote: Compressing objects:  34% (22/64)[K
-remote: Compressing objects:  35% (23/64)[K
-remote: Compressing objects:  37% (24/64)[K
-remote: Compressing objects:  39% (25/64)[K
-remote: Compressing objects:  40% (26/64)[K
-remote: Compressing objects:  42% (27/64)[K
-remote: Compressing objects:  43% (28/64)[K
-remote: Compressing objects:  45% (29/64)[K
-remote: Compressing objects:  46% (30/64)[K
-remote: Compressing objects:  48% (31/64)[K
-remote: Compressing objects:  50% (32/64)[K
-remote: Compressing objects:  51% (33/64)[K
-remote: Compressing objects:  53% (34/64)[K
-remote: Compressing objects:  54% (35/64)[K
-remote: Compressing objects:  56% (36/64)[K
-remote: Compressing objects:  57% (37/64)[K
-remote: Compressing objects:  59% (38/64)[K
-remote: Compressing objects:  60% (39/64)[K
-remote: Compressing objects:  62% (40/64)[K
-remote: Compressing objects:  64% (41/64)[K
-remote: Compressing objects:  65% (42/64)[K
-remote: Compressing objects:  67% (43/64)[K
-remote: Compressing objects:  68% (44/64)[K
-remote: Compressing objects:  70% (45/64)[K
-remote: Compressing objects:  71% (46/64)[K
-remote: Compressing objects:  73% (47/64)[K
-remote: Compressing objects:  75% (48/64)[K
-remote: Compressing objects:  76% (49/64)[K
-remote: Compressing objects:  78% (50/64)[K
-remote: Compressing objects:  79% (51/64)[K
-remote: Compressing objects:  81% (52/64)[K
-remote: Compressing objects:  82% (53/64)[K
-remote: Compressing objects:  84% (54/64)[K
-remote: Compressing objects:  85% (55/64)[K
-remote: Compressing objects:  87% (56/64)[K
-remote: Compressing objects:  89% (57/64)[K
-remote: Compressing objects:  90% (58/64)[K
-remote: Compressing objects:  92% (59/64)[K
-remote: Compressing objects:  93% (60/64)[K
-remote: Compressing objects:  95% (61/64)[K
-remote: Compressing objects:  96% (62/64)[K
-remote: Compressing objects:  98% (63/64)[K
-remote: Compressing objects: 100% (64/64)[K
-remote: Compressing objects: 100% (64/64), done.[K
+    remote: Compressing objects:   3% (2/64)[K
+    remote: Compressing objects:   4% (3/64)[K
+    remote: Compressing objects:   6% (4/64)[K
+    remote: Compressing objects:   7% (5/64)[K
+    remote: Compressing objects:   9% (6/64)[K
+    remote: Compressing objects:  10% (7/64)[K
+    remote: Compressing objects:  12% (8/64)[K
+    remote: Compressing objects:  14% (9/64)[K
+    remote: Compressing objects:  15% (10/64)[K
+    remote: Compressing objects:  17% (11/64)[K
+    remote: Compressing objects:  18% (12/64)[K
+    remote: Compressing objects:  20% (13/64)[K
+    remote: Compressing objects:  21% (14/64)[K
+    remote: Compressing objects:  23% (15/64)[K
+    remote: Compressing objects:  25% (16/64)[K
+    remote: Compressing objects:  26% (17/64)[K
+    remote: Compressing objects:  28% (18/64)[K
+    remote: Compressing objects:  29% (19/64)[K
+    remote: Compressing objects:  31% (20/64)[K
+    remote: Compressing objects:  32% (21/64)[K
+    remote: Compressing objects:  34% (22/64)[K
+    remote: Compressing objects:  35% (23/64)[K
+    remote: Compressing objects:  37% (24/64)[K
+    remote: Compressing objects:  39% (25/64)[K
+    remote: Compressing objects:  40% (26/64)[K
+    remote: Compressing objects:  42% (27/64)[K
+    remote: Compressing objects:  43% (28/64)[K
+    remote: Compressing objects:  45% (29/64)[K
+    remote: Compressing objects:  46% (30/64)[K
+    remote: Compressing objects:  48% (31/64)[K
+    remote: Compressing objects:  50% (32/64)[K
+    remote: Compressing objects:  51% (33/64)[K
+    remote: Compressing objects:  53% (34/64)[K
+    remote: Compressing objects:  54% (35/64)[K
+    remote: Compressing objects:  56% (36/64)[K
+    remote: Compressing objects:  57% (37/64)[K
+    remote: Compressing objects:  59% (38/64)[K
+    remote: Compressing objects:  60% (39/64)[K
+    remote: Compressing objects:  62% (40/64)[K
+    remote: Compressing objects:  64% (41/64)[K
+    remote: Compressing objects:  65% (42/64)[K
+    remote: Compressing objects:  67% (43/64)[K
+    remote: Compressing objects:  68% (44/64)[K
+    remote: Compressing objects:  70% (45/64)[K
+    remote: Compressing objects:  71% (46/64)[K
+    remote: Compressing objects:  73% (47/64)[K
+    remote: Compressing objects:  75% (48/64)[K
+    remote: Compressing objects:  76% (49/64)[K
+    remote: Compressing objects:  78% (50/64)[K
+    remote: Compressing objects:  79% (51/64)[K
+    remote: Compressing objects:  81% (52/64)[K
+    remote: Compressing objects:  82% (53/64)[K
+    remote: Compressing objects:  84% (54/64)[K
+    remote: Compressing objects:  85% (55/64)[K
+    remote: Compressing objects:  87% (56/64)[K
+    remote: Compressing objects:  89% (57/64)[K
+    remote: Compressing objects:  90% (58/64)[K
+    remote: Compressing objects:  92% (59/64)[K
+    remote: Compressing objects:  93% (60/64)[K
+    remote: Compressing objects:  95% (61/64)[K
+    remote: Compressing objects:  96% (62/64)[K
+    remote: Compressing objects:  98% (63/64)[K
+    remote: Compressing objects: 100% (64/64)[K
+    remote: Compressing objects: 100% (64/64), done.[K
     Receiving objects:   0% (1/379)
 
 .. parsed-literal::
@@ -318,32 +319,32 @@ remote: Compressing objects: 100% (64/64), done.[K
 .. parsed-literal::
 
     Receiving objects:   2% (8/379)
-Receiving objects:   3% (12/379)
-Receiving objects:   4% (16/379)
-Receiving objects:   5% (19/379)
-Receiving objects:   6% (23/379)
-Receiving objects:   7% (27/379)
-Receiving objects:   8% (31/379)
-Receiving objects:   9% (35/379)
+    Receiving objects:   3% (12/379)
+    Receiving objects:   4% (16/379)
+    Receiving objects:   5% (19/379)
+    Receiving objects:   6% (23/379)
+    Receiving objects:   7% (27/379)
+    Receiving objects:   8% (31/379)
+    Receiving objects:   9% (35/379)
+    Receiving objects:  10% (38/379)
+    Receiving objects:  11% (42/379)
+    Receiving objects:  12% (46/379)
+    Receiving objects:  13% (50/379)
+    Receiving objects:  14% (54/379)
+    Receiving objects:  15% (57/379)
+    Receiving objects:  16% (61/379)
+    Receiving objects:  17% (65/379)
+    Receiving objects:  18% (69/379)
+    Receiving objects:  19% (73/379)
+    Receiving objects:  20% (76/379)
+    Receiving objects:  21% (80/379)
+    Receiving objects:  22% (84/379)
+    Receiving objects:  23% (88/379)
+    Receiving objects:  24% (91/379)
 
 .. parsed-literal::
 
-    Receiving objects:  10% (38/379)
-Receiving objects:  11% (42/379)
-Receiving objects:  12% (46/379)
-Receiving objects:  13% (50/379)
-Receiving objects:  14% (54/379)
-Receiving objects:  15% (57/379)
-Receiving objects:  16% (61/379)
-Receiving objects:  17% (65/379)
-Receiving objects:  18% (69/379)
-Receiving objects:  19% (73/379)
-Receiving objects:  20% (76/379)
-Receiving objects:  21% (80/379)
-Receiving objects:  22% (84/379)
-Receiving objects:  23% (88/379)
-Receiving objects:  24% (91/379)
-Receiving objects:  25% (95/379)
+    Receiving objects:  25% (95/379)
 
 .. parsed-literal::
 
@@ -351,120 +352,119 @@ Receiving objects:  25% (95/379)
 
 .. parsed-literal::
 
-    Receiving objects:  27% (103/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  28% (107/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  29% (110/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  30% (114/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  31% (118/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  32% (122/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  33% (126/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  34% (129/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  35% (133/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  36% (137/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  37% (141/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  38% (145/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  39% (148/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  40% (152/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  41% (156/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  42% (160/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  43% (163/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  44% (167/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  45% (171/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  46% (175/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  47% (179/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  48% (182/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  49% (186/379), 11.64 MiB | 21.59 MiB/s
+    Receiving objects:  27% (103/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  28% (107/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  29% (110/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  30% (114/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  31% (118/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  32% (122/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  33% (126/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  34% (129/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  35% (133/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  36% (137/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  37% (141/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  38% (145/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  39% (148/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  40% (152/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  41% (156/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  42% (160/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  43% (163/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  44% (167/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  45% (171/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  46% (175/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  47% (179/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  48% (182/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  49% (186/379), 9.62 MiB | 17.25 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  50% (190/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  51% (194/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  52% (198/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  53% (201/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  54% (205/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  55% (209/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  56% (213/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  57% (217/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  58% (220/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  59% (224/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  60% (228/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  61% (232/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  62% (235/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  63% (239/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  64% (243/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  65% (247/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  66% (251/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  67% (254/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  68% (258/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  69% (262/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  70% (266/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  71% (270/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  72% (273/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  73% (277/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  74% (281/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  75% (285/379), 11.64 MiB | 21.59 MiB/s
-remote: Total 379 (delta 137), reused 113 (delta 113), pack-reused 202[K
-    Receiving objects:  76% (289/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  77% (292/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  78% (296/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  79% (300/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  80% (304/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  81% (307/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  82% (311/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  83% (315/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  84% (319/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  85% (323/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  86% (326/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  87% (330/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  88% (334/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  89% (338/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  90% (342/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  91% (345/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  92% (349/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  93% (353/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  94% (357/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  95% (361/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  96% (364/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  97% (368/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  98% (372/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects:  99% (376/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects: 100% (379/379), 11.64 MiB | 21.59 MiB/s
-Receiving objects: 100% (379/379), 14.03 MiB | 21.38 MiB/s, done.
+    Receiving objects:  50% (190/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  51% (194/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  52% (198/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  53% (201/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  54% (205/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  55% (209/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  56% (213/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  57% (217/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  58% (220/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  59% (224/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  60% (228/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  61% (232/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  62% (235/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  63% (239/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  64% (243/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  65% (247/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  66% (251/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  67% (254/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  68% (258/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  69% (262/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  70% (266/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  71% (270/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  72% (273/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  73% (277/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  74% (281/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  75% (285/379), 9.62 MiB | 17.25 MiB/s
+    remote: Total 379 (delta 137), reused 113 (delta 113), pack-reused 202[K
+    Receiving objects:  76% (289/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  77% (292/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  78% (296/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  79% (300/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  80% (304/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  81% (307/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  82% (311/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  83% (315/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  84% (319/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  85% (323/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  86% (326/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  87% (330/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  88% (334/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  89% (338/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  90% (342/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  91% (345/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  92% (349/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  93% (353/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  94% (357/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  95% (361/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  96% (364/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  97% (368/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  98% (372/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects:  99% (376/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects: 100% (379/379), 9.62 MiB | 17.25 MiB/s
+    Receiving objects: 100% (379/379), 14.03 MiB | 18.47 MiB/s, done.
     Resolving deltas:   0% (0/195)
-Resolving deltas:   1% (2/195)
-Resolving deltas:   3% (7/195)
-Resolving deltas:   7% (14/195)
-Resolving deltas:   8% (16/195)
-Resolving deltas:  16% (32/195)
-Resolving deltas:  17% (35/195)
-Resolving deltas:  18% (37/195)
-Resolving deltas:  19% (38/195)
-Resolving deltas:  20% (40/195)
-Resolving deltas:  21% (41/195)
-Resolving deltas:  22% (43/195)
-Resolving deltas:  27% (53/195)
-Resolving deltas:  42% (83/195)
-Resolving deltas:  44% (87/195)
-Resolving deltas:  47% (93/195)
-Resolving deltas:  55% (108/195)
-Resolving deltas:  56% (111/195)
-Resolving deltas:  57% (112/195)
-Resolving deltas:  58% (114/195)
-Resolving deltas:  60% (117/195)
-Resolving deltas:  61% (119/195)
-Resolving deltas:  63% (123/195)
-Resolving deltas:  65% (127/195)
-Resolving deltas:  69% (135/195)
-Resolving deltas:  70% (138/195)
-Resolving deltas:  71% (139/195)
-Resolving deltas:  72% (142/195)
-Resolving deltas:  75% (148/195)
-Resolving deltas:  76% (149/195)
-Resolving deltas:  78% (153/195)
-Resolving deltas:  80% (157/195)
-Resolving deltas:  82% (160/195)
-Resolving deltas: 100% (195/195)
-Resolving deltas: 100% (195/195), done.
+    Resolving deltas:   3% (7/195)
+    Resolving deltas:   6% (13/195)
+    Resolving deltas:   7% (15/195)
+    Resolving deltas:  16% (33/195)
+    Resolving deltas:  18% (37/195)
+    Resolving deltas:  20% (39/195)
+    Resolving deltas:  21% (42/195)
+    Resolving deltas:  22% (44/195)
+    Resolving deltas:  27% (54/195)
+    Resolving deltas:  30% (60/195)
+    Resolving deltas:  41% (80/195)
+    Resolving deltas:  48% (94/195)
+    Resolving deltas:  52% (102/195)
+    Resolving deltas:  53% (104/195)
+    Resolving deltas:  54% (107/195)
+    Resolving deltas:  56% (110/195)
+    Resolving deltas:  57% (113/195)
+    Resolving deltas:  60% (117/195)
+    Resolving deltas:  61% (119/195)
+    Resolving deltas:  62% (122/195)
+    Resolving deltas:  65% (128/195)
+    Resolving deltas:  69% (135/195)
+    Resolving deltas:  71% (139/195)
+    Resolving deltas:  72% (141/195)
+    Resolving deltas:  75% (147/195)
+    Resolving deltas:  76% (150/195)
+    Resolving deltas:  77% (152/195)
+    Resolving deltas:  78% (154/195)
+    Resolving deltas:  79% (155/195)
+    Resolving deltas:  81% (158/195)
+    Resolving deltas:  82% (161/195)
+    Resolving deltas: 100% (195/195)
+    Resolving deltas: 100% (195/195), done.
 
 
 .. parsed-literal::
@@ -476,431 +476,422 @@ Resolving deltas: 100% (195/195), done.
 
     remote: Enumerating objects: 424, done.[K
     remote: Counting objects:   0% (1/140)[K
-remote: Counting objects:   1% (2/140)[K
-remote: Counting objects:   2% (3/140)[K
-remote: Counting objects:   3% (5/140)[K
-remote: Counting objects:   4% (6/140)[K
-remote: Counting objects:   5% (7/140)[K
-remote: Counting objects:   6% (9/140)[K
-remote: Counting objects:   7% (10/140)[K
-remote: Counting objects:   8% (12/140)[K
-remote: Counting objects:   9% (13/140)[K
-remote: Counting objects:  10% (14/140)[K
-remote: Counting objects:  11% (16/140)[K
-remote: Counting objects:  12% (17/140)[K
-remote: Counting objects:  13% (19/140)[K
-remote: Counting objects:  14% (20/140)[K
-remote: Counting objects:  15% (21/140)[K
-remote: Counting objects:  16% (23/140)[K
-remote: Counting objects:  17% (24/140)[K
-remote: Counting objects:  18% (26/140)[K
-remote: Counting objects:  19% (27/140)[K
-remote: Counting objects:  20% (28/140)[K
-remote: Counting objects:  21% (30/140)[K
-remote: Counting objects:  22% (31/140)[K
-remote: Counting objects:  23% (33/140)[K
-remote: Counting objects:  24% (34/140)[K
-remote: Counting objects:  25% (35/140)[K
-remote: Counting objects:  26% (37/140)[K
-remote: Counting objects:  27% (38/140)[K
-remote: Counting objects:  28% (40/140)[K
-remote: Counting objects:  29% (41/140)[K
-remote: Counting objects:  30% (42/140)[K
-remote: Counting objects:  31% (44/140)[K
-remote: Counting objects:  32% (45/140)[K
-remote: Counting objects:  33% (47/140)[K
-remote: Counting objects:  34% (48/140)[K
-remote: Counting objects:  35% (49/140)[K
-remote: Counting objects:  36% (51/140)[K
-remote: Counting objects:  37% (52/140)[K
-remote: Counting objects:  38% (54/140)[K
-remote: Counting objects:  39% (55/140)[K
-remote: Counting objects:  40% (56/140)[K
-remote: Counting objects:  41% (58/140)[K
-remote: Counting objects:  42% (59/140)[K
-remote: Counting objects:  43% (61/140)[K
-remote: Counting objects:  44% (62/140)[K
-remote: Counting objects:  45% (63/140)[K
-remote: Counting objects:  46% (65/140)[K
-remote: Counting objects:  47% (66/140)[K
-remote: Counting objects:  48% (68/140)[K
-remote: Counting objects:  49% (69/140)[K
-remote: Counting objects:  50% (70/140)[K
-remote: Counting objects:  51% (72/140)[K
-remote: Counting objects:  52% (73/140)[K
-remote: Counting objects:  53% (75/140)[K
-remote: Counting objects:  54% (76/140)[K
-remote: Counting objects:  55% (77/140)[K
-remote: Counting objects:  56% (79/140)[K
-remote: Counting objects:  57% (80/140)[K
-remote: Counting objects:  58% (82/140)[K
-remote: Counting objects:  59% (83/140)[K
-remote: Counting objects:  60% (84/140)[K
-remote: Counting objects:  61% (86/140)[K
-remote: Counting objects:  62% (87/140)[K
-remote: Counting objects:  63% (89/140)[K
-remote: Counting objects:  64% (90/140)[K
-remote: Counting objects:  65% (91/140)[K
-remote: Counting objects:  66% (93/140)[K
-remote: Counting objects:  67% (94/140)[K
-remote: Counting objects:  68% (96/140)[K
-remote: Counting objects:  69% (97/140)[K
-remote: Counting objects:  70% (98/140)[K
-remote: Counting objects:  71% (100/140)[K
-remote: Counting objects:  72% (101/140)[K
-remote: Counting objects:  73% (103/140)[K
-remote: Counting objects:  74% (104/140)[K
-remote: Counting objects:  75% (105/140)[K
-remote: Counting objects:  76% (107/140)[K
-remote: Counting objects:  77% (108/140)[K
-remote: Counting objects:  78% (110/140)[K
-remote: Counting objects:  79% (111/140)[K
-remote: Counting objects:  80% (112/140)[K
-remote: Counting objects:  81% (114/140)[K
-remote: Counting objects:  82% (115/140)[K
-remote: Counting objects:  83% (117/140)[K
-remote: Counting objects:  84% (118/140)[K
-remote: Counting objects:  85% (119/140)[K
-remote: Counting objects:  86% (121/140)[K
-remote: Counting objects:  87% (122/140)[K
+    remote: Counting objects:   1% (2/140)[K
+    remote: Counting objects:   2% (3/140)[K
+    remote: Counting objects:   3% (5/140)[K
+    remote: Counting objects:   4% (6/140)[K
+    remote: Counting objects:   5% (7/140)[K
+    remote: Counting objects:   6% (9/140)[K
+    remote: Counting objects:   7% (10/140)[K
+    remote: Counting objects:   8% (12/140)[K
+    remote: Counting objects:   9% (13/140)[K
+    remote: Counting objects:  10% (14/140)[K
+    remote: Counting objects:  11% (16/140)[K
+    remote: Counting objects:  12% (17/140)[K
+    remote: Counting objects:  13% (19/140)[K
+    remote: Counting objects:  14% (20/140)[K
+    remote: Counting objects:  15% (21/140)[K
+    remote: Counting objects:  16% (23/140)[K
+    remote: Counting objects:  17% (24/140)[K
+    remote: Counting objects:  18% (26/140)[K
+    remote: Counting objects:  19% (27/140)[K
+    remote: Counting objects:  20% (28/140)[K
+    remote: Counting objects:  21% (30/140)[K
+    remote: Counting objects:  22% (31/140)[K
+    remote: Counting objects:  23% (33/140)[K
+    remote: Counting objects:  24% (34/140)[K
+    remote: Counting objects:  25% (35/140)[K
+    remote: Counting objects:  26% (37/140)[K
+    remote: Counting objects:  27% (38/140)[K
+    remote: Counting objects:  28% (40/140)[K
+    remote: Counting objects:  29% (41/140)[K
+    remote: Counting objects:  30% (42/140)[K
+    remote: Counting objects:  31% (44/140)[K
+    remote: Counting objects:  32% (45/140)[K
+    remote: Counting objects:  33% (47/140)[K
+    remote: Counting objects:  34% (48/140)[K
+    remote: Counting objects:  35% (49/140)[K
+    remote: Counting objects:  36% (51/140)[K
+    remote: Counting objects:  37% (52/140)[K
+    remote: Counting objects:  38% (54/140)[K
+    remote: Counting objects:  39% (55/140)[K
+    remote: Counting objects:  40% (56/140)[K
+    remote: Counting objects:  41% (58/140)[K
+    remote: Counting objects:  42% (59/140)[K
+    remote: Counting objects:  43% (61/140)[K
+    remote: Counting objects:  44% (62/140)[K
+    remote: Counting objects:  45% (63/140)[K
+    remote: Counting objects:  46% (65/140)[K
+    remote: Counting objects:  47% (66/140)[K
+    remote: Counting objects:  48% (68/140)[K
+    remote: Counting objects:  49% (69/140)[K
+    remote: Counting objects:  50% (70/140)[K
+    remote: Counting objects:  51% (72/140)[K
+    remote: Counting objects:  52% (73/140)[K
+    remote: Counting objects:  53% (75/140)[K
+    remote: Counting objects:  54% (76/140)[K
+    remote: Counting objects:  55% (77/140)[K
+    remote: Counting objects:  56% (79/140)[K
+    remote: Counting objects:  57% (80/140)[K
+    remote: Counting objects:  58% (82/140)[K
+    remote: Counting objects:  59% (83/140)[K
+    remote: Counting objects:  60% (84/140)[K
+    remote: Counting objects:  61% (86/140)[K
+    remote: Counting objects:  62% (87/140)[K
+    remote: Counting objects:  63% (89/140)[K
+    remote: Counting objects:  64% (90/140)[K
+    remote: Counting objects:  65% (91/140)[K
+    remote: Counting objects:  66% (93/140)[K
+    remote: Counting objects:  67% (94/140)[K
+    remote: Counting objects:  68% (96/140)[K
+    remote: Counting objects:  69% (97/140)[K
+    remote: Counting objects:  70% (98/140)[K
+    remote: Counting objects:  71% (100/140)[K
+    remote: Counting objects:  72% (101/140)[K
+    remote: Counting objects:  73% (103/140)[K
+    remote: Counting objects:  74% (104/140)[K
+    remote: Counting objects:  75% (105/140)[K
+    remote: Counting objects:  76% (107/140)[K
+    remote: Counting objects:  77% (108/140)[K
+    remote: Counting objects:  78% (110/140)[K
+    remote: Counting objects:  79% (111/140)[K
+    remote: Counting objects:  80% (112/140)[K
+    remote: Counting objects:  81% (114/140)[K
+    remote: Counting objects:  82% (115/140)[K
+    remote: Counting objects:  83% (117/140)[K
+    remote: Counting objects:  84% (118/140)[K
+    remote: Counting objects:  85% (119/140)[K
+    remote: Counting objects:  86% (121/140)[K
+    remote: Counting objects:  87% (122/140)[K
 
 .. parsed-literal::
 
     remote: Counting objects:  88% (124/140)[K
-remote: Counting objects:  89% (125/140)[K
-remote: Counting objects:  90% (126/140)[K
-remote: Counting objects:  91% (128/140)[K
-remote: Counting objects:  92% (129/140)[K
-remote: Counting objects:  93% (131/140)[K
-remote: Counting objects:  94% (132/140)[K
-remote: Counting objects:  95% (133/140)[K
-remote: Counting objects:  96% (135/140)[K
-remote: Counting objects:  97% (136/140)[K
-remote: Counting objects:  98% (138/140)[K
-remote: Counting objects:  99% (139/140)[K
-remote: Counting objects: 100% (140/140)[K
-remote: Counting objects: 100% (140/140), done.[K
+    remote: Counting objects:  89% (125/140)[K
+    remote: Counting objects:  90% (126/140)[K
+    remote: Counting objects:  91% (128/140)[K
+    remote: Counting objects:  92% (129/140)[K
+    remote: Counting objects:  93% (131/140)[K
+    remote: Counting objects:  94% (132/140)[K
+    remote: Counting objects:  95% (133/140)[K
+    remote: Counting objects:  96% (135/140)[K
+    remote: Counting objects:  97% (136/140)[K
+    remote: Counting objects:  98% (138/140)[K
+    remote: Counting objects:  99% (139/140)[K
+    remote: Counting objects: 100% (140/140)[K
+    remote: Counting objects: 100% (140/140), done.[K
     remote: Compressing objects:   1% (1/85)[K
-remote: Compressing objects:   2% (2/85)[K
-remote: Compressing objects:   3% (3/85)[K
-remote: Compressing objects:   4% (4/85)[K
-remote: Compressing objects:   5% (5/85)[K
-remote: Compressing objects:   7% (6/85)[K
-remote: Compressing objects:   8% (7/85)[K
-remote: Compressing objects:   9% (8/85)[K
-remote: Compressing objects:  10% (9/85)[K
-remote: Compressing objects:  11% (10/85)[K
+    remote: Compressing objects:   2% (2/85)[K
+    remote: Compressing objects:   3% (3/85)[K
+    remote: Compressing objects:   4% (4/85)[K
+    remote: Compressing objects:   5% (5/85)[K
+    remote: Compressing objects:   7% (6/85)[K
+    remote: Compressing objects:   8% (7/85)[K
+    remote: Compressing objects:   9% (8/85)[K
+    remote: Compressing objects:  10% (9/85)[K
+    remote: Compressing objects:  11% (10/85)[K
 
 .. parsed-literal::
 
     remote: Compressing objects:  12% (11/85)[K
-remote: Compressing objects:  14% (12/85)[K
-remote: Compressing objects:  15% (13/85)[K
-remote: Compressing objects:  16% (14/85)[K
-remote: Compressing objects:  17% (15/85)[K
-remote: Compressing objects:  18% (16/85)[K
-remote: Compressing objects:  20% (17/85)[K
-remote: Compressing objects:  21% (18/85)[K
-remote: Compressing objects:  22% (19/85)[K
-remote: Compressing objects:  23% (20/85)[K
-remote: Compressing objects:  24% (21/85)[K
-remote: Compressing objects:  25% (22/85)[K
-remote: Compressing objects:  27% (23/85)[K
-remote: Compressing objects:  28% (24/85)[K
-remote: Compressing objects:  29% (25/85)[K
-remote: Compressing objects:  30% (26/85)[K
-remote: Compressing objects:  31% (27/85)[K
-remote: Compressing objects:  32% (28/85)[K
-remote: Compressing objects:  34% (29/85)[K
-remote: Compressing objects:  35% (30/85)[K
-remote: Compressing objects:  36% (31/85)[K
-remote: Compressing objects:  37% (32/85)[K
-remote: Compressing objects:  38% (33/85)[K
-remote: Compressing objects:  40% (34/85)[K
-remote: Compressing objects:  41% (35/85)[K
-remote: Compressing objects:  42% (36/85)[K
-remote: Compressing objects:  43% (37/85)[K
-remote: Compressing objects:  44% (38/85)[K
-remote: Compressing objects:  45% (39/85)[K
-remote: Compressing objects:  47% (40/85)[K
-remote: Compressing objects:  48% (41/85)[K
-remote: Compressing objects:  49% (42/85)[K
-remote: Compressing objects:  50% (43/85)[K
-remote: Compressing objects:  51% (44/85)[K
-remote: Compressing objects:  52% (45/85)[K
-remote: Compressing objects:  54% (46/85)[K
-remote: Compressing objects:  55% (47/85)[K
-remote: Compressing objects:  56% (48/85)[K
-remote: Compressing objects:  57% (49/85)[K
-remote: Compressing objects:  58% (50/85)[K
-remote: Compressing objects:  60% (51/85)[K
-remote: Compressing objects:  61% (52/85)[K
-remote: Compressing objects:  62% (53/85)[K
-remote: Compressing objects:  63% (54/85)[K
-remote: Compressing objects:  64% (55/85)[K
-remote: Compressing objects:  65% (56/85)[K
-remote: Compressing objects:  67% (57/85)[K
-remote: Compressing objects:  68% (58/85)[K
-remote: Compressing objects:  69% (59/85)[K
-remote: Compressing objects:  70% (60/85)[K
-remote: Compressing objects:  71% (61/85)[K
-remote: Compressing objects:  72% (62/85)[K
-remote: Compressing objects:  74% (63/85)[K
-remote: Compressing objects:  75% (64/85)[K
-remote: Compressing objects:  76% (65/85)[K
-remote: Compressing objects:  77% (66/85)[K
-remote: Compressing objects:  78% (67/85)[K
-remote: Compressing objects:  80% (68/85)[K
-remote: Compressing objects:  81% (69/85)[K
-remote: Compressing objects:  82% (70/85)[K
-remote: Compressing objects:  83% (71/85)[K
-remote: Compressing objects:  84% (72/85)[K
-remote: Compressing objects:  85% (73/85)[K
-remote: Compressing objects:  87% (74/85)[K
-remote: Compressing objects:  88% (75/85)[K
-remote: Compressing objects:  89% (76/85)[K
-remote: Compressing objects:  90% (77/85)[K
-remote: Compressing objects:  91% (78/85)[K
-remote: Compressing objects:  92% (79/85)[K
-remote: Compressing objects:  94% (80/85)[K
-remote: Compressing objects:  95% (81/85)[K
-remote: Compressing objects:  96% (82/85)[K
-remote: Compressing objects:  97% (83/85)[K
-remote: Compressing objects:  98% (84/85)[K
-remote: Compressing objects: 100% (85/85)[K
-remote: Compressing objects: 100% (85/85), done.[K
+    remote: Compressing objects:  14% (12/85)[K
+    remote: Compressing objects:  15% (13/85)[K
+    remote: Compressing objects:  16% (14/85)[K
+    remote: Compressing objects:  17% (15/85)[K
+    remote: Compressing objects:  18% (16/85)[K
+    remote: Compressing objects:  20% (17/85)[K
+    remote: Compressing objects:  21% (18/85)[K
+    remote: Compressing objects:  22% (19/85)[K
+    remote: Compressing objects:  23% (20/85)[K
+    remote: Compressing objects:  24% (21/85)[K
+    remote: Compressing objects:  25% (22/85)[K
+    remote: Compressing objects:  27% (23/85)[K
+    remote: Compressing objects:  28% (24/85)[K
+    remote: Compressing objects:  29% (25/85)[K
+    remote: Compressing objects:  30% (26/85)[K
+    remote: Compressing objects:  31% (27/85)[K
+    remote: Compressing objects:  32% (28/85)[K
+    remote: Compressing objects:  34% (29/85)[K
+    remote: Compressing objects:  35% (30/85)[K
+    remote: Compressing objects:  36% (31/85)[K
+    remote: Compressing objects:  37% (32/85)[K
+    remote: Compressing objects:  38% (33/85)[K
+    remote: Compressing objects:  40% (34/85)[K
+    remote: Compressing objects:  41% (35/85)[K
+    remote: Compressing objects:  42% (36/85)[K
+    remote: Compressing objects:  43% (37/85)[K
+    remote: Compressing objects:  44% (38/85)[K
+    remote: Compressing objects:  45% (39/85)[K
+    remote: Compressing objects:  47% (40/85)[K
+    remote: Compressing objects:  48% (41/85)[K
+    remote: Compressing objects:  49% (42/85)[K
+    remote: Compressing objects:  50% (43/85)[K
+    remote: Compressing objects:  51% (44/85)[K
+    remote: Compressing objects:  52% (45/85)[K
+    remote: Compressing objects:  54% (46/85)[K
+    remote: Compressing objects:  55% (47/85)[K
+    remote: Compressing objects:  56% (48/85)[K
+    remote: Compressing objects:  57% (49/85)[K
+    remote: Compressing objects:  58% (50/85)[K
+    remote: Compressing objects:  60% (51/85)[K
+    remote: Compressing objects:  61% (52/85)[K
+    remote: Compressing objects:  62% (53/85)[K
+    remote: Compressing objects:  63% (54/85)[K
+    remote: Compressing objects:  64% (55/85)[K
+    remote: Compressing objects:  65% (56/85)[K
+    remote: Compressing objects:  67% (57/85)[K
+    remote: Compressing objects:  68% (58/85)[K
+    remote: Compressing objects:  69% (59/85)[K
+    remote: Compressing objects:  70% (60/85)[K
+    remote: Compressing objects:  71% (61/85)[K
+    remote: Compressing objects:  72% (62/85)[K
+    remote: Compressing objects:  74% (63/85)[K
+    remote: Compressing objects:  75% (64/85)[K
+    remote: Compressing objects:  76% (65/85)[K
+    remote: Compressing objects:  77% (66/85)[K
+    remote: Compressing objects:  78% (67/85)[K
+    remote: Compressing objects:  80% (68/85)[K
+    remote: Compressing objects:  81% (69/85)[K
+    remote: Compressing objects:  82% (70/85)[K
+    remote: Compressing objects:  83% (71/85)[K
+    remote: Compressing objects:  84% (72/85)[K
+    remote: Compressing objects:  85% (73/85)[K
+    remote: Compressing objects:  87% (74/85)[K
+    remote: Compressing objects:  88% (75/85)[K
+    remote: Compressing objects:  89% (76/85)[K
+    remote: Compressing objects:  90% (77/85)[K
+    remote: Compressing objects:  91% (78/85)[K
+    remote: Compressing objects:  92% (79/85)[K
+    remote: Compressing objects:  94% (80/85)[K
+    remote: Compressing objects:  95% (81/85)[K
+    remote: Compressing objects:  96% (82/85)[K
+    remote: Compressing objects:  97% (83/85)[K
+    remote: Compressing objects:  98% (84/85)[K
+    remote: Compressing objects: 100% (85/85)[K
+    remote: Compressing objects: 100% (85/85), done.[K
     Receiving objects:   0% (1/424)
 
 .. parsed-literal::
 
     Receiving objects:   1% (5/424)
-Receiving objects:   2% (9/424)
-Receiving objects:   3% (13/424)
-Receiving objects:   4% (17/424)
-
-.. parsed-literal::
-
+    Receiving objects:   2% (9/424)
+    Receiving objects:   3% (13/424)
+    Receiving objects:   4% (17/424)
     Receiving objects:   5% (22/424)
-Receiving objects:   6% (26/424)
+    Receiving objects:   6% (26/424)
 
 .. parsed-literal::
 
-    Receiving objects:   6% (26/424), 20.47 MiB | 20.46 MiB/s
+    Receiving objects:   6% (26/424), 23.67 MiB | 22.44 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:   6% (29/424), 42.52 MiB | 21.15 MiB/s
+    Receiving objects:   6% (29/424), 47.59 MiB | 23.09 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:   6% (29/424), 64.88 MiB | 21.43 MiB/s
+    Receiving objects:   6% (29/424), 71.81 MiB | 23.39 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:   7% (30/424), 72.89 MiB | 20.50 MiB/s
-Receiving objects:   8% (34/424), 72.89 MiB | 20.50 MiB/s
-Receiving objects:   9% (39/424), 72.89 MiB | 20.50 MiB/s
-Receiving objects:  10% (43/424), 72.89 MiB | 20.50 MiB/s
-Receiving objects:  11% (47/424), 72.89 MiB | 20.50 MiB/s
+    Receiving objects:   7% (30/424), 71.81 MiB | 23.39 MiB/s
+    Receiving objects:   8% (34/424), 71.81 MiB | 23.39 MiB/s
+    Receiving objects:   9% (39/424), 71.81 MiB | 23.39 MiB/s
+    Receiving objects:  10% (43/424), 71.81 MiB | 23.39 MiB/s
+    Receiving objects:  11% (47/424), 71.81 MiB | 23.39 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  12% (51/424), 72.89 MiB | 20.50 MiB/s
-Receiving objects:  13% (56/424), 72.89 MiB | 20.50 MiB/s
-Receiving objects:  14% (60/424), 72.89 MiB | 20.50 MiB/s
-Receiving objects:  15% (64/424), 72.89 MiB | 20.50 MiB/s
-Receiving objects:  16% (68/424), 72.89 MiB | 20.50 MiB/s
-Receiving objects:  17% (73/424), 72.89 MiB | 20.50 MiB/s
-Receiving objects:  18% (77/424), 72.89 MiB | 20.50 MiB/s
-Receiving objects:  19% (81/424), 72.89 MiB | 20.50 MiB/s
-Receiving objects:  20% (85/424), 72.89 MiB | 20.50 MiB/s
-Receiving objects:  21% (90/424), 72.89 MiB | 20.50 MiB/s
-Receiving objects:  22% (94/424), 72.89 MiB | 20.50 MiB/s
-Receiving objects:  23% (98/424), 72.89 MiB | 20.50 MiB/s
-Receiving objects:  24% (102/424), 72.89 MiB | 20.50 MiB/s
-Receiving objects:  25% (106/424), 72.89 MiB | 20.50 MiB/s
-Receiving objects:  26% (111/424), 72.89 MiB | 20.50 MiB/s
-Receiving objects:  27% (115/424), 72.89 MiB | 20.50 MiB/s
+    Receiving objects:  12% (51/424), 71.81 MiB | 23.39 MiB/s
+    Receiving objects:  13% (56/424), 71.81 MiB | 23.39 MiB/s
+    Receiving objects:  14% (60/424), 71.81 MiB | 23.39 MiB/s
+    Receiving objects:  15% (64/424), 71.81 MiB | 23.39 MiB/s
+    Receiving objects:  16% (68/424), 71.81 MiB | 23.39 MiB/s
+    Receiving objects:  17% (73/424), 71.81 MiB | 23.39 MiB/s
+    Receiving objects:  18% (77/424), 71.81 MiB | 23.39 MiB/s
+    Receiving objects:  19% (81/424), 71.81 MiB | 23.39 MiB/s
+    Receiving objects:  20% (85/424), 71.81 MiB | 23.39 MiB/s
+    Receiving objects:  21% (90/424), 71.81 MiB | 23.39 MiB/s
+    Receiving objects:  22% (94/424), 71.81 MiB | 23.39 MiB/s
+    Receiving objects:  23% (98/424), 71.81 MiB | 23.39 MiB/s
+    Receiving objects:  24% (102/424), 71.81 MiB | 23.39 MiB/s
+    Receiving objects:  25% (106/424), 71.81 MiB | 23.39 MiB/s
+    Receiving objects:  26% (111/424), 71.81 MiB | 23.39 MiB/s
+    Receiving objects:  27% (115/424), 71.81 MiB | 23.39 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  27% (115/424), 83.68 MiB | 20.63 MiB/s
+    Receiving objects:  27% (115/424), 96.55 MiB | 23.70 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  27% (115/424), 107.54 MiB | 21.41 MiB/s
+    Receiving objects:  27% (115/424), 121.73 MiB | 24.22 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  27% (115/424), 131.54 MiB | 21.79 MiB/s
+    Receiving objects:  27% (115/424), 147.58 MiB | 24.64 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  27% (115/424), 156.82 MiB | 22.49 MiB/s
+    Receiving objects:  27% (116/424), 160.44 MiB | 24.90 MiB/s
+    Receiving objects:  28% (119/424), 160.44 MiB | 24.90 MiB/s
+    Receiving objects:  29% (123/424), 160.44 MiB | 24.90 MiB/s
+    Receiving objects:  30% (128/424), 160.44 MiB | 24.90 MiB/s
+    Receiving objects:  31% (132/424), 160.44 MiB | 24.90 MiB/s
+    Receiving objects:  32% (136/424), 160.44 MiB | 24.90 MiB/s
+    Receiving objects:  33% (140/424), 160.44 MiB | 24.90 MiB/s
+    Receiving objects:  34% (145/424), 160.44 MiB | 24.90 MiB/s
+    Receiving objects:  35% (149/424), 160.44 MiB | 24.90 MiB/s
+    Receiving objects:  36% (153/424), 160.44 MiB | 24.90 MiB/s
+    Receiving objects:  37% (157/424), 160.44 MiB | 24.90 MiB/s
+    Receiving objects:  38% (162/424), 160.44 MiB | 24.90 MiB/s
+    Receiving objects:  39% (166/424), 160.44 MiB | 24.90 MiB/s
+    Receiving objects:  40% (170/424), 160.44 MiB | 24.90 MiB/s
+    Receiving objects:  41% (174/424), 160.44 MiB | 24.90 MiB/s
+    Receiving objects:  42% (179/424), 160.44 MiB | 24.90 MiB/s
+    Receiving objects:  43% (183/424), 160.44 MiB | 24.90 MiB/s
+    Receiving objects:  44% (187/424), 160.44 MiB | 24.90 MiB/s
+    Receiving objects:  45% (191/424), 160.44 MiB | 24.90 MiB/s
+    Receiving objects:  46% (196/424), 160.44 MiB | 24.90 MiB/s
+    Receiving objects:  47% (200/424), 160.44 MiB | 24.90 MiB/s
+    Receiving objects:  48% (204/424), 160.44 MiB | 24.90 MiB/s
+    Receiving objects:  49% (208/424), 160.44 MiB | 24.90 MiB/s
+    Receiving objects:  50% (212/424), 160.44 MiB | 24.90 MiB/s
+    Receiving objects:  51% (217/424), 160.44 MiB | 24.90 MiB/s
+    Receiving objects:  52% (221/424), 160.44 MiB | 24.90 MiB/s
+    Receiving objects:  53% (225/424), 160.44 MiB | 24.90 MiB/s
+    Receiving objects:  54% (229/424), 160.44 MiB | 24.90 MiB/s
+    Receiving objects:  55% (234/424), 160.44 MiB | 24.90 MiB/s
+    Receiving objects:  56% (238/424), 160.44 MiB | 24.90 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  28% (119/424), 169.11 MiB | 22.60 MiB/s
-Receiving objects:  29% (123/424), 169.11 MiB | 22.60 MiB/s
-Receiving objects:  30% (128/424), 169.11 MiB | 22.60 MiB/s
-Receiving objects:  31% (132/424), 169.11 MiB | 22.60 MiB/s
-Receiving objects:  32% (136/424), 169.11 MiB | 22.60 MiB/s
-Receiving objects:  33% (140/424), 169.11 MiB | 22.60 MiB/s
-Receiving objects:  34% (145/424), 169.11 MiB | 22.60 MiB/s
-Receiving objects:  35% (149/424), 169.11 MiB | 22.60 MiB/s
-Receiving objects:  36% (153/424), 169.11 MiB | 22.60 MiB/s
-Receiving objects:  37% (157/424), 169.11 MiB | 22.60 MiB/s
-Receiving objects:  38% (162/424), 169.11 MiB | 22.60 MiB/s
-Receiving objects:  39% (166/424), 169.11 MiB | 22.60 MiB/s
-Receiving objects:  40% (170/424), 169.11 MiB | 22.60 MiB/s
-Receiving objects:  41% (174/424), 169.11 MiB | 22.60 MiB/s
-Receiving objects:  42% (179/424), 169.11 MiB | 22.60 MiB/s
-Receiving objects:  43% (183/424), 169.11 MiB | 22.60 MiB/s
-Receiving objects:  44% (187/424), 169.11 MiB | 22.60 MiB/s
-Receiving objects:  45% (191/424), 169.11 MiB | 22.60 MiB/s
-Receiving objects:  46% (196/424), 169.11 MiB | 22.60 MiB/s
-Receiving objects:  47% (200/424), 169.11 MiB | 22.60 MiB/s
-Receiving objects:  48% (204/424), 169.11 MiB | 22.60 MiB/s
-Receiving objects:  49% (208/424), 169.11 MiB | 22.60 MiB/s
-Receiving objects:  50% (212/424), 169.11 MiB | 22.60 MiB/s
-Receiving objects:  51% (217/424), 169.11 MiB | 22.60 MiB/s
-Receiving objects:  52% (221/424), 169.11 MiB | 22.60 MiB/s
-Receiving objects:  53% (225/424), 169.11 MiB | 22.60 MiB/s
-Receiving objects:  54% (229/424), 169.11 MiB | 22.60 MiB/s
-Receiving objects:  55% (234/424), 169.11 MiB | 22.60 MiB/s
-Receiving objects:  56% (238/424), 169.11 MiB | 22.60 MiB/s
+    Receiving objects:  56% (240/424), 199.48 MiB | 25.32 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  56% (240/424), 181.91 MiB | 23.78 MiB/s
+    Receiving objects:  57% (242/424), 199.48 MiB | 25.32 MiB/s
+    Receiving objects:  58% (246/424), 199.48 MiB | 25.32 MiB/s
+    Receiving objects:  59% (251/424), 199.48 MiB | 25.32 MiB/s
+    Receiving objects:  60% (255/424), 199.48 MiB | 25.32 MiB/s
+    Receiving objects:  61% (259/424), 199.48 MiB | 25.32 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  56% (241/424), 195.30 MiB | 24.35 MiB/s
-Receiving objects:  57% (242/424), 195.30 MiB | 24.35 MiB/s
-Receiving objects:  58% (246/424), 195.30 MiB | 24.35 MiB/s
-Receiving objects:  59% (251/424), 195.30 MiB | 24.35 MiB/s
-Receiving objects:  60% (255/424), 195.30 MiB | 24.35 MiB/s
-Receiving objects:  61% (259/424), 195.30 MiB | 24.35 MiB/s
+    Receiving objects:  62% (263/424), 199.48 MiB | 25.32 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  62% (263/424), 209.77 MiB | 25.00 MiB/s
+    Receiving objects:  63% (268/424), 212.71 MiB | 25.62 MiB/s
+    Receiving objects:  64% (272/424), 212.71 MiB | 25.62 MiB/s
+    Receiving objects:  65% (276/424), 212.71 MiB | 25.62 MiB/s
+    Receiving objects:  66% (280/424), 212.71 MiB | 25.62 MiB/s
+    Receiving objects:  67% (285/424), 212.71 MiB | 25.62 MiB/s
+    Receiving objects:  68% (289/424), 212.71 MiB | 25.62 MiB/s
+    Receiving objects:  69% (293/424), 212.71 MiB | 25.62 MiB/s
+    Receiving objects:  70% (297/424), 212.71 MiB | 25.62 MiB/s
+    Receiving objects:  71% (302/424), 212.71 MiB | 25.62 MiB/s
+    Receiving objects:  72% (306/424), 212.71 MiB | 25.62 MiB/s
+    Receiving objects:  73% (310/424), 212.71 MiB | 25.62 MiB/s
+    Receiving objects:  74% (314/424), 212.71 MiB | 25.62 MiB/s
+    Receiving objects:  75% (318/424), 212.71 MiB | 25.62 MiB/s
+    Receiving objects:  76% (323/424), 212.71 MiB | 25.62 MiB/s
+    Receiving objects:  77% (327/424), 212.71 MiB | 25.62 MiB/s
+    Receiving objects:  78% (331/424), 212.71 MiB | 25.62 MiB/s
+    Receiving objects:  79% (335/424), 212.71 MiB | 25.62 MiB/s
+    Receiving objects:  80% (340/424), 212.71 MiB | 25.62 MiB/s
+    Receiving objects:  81% (344/424), 212.71 MiB | 25.62 MiB/s
+    Receiving objects:  82% (348/424), 212.71 MiB | 25.62 MiB/s
+    Receiving objects:  83% (352/424), 212.71 MiB | 25.62 MiB/s
+    Receiving objects:  84% (357/424), 212.71 MiB | 25.62 MiB/s
+    Receiving objects:  85% (361/424), 212.71 MiB | 25.62 MiB/s
+    Receiving objects:  86% (365/424), 212.71 MiB | 25.62 MiB/s
+    Receiving objects:  87% (369/424), 212.71 MiB | 25.62 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  63% (268/424), 209.77 MiB | 25.00 MiB/s
-Receiving objects:  64% (272/424), 209.77 MiB | 25.00 MiB/s
-Receiving objects:  65% (276/424), 209.77 MiB | 25.00 MiB/s
-Receiving objects:  66% (280/424), 209.77 MiB | 25.00 MiB/s
-Receiving objects:  67% (285/424), 209.77 MiB | 25.00 MiB/s
-Receiving objects:  68% (289/424), 209.77 MiB | 25.00 MiB/s
-Receiving objects:  69% (293/424), 209.77 MiB | 25.00 MiB/s
-Receiving objects:  70% (297/424), 209.77 MiB | 25.00 MiB/s
-Receiving objects:  71% (302/424), 209.77 MiB | 25.00 MiB/s
-Receiving objects:  72% (306/424), 209.77 MiB | 25.00 MiB/s
-Receiving objects:  73% (310/424), 209.77 MiB | 25.00 MiB/s
-Receiving objects:  74% (314/424), 209.77 MiB | 25.00 MiB/s
-Receiving objects:  75% (318/424), 209.77 MiB | 25.00 MiB/s
-Receiving objects:  76% (323/424), 209.77 MiB | 25.00 MiB/s
-Receiving objects:  77% (327/424), 209.77 MiB | 25.00 MiB/s
-Receiving objects:  78% (331/424), 209.77 MiB | 25.00 MiB/s
-Receiving objects:  79% (335/424), 209.77 MiB | 25.00 MiB/s
-Receiving objects:  80% (340/424), 209.77 MiB | 25.00 MiB/s
-Receiving objects:  81% (344/424), 209.77 MiB | 25.00 MiB/s
-Receiving objects:  82% (348/424), 209.77 MiB | 25.00 MiB/s
-Receiving objects:  83% (352/424), 209.77 MiB | 25.00 MiB/s
-Receiving objects:  84% (357/424), 209.77 MiB | 25.00 MiB/s
-Receiving objects:  85% (361/424), 209.77 MiB | 25.00 MiB/s
-Receiving objects:  86% (365/424), 209.77 MiB | 25.00 MiB/s
-Receiving objects:  87% (369/424), 209.77 MiB | 25.00 MiB/s
+    Receiving objects:  87% (370/424), 226.00 MiB | 25.70 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  87% (370/424), 239.11 MiB | 26.23 MiB/s
+    Receiving objects:  87% (370/424), 252.82 MiB | 25.68 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  87% (371/424), 269.59 MiB | 27.42 MiB/s
+    Receiving objects:  87% (371/424), 280.32 MiB | 25.81 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  87% (372/424), 283.95 MiB | 27.91 MiB/s
+    Receiving objects:  88% (374/424), 295.71 MiB | 26.22 MiB/s
+    Receiving objects:  89% (378/424), 295.71 MiB | 26.22 MiB/s
+    Receiving objects:  90% (382/424), 295.71 MiB | 26.22 MiB/s
+    Receiving objects:  91% (386/424), 295.71 MiB | 26.22 MiB/s
+    Receiving objects:  92% (391/424), 295.71 MiB | 26.22 MiB/s
+    Receiving objects:  93% (395/424), 295.71 MiB | 26.22 MiB/s
+    Receiving objects:  94% (399/424), 295.71 MiB | 26.22 MiB/s
+    Receiving objects:  95% (403/424), 295.71 MiB | 26.22 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  88% (374/424), 283.95 MiB | 27.91 MiB/s
-Receiving objects:  89% (378/424), 283.95 MiB | 27.91 MiB/s
-Receiving objects:  90% (382/424), 283.95 MiB | 27.91 MiB/s
-Receiving objects:  91% (386/424), 283.95 MiB | 27.91 MiB/s
-Receiving objects:  92% (391/424), 283.95 MiB | 27.91 MiB/s
-Receiving objects:  93% (395/424), 283.95 MiB | 27.91 MiB/s
-Receiving objects:  94% (399/424), 283.95 MiB | 27.91 MiB/s
-Receiving objects:  95% (403/424), 283.95 MiB | 27.91 MiB/s
+    Receiving objects:  95% (407/424), 311.04 MiB | 26.50 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  95% (407/424), 331.23 MiB | 29.97 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  96% (408/424), 331.23 MiB | 29.97 MiB/s
-Receiving objects:  97% (412/424), 331.23 MiB | 29.97 MiB/s
-Receiving objects:  98% (416/424), 331.23 MiB | 29.97 MiB/s
-Receiving objects:  99% (420/424), 331.23 MiB | 29.97 MiB/s
-remote: Total 424 (delta 84), reused 99 (delta 55), pack-reused 284[K
-    Receiving objects: 100% (424/424), 331.23 MiB | 29.97 MiB/s
-Receiving objects: 100% (424/424), 334.57 MiB | 25.17 MiB/s, done.
+    Receiving objects:  96% (408/424), 326.82 MiB | 27.05 MiB/s
+    Receiving objects:  97% (412/424), 326.82 MiB | 27.05 MiB/s
+    Receiving objects:  98% (416/424), 326.82 MiB | 27.05 MiB/s
+    Receiving objects:  99% (420/424), 326.82 MiB | 27.05 MiB/s
+    remote: Total 424 (delta 84), reused 99 (delta 55), pack-reused 284[K
+    Receiving objects: 100% (424/424), 326.82 MiB | 27.05 MiB/s
+    Receiving objects: 100% (424/424), 334.57 MiB | 25.64 MiB/s, done.
     Resolving deltas:   0% (0/226)
-Resolving deltas:   5% (12/226)
-Resolving deltas:   7% (18/226)
-Resolving deltas:   9% (22/226)
+    Resolving deltas:   4% (11/226)
+    Resolving deltas:   7% (17/226)
+    Resolving deltas:   9% (22/226)
+    Resolving deltas:  15% (35/226)
+    Resolving deltas:  17% (39/226)
+    Resolving deltas:  19% (43/226)
+    Resolving deltas:  23% (53/226)
 
 .. parsed-literal::
 
-    Resolving deltas:  15% (35/226)
-Resolving deltas:  17% (39/226)
-Resolving deltas:  19% (44/226)
-Resolving deltas:  23% (54/226)
-Resolving deltas:  26% (59/226)
+    Resolving deltas:  26% (59/226)
 
 .. parsed-literal::
 
     Resolving deltas:  28% (65/226)
-Resolving deltas:  35% (81/226)
-Resolving deltas:  36% (83/226)
-Resolving deltas:  39% (89/226)
-Resolving deltas:  42% (95/226)
-Resolving deltas:  46% (104/226)
-Resolving deltas:  50% (114/226)
-Resolving deltas:  51% (116/226)
-Resolving deltas:  55% (125/226)
-Resolving deltas:  58% (133/226)
-Resolving deltas:  59% (135/226)
-Resolving deltas:  60% (136/226)
+    Resolving deltas:  35% (81/226)
+    Resolving deltas:  36% (83/226)
+    Resolving deltas:  39% (89/226)
+    Resolving deltas:  42% (95/226)
+    Resolving deltas:  46% (104/226)
+    Resolving deltas:  50% (114/226)
+    Resolving deltas:  51% (116/226)
+    Resolving deltas:  55% (125/226)
+    Resolving deltas:  58% (133/226)
+    Resolving deltas:  59% (135/226)
+    Resolving deltas:  60% (136/226)
 
 .. parsed-literal::
 
     Resolving deltas:  61% (138/226)
-Resolving deltas:  69% (157/226)
-Resolving deltas:  82% (187/226)
-Resolving deltas:  91% (207/226)
-Resolving deltas:  92% (208/226)
-Resolving deltas:  93% (212/226)
-Resolving deltas:  94% (213/226)
-Resolving deltas:  95% (215/226)
-Resolving deltas:  96% (217/226)
-Resolving deltas:  97% (220/226)
+    Resolving deltas:  69% (158/226)
+    Resolving deltas:  83% (188/226)
+    Resolving deltas:  92% (208/226)
+    Resolving deltas:  94% (213/226)
+    Resolving deltas:  95% (215/226)
+    Resolving deltas:  96% (217/226)
+    Resolving deltas:  97% (220/226)
+    Resolving deltas:  98% (222/226)
 
 .. parsed-literal::
 
-    Resolving deltas:  98% (223/226)
-Resolving deltas:  99% (224/226)
+    Resolving deltas:  99% (224/226)
 
 .. parsed-literal::
 
     Resolving deltas: 100% (226/226)
-Resolving deltas: 100% (226/226), done.
+    Resolving deltas: 100% (226/226), done.
 
 
 .. code:: ipython3
@@ -978,8 +969,7 @@ GroundingDINO imports
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/GroundingDINO/groundingdino/models/GroundingDINO/ms_deform_attn.py:31: UserWarning: Failed to load custom C++ ops. Running on CPU mode Only!
-      warnings.warn("Failed to load custom C++ ops. Running on CPU mode Only!")
+    UserWarning: Failed to load custom C++ ops. Running on CPU mode Only!
 
 
 .. code:: ipython3
@@ -1007,8 +997,7 @@ GroundingDINO imports
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/functional.py:507: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3549.)
-      return _VF.meshgrid(tensors, \*\*kwargs)  # type: ignore[attr-defined]
+    UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3549.)
 
 
 .. parsed-literal::
@@ -1075,82 +1064,70 @@ Convert GroundingDINO to OpenVINO IR format
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:962: FutureWarning: The `device` argument is deprecated and will be removed in v5 of Transformers.
-      warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/GroundingDINO/groundingdino/models/GroundingDINO/groundingdino.py:264: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if encoded_text.shape[1] > self.max_text_len:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/GroundingDINO/groundingdino/util/misc.py:506: TracerWarning: Iterating over a tensor might cause the trace to be incorrect. Passing a tensor of different shape won't change the number of iterations executed (and might lead to errors or silently give incorrect results).
-      torch.stack([img.shape[i] for img in tensor_list]).to(torch.float32)
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/GroundingDINO/groundingdino/util/misc.py:517: TracerWarning: Iterating over a tensor might cause the trace to be incorrect. Passing a tensor of different shape won't change the number of iterations executed (and might lead to errors or silently give incorrect results).
-      for img in tensor_list:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/GroundingDINO/groundingdino/models/GroundingDINO/backbone/swin_transformer.py:486: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if W % self.patch_size[1] != 0:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/GroundingDINO/groundingdino/models/GroundingDINO/backbone/swin_transformer.py:488: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if H % self.patch_size[0] != 0:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/GroundingDINO/groundingdino/models/GroundingDINO/backbone/swin_transformer.py:417: TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      Hp = int(np.ceil(H / self.window_size)) * self.window_size
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/GroundingDINO/groundingdino/models/GroundingDINO/backbone/swin_transformer.py:418: TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      Wp = int(np.ceil(W / self.window_size)) * self.window_size
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/GroundingDINO/groundingdino/models/GroundingDINO/backbone/swin_transformer.py:247: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      assert L == H * W, "input feature has wrong size"
+    FutureWarning: The `device` argument is deprecated and will be removed in v5 of Transformers.
+    TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    TracerWarning: Iterating over a tensor might cause the trace to be incorrect. Passing a tensor of different shape won't change the number of iterations executed (and might lead to errors or silently give incorrect results).
+    TracerWarning: Iterating over a tensor might cause the trace to be incorrect. Passing a tensor of different shape won't change the number of iterations executed (and might lead to errors or silently give incorrect results).
+    TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/GroundingDINO/groundingdino/models/GroundingDINO/backbone/swin_transformer.py:71: TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      B = int(windows.shape[0] / (H * W / window_size / window_size))
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/GroundingDINO/groundingdino/models/GroundingDINO/backbone/swin_transformer.py:289: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if pad_r > 0 or pad_b > 0:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/GroundingDINO/groundingdino/models/GroundingDINO/backbone/swin_transformer.py:321: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      assert L == H * W, "input feature has wrong size"
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/GroundingDINO/groundingdino/models/GroundingDINO/backbone/swin_transformer.py:326: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      pad_input = (H % 2 == 1) or (W % 2 == 1)
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/GroundingDINO/groundingdino/models/GroundingDINO/backbone/swin_transformer.py:327: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if pad_input:
+    TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/GroundingDINO/groundingdino/models/GroundingDINO/transformer.py:244: TracerWarning: torch.as_tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
-      spatial_shapes = torch.as_tensor(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/GroundingDINO/groundingdino/models/GroundingDINO/transformer.py:468: TracerWarning: Iterating over a tensor might cause the trace to be incorrect. Passing a tensor of different shape won't change the number of iterations executed (and might lead to errors or silently give incorrect results).
-      for lvl, (H_, W_) in enumerate(spatial_shapes):
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/GroundingDINO/groundingdino/models/GroundingDINO/fuse_modules.py:176: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attn_weights.size() != (bsz * self.num_heads, tgt_len, src_len):
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/GroundingDINO/groundingdino/models/GroundingDINO/fuse_modules.py:227: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attn_output_v.size() != (bsz * self.num_heads, tgt_len, self.head_dim):
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/GroundingDINO/groundingdino/models/GroundingDINO/fuse_modules.py:232: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attn_output_l.size() != (bsz * self.num_heads, src_len, self.head_dim):
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/GroundingDINO/groundingdino/models/GroundingDINO/transformer_vanilla.py:109: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if src_mask.dim() == 3 and src_mask.shape[0] == src.shape[1]:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/GroundingDINO/groundingdino/models/GroundingDINO/ms_deform_attn.py:287: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      assert (spatial_shapes[:, 0] * spatial_shapes[:, 1]).sum() == num_value
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/GroundingDINO/groundingdino/models/GroundingDINO/ms_deform_attn.py:309: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if reference_points.shape[-1] == 2:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/GroundingDINO/groundingdino/models/GroundingDINO/ms_deform_attn.py:102: TracerWarning: Iterating over a tensor might cause the trace to be incorrect. Passing a tensor of different shape won't change the number of iterations executed (and might lead to errors or silently give incorrect results).
-      value_list = value.split([H_ * W_ for H_, W_ in value_spatial_shapes], dim=1)
+    TracerWarning: torch.as_tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+    TracerWarning: Iterating over a tensor might cause the trace to be incorrect. Passing a tensor of different shape won't change the number of iterations executed (and might lead to errors or silently give incorrect results).
+    TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    TracerWarning: Iterating over a tensor might cause the trace to be incorrect. Passing a tensor of different shape won't change the number of iterations executed (and might lead to errors or silently give incorrect results).
+    TracerWarning: Iterating over a tensor might cause the trace to be incorrect. Passing a tensor of different shape won't change the number of iterations executed (and might lead to errors or silently give incorrect results).
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/GroundingDINO/groundingdino/models/GroundingDINO/ms_deform_attn.py:105: TracerWarning: Iterating over a tensor might cause the trace to be incorrect. Passing a tensor of different shape won't change the number of iterations executed (and might lead to errors or silently give incorrect results).
-      for level, (H_, W_) in enumerate(value_spatial_shapes):
+    TracerWarning: Iterating over a tensor might cause the trace to be incorrect. Passing a tensor of different shape won't change the number of iterations executed (and might lead to errors or silently give incorrect results).
+    TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/GroundingDINO/groundingdino/models/GroundingDINO/utils.py:72: TracerWarning: Iterating over a tensor might cause the trace to be incorrect. Passing a tensor of different shape won't change the number of iterations executed (and might lead to errors or silently give incorrect results).
-      for lvl, (H_, W_) in enumerate(spatial_shapes):
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/GroundingDINO/groundingdino/models/GroundingDINO/transformer.py:667: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if reference_points.shape[-1] == 4:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/GroundingDINO/groundingdino/models/GroundingDINO/utils.py:216: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if pos_tensor.size(-1) == 2:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/GroundingDINO/groundingdino/models/GroundingDINO/utils.py:218: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      elif pos_tensor.size(-1) == 4:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/GroundingDINO/groundingdino/models/GroundingDINO/ms_deform_attn.py:315: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      elif reference_points.shape[-1] == 4:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/GroundingDINO/groundingdino/models/GroundingDINO/transformer.py:704: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if output.isnan().any() | output.isinf().any():
+    output layer_id 0 is nan
+    num_nan 230400, num_inf 0
+    output layer_id 1 is nan
+    num_nan 230400, num_inf 0
+    output layer_id 2 is nan
+    num_nan 230400, num_inf 0
+
+
+.. parsed-literal::
+
+    output layer_id 3 is nan
+    num_nan 230400, num_inf 0
+    output layer_id 4 is nan
+    num_nan 230400, num_inf 0
+    output layer_id 5 is nan
+    num_nan 230400, num_inf 0
 
 
 Run OpenVINO optimized GroundingDINO
@@ -1301,14 +1278,14 @@ class, but the inference will be done using OpenVINO optimized model.
 
 .. parsed-literal::
 
-    2024-03-13 00:58:26.223873: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-03-13 00:58:26.261830: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-03-26 00:45:00.663225: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-03-26 00:45:00.700621: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 
 
 .. parsed-literal::
 
-    2024-03-13 00:58:26.819015: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-03-26 00:45:01.256256: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Convert predicted boxes to supervision box detections format
@@ -1339,9 +1316,14 @@ Draw box detections
     Image.fromarray(annotated_frame)
 
 
+.. parsed-literal::
+
+    SupervisionWarnings: BoxAnnotator is deprecated: `BoxAnnotator` is deprecated and will be removed in `supervision-0.22.0`. Use `BoundingBoxAnnotator` and `LabelAnnotator` instead
 
 
-.. image:: 288-grounded-segment-anything-with-output_files/288-grounded-segment-anything-with-output_29_0.png
+
+
+.. image:: 288-grounded-segment-anything-with-output_files/288-grounded-segment-anything-with-output_29_1.png
 
 
 
@@ -1383,28 +1365,19 @@ segmentation. First of all let’s convert ``SAM`` model to OpenVINO IR.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/EfficientSAM/efficient_sam/efficient_sam.py:220: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if (
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/EfficientSAM/efficient_sam/efficient_sam_encoder.py:241: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      assert (
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/EfficientSAM/efficient_sam/efficient_sam_encoder.py:163: TracerWarning: Converting a tensor to a Python float might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      size = int(math.sqrt(xy_num))
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/EfficientSAM/efficient_sam/efficient_sam_encoder.py:164: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      assert size * size == xy_num
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/EfficientSAM/efficient_sam/efficient_sam_encoder.py:166: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if size != h or size != w:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/EfficientSAM/efficient_sam/efficient_sam_encoder.py:251: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      assert x.shape[2] == num_patches
+    TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    TracerWarning: Converting a tensor to a Python float might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/EfficientSAM/efficient_sam/efficient_sam.py:85: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if num_pts > self.decoder_max_num_input_points:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/EfficientSAM/efficient_sam/efficient_sam.py:92: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      elif num_pts < self.decoder_max_num_input_points:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/288-grounded-segment-anything/EfficientSAM/efficient_sam/efficient_sam.py:126: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if output_w > 0 and output_h > 0:
+    TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
 
 
 Below is conversion of vanilla ``SAM``. This code is not used when
@@ -1599,9 +1572,14 @@ Combine both boxes and segmentation masks and draw them.
     Image.fromarray(annotated_image)
 
 
+.. parsed-literal::
+
+    SupervisionWarnings: BoxAnnotator is deprecated: `BoxAnnotator` is deprecated and will be removed in `supervision-0.22.0`. Use `BoundingBoxAnnotator` and `LabelAnnotator` instead
 
 
-.. image:: 288-grounded-segment-anything-with-output_files/288-grounded-segment-anything-with-output_45_0.png
+
+
+.. image:: 288-grounded-segment-anything-with-output_files/288-grounded-segment-anything-with-output_45_1.png
 
 
 

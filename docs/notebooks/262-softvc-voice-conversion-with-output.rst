@@ -38,7 +38,7 @@ Prerequisites
     %pip install -q --upgrade pip setuptools
     %pip install -q "openvino>=2023.2.0"
     !git clone https://github.com/svc-develop-team/so-vits-svc -b 4.1-Stable
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu  tqdm librosa "torch>=2.1.0" "torchaudio>=2.1.0" faiss-cpu gradio "numpy==1.23.5" "fairseq==0.12.2" praat-parselmouth
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu  tqdm librosa "torch>=2.1.0" "torchaudio>=2.1.0" faiss-cpu gradio "numpy>=1.23.5" "fairseq==0.12.2" praat-parselmouth
 
 Download pretrained models and configs. We use a recommended encoder
 `ContentVec <https://arxiv.org/abs/2204.09224>`__ and models from `a

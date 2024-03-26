@@ -104,8 +104,8 @@ Install requirements
 .. parsed-literal::
 
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    paddleclas 2.5.1 requires faiss-cpu==1.7.1.post2, but you have faiss-cpu 1.8.0 which is incompatible.
-    paddleclas 2.5.1 requires gast==0.3.3, but you have gast 0.4.0 which is incompatible.
+    paddleclas 2.5.2 requires gast==0.3.3, but you have gast 0.4.0 which is incompatible.
+    paddleclas 2.5.2 requires opencv-python==4.6.0.66, but you have opencv-python 4.9.0.80 which is incompatible.
     ppgan 2.1.0 requires librosa==0.8.1, but you have librosa 0.10.1 which is incompatible.
     ppgan 2.1.0 requires opencv-python<=4.6.0.66, but you have opencv-python 4.9.0.80 which is incompatible.
     scikit-image 0.21.0 requires imageio>=2.27, but you have imageio 2.9.0 which is incompatible.
@@ -216,7 +216,7 @@ source of the function.
 
 .. parsed-literal::
 
-    [03/12 23:23:24] ppgan INFO: Found /opt/home/k8sworker/.cache/ppgan/animeganv2_hayao.pdparams
+    [03/25 23:25:52] ppgan INFO: Found /opt/home/k8sworker/.cache/ppgan/animeganv2_hayao.pdparams
 
 
 .. code:: ipython3
@@ -357,7 +357,7 @@ succeeds, the output of the next cell will include
 
 .. parsed-literal::
 
-    2024-03-12 23:23:32 [INFO]	Static PaddlePaddle model saved in model/paddle_model_static_onnx_temp_dir.
+    2024-03-25 23:26:00 [INFO]	Static PaddlePaddle model saved in model/paddle_model_static_onnx_temp_dir.
 
 
 .. parsed-literal::
@@ -368,12 +368,12 @@ succeeds, the output of the next cell will include
     [Paddle2ONNX] Start to parsing Paddle model...
     [Paddle2ONNX] Use opset_version = 11 for ONNX export.
     [Paddle2ONNX] PaddlePaddle model is exported as ONNX format now.
-    2024-03-12 23:23:32 [INFO]	ONNX model saved in model/paddlegan_anime.onnx.
+    2024-03-25 23:26:00 [INFO]	ONNX model saved in model/paddlegan_anime.onnx.
 
 
 .. parsed-literal::
 
-    I0312 23:23:32.235426 3060480 program_interpreter.cc:212] New Executor is Running.
+    I0325 23:26:00.418301 873755 program_interpreter.cc:212] New Executor is Running.
 
 
 Convert to OpenVINO IR
@@ -655,12 +655,12 @@ measure inference on one image. For more accurate benchmarking, use
 
 .. parsed-literal::
 
-    OpenVINO IR model in OpenVINO Runtime/CPU: 0.425 seconds per image, FPS: 2.36
+    OpenVINO IR model in OpenVINO Runtime/CPU: 0.422 seconds per image, FPS: 2.37
 
 
 .. parsed-literal::
 
-    PaddleGAN model on CPU: 6.184 seconds per image, FPS: 0.16
+    PaddleGAN model on CPU: 6.179 seconds per image, FPS: 0.16
 
 
 References

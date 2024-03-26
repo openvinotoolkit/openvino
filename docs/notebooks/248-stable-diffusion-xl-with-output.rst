@@ -99,7 +99,7 @@ Install prerequisites
 
 .. code:: ipython3
 
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "diffusers>=0.18.0" "invisible-watermark>=0.2.0" "transformers>=4.33.0" "accelerate" "onnx" 
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "diffusers>=0.18.0" "invisible-watermark>=0.2.0" "transformers>=4.33.0" "accelerate" "onnx" "peft==0.6.2"
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
     %pip install -q "openvino>=2023.1.0" gradio
 

@@ -79,7 +79,7 @@ Install required dependencies
     "accelerate"\
     "openvino-nightly"\
     "gradio"\
-    "onnx" "chromadb" "sentence_transformers" "langchain>=0.1.7" "langchainhub" "transformers>=4.37.0" "unstructured" "scikit-learn" "python-docx" "pdfminer.six" "bitsandbytes"
+    "onnx" "einops" "transformers_stream_generator" "tiktoken" "transformers>=4.38.1" "bitsandbytes" "chromadb" "sentence_transformers" "langchain>=0.1.7" "langchainhub" "unstructured" "scikit-learn" "python-docx" "pdfminer.six"
 
 
 .. parsed-literal::
@@ -162,12 +162,6 @@ The available LLM model options are:
        except OSError:
            notebook_login()
 
--  **mini-cpm-2b-dpo** - MiniCPM is an End-Size LLM developed by
-   ModelBest Inc. and TsinghuaNLP, with only 2.4B parameters excluding
-   embeddings. After Direct Preference Optimization (DPO) fine-tuning,
-   MiniCPM outperforms many popular 7b, 13b and 70b models. More details
-   can be found in
-   `model_card <https://huggingface.co/openbmb/MiniCPM-2B-dpo-fp16>`__.
 -  **red-pajama-3b-chat** - A 2.8B parameter pre-trained language model
    based on GPT-NEOX architecture. It was developed by Together Computer
    and leaders from the open-source AI community. The model is
@@ -239,15 +233,14 @@ The available LLM model options are:
        except OSError:
            notebook_login()
 
--  **qwen1.5-0.5b-chat/qwen1.5-1.8b-chat/qwen1.5-7b-chat** - Qwen1.5 is
-   the beta version of Qwen2, a transformer-based decoder-only language
-   model pretrained on a large amount of data. Qwen1.5 is a language
-   model series including decoder language models of different model
-   sizes. It is based on the Transformer architecture with SwiGLU
-   activation, attention QKV bias, group query attention, mixture of
-   sliding window attention and full attention. You can find more
-   details about model in the `model
-   repository <https://huggingface.co/Qwen>`__.
+-  **qwen1.5-1.8b-chat/qwen1.5-7b-chat** - Qwen1.5 is the beta version
+   of Qwen2, a transformer-based decoder-only language model pretrained
+   on a large amount of data. Qwen1.5 is a language model series
+   including decoder language models of different model sizes. It is
+   based on the Transformer architecture with SwiGLU activation,
+   attention QKV bias, group query attention, mixture of sliding window
+   attention and full attention. You can find more details about model
+   in the `model repository <https://huggingface.co/Qwen>`__.
 -  **qwen-7b-chat** - Qwen-7B is the 7B-parameter version of the large
    language model series, Qwen (abbr. Tongyi Qianwen), proposed by
    Alibaba Cloud. Qwen-7B is a Transformer-based large language model,
@@ -334,11 +327,6 @@ The available LLM model options are:
    on a high-quality corpus with 2.6 trillion tokens and has achieved
    the best performance in authoritative Chinese and English benchmarks
    of the same size.
--  **internlm2-chat-1.8b** - InternLM2 is the second generation InternLM
-   series. Compared to the previous generation model, it shows
-   significant improvements in various capabilities, including
-   reasoning, mathematics, and coding. More details about model can be
-   found in `model repository <https://huggingface.co/internlm>`__.
 
 .. code:: ipython3
 
@@ -370,15 +358,15 @@ The available LLM model options are:
 
 .. parsed-literal::
 
-    2024-03-06 07:05:19.617312: I tensorflow/core/util/port.cc:111] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-03-06 07:05:19.620814: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
-    2024-03-06 07:05:19.663621: E tensorflow/compiler/xla/stream_executor/cuda/cuda_dnn.cc:9342] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
-    2024-03-06 07:05:19.663653: E tensorflow/compiler/xla/stream_executor/cuda/cuda_fft.cc:609] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
-    2024-03-06 07:05:19.663683: E tensorflow/compiler/xla/stream_executor/cuda/cuda_blas.cc:1518] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
-    2024-03-06 07:05:19.671963: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
-    2024-03-06 07:05:19.673938: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-03-07 23:06:47.788169: I tensorflow/core/util/port.cc:111] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-03-07 23:06:47.791855: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-03-07 23:06:47.834258: E tensorflow/compiler/xla/stream_executor/cuda/cuda_dnn.cc:9342] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+    2024-03-07 23:06:47.834288: E tensorflow/compiler/xla/stream_executor/cuda/cuda_fft.cc:609] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+    2024-03-07 23:06:47.834330: E tensorflow/compiler/xla/stream_executor/cuda/cuda_blas.cc:1518] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+    2024-03-07 23:06:47.842773: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-03-07 23:06:47.844036: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-03-06 07:05:20.726709: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-03-07 23:06:48.759435: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Convert model
@@ -417,11 +405,11 @@ Convert LLM model
 
 .. code:: ipython3
 
-    llm_model_ids = list(SUPPORTED_LLM_MODELS[model_language.value])
+    llm_model_ids = [model_id for model_id, model_config in SUPPORTED_LLM_MODELS[model_language.value].items() if model_config.get("rag_prompt_template")]
     
     llm_model_id = widgets.Dropdown(
         options=llm_model_ids,
-        value=llm_model_ids[4],
+        value=llm_model_ids[-1],
         description="Model:",
         disabled=False,
     )
@@ -433,7 +421,7 @@ Convert LLM model
 
 .. parsed-literal::
 
-    Dropdown(description='Model:', options=('tiny-llama-1b-chat', 'gemma-2b-it', 'red-pajama-3b-chat', 'gemma-7b-i…
+    Dropdown(description='Model:', index=2, options=('qwen1.5-1.8b-chat', 'qwen1.5-7b-chat', 'qwen-7b-chat', 'chat…
 
 
 
@@ -445,7 +433,7 @@ Convert LLM model
 
 .. parsed-literal::
 
-    Selected LLM model tiny-llama-1b-chat
+    Selected LLM model internlm2-chat-1.8b
 
 
 Optimum Intel can be used to load optimized models from the `Hugging
@@ -789,7 +777,7 @@ Let’s compare model size for different compression types
 
 .. parsed-literal::
 
-    Size of model with INT4 compressed weights is 1837.58 MB
+    Size of FP16 model is 1819.91 MB
 
 
 Convert embedding model
@@ -821,7 +809,7 @@ filter them out according the LLM you selected.
 
 .. parsed-literal::
 
-    Dropdown(description='Embedding Model:', options=('all-mpnet-base-v2',), value='all-mpnet-base-v2')
+    Dropdown(description='Embedding Model:', options=('all-mpnet-base-v2', 'text2vec-large-chinese'), value='all-m…
 
 
 
@@ -1053,45 +1041,11 @@ based on ``OVModelForCausalLM`` model.
 
 .. parsed-literal::
 
-    Loading model from chatglm3-6b/FP16
-
-
-
-.. parsed-literal::
-
-    tokenizer_config.json:   0%|          | 0.00/1.41k [00:00<?, ?B/s]
-
+    Loading model from internlm2-chat-1.8b/FP16
 
 
 .. parsed-literal::
 
-    tokenization_chatglm.py:   0%|          | 0.00/13.0k [00:00<?, ?B/s]
-
-
-.. parsed-literal::
-
-    A new version of the following files was downloaded from https://huggingface.co/THUDM/chatglm3-6b:
-    - tokenization_chatglm.py
-    . Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
-
-
-
-.. parsed-literal::
-
-    tokenizer.model:   0%|          | 0.00/1.02M [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    special_tokens_map.json:   0%|          | 0.00/3.00 [00:00<?, ?B/s]
-
-
-.. parsed-literal::
-
-    Setting eos_token is not supported, use the default one.
-    Setting pad_token is not supported, use the default one.
-    Setting unk_token is not supported, use the default one.
     The argument `trust_remote_code` is to be used along with export=True. It will be ignored.
     Compiling the model to CPU ...
 
@@ -1539,5 +1493,5 @@ class.
 
 .. parsed-literal::
 
-    Closing server running on port: 5579
+    Closing server running on port: 4545
 
