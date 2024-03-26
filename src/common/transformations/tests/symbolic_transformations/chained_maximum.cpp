@@ -7,7 +7,6 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/maximum.hpp"

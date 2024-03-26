@@ -74,8 +74,8 @@ TEST(type_prop, convolution_backprop_data_partial_auto_padding_lower) {
 TEST(type_prop, convolution_backprop_data_auto_pad_explicit_with_output_padding) {
     ov::PartialShape data_pshape{1, 16, 2, 2};
     ov::PartialShape filters_pshape{16, 6, 3, 3};
-    set_shape_labels(data_pshape, 10);
-    set_shape_labels(filters_pshape, 20);
+    auto d_symbols = set_shape_symbols(data_pshape);
+    auto f_symbols = set_shape_symbols(filters_pshape);
     const ov::Strides strides{2, 2};
     const ov::Strides dilations{1, 1};
     const ov::CoordinateDiff padding_begin{1, 1};
@@ -95,8 +95,8 @@ TEST(type_prop, convolution_backprop_data_auto_pad_explicit_with_output_padding)
                                                                           auto_pad,
                                                                           output_padding);
 
-    EXPECT_THAT(get_shape_labels(conv_backprop->get_output_partial_shape(0)),
-                ElementsAre(10, 21, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(conv_backprop->get_output_partial_shape(0)),
+                ElementsAre(d_symbols[0], f_symbols[1], nullptr, nullptr));
     ASSERT_EQ(conv_backprop->get_output_partial_shape(0), ov::PartialShape(ov::PartialShape{1, 6, 4, 4}));
     ASSERT_EQ(conv_backprop->get_pads_begin(), (ov::CoordinateDiff{1, 1}));
     ASSERT_EQ(conv_backprop->get_pads_end(), (ov::CoordinateDiff{1, 1}));
@@ -229,8 +229,8 @@ TEST(type_prop, convolution_backprop_data_with_output_shape_dyn_static_ranks_fil
 TEST(type_prop, convolution_backprop_data_with_output_shape_dyn_static_ranks_filters_cin_cout_dyn) {
     ov::PartialShape data_pshape{ov::Dimension::dynamic(), 16, 5, 5};
     ov::PartialShape filters_pshape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), 3, 3};
-    set_shape_labels(data_pshape, 10);
-    set_shape_labels(filters_pshape, 20);
+    auto d_symbols = set_shape_symbols(data_pshape);
+    auto f_symbols = set_shape_symbols(filters_pshape);
     const ov::element::Type_t et = ov::element::f32;
 
     auto data = make_shared<ov::op::v0::Parameter>(et, data_pshape);
@@ -245,8 +245,8 @@ TEST(type_prop, convolution_backprop_data_with_output_shape_dyn_static_ranks_fil
                                                                           ov::Strides{},
                                                                           ov::op::PadType::SAME_UPPER);
 
-    EXPECT_THAT(get_shape_labels(conv_backprop->get_output_partial_shape(0)),
-                ElementsAre(10, 21, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(conv_backprop->get_output_partial_shape(0)),
+                ElementsAre(d_symbols[0], f_symbols[1], nullptr, nullptr));
     ASSERT_EQ(conv_backprop->get_output_partial_shape(0),
               ov::PartialShape(ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), 3, 3}));
 }
@@ -874,9 +874,9 @@ TEST(type_prop, convolution_back_prop_data_interval_shapes_output_shape_as_shape
     ov::PartialShape filters_pshape{{2, 3}, {1, 3}, 3, 3, 3};
     ov::PartialShape out_spatial_pshape{3, {2, 4}, 3};
 
-    set_shape_labels(data_pshape, 10);
-    set_shape_labels(filters_pshape, 20);
-    set_shape_labels(out_spatial_pshape, 30);
+    auto d_symbols = set_shape_symbols(data_pshape);
+    auto f_symbols = set_shape_symbols(filters_pshape);
+    auto output_symbols = set_shape_symbols(out_spatial_pshape);
 
     const ov::element::Type_t et = ov::element::f32;
     ov::Strides strides{1, 2, 1};
@@ -898,7 +898,8 @@ TEST(type_prop, convolution_back_prop_data_interval_shapes_output_shape_as_shape
                                                                      pads_end,
                                                                      dilations,
                                                                      auto_pad);
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 21, 30, 31, 32));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(d_symbols[0], f_symbols[1], output_symbols[0], output_symbols[1], output_symbols[2]));
     EXPECT_EQ(op->get_output_partial_shape(0), ov::PartialShape({{1, 3}, {1, 3}, 3, {2, 4}, 3}));
     EXPECT_EQ(op->get_pads_begin(), (ov::CoordinateDiff{0, 0, 0}));
     EXPECT_EQ(op->get_pads_end(), (ov::CoordinateDiff{0, 0, 0}));

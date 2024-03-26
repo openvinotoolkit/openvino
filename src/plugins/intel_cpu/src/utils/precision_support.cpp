@@ -4,9 +4,15 @@
 
 #include "precision_support.h"
 
+#if defined(OPENVINO_ARCH_X86_64)
 #include "cpu/x64/cpu_isa_traits.hpp"
+#endif
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/visibility.hpp"
+
+#if defined(OV_CPU_WITH_ACL)
+#include "arm_compute/core/CPP/CPPTypes.h"
+#endif
 
 namespace ov {
 namespace intel_cpu {
@@ -17,8 +23,10 @@ static bool hasFP16HardwareSupport(const ov::element::Type& precision) {
         dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2))
         return true;
     return false;
-#elif defined(OV_CPU_ARM_ENABLE_FP16)
-    return true;  // @todo add runtime check for arm as well
+#elif defined(OPENVINO_ARCH_ARM64) && defined(OV_CPU_WITH_ACL)
+    //has_fp16() works correctly on aarch64 only
+    //TODO: remove else branch as soon as ACL issue #1096 is fixed
+    return arm_compute::CPUInfo::get().has_fp16();
 #else
     return false;
 #endif

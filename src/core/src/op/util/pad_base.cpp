@@ -150,9 +150,9 @@ bool op::util::PadBase::evaluate_upper(TensorVector& output_values) const {
     return have_node_inputs_bounds_set(this, 1, 2) && default_upper_bound_evaluator(this, output_values);
 }
 
-bool op::util::PadBase::evaluate_label(TensorLabelVector& output_labels) const {
-    OV_OP_SCOPE(util_PadBase_evaluate_label);
-    return ov::util::default_label_evaluator(this, output_labels);
+bool op::util::PadBase::evaluate_symbol(TensorSymbolVector& output_symbols) const {
+    OV_OP_SCOPE(util_PadBase_evaluate_symbol);
+    return ov::util::default_symbol_evaluator(this, output_symbols);
 }
 
 }  // namespace ov

@@ -120,9 +120,9 @@ bool VariadicSplit::evaluate_upper(TensorVector& output_values) const {
     return variadic_split::has_axis_and_splits_bound_set(this) && default_upper_bound_evaluator(this, output_values);
 }
 
-bool VariadicSplit::evaluate_label(TensorLabelVector& output_labels) const {
+bool VariadicSplit::evaluate_symbol(TensorSymbolVector& output_symbols) const {
     return variadic_split::has_axis_and_splits_bound_set(this) &&
-           ov::util::default_label_evaluator(this, output_labels);
+           ov::util::default_symbol_evaluator(this, output_symbols);
 }
 }  // namespace v1
 }  // namespace op

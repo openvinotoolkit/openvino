@@ -42,7 +42,7 @@ ov::intel_cpu::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
 
     x->set_friendly_name("x");
 
-    auto half_ndims = Symbol("half_ndims");
+    auto half_ndims = ov::gen_pattern::Symbol("half_ndims");
     auto int32_max = std::numeric_limits<std::int32_t>::max();
 
     // rotate half : [-x2, x1]
@@ -130,7 +130,7 @@ ov::intel_cpu::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
     auto seq_len = makePattern("i32[1]");
     auto gather_positions_2d = makePattern("i32[?,?]");
 
-    auto head_dims = Symbol("head_dims");
+    auto head_dims = ov::gen_pattern::Symbol("head_dims");
     auto prepare_cos_sin_llama = [&](std::shared_ptr<Node> const_tab) {
         auto ScatterUpdate = makePattern<opset3::ScatterUpdate>({{0, 0, 0}, 2, seq_len, 0});
         auto slice_Slice = makePattern<opset1::StridedSlice>({const_tab, {0, 0, 0}, ScatterUpdate, {1, 1, 1}},
@@ -205,7 +205,7 @@ ov::intel_cpu::RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
     auto int32_max = std::numeric_limits<std::int32_t>::max();
     auto data = makePattern(ov::Rank(4));
 
-    auto ndims = Symbol("ndims");
+    auto ndims = ov::gen_pattern::Symbol("ndims");
     auto x = GenSlice(data, 0, ndims, 1, 3);
     auto y = GenSlice(data, ndims, int32_max, 1, 3);
     auto x_emb = makePattern<RoPENode>({x, {}, {}}) | makePattern<RoPENode>({x, {}, {}, {}});
@@ -254,8 +254,8 @@ ov::intel_cpu::RoPEFusionPreprocess::RoPEFusionPreprocess() {
 
     // in some model qkv prejection is combined and
     // needs to be sliced before RoPE
-    auto slice_start = Symbol("slice_start");
-    auto slice_stop = Symbol("slice_stop");
+    auto slice_start = ov::gen_pattern::Symbol("slice_start");
+    auto slice_stop = ov::gen_pattern::Symbol("slice_stop");
     auto input_slice = GenSlice(input_to_slice, slice_start, slice_stop, 1, 3);
 
     // some model will transpose from [B,L,H,S] to [B,H,L,S] before RoPE
@@ -376,7 +376,7 @@ ov::intel_cpu::RoPEFusionGPTJ::RoPEFusionGPTJ() {
     MATCHER_SCOPE(RoPEFusionGPTJ);
 
     auto int32_max = std::numeric_limits<std::int32_t>::max();
-    auto ndims = Symbol("ndims");
+    auto ndims = ov::gen_pattern::Symbol("ndims");
 
     auto view_Reshape = makePattern(ov::Rank(4));
 
@@ -501,12 +501,12 @@ ov::intel_cpu::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id) {
     auto seq_length = makePattern("i32[1]");
     auto cos_sin_cache = makePattern("f32[?,?,?,?]");  // [max_pos_embeddings, batch_size, 32, 2]
 
-    auto ndims = Symbol("ndims");
-    auto head_cnt = Symbol("head_cnt");
-    auto head_size = Symbol("head_size");
-    auto total_size_q = Symbol("total_size_q");
-    auto total_size_k = Symbol("total_size_k");
-    auto total_size_v = Symbol("total_size_v");
+    auto ndims = ov::gen_pattern::Symbol("ndims");
+    auto head_cnt = ov::gen_pattern::Symbol("head_cnt");
+    auto head_size = ov::gen_pattern::Symbol("head_size");
+    auto total_size_q = ov::gen_pattern::Symbol("total_size_q");
+    auto total_size_k = ov::gen_pattern::Symbol("total_size_k");
+    auto total_size_v = ov::gen_pattern::Symbol("total_size_v");
 
     auto qkv_proj = makePattern<opset1::VariadicSplit>({qkv_linear, -1, {total_size_q, total_size_k, total_size_v}});
     qkv_proj->set_output_size(3);
@@ -631,8 +631,8 @@ ov::intel_cpu::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
     auto rotary_emb_sin = makePattern("f32[1,?,1,?]");  // [1,..4096,1,128]
     auto qkv_proj = makePattern("f32[?,?,?]");          // f32[?,?,12288]
 
-    auto head_cnt = Symbol("head_cnt");
-    auto head_size = Symbol("head_size");
+    auto head_cnt = ov::gen_pattern::Symbol("head_cnt");
+    auto head_size = ov::gen_pattern::Symbol("head_size");
 
     auto ListUnpack_410_VariadicSplit =
         makePattern<opset1::VariadicSplit>({qkv_proj, 2, {head_cnt * head_size, head_cnt * head_size, -1}});

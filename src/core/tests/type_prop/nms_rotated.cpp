@@ -166,8 +166,8 @@ TYPED_TEST_P(NMSRotatedDynamicOutputTest, boxes_scores_static_max_out_param) {
 TYPED_TEST_P(NMSRotatedDynamicOutputTest, num_boxes_gt_max_out_boxes) {
     auto boxes_shape = PartialShape{2, 7, 5};
     auto scores_shape = PartialShape{2, 5, 7};
-    set_shape_labels(boxes_shape, 10);
-    set_shape_labels(scores_shape, 20);
+    set_shape_symbols(boxes_shape);
+    set_shape_symbols(scores_shape);
 
     const auto boxes = make_shared<op::v0::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::v0::Parameter>(element::f32, scores_shape);
@@ -185,9 +185,9 @@ TYPED_TEST_P(NMSRotatedDynamicOutputTest, num_boxes_gt_max_out_boxes) {
                 ElementsAre(Property("Indicies shape", &Output<Node>::get_partial_shape, PartialShape({{0, 30}, 3})),
                             Property("Scores shape", &Output<Node>::get_partial_shape, PartialShape({{0, 30}, 3})),
                             Property("Outputs shape", &Output<Node>::get_partial_shape, PartialShape({1}))));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(1)), Each(no_label));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(2)), Each(no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(1)), Each(nullptr));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(2)), Each(nullptr));
 }
 
 TYPED_TEST_P(NMSRotatedDynamicOutputTest, num_boxes_lt_max_out_boxes) {
@@ -231,8 +231,8 @@ TYPED_TEST_P(NMSRotatedDynamicOutputTest, max_out_boxes_is_zero) {
 TYPED_TEST_P(NMSRotatedDynamicOutputTest, interval_shapes_labels) {
     auto boxes_shape = PartialShape{{0, 2}, {0, 7}, 5};
     auto scores_shape = PartialShape{{0, 2}, {0, 5}, {1, 7}};
-    set_shape_labels(boxes_shape, 10);
-    set_shape_labels(scores_shape, 20);
+    set_shape_symbols(boxes_shape);
+    set_shape_symbols(scores_shape);
 
     const auto boxes = make_shared<op::v0::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::v0::Parameter>(element::f32, scores_shape);
@@ -250,16 +250,16 @@ TYPED_TEST_P(NMSRotatedDynamicOutputTest, interval_shapes_labels) {
                 ElementsAre(Property("Indicies shape", &Output<Node>::get_partial_shape, PartialShape({{0, 70}, 3})),
                             Property("Scores shape", &Output<Node>::get_partial_shape, PartialShape({{0, 70}, 3})),
                             Property("Outputs shape", &Output<Node>::get_partial_shape, PartialShape({1}))));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(1)), Each(no_label));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(2)), Each(no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(1)), Each(nullptr));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(2)), Each(nullptr));
 }
 
 TYPED_TEST_P(NMSRotatedDynamicOutputTest, num_box_dynamic_dim_max_boxes_per_class_as_const) {
     auto boxes_shape = PartialShape{2, -1, 5};
     auto scores_shape = PartialShape{2, {0, 5}, {1, 7}};
-    set_shape_labels(boxes_shape, 10);
-    set_shape_labels(scores_shape, 20);
+    set_shape_symbols(boxes_shape);
+    set_shape_symbols(scores_shape);
 
     const auto boxes = make_shared<op::v0::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::v0::Parameter>(element::f32, scores_shape);
@@ -273,9 +273,9 @@ TYPED_TEST_P(NMSRotatedDynamicOutputTest, num_box_dynamic_dim_max_boxes_per_clas
                 ElementsAre(Property("Indicies shape", &Output<Node>::get_partial_shape, PartialShape({-1, 3})),
                             Property("Scores shape", &Output<Node>::get_partial_shape, PartialShape({-1, 3})),
                             Property("Outputs shape", &Output<Node>::get_partial_shape, PartialShape({1}))));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(1)), Each(no_label));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(2)), Each(no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(1)), Each(nullptr));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(2)), Each(nullptr));
 }
 
 TYPED_TEST_P(NMSRotatedDynamicOutputTest, output_shape_i32) {

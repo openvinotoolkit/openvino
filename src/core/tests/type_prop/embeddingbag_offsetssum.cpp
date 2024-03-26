@@ -29,9 +29,9 @@ TEST(type_prop, ebos_default_ctor) {
 
 TEST(type_prop, ebos_labeled_interval_dims) {
     auto emb_shape = PartialShape{{5, 10}, {2, 4}, {1, 3}};
-    set_shape_labels(emb_shape, 10);
+    auto emb_symbols = set_shape_symbols(emb_shape);
     auto off_shape = PartialShape{{6, 8}};
-    set_shape_labels(off_shape, 20);
+    auto off_symbols = set_shape_symbols(off_shape);
 
     auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, emb_shape);
     auto indices = make_shared<ov::op::v0::Parameter>(element::i64, PartialShape{{3, 4}});
@@ -43,7 +43,8 @@ TEST(type_prop, ebos_labeled_interval_dims) {
         make_shared<op::v3::EmbeddingBagOffsetsSum>(emb_table, indices, offsets, default_index, per_sample_weights);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{{6, 8}, {2, 4}, {1, 3}}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(20, 11, 12));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(off_symbols[0], emb_symbols[1], emb_symbols[2]));
 }
 
 TEST(type_prop, ebos) {

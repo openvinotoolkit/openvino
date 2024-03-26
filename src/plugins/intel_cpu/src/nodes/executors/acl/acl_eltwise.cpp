@@ -4,6 +4,7 @@
 
 #include "acl_eltwise.hpp"
 #include "acl_utils.hpp"
+#include "utils/debug_capabilities.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -29,6 +30,17 @@ inline VectorDims reshape_sizes(VectorDims dims) {
         result_dims = dims;
     }
     return result_dims;
+}
+
+inline void log_unsupported_prec(const std::vector<MemoryDescPtr>& srcDescs,
+                                 const std::vector<MemoryDescPtr>& dstDescs,
+                                 const Algorithm eltwiseAlgorithm) {
+    std::string srcPrec;
+    for (size_t i = 0; i < srcDescs.size(); i++) {
+        srcPrec += srcDescs[i]->getPrecision().to_string() + " ";
+    }
+    DEBUG_LOG(algToString(eltwiseAlgorithm), ": provided combination of src precisions: [", srcPrec,
+                          "] and dst precision: ", dstDescs[0]->getPrecision().to_string(), " is not supported");
 }
 
 bool AclEltwiseExecutor::isEltwiseAlgorithmSupported(Algorithm algorithm) {
@@ -94,6 +106,7 @@ bool AclEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
         case Algorithm::EltwiseHswish:
             if (!(checkPrecision({ov::element::f16, ov::element::f16}, ov::element::f16) ||
                   checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32))) {
+                log_unsupported_prec(srcDescs, dstDescs, eltwiseAttrs.algorithm);
                 return false;
             }
             break;
@@ -103,6 +116,7 @@ bool AclEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
             if (!(checkPrecision({ov::element::i32, ov::element::i32}, ov::element::i32) ||
                   checkPrecision({ov::element::f16, ov::element::f16}, ov::element::f16) ||
                   checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32))) {
+                log_unsupported_prec(srcDescs, dstDescs, eltwiseAttrs.algorithm);
                 return false;
             }
             break;
@@ -113,6 +127,7 @@ bool AclEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
                   checkPrecision({ov::element::i32, ov::element::i32}, ov::element::i32) ||
                   checkPrecision({ov::element::f16, ov::element::f16}, ov::element::f16) ||
                   checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32))) {
+                log_unsupported_prec(srcDescs, dstDescs, eltwiseAttrs.algorithm);
                 return false;
             }
             break;
@@ -123,6 +138,7 @@ bool AclEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
                   checkPrecision({ov::element::i32, ov::element::i32}, ov::element::i32) ||
                   checkPrecision({ov::element::f16, ov::element::f16}, ov::element::f16) ||
                   checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32))) {
+                log_unsupported_prec(srcDescs, dstDescs, eltwiseAttrs.algorithm);
                 return false;
             }
             break;
@@ -134,6 +150,7 @@ bool AclEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
                   checkPrecision({ov::element::i16, ov::element::i16}, ov::element::i16) ||
                   checkPrecision({ov::element::f16, ov::element::f16}, ov::element::f16) ||
                   checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32))) {
+                log_unsupported_prec(srcDescs, dstDescs, eltwiseAttrs.algorithm);
                 return false;
             }
             break;
@@ -149,20 +166,26 @@ bool AclEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
                   checkPrecision({ov::element::i32, ov::element::i32}, ov::element::u8) ||
                   checkPrecision({ov::element::f16, ov::element::f16}, ov::element::u8) ||
                   checkPrecision({ov::element::f32, ov::element::f32}, ov::element::u8))) {
+                log_unsupported_prec(srcDescs, dstDescs, eltwiseAttrs.algorithm);
                 return false;
             }
             break;
         default:
+            DEBUG_LOG("Eltwise algorithm ", algToString(eltwiseAttrs.algorithm), " is not supported");
             return false;
     }
 
     for (const auto & srcDesc : srcDescs) {
-        if (getAclDataLayoutByMemoryDesc(srcDesc) == arm_compute::DataLayout::UNKNOWN)
+        if (getAclDataLayoutByMemoryDesc(srcDesc) == arm_compute::DataLayout::UNKNOWN) {
+            DEBUG_LOG("src descriptor layout is unsupported by ACL: ", srcDesc->serializeFormat());
             return false;
+        }
     }
     for (const auto & dstDesc : dstDescs) {
-        if (getAclDataLayoutByMemoryDesc(dstDesc) == arm_compute::DataLayout::UNKNOWN)
+        if (getAclDataLayoutByMemoryDesc(dstDesc) == arm_compute::DataLayout::UNKNOWN) {
+            DEBUG_LOG("dst descriptor layout is unsupported by ACL: ", dstDesc->serializeFormat());
             return false;
+        }
     }
 
     return true;

@@ -15,7 +15,7 @@ using namespace testing;
 
 TEST(type_prop, depth_to_space_input_interval_shape_block_first_5D_when_depth_is_static) {
     auto a_shape = PartialShape{{2, 10}, 24, {3, 7}, {423, 3000}, {235, 1345}};
-    set_shape_labels(a_shape, 10);
+    auto symbols = set_shape_symbols(a_shape);
     auto A = make_shared<ov::op::v0::Parameter>(element::f32, a_shape);
     auto depth_to_space =
         make_shared<ov::op::v0::DepthToSpace>(A, ov::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, 2);
@@ -23,20 +23,20 @@ TEST(type_prop, depth_to_space_input_interval_shape_block_first_5D_when_depth_is
     EXPECT_EQ(depth_to_space->get_output_element_type(0), element::f32);
     EXPECT_EQ(depth_to_space->get_output_partial_shape(0),
               (PartialShape{{2, 10}, 3, {3 * 2, 7 * 2}, {423 * 2, 3000 * 2}, {235 * 2, 1345 * 2}}));
-    EXPECT_THAT(get_shape_labels(depth_to_space->get_output_partial_shape(0)),
-                ElementsAre(10, ov::no_label, ov::no_label, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(depth_to_space->get_output_partial_shape(0)),
+                ElementsAre(symbols[0], nullptr, nullptr, nullptr, nullptr));
 }
 
 TEST(type_prop, depth_to_space_input_interval_shape_default_block_size) {
     auto a_shape = PartialShape{{2, 10}, 24, {3, 7}, {423, 3000}, {235, 1345}};
-    set_shape_labels(a_shape, 10);
+    auto symbols = set_shape_symbols(a_shape);
     auto A = make_shared<ov::op::v0::Parameter>(element::f32, a_shape);
     auto depth_to_space =
         make_shared<ov::op::v0::DepthToSpace>(A, ov::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST);
 
     EXPECT_EQ(depth_to_space->get_output_element_type(0), element::f32);
     EXPECT_EQ(depth_to_space->get_output_partial_shape(0), a_shape);
-    EXPECT_THAT(get_shape_labels(depth_to_space->get_output_partial_shape(0)), ElementsAre(10, 11, 12, 13, 14));
+    EXPECT_THAT(get_shape_symbols(depth_to_space->get_output_partial_shape(0)), symbols);
 }
 
 TEST(type_prop, depth_to_space_output_dynamicshape_block_first_5D_when_depth_is_dynamic) {

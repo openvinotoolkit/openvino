@@ -19,7 +19,7 @@ TYPED_TEST_SUITE_P(AvgPoolOperator);
 
 TYPED_TEST_P(AvgPoolOperator, avg_pool_default_ctor) {
     ov::PartialShape arg_shape{1, 3, 32};
-    set_shape_labels(arg_shape, 10);
+    auto symbols = set_shape_symbols(arg_shape);
     auto arg = make_shared<ov::op::v0::Parameter>(ov::element::f32, arg_shape);
 
     auto mp = this->make_op();
@@ -37,7 +37,7 @@ TYPED_TEST_P(AvgPoolOperator, avg_pool_default_ctor) {
     EXPECT_EQ(mp->get_output_size(), 1);
     EXPECT_EQ(mp->get_output_element_type(0), ov::element::f32);
     EXPECT_EQ(mp->get_output_partial_shape(0), ov::PartialShape({1, 3, 32}));
-    EXPECT_THAT(get_shape_labels(mp->get_output_partial_shape(0)), ElementsAre(10, 11, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(mp->get_output_partial_shape(0)), ElementsAre(symbols[0], symbols[1], nullptr));
     EXPECT_EQ(mp->get_pads_begin(), (ov::Shape{1}));
     EXPECT_EQ(mp->get_pads_end(), (ov::Shape{0}));
 }

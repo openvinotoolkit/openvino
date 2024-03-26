@@ -5,7 +5,6 @@
 #include "openvino/op/matmul.hpp"
 
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
@@ -480,62 +479,74 @@ TEST(type_prop, matmul_incompatible_batch_dim_bounds) {
     ASSERT_EQ(matmul->get_output_partial_shape(0), expected_output_shape);
 }
 
-TEST(type_prop, matmul_propagate_labels) {
-    const auto a_labels = ov::TensorLabel{1, 0, 2, 5, 6};
-    const auto b_labels = ov::TensorLabel{0, 1, 3, 7, 9};
+TEST(type_prop, matmul_propagate_symbols) {
+    auto A = std::make_shared<ov::Symbol>();
+
+    const auto a_symbols = ov::TensorSymbol{A,
+                                            nullptr,
+                                            std::make_shared<ov::Symbol>(),
+                                            std::make_shared<ov::Symbol>(),
+                                            std::make_shared<ov::Symbol>()};
+    const auto b_symbols = ov::TensorSymbol{nullptr,
+                                            A,
+                                            std::make_shared<ov::Symbol>(),
+                                            std::make_shared<ov::Symbol>(),
+                                            std::make_shared<ov::Symbol>()};
 
     auto a_shape = PartialShape{4, 2, 3, 6, 4};
     auto b_shape = PartialShape{4, 2, 3, 4, 2};
 
-    set_shape_labels(a_shape, a_labels);
-    set_shape_labels(b_shape, b_labels);
+    set_shape_symbols(a_shape, a_symbols);
+    set_shape_symbols(b_shape, b_symbols);
 
     const auto a = make_shared<ov::op::v0::Parameter>(element::f32, a_shape);
     const auto b = make_shared<ov::op::v0::Parameter>(element::f32, b_shape);
     const auto matmul = make_shared<ov::op::v0::MatMul>(a, b, false, false);
 
     const auto& output_shape = matmul->get_output_partial_shape(0);
-    const auto labels = get_shape_labels(output_shape);
+    const auto symbols = get_shape_symbols(output_shape);
 
-    ASSERT_THAT(labels,
-                ElementsAre(a_labels[0],  // use a label, b is not set
-                            b_labels[1],  // use b label, a is not set
-                            b_labels[2],  // use b label, equal dimension
-                            a_labels[3],  // use label from a, b is lost
-                            b_labels[4]   // use label from b, a is lost
+    ASSERT_THAT(symbols,
+                ElementsAre(a_symbols[0],  // use a symbol, b is not set
+                            b_symbols[1],  // use b symbol, a is not set
+                            a_symbols[2],  // use a symbol, equal dimension
+                            a_symbols[3],  // use symbol from a, b is lost
+                            b_symbols[4]   // use symbol from b, a is lost
                             ));
 }
 
-TEST(type_prop, matmul_propagate_labels_on_interval_dims) {
-    const auto a_labels = ov::TensorLabel{1, 0, 3, 4, 5};
-    const auto b_labels = ov::TensorLabel{0, 1, 3, 4, 7};
+TEST(type_prop, matmul_propagate_symbols_on_interval_dims) {
+    auto A = std::make_shared<ov::Symbol>(), B = std::make_shared<ov::Symbol>(), C = std::make_shared<ov::Symbol>();
+
+    const auto a_symbols = ov::TensorSymbol{A, nullptr, B, C, std::make_shared<ov::Symbol>()};
+    const auto b_symbols = ov::TensorSymbol{nullptr, A, B, C, std::make_shared<ov::Symbol>()};
 
     auto a_shape = PartialShape{Dimension(1, 3), 1, Dimension(2, 3), Dimension(3, 4), 4};
     auto b_shape = PartialShape{1, Dimension(1, 5), Dimension(1, 3), 4, Dimension::dynamic()};
 
-    set_shape_labels(a_shape, a_labels);
-    set_shape_labels(b_shape, b_labels);
+    set_shape_symbols(a_shape, a_symbols);
+    set_shape_symbols(b_shape, b_symbols);
 
     const auto a = make_shared<ov::op::v0::Parameter>(element::f32, a_shape);
     const auto b = make_shared<ov::op::v0::Parameter>(element::f32, b_shape);
     const auto matmul = make_shared<ov::op::v0::MatMul>(a, b, false, false);
 
     const auto& output_shape = matmul->get_output_partial_shape(0);
-    const auto labels = get_shape_labels(output_shape);
+    const auto symbols = get_shape_symbols(output_shape);
 
-    ASSERT_THAT(labels,
-                ElementsAre(a_labels[0],  // use a label, b is not set
-                            b_labels[1],  // use b label, a is not set
-                            a_labels[2],  // use a label, b is same
-                            a_labels[3],  // use label from a, b is lost
-                            b_labels[4]   // use label from a, b is lost
+    ASSERT_THAT(symbols,
+                ElementsAre(a_symbols[0],  // use a symbol, b is not set
+                            b_symbols[1],  // use b symbol, a is not set
+                            a_symbols[2],  // use a symbol, b is same
+                            a_symbols[3],  // use symbol from a, b is lost
+                            b_symbols[4]   // use symbol from a, b is lost
                             ));
 }
 
-TEST(type_prop, matmul_propagate_label_on_b_input_after_reshape) {
-    constexpr ov::label_t my_label = 2;
+TEST(type_prop, matmul_propagate_symbol_on_b_input_after_reshape) {
+    auto my_symbol = std::make_shared<ov::Symbol>();
     auto marked_dim = Dimension(2, 3);
-    ov::DimensionTracker::set_label(marked_dim, my_label);
+    marked_dim.set_symbol(my_symbol);
 
     const auto a_shape = PartialShape{Dimension::dynamic(), 5, 3};
     const auto b_shape = PartialShape{3, marked_dim, 2};
@@ -555,8 +566,8 @@ TEST(type_prop, matmul_propagate_label_on_b_input_after_reshape) {
     const auto matmul = make_shared<ov::op::v0::MatMul>(a, reshape_b, false, false);
 
     const auto& output_shape = matmul->get_output_partial_shape(0);
-    const auto labels = get_shape_labels(output_shape);
+    const auto symbols = get_shape_symbols(output_shape);
 
-    ASSERT_THAT(labels, ElementsAre(my_label, 0, 0));
+    ASSERT_THAT(symbols, ElementsAre(my_symbol, nullptr, nullptr));
     ASSERT_EQ(output_shape, (PartialShape{marked_dim, 5, 8}));
 }

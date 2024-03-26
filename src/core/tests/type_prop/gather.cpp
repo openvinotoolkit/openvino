@@ -6,7 +6,6 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
@@ -106,9 +105,10 @@ TEST(type_prop, gather_v1_negative_axis) {
     EXPECT_EQ(gather_v1->get_axis(), 1);
 }
 
-TEST(type_prop, gather_1_dynamic_value_and_label_propagation) {
+TEST(type_prop, gather_1_dynamic_value_and_symbol_propagation) {
     Dimension marked_0 = Dimension(3);
-    ov::DimensionTracker::set_label(marked_0, 10);
+    auto symbol = std::make_shared<ov::Symbol>();
+    marked_0.set_symbol(symbol);
     PartialShape target_0 = PartialShape{marked_0, 4};
 
     auto param = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
@@ -125,7 +125,7 @@ TEST(type_prop, gather_1_dynamic_value_and_label_propagation) {
     EXPECT_EQ(bc->get_shape(), (Shape{3}));
 
     const auto& output_shape = bc->get_output_partial_shape(0);
-    EXPECT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
+    EXPECT_EQ(output_shape[0].get_symbol(), symbol);
 }
 
 TEST(type_prop, dynamic_value_propagation) {
@@ -340,9 +340,10 @@ TEST(type_prop, gather_7_axis_not_set_positive_batch_dims) {
     EXPECT_EQ(G->get_output_partial_shape(0), out_shape);
 }
 
-TEST(type_prop, gather_7_dynamic_value_and_label_propagation) {
+TEST(type_prop, gather_7_dynamic_value_and_symbol_propagation) {
     Dimension marked_0 = Dimension(3);
-    ov::DimensionTracker::set_label(marked_0, 10);
+    auto symbol = std::make_shared<ov::Symbol>();
+    marked_0.set_symbol(symbol);
     PartialShape target_0 = PartialShape{marked_0, 4};
 
     auto param = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
@@ -359,7 +360,7 @@ TEST(type_prop, gather_7_dynamic_value_and_label_propagation) {
     EXPECT_EQ(bc->get_shape(), (Shape{3}));
 
     const auto& output_shape = bc->get_output_partial_shape(0);
-    EXPECT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
+    EXPECT_EQ(output_shape[0].get_symbol(), symbol);
 }
 
 // --------------------- V7 Negative tests ------------------------------
@@ -667,10 +668,11 @@ TEST(type_prop, gather_v8_axis_not_set_positive_batch_dims) {
     EXPECT_EQ(G->get_output_partial_shape(0), out_shape);
 }
 
-/** \brief Check usage of evaluate lower and label on shape inference. */
-TEST(type_prop, gather_v8_dynamic_value_and_label_propagation) {
+/** \brief Check usage of evaluate lower and symbol on shape inference. */
+TEST(type_prop, gather_v8_dynamic_value_and_symbol_propagation) {
     Dimension marked_0 = Dimension(3);
-    ov::DimensionTracker::set_label(marked_0, 10);
+    auto symbol = std::make_shared<ov::Symbol>();
+    marked_0.set_symbol(symbol);
     PartialShape target_0 = PartialShape{marked_0, 4};
 
     auto param = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
@@ -687,13 +689,14 @@ TEST(type_prop, gather_v8_dynamic_value_and_label_propagation) {
     EXPECT_EQ(bc->get_shape(), (Shape{3}));
 
     const auto& output_shape = bc->get_output_partial_shape(0);
-    EXPECT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
+    EXPECT_EQ(output_shape[0].get_symbol(), symbol);
 }
 
-/** \brief Check usage of evaluate lower/upper and label on shape inference. */
-TEST(type_prop, gather_v8_dynamic_value_and_label_propagation_interval_dim) {
+/** \brief Check usage of evaluate lower/upper and symbol on shape inference. */
+TEST(type_prop, gather_v8_dynamic_value_and_symbol_propagation_interval_dim) {
     Dimension marked_0 = Dimension(2, 4);
-    ov::DimensionTracker::set_label(marked_0, 10);
+    auto symbol = std::make_shared<ov::Symbol>();
+    marked_0.set_symbol(symbol);
     PartialShape target_0 = PartialShape{marked_0, 4};
 
     auto param = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
@@ -710,7 +713,7 @@ TEST(type_prop, gather_v8_dynamic_value_and_label_propagation_interval_dim) {
     EXPECT_EQ(bc->get_output_partial_shape(0), PartialShape({marked_0}));
 
     const auto& output_shape = bc->get_output_partial_shape(0);
-    EXPECT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
+    EXPECT_EQ(output_shape[0].get_symbol(), symbol);
 }
 
 TEST(type_prop, gather_v8_use_default_ctor) {

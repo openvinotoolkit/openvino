@@ -53,16 +53,16 @@ TEST_P(BitwiseNotTest, propagate_dimensions) {
     EXPECT_EQ(op->get_output_partial_shape(0), exp_shape);
 }
 
-TEST_P(BitwiseNotTest, propagate_labels) {
+TEST_P(BitwiseNotTest, propagate_symbols) {
     if (exp_shape.rank().is_static()) {
-        set_shape_labels(exp_shape, 10);
+        set_shape_symbols(exp_shape);
     }
-    const auto exp_labels = get_shape_labels(exp_shape);
+    const auto exp_symbols = get_shape_symbols(exp_shape);
 
     const auto input = std::make_shared<ov::op::v0::Parameter>(exp_type, exp_shape);
     const auto op = make_op(input);
 
-    EXPECT_EQ(get_shape_labels(op->get_output_partial_shape(0)), exp_labels);
+    EXPECT_EQ(get_shape_symbols(op->get_output_partial_shape(0)), exp_symbols);
 }
 
 TEST_P(BitwiseNotTest, default_ctor) {

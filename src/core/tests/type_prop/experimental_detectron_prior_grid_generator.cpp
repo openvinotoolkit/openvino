@@ -34,16 +34,16 @@ TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, default_ctor_no_fl
 
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({200, 336, 3, 4}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, static_shape_flatten) {
     auto priors_shape = PartialShape{3, 4};
     auto feat_map_shape = PartialShape{1, 4, 6, 10};
     auto im_data_shape = PartialShape{1, 4, 128, 128};
-    set_shape_labels(priors_shape, 10);
-    set_shape_labels(feat_map_shape, 20);
-    set_shape_labels(im_data_shape, 30);
+    set_shape_symbols(priors_shape);
+    set_shape_symbols(feat_map_shape);
+    set_shape_symbols(im_data_shape);
 
     const auto priors = std::make_shared<Parameter>(element::f64, priors_shape);
     const auto feature_map = std::make_shared<Parameter>(element::f64, feat_map_shape);
@@ -53,16 +53,16 @@ TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, static_shape_flatt
 
     EXPECT_EQ(op->get_output_element_type(0), element::f64);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({180, 4}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, static_shape_without_flatten) {
     auto priors_shape = PartialShape{3, 4};
     auto feat_map_shape = PartialShape{1, 4, 6, 10};
     auto im_data_shape = PartialShape{1, 4, 128, 128};
-    set_shape_labels(priors_shape, 10);
-    set_shape_labels(feat_map_shape, 20);
-    set_shape_labels(im_data_shape, 30);
+    auto priors_symbols = set_shape_symbols(priors_shape);
+    auto feat_symbols = set_shape_symbols(feat_map_shape);
+    set_shape_symbols(im_data_shape);
 
     const auto priors = std::make_shared<Parameter>(element::f16, priors_shape);
     const auto feature_map = std::make_shared<Parameter>(element::f16, feat_map_shape);
@@ -72,16 +72,17 @@ TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, static_shape_witho
 
     EXPECT_EQ(op->get_output_element_type(0), element::f16);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({6, 10, 3, 4}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(22, 23, 10, no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(feat_symbols[2], feat_symbols[3], priors_symbols[0], nullptr));
 }
 
 TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, interval_shapes_flatten) {
     auto priors_shape = PartialShape{{2, 5}, {0, 4}};
     auto feat_map_shape = PartialShape{1, {3, 4}, {5, 10}, {9, 10}};
     auto im_data_shape = PartialShape{1, {2, 4}, {1, 128}, {1, 128}};
-    set_shape_labels(priors_shape, 10);
-    set_shape_labels(feat_map_shape, 20);
-    set_shape_labels(im_data_shape, 30);
+    set_shape_symbols(priors_shape);
+    set_shape_symbols(feat_map_shape);
+    set_shape_symbols(im_data_shape);
 
     const auto priors = std::make_shared<Parameter>(element::bf16, priors_shape);
     const auto feature_map = std::make_shared<Parameter>(element::bf16, feat_map_shape);
@@ -91,16 +92,16 @@ TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, interval_shapes_fl
 
     EXPECT_EQ(op->get_output_element_type(0), element::bf16);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({{90, 500}, 4}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, interval_shapes_no_flatten) {
     auto priors_shape = PartialShape{{2, 5}, {0, 4}};
     auto feat_map_shape = PartialShape{1, {3, 4}, {5, 10}, {9, 10}};
     auto im_data_shape = PartialShape{1, {2, 4}, {1, 128}, {1, 128}};
-    set_shape_labels(priors_shape, 10);
-    set_shape_labels(feat_map_shape, 20);
-    set_shape_labels(im_data_shape, 30);
+    auto priors_symbols = set_shape_symbols(priors_shape);
+    auto feat_symbols = set_shape_symbols(feat_map_shape);
+    set_shape_symbols(im_data_shape);
 
     const auto priors = std::make_shared<Parameter>(element::bf16, priors_shape);
     const auto feature_map = std::make_shared<Parameter>(element::bf16, feat_map_shape);
@@ -110,7 +111,8 @@ TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, interval_shapes_no
 
     EXPECT_EQ(op->get_output_element_type(0), element::bf16);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({{5, 10}, {9, 10}, {2, 5}, 4}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(22, 23, 10, no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(feat_symbols[2], feat_symbols[3], priors_symbols[0], nullptr));
 }
 
 TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, all_inputs_dynamic_rank_flatten) {
@@ -122,7 +124,7 @@ TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, all_inputs_dynamic
 
     EXPECT_EQ(op->get_output_element_type(0), element::f16);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({-1, 4}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, all_inputs_dynamic_rank_no_flatten) {
@@ -134,7 +136,7 @@ TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, all_inputs_dynamic
 
     EXPECT_EQ(op->get_output_element_type(0), element::f16);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({-1, -1, -1, 4}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, all_input_got_dynamic_type) {

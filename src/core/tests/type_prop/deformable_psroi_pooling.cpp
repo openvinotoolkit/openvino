@@ -43,7 +43,7 @@ TEST(type_prop, deformable_psroi_pooling_interval_labels) {
     auto input_data = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{2, 4, 64, 56});
 
     auto coords_shape = PartialShape{rois_dim, 5};
-    set_shape_labels(coords_shape, 20);
+    auto symbols = set_shape_symbols(coords_shape);
     auto input_coords = make_shared<ov::op::v0::Parameter>(element::f32, coords_shape);
 
     auto op =
@@ -51,8 +51,7 @@ TEST(type_prop, deformable_psroi_pooling_interval_labels) {
 
     const PartialShape expected_output{rois_dim, output_dim, group_size, group_size};
     EXPECT_EQ(op->get_output_partial_shape(0), expected_output);
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)),
-                ElementsAre(20, ov::no_label, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), ElementsAre(symbols[0], nullptr, nullptr, nullptr));
 }
 
 TEST(type_prop, deformable_psroi_pooling_no_offsets_group_size_3) {

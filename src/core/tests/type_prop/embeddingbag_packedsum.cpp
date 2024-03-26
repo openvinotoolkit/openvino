@@ -28,9 +28,9 @@ TEST(type_prop, ebps_default_ctor) {
 
 TEST(type_prop, ebps_labeled_interval_dims_2in) {
     auto emb_shape = PartialShape{{5, 10}, {2, 4}, {1, 3}};
-    set_shape_labels(emb_shape, 10);
+    auto emb_symbols = set_shape_symbols(emb_shape);
     auto ind_shape = PartialShape{{6, 8}, 4};
-    set_shape_labels(ind_shape, 20);
+    auto ind_symbols = set_shape_symbols(ind_shape);
 
     auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, emb_shape);
     auto indices = make_shared<ov::op::v0::Parameter>(element::i64, ind_shape);
@@ -38,16 +38,17 @@ TEST(type_prop, ebps_labeled_interval_dims_2in) {
     auto op = make_shared<op::v3::EmbeddingBagPackedSum>(emb_table, indices);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{{6, 8}, {2, 4}, {1, 3}}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(20, 11, 12));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(ind_symbols[0], emb_symbols[1], emb_symbols[2]));
 }
 
 TEST(type_prop, ebps_labeled_interval_dims_3in) {
     auto emb_shape = PartialShape{{5, 10}, {2, 4}, {1, 3}};
-    set_shape_labels(emb_shape, 10);
+    auto emb_symbols = set_shape_symbols(emb_shape);
     auto ind_shape = PartialShape{{2, 6}, 4};
-    set_shape_labels(ind_shape, 20);
+    auto ind_symbols = set_shape_symbols(ind_shape);
     auto sample_shape = PartialShape{{4, 8}, 4};
-    set_shape_labels(sample_shape, 30);
+    auto sample_symbols = set_shape_symbols(sample_shape);
 
     auto emb_table = make_shared<ov::op::v0::Parameter>(element::f32, emb_shape);
     auto indices = make_shared<ov::op::v0::Parameter>(element::i64, ind_shape);
@@ -56,7 +57,8 @@ TEST(type_prop, ebps_labeled_interval_dims_3in) {
     auto op = make_shared<op::v3::EmbeddingBagPackedSum>(emb_table, indices, per_sample_weights);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{{4, 6}, {2, 4}, {1, 3}}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(30, 11, 12));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(ind_symbols[0], emb_symbols[1], emb_symbols[2]));
 }
 
 TEST(type_prop, ebps) {

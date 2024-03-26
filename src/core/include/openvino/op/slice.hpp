@@ -47,7 +47,7 @@ public:
     bool evaluate(TensorVector&, const TensorVector&) const override;
     bool evaluate_lower(TensorVector& outputs) const override;
     bool evaluate_upper(TensorVector& outputs) const override;
-    bool evaluate_label(TensorLabelVector& output_labels) const override;
+    bool evaluate_symbol(TensorSymbolVector& output_symbols) const override;
 
     std::shared_ptr<v0::Constant> get_default_const_axes(const Output<Node>& start) const;
 };

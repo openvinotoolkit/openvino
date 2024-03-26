@@ -16,9 +16,9 @@ TEST(type_prop, deformable_convolution_opset8_partial_auto_padding_same) {
     PartialShape data_batch_pshape{1, 4, 5, 5};
     PartialShape offsets_pshape{1, 36, 5, 5};
     PartialShape filters_pshape{4, 1, 3, 3};
-    set_shape_labels(data_batch_pshape, 10);
-    set_shape_labels(offsets_pshape, 20);
-    set_shape_labels(filters_pshape, 30);
+    set_shape_symbols(data_batch_pshape);
+    auto o_symbols = set_shape_symbols(offsets_pshape);
+    auto f_symbols = set_shape_symbols(filters_pshape);
     const element::Type_t et = element::f32;
 
     Strides strides{1, 1};
@@ -43,8 +43,8 @@ TEST(type_prop, deformable_convolution_opset8_partial_auto_padding_same) {
                                                               group,
                                                               deformable_group);
 
-    EXPECT_THAT(get_shape_labels(deformable_conv->get_output_partial_shape(0)),
-                ElementsAre(10, 30, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(deformable_conv->get_output_partial_shape(0)),
+                ElementsAre(o_symbols[0], f_symbols[0], nullptr, nullptr));
     EXPECT_EQ(deformable_conv->get_output_partial_shape(0), (PartialShape{1, 4, 5, 5}));
     EXPECT_EQ(deformable_conv->get_pads_begin(), (CoordinateDiff{1, 1}));
     EXPECT_EQ(deformable_conv->get_pads_end(), (CoordinateDiff{1, 1}));
@@ -1270,9 +1270,9 @@ TEST_F(TypePropDeformableConvolutionV8Test, interval_shapes) {
     PartialShape data_batch_pshape{{1, 3}, {2, 6}, {1, 5}, {3, 10}};
     PartialShape offsets_shape{1, 36, 4, 5};
     PartialShape filters_pshape{{2, 5}, {1, 3}, {2, 3}, 3};
-    set_shape_labels(data_batch_pshape, 10);
-    set_shape_labels(offsets_shape, 20);
-    set_shape_labels(filters_pshape, 30);
+    set_shape_symbols(data_batch_pshape);
+    auto o_symbols = set_shape_symbols(offsets_shape);
+    auto f_symbols = set_shape_symbols(filters_pshape);
 
     const element::Type_t et = element::f32;
     const auto auto_pad = op::PadType::EXPLICIT;
@@ -1284,7 +1284,8 @@ TEST_F(TypePropDeformableConvolutionV8Test, interval_shapes) {
     const auto op =
         make_op(data_batch, offsets, filters, masks, Strides{}, empty_pad, empty_pad, Strides{}, auto_pad, 4, 2);
 
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 30, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(o_symbols[0], f_symbols[0], nullptr, nullptr));
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({1, {2, 5}, {1, 4}, {1, 8}}));
     EXPECT_EQ(op->get_pads_begin(), (CoordinateDiff{0, 0}));
     EXPECT_EQ(op->get_pads_end(), (CoordinateDiff{0, 0}));
