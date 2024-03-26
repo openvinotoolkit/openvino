@@ -102,6 +102,11 @@ std::shared_ptr<Node> optional(const Output<Node>& input) {
     return optional<NodeTypes...>(OutputVector{input});
 }
 
+template <class... NodeTypes>
+std::shared_ptr<Node> optional() {
+    return optional<NodeTypes...>(OutputVector{});
+}
+
 }  // namespace pattern
 }  // namespace pass
 }  // namespace ov

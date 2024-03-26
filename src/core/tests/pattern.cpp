@@ -22,6 +22,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/non_max_suppression.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/relu.hpp"
@@ -489,7 +490,34 @@ TEST(pattern, matcher) {
     }
 }
 
-TEST(pattern, optional_single_in) {
+TEST(pattern, optional_nodes_without_inputs_matching) {
+    // create v5::NMS which supports optional inputs
+    auto model_in_0 = std::make_shared<ov::op::v0::Parameter>(element::f32, ov::Shape{3, 100, 4});
+    auto model_in_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, ov::Shape{3, 5, 100});
+    auto model_in_2 = std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape{}, std::vector<int>{10});
+    auto model_nms_without_optional = std::make_shared<ov::op::v5::NonMaxSuppression>(model_in_0, model_in_1);
+    auto model_nms_with_optional = std::make_shared<ov::op::v5::NonMaxSuppression>(model_in_0, model_in_1, model_in_2);
+
+    auto pattern_in_0 = ov::pass::pattern::any_input();
+    auto pattern_in_1 = ov::pass::pattern::any_input();
+    auto pattern_in_2 = ov::pass::pattern::optional<ov::op::v0::Constant>();
+    auto pattern_relu = ov::pass::pattern::optional<ov::op::v0::Relu>(pattern_in_2);
+    auto pattern_nms =
+        ov::pass::pattern::wrap_type<ov::op::v5::NonMaxSuppression>({pattern_in_0, pattern_in_1, pattern_in_2});
+    auto pattern_nms_with_relu =
+        ov::pass::pattern::wrap_type<ov::op::v5::NonMaxSuppression>({pattern_in_0, pattern_in_1, pattern_relu});
+
+    TestMatcher n;
+
+    // Check Optional pattern
+    ASSERT_TRUE(n.match(pattern_nms, model_nms_with_optional));
+    ASSERT_TRUE(n.match(pattern_nms_with_relu, model_nms_with_optional));
+    ASSERT_TRUE(n.match(pattern_nms, model_nms_without_optional));
+    ASSERT_TRUE(n.match(pattern_nms_with_relu, model_nms_without_optional));
+    ASSERT_TRUE(n.match(pattern_in_2, model_in_2));
+}
+
+TEST(pattern, optional_single_in_nodes_matching) {
     Shape shape{};
     auto a = make_shared<op::v0::Parameter>(element::i32, shape);
     auto b = make_shared<op::v0::Parameter>(element::i32, shape);
@@ -512,7 +540,7 @@ TEST(pattern, optional_single_in) {
                          std::make_shared<op::v0::Abs>(c)));
 }
 
-TEST(pattern, optional_multi_in_cumulative_op) {
+TEST(pattern, optional_multi_in_cumulatative_nodes_matching) {
     Shape shape{};
     auto a = make_shared<op::v0::Parameter>(element::i32, shape);
     auto relu = make_shared<op::v0::Relu>(a);
@@ -538,7 +566,7 @@ TEST(pattern, optional_multi_in_cumulative_op) {
     ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v1::Add>(ov::OutputVector{relu, b}), b));
 }
 
-TEST(pattern, optional_multi_in_order_important) {
+TEST(pattern, optional_multi_in_nodes_order_important_matching) {
     Shape shape{};
     auto a = make_shared<op::v0::Parameter>(element::f32, shape);
     auto relu = make_shared<op::v0::Relu>(a);
@@ -554,7 +582,28 @@ TEST(pattern, optional_multi_in_order_important) {
     ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v1::Subtract>(ov::OutputVector{relu, b}), b));
 }
 
-TEST(pattern, optional_multi_in_pattern_matching) {
+TEST(pattern, optional_complex_pattern_matching) {
+    auto model_param = make_shared<op::v0::Parameter>(element::f32, ov::Shape{2, 3, 4});
+    auto model_constant = make_shared<op::v0::Constant>(element::i32, ov::Shape{3}, std::vector<int>{2, 0, 1});
+    auto model_abs = make_shared<op::v0::Abs>(model_param);
+    auto model_relu = make_shared<op::v0::Relu>(model_param);
+    auto model_transpose_negative = std::make_shared<op::v1::Transpose>(model_abs, model_constant);
+    auto model_transpose_positive = std::make_shared<op::v1::Transpose>(model_relu, model_constant);
+    auto model_negative = std::make_shared<op::v0::Relu>(model_transpose_negative);
+    auto model_positive = std::make_shared<op::v0::Relu>(model_transpose_positive);
+
+    auto pattern_param = ov::pass::pattern::any_input();
+    auto pattern_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto pattern_relu = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({pattern_param});
+    auto pattern_transpose = ov::pass::pattern::optional<op::v1::Transpose>({pattern_relu, pattern_constant});
+    auto pattern = ov::pass::pattern::wrap_type<op::v0::Relu>({pattern_transpose});
+
+    TestMatcher n;
+    ASSERT_FALSE(n.match(pattern, model_negative));
+    ASSERT_TRUE(n.match(pattern, model_positive));
+}
+
+TEST(pattern, optional_pattern_matching_with_multi_in_nodes) {
     Shape shape{};
     auto model_input_0 = std::make_shared<op::v0::Parameter>(element::i32, shape);
     auto model_input_1 = std::make_shared<op::v0::Parameter>(element::i32, shape);
@@ -577,7 +626,7 @@ TEST(pattern, optional_multi_in_pattern_matching) {
     ASSERT_TRUE(tm.match(pattern_relu, model_relu_without_add_1));
 }
 
-TEST(pattern, optional_single_in_pattern_matching) {
+TEST(pattern, optional_pattern_matching_with_single_op) {
     Shape shape{};
     auto model_input = std::make_shared<op::v0::Parameter>(element::i32, shape);
     auto model_relu = std::make_shared<op::v0::Relu>(model_input);
