@@ -19,6 +19,8 @@ test_ops = [
     {'op_name': 'ELU', 'op_func': tf.nn.elu},
     {'op_name': 'EXP', 'op_func': tf.math.exp, 'kwargs_to_prepare_input': 'positive'},
     {'op_name': 'FLOOR', 'op_func': tf.math.floor},
+    {'op_name': 'GELU', 'op_func': partial(tf.nn.gelu, approximate=True)},
+    {'op_name': 'GELU', 'op_func': partial(tf.nn.gelu, approximate=False)},
     {'op_name': 'LEAKY_RELU', 'op_func': partial(tf.nn.leaky_relu, alpha=-0.5)},
     {'op_name': 'LOG', 'op_func': tf.math.log, 'kwargs_to_prepare_input': 'positive'},
     {'op_name': 'LOG_SOFTMAX', 'op_func': partial(tf.nn.log_softmax, axis=-1)},
