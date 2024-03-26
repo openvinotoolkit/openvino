@@ -15,6 +15,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "utils.hpp"
 
 using namespace ov;
 using namespace ov::op;
@@ -463,12 +464,24 @@ bool propagate_conditional_flow(const OutputVector& ov_inputs,
     return to_propagate;
 }
 
+namespace {
+shared_ptr<op::v0::Parameter> get_parent_parameter(const shared_ptr<op::v0::Result>& node) {
+    const auto input_values = node->input_values();
+    if (input_values.empty())
+        return {};
+    return as_type_ptr<v0::Parameter>(input_values[0].get_node_shared_ptr());
+}
+bool has_parent_parameter(const shared_ptr<op::v0::Result>& node) {
+    return get_parent_parameter(node) != nullptr;
+}
+}  // namespace
+
 // create Loop operation corresponding to TensorFlow While operation
-shared_ptr<v5::Loop> create_loop_for_tf_while(const std::string& while_node_name,
-                                              const shared_ptr<Model>& body_model,
-                                              const shared_ptr<Model>& cond_model,
-                                              const OutputVector& ov_inputs,
-                                              const shared_ptr<Model>& prior_cond_model) {
+ov::OutputVector create_loop_for_tf_while(const std::string& while_node_name,
+                                          const shared_ptr<Model>& body_model,
+                                          const shared_ptr<Model>& cond_model,
+                                          const OutputVector& ov_inputs,
+                                          const shared_ptr<Model>& prior_cond_model) {
     size_t input_size = ov_inputs.size();
     // inject condition body graph prior to Loop node
     // to check condition before to start iterations
@@ -542,9 +555,17 @@ shared_ptr<v5::Loop> create_loop_for_tf_while(const std::string& while_node_name
     // set data for the Loop node
     loop->set_function(body_model);
 
+    std::vector<size_t> invariant_input_indexes;
     // body_results may contain less nodes than body_params that means back edge exists not for all body_params
     for (size_t input_ind = 0; input_ind < body_condition_output_idx; ++input_ind) {
+        if (has_parent_parameter(body_results[input_ind])) {
+            invariant_input_indexes.push_back(input_ind);
+            continue;
+        }
         loop->set_merged_input(body_params[input_ind], ov_inputs[input_ind], body_results[input_ind]->input_value(0));
+    }
+    for (size_t idx : invariant_input_indexes) {
+        loop->set_invariant_input(body_params[idx], ov_inputs[idx]);
     }
     loop->set_special_body_ports({-1, static_cast<int64_t>(body_condition_output_idx)});
     // set invariant inputs for the loop
@@ -552,13 +573,27 @@ shared_ptr<v5::Loop> create_loop_for_tf_while(const std::string& while_node_name
         loop->set_invariant_input(body_params[input_ind], ov_inputs[input_ind]);
     }
 
+    std::unordered_map<size_t, Output<Node>> loop_input_nodes;  // map Parameter instance_id to input node
+    {
+        for (const auto& description : loop->get_input_descriptions()) {
+            const size_t body_input_id = body_params[description->m_body_parameter_index]->get_instance_id();
+            loop_input_nodes[body_input_id] = loop->input_value(description->m_input_index);
+        }
+    }
+    ov::OutputVector loop_outputs;
     // set external outputs for Loop node
     // do not get execution condition outside of the Loop node
     for (size_t output_ind = 0; output_ind < body_condition_output_idx; ++output_ind) {
+        auto parent_parameter = get_parent_parameter(body_results[output_ind]);
+        if (parent_parameter) {
+            loop_outputs.push_back(loop_input_nodes[parent_parameter->get_instance_id()]);
+            continue;
+        }
         loop->get_iter_value(body_results[output_ind]);
     }
     loop->validate_and_infer_types();
-    return loop;
+    set_node_name(while_node_name, loop);
+    return loop_outputs;
 }
 
 void inject_body_model(std::shared_ptr<ov::Model> ov_model_to_inject,

@@ -357,8 +357,8 @@ void fuse_loop_cond(std::shared_ptr<LoopCond>& loop_cond,
         merge->output(0).replace(aux_cond_results[0]->input_value(0));
     }
 
-    auto loop_node = create_loop_for_tf_while(node_name, body_model, cond_model, ov_inputs, prior_cond_model);
-    auto loop_model = std::make_shared<ov::Model>(loop_node->outputs());
+    auto loop_outputs = create_loop_for_tf_while(node_name, body_model, cond_model, ov_inputs, prior_cond_model);
+    auto loop_model = std::make_shared<ov::Model>(loop_outputs);
 
     size_t loop_node_output_size = loop_node->get_output_size();
     FRONT_END_GENERAL_CHECK(loop_node_output_size == num_inputs,
@@ -370,7 +370,7 @@ void fuse_loop_cond(std::shared_ptr<LoopCond>& loop_cond,
             std::string producer_name = producer_node->get_friendly_name();
             size_t producer_output_port_idx = ov_outputs[output_ind].get_index();
             // work only for non-empty ov::Output<ov::Node>
-            ov_outputs[output_ind].replace(loop_node->output(output_ind));
+            ov_outputs[output_ind].replace(loop_outputs[output_ind]);
             ov_outputs[output_ind].set_names({output_tensor_names[output_ind]});
             if (ov_tensors_map->count(producer_name) &&
                 producer_output_port_idx < ov_tensors_map->at(producer_name).size()) {
