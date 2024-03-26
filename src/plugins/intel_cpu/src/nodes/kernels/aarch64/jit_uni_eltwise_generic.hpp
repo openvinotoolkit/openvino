@@ -177,14 +177,15 @@ private:
     // 13      | aux
     // 14      | aux
     // 15      | aux
-    // 16      | src
+    // 16      | aux
     // 17      | src
     // 18      | src
     // 19      | src
     // 20      | src
     // 21      | src
     // 22      | src
-    // 23-31   | [not used]
+    // 23      | src
+    // 24-31   | [not used]
 
 
     TReg vmm_dst {9};
@@ -193,7 +194,7 @@ private:
         if (idx > MAX_ELTWISE_INPUTS) {
             OPENVINO_THROW("source vector register " + std::to_string(idx) + " is not supported");
         }
-        return TReg(16 + idx);
+        return TReg(17 + idx);
     }
 
     inline SReg get_scl_reg(const uint32_t idx) {
@@ -204,7 +205,7 @@ private:
     }
 
     inline TReg get_aux_vmm(const uint32_t idx) {
-        if (idx > 5) {
+        if (idx > 6) {
             OPENVINO_THROW("aux vector register " + std::to_string(idx) + " is not supported");
         }
         return TReg(10 + idx);
