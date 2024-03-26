@@ -21,6 +21,7 @@
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/init_node_info.hpp"
+#include "transformations/op_conversions/convert_divide.hpp"
 #include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
 #include "transformations/op_conversions/log_softmax_decomposition.hpp"
 #include "transformations/op_conversions/reduce_l2_decomposition.hpp"
@@ -569,6 +570,50 @@ TEST_F(GetSupportedNodesTest, NoConstOpTest) {
         },
         {"input1", "input2", "add", "res"},
         0.9f);
+}
+
+TEST_F(GetSupportedNodesTest, DivideWillRemoveConvertAndConstant) {
+    {
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 2, 2});
+        param->set_friendly_name("input");
+        auto constant_compressed = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1, 3, 2, 2}, {1});
+        constant_compressed->set_friendly_name("constant_compressed");
+        auto convert = std::make_shared<ov::op::v0::Convert>(constant_compressed, ov::element::f32);
+        convert->set_friendly_name("convert");
+        auto divide = std::make_shared<ov::op::v1::Divide>(param, convert);
+        divide->set_friendly_name("divide");
+        auto const_value2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 3, 2, 2}, {1});
+        const_value2->set_friendly_name("const_val");
+        auto add2 = std::make_shared<ov::op::v1::Add>(divide, const_value2);
+        add2->set_friendly_name("add2");
+        auto result = std::make_shared<ov::op::v0::Result>(add2);
+        result->set_friendly_name("result");
+        m_function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+    }
+    Run(
+        [&](std::shared_ptr<ov::Model>& model) {
+            ov::pass::Manager m;
+            m.register_pass<ov::pass::InitNodeInfo>();
+            const bool keep_precision_sensitive_in_fp32_1 = true;
+            const bool convert_input_output_precision = false;
+            const bool store_original_precision_as_rt_attribute = true;
+            type_to_fuse_map empty_fuse_map = {};
+            precisions_map fp_convert_precision_map = {
+                {ov::element::f32, ov::element::f16}
+            };
+            m.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
+                                                        empty_fuse_map,
+                                                        keep_precision_sensitive_in_fp32_1,
+                                                        convert_input_output_precision,
+                                                        store_original_precision_as_rt_attribute);
+            m.register_pass<ov::pass::CommonOptimizations>();
+            m.run_passes(model);
+        },
+        [&](const std::shared_ptr<ov::Node>& op) {
+            return true;
+        },
+        {"input", "constant_compressed", "divide", "const_val", "add2", "convert", "result"},
+        0.98f);
 }
 
 using GetSupportedNodesStatefulTest = GetSupportedNodesTest;

@@ -327,7 +327,18 @@ std::unordered_set<std::string> ov::get_supported_nodes(
                     }
                 }
             }
-            // In case some ops not in ordered, so traverse the entire model to ensure accurate split
+            // Add the ops to supported that removed by transformations and it has supported users
+            //
+            // constant_compressed(to be marked as supported)
+            //         |
+            //      convert(to be marked as supported)
+            //         |
+            //       divide(already in supported)
+            //
+            // In case the dependency relationships of some nodes, so traverse the entire model to ensure accurate
+            // split. For example: In the graph above, constant_compressed op will be first obtained by
+            // get_ordered_ops(), but it depends on convert op, so need loop again to mark constant_compressed op after
+            // convert op is marked.
             bool changed = true;
             while (changed) {
                 changed = false;
