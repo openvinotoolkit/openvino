@@ -181,11 +181,6 @@ CPU& cpu_info() {
     return cpu;
 }
 
-void set_hbm_flag(const bool input_flag) {
-    CPU& cpu = cpu_info();
-    cpu._hbm_enabled = input_flag;
-};
-
 #if defined(__EMSCRIPTEN__)
 // for Linux and Windows the getNumberOfCPUCores (that accounts only for physical cores) implementation is OS-specific
 // (see cpp files in corresponding folders), for __APPLE__ it is default :
@@ -384,9 +379,14 @@ int get_current_socket_id() {
     return 0;
 }
 
-int get_memory_numa_node_id(const int cpu_numa_node) {
+int get_memory_numa_node_id(const int numa_node_id) {
     CPU& cpu = cpu_info();
-    return cpu._hbm_enabled ? (cpu_numa_node == 0 ? cpu._numa_nodes : cpu_numa_node) : cpu_numa_node;
+    auto iter = cpu._numaid_mapping_table.find(numa_node_id);
+    if (iter != cpu._numaid_mapping_table.end()) {
+        return cpu._hbm_enabled ? (iter->second == 0 ? cpu._numa_nodes : iter->second) : iter->second;
+        return iter->second;
+    }
+    return -1;
 };
 #    else
 int get_current_socket_id() {

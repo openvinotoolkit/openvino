@@ -203,6 +203,7 @@ CPU::CPU() {
                                _numa_nodes,
                                _sockets,
                                _cores,
+                               _hbm_enabled,
                                _proc_type_table,
                                _cpu_mapping_table);
     }
@@ -217,6 +218,7 @@ CPU::CPU() {
                                   _numa_nodes,
                                   _sockets,
                                   _cores,
+                                  _hbm_enabled,
                                   _proc_type_table,
                                   _cpu_mapping_table);
         }
@@ -298,6 +300,7 @@ CPU::CPU() {
 void parse_node_info_linux(const std::vector<std::string> node_info_table,
                            const int& _numa_nodes,
                            int& _sockets,
+                           bool& _hbm_enabled,
                            std::vector<std::vector<int>>& _proc_type_table,
                            std::vector<std::vector<int>>& _cpu_mapping_table) {
     std::vector<std::vector<int>> nodes_table;
@@ -311,7 +314,7 @@ void parse_node_info_linux(const std::vector<std::string> node_info_table,
         std::string sub_str = "";
 
         if (one_info == "") {
-            set_hbm_flag(true);
+           _hbm_enabled = true;
         } else if (((endpos = one_info.find('-', pos)) == std::string::npos) &&
                    ((endpos = one_info.find(',', pos)) != std::string::npos)) {
             while (endpos != std::string::npos) {
@@ -370,6 +373,7 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
                             int& _numa_nodes,
                             int& _sockets,
                             int& _cores,
+                            bool& _hbm_enabled,
                             std::vector<std::vector<int>>& _proc_type_table,
                             std::vector<std::vector<int>>& _cpu_mapping_table) {
     int n_group = 0;
@@ -548,7 +552,7 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
                 _numa_nodes++;
             }
         }
-        parse_node_info_linux(node_info_table, _numa_nodes, _sockets, _proc_type_table, _cpu_mapping_table);
+        parse_node_info_linux(node_info_table, _numa_nodes, _sockets, _hbm_enabled, _proc_type_table, _cpu_mapping_table);
     }
 };
 
@@ -621,6 +625,7 @@ void parse_freq_info_linux(const std::vector<std::vector<std::string>> system_in
                            int& _numa_nodes,
                            int& _sockets,
                            int& _cores,
+                           bool& _hbm_enabled,
                            std::vector<std::vector<int>>& _proc_type_table,
                            std::vector<std::vector<int>>& _cpu_mapping_table) {
     int freq_max = 0;
@@ -741,7 +746,7 @@ void parse_freq_info_linux(const std::vector<std::vector<std::string>> system_in
         _numa_nodes = _sockets;
     } else {
         _numa_nodes = node_info_table.size();
-        parse_node_info_linux(node_info_table, _numa_nodes, _sockets, _proc_type_table, _cpu_mapping_table);
+        parse_node_info_linux(node_info_table, _numa_nodes, _sockets, _hbm_enabled, _proc_type_table, _cpu_mapping_table);
     }
 };
 
