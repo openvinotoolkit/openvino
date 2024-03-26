@@ -1462,24 +1462,6 @@ void primitive_inst::configure_shape_of_dependencies() {
     }
 }
 
-void primitive_inst::rebuild_deps(std::unordered_map<primitive_id, primitive_inst*> const& primitives) {
-    _deps.resize(_dep_ids.size());
-    for (size_t i = 0; i < _dep_ids.size(); i++) {
-        OPENVINO_ASSERT((primitives.count(_dep_ids[i].first) > 0),
-                        _dep_ids[i].first, "is not found in primitives while rebuilding _deps");
-        _deps[i] = {primitives.at(_dep_ids[i].first), _dep_ids[i].second};
-    }
-}
-
-void primitive_inst::rebuild_exec_deps(std::unordered_map<primitive_id, primitive_inst*> const& primitives) {
-    _exec_deps.resize(_exec_dep_ids.size());
-    for (size_t i = 0; i < _exec_dep_ids.size(); i++) {
-        OPENVINO_ASSERT((primitives.count(_exec_dep_ids[i]) > 0),
-                        _exec_dep_ids[i], "is not found in primitives while rebuilding _exec_deps");
-        _exec_deps[i] = primitives.at(_exec_dep_ids[i]);
-    }
-}
-
 primitive_inst::primitive_inst(network& network)
     : _network(network)
     , _node(nullptr)
@@ -1694,6 +1676,8 @@ event::ptr primitive_inst::update_weights() {
         // incorrect memory buffer may be assigned, so reset cached weights for such case
         _reordered_weights_cache.add(original_layout, original_weights_memory);
         _impl_params->weights_layout = optional_layout(original_layout);
+        GPU_DEBUG_TRACE_DETAIL << id() << ": add original weights memory " << original_layout.to_short_string() << " to weights cache; "
+                                       << "cache_size=" << _reordered_weights_cache.size() << "/" << _reordered_weights_cache.capacity() << std::endl;
     } else {
         auto expected_layout = reorder_kernel_params->get_output_layout();
         // Set original partial shape, because it may be lost during kernel_selector::weights_tensor -> layout conversion

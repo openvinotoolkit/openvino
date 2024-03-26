@@ -164,6 +164,15 @@ void Concat::initSupportedPrimitiveDescriptors() {
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
         if (itr->first != LayoutType::nspc) {
             pdIndexesToReuse.push_back(supportedPrimitiveDescriptors.size() - 1);
+        } else if (canBeInPlace) {
+            // canBeInPlace means all dims before axis are 1, so for nspc layout we only need check sp dimensions in
+            // axis=1 cases here
+            const auto& childDims = outputShapes[0].getDims();
+            if (axis != 1 || std::all_of(childDims.crbegin(), childDims.crend() - 2, [](const Dim dim) {
+                    return 1 == dim;
+                })) {
+                pdIndexesToReuse.push_back(supportedPrimitiveDescriptors.size() - 1);
+            }
         }
     }
 
@@ -506,11 +515,11 @@ ov::element::Type Concat::getRuntimePrecision() const {
 
 void Concat::exec1DCase() {
     DEBUG_LOG(getName(), " exec1DCase");
-    auto* dst = reinterpret_cast<uint32_t*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
+    auto* dst = getDstDataAtPortAs<uint32_t>(0);
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        const auto& srcMemPtr = getParentEdgeAt(i)->getMemoryPtr();
+        const auto& srcMemPtr = getSrcMemoryAtPort(i);
         const auto& srcShape = srcMemPtr->getStaticDims();
-        const auto* src = reinterpret_cast<const uint32_t*>(srcMemPtr->getData());
+        const auto* src = srcMemPtr->getDataAs<const uint32_t>();
         for (size_t i = 0; i < srcShape[0]; i++) {
             *dst++ = src[i];
         }

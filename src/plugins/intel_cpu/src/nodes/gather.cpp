@@ -4,6 +4,7 @@
 
 #include "gather.h"
 
+#include <cstdint>
 #include <openvino/op/gather.hpp>
 #include <openvino/op/constant.hpp>
 
@@ -595,11 +596,11 @@ void Gather::execReference() {
 
 void Gather::exec1DCase() {
     DEBUG_LOG(getName(), " exec1DCase");
-    auto* pdst = reinterpret_cast<uint32_t*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
-    auto srcMemPtr = getParentEdgeAt(GATHER_DATA)->getMemoryPtr();
-    auto idxMemPtr = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr();
-    const auto* psrc = reinterpret_cast<const uint32_t*>(srcMemPtr->getData());
-    const auto* pidx = reinterpret_cast<const int32_t*>(idxMemPtr->getData());
+    auto* pdst = getDstDataAtPortAs<uint32_t>(0);
+    auto srcMemPtr = getSrcMemoryAtPort(GATHER_DATA);
+    auto idxMemPtr = getSrcMemoryAtPort(GATHER_INDICES);
+    const auto* psrc = srcMemPtr->getDataAs<const uint32_t>();
+    const auto* pidx = idxMemPtr->getDataAs<int32_t>();
 
     const auto& idxDims = idxMemPtr->getStaticDims();
     const auto idxCnt = (idxDims.size() == 0) ? 1 : idxDims[0];
@@ -618,8 +619,8 @@ void Gather::exec1DCase() {
 
 void Gather::execCompressedCase() {
     DEBUG_LOG(getName(), " execCompressedCase");
-    auto srcMemPtr = getParentEdgeAt(GATHER_DATA)->getMemoryPtr();
-    auto idxMemPtr = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr();
+    auto srcMemPtr = getSrcMemoryAtPort(GATHER_DATA);
+    auto idxMemPtr = getSrcMemoryAtPort(GATHER_INDICES);
 
     const auto* psrc = srcMemPtr->getDataAs<uint8_t>();
     const auto* pidx = idxMemPtr->getDataAs<int32_t>();
