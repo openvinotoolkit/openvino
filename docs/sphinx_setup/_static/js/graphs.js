@@ -225,7 +225,7 @@ class Modal {
         }
     }
     static getCoreTypesLabels() {
-        return ['CPU', 'iGPU', 'CPU+iGPU'];
+        return ['CPU', 'iGPU\\NPU', 'CPU+iGPU'];
     }
     static getKpisLabels(version) {
         if (version == 'ovms')
@@ -242,7 +242,7 @@ class Modal {
             switch (label) {
                 case 'CPU':
                     return 'core';
-                case 'iGPU':
+                case 'iGPU\\NPU':
                     return 'core-iGPU';
                 case 'CPU+iGPU':
                     return 'core-CPU+iGPU';
