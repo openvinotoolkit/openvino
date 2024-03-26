@@ -58,6 +58,8 @@ class TestRaggedTensorToTensor(CommonTFLayerTest):
     def test_ragged_tensor_to_tensor(self, shape_type, shape_value, values_shape, values_type, default_value,
                                      row_partition_tensors, row_partition_types,
                                      ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+        if ie_device == 'GPU':
+            pytest.skip("operation extension is not supported on GPU")
         self._test(*self.create_ragged_tensor_to_tensor_net(shape_type=shape_type, shape_value=shape_value,
                                                             values_shape=values_shape, values_type=values_type,
                                                             default_value=default_value,
@@ -114,6 +116,8 @@ class TestRaggedTensorToTensorRowIds(CommonTFLayerTest):
     def test_ragged_tensor_to_tensor(self, shape_type, shape_value, values_shape, values_type, default_value,
                                      row_partition_tensors, row_partition_types,
                                      ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+        if ie_device == 'GPU':
+            pytest.skip("operation extension is not supported on GPU")
         self._test(*self.create_ragged_tensor_to_tensor_net(shape_type=shape_type, shape_value=shape_value,
                                                             values_shape=values_shape, values_type=values_type,
                                                             default_value=default_value,
