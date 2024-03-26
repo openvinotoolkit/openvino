@@ -20,6 +20,13 @@ it('Core.getAvailableDevices()', () => {
     assert.ok(devices.includes('CPU'));
 });
 
+it('Core.getVersions()', () => {    
+  const devices = core.getAvailableDevices();
+  const deviceVersion = core.getVersions(devices[0]);
+
+  assert.ok(deviceVersion.size()>=1);
+});
+
 it('CompiledModel type', () => {
   assert.ok(compiledModel instanceof ov.CompiledModel);
 });
