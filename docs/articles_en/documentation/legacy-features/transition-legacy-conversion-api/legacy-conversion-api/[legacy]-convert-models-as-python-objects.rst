@@ -16,7 +16,7 @@ Model conversion API is represented by ``convert_model()`` method in openvino.to
 .. note::
 
    Model conversion can be performed only when you install
-   :doc: `the development tools <../../../legacy-features/install-dev-tools>`, which provide
+   :doc:`the development tools <../../../legacy-features/install-dev-tools>`, which provide
    both the ``convert_model()`` method and ``mo`` command-line tool.
    The functionality from this article is applicable for ``convert_model()`` only and it is
    not present in command-line tool.
