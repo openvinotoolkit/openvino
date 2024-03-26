@@ -52,7 +52,7 @@ class TestComplexConjugate(CommonTFLayerTest):
 
 
     @pytest.mark.parametrize("input_shape", [[1,2], [1,2,3], [1,2,3,4], [1,2,3,4,5,6]])
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_conjugate(self, input_shape, ie_device, precision, ir_version, temp_dir,
                                  use_legacy_frontend):

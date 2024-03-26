@@ -42,7 +42,7 @@ class TestStringLower(CommonTFLayerTest):
                              [['UPPER CASE SENTENCE', 'lower case sentence', ' UppEr LoweR CAse SENtence', ' '],
                               ['Первое Предложение', 'второе    предложение', ' ', ' ТРЕТЬЕ ПРЕДЛОЖЕНИЕ '],
                               ['第一句話在這裡', '第二句話在這裡', '第三句話在這裡']])
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['arm', 'armv7l',
                                                                                                      'aarch64',
