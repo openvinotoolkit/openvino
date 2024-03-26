@@ -250,7 +250,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         const auto stream_mode = config.schedulingCoreType;
         return stream_mode;
     } else if (name == ov::hint::model_distribution_policy) {
-        const auto distribution_policy = config.modelDistributionPolicy;
+        const auto& distribution_policy = config.modelDistributionPolicy;
         return distribution_policy;
     } else if (name == ov::hint::enable_hyper_threading.name()) {
         const bool use_ht = config.enableHyperThreading;
