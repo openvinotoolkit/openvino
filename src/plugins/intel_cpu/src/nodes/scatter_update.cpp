@@ -19,12 +19,6 @@
 
 using namespace dnnl;
 
-#ifdef NDEBUG
-#define ASSERT_DEBUG_ONLY(...)
-#else
-#define ASSERT_DEBUG_ONLY(...) OPENVINO_ASSERT(__VA_ARGS__)
-#endif
-
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -397,7 +391,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
                 for (size_t idx = 0; idx < index_dim_size; idx++) {
                     int64_t idxValue =  getIndicesValue(indicesPtr, indices_offset);
                     if (idxValue < 0) idxValue += data_dim_size;
-                    ASSERT_DEBUG_ONLY(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
+                    assert(idxValue < data_dim_size && idxValue >= 0);
                     dataPtr[offsets[0] + idxValue * dataBlock_axisplus1] = value;
                     indices_offset += indicesBlock_axisplus1;
                 }
@@ -417,7 +411,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
                 for (size_t idx = 0; idx < index_dim_size; idx++) {
                     int64_t idxValue =  getIndicesValue(indicesPtr, indices_offset);
                     if (idxValue < 0) idxValue += data_dim_size;
-                    ASSERT_DEBUG_ONLY(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
+                    assert(idxValue < data_dim_size && idxValue >= 0);
                     auto dst = &dataPtr[offsets[0] + idxValue * dataBlock_axisplus1];
                     auto src = &updatePtr[indices_offset];
                     kernel_func(dst, src);
@@ -436,7 +430,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
             for (size_t worker = start; worker < end; worker++) { // idx = 0
                 int64_t idxValue =  getIndicesValue(indicesPtr, *ptr_indices_offset);
                 if (idxValue < 0) idxValue += data_dim_size;
-                ASSERT_DEBUG_ONLY(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
+                assert(idxValue < data_dim_size && idxValue >= 0);
                 auto dst = &dataPtr[ptr_dst_offset[0] + idxValue * dataBlock_axisplus1];
                 auto src = &updatePtr[ptr_indices_offset[0]];
                 kernel_func(dst, src);
@@ -453,7 +447,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
                     auto indices_offset = *ptr_indices_offset + idx * indicesBlock_axisplus1;
                     int64_t idxValue =  getIndicesValue(indicesPtr, indices_offset);
                     if (idxValue < 0) idxValue += data_dim_size;
-                    ASSERT_DEBUG_ONLY(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
+                    assert(idxValue < data_dim_size && idxValue >= 0);
                     auto dst = &dataPtr[ptr_dst_offset[0] + idxValue * dataBlock_axisplus1];
                     auto src = &updatePtr[indices_offset];
                     kernel_func(dst, src);
@@ -510,7 +504,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
                 for (size_t idx = 0; idx < index_dim_size; idx++) {
                     int64_t idxValue =  getIndicesValue(indicesPtr, indices_offset);
                     if (idxValue < 0) idxValue += data_dim_size;
-                    ASSERT_DEBUG_ONLY(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
+                    assert(idxValue < data_dim_size && idxValue >= 0);
                     dataPtr[offsets[0] + idxValue * dataBlock_axisplus1] = value;
                     indices_offset += indicesBlock_axisplus1;
                 }
@@ -532,7 +526,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
                 for (size_t idx = 0; idx < index_dim_size; idx++) {
                     int64_t idxValue =  getIndicesValue(indicesPtr, indices_offset);
                     if (idxValue < 0) idxValue += data_dim_size;
-                    ASSERT_DEBUG_ONLY(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
+                    assert(idxValue < data_dim_size && idxValue >= 0);
                     auto dst = &dataPtr[offsets[0] + idxValue * dataBlock_axisplus1];
                     auto src = &updatePtr[indices_offset];
                     kernel_func(dst, src);
@@ -563,7 +557,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
             for (size_t worker = start; worker < end; worker++) { // idx = 0
                 int64_t idxValue =  getIndicesValue(indicesPtr, *ptr_indices_offset);
                 if (idxValue < 0) idxValue += data_dim_size;
-                ASSERT_DEBUG_ONLY(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
+                assert(idxValue < data_dim_size && idxValue >= 0);
                 auto dst = &dataPtr[ptr_dst_offset[0] + idxValue * dataBlock_axisplus1];
                 auto src = &updatePtr[ptr_indices_offset[0]];
                 kernel_func(dst, src);
@@ -582,7 +576,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
                     auto indices_offset = *ptr_indices_offset + idx * indicesBlock_axisplus1;
                     int64_t idxValue =  getIndicesValue(indicesPtr, indices_offset);
                     if (idxValue < 0) idxValue += data_dim_size;
-                    ASSERT_DEBUG_ONLY(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
+                    assert(idxValue < data_dim_size && idxValue >= 0);
                     auto dst = &dataPtr[ptr_dst_offset[0] + idxValue * dataBlock_axisplus1];
                     auto src = &updatePtr[indices_offset];
                     kernel_func(dst, src);
