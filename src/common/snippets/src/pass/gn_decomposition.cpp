@@ -5,10 +5,8 @@
 #include "snippets/pass/gn_decomposition.hpp"
 
 #include "openvino/op/group_normalization.hpp"
-#include "snippets/op/reduce.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "openvino/core/rt_info.hpp"
 

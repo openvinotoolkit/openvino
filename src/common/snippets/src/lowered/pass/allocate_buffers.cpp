@@ -13,6 +13,7 @@
 #include "snippets/lowered/pass/normalize_buffer_ids.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/utils.hpp"
 
 namespace ov {
 namespace snippets {
@@ -46,8 +47,9 @@ void AllocateBuffers::set_buffer_offset(const ExpressionPtr& buffer_expr, const 
         }
     }
     // Propagate to down: in Load. Buffer can have several Load
-    auto last_shape_infer = ov::snippets::lowered::LinearIR::get_last_child_shape_infer_expr(buffer_expr);
-    const auto& buffer_out = last_shape_infer->get_output_port_connector(0);
+    const auto& shape_infer_seq = utils::get_first_child_shape_infer_expr_seq(buffer_expr);
+    const auto& target_expr = shape_infer_seq.empty() ? buffer_expr : shape_infer_seq.back();
+    const auto& buffer_out = target_expr->get_output_port_connector(0);
     for (const auto& child_expr_input : buffer_out->get_consumers()) {
         const auto& child_expr = child_expr_input.get_expr();
         const auto port = child_expr_input.get_index();

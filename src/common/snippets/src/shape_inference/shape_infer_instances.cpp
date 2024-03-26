@@ -248,18 +248,18 @@ Result ReduceShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
 ReshapeShapeInfer::ReshapeShapeInfer(const std::shared_ptr<Node>& n) {
     const auto& reshape = as_type_ptr<ov::snippets::op::Reshape>(n);
     OPENVINO_ASSERT(reshape, "Invalid node passed to ReshapeShapeInfer.");
-    target_shape = reshape->get_target_shape();
+    const auto& partial_shape = reshape->get_target_shape();
+    OPENVINO_ASSERT(partial_shape.is_static(), "target_shape of reshape op should be static in ReshapeShapeInfer");
+    target_shape = partial_shape.get_shape();
+    target_shape_volume = utils::get_shape_size(target_shape);
 }
 
 Result ReshapeShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
     OPENVINO_ASSERT(input_shapes.size() == 1, "Invalid number of shapes is passed in ReshapeShapeInfer");
-    OPENVINO_ASSERT(target_shape.is_static(), "target_shape should be static in ReshapeShapeInfer");
-    VectorDims result_shape = target_shape.get_shape();
-    const auto input_elems = utils::get_shape_size(input_shapes[0].get());
-    const auto output_elems = utils::get_shape_size(result_shape);
-    OPENVINO_ASSERT(input_elems == output_elems, "Tensor volume should be the same after reshape in ReshapeShapeInfer");
+    const auto input_shape_volume = utils::get_shape_size(input_shapes[0].get());
+    OPENVINO_ASSERT(input_shape_volume == target_shape_volume, "Tensor volume should be the same after reshape in ReshapeShapeInfer");
 
-    return {{result_shape}, ShapeInferStatus::success};
+    return {{target_shape}, ShapeInferStatus::success};
 }
 
 } // namespace snippets

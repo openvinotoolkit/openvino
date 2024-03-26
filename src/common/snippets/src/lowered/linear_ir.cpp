@@ -371,8 +371,9 @@ VectorDims LinearIR::get_master_shape() const {
         if (!m_config.m_enable_domain_optimization && ov::is_type<snippets::op::Brgemm>(source.get_expr()->get_node())) {
             master_shape = utils::get_preordered_vdims(source);
         } else {
-            auto last_shape_infer_expr = LinearIR::get_last_parent_shape_infer_expr(out_exprs[0]);
-            master_shape = utils::get_preordered_vdims(last_shape_infer_expr->get_input_port_connector(0)->get_source());
+            const auto& shape_infer_seq = utils::get_first_parent_shape_infer_expr_seq(out_exprs[0]);
+            const auto& expr = shape_infer_seq.empty() ? out_exprs[0] : shape_infer_seq.back();
+            master_shape = utils::get_preordered_vdims(expr->get_input_port_connector(0)->get_source());
         }
     } else {
         for (const auto& oe : out_exprs) {
@@ -496,92 +497,6 @@ LinearIR::exprIt LinearIR::replace_with_expr(const std::vector<ExpressionPtr>& o
                     "Failed to replace node: cannot replace node to nodes with inconsistent loop ids");
     const auto insertion_place = std::next(find(old_exprs.back()));
     return replace_with_expr(old_exprs, new_expr, insertion_place);
-}
-
-std::vector<ExpressionPtr> LinearIR::get_child_shape_infer_expr_seq(const ExpressionPtr& start_expr) {
-    std::vector<ExpressionPtr> shape_infer_exprs;
-    auto current_exp = start_expr;
-    if (op::Subgraph::is_shape_infer_op(current_exp->get_node())) {
-        OPENVINO_ASSERT(current_exp->get_input_port_connector(0)->get_consumers().size() == 1, "Shape infer ops are supposed to be the only consumer.");
-        shape_infer_exprs.push_back(current_exp);
-    }
-    if (current_exp->get_output_count() == 0)
-        return shape_infer_exprs;
-    auto output_consumers = current_exp->get_output_port_connector(0)->get_consumers();
-    auto first_child = output_consumers.begin()->get_expr();
-    while (op::Subgraph::is_shape_infer_op(first_child->get_node())) {
-        OPENVINO_ASSERT(output_consumers.size() == 1, "Shape infer ops are supposed to be the only consumer.");
-        shape_infer_exprs.push_back(first_child);
-        current_exp = first_child;
-        if (current_exp->get_output_count() == 0)
-            break;
-        output_consumers = current_exp->get_output_port_connector(0)->get_consumers();
-        first_child = output_consumers.begin()->get_expr();
-    }
-    return shape_infer_exprs;
-}
-
-std::vector<ExpressionPtr> LinearIR::get_parent_shape_infer_expr_seq(const ExpressionPtr& start_expr) {
-    std::vector<ExpressionPtr> shape_infer_exprs;
-    auto current_exp = start_expr;
-    if (op::Subgraph::is_shape_infer_op(current_exp->get_node())) {
-        OPENVINO_ASSERT(current_exp->get_input_port_connector(0)->get_consumers().size() == 1, "Shape infer ops are supposed to be the only consumer.");
-        shape_infer_exprs.push_back(current_exp);
-    }
-    if (current_exp->get_input_count() == 0)
-        return shape_infer_exprs;
-    auto input = current_exp->get_input_port_connector(0);
-    auto first_parent = input->get_source().get_expr();
-    while (op::Subgraph::is_shape_infer_op(first_parent->get_node())) {
-        shape_infer_exprs.push_back(first_parent);
-        current_exp = first_parent;
-        if (current_exp->get_input_count() == 0)
-            break;
-        input = current_exp->get_input_port_connector(0);
-        first_parent = input->get_source().get_expr();
-        if (!ov::is_type<snippets::op::Store>(first_parent->get_node())) {
-            // there are maybe some loopEnd consumers of store as well for loop code gen purpose
-            OPENVINO_ASSERT(input->get_consumers().size() == 1, "Shape infer ops are supposed to be the only consumer if it doesn't consume a store ops.");
-        }
-    }
-    return shape_infer_exprs;
-}
-
-ExpressionPtr LinearIR::get_last_child_shape_infer_expr(const ExpressionPtr& start_expr) {
-    auto last_exp = start_expr;
-    if (last_exp->get_output_count() == 0)
-        return last_exp;
-    auto consumers = last_exp->get_output_port_connector(0)->get_consumers();
-    auto first_child = consumers.begin()->get_expr();
-    while (op::Subgraph::is_shape_infer_op(first_child->get_node())) {
-        OPENVINO_ASSERT(consumers.size() == 1, "Shape infer ops are supposed to be the only consumer.");
-        last_exp = first_child;
-        if (last_exp->get_output_count() == 0)
-            break;
-        consumers = last_exp->get_output_port_connector(0)->get_consumers();
-        first_child = consumers.begin()->get_expr();
-    }
-    return last_exp;
-}
-
-ExpressionPtr LinearIR::get_last_parent_shape_infer_expr(const ExpressionPtr& start_expr) {
-    auto last_exp = start_expr;
-    if (last_exp->get_input_count() == 0)
-        return last_exp;
-    auto input = last_exp->get_input_port_connector(0);
-    auto first_parent = input->get_source().get_expr();
-    while (op::Subgraph::is_shape_infer_op(first_parent->get_node())) {
-        last_exp = first_parent;
-        if (last_exp->get_input_count() == 0)
-            break;
-        input = last_exp->get_input_port_connector(0);
-        first_parent = input->get_source().get_expr();
-        if (!ov::is_type<snippets::op::Store>(first_parent->get_node())) {
-            // there are maybe some loopEnd consumers of store as well for loop code gen purpose
-            OPENVINO_ASSERT(input->get_consumers().size() == 1, "Shape infer ops are supposed to be the only consumer if it doesn't consume a store ops.");
-        }
-    }
-    return last_exp;
 }
 
 LinearIR::LIRShapeInfer::LIRShapeInfer(container& body_exprs, io_container& io_exprs)

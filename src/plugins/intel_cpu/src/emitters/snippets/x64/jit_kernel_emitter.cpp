@@ -3,6 +3,7 @@
 //
 
 #include "jit_kernel_emitter.hpp"
+#include "snippets/utils.hpp"
 
 
 using namespace Xbyak;
@@ -201,7 +202,8 @@ jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::x64::jit_g
         switch (expr->get_type()) {
             case snippets::lowered::IOExpression::io_type::INPUT: {
                 // input->shape changing ops->load
-                auto mem_desc_expr = ov::snippets::lowered::LinearIR::get_last_child_shape_infer_expr(expr);
+                const auto& shape_infer_seq = ov::snippets::utils::get_first_child_shape_infer_expr_seq(expr);
+                const auto& mem_desc_expr = shape_infer_seq.empty() ? expr : shape_infer_seq.back();
                 auto consumer_inputs = mem_desc_expr->get_output_port_connector(0)->get_consumers();
                 for (const auto& child_input : consumer_inputs) {
                     const auto ma = ov::as_type_ptr<snippets::op::MemoryAccess>(child_input.get_expr()->get_node());
@@ -211,12 +213,12 @@ jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::x64::jit_g
                     }
                 }
                 etype = mem_desc_expr->get_node()->get_output_element_type(0);
-                        break;
                 break;
             }
             case snippets::lowered::IOExpression::io_type::OUTPUT: {
                 // store->shape changing ops->result
-                auto mem_desc_expr = ov::snippets::lowered::LinearIR::get_last_parent_shape_infer_expr(expr);
+                const auto& shape_infer_seq = ov::snippets::utils::get_first_parent_shape_infer_expr_seq(expr);
+                const auto& mem_desc_expr = shape_infer_seq.empty() ? expr : shape_infer_seq.back();
                 desc = mem_desc_expr->get_input_port_connector(0)->get_source().get_descriptor_ptr();
                 etype = mem_desc_expr->get_node()->get_input_element_type(0);
                 break;
