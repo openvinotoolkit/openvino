@@ -242,7 +242,7 @@ void prepare_padding::run(program& p) {
         }
 
         auto& input = node.get_dependency(0);
-        if (!node.is_dynamic() && node.get_preferred_impl_type() == impl_types::ocl && input.is_type<mvn>()) {
+        if (node.get_preferred_impl_type() == impl_types::ocl && input.is_type<mvn>()) {
             auto new_reorder = std::make_shared<reorder>(node.id() + "_padding_reorder_for_" + input.id(), input.id(), input.get_output_layout());
             auto& new_reorder_node = p.get_or_create(new_reorder);
             p.add_intermediate(new_reorder_node, node, input);
