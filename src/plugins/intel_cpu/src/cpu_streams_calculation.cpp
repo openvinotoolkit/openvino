@@ -191,7 +191,8 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
         ((input_streams_changed == true) && (input_streams == 1))) {
         n_streams = 1;
         stream_info[NUMBER_OF_STREAMS] = n_streams;
-        current_socket_id = input_current_socket_id == -1 ? get_current_socket_id() : input_current_socket_id;
+        //current_socket_id = input_current_socket_id == -1 ? get_current_socket_id() : input_current_socket_id;
+        current_socket_id = proc_socket_table.size() == 1 ? 0 : 1;
         if (input_threads > 0) {
             if (hint_model_distribution_policy.size() == 0) {
                 for (auto& row : proc_socket_table) {
@@ -366,17 +367,12 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
         }
 
         if (total_streams == n_streams) {
-            size_t n_max_proc = 0;
-            for (size_t n_node = 0; n_node < proc_socket_table.size(); n_node++) {
-                n_max_proc =
-                    proc_socket_table[n_node][ALL_PROC] > proc_socket_table[n_max_proc][ALL_PROC] ? n_node : n_max_proc;
-            }
-            create_one_stream(proc_socket_table[n_max_proc],
+            create_one_stream(proc_socket_table[current_socket_id],
                               proc_type_table,
-                              proc_socket_table[n_max_proc][ALL_PROC],
+                              proc_socket_table[current_socket_id][ALL_PROC],
                               IStreamsExecutor::Config::SubStreamsMode::SUB_STREAMS_NULL);
             for (size_t n_node = 0; n_node < proc_socket_table.size(); n_node++) {
-                if (n_node != n_max_proc) {
+                if (n_node != size_t(current_socket_id)) {
                     create_one_stream(proc_socket_table[n_node],
                                       proc_type_table,
                                       proc_socket_table[n_node][ALL_PROC],

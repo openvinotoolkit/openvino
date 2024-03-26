@@ -1360,7 +1360,6 @@ inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) 
                     auto& n = parallelNodes[i];
 
                     auto numa_node = get_memory_numa_node_id(subStreamID);
-                    std::cout << "test numa_node = " << numa_node << std::endl;
                     n->toNumaNode(numa_node);
                     if (n->isDynamicNode()) {
                         n->executeDynamic(stream);
