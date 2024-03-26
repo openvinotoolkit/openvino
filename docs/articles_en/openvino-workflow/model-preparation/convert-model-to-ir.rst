@@ -352,7 +352,8 @@ Here are code examples of how to use these methods with different model formats:
                  :force:
 
                  import openvino as ov
-
+              
+                 core = ov.Core()
                  ov_model = core.read_model("<INPUT_MODEL>.onnx")
                  compiled_model = ov.compile_model(ov_model, "AUTO")
 
@@ -478,8 +479,8 @@ Here are code examples of how to use these methods with different model formats:
                  :force:
 
                  import openvino as ov
+                 
                  core = ov.Core()
-
                  ov_model = core.read_model("<INPUT_MODEL>.pdmodel")
                  compiled_model = ov.compile_model(ov_model, "AUTO")
 

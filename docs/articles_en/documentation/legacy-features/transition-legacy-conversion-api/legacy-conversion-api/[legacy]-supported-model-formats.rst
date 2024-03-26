@@ -114,9 +114,9 @@ Here are code examples of how to use these methods with different model formats:
                  :force:
 
                  import openvino
-                 core = openvino.Core()
                  from openvino.tools.mo import convert_model
-
+                 
+                 core = openvino.Core()
                  ov_model = convert_model("saved_model.pb")
                  compiled_model = core.compile_model(ov_model, "AUTO")
 
@@ -219,9 +219,9 @@ Here are code examples of how to use these methods with different model formats:
                  :force:
 
                  import openvino
-                 core = openvino.Core()
                  from openvino.tools.mo import convert_model
 
+                 core = openvino.Core()
                  ov_model = convert_model("<INPUT_MODEL>.tflite")
                  compiled_model = core.compile_model(ov_model, "AUTO")
 
@@ -243,8 +243,8 @@ Here are code examples of how to use these methods with different model formats:
                  :force:
 
                  import openvino
-                 core = openvino.Core()
 
+                 core = openvino.Core()
                  ov_model = core.read_model("<INPUT_MODEL>.tflite")
                  compiled_model = core.compile_model(ov_model, "AUTO")
 
@@ -260,8 +260,8 @@ Here are code examples of how to use these methods with different model formats:
                  :force:
 
                  import openvino
+                 
                  core = openvino.Core()
-
                  compiled_model = core.compile_model("<INPUT_MODEL>.tflite", "AUTO")
 
               For a guide on how to run inference, see how to
@@ -347,9 +347,9 @@ Here are code examples of how to use these methods with different model formats:
                  :force:
 
                  import openvino
-                 core = openvino.Core()
                  from openvino.tools.mo import convert_model
 
+                 core = openvino.Core()
                  ov_model = convert_model("<INPUT_MODEL>.onnx")
                  compiled_model = core.compile_model(ov_model, "AUTO")
 
@@ -373,7 +373,7 @@ Here are code examples of how to use these methods with different model formats:
                  import openvino
                  core = openvino.Core()
 
-                 ov_model = read_model("<INPUT_MODEL>.onnx")
+                 ov_model = core.read_model("<INPUT_MODEL>.onnx")
                  compiled_model = core.compile_model(ov_model, "AUTO")
 
             * The ``compile_model()`` method:
@@ -478,9 +478,9 @@ Here are code examples of how to use these methods with different model formats:
                  :force:
 
                  import openvino
-                 core = openvino.Core()
                  from openvino.tools.mo import convert_model
 
+                 core = openvino.Core()
                  ov_model = convert_model("<INPUT_MODEL>.pdmodel")
                  compiled_model = core.compile_model(ov_model, "AUTO")
 

@@ -33,9 +33,9 @@ The model conversion process assumes you have an ONNX model that was directly do
          :force:
 
          import openvino
-         core = openvino.Core()
          from openvino.tools.mo import convert_model
 
+         core = openvino.Core()
          ov_model = convert_model("<INPUT_MODEL>.onnx")
          compiled_model = core.compile_model(ov_model, "AUTO")
 
