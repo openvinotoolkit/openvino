@@ -28,7 +28,8 @@ from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, 
 
 from openvino.runtime import Core, Type, PartialShape
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.WARNING)
 
 """
     This is a preview feature in OpenVINO. This feature
@@ -107,7 +108,7 @@ def ts_openvino(subgraph, example_inputs):
                 try:
                     res = compiled_model(ov_inputs)
                 except Exception as e:
-                    log.debug(f"Failed in OpenVINO execution: {e}")
+                    logger.debug(f"Failed in OpenVINO execution: {e}")
                     _call.execute_on_ov = False
                     return subgraph.forward(*args)
                 result = [torch.from_numpy(res[out]) for out in compiled_model.outputs]
@@ -116,7 +117,7 @@ def ts_openvino(subgraph, example_inputs):
                 return subgraph.forward(*args)
         return _call
     except Exception as e:
-        log.debug(f"Failed in compilation: {e}")
+        logger.debug(f"Failed in compilation: {e}")
         return compile_fx(subgraph, example_inputs)
 
 def fx_openvino(subgraph, example_inputs, options=None):
@@ -168,7 +169,7 @@ def fx_openvino(subgraph, example_inputs, options=None):
             return res
         return _call
     except Exception as e:
-        log.debug(f"Failed in OpenVINO execution: {e}")
+        logger.debug(f"Failed in OpenVINO execution: {e}")
         return compile_fx(subgraph, example_inputs)
 
 def reset():

@@ -11,6 +11,10 @@ from openvino.frontend.pytorch.utils import make_constant, fetch_attr, pt_to_ov_
 
 import torch
 
+import logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.WARNING)
+
 
 class TorchFXPythonDecoder (Decoder):
 
@@ -341,7 +345,7 @@ class TorchFXPythonDecoder (Decoder):
                 ivalue = ivalue.to(
                     memory_format=torch.contiguous_format).detach().cpu()
             except:
-                print("[ WARNING ] Tensor couldn't detach")
+                logger.warning("Tensor couldn't detach")
             if str(pt_value.type().dtype()) in pt_to_py_type_map:
                 # Constant interpretation doesn't respect new-full type of PT
                 # It recognizes only tensors, and give lists as 1D tensors, and scalars as Tensor scalars
@@ -358,8 +362,7 @@ class TorchFXPythonDecoder (Decoder):
                         ovtype, ovshape.get_shape(), values)
                 except:
                     # old variant that makes a slow data copying
-                    print(
-                        f"[ WARNING ] Constant wasn't able to convert from data_ptr.")
+                    logger.warning("Constant wasn't able to convert from data_ptr.")
                     values = ivalue.flatten().tolist()
                     ov_const = make_constant(
                         ovtype, ovshape.get_shape(), values)
@@ -382,8 +385,7 @@ class TorchFXPythonDecoder (Decoder):
                         ovtype, ovshape.get_shape(), ivalue.data_ptr())
                 except:
                     # old variant that makes a slow data copying
-                    print(
-                        f"[ WARNING ] Constant wasn't able to convert from data_ptr.")
+                    logger.warning("Constant wasn't able to convert from data_ptr.")
                     nvalues = ivalue.numpy(force=True)
                     ovtype = np_to_ov_type_map[str(nvalues.dtype)]
                     ovshape = PartialShape(nvalues.shape)
