@@ -35,7 +35,9 @@ TEST_F(TypePropInverseV14Test, input_f64_2x2_constant) {
 
 TEST_F(TypePropInverseV14Test, symbol_propagation) {
     auto input_shape = ov::PartialShape{2, 2};
-    set_shape_symbols(input_shape, 1234);
+    auto A = std::make_shared<ov::Symbol>(), B = std::make_shared<ov::Symbol>(), C = std::make_shared<ov::Symbol>(),
+         D = std::make_shared<ov::Symbol>();
+    set_shape_symbols(input_shape, {A, B, C, D});
     const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
     const auto op = make_op(data, false);
     EXPECT_EQ(op->get_element_type(), ov::element::f32);
