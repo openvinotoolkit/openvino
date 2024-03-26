@@ -360,7 +360,7 @@ void fuse_loop_cond(std::shared_ptr<LoopCond>& loop_cond,
     auto loop_outputs = create_loop_for_tf_while(node_name, body_model, cond_model, ov_inputs, prior_cond_model);
     auto loop_model = std::make_shared<ov::Model>(loop_outputs);
 
-    size_t loop_node_output_size = loop_node->get_output_size();
+    size_t loop_node_output_size = loop_outputs.size();
     FRONT_END_GENERAL_CHECK(loop_node_output_size == num_inputs,
                             "[TensorFlow Frontend] internal error: the created Loop node to replace TF1 While has "
                             "unexpected number of outputs");
