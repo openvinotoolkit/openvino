@@ -462,6 +462,10 @@ public:
         return std::any_of(dims.begin(), dims.end(), [](const Dim& d) { return d.is_dynamic; });
     }
 
+    bool has_dynamic_pad() const {
+        return std::any_of(dims.begin(), dims.end(), [](const Dim& d) { return d.pad.is_dynamic; });
+    }
+
     virtual ~TensorBase() = default;
 };
 
