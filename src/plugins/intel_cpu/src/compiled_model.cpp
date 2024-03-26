@@ -94,7 +94,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     }
     // init sub stream threads of executor
     if (m_cfg.streamExecutorConfig.get_sub_stream_mode() ==
-            IStreamsExecutor::Config::SubStreamsMode::SUB_STREAMS_FOR_SOCKET &&
+            IStreamsExecutor::Config::StreamsMode::SUB_STREAMS_FOR_SOCKET &&
         stream_executor != nullptr) {
         std::atomic<int> nodes_remain(m_cfg.streamExecutorConfig.get_sub_streams());
         stream_executor->run_sub_stream(

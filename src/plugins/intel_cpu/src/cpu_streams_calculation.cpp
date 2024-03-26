@@ -51,11 +51,11 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
     auto update_mix_stream_info = [&](const std::vector<int>& one_proc_info,
                                       const std::vector<std::vector<int>>& one_proc_table,
                                       const int num_threads,
-                                      const IStreamsExecutor::Config::SubStreamsMode sub_streams_model,
+                                      const IStreamsExecutor::Config::StreamsMode sub_streams_model,
                                       const int& target_proc) {
         stream_info[PROC_TYPE] = ALL_PROC;
         stream_info[NUMBER_OF_STREAMS] =
-            sub_streams_model == IStreamsExecutor::Config::SubStreamsMode::SUB_STREAMS_NULL ? 1 : -1;
+            sub_streams_model == IStreamsExecutor::Config::StreamsMode::SUB_STREAMS_NULL ? 1 : -1;
         stream_info[THREADS_PER_STREAM] = num_threads;
         update_ids_method(one_proc_info);
         streams_info_table.push_back(stream_info);
@@ -99,7 +99,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
     auto create_one_stream = [&](const std::vector<int>& one_proc_info,
                                  const std::vector<std::vector<int>>& one_proc_table,
                                  const int num_threads,
-                                 const IStreamsExecutor::Config::SubStreamsMode sub_streams_model) {
+                                 const IStreamsExecutor::Config::StreamsMode sub_streams_model) {
         if ((one_proc_info[PROC_NUMA_NODE_ID] < 0) || (one_proc_info[PROC_SOCKET_ID] < 0) ||
             (((one_proc_info[MAIN_CORE_PROC] > 0) && (one_proc_info[MAIN_CORE_PROC] < num_threads)) ||
              ((one_proc_info[MAIN_CORE_PROC] == 0) && (one_proc_info[EFFICIENT_CORE_PROC] > 0) &&
@@ -109,7 +109,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
             stream_info[PROC_TYPE] =
                 one_proc_info[MAIN_CORE_PROC] >= num_threads ? MAIN_CORE_PROC : EFFICIENT_CORE_PROC;
             stream_info[NUMBER_OF_STREAMS] =
-                sub_streams_model == IStreamsExecutor::Config::SubStreamsMode::SUB_STREAMS_NULL ? 1 : -1;
+                sub_streams_model == IStreamsExecutor::Config::StreamsMode::SUB_STREAMS_NULL ? 1 : -1;
             stream_info[THREADS_PER_STREAM] = num_threads;
             update_ids_method(one_proc_info);
             streams_info_table.push_back(stream_info);
@@ -121,7 +121,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
             update_mix_stream_info(one_proc_info,
                                    proc_type_table,
                                    one_proc_info[ALL_PROC],
-                                   IStreamsExecutor::Config::SubStreamsMode::SUB_STREAMS_NULL,
+                                   IStreamsExecutor::Config::StreamsMode::SUB_STREAMS_NULL,
                                    proc_type);
         } else {
             if (0 != one_proc_info[proc_type]) {
@@ -346,7 +346,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                     update_mix_stream_info(proc_type_table[0],
                                            proc_type_table,
                                            n_threads_per_stream,
-                                           IStreamsExecutor::Config::SubStreamsMode::SUB_STREAMS_NULL,
+                                           IStreamsExecutor::Config::StreamsMode::SUB_STREAMS_NULL,
                                            ALL_PROC);
                     n_streams--;
                 }
@@ -357,7 +357,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                         update_mix_stream_info(proc_socket_table[n_node],
                                                proc_type_table,
                                                n_threads_per_stream,
-                                               IStreamsExecutor::Config::SubStreamsMode::SUB_STREAMS_NULL,
+                                               IStreamsExecutor::Config::StreamsMode::SUB_STREAMS_NULL,
                                                ALL_PROC);
                         n_streams--;
                     }
@@ -374,13 +374,13 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
             create_one_stream(proc_socket_table[n_max_proc],
                               proc_type_table,
                               proc_socket_table[n_max_proc][ALL_PROC],
-                              IStreamsExecutor::Config::SubStreamsMode::SUB_STREAMS_NULL);
+                              IStreamsExecutor::Config::StreamsMode::SUB_STREAMS_NULL);
             for (size_t n_node = 0; n_node < proc_socket_table.size(); n_node++) {
                 if (n_node != n_max_proc) {
                     create_one_stream(proc_socket_table[n_node],
                                       proc_type_table,
                                       proc_socket_table[n_node][ALL_PROC],
-                                      IStreamsExecutor::Config::SubStreamsMode::SUB_STREAMS_FOR_SOCKET);
+                                      IStreamsExecutor::Config::StreamsMode::SUB_STREAMS_FOR_SOCKET);
                 }
             }
             n_streams--;
@@ -409,7 +409,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                 update_mix_stream_info(proc_type_table[0],
                                        remain_proc_type_table,
                                        n_threads_per_stream,
-                                       IStreamsExecutor::Config::SubStreamsMode::SUB_STREAMS_NULL,
+                                       IStreamsExecutor::Config::StreamsMode::SUB_STREAMS_NULL,
                                        ALL_PROC);
 
                 if (stream_table_size == streams_info_table.size()) {
@@ -441,7 +441,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
             update_mix_stream_info(proc_socket_table[0],
                                    proc_type_table,
                                    n_threads_per_stream,
-                                   IStreamsExecutor::Config::SubStreamsMode::SUB_STREAMS_NULL,
+                                   IStreamsExecutor::Config::StreamsMode::SUB_STREAMS_NULL,
                                    ALL_PROC);
         } else if (stream_info[PROC_TYPE] == MAIN_CORE_PROC) {
             if (stream_info[THREADS_PER_STREAM] == proc_socket_table[0][MAIN_CORE_PROC]) {

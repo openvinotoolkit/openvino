@@ -65,12 +65,14 @@ public:
         };
 
         /**
-         * @enum       SubStreamsMode
+         * @enum       StreamsMode
          * @brief      This enum contains definition of each sub streams mode, indicating the main stream situation.
          */
-        enum class SubStreamsMode {
+        enum class StreamsMode {
             SUB_STREAMS_NULL,        //!< Do not create sub streams
             SUB_STREAMS_FOR_SOCKET,  //!< Create sub streams for multiple sockets in main stream
+            LATENCY,                 //!< latency mode
+            THROUGHPUT,              //!< throughput mode
         };
 
     private:
@@ -203,8 +205,11 @@ public:
         int get_sub_streams() const {
             return _sub_streams;
         }
-        SubStreamsMode get_sub_stream_mode() const {
-            return _sub_streams > 0 ? SubStreamsMode::SUB_STREAMS_FOR_SOCKET : SubStreamsMode::SUB_STREAMS_NULL;
+        StreamsMode get_sub_stream_mode() const {
+            const auto proc_type_table = get_proc_type_table();
+            int sockets = proc_type_table.size() > 1 ? proc_type_table.size() - 1 : 1;
+            return _sub_streams > 0 ? StreamsMode::SUB_STREAMS_FOR_SOCKET
+                                    : (_streams <= sockets ? StreamsMode::LATENCY : StreamsMode::THROUGHPUT);
         }
         bool operator==(const Config& config) {
             if (_name == config._name && _streams == config._streams &&
