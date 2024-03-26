@@ -166,3 +166,9 @@ ov::Tensor value_to_tensor(const Napi::Value& value, ov::InferRequest& infer_req
 napi_types napiType(const Napi::Value& val);
 
 bool acceptableType(const Napi::Value& val, const std::vector<napi_types>& acceptable);
+
+Napi::Value any_to_js(const Napi::CallbackInfo& info, ov::Any value);
+
+ov::Any js_to_any(const Napi::CallbackInfo& info, Napi::Value value);
+
+bool is_napi_value_int(const Napi::CallbackInfo& info, Napi::Value& num);

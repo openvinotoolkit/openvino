@@ -65,6 +65,9 @@ public:
      */
     Napi::Value compile_model_async(const Napi::CallbackInfo& info);
 
+    Napi::Value set_property(const Napi::CallbackInfo& info);
+    Napi::Value get_property(const Napi::CallbackInfo& info);
+
 protected:
     Napi::Value compile_model_sync(const Napi::CallbackInfo& info,
                                    const Napi::Object& model,

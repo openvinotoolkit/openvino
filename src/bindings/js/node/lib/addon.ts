@@ -23,12 +23,12 @@ type elementTypeString =
 interface Core {
   compileModel(
     model: Model,
-    device: string,
+    deviceName: string,
     config?: { [option: string]: string }
   ): Promise<CompiledModel>;
   compileModelSync(
     model: Model,
-    device: string,
+    deviceName: string,
     config?: { [option: string]: string }
   ): CompiledModel;
   readModel(modelPath: string, weightsPath?: string): Promise<Model>;
@@ -38,6 +38,16 @@ interface Core {
   readModelSync(modelBuffer: Uint8Array, weightsBuffer?: Uint8Array): Model;
   importModelSync(modelStream: Buffer, device: string): CompiledModel;
   getAvailableDevices(): string[];
+  setProperty(props: { [key: string]: string | number | boolean }): void;
+  setProperty(
+    deviceName: string,
+    props: { [key: string]: string | number | boolean },
+  ): void;
+  getProperty(propertyName: string): string | number | boolean,
+  getProperty(
+    deviceName: string,
+    propertyName: string,
+  ): string | number | boolean,
 }
 interface CoreConstructor {
   new(): Core;
