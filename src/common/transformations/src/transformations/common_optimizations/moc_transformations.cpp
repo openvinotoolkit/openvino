@@ -91,6 +91,7 @@
 #include "transformations/smart_reshape/lstm_states_broadcast.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
 #include "transformations/smart_reshape/reshape_sinking.hpp"
+#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
 bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(MOCTransformations);
@@ -267,6 +268,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, AlignEltwiseInputRanks)
     REGISTER_PASS(manager, SharedOpOptimization)
     REGISTER_PASS(manager, ConstantFolding)
+    REGISTER_PASS(manager, SymbolicOptimizations)
     manager.register_pass<ResolveNameCollisions>(true);
     manager.run_passes(f);
 
