@@ -231,7 +231,7 @@ static binding_oberver_ptr construct_binding_observer(tbb::task_arena& ta, int n
         observer.reset(new binding_observer{ta, num_slots, c});
         observer->observe(true);
     }
-    std::cout << "construct_binding_observer leave, observer=" <<  observer.get() << std::endl;
+    std::cout << "construct_binding_observer leave, observer=" << observer.get() << std::endl;
     return observer;
 }
 
