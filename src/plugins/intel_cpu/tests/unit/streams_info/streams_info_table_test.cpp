@@ -2606,7 +2606,18 @@ StreamsCalculationTestCase _2sockets_mock_latency_36 = {
      {0, MAIN_CORE_PROC, 10, 3, 3},
      {0, HYPER_THREADING_PROC, 10, 3, 3}},
 };
-
+StreamsCalculationTestCase _2sockets_mock_latency_37 = {
+    1,
+    false,
+    0,
+    0,
+    0,
+    1,
+    "LATENCY",
+    {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL},
+    {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
+    {{1, MAIN_CORE_PROC, 24, 1, 1}, {-1, MAIN_CORE_PROC, 24, 0, 0}},
+};
 TEST_P(StreamsCalculationTests, StreamsCalculation) {}
 
 INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
@@ -2786,6 +2797,7 @@ INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
                                          _2sockets_mock_latency_34,
                                          _2sockets_mock_latency_35,
                                          _2sockets_mock_latency_36,
+                                         _2sockets_mock_latency_37,
                                          _1sockets_mock_latency_1,
                                          _1sockets_mock_latency_2,
                                          _1sockets_mock_latency_3,

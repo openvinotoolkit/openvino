@@ -366,17 +366,12 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
         }
 
         if (total_streams == n_streams) {
-            size_t n_max_proc = 0;
-            for (size_t n_node = 0; n_node < proc_socket_table.size(); n_node++) {
-                n_max_proc =
-                    proc_socket_table[n_node][ALL_PROC] > proc_socket_table[n_max_proc][ALL_PROC] ? n_node : n_max_proc;
-            }
-            create_one_stream(proc_socket_table[n_max_proc],
+            create_one_stream(proc_socket_table[current_socket_id],
                               proc_type_table,
-                              proc_socket_table[n_max_proc][ALL_PROC],
+                              proc_socket_table[current_socket_id][ALL_PROC],
                               IStreamsExecutor::Config::StreamsMode::SUB_STREAMS_NULL);
             for (size_t n_node = 0; n_node < proc_socket_table.size(); n_node++) {
-                if (n_node != n_max_proc) {
+                if (n_node != current_socket_id) {
                     create_one_stream(proc_socket_table[n_node],
                                       proc_type_table,
                                       proc_socket_table[n_node][ALL_PROC],
