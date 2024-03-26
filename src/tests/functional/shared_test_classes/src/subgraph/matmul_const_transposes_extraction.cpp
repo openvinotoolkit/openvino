@@ -105,6 +105,10 @@ void QuantizedMatMulConstTransposesExtractionTest::SetUp() {
     } else {
         ASSERT_TRUE(functions_equal);
     }
+
+    if (type == element::f32) {
+        abs_threshold = 2e-7;
+    }
 }
 
 void QuantizedMatMulConstTransposesExtractionTest::TearDown() {
