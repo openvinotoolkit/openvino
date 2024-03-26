@@ -14,19 +14,21 @@ void regclass_graph_Symbol(py::module m) {
     py::class_<ov::Symbol, std::shared_ptr<ov::Symbol>> symbol(m, "Symbol");
     symbol.doc() = "openvino.runtime.Symbol wraps ov::Symbol";
 
-    symbol.def(py::init([]() { return std::make_shared<ov::Symbol>(); }));
+    symbol.def(py::init([]() {
+        return std::make_shared<ov::Symbol>();
+    }));
 
     symbol.def(
-            "__eq__",
-            [](const std::shared_ptr<ov::Symbol>& a, const std::shared_ptr<ov::Symbol>& b) {
-                return ov::symbol::are_equal(a, b);
-            },
-            py::is_operator());
+        "__eq__",
+        [](const std::shared_ptr<ov::Symbol>& a, const std::shared_ptr<ov::Symbol>& b) {
+            return ov::symbol::are_equal(a, b);
+        },
+        py::is_operator());
 
     symbol.def(
-            "__bool__",
-            [](const std::shared_ptr<ov::Symbol>& a) -> bool {
-                return a != nullptr;
-            },
-            "Check whether the symbol is meaningful");
+        "__bool__",
+        [](const std::shared_ptr<ov::Symbol>& a) -> bool {
+            return a != nullptr;
+        },
+        "Check whether the symbol is meaningful");
 }

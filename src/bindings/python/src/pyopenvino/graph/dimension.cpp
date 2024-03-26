@@ -139,7 +139,9 @@ void regclass_graph_Dimension(py::module m) {
                 :rtype: Symbol
             )");
 
-    dim.def("set_symbol", &ov::Dimension::set_symbol, py::arg("symbol"),
+    dim.def("set_symbol",
+            &ov::Dimension::set_symbol,
+            py::arg("symbol"),
             R"(
                 Sets provided Symbol as this dimension's symbol.
                 :param symbol: The symbol to set to this dimension.
