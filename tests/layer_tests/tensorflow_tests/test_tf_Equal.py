@@ -252,6 +252,8 @@ class TestEqualStr(CommonTFLayerTest):
     def test_equal_str(self, x_shape, y_shape,
                        ie_device, precision, ir_version, temp_dir,
                        use_legacy_frontend):
+        if ie_device == 'GPU':
+            pytest.skip("operation extension is not supported on GPU")
         self._test(*self.create_equal_net(x_shape=x_shape, y_shape=y_shape),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
