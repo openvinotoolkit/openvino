@@ -6,6 +6,7 @@
 
 #include "node.h"
 #include "openvino/op/scatter_elements_update.hpp"
+#include <utility>
 
 namespace ov {
 namespace intel_cpu {
@@ -17,7 +18,56 @@ enum class ScatterUpdateMode {
     ScatterElementsUpdate
 };
 
-class ReduceMean;
+namespace scatter_elements_update {
+class ReduceBase {};
+class ReduceMultiply : public ReduceBase {
+public:
+    template <typename DT>
+    void operator() (DT* dst_data, const DT* src_data) const {
+        *dst_data *= *src_data;
+    }
+};
+
+class ReduceAdd : public ReduceBase {
+public:
+    template <typename DT>
+    void operator() (DT* dst_data, const DT* src_data) const {
+        *dst_data += *src_data;
+    }
+};
+
+class ReduceMean : public ReduceBase {
+public:
+    template <typename DT>
+    void operator() (DT* dst_data, const DT* src_data) const {
+        *dst_data += *src_data;
+    }
+};
+
+class ReduceMaximum : public ReduceBase {
+public:
+    template <typename DT>
+    void operator() (DT* dst_data, const DT* src_data) const {
+        *dst_data = std::isnan(static_cast<float>(*src_data)) ? *src_data : std::max(*dst_data, *src_data);
+    }
+};
+
+class ReduceMinimum : public ReduceBase {
+public:
+    template <typename DT>
+    void operator() (DT* dst_data, const DT* src_data) const {
+        *dst_data = std::isnan(static_cast<float>(*src_data)) ? *src_data : std::min(*dst_data, *src_data);
+    }
+};
+
+class ReduceNone : public ReduceBase {
+public:
+    template <typename DT>
+    void operator() (DT* dst_data, const DT* src_data) const {
+        *dst_data = *src_data;
+    }
+};
+};  // namespace scatter_elements_update
 
 class ScatterUpdate : public Node {
 public:
@@ -49,7 +99,7 @@ private:
     void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis, const func_t& kernel_func);
     template <typename DataType>
     void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates,
-                                int axis, const ReduceMean& kernel_func);
+                                int axis, const scatter_elements_update::ReduceMean& kernel_func);
     template <typename DataType>
     inline void scatterElementsUpdate_dispatch(const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr, int axis);
 
@@ -59,12 +109,20 @@ private:
         MemoryPtr indicesMemPtr;
         MemoryPtr updateMemPtr;
         int axis;
+        scatter_elements_update::ReduceBase* reduce;
     };
 
     template<typename DataType>
     struct ScatterElementsUpdateDispatcher {
         void operator()(ScatterElementsUpdateContext& ctx) {
             ctx.node->scatterElementsUpdate_dispatch<DataType>(ctx.dstMemPtr, ctx.indicesMemPtr, ctx.updateMemPtr, ctx.axis);
+        }
+    };
+
+    template<typename PT>
+    struct ScatterElementsUpdateDispatcher_reduce {
+        void operator()(ScatterElementsUpdateContext& ctx) {
+            ctx.node->scatterElementsUpdate<typename PT::first_type>(ctx.dstMemPtr, ctx.indicesMemPtr, ctx.updateMemPtr, ctx.axis, static_cast<const typename PT::second_type&>(*ctx.reduce));
         }
     };
 

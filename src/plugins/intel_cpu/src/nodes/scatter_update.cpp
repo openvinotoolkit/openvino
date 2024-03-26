@@ -261,54 +261,7 @@ static std::vector<size_t> getBlockND(const VectorDims& shape) {
     return blockND;
 }
 
-class ReduceMultiply {
-public:
-    template <typename DT>
-    void operator() (DT* dst_data, const DT* src_data) const {
-        *dst_data *= *src_data;
-    }
-};
-
-class ReduceAdd {
-public:
-    template <typename DT>
-    void operator() (DT* dst_data, const DT* src_data) const {
-        *dst_data += *src_data;
-    }
-};
-
-class ReduceMean {
-public:
-    template <typename DT>
-    void operator() (DT* dst_data, const DT* src_data) const {
-        *dst_data += *src_data;
-    }
-};
-
-class ReduceMaximum {
-public:
-    template <typename DT>
-    void operator() (DT* dst_data, const DT* src_data) const {
-        *dst_data = std::isnan(static_cast<float>(*src_data)) ? *src_data : std::max(*dst_data, *src_data);
-    }
-};
-
-class ReduceMinimum {
-public:
-    template <typename DT>
-    void operator() (DT* dst_data, const DT* src_data) const {
-        *dst_data = std::isnan(static_cast<float>(*src_data)) ? *src_data : std::min(*dst_data, *src_data);
-    }
-};
-
-class ReduceNone {
-public:
-    template <typename DT>
-    void operator() (DT* dst_data, const DT* src_data) const {
-        *dst_data = *src_data;
-    }
-};
-
+namespace scatter_elements_update {
 template <typename T>
 static T reduction_neutral_value(const ScatterUpdate::Reduction reduction_type) {
     switch (reduction_type) {
@@ -343,7 +296,6 @@ static inline void getCoordinate(VectorDims& coordinate, size_t offset, const Ve
     }
 }
 
-namespace scatter_elements_update {
 struct TensorIterator {
     TensorIterator(const VectorDims& squashed_shape, const int64_t squashed_axis) : m_squashed_shape(squashed_shape), m_squashed_axis(squashed_axis) {
         OPENVINO_ASSERT(m_squashed_shape[m_squashed_axis] == 1);
@@ -400,6 +352,7 @@ struct TensorIterator {
 template <typename DataType, typename func_t>
 void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates,
                             int axis, const func_t& kernel_func) {
+    using namespace scatter_elements_update;
     DataType *dataPtr = mem_data->getDataAs<DataType>();
     DataType *updatePtr = mem_updates->getDataAs<DataType>();
     uint8_t *indicesPtr = mem_indices->getDataAs<uint8_t>();
@@ -510,7 +463,8 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
 // were used in loops.
 template <typename DataType>
 void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates,
-                            int axis, const ReduceMean& kernel_func) {
+                            int axis, const scatter_elements_update::ReduceMean& kernel_func) {
+    using namespace scatter_elements_update;
     OPENVINO_ASSERT(reduction_type == ScatterUpdate::Reduction::MEAN, "The reduction type should be MEAN here.");
     DataType *dataPtr = mem_data->getDataAs<DataType>();
     DataType *updatePtr = mem_updates->getDataAs<DataType>();
@@ -645,29 +599,50 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
 template <typename DT>
 void ScatterUpdate::scatterElementsUpdate_dispatch(const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr,
                         int axis) {
-    switch (reduction_type) {
+    using namespace scatter_elements_update;
+    ReduceBase* reduce;
+    switch (reduction_type)
+    {
     case ScatterUpdate::Reduction::NONE :
-        scatterElementsUpdate<DT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, data_assign);
+        reduce = &data_assign;
         break;
     case ScatterUpdate::Reduction::SUM :
-        scatterElementsUpdate<DT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_add);
+        reduce = &reduce_add;
         break;
     case ScatterUpdate::Reduction::MAX :
-        scatterElementsUpdate<DT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_maximum);
+        reduce = &reduce_maximum;
         break;
     case ScatterUpdate::Reduction::MIN :
-        scatterElementsUpdate<DT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_minimum);
+        reduce = &reduce_minimum;
         break;
     case ScatterUpdate::Reduction::PROD:
-        scatterElementsUpdate<DT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_multiply);
+        reduce = &reduce_multiply;
         break;
     case ScatterUpdate::Reduction::MEAN :
-        scatterElementsUpdate<DT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_mean);
+        reduce = &reduce_mean;
         break;
     default :
         OPENVINO_THROW("unsupported reduce");
         break;
     }
+    using DT_NONE = std::pair<DT, decltype(data_assign)>;
+    using DT_SUM = std::pair<DT, decltype(reduce_add)>;
+    using DT_MAX = std::pair<DT, decltype(reduce_maximum)>;
+    using DT_MIN = std::pair<DT, decltype(reduce_minimum)>;
+    using DT_MUL = std::pair<DT, decltype(reduce_multiply)>;
+    using DT_MEAN = std::pair<DT, decltype(reduce_mean)>;
+    ScatterElementsUpdateContext ctx{this, dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce};
+    OV_SWITCH(intel_cpu,
+              ScatterElementsUpdateDispatcher_reduce,
+              ctx,
+              reduction_type,
+              OV_CASE(ScatterUpdate::Reduction::NONE, DT_NONE),
+              OV_CASE(ScatterUpdate::Reduction::SUM,  DT_SUM),
+              OV_CASE(ScatterUpdate::Reduction::MAX,  DT_MAX),
+              OV_CASE(ScatterUpdate::Reduction::MIN,  DT_MIN),
+              OV_CASE(ScatterUpdate::Reduction::PROD, DT_MUL),
+              OV_CASE(ScatterUpdate::Reduction::MEAN, DT_MEAN)
+              );
 }
 
 void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr, int axis) {
