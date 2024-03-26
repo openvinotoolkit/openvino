@@ -51,13 +51,11 @@ from tests import (
     xfail_issue_99954,
     xfail_issue_99955,
     xfail_issue_99957,
-    xfail_issue_99958,
     xfail_issue_99960,
     xfail_issue_99961,
     xfail_issue_99968,
     xfail_issue_99969,
     xfail_issue_99970,
-    xfail_issue_99972,
     xfail_issue_99973,
     xfail_issue_101965,
     xfail_issue_113506,
@@ -454,10 +452,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_layer_normalization_default_axis_expanded_ver18_cpu",
     ),
     (
-        xfail_issue_99958,
-        "OnnxBackendNodeModelTest.test_logsoftmax_large_number_expanded_ver18_cpu",
-    ),
-    (
         xfail_issue_99960,
         "OnnxBackendNodeModelTest.test_mvn_expanded_ver18_cpu",
     ),
@@ -499,12 +493,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_negative_axes_keepdims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_keepdims_random_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_negative_axes_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_max_do_not_keepdims_example_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_max_do_not_keepdims_random_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_max_keepdims_example_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_max_keepdims_random_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_max_negative_axes_keepdims_example_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_max_negative_axes_keepdims_random_cpu",
         "OnnxBackendNodeModelTest.test_reduce_mean_do_not_keepdims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_negative_axes_keepdims_random_cpu",
         "OnnxBackendNodeModelTest.test_reduce_mean_do_not_keepdims_random_cpu",
@@ -551,10 +539,6 @@ tests_expected_to_fail = [
         xfail_issue_99970,
         "OnnxBackendNodeModelTest.test_scatternd_max_cpu",
         "OnnxBackendNodeModelTest.test_scatternd_min_cpu",
-    ),
-    (
-        xfail_issue_99972,
-        "OnnxBackendNodeModelTest.test_softmax_large_number_expanded_ver18_cpu",
     ),
     (
         xfail_issue_99973,
@@ -732,7 +716,6 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_125495,
-        "OnnxBackendNodeModelTest.test_reduce_max_bool_inputs_cpu",
         "OnnxBackendNodeModelTest.test_reduce_min_bool_inputs_cpu",
     ),
     (

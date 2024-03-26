@@ -33,7 +33,9 @@ OP_T_CONVERTER(translate_binary_op);
 OP_T_CONVERTER(translate_direct_reduce_op);
 OP_CONVERTER(translate_addv2_op);
 OP_CONVERTER(translate_add_n_op);
+OP_CONVERTER(translate_approximate_equal_op);
 OP_CONVERTER(translate_adjust_contrast_op);
+OP_CONVERTER(translate_angle_op);
 OP_CONVERTER(translate_arg_max_op);
 OP_CONVERTER(translate_arg_min_op);
 OP_CONVERTER(translate_atan2_op);
@@ -82,6 +84,7 @@ OP_CONVERTER(translate_gather_op);
 OP_CONVERTER(translate_gather_v2_op);
 OP_CONVERTER(translate_gather_nd_op);
 OP_CONVERTER(translate_gather_tree_op);
+OP_CONVERTER(translate_gelu_op);
 OP_CONVERTER(translate_identity_op);
 OP_CONVERTER(translate_identity_n_op);
 OP_CONVERTER(translate_ifft_op);
@@ -177,7 +180,6 @@ OP_CONVERTER(translate_x_div_y_op);
 OP_CONVERTER(translate_xlog1py_op);
 OP_CONVERTER(translate_xlogy_op);
 OP_CONVERTER(translate_zeros_like_op);
-OP_CONVERTER(translate_gelu_op);
 
 // Translators for internal operations
 OP_CONVERTER_NAMED(translate_unique_op);

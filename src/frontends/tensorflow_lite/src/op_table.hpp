@@ -39,6 +39,7 @@ TFL_OP_CONVERTER(depthwise_conv2d);
 TFL_OP_CONVERTER(dequantize);
 TFL_OP_CONVERTER(fully_connected);
 TFL_OP_CONVERTER(gather);
+TFL_OP_CONVERTER(gelu);
 TFL_OP_CONVERTER(l2_normalization);
 TFL_OP_CONVERTER(leaky_relu);
 TFL_OP_CONVERTER(max_pool_2d);
@@ -62,7 +63,6 @@ TFL_OP_CONVERTER(transpose_conv);
 TFL_OP_CONVERTER(unique);
 TFL_OP_CONVERTER(unpack);
 TFL_OP_CONVERTER(while_op);
-TFL_OP_CONVERTER(gelu);
 
 template <typename OV_TYPE, typename TF_TYPE>
 OutputVector translate_binary_op_with_activation(const ov::frontend::tensorflow_lite::NodeContext& node);

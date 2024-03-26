@@ -26,7 +26,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | All                                                     | YES                           |                               |
 | AllCandidateSampler                                     | NO                            |                               |
 | AllToAll                                                | NO                            |                               |
-| Angle                                                   | NO                            |                               |
+| Angle                                                   | YES                           |                               |
 | AnonymousHashTable                                      | NO                            |                               |
 | AnonymousIterator                                       | NO                            |                               |
 | AnonymousIteratorV2                                     | NO                            |                               |
@@ -57,7 +57,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | ApplyProximalGradientDescent                            | NO                            |                               |
 | ApplyRMSProp                                            | NO                            |                               |
 | ApproxTopK                                              | NO                            |                               |
-| ApproximateEqual                                        | NO                            |                               |
+| ApproximateEqual                                        | YES                           |                               |
 | ArgMax                                                  | YES                           |                               |
 | ArgMin                                                  | YES                           |                               |
 | AsString                                                | NO                            |                               |

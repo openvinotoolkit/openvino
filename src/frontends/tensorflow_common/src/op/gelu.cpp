@@ -3,7 +3,6 @@
 //
 
 #include "common_op_table.hpp"
-#include "openvino/op/constant.hpp"
 #include "openvino/op/gelu.hpp"
 
 using namespace std;
@@ -18,10 +17,10 @@ OutputVector translate_gelu_op(const NodeContext& node) {
     default_op_checks(node, 1, {"GELU"});
     auto x = node.get_input(0);
 
-    // update these lines for best translation
-    auto approximate = node.get_attribute<GeluApproximationMode>("approximate");
-    auto res = make_shared<v7::Gelu>(x, approximate);
-    //
+    // Get the approximate method
+    auto approximate = node.get_attribute<bool>("approximate");
+    auto approximation_mode = approximate ? GeluApproximationMode::ERF : GeluApproximationMode::TANH;
+    auto res = make_shared<v7::Gelu>(x, approximation_mode);
 
     set_node_name(node.get_name(), res);
     return res->outputs();
