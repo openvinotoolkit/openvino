@@ -617,17 +617,18 @@ long mbind(void* start,
 
 #if defined(__linux__)
 bool mbind_move(void* data, size_t size, int targetNode) {
+    int realNode = ov::get_org_numa_id(targetNode);
     auto pagesize = getpagesize();
     auto page_count = (size + pagesize - 1) / pagesize;
     char* pages = reinterpret_cast<char*>((((uintptr_t)data) & ~((uintptr_t)(pagesize - 1))));
     unsigned long mask = 0;
     unsigned flags = 0;
-    if (targetNode < 0) {
+    if (realNode < 0) {
         // restore default policy
         mask = -1;
         flags = 0;
     } else {
-        mask = 1ul << targetNode;
+        mask = 1ul << realNode;
         flags = MPOL_MF_MOVE | MPOL_MF_STRICT;
     }
     auto rc = mbind(pages, page_count * pagesize, MPOL_BIND, &mask, sizeof(mask) * 8, flags);

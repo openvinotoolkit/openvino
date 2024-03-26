@@ -1381,6 +1381,7 @@ inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) 
         DUMP(node, getConfig().debugCaps, infer_count);
         OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, node->profiling.execute);
         DEBUG_LOG(*node);
+        node->toNumaNode(getGraphContext()->getStreamExecutor()->get_numa_node_id());
         if (node->isDynamicNode()) {
             node->executeDynamic(stream);
         } else {
