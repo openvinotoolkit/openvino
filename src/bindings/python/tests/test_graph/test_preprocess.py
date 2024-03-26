@@ -736,13 +736,14 @@ def test_pad_vector_constant_layout():
     model = Model(model, [parameter_a], "TestModel")
     ppp = PrePostProcessor(model)
     ppp.input().tensor().set_shape({1, 3, 199, 199})
-    ppp.input().preprocess().pad({0, 0, 0, 0}, {0, 0, 1, 1}, 0, {0, 0, 0, 0}, {0, 0, 1, 1}, 0, PaddingMode.CONSTANT)
+    ppp.input().preprocess().pad({0, 0, 0, 0}, {0, 0, 1, 1}, 0, PaddingMode.CONSTANT)
     assert ppp.build()
 
 
 def test_pad_vector_out_of_range():
     shape = [1, 3, 5, 5]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
+    model = parameter_a
     model = Model(model, [parameter_a], "TestModel")
     ppp = PrePostProcessor(model)
     assert not ppp.input().preprocess().pad({0, 0, -2, 0}, {0, 0, -4, 1}, 0, PaddingMode.CONSTANT)
@@ -750,6 +751,7 @@ def test_pad_vector_out_of_range():
 def test_pad_vector_dim_mismatch():
     shape = [1, 3, 5, 5]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
+    model = parameter_a
     model = Model(model, [parameter_a], "TestModel")
     ppp = PrePostProcessor(model)
     assert not ppp.input().preprocess().pad({0, 0, 2, 0, 1}, {0, 0, 4, 1, 1}, 0, PaddingMode.CONSTANT)
