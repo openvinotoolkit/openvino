@@ -22,13 +22,16 @@ bool JitEltwiseExecutor::isSupported(
                                      Algorithm::EltwiseClamp,
                                      Algorithm::EltwiseDivide,
                                      Algorithm::EltwiseEqual,
+                                     Algorithm::EltwiseExp,
                                      Algorithm::EltwiseMultiply,
                                      Algorithm::EltwiseMulAdd,
                                      Algorithm::EltwisePowerStatic,
                                      Algorithm::EltwisePrelu,
                                      Algorithm::EltwiseRelu,
                                      Algorithm::EltwiseSelect,
-                                     Algorithm::EltwiseSubtract);
+                                     Algorithm::EltwiseSigmoid,
+                                     Algorithm::EltwiseSubtract,
+                                     Algorithm::EltwiseSwish);
     if (!is_supported) {
         return false;
     }
