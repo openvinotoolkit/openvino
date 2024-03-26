@@ -2,15 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(ENABLE_LTO)
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
-endif()
-
 set(TARGET_NAME npu_zero_result_parser)
 
 file(GLOB_RECURSE SOURCES *.cpp)
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME}
@@ -23,9 +20,4 @@ target_include_directories(${TARGET_NAME}
 #
 # targets install
 #
-if (NOT BUILD_SHARED_LIBS)
-    install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
-            RUNTIME DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${NPU_PLUGIN_COMPONENT}
-            ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${NPU_PLUGIN_COMPONENT}
-            LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT ${NPU_PLUGIN_COMPONENT})
-endif()
+ov_install_static_lib(${TARGET_NAME} ${NPU_PLUGIN_COMPONENT})

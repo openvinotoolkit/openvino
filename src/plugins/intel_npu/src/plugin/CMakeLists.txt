@@ -2,14 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(ENABLE_LTO)
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
-endif()
-
 file(GLOB SOURCES "src/*.cpp" "include/*.hpp")
 
 set(VPUX_PLUGIN_TARGET "openvino_intel_npu_plugin")
-set(VPUX_PLUGIN_STATIC_TARGET "${VPUX_PLUGIN_TARGET}_static") # Used in tests
 set(VPUX_PLUGIN_ENGINE_SOURCE_FILE "src/plugin.cpp")
 set(TARGET_NAME ${VPUX_PLUGIN_TARGET})
 
@@ -23,6 +18,7 @@ ov_add_plugin(NAME ${VPUX_PLUGIN_TARGET}
     VERSION_DEFINES_FOR ${VPUX_PLUGIN_ENGINE_SOURCE_FILE}
 )
 
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 if(ENABLE_DRIVER_COMPILER_ADAPTER)
@@ -51,8 +47,8 @@ endif()
 
 target_link_libraries(${TARGET_NAME}
     PRIVATE
-        npu_al
-        npu_logger_utils
+        openvino_npu_al
+        openvino_npu_logger_utils
         openvino::runtime
         openvino::runtime::dev
 )

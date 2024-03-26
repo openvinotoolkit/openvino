@@ -2,10 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(ENABLE_LTO)
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
-endif()
-
 set(TARGET_NAME "npu_level_zero_backend")
 set(OBJ_TARGET_NAME "${TARGET_NAME}_obj")
 
@@ -18,6 +14,7 @@ else()
     add_library(${OBJ_TARGET_NAME} STATIC ${SOURCES})
 endif()
 
+set_target_properties(${OBJ_TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 ov_add_clang_format_target(${OBJ_TARGET_NAME}_clang FOR_TARGETS ${OBJ_TARGET_NAME})
 
 target_compile_definitions(${OBJ_TARGET_NAME}
@@ -31,7 +28,7 @@ target_include_directories(${OBJ_TARGET_NAME}
 
 target_link_libraries(${OBJ_TARGET_NAME}
     PRIVATE
-        npu_al
+        openvino_npu_al
         npu_zero_result_parser
         ze_loader
 )
@@ -48,8 +45,4 @@ set(NPU_LEVEL_ZERO_BACKEND_OBJ_TARGET "${OBJ_TARGET_NAME}" PARENT_SCOPE)
 #
 # targets install
 #
-if(NOT BUILD_SHARED_LIBS)
-    install(TARGETS ${OBJ_TARGET_NAME} EXPORT OpenVINOTargets
-            ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${NPU_PLUGIN_COMPONENT}
-            LIBRARY DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${NPU_PLUGIN_COMPONENT})
-endif()
+ov_install_static_lib(${OBJ_TARGET_NAME} ${NPU_PLUGIN_COMPONENT})
