@@ -296,8 +296,8 @@ std::unordered_set<std::string> ov::get_supported_nodes(
                             cancel_split = true;
                             break;
                         }
-                        // Ready to split if total size meets user's requirement and Assign-ReadValue operations in pairs
-                        // on the network
+                        // Ready to split if total size meets user's requirement and Assign-ReadValue operations in
+                        // pairs on the network
                         if (total_size >= min_query_size) {
                             if (!ready_split && split_node_set.find(op->get_friendly_name()) == split_node_set.end()) {
                                 ready_split = check_pairs(temp_pair_checker);
