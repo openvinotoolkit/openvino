@@ -193,12 +193,12 @@ bool Convert::evaluate_upper(TensorVector& output_values) const {
     return convert::evaluate_bound(this, output_values, get_input_tensor(0).get_upper_value());
 }
 
-bool Convert::evaluate_label(TensorLabelVector& output_labels) const {
-    const auto input_labels = get_input_tensor(0).get_value_label();
-    if (input_labels.empty()) {
+bool Convert::evaluate_symbol(TensorSymbolVector& output_symbols) const {
+    const auto input_symbols = get_input_tensor(0).get_value_symbol();
+    if (input_symbols.empty()) {
         return false;
     } else {
-        output_labels[0] = input_labels;
+        output_symbols[0] = input_symbols;
         return true;
     }
 }

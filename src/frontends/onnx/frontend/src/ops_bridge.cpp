@@ -487,6 +487,9 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("ReduceL2", 13, reduce_l2);
     REGISTER_OPERATOR("ReduceL2", 18, reduce_l2);
     REGISTER_OPERATOR("ReduceMax", 1, reduce_max);
+    REGISTER_OPERATOR("ReduceMax", 13, reduce_max);
+    REGISTER_OPERATOR("ReduceMax", 18, reduce_max);
+    REGISTER_OPERATOR("ReduceMax", 20, reduce_max);
     REGISTER_OPERATOR("ReduceMean", 1, reduce_mean);
     REGISTER_OPERATOR("ReduceMin", 1, reduce_min);
     REGISTER_OPERATOR("ReduceProd", 1, reduce_prod);

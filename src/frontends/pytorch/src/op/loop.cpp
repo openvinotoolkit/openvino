@@ -42,8 +42,7 @@ OutputVector translate_loop(const NodeContext& context) {
     auto body_parameters = body->get_parameters();
     // #0 body parameter is counter;
     PYTORCH_OP_CONVERSION_CHECK(body_parameters.size() > 0, "At least one input to Loop body is required");
-    // Set counter type and shape
-    body_parameters[0]->set_element_type(element::i32);
+    // Set counter shape
     body_parameters[0]->set_partial_shape(PartialShape{});
     // #0 loop input is  trip_count, #1 loop input is condition
     // Connect other inputs

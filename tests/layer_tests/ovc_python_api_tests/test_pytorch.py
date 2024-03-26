@@ -986,7 +986,7 @@ def create_pytorch_module_with_nested_list_and_single_input(tmp_dir):
     
     net = PTModel()
     constant_one = ov.opset10.constant(np.ones((1, 1)), dtype=np.float32)
-    const_zero = ov.opset10.constant(0, dtype=np.int32)
+    const_zero = ov.opset10.constant(0, dtype=np.int64)
     constant_zeros1 = ov.opset10.constant(np.zeros((1, 1), dtype=np.float32), dtype=np.float32)
 
     param =  ov.opset10.parameter(PartialShape([-1, -1, -1]), dtype=np.float32)
@@ -1007,7 +1007,7 @@ def create_pytorch_module_with_single_input_as_list(tmp_dir):
     
     net = PTModel()
     constant_one = ov.opset10.constant(np.ones((1,)), dtype=np.float32)
-    const_zero = ov.opset10.constant(0, dtype=np.int32)
+    const_zero = ov.opset10.constant(0, dtype=np.int64)
     constant_zeros1 = ov.opset10.constant(np.zeros((1, ), dtype=np.float32), dtype=np.float32)
 
     param =  ov.opset10.parameter(PartialShape([-1, -1]), dtype=np.float32)

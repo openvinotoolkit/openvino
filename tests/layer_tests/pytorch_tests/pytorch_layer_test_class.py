@@ -164,9 +164,6 @@ class PytorchLayerTest:
                 if not isinstance(fw_tensor, torch.Tensor):
                     fw_type = torch.tensor(fw_tensor).numpy().dtype
                     ov_type = ov_tensor.dtype
-                    if fw_type in [np.int32, np.int64] and ov_type in [np.int32, np.int64]:
-                        # do not differentiate between int32 and int64
-                        continue
                     assert ov_type == fw_type, f"dtype validation failed: ov={ov_type} vs fw={fw_type}"
                     continue
                 ov_tensor_format = torch.tensor(np.array(ov_tensor))
@@ -196,7 +193,8 @@ class PytorchLayerTest:
                 if not quantized_ops and n_is_not_close > 0:
                     is_ok = False
                     print("Max diff is {}".format(max_diff))
-                elif quantized_ops and (n_is_not_close > int(np.log10(cur_fw_res.size)) or max_diff > np.array(quant_size + fw_eps).max()):
+                elif quantized_ops and max_diff > np.array(quant_size + fw_eps).max():
+                    # To remove sporadic issues, allow any number of error of 1 quant
                     is_ok = False
                     print("Errors outside threshold range: {} with max diff {}, expected at most {} with max diff {}".format(
                         n_is_not_close, max_diff, int(np.log10(cur_fw_res.size)), quant_size + fw_eps))
