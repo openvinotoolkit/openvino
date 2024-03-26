@@ -194,7 +194,9 @@ public:
      * @return An Compiled model
      */
     virtual std::shared_ptr<ov::ICompiledModel> import_model(const ov::Any& model_variant,
-                                                             const ov::AnyMap& properties) const = 0;
+                                                             const ov::AnyMap& properties) const {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
 
     /**
      * @brief Creates a compiled model from a previously exported model using plugin implementation
@@ -207,7 +209,9 @@ public:
      */
     virtual std::shared_ptr<ov::ICompiledModel> import_model(const ov::Any& model_variant,
                                                              const ov::SoPtr<ov::IRemoteContext>& context,
-                                                             const ov::AnyMap& properties) const = 0;
+                                                             const ov::AnyMap& properties) const {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
 
     /**
      * @brief Queries a plugin about supported layers in model
