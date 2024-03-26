@@ -196,12 +196,18 @@ namespace set_13 {
 ov::OutputVector reduce_sum(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), supported_types_v2, false)};
 }
+ov::OutputVector reduce_l2(const Node& node) {
+    return {make_ov_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0), supported_types_v2)};
+}
 ov::OutputVector reduce_max(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceMax>(node, node.get_ov_inputs().at(0), supported_types_v3)};
 }
 }  // namespace set_13
 
 namespace set_18 {
+ov::OutputVector reduce_l2(const Node& node) {
+    return {make_ov_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0), supported_types_v2, false)};
+}
 ov::OutputVector reduce_max(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceMax>(node, node.get_ov_inputs().at(0), supported_types_v3, false)};
 }
