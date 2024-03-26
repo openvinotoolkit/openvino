@@ -57,6 +57,7 @@ void TransposeMatMulFQ::SetUp() {
     if (!configuration.count("SNIPPETS_MODE")) {
         configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
+    abs_threshold = 5e-6;
 }
 
 void ExplicitTransposeMatMul::SetUp() {
