@@ -48,11 +48,7 @@ std::string_view vpux::COMPILER_TYPE::envVar() {
 }
 
 ov::intel_npu::CompilerType vpux::COMPILER_TYPE::defaultValue() {
-#if defined(NPU_PLUGIN_DEVELOPER_BUILD) && defined(ENABLE_MLIR_COMPILER)
-    return ov::intel_npu::CompilerType::MLIR;
-#else
     return ov::intel_npu::CompilerType::DRIVER;
-#endif
 }
 
 ov::intel_npu::CompilerType vpux::COMPILER_TYPE::parse(std::string_view val) {

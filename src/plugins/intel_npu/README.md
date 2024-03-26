@@ -168,7 +168,7 @@ The following properties are supported:
 | `ov::intel_npu::dma_engines`/</br>`NPU_DMA_ENGINES` | RW | Sets the number of DMA engines that will be used to execute the model. | `[1-2]` for NPU 3700,</br> `[1-2]` for NPU 3720  |  `-1` |
 | `ov::intel_npu::compilation_mode`/</br>`NPU_COMPILATION_MODE` | RW | Selects different compilation pipelines. | `ReferenceSW`/</br>`ReferenceHW`/</br>`DefaultHW`/</br>`ShaveCodeGen` | empty |
 | `ov::intel_npu::compilation_mode_params`/</br>`NPU_COMPILATION_MODE_PARAMS` | RW | Sets various parameters supported by the NPU compiler. |  `<params>` | empty  |
-| `ov::intel_npu::compiler_type`/</br>`NPU_COMPILER_TYPE` | RW | Selects the type of NPU compiler to be used for compilation of a network. </br> 'DRIVER' is the default value.</br> 'MLIR' is the default value only when DEVELOPER_BUILD=ON. | `MLIR`/</br>`DRIVER` | `DRIVER` |
+| `ov::intel_npu::compiler_type`/</br>`NPU_COMPILER_TYPE` | RW | Selects the type of NPU compiler to be used for compilation of a network. </br> 'DRIVER' is the default value. | `MLIR`/</br>`DRIVER` | `DRIVER` |
 | `ov::intel_npu::print_profiling`/</br>`NPU_PRINT_PROFILING` | RW | `NONE` - Do not print profiling info;</br>`TEXT`, `JSON` - Print detailed profiling info during inference in the requested format. | `NONE`/</br>`TEXT`/</br>`JSON` | `NONE` |
 | `ov::intel_npu::profiling_output_file`/</br>`NPU_PROFILING_OUTPUT_FILE` | RW | std::cout is used if parameter value was empty. | `<path>` | empty |
 | `ov::intel_npu::vpux_platform`/</br>`NPU_PLATFORM` | RW | Used to compile and run on a specific device.</br>If device is not available, creating infer request will throw an exception. | `AUTO_DETECT`/</br>`VPU3700`/</br>`VPU3720` | `AUTO_DETECT`|
