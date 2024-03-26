@@ -94,7 +94,7 @@ public:
             const auto spatial_rank = input_layout.get_spatial_rank();
 
             ov::PartialShape kernel;
-            for (int32_t i = (int32_t)spatial_rank - 1; i >= 0; i--) {
+            for (int32_t i = static_cast<int32_t>(spatial_rank) - 1; i >= 0; i--) {
                 kernel.emplace_back(weights_layout.spatial(i));
             }
 
