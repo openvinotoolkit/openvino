@@ -614,15 +614,13 @@ void ScatterUpdate::scatterElementsUpdate_dispatch(ScatterElementsUpdateContext&
               OV_CASE(ScatterUpdate::Reduction::MAX,  DT_MAX),
               OV_CASE(ScatterUpdate::Reduction::MIN,  DT_MIN),
               OV_CASE(ScatterUpdate::Reduction::PROD, DT_MUL),
-              OV_CASE(ScatterUpdate::Reduction::MEAN, DT_MEAN)
-              );
+              OV_CASE(ScatterUpdate::Reduction::MEAN, DT_MEAN));
 }
 
 void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr, int axis) {
     using namespace scatter_elements_update;
     ReduceBase* reduce;
-    switch (reduction_type)
-    {
+    switch (reduction_type) {
     case ScatterUpdate::Reduction::NONE :
         reduce = &data_assign;
         break;
