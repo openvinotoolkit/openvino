@@ -127,6 +127,7 @@ void regclass_graph_Dimension(py::module m) {
             &ov::Dimension::has_symbol,
             R"(
               Check if Dimension has meaningful symbol.
+
               :return: True if symbol was set, else False.
               :rtype: bool
             )");
@@ -144,6 +145,7 @@ void regclass_graph_Dimension(py::module m) {
             py::arg("symbol"),
             R"(
                 Sets provided Symbol as this dimension's symbol.
+
                 :param symbol: The symbol to set to this dimension.
                 :type symbol: openvino.Symbol
             )");
