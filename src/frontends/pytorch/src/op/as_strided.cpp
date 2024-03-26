@@ -75,7 +75,7 @@ OutputVector translate_as_strided(const NodeContext& context) {
     }
     auto offset = const_0->output(0);
     if (!context.input_is_none(3)) {
-        offset = context.get_input(3);
+        offset = get_input_as_i32(context, 3);
     }
     PYTORCH_OP_CONVERSION_CHECK(sizes.size() == strides.size(),
                                 "aten::as_strided: Vector for strides and sizes need to have equal length.");

@@ -16,7 +16,7 @@ class TestSize(PytorchLayerTest):
 
         class aten_size(torch.nn.Module):
             def forward(self, x):
-                return torch.tensor(x.shape, dtype=torch.int64)
+                return torch.tensor(x.shape)
 
         ref_net = None
 

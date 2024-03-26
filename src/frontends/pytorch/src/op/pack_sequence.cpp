@@ -25,8 +25,6 @@ OutputVector translate_pack_padded_sequence(const NodeContext& context) {
     const auto order_102 = v0::Constant::create(element::i32, Shape{3}, {1, 0, 2});
     if (batch_first)
         seq = context.mark_node(std::make_shared<v1::Transpose>(seq, order_102));
-    if (lengths.get_element_type() != element::i32)
-        lengths = context.mark_node(std::make_shared<v0::Convert>(lengths, element::i32));
     return context.mark_node(std::make_shared<PackPadded>(seq, lengths))->outputs();
 };
 

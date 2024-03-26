@@ -35,10 +35,9 @@ OutputVector translate_topk(const NodeContext& context) {
         sort = TopKSortType::SORT_VALUES;
     }
 
-    auto topk = context.mark_node(std::make_shared<v3::TopK>(input_tensor, k, axis, mode, sort));
-    auto indices = context.mark_node(std::make_shared<v0::Convert>(topk->output(1), element::i64));
+    auto topk = context.mark_node(std::make_shared<v11::TopK>(input_tensor, k, axis, mode, sort, element::i64));
 
-    return {topk->output(0), indices};
+    return topk->outputs();
 };
 
 OutputVector translate_topk_fx(const NodeContext& context) {

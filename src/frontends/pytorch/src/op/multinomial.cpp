@@ -25,7 +25,7 @@ OutputVector translate_multinomial(const NodeContext& context) {
     auto const_0 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
     auto const_1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));
     auto input = context.get_input(0);
-    auto num_samples = context.mark_node(std::make_shared<v1::Reshape>(context.get_input(1), const_1, false));
+    auto num_samples = context.mark_node(std::make_shared<v1::Reshape>(get_input_as_i32(context, 1), const_1, false));
     auto replacement = context.const_input<bool>(2);
     PYTORCH_OP_CONVERSION_CHECK(context.input_is_none(3),
                                 "aten::multinomial conversion with generator is not supported");

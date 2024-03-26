@@ -164,9 +164,6 @@ class PytorchLayerTest:
                 if not isinstance(fw_tensor, torch.Tensor):
                     fw_type = torch.tensor(fw_tensor).numpy().dtype
                     ov_type = ov_tensor.dtype
-                    if fw_type in [np.int32, np.int64] and ov_type in [np.int32, np.int64]:
-                        # do not differentiate between int32 and int64
-                        continue
                     assert ov_type == fw_type, f"dtype validation failed: ov={ov_type} vs fw={fw_type}"
                     continue
                 ov_tensor_format = torch.tensor(np.array(ov_tensor))
