@@ -60,7 +60,7 @@ private:
     DeviceProperties get_properties_per_device(const std::string& device_priorities,
                                                const ov::AnyMap& properties) const;
 
-    bool get_device_memory_map(const std::vector<std::string>& device_names,
+    void get_device_memory_map(const std::vector<std::string>& device_names,
                                std::map<std::string, size_t>& device_mem_map) const;
 
     std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> query_model_update(

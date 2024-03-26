@@ -81,8 +81,11 @@ ov::hetero::Plugin::DeviceProperties ov::hetero::Plugin::get_properties_per_devi
     return device_properties;
 }
 
-bool ov::hetero::Plugin::get_device_memory_map(const std::vector<std::string>& device_names,
+void ov::hetero::Plugin::get_device_memory_map(const std::vector<std::string>& device_names,
                                                std::map<std::string, size_t>& available_device_mem_map) const {
+    // TODO: add unified API to get device memory.
+    // There is no unified API to get device memory. So this feature get memory of specific device with specific method.
+    // Skip device which cannot get device memory size.
     for (const auto& device_name : device_names) {
         if (device_name.find("CPU") != std::string::npos) {
             // Assuming the CPU has enough memory
@@ -92,14 +95,9 @@ bool ov::hetero::Plugin::get_device_memory_map(const std::vector<std::string>& d
                 size_t device_mem = get_core()->get_property(device_name, ov::intel_gpu::device_total_mem_size);
                 available_device_mem_map[device_name] = device_mem;
             } catch (const ov::Exception&) {
-                return false;
             }
-        } else {
-            // Need to get the device memory here
-            return false;
         }
     }
-    return true;
 }
 
 std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plugin::query_model_update(
@@ -115,7 +113,11 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
     auto device_names = ov::DeviceIDParser::get_hetero_devices(full_config.device_priorities);
     bool hetero_query_model_by_device = false;
     if (full_config.modelDistributionPolicy.count(ov::hint::ModelDistributionPolicy::PIPELINE_PARALLEL) != 0) {
-        hetero_query_model_by_device = get_device_memory_map(device_names, available_device_mem_map);
+        get_device_memory_map(device_names, available_device_mem_map);
+        // Will disable hetero query model by device if there is no device's available memory is obtained.
+        if (available_device_mem_map.size() != 0) {
+            hetero_query_model_by_device = true;
+        }
     }
 
     auto update_supported_ops = [](ov::SupportedOpsMap& final_results, const ov::SupportedOpsMap& device_results) {
@@ -157,15 +159,17 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
                 // 2. Check if all left devices can take the entire model
                 if (available_device_mem_map[device_name] >= 1.2 * total_ops_size || device_name.find("CPU") == 0) {
                     device_config[ov::query_model_ratio.name()] = 1.0f;
-                } else if (available_discrete_device_memory >= 1.2 * total_ops_size || available_device_mem_map.count("CPU")) {
-                    float model_ratio = static_cast<float>(available_device_mem_map[device_name] * 1.0 / (1.2 * total_ops_size));
+                } else if (available_discrete_device_memory >= 1.2 * total_ops_size ||
+                           available_device_mem_map.count("CPU")) {
+                    float model_ratio =
+                        static_cast<float>(available_device_mem_map[device_name] * 1.0 / (1.2 * total_ops_size));
                     if (total_ops_size < available_device_mem_map[device_name]) {
                         model_ratio = 1.0f;
                     }
                     device_config[ov::query_model_ratio.name()] = model_ratio;
                 } else {
-                    float model_ratio =
-                        static_cast<float>(available_device_mem_map[device_name] * 1.0 / available_discrete_device_memory);
+                    float model_ratio = static_cast<float>(available_device_mem_map[device_name] * 1.0 /
+                                                           available_discrete_device_memory);
                     device_config[ov::query_model_ratio.name()] = model_ratio;
                 }
                 // Remove the current device
