@@ -609,6 +609,7 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
     };
 
     OV_SWITCH(intel_cpu, EltwiseEmitter, ctx, data.algo,
+    OV_CASE(Algorithm::EltwiseAbs, ov::intel_cpu::aarch64::jit_abs_emitter),
     OV_CASE(Algorithm::EltwiseAdd, ov::intel_cpu::aarch64::jit_add_emitter),
     OV_CASE(Algorithm::EltwiseClamp, ov::intel_cpu::aarch64::jit_clamp_emitter),
     OV_CASE(Algorithm::EltwiseDivide, ov::intel_cpu::aarch64::jit_divide_emitter),
@@ -765,6 +766,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
 
     OV_SWITCH(intel_cpu, SupportedPrecisions, precisions, algo,
         OV_CASE(Algorithm::EltwiseRelu, jit_relu_emitter),
+        OV_CASE(Algorithm::EltwiseAbs, jit_abs_emitter),
         OV_CASE(Algorithm::EltwiseAdd, jit_add_emitter),
         OV_CASE(Algorithm::EltwiseClamp, jit_clamp_emitter),
         OV_CASE(Algorithm::EltwiseDivide, jit_divide_emitter),
