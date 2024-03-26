@@ -11,12 +11,9 @@
 #include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/interval.hpp"
+#include "openvino/core/symbol.hpp"
 
 namespace ov {
-class TableOfEquivalence;
-/// \brief Alias for dimension label type.
-using label_t = uint32_t;
-
 /// \brief Class representing a dimension, which may be dynamic (undetermined until runtime),
 ///        in a shape or shape-like object.
 ///
@@ -179,23 +176,25 @@ public:
     friend void swap(Dimension& a, Dimension& b) {
         using std::swap;
         swap(a.m_dimension, b.m_dimension);
-        swap(a.m_label, b.m_label);
-        swap(a.m_table_of_equivalence, b.m_table_of_equivalence);
+        swap(a.m_symbol, b.m_symbol);
     }
 
     /// \brief String representation of Dimension
     std::string to_string() const;
+
+    /// \brief Indicates if meaningful symbol was set to the Dimension
+    bool has_symbol() const;
+    /// \brief Returns symbol of the Dimension
+    std::shared_ptr<ov::Symbol> get_symbol() const;
+    /// \brief Sets symbol of the Dimension
+    void set_symbol(const std::shared_ptr<ov::Symbol>& s);
 
 private:
     Dimension(const Interval& interval) : m_dimension(interval) {}
 
     // The actual numerical value of the dimension.
     Interval m_dimension{};
-
-    // private fields for dimension tracking
-    friend class DimensionTracker;
-    label_t m_label{0};
-    std::shared_ptr<TableOfEquivalence> m_table_of_equivalence = nullptr;
+    std::shared_ptr<Symbol> m_symbol = nullptr;
 };
 
 /// \brief Insert a human-readable representation of a dimension into an output stream.

@@ -8,7 +8,6 @@
 #include <utility>
 
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/ops.hpp"
 
 using namespace std;
@@ -316,13 +315,13 @@ TEST(type_prop, gather_tree_invalid_end_token_rank) {
 
 TEST(type_prop, gather_tree_interval_labeled_dims_all) {
     auto step_ids_shape = PartialShape{{2, 5}, {4, 8}, {3, 6}};
-    set_shape_labels(step_ids_shape, 10);
+    auto symbols = set_shape_symbols(step_ids_shape);
 
     auto parent_ids_shape = PartialShape{{3, 7}, {3, 7}, {1, 4}};
-    set_shape_labels(parent_ids_shape, 20);
+    set_shape_symbols(parent_ids_shape);
 
     auto max_seq_len_shape = PartialShape{{2, 6}};
-    set_shape_labels(max_seq_len_shape, 30);
+    set_shape_symbols(max_seq_len_shape);
 
     auto step_ids = std::make_shared<op::v0::Parameter>(element::i32, step_ids_shape);
     auto parent_ids = std::make_shared<op::v0::Parameter>(element::i32, parent_ids_shape);
@@ -334,12 +333,12 @@ TEST(type_prop, gather_tree_interval_labeled_dims_all) {
     const auto& out_shape = op->get_output_partial_shape(0);
     EXPECT_EQ(op->get_output_element_type(0), element::i32);
     EXPECT_EQ(out_shape, (PartialShape{{3, 5}, {4, 6}, {3, 4}}));
-    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(20, 30, 22));
+    EXPECT_THAT(get_shape_symbols(out_shape), symbols);
 }
 
 TEST(type_prop, gather_tree_interval_labeled_dims_step_ids) {
     auto step_ids_shape = PartialShape{{2, 5}, {4, 8}, {3, 6}};
-    set_shape_labels(step_ids_shape, 10);
+    auto symbols = set_shape_symbols(step_ids_shape);
 
     auto parent_ids_shape = PartialShape{{3, 7}, {3, 7}, {1, 4}};
     auto max_seq_len_shape = PartialShape{{2, 6}};
@@ -354,13 +353,13 @@ TEST(type_prop, gather_tree_interval_labeled_dims_step_ids) {
     const auto& out_shape = op->get_output_partial_shape(0);
     EXPECT_EQ(op->get_output_element_type(0), element::i32);
     EXPECT_EQ(out_shape, (PartialShape{{3, 5}, {4, 6}, {3, 4}}));
-    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(10, 11, 12));
+    EXPECT_THAT(get_shape_symbols(out_shape), symbols);
 }
 
 TEST(type_prop, gather_tree_interval_labeled_dims_parent_ids) {
     auto step_ids_shape = PartialShape{{2, 5}, {4, 8}, {3, 6}};
     auto parent_ids_shape = PartialShape{{3, 7}, {3, 7}, {1, 4}};
-    set_shape_labels(parent_ids_shape, 20);
+    auto symbols = set_shape_symbols(parent_ids_shape);
 
     auto max_seq_len_shape = PartialShape{{2, 6}};
 
@@ -374,14 +373,14 @@ TEST(type_prop, gather_tree_interval_labeled_dims_parent_ids) {
     const auto& out_shape = op->get_output_partial_shape(0);
     EXPECT_EQ(op->get_output_element_type(0), element::i32);
     EXPECT_EQ(out_shape, (PartialShape{{3, 5}, {4, 6}, {3, 4}}));
-    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(20, 21, 22));
+    EXPECT_THAT(get_shape_symbols(out_shape), symbols);
 }
 
 TEST(type_prop, gather_tree_interval_labeled_dims_seq_len) {
     auto step_ids_shape = PartialShape{{2, 5}, {4, 8}, {3, 6}};
     auto parent_ids_shape = PartialShape{{3, 7}, {3, 7}, {1, 4}};
     auto max_seq_len_shape = PartialShape{{2, 6}};
-    set_shape_labels(max_seq_len_shape, 30);
+    auto symbols = set_shape_symbols(max_seq_len_shape);
 
     auto step_ids = std::make_shared<op::v0::Parameter>(element::i32, step_ids_shape);
     auto parent_ids = std::make_shared<op::v0::Parameter>(element::i32, parent_ids_shape);
@@ -393,5 +392,5 @@ TEST(type_prop, gather_tree_interval_labeled_dims_seq_len) {
     const auto& out_shape = op->get_output_partial_shape(0);
     EXPECT_EQ(op->get_output_element_type(0), element::i32);
     EXPECT_EQ(out_shape, (PartialShape{{3, 5}, {4, 6}, {3, 4}}));
-    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(ov::no_label, 30, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(out_shape), ElementsAre(nullptr, symbols[0], nullptr));
 }
