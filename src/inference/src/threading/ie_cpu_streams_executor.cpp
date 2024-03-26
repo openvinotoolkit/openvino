@@ -17,6 +17,7 @@
 #include <thread>
 #include <utility>
 #include <vector>
+#include <iostream>
 
 #include "ie_parallel_custom_arena.hpp"
 #include "ie_system_conf.h"
@@ -81,10 +82,14 @@ struct CPUStreamsExecutor::Impl {
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
             const auto concurrency = (0 == _impl->_config._threadsPerStream) ? custom::task_arena::automatic
                                                                              : _impl->_config._threadsPerStream;
+            std::cout << "streamid=" << _streamId << " threadBindingType=" << _impl->_config._threadBindingType
+                      << " PreferredCoreType=" << _impl->_config._threadPreferredCoreType
+                      << " concurrency=" << concurrency << std::endl;
             if (ThreadBindingType::HYBRID_AWARE == _impl->_config._threadBindingType) {
                 if (Config::PreferredCoreType::ROUND_ROBIN != _impl->_config._threadPreferredCoreType) {
                     if (Config::PreferredCoreType::ANY == _impl->_config._threadPreferredCoreType) {
                         _taskArena.reset(new custom::task_arena{concurrency});
+                        std::cout << "taskArena initialization1" << std::endl;
                     } else {
                         const auto selected_core_type =
                             Config::PreferredCoreType::BIG == _impl->_config._threadPreferredCoreType
@@ -94,8 +99,10 @@ struct CPUStreamsExecutor::Impl {
                         _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
                                                                     .set_core_type(selected_core_type)
                                                                     .set_max_concurrency(concurrency)});
+                        std::cout << "taskArena initialization2" << std::endl;
 #    else
                         _taskArena.reset(new custom::task_arena{concurrency});
+                        std::cout << "taskArena initialization3" << std::endl;
 #    endif
                     }
                 } else {
@@ -148,8 +155,10 @@ struct CPUStreamsExecutor::Impl {
                     _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
                                                                 .set_core_type(selected_core_type)
                                                                 .set_max_concurrency(max_concurrency)});
+                    std::cout << "taskArena initialization4" << std::endl;
 #    else
                     _taskArena.reset(new custom::task_arena{max_concurrency});
+                    std::cout << "taskArena initialization5" << std::endl;
 #    endif
                     CpuSet processMask;
                     int ncpus = 0;
@@ -168,9 +177,11 @@ struct CPUStreamsExecutor::Impl {
                 }
             } else if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});
+                std::cout << "taskArena initialization6" << std::endl;
             } else if ((0 != _impl->_config._threadsPerStream) ||
                        (ThreadBindingType::CORES == _impl->_config._threadBindingType)) {
                 _taskArena.reset(new custom::task_arena{concurrency});
+                std::cout << "taskArena initialization7" << std::endl;
                 if (ThreadBindingType::CORES == _impl->_config._threadBindingType) {
                     CpuSet processMask;
                     int ncpus = 0;
