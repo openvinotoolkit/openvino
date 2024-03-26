@@ -82,16 +82,15 @@ ov::hetero::Plugin::DeviceProperties ov::hetero::Plugin::get_properties_per_devi
 }
 
 bool ov::hetero::Plugin::get_device_memory_map(const std::vector<std::string>& device_names,
-                                               std::map<std::string, size_t>& device_mem_map) const {
+                                               std::map<std::string, size_t>& available_device_mem_map) const {
     for (const auto& device_name : device_names) {
         if (device_name.find("CPU") != std::string::npos) {
             // Assuming the CPU has enough memory
-            device_mem_map["CPU"] = -1;
+            available_device_mem_map["CPU"] = -1;
         } else if (device_name.find("GPU") != std::string::npos) {
             try {
                 size_t device_mem = get_core()->get_property(device_name, ov::intel_gpu::device_total_mem_size);
-                device_mem_map[device_name] = device_mem;
-                device_mem_map["all_gpu_left"] += device_mem;
+                available_device_mem_map[device_name] = device_mem;
             } catch (const ov::Exception&) {
                 return false;
             }
@@ -107,7 +106,7 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
     std::shared_ptr<ov::Model>& model,
     const ov::AnyMap& properties,
     bool allow_exception) const {
-    std::map<std::string, size_t> device_mem_map;
+    std::map<std::string, size_t> available_device_mem_map;
     Configuration full_config{properties, m_cfg};
     DeviceProperties properties_per_device =
         get_properties_per_device(full_config.device_priorities, full_config.get_device_properties());
@@ -116,7 +115,7 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
     auto device_names = ov::DeviceIDParser::get_hetero_devices(full_config.device_priorities);
     bool hetero_query_model_by_device = false;
     if (full_config.modelDistributionPolicy.count(ov::hint::ModelDistributionPolicy::PIPELINE_PARALLEL) != 0) {
-        hetero_query_model_by_device = get_device_memory_map(device_names, device_mem_map);
+        hetero_query_model_by_device = get_device_memory_map(device_names, available_device_mem_map);
     }
 
     auto update_supported_ops = [](ov::SupportedOpsMap& final_results, const ov::SupportedOpsMap& device_results) {
@@ -141,32 +140,36 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
         if (ov::util::contains(supported_properties, ov::query_model_ratio)) {
             if (fallback_device) {
                 device_config[ov::query_model_ratio.name()] = 1.0f;
-            } else if (device_name.find("GPU") != std::string::npos &&
-                       device_mem_map.find(device_name) != device_mem_map.end()) {
+            } else if (available_device_mem_map.count(device_name)) {
                 size_t total_ops_size = 0;
+                size_t available_discrete_device_memory = 0;
                 for (auto&& op : model->get_ordered_ops()) {
                     if (ov::op::util::is_constant(op)) {
                         total_ops_size += op->get_element_type().size() * shape_size(op->get_shape());
                     }
                 }
+                for (auto& device_mem_info : available_device_mem_map) {
+                    if (device_mem_info.first.find("CPU") != 0)
+                        available_discrete_device_memory += device_mem_info.second;
+                }
                 // Estimate the memory size required for the model is 1.2 * total_ops_size
-                // 1. Check if current GPU device that can take the entire model
-                // 2. Check if all left GPU devices can take the entire model
-                if (device_mem_map[device_name] >= 1.2 * total_ops_size) {
+                // 1. Check if current device that can take the entire model
+                // 2. Check if all left devices can take the entire model
+                if (available_device_mem_map[device_name] >= 1.2 * total_ops_size || device_name.find("CPU") == 0) {
                     device_config[ov::query_model_ratio.name()] = 1.0f;
-                } else if (device_mem_map["all_gpu_left"] >= 1.2 * total_ops_size ||
-                           device_mem_map.find("CPU") != device_mem_map.end()) {
-                    float model_ratio = static_cast<float>(device_mem_map[device_name] * 1.0 / (total_ops_size * 1.2));
-                    if (total_ops_size < device_mem_map[device_name]) {
+                } else if (available_discrete_device_memory >= 1.2 * total_ops_size || available_device_mem_map.count("CPU")) {
+                    float model_ratio = static_cast<float>(available_device_mem_map[device_name] * 1.0 / (1.2 * total_ops_size));
+                    if (total_ops_size < available_device_mem_map[device_name]) {
                         model_ratio = 1.0f;
                     }
                     device_config[ov::query_model_ratio.name()] = model_ratio;
                 } else {
                     float model_ratio =
-                        static_cast<float>(device_mem_map[device_name] * 1.0 / device_mem_map["all_gpu_left"]);
+                        static_cast<float>(available_device_mem_map[device_name] * 1.0 / available_discrete_device_memory);
                     device_config[ov::query_model_ratio.name()] = model_ratio;
                 }
-                device_mem_map["all_gpu_left"] -= device_mem_map[device_name];
+                // Remove the current device
+                available_device_mem_map.erase(device_name);
             }
         }
     };
