@@ -28,5 +28,5 @@ public:
     void build(const Napi::CallbackInfo& info);
 
 private:
-    std::unique_ptr<ov::preprocess::PrePostProcessor> _ppp = nullptr;
+    std::unique_ptr<ov::preprocess::PrePostProcessor> _ppp;
 };

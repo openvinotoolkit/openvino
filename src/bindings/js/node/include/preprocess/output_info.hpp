@@ -17,5 +17,5 @@ public:
     void set_output_info(ov::preprocess::OutputInfo& info);
 
 private:
-    ov::preprocess::OutputInfo* _output_info = nullptr;
+    ov::preprocess::OutputInfo* _output_info;
 };

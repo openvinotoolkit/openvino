@@ -20,5 +20,5 @@ public:
     void set_output_tensor_info(ov::preprocess::OutputTensorInfo& tensor_info);
 
 private:
-    ov::preprocess::OutputTensorInfo* _tensor_info = nullptr;
+    ov::preprocess::OutputTensorInfo* _tensor_info;
 };
