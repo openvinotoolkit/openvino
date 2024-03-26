@@ -12,7 +12,7 @@ OpenVINO™ toolkit is officially supported and validated on the following platf
 | Host                         | NPU device  | OS (64-bit)                          |
 | :---                         | :---        | :---                                 |
 | Raptor Lake (discrete   NPU)   | NPU 3700    | MS Windows* 11                       |
-| Meteor Lake (integrated NPU)   | NPU 3720    | Ubuntu* 20, MS Windows* 11           |
+| Meteor Lake (integrated NPU)   | NPU 3720    | Ubuntu* 22, MS Windows* 11           |
 
 
 &nbsp;
@@ -95,14 +95,14 @@ Each inference request is linked to an already compiled model and maintains a re
 
 The set of input and output buffers allocated by the NPU plugin for each inference request can be retrieved using the following API:
 ```
-    ov::Tensor requestTensor = inferRequest->get_tensor(tensor_name);
+    ov::Tensor requestTensor = inferRequest.get_tensor(tensor_name);
 ```
 
 Users can access the "data" member of the specified tensor and can directly populate it or read it. This is the recommended usage of input and output buffers that guarantees no extra copies will be performed by the NPU plugin.  
 
 Alternatively, users can configure different input or output buffers to be used during inference:
 ```
-    inferRequest->set_tensor(tensor_name, tensor);
+    inferRequest.set_tensor(tensor_name, tensor);
 ```
 
 Since these tensors are not natively accessible by the NPU device, plugin will perform the required memory copies to and from the original buffers that were allocated when the inference request was created. This has an impact on the inference latency and should be avoided whenever possible.
@@ -110,12 +110,12 @@ Since these tensors are not natively accessible by the NPU device, plugin will p
 Once the inference request is created and input/output tensors are prepared for the inference, the execution can be triggered either synchronously or asynchronously:
 * Synchronous execution:
 ```
-    inferRequest->infer();
+    inferRequest.infer();
 ```
 * Asynchronous execution using:
 ```
-    inferRequest->start_async();
-    inferRequest->wait(); // optional, in case user callback is not provided
+    inferRequest.start_async();
+    inferRequest.wait(); // optional, in case user callback is not provided
 ```
 
 Multiple inferences can be executed in parallel, either from the same application thread through the use of asynchronous methods or from multiple threads with any of the available methods (synchronous or asynchronous). There is an optimal number of inference requests to be executed in parallel that would yield the best throughput without impacting the latency observed for each inference. This optimal number of requests is different for each model and depends on the ratio between the duration of the model execution on the DPU HW and the rest of the latency required to pass the request through the entire software stack. The NPU plugin returns the optimal number of inference requests through a dedicated property (`ov::optimal_number_of_infer_requests`).

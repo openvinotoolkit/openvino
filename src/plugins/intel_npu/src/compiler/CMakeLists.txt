@@ -2,10 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(ENABLE_LTO)
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
-endif()
-
 set(TARGET_NAME "npu_driver_compiler_adapter")
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
@@ -17,6 +13,7 @@ ov_build_target_faster(${TARGET_NAME}
     PCH PRIVATE "src/precomp.hpp"
 )
 
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME}
@@ -26,7 +23,7 @@ target_include_directories(${TARGET_NAME}
 
 target_link_libraries(${TARGET_NAME}
     PUBLIC
-        npu_al
+        openvino_npu_al
         ze_loader
     PRIVATE
         npu_zero_result_parser
@@ -37,8 +34,4 @@ target_link_libraries(${TARGET_NAME}
 #
 # targets install
 #
-if(NOT BUILD_SHARED_LIBS)
-    install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
-            ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${NPU_PLUGIN_COMPONENT}
-            LIBRARY DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${NPU_PLUGIN_COMPONENT})
-endif()
+ov_install_static_lib(${TARGET_NAME} ${NPU_PLUGIN_COMPONENT})
