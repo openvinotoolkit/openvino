@@ -42,9 +42,7 @@ OutputVector translate_while_op(const NodeContext& node) {
         body_model,
         "[TensorFlow Frontend] Internal error or incorrect input model. Cannot find body graph with name " + body_type);
 
-    auto loop = create_loop_for_tf_while(node.get_name(), body_model, cond_model, ov_inputs);
-    set_node_name(node.get_name(), loop);
-    return loop->outputs();
+    return create_loop_for_tf_while(node.get_name(), body_model, cond_model, ov_inputs);
 }
 
 }  // namespace op
