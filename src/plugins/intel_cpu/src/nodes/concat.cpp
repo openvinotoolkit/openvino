@@ -515,11 +515,11 @@ ov::element::Type Concat::getRuntimePrecision() const {
 
 void Concat::exec1DCase() {
     DEBUG_LOG(getName(), " exec1DCase");
-    auto* dst = reinterpret_cast<uint32_t*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
+    auto* dst = getDstDataAtPortAs<uint32_t>(0);
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        const auto& srcMemPtr = getParentEdgeAt(i)->getMemoryPtr();
+        const auto& srcMemPtr = getSrcMemoryAtPort(i);
         const auto& srcShape = srcMemPtr->getStaticDims();
-        const auto* src = reinterpret_cast<const uint32_t*>(srcMemPtr->getData());
+        const auto* src = srcMemPtr->getDataAs<const uint32_t>();
         for (size_t i = 0; i < srcShape[0]; i++) {
             *dst++ = src[i];
         }

@@ -10,7 +10,6 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/util/common_util.hpp"
 
 using namespace std;
@@ -27,15 +26,15 @@ static std::shared_ptr<op::v0::DetectionOutput> create_detection_output(
     const ov::op::v0::DetectionOutput::Attributes& attrs,
     element::Type input_type,
     element::Type proposals_type,
-    bool set_labels = false) {
-    if (set_labels) {
-        // The labels are set for all of the shapes,
-        // but the output dimension is always a product of multiplication, so labels are not preserved
-        set_shape_labels(box_logits_shape, 10);
-        set_shape_labels(class_preds_shape, 20);
-        set_shape_labels(proposals_shape, 30);
-        set_shape_labels(aux_class_preds_shape, 40);
-        set_shape_labels(aux_box_preds_shape, 50);
+    bool set_symbols = false) {
+    if (set_symbols) {
+        // The symbols are set for all of the shapes,
+        // but the output dimension is always a product of multiplication, so symbols are not preserved
+        set_shape_symbols(box_logits_shape);
+        set_shape_symbols(class_preds_shape);
+        set_shape_symbols(proposals_shape);
+        set_shape_symbols(aux_class_preds_shape);
+        set_shape_symbols(aux_box_preds_shape);
     }
 
     auto box_logits = make_shared<ov::op::v0::Parameter>(input_type, box_logits_shape);
@@ -102,7 +101,7 @@ TEST(type_prop_layers, detection_output_basic) {
     EXPECT_EQ(op->get_element_type(), element::f32);
 }
 
-TEST(type_prop_layers, detection_output_interval_labeled_keep_top_k) {
+TEST(type_prop_layers, detection_output_interval_symboled_keep_top_k) {
     ov::op::v0::DetectionOutput::Attributes attrs;
     attrs.keep_top_k = {60};
     attrs.num_classes = 3;
@@ -115,15 +114,15 @@ TEST(type_prop_layers, detection_output_interval_labeled_keep_top_k) {
                                       attrs,
                                       element::f32,
                                       element::f32,
-                                      true);  // set labels
+                                      true);  // set symbols
 
     // [1, 1, N * keep_top_k[0], 7]
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 1, {120, 240}, 7}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(ov::no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
     EXPECT_EQ(op->get_element_type(), element::f32);
 }
 
-TEST(type_prop_layers, detection_output_interval_labeled_top_k) {
+TEST(type_prop_layers, detection_output_interval_symboled_top_k) {
     ov::op::v0::DetectionOutput::Attributes attrs;
     attrs.keep_top_k = {-1};
     attrs.top_k = 80;
@@ -137,15 +136,15 @@ TEST(type_prop_layers, detection_output_interval_labeled_top_k) {
                                       attrs,
                                       element::f32,
                                       element::f32,
-                                      true);  // set labels
+                                      true);  // set symbols
 
     // [1, 1, N * top_k * num_classes, 7]
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 1, {480, 960}, 7}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(ov::no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
     EXPECT_EQ(op->get_element_type(), element::f32);
 }
 
-TEST(type_prop_layers, detection_output_interval_labeled_negative_both_topk) {
+TEST(type_prop_layers, detection_output_interval_symboled_negative_both_topk) {
     ov::op::v0::DetectionOutput::Attributes attrs;
     attrs.keep_top_k = {-1};
     attrs.top_k = -1;
@@ -159,11 +158,11 @@ TEST(type_prop_layers, detection_output_interval_labeled_negative_both_topk) {
                                       attrs,
                                       element::f32,
                                       element::f32,
-                                      true);  // set labels
+                                      true);  // set symbols
 
     // [1, 1, N * num_classes * num_prior_boxes, 7]  // num_prior_boxex = 5
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 1, {30, 60}, 7}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(ov::no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
     EXPECT_EQ(op->get_element_type(), element::f32);
 }
 
@@ -809,13 +808,13 @@ std::shared_ptr<op::v8::DetectionOutput> create_detection_output_v8(PartialShape
                                                                     PartialShape proposals_shape,
                                                                     const op::v8::DetectionOutput::Attributes& attrs,
                                                                     element::Type input_type,
-                                                                    bool set_labels = false) {
-    if (set_labels) {
-        // The labels are set for all of the shapes,
-        // but the output dimension is always a product of multiplication, so labels are not preserved
-        set_shape_labels(box_logits_shape, 10);
-        set_shape_labels(class_preds_shape, 20);
-        set_shape_labels(proposals_shape, 30);
+                                                                    bool set_symbols = false) {
+    if (set_symbols) {
+        // The symbols are set for all of the shapes,
+        // but the output dimension is always a product of multiplication, so symbols are not preserved
+        set_shape_symbols(box_logits_shape);
+        set_shape_symbols(class_preds_shape);
+        set_shape_symbols(proposals_shape);
     }
 
     auto box_logits = make_shared<ov::op::v0::Parameter>(input_type, box_logits_shape);
@@ -831,15 +830,15 @@ std::shared_ptr<op::v8::DetectionOutput> create_detection_output2_v8(PartialShap
                                                                      PartialShape aux_box_preds_shape,
                                                                      const op::v8::DetectionOutput::Attributes& attrs,
                                                                      element::Type input_type,
-                                                                     bool set_labels = false) {
-    if (set_labels) {
-        // The labels are set for all of the shapes,
-        // but the output dimension is always a product of multiplication, so labels are not preserved
-        set_shape_labels(box_logits_shape, 10);
-        set_shape_labels(class_preds_shape, 20);
-        set_shape_labels(proposals_shape, 30);
-        set_shape_labels(aux_class_preds_shape, 40);
-        set_shape_labels(aux_box_preds_shape, 50);
+                                                                     bool set_symbols = false) {
+    if (set_symbols) {
+        // The symbols are set for all of the shapes,
+        // but the output dimension is always a product of multiplication, so symbols are not preserved
+        set_shape_symbols(box_logits_shape);
+        set_shape_symbols(class_preds_shape);
+        set_shape_symbols(proposals_shape);
+        set_shape_symbols(aux_class_preds_shape);
+        set_shape_symbols(aux_box_preds_shape);
     }
 
     auto box_logits = make_shared<ov::op::v0::Parameter>(input_type, box_logits_shape);
@@ -1051,7 +1050,7 @@ TEST(type_prop_layers, detection_output_v8_intervals_3in) {
         EXPECT_EQ(op->get_output_partial_shape(0), output_shape_reference)
             << "Failed for keep_top_k=" << ov::util::vector_to_string(attrs.keep_top_k) << " top_k=" << attrs.top_k
             << " and variance_encoded_in_target=" << attrs.variance_encoded_in_target << std::endl;
-        EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(ov::no_label));
+        EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
         EXPECT_EQ(op->get_element_type(), element::f32);
     }
 }
@@ -1081,7 +1080,7 @@ TEST(type_prop_layers, detection_output_v8_interval_batch_3in) {
         EXPECT_EQ(op->get_output_partial_shape(0), output_shape_reference)
             << "Failed for keep_top_k=" << ov::util::vector_to_string(attrs.keep_top_k) << " top_k=" << attrs.top_k
             << " and variance_encoded_in_target=" << attrs.variance_encoded_in_target << std::endl;
-        EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(ov::no_label));
+        EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
         EXPECT_EQ(op->get_element_type(), element::f32);
     }
 }
@@ -1112,7 +1111,7 @@ TEST(type_prop_layers, detection_output_v8_interval_batch_5in) {
         EXPECT_EQ(op->get_output_partial_shape(0), output_shape_reference)
             << "Failed for keep_top_k=" << ov::util::vector_to_string(attrs.keep_top_k) << " top_k=" << attrs.top_k
             << " and variance_encoded_in_target=" << attrs.variance_encoded_in_target << std::endl;
-        EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(ov::no_label));
+        EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
         EXPECT_EQ(op->get_element_type(), element::f32);
     }
 }
