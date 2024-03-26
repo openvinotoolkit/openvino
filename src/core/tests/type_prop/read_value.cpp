@@ -108,21 +108,21 @@ TEST(type_prop, read_value_v6_no_init) {
     ASSERT_EQ(read_value->get_variable_id(), "variable_id");
 }
 
-TEST(type_prop, read_value_labels_propagation) {
+TEST(type_prop, read_value_symbols_propagation) {
     auto variable_pshape = PartialShape{1, 2, 64, 64};
-    set_shape_labels(variable_pshape, 10);
+    auto symbols = set_shape_symbols(variable_pshape);
     auto variable_info = op::util::VariableInfo{variable_pshape, element::f32, "variable_id"};
     auto variable = std::make_shared<op::util::Variable>(variable_info);
     std::shared_ptr<ov::op::v6::ReadValue> read_value = std::make_shared<ov::op::v6::ReadValue>(variable);
-    EXPECT_THAT(get_shape_labels(read_value->get_output_partial_shape(0)), testing::ElementsAre(10, 11, 12, 13));
+    EXPECT_THAT(get_shape_symbols(read_value->get_output_partial_shape(0)), symbols);
 }
 
-TEST(type_prop, DISABLED_read_value_labels_propagation_from_init_subgraph) {
+TEST(type_prop, DISABLED_read_value_symbols_propagation_from_init_subgraph) {
     auto input_pshape = PartialShape{1, 2, 64, 64};
-    set_shape_labels(input_pshape, 10);
+    auto symbols = set_shape_symbols(input_pshape);
     auto input = make_shared<ov::op::v0::Parameter>(element::f32, input_pshape);
     auto variable_info = op::util::VariableInfo{{1, 2, 64, 64}, element::f32, "variable_id"};
     auto variable = std::make_shared<op::util::Variable>(variable_info);
     std::shared_ptr<ov::op::v6::ReadValue> read_value = std::make_shared<ov::op::v6::ReadValue>(input, variable);
-    EXPECT_THAT(get_shape_labels(read_value->get_output_partial_shape(0)), testing::ElementsAre(10, 11, 12, 13));
+    EXPECT_THAT(get_shape_symbols(read_value->get_output_partial_shape(0)), symbols);
 }

@@ -133,7 +133,7 @@ const auto params_4D_int_jit = ::testing::Combine(
                 ::testing::ValuesIn({ utils::EltwiseTypes::ADD, utils::EltwiseTypes::MULTIPLY }),
                 ::testing::ValuesIn(secondaryInputTypes()),
                 ::testing::ValuesIn(opTypes()),
-                ::testing::ValuesIn({ ElementType::i32, ElementType::f32 }),
+                ::testing::ValuesIn({ ElementType::i8, ElementType::u8, ElementType::f16, ElementType::i32, ElementType::f32 }),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::test::utils::DEVICE_CPU),
