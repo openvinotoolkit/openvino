@@ -193,7 +193,7 @@ void SyncInferRequest::change_default_ptr() {
         auto input = inputNodesMap.find(it.first);
         OPENVINO_ASSERT(inputNodesMap.end() != input, "Cannot find input tensor with index: ", it.first);
         NodePtr inputNodePtr = input->second;
-        if (inputNodePtr->getChildEdgeAt(0)->getMemory().getData() == static_cast<void*>(it.second->data()))
+        if (inputNodePtr->getDstDataAtPort(0) == static_cast<void*>(it.second->data()))
             continue;
         auto& childEdges = inputNodePtr->getChildEdges();
         // Perform checks that the user's memory will not be modified
