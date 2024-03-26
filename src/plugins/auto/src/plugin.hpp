@@ -67,17 +67,6 @@ public:
                                                              const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties) const override;
 
-    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Any& model_variant,
-                                                     const ov::AnyMap& properties) const override {
-        OPENVINO_NOT_IMPLEMENTED;
-    }
-
-    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Any& model_variant,
-                                                     const ov::SoPtr<ov::IRemoteContext>& context,
-                                                     const ov::AnyMap& properties) const override {
-        OPENVINO_NOT_IMPLEMENTED;
-    }
-
 private:
     std::shared_ptr<ov::ICompiledModel> compile_model_impl(const std::string& model_path,
                                                            const std::shared_ptr<const ov::Model>& model,
