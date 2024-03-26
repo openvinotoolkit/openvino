@@ -293,7 +293,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_IndexAddTest,
                          IndexAddTest,
                          ::testing::Combine(::testing::ValuesIn(combine_shapes(axesShapeInShape)),
                                             ::testing::Values(v12::ScatterElementsUpdate::Reduction::SUM, v12::ScatterElementsUpdate::Reduction::NONE),
-                                            ::testing::Values(ElementType::f32, ElementType::f16, ElementType::i32, ElementType::bf16), // data precision
+                                            ::testing::Values(ElementType::f32, ElementType::f16, ElementType::i32, ElementType::bf16, ElementType::u8, ElementType::i8), // data precision
                                             ::testing::Values(ElementType::i32, ElementType::i64), // indices precision
                                             ::testing::Values(1.0),              // alpha
                                             ::testing::Values(true, false)),     // dynamic shape test

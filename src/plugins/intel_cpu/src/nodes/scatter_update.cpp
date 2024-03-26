@@ -213,6 +213,12 @@ void ScatterUpdate::initSupportedPrimitiveDescriptors() {
     }
 
     dataPrec = getOriginalInputPrecisionAtPort(DATA_ID);
+    if (scatterUpdateMode == ScatterUpdateMode::ScatterElementsUpdate &&
+        !one_of(dataPrec, ov::element::f32, ov::element::i32,
+                          ov::element::bf16, ov::element::f16,
+                          ov::element::u8, ov::element::i8)) {
+        dataPrec = ov::element::f32;
+    }
     dataSize = dataPrec.size();
 
     bool canBeInplace = !getParentEdgeAt(DATA_ID)->getParent()->isConstant();
@@ -653,7 +659,9 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& dstMemPtr, const Memo
               OV_CASE(ov::element::f32, float),
               OV_CASE(ov::element::i32, int32_t),
               OV_CASE(ov::element::bf16, ov::bfloat16),
-              OV_CASE(ov::element::f16, ov::float16));
+              OV_CASE(ov::element::f16, ov::float16),
+              OV_CASE(ov::element::i8, int8_t),
+              OV_CASE(ov::element::u8, uint8_t));
 }
 
 void ScatterUpdate::execute(dnnl::stream strm) {
