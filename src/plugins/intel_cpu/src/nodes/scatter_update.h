@@ -110,23 +110,23 @@ private:
         scatter_elements_update::ReduceBase* reduce;
     };
 
+    // tier 1 dispatcher with DataType
+    template <typename DataType>
+    inline void scatterElementsUpdate_dispatch(ScatterElementsUpdateContext& ctx);
     template<typename DataType>
     struct ScatterElementsUpdateDispatcher {
         void operator()(ScatterElementsUpdateContext& ctx) {
             ctx.node->scatterElementsUpdate_dispatch<DataType>(ctx);
         }
     };
-
+    // tier 2 dispatcher with Reduce which follows up DataType.
     template<typename PT>
-    struct ScatterElementsUpdateDispatcher_reduce {
+    struct ScatterElementsUpdateReduceDispatcher {
         void operator()(ScatterElementsUpdateContext& ctx) {
             ctx.node->scatterElementsUpdate<typename PT::first_type>(ctx.dstMemPtr, ctx.indicesMemPtr, ctx.updateMemPtr, ctx.axis,
                                                                     static_cast<const typename PT::second_type&>(*ctx.reduce));
         }
     };
-
-    template <typename DataType>
-    inline void scatterElementsUpdate_dispatch(ScatterElementsUpdateContext& ctx);
 
     ScatterUpdateMode scatterUpdateMode = ScatterUpdateMode::ScatterUpdate;
     enum { DATA_ID, INDICES_ID, UPDATE_ID, AXIS_ID };

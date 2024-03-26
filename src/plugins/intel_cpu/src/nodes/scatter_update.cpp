@@ -606,7 +606,7 @@ void ScatterUpdate::scatterElementsUpdate_dispatch(ScatterElementsUpdateContext&
     using DT_MUL = std::pair<DT, decltype(reduce_multiply)>;
     using DT_MEAN = std::pair<DT, decltype(reduce_mean)>;
     OV_SWITCH(intel_cpu,
-              ScatterElementsUpdateDispatcher_reduce,
+              ScatterElementsUpdateReduceDispatcher,
               ctx,
               reduction_type,
               OV_CASE(ScatterUpdate::Reduction::NONE, DT_NONE),
