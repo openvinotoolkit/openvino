@@ -16,5 +16,3 @@ endif()
 ov_dependent_option(ENABLE_ZEROAPI_BACKEND "Enable zero-api as a plugin backend" ON "NOT BUILD_COMPILER_FOR_DRIVER" OFF)
 
 ov_dependent_option(ENABLE_IMD_BACKEND "Enable InferenceManagerDemo based NPU AL backend" OFF "NOT WIN32;NOT CMAKE_CROSSCOMPILING" OFF)
-
-ov_option(ENABLE_DEVELOPER_BUILD "Enable developer build with extra validation/logging functionality" OFF)

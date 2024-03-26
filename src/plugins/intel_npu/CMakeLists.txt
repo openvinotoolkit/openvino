@@ -20,7 +20,7 @@ include(cmake/features.cmake)
 
 set(CMAKE_CXX_STANDARD 17)
 
-if(ENABLE_DEVELOPER_BUILD)
+if(ENABLE_NPU_DEBUG_CAPS)
     add_compile_definitions(NPU_PLUGIN_DEVELOPER_BUILD)
 endif()
 
