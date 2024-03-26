@@ -371,7 +371,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                               proc_socket_table[current_socket_id][ALL_PROC],
                               IStreamsExecutor::Config::StreamsMode::SUB_STREAMS_NULL);
             for (size_t n_node = 0; n_node < proc_socket_table.size(); n_node++) {
-                if (n_node != current_socket_id) {
+                if (n_node != size_t(current_socket_id)) {
                     create_one_stream(proc_socket_table[n_node],
                                       proc_type_table,
                                       proc_socket_table[n_node][ALL_PROC],
