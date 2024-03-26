@@ -5,6 +5,7 @@
 #include "ie_parallel_custom_arena.hpp"
 
 #include <cstring>
+#include <iostream>
 
 #include "itt.hpp"
 
@@ -222,12 +223,15 @@ void binding_observer::on_scheduler_exit(bool) {
 
 static binding_oberver_ptr construct_binding_observer(tbb::task_arena& ta, int num_slots, const constraints& c) {
     binding_oberver_ptr observer{};
+    std::cout << "construct_binding_observer enter" << std::endl;
     if (detail::is_binding_environment_valid() &&
         ((c.core_type >= 0 && info::core_types().size() > 1) || (c.numa_id >= 0 && info::numa_nodes().size() > 1) ||
          c.max_threads_per_core > 0)) {
+        std::cout << "construct_binding_observer enter2" << std::endl;
         observer.reset(new binding_observer{ta, num_slots, c});
         observer->observe(true);
     }
+    std::cout << "construct_binding_observer leave, observer=" <<  observer.get() << std::endl;
     return observer;
 }
 

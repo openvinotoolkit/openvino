@@ -147,6 +147,7 @@ void GridSample::createPrimitive() {
     jitKernel->create_ker();
 
     nthr = parallel_get_max_threads();
+    std::cout << "Grid sample createPrimitive nthr=" << nthr << " jitKernel=" << jitKernel << std::endl;
     execParamsPerThread.resize(nthr);
     if (!x64::mayiuse(x64::avx512_core)) {
         const auto dataElPerVec = jitKernel->getDataElPerVec();
@@ -292,11 +293,13 @@ void GridSample::execute(dnnl::stream strm) {
         arg.dataTypeSize       = p.dataTypeSize.data();
         arg.buffer             = p.buffer.data();
         arg.workAmount         = p.workAmount;
-
+        std::cout << "jitKernel start, point=" << jitKernel << std::endl;
         (*jitKernel)(&arg);
+        std::cout << "jitKernel end, point=" << jitKernel << std::endl;
     };
-
+    std::cout << "grid sample execute start nthr=" << nthr << std::endl;
     parallel_nt(nthr, threadBody);
+    std::cout << "grid sample execute end nthr=" << nthr << std::endl;
 }
 
 void GridSample::executeDynamicImpl(dnnl::stream strm) {

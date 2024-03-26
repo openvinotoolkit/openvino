@@ -176,8 +176,9 @@ void InferRequestBase::InferImpl() {
     if (memoryStates.size() != 0) {
         PushStates();
     }
-
+    std::cout << "graph Infer start" << std::endl;
     graph->Infer(this);
+    std::cout << "graph Infer end" << std::endl;
 
     if (memoryStates.size() != 0) {
         PullStates();

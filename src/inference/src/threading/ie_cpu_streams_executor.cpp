@@ -435,6 +435,7 @@ struct CPUStreamsExecutor::Impl {
 
     void Execute(const Task& task, Stream& stream) {
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
+        std::cout << "streamid=" << stream._streamId << " taskarea=" << stream._taskArena.get() << std::endl;
         auto& arena = stream._taskArena;
         if (nullptr != arena) {
             arena->execute(std::move(task));
@@ -448,6 +449,7 @@ struct CPUStreamsExecutor::Impl {
 
     void Defer(Task task) {
         auto& stream = *(_streams.local());
+        std::cout << "Defer enter streamid=" << stream._streamId << std::endl;
         stream._taskQueue.push(std::move(task));
         if (!stream._execute) {
             stream._execute = true;
@@ -460,6 +462,7 @@ struct CPUStreamsExecutor::Impl {
             }
             stream._execute = false;
         }
+        std::cout << "Defer leave streamid=" << stream._streamId << std::endl;
     }
 
     Config _config;
