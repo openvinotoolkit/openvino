@@ -451,13 +451,13 @@ void jit_uni_eltwise_generic<isa>::store_vector(const XReg& ptr,
                         break;
                     }
                     case ov::element::i8: {
-                        fcvtns(data.s, data.s);
+                        fcvtms(data.s, data.s);
                         xtn(data.h4, data.s4);
                         xtn(data.b8, data.h8);
                         break;
                     }
                     case ov::element::u8: {
-                        fcvtnu(data.s, data.s);
+                        fcvtmu(data.s, data.s);
                         xtn(data.h4, data.s4);
                         xtn(data.b8, data.h8);
                         break;
@@ -515,14 +515,14 @@ void jit_uni_eltwise_generic<isa>::store_scalar(const XReg& ptr,
                     }
                     case ov::element::i8: {
                         TReg vec_data(data.getIdx());
-                        fcvtns(vec_data.s, vec_data.s);
+                        fcvtms(vec_data.s, vec_data.s);
                         xtn(vec_data.h4, vec_data.s4);
                         xtn(vec_data.b8, vec_data.h8);
                         break;
                     }
                     case ov::element::u8: {
                         TReg vec_data(data.getIdx());
-                        fcvtnu(vec_data.s, vec_data.s);
+                        fcvtmu(vec_data.s, vec_data.s);
                         xtn(vec_data.h4, vec_data.s4);
                         xtn(vec_data.b8, vec_data.h8);
                         break;
