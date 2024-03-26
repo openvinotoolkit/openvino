@@ -398,7 +398,6 @@ void Gather::prepareParams() {
 }
 
 void Gather::execute(dnnl::stream strm) {
-    std::cout << "Run:" << __FUNCTION__ << std::endl;
     if (isInPlace()) {
         return;
     }
@@ -467,7 +466,6 @@ void Gather::execute(dnnl::stream strm) {
 }
 
 void Gather::executeDynamicImpl(dnnl::stream strm) {
-    std::cout << "Run:" << __FUNCTION__ << std::endl;
     if (isInPlace()) {
         return;
     }
