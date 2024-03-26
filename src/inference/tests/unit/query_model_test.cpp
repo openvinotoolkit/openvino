@@ -598,9 +598,7 @@ TEST_F(GetSupportedNodesTest, DivideWillRemoveConvertAndConstant) {
             const bool convert_input_output_precision = false;
             const bool store_original_precision_as_rt_attribute = true;
             type_to_fuse_map empty_fuse_map = {};
-            precisions_map fp_convert_precision_map = {
-                {ov::element::f32, ov::element::f16}
-            };
+            precisions_map fp_convert_precision_map = {{ov::element::f32, ov::element::f16}};
             m.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
                                                         empty_fuse_map,
                                                         keep_precision_sensitive_in_fp32_1,
