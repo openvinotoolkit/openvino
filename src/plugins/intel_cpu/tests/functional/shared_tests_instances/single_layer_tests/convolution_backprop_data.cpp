@@ -23,7 +23,7 @@ const std::vector<std::vector<ptrdiff_t>> emptyOutputPadding = {{}};
 const std::vector<std::vector<ov::Shape>> inputShapes2D_static = {{{1, 3, 30, 30}},
                                                                   {{1, 16, 10, 10}},
                                                                   {{1, 32, 10, 10}}};
-const std::vector<std::vector<size_t>> kernels2D = {/*{1, 1},*/ {3, 3}, {3, 5}};
+const std::vector<std::vector<size_t>> kernels2D = {/*{1, 1},*/ {3, 3}, {2, 2}};
 const std::vector<std::vector<size_t>> strides2D = {{1, 1}, {3, 3}};
 const std::vector<std::vector<ptrdiff_t>> padBegins2D = {{0, 0}};
 const std::vector<std::vector<ptrdiff_t>> padEnds2D = {{0, 0}, {1, 1}};
@@ -105,23 +105,23 @@ const auto conv2DParams_AutoPadValid_output_padding = ::testing::Combine(
 );
 
 //comment failure of MAC ARM.
-// INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_ExplicitPadding_OutputPaddingDefined, ConvolutionBackpropDataLayerTest,
-//                         ::testing::Combine(
-//                                 conv2DParams_AutoPadValid_output_padding,
-//                                 ::testing::ValuesIn(model_type),
-//                                 ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes2D_static)),
-//                                 ::testing::ValuesIn(emptyOutputShape),
-//                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
-//                         ConvolutionBackpropDataLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_ExplicitPadding_OutputPaddingDefined, ConvolutionBackpropDataLayerTest,
+                        ::testing::Combine(
+                                conv2DParams_AutoPadValid_output_padding,
+                                ::testing::ValuesIn(model_type),
+                                ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes2D_static)),
+                                ::testing::ValuesIn(emptyOutputShape),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                        ConvolutionBackpropDataLayerTest::getTestCaseName);
 
-// INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_AutoPadding_OutputPaddingDefined, ConvolutionBackpropDataLayerTest,
-//                         ::testing::Combine(
-//                                 conv2DParams_ExplicitPadding_output_padding,
-//                                 ::testing::ValuesIn(model_type),
-//                                 ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes2D_static)),
-//                                 ::testing::ValuesIn(emptyOutputShape),
-//                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
-//                         ConvolutionBackpropDataLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_AutoPadding_OutputPaddingDefined, ConvolutionBackpropDataLayerTest,
+                        ::testing::Combine(
+                                conv2DParams_ExplicitPadding_output_padding,
+                                ::testing::ValuesIn(model_type),
+                                ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes2D_static)),
+                                ::testing::ValuesIn(emptyOutputShape),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                        ConvolutionBackpropDataLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_RoundingOfPadding, ConvolutionBackpropDataLayerTest,
                         ::testing::Combine(
@@ -225,22 +225,22 @@ const auto conv3DParams_AutoPadValid_output_padding = ::testing::Combine(
         ::testing::ValuesIn(outputPadding3D)
 );
 
-// INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData3D_ExplicitPadding_OutputPaddingDefined, ConvolutionBackpropDataLayerTest,
-//                         ::testing::Combine(
-//                                 conv3DParams_AutoPadValid_output_padding,
-//                                 ::testing::ValuesIn(model_type),
-//                                 ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes3D_static)),
-//                                 ::testing::ValuesIn(emptyOutputShape),
-//                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
-//                         ConvolutionBackpropDataLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData3D_ExplicitPadding_OutputPaddingDefined, ConvolutionBackpropDataLayerTest,
+                        ::testing::Combine(
+                                conv3DParams_AutoPadValid_output_padding,
+                                ::testing::ValuesIn(model_type),
+                                ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes3D_static)),
+                                ::testing::ValuesIn(emptyOutputShape),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                        ConvolutionBackpropDataLayerTest::getTestCaseName);
 
-// INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData3D_AutoPadding_OutputPaddingDefined, ConvolutionBackpropDataLayerTest,
-//                         ::testing::Combine(
-//                                 conv3DParams_ExplicitPadding_output_padding,
-//                                 ::testing::ValuesIn(model_type),
-//                                 ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes3D_static)),
-//                                 ::testing::ValuesIn(emptyOutputShape),
-//                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
-//                         ConvolutionBackpropDataLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData3D_AutoPadding_OutputPaddingDefined, ConvolutionBackpropDataLayerTest,
+                        ::testing::Combine(
+                                conv3DParams_ExplicitPadding_output_padding,
+                                ::testing::ValuesIn(model_type),
+                                ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes3D_static)),
+                                ::testing::ValuesIn(emptyOutputShape),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                        ConvolutionBackpropDataLayerTest::getTestCaseName);
 
 }  // namespace
