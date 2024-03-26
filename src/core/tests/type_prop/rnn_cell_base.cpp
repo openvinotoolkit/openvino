@@ -120,32 +120,34 @@ TYPED_TEST_P(RNNCellTest, default_ctor) {
     }
 }
 
-TYPED_TEST_P(RNNCellTest, static_labels_dims_shape_infer) {
+TYPED_TEST_P(RNNCellTest, static_symbols_dims_shape_infer) {
     RNNCellParams params;
+    auto A = make_shared<Symbol>(), B = make_shared<Symbol>(), C = make_shared<Symbol>();
     params.batch_size = Dimension(8);
-    ov::DimensionTracker::set_label(params.batch_size, 10);
+    params.batch_size.set_symbol(A);
     params.input_size = Dimension(64);
-    ov::DimensionTracker::set_label(params.input_size, 11);
+    params.input_size.set_symbol(B);
     params.hidden_size = Dimension(128);
-    ov::DimensionTracker::set_label(params.hidden_size, 12);
+    params.hidden_size.set_symbol(C);
 
     auto op = this->make_rnn_cell_based_op(params);
     EXPECT_EQ(op->get_output_size(), params.outputs_size);
 
     for (size_t i = 0; i < params.outputs_size; ++i) {
         EXPECT_EQ(op->get_output_partial_shape(i), (PartialShape{params.batch_size, params.hidden_size}));
-        EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(i)), ElementsAre(10, 12));
+        EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(i)), ElementsAre(A, C));
     }
 }
 
-TYPED_TEST_P(RNNCellTest, interval_labels_dims_shape_infer) {
+TYPED_TEST_P(RNNCellTest, interval_symbols_dims_shape_infer) {
     RNNCellParams params;
+    auto A = make_shared<Symbol>(), B = make_shared<Symbol>(), C = make_shared<Symbol>();
     params.batch_size = Dimension(8, 16);
-    ov::DimensionTracker::set_label(params.batch_size, 10);
+    params.batch_size.set_symbol(A);
     params.input_size = Dimension(64, 128);
-    ov::DimensionTracker::set_label(params.input_size, 11);
+    params.input_size.set_symbol(B);
     params.hidden_size = Dimension(128, 256);
-    ov::DimensionTracker::set_label(params.hidden_size, 12);
+    params.hidden_size.set_symbol(C);
 
     auto op = this->make_rnn_cell_based_op(params);
     EXPECT_EQ(op->get_output_size(), params.outputs_size);
@@ -155,11 +157,11 @@ TYPED_TEST_P(RNNCellTest, interval_labels_dims_shape_infer) {
             // For backward compatibility, if hidden_size dim is dynamic, set the value based on attribute
             EXPECT_EQ(op->get_output_partial_shape(i),
                       (PartialShape{params.batch_size, static_cast<int64_t>(op->get_hidden_size())}));
-            EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(i)), ElementsAre(10, 0));
+            EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(i)), ElementsAre(A, nullptr));
         } else {
             // For backward compatibility, hidden_size attribute is ignored
             EXPECT_EQ(op->get_output_partial_shape(i), (PartialShape{params.batch_size, params.hidden_size}));
-            EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(i)), ElementsAre(10, 12));
+            EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(i)), ElementsAre(A, C));
         }
     }
 }
@@ -167,8 +169,8 @@ TYPED_TEST_P(RNNCellTest, interval_labels_dims_shape_infer) {
 REGISTER_TYPED_TEST_SUITE_P(RNNCellTest,
                             basic_shape_infer,
                             default_ctor,
-                            static_labels_dims_shape_infer,
-                            interval_labels_dims_shape_infer);
+                            static_symbols_dims_shape_infer,
+                            interval_symbols_dims_shape_infer);
 
 using RNNCellBaseTypes = Types<op::v0::RNNCell, op::v3::GRUCell, op::v0::LSTMCell, op::v4::LSTMCell>;
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop, RNNCellTest, RNNCellBaseTypes);
