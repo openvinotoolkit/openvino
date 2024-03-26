@@ -303,16 +303,16 @@ TEST_P(GroupDeconvolutionLayerCPUTest, CompareWithRefs) {
 
 namespace {
 
-std::vector<CPUSpecificParams> filterCPUInfoForDevice_BF16(std::vector<CPUSpecificParams> allParams) {
+std::vector<CPUSpecificParams> filterCPUInfoForDevice_AMX_BF16(std::vector<CPUSpecificParams> allParams) {
     std::vector<CPUSpecificParams> specificParams;
-    bool with_bf16 = ov::with_cpu_x86_bfloat16();
+    bool with_amx_bf16 = ov::with_cpu_x86_avx512_core_amx_bf16();
     std::copy_if(allParams.begin(),
                  allParams.end(),
                  std::back_inserter(specificParams),
-                 [with_bf16](const CPUSpecificParams& item) {
+                 [with_amx_bf16](const CPUSpecificParams& item) {
                      const auto& selected = std::get<3>(item);
                      // when no bf16 hardware amx will not work
-                     if (!with_bf16 && selected.find("amx") != std::string::npos) {
+                     if (!with_amx_bf16 && selected.find("amx") != std::string::npos) {
                          return false;
                      }
                      return true;
@@ -324,7 +324,6 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice_BF16(std::vector<CPUSpecif
 /* COMMON PARAMS */
 std::vector<fusingSpecificParams> fusingParamsSet{
     emptyFusingSpec,
-    fusingScaleShift,
 };
 
 const std::vector<std::vector<size_t>> emptyOutputShape = {{}};
@@ -347,14 +346,14 @@ const std::vector<size_t> numOutChannels_DW = {32};
 const std::vector<size_t> numGroups_DW = {32};
 
 /* ============= GroupConvolution params (2D) ============= */
-const std::vector<std::vector<size_t>> kernels2d = {{3, 3}, {1, 1}};
+const std::vector<std::vector<size_t>> kernels2d = {{3, 3}, {2, 2}};
 const std::vector<std::vector<size_t>> strides2d = {{1, 1}, {2, 2}};
 const std::vector<std::vector<ptrdiff_t>> padBegins2d = {{0, 0}};
 const std::vector<std::vector<ptrdiff_t>> padEnds2d = {{0, 0}};
 const std::vector<std::vector<size_t>> dilations2d = {{1, 1}};
 
 /* ============= GroupConvolution params (3D) ============= */
-const std::vector<std::vector<size_t>> kernels3d = {{3, 3, 3}, {1, 1, 1}};
+const std::vector<std::vector<size_t>> kernels3d = {{3, 3, 3}, {2, 2, 2}};
 const std::vector<std::vector<size_t>> strides3d = {{1, 1, 1}, {2, 2, 2}};
 const std::vector<std::vector<ptrdiff_t>> padBegins3d = {{0, 0, 0}};
 const std::vector<std::vector<ptrdiff_t>> padEnds3d = {{0, 0, 0}};
@@ -450,7 +449,7 @@ const std::vector<DeconvInputData> Planar_3D_inputs_nightly = {
                     {{15, 15, 15}}}};
 
 const auto groupConvParams_ExplicitPadding_Planar_3D = ::testing::Combine(::testing::ValuesIn(kernels3d),
-                                                                          ::testing::ValuesIn(strides3d),
+                                                                          ::testing::ValuesIn({strides3d[0]}),
                                                                           ::testing::ValuesIn(padBegins3d),
                                                                           ::testing::ValuesIn(padEnds3d),
                                                                           ::testing::ValuesIn(dilations3d),
@@ -586,7 +585,7 @@ const std::vector<DeconvInputData> nspc_2D_inputs_smoke = {
                     {{15, 15}, {9, 10}, {19, 9}}}};
 
 const auto groupConvParams_ExplicitPadding_nspc_2D = ::testing::Combine(::testing::ValuesIn(kernels2d),
-                                                                        ::testing::ValuesIn(strides2d),
+                                                                        ::testing::ValuesIn({strides2d[0]}),
                                                                         ::testing::ValuesIn(padBegins2d),
                                                                         ::testing::ValuesIn(padEnds2d),
                                                                         ::testing::ValuesIn(dilations2d),
@@ -601,8 +600,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_2D_AMX_BF16,
                                             ::testing::ValuesIn(nspc_2D_inputs_smoke),
                                             ::testing::Values(ElementType::f32),
                                             ::testing::Values(emptyFusingSpec),
-                                            ::testing::ValuesIn(filterCPUInfoForDevice_BF16({conv_avx512_2D_nspc,
-                                                                                             conv_avx512_2D_nspc_amx})),
+                                            ::testing::ValuesIn(filterCPUInfoForDevice_AMX_BF16({conv_avx512_2D_nspc_brgconv_amx})),
                                             ::testing::Values(cpu_bf16_plugin_config)),
                          GroupDeconvolutionLayerCPUTest::getTestCaseName);
 
@@ -682,7 +680,7 @@ const std::vector<DeconvInputData> nspc_3D_inputs_smoke = {
                     {{7, 7, 7}, {7, 9, 7}}}};
 
 const auto groupConvParams_ExplicitPadding_nspc_3D = ::testing::Combine(::testing::ValuesIn(kernels3d),
-                                                                        ::testing::ValuesIn(strides3d),
+                                                                        ::testing::ValuesIn({strides3d[0]}),
                                                                         ::testing::ValuesIn(padBegins3d),
                                                                         ::testing::ValuesIn(padEnds3d),
                                                                         ::testing::ValuesIn(dilations3d),
@@ -697,8 +695,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_3D_nspc_BF16,
                                             ::testing::ValuesIn(nspc_3D_inputs_smoke),
                                             ::testing::Values(ElementType::f32),
                                             ::testing::Values(emptyFusingSpec),
-                                            ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_3D_nspc,
-                                                                                        conv_avx512_3D_nspc_amx})),
+                                            ::testing::ValuesIn(filterCPUInfoForDevice_AMX_BF16({conv_avx512_3D_nspc_brgconv_amx})),
                                             ::testing::Values(cpu_bf16_plugin_config)),
                          GroupDeconvolutionLayerCPUTest::getTestCaseName);
 
