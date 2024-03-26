@@ -7,7 +7,6 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
 
 using namespace std;
 using namespace ov;
@@ -47,13 +46,13 @@ TEST(type_prop, ctc_greedy_decoder_static_shapes) {
     EXPECT_EQ(op->get_shape(), out_shape);
 }
 
-TEST(type_prop, ctc_greedy_decoder_interval_labeled_dims_all) {
+TEST(type_prop, ctc_greedy_decoder_interval_symboled_dims_all) {
     PartialShape data_shape{{1, 100}, {2, 6}, {600, 1200}};
     PartialShape seq_mask_shape{{10, 1000}, {4, 8}};
     PartialShape expected_shape{{4, 6}, {10, 100}, 1, 1};
 
-    set_shape_labels(data_shape, 10);
-    set_shape_labels(seq_mask_shape, 20);
+    auto symbols = set_shape_symbols(data_shape);
+    set_shape_symbols(seq_mask_shape);
 
     auto data = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
     auto seq_mask = make_shared<ov::op::v0::Parameter>(element::f32, seq_mask_shape);
@@ -62,15 +61,15 @@ TEST(type_prop, ctc_greedy_decoder_interval_labeled_dims_all) {
     const auto& out_shape = op->get_output_partial_shape(0);
     EXPECT_EQ(op->get_element_type(), element::f32);
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(21, 20, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(out_shape), ElementsAre(symbols[1], symbols[0], nullptr, nullptr));
 }
 
-TEST(type_prop, ctc_greedy_decoder_interval_labeled_dims_data) {
+TEST(type_prop, ctc_greedy_decoder_interval_symboled_dims_data) {
     PartialShape data_shape{{1, 100}, {2, 6}, {600, 1200}};
     PartialShape seq_mask_shape{{10, 1000}, {4, 8}};
     PartialShape expected_shape{{4, 6}, {10, 100}, 1, 1};
 
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
 
     auto data = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
     auto seq_mask = make_shared<ov::op::v0::Parameter>(element::f32, seq_mask_shape);
@@ -79,15 +78,15 @@ TEST(type_prop, ctc_greedy_decoder_interval_labeled_dims_data) {
     const auto& out_shape = op->get_output_partial_shape(0);
     EXPECT_EQ(op->get_element_type(), element::f32);
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(11, 10, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(out_shape), ElementsAre(symbols[1], symbols[0], nullptr, nullptr));
 }
 
-TEST(type_prop, ctc_greedy_decoder_interval_labeled_dims_mask) {
+TEST(type_prop, ctc_greedy_decoder_interval_symboled_dims_mask) {
     PartialShape data_shape{{1, 100}, {2, 6}, {600, 1200}};
     PartialShape seq_mask_shape{{10, 1000}, {4, 8}};
     PartialShape expected_shape{{4, 6}, {10, 100}, 1, 1};
 
-    set_shape_labels(seq_mask_shape, 20);
+    auto symbols = set_shape_symbols(seq_mask_shape);
 
     auto data = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
     auto seq_mask = make_shared<ov::op::v0::Parameter>(element::f32, seq_mask_shape);
@@ -96,7 +95,7 @@ TEST(type_prop, ctc_greedy_decoder_interval_labeled_dims_mask) {
     const auto& out_shape = op->get_output_partial_shape(0);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(21, 20, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(out_shape), ElementsAre(symbols[1], symbols[0], nullptr, nullptr));
 }
 
 TEST(type_prop, ctc_greedy_decoder_output_static_shape1) {

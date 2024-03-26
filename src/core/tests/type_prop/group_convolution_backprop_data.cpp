@@ -159,8 +159,8 @@ TEST(type_prop, group_convolution_backprop_data_shape_infer_with_output_shape_st
 TEST(type_prop, group_convolution_backprop_data_shape_infer_with_output_shape_static_ranks_filters_group_cout_dyn) {
     PartialShape data_pshape{Dimension::dynamic(), 16, 5, 5};                           // [N, C_IN * GROUPS, H, W]
     PartialShape filters_pshape{Dimension::dynamic(), 16, Dimension::dynamic(), 3, 3};  // [GROUPS, C_IN, C_OUT, kH, kW]
-    set_shape_labels(data_pshape, 10);
-    set_shape_labels(filters_pshape, 20);
+    auto data_symbols = set_shape_symbols(data_pshape);
+    auto filter_symbols = set_shape_symbols(filters_pshape);
     const element::Type_t et = element::f32;
 
     auto data = make_shared<ov::op::v0::Parameter>(et, data_pshape);
@@ -173,7 +173,8 @@ TEST(type_prop, group_convolution_backprop_data_shape_infer_with_output_shape_st
                                                                   Strides{},
                                                                   op::PadType::SAME_UPPER);
 
-    EXPECT_THAT(get_shape_labels(gcbd->get_output_partial_shape(0)), ElementsAre(10, 22, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(gcbd->get_output_partial_shape(0)),
+                ElementsAre(data_symbols[0], filter_symbols[2], nullptr, nullptr));
     ASSERT_EQ(gcbd->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), Dimension::dynamic(), 3, 3}));
 }
 
@@ -272,8 +273,8 @@ TEST(type_prop, group_convolution_backprop_data_shape_infer_static_ranks_data_ci
 TEST(type_prop, group_convolution_backprop_data_shape_infer_static_ranks_filters_group_cout_dyn) {
     PartialShape data_pshape{1, 20, 224, 224};                                         // [N, C_IN * GROUPS, H, W]
     PartialShape filters_pshape{Dimension::dynamic(), Dimension::dynamic(), 2, 3, 3};  // [GROUPS, C_IN, C_OUT, kH, kW]
-    set_shape_labels(data_pshape, 10);
-    set_shape_labels(filters_pshape, 20);
+    auto symbols = set_shape_symbols(data_pshape);
+    set_shape_symbols(filters_pshape);
     const element::Type_t et = element::f32;
 
     const Strides strides{2, 2};
@@ -289,8 +290,8 @@ TEST(type_prop, group_convolution_backprop_data_shape_infer_static_ranks_filters
                                                                   padding_begin,
                                                                   padding_end,
                                                                   dilations);
-    EXPECT_THAT(get_shape_labels(gcbd->get_output_partial_shape(0)),
-                ElementsAre(10, ov::no_label, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(gcbd->get_output_partial_shape(0)),
+                ElementsAre(symbols[0], nullptr, nullptr, nullptr));
     ASSERT_EQ(gcbd->get_output_partial_shape(0), (PartialShape{1, Dimension::dynamic(), 447, 447}));
 }
 
@@ -319,8 +320,8 @@ TEST(type_prop, group_convolution_backprop_data_shape_infer_static_ranks_data_sp
 TEST(type_prop, group_convolution_backprop_data_shape_infer_static_ranks_filters_spatial_dim_dyn) {
     PartialShape data_pshape{Dimension::dynamic(), 20, 224, Dimension::dynamic()};  // [N, C_IN * GROUPS, H, W]
     PartialShape filters_pshape{4, 5, 2, 3, 3};                                     // [GROUPS, C_IN, C_OUT, kH, kW]
-    set_shape_labels(data_pshape, 10);
-    set_shape_labels(filters_pshape, 20);
+    auto symbols = set_shape_symbols(data_pshape);
+    set_shape_symbols(filters_pshape);
     const element::Type_t et = element::f32;
 
     const Strides strides{2, 2};
@@ -337,8 +338,8 @@ TEST(type_prop, group_convolution_backprop_data_shape_infer_static_ranks_filters
                                                                   padding_end,
                                                                   dilations);
 
-    EXPECT_THAT(get_shape_labels(gcbd->get_output_partial_shape(0)),
-                ElementsAre(10, ov::no_label, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(gcbd->get_output_partial_shape(0)),
+                ElementsAre(symbols[0], nullptr, nullptr, nullptr));
     ASSERT_EQ(gcbd->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 8, 447, Dimension(1, -1)}));
 }
 
@@ -867,9 +868,9 @@ TEST(type_prop, group_convolution_backprop_data_interval_shapes) {
     PartialShape data_batch_pshape{{1, 3}, {2, 6}, {1, 5}, {3, 10}, {20, 100}};
     PartialShape filters_pshape{{2, 3}, {1, 3}, 1, 3, 3, 3};
     PartialShape out_spatial_pshape{{2, 3}, -1, 10};
-    set_shape_labels(data_batch_pshape, 10);
-    set_shape_labels(filters_pshape, 20);
-    set_shape_labels(out_spatial_pshape, 30);
+    auto data_symbols = set_shape_symbols(data_batch_pshape);
+    auto filter_symbols = set_shape_symbols(filters_pshape);
+    auto out_symbols = set_shape_symbols(out_spatial_pshape);
 
     const element::Type_t et = element::f32;
     const auto auto_pad = op::PadType::SAME_LOWER;
@@ -887,7 +888,8 @@ TEST(type_prop, group_convolution_backprop_data_interval_shapes) {
                                                                       Strides{},
                                                                       auto_pad);
 
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 20, 30, 31, 32));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(data_symbols[0], filter_symbols[0], out_symbols[0], out_symbols[1], out_symbols[2]));
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({{1, 3}, {2, 3}, {2, 3}, -1, 10}));
     EXPECT_EQ(op->get_pads_begin(), (CoordinateDiff{0, 0, 0}));
     EXPECT_EQ(op->get_pads_end(), (CoordinateDiff{0, 0, 0}));

@@ -264,15 +264,15 @@ ov::Tensor generate(const std::shared_ptr<ov::op::v0::FakeQuantize>& node,
     int seed = 1;
     size_t constDataSize = ov::shape_size(targetShape);
     std::vector<float> inputLowData, inputHighData, outputLowData, outputHighData;
-    inputLowData = NGraphFunctions::Utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
+    inputLowData = ov::test::utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
     if (node->get_levels() != 2) {
-        inputHighData = NGraphFunctions::Utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
-        outputLowData = NGraphFunctions::Utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
-        outputHighData = NGraphFunctions::Utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
+        inputHighData = ov::test::utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
+        outputLowData = ov::test::utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
+        outputHighData = ov::test::utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
     } else {
         inputHighData = inputLowData;
-        outputLowData = NGraphFunctions::Utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
-        outputHighData = NGraphFunctions::Utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
+        outputLowData = ov::test::utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
+        outputHighData = ov::test::utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
 
         for (int i = 0; i < constDataSize; i++) {
             if (outputLowData[i] > outputHighData[i]) {
