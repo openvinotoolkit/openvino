@@ -953,7 +953,8 @@ $(document).ready(function () {
                 precisions.forEach((prec, index) => {
                     config.datasets[index].data = kpiData.map(tData => tData[prec]);
                 });
-                return removeEmptyLabel(config);
+                return config;
+                // return removeEmptyLabel(config);
             }
             var config = Graph.getGraphConfig(kpi, groupUnit);
             config.datasets[0].data = Graph.getDatabyKPI(model, kpi);
