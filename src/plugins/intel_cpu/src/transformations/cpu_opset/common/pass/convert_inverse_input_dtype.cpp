@@ -14,7 +14,7 @@ ov::intel_cpu::ConvertInverseInputDtype::ConvertInverseInputDtype() {
     MATCHER_SCOPE(ConvertInverseInputDtype);
     auto inverse = ov::pass::pattern::wrap_type<ov::op::v14::Inverse>();
 
-    ov::matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         auto inverse = std::dynamic_pointer_cast<ov::op::v14::Inverse>(m.get_match_root());
         if (!inverse) {
             return false;
