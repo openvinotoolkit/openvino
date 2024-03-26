@@ -153,6 +153,18 @@ def get_moc_frontends(argv: argparse.Namespace):
     return moc_front_end, available_moc_front_ends
 
 
+def filtered_extensions(extensions):
+    try:
+        new_extensions = []
+        from openvino.frontend.pytorch.module_extension import ModuleExtension
+        for ext in extensions:
+            if not isinstance(ext, ModuleExtension):
+                new_extensions.append(ext)
+        return new_extensions
+    except:
+        return extensions
+
+
 def prepare_ir(argv: argparse.Namespace):
     argv = arguments_post_parsing(argv)
     t = tm.Telemetry()
@@ -172,13 +184,8 @@ def prepare_ir(argv: argparse.Namespace):
         t.send_event("ovc", "conversion_method", moc_front_end.get_name() + "_frontend")
         moc_front_end.add_extension(TelemetryExtension("ovc", t.send_event, t.send_error, t.send_stack_trace))
         if any_extensions_used(argv):
-            for extension in argv.extension:
-                try:
-                    from openvino.frontend.pytorch.module_extension import ModuleExtension
-                    if not isinstance(extension, ModuleExtension):
-                        moc_front_end.add_extension(extension)
-                except:
-                    moc_front_end.add_extension(extension)
+            for extension in filtered_extensions(argv.extension):
+                moc_front_end.add_extension(extension)
         ov_model = moc_pipeline(argv, moc_front_end)
         return ov_model
 
