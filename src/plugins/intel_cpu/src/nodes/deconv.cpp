@@ -320,7 +320,7 @@ bool Deconvolution::canBeExecutedInInt8() const {
 bool Deconvolution::canFuse(const NodePtr& node) const {
     if (canBeExecutedInInt8())
         return canFuseSimpleOperation(node);
-    return false;
+    return (fusedWith.empty() && node->canBePerformedAsScaleShift(this));
 }
 
 std::pair<VectorDims, VectorDims> Deconvolution::makeDummyInOutShape() {
@@ -562,14 +562,8 @@ void Deconvolution::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dim
         }
 
         if (auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get())) {
-            // TODO [DS]: change to shape from memory
-            if (isInt8) {
-                // deconvolution support output scales and binary postOps
-                eltwiseNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType);
-            } else {
-                // use legacy depthwise since backprop convolution does not support binary post ops
-                eltwiseNode->appendPostOps(ops, dims, postOpsArgs);
-            }
+            DEBUG_LOG(getName(), ": Append ", node->getName(), " as original post op with binary");
+            eltwiseNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType);
             continue;
         }
 
