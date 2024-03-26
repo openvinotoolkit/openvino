@@ -48,6 +48,7 @@ OP_CONVERTER(translate_bitwise_and);
 OP_CONVERTER(translate_bitwise_not);
 OP_CONVERTER(translate_bitwise_or);
 OP_CONVERTER(translate_bitwise_xor);
+OP_CONVERTER(translate_bucketize);
 OP_CONVERTER(translate_cat);
 OP_CONVERTER(translate_cdist);
 OP_CONVERTER(translate_celu);
@@ -376,6 +377,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::Bool", op::translate_bool},
         // aten::broadcast_tensors - Supported in limited set of patterns
         {"aten::broadcast_to", op::translate_expand},
+        {"aten::bucketize", op::translate_bucketize},
         {"aten::cat", op::translate_cat},
         {"aten::cdist", op::translate_cdist},
         {"aten::ceil", op::optional_out<op::translate_1to1_match_1_inputs<opset10::Ceiling>, 1>},
@@ -524,6 +526,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::masked_scatter_", op::inplace_op<op::translate_masked_scatter>},
         {"aten::matmul", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::max", op::translate_max},
+        {"aten::mv", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::maximum", op::translate_maximum},
         {"aten::max_pool1d", op::quantizable_op<op::translate_max_poolnd>},
         {"aten::max_pool1d_with_indices", op::quantizable_op<op::translate_max_poolnd>},
