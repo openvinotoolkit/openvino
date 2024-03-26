@@ -85,7 +85,7 @@ OutputVector translate_atan2(const NodeContext& context) {
     // handle the fifth condition
     // x=0 && y<0
     auto cond4 = context.mark_node(std::make_shared<v1::LogicalAnd>(is_x_zero, is_y_negative));
-    auto const_minus_two = context.mark(v0::Constant::create(element::f32, Shape{}, {-2}));
+    auto const_minus_two = context.mark_node(v0::Constant::create(element::f32, Shape{}, {-2}));
     // Same type conversion
     const_minus_two = context.mark_node(std::make_shared<v1::ConvertLike>(const_minus_two, x));
     auto pi_div_minus_two = context.mark_node(std::make_shared<v1::Divide>(const_pi, const_minus_two));
