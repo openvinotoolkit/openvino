@@ -59,6 +59,15 @@ private:
     bool canOptimize1DCase = false;
     void exec1DCase();
 
+    bool weightsCompressed = false;
+    void execWeightsCompressed();
+     template <typename IN_TYPE, typename OUT_TYPE>
+    void execWeightsCompressed8bit();
+    template <typename OUT_TYPE>
+    void execWeightsCompressedU4();
+    template <typename OUT_TYPE>
+    void execWeightsCompressedI4();
+
     bool isDataShapeStat = false;
     bool isIdxShapeStat = false;
     bool isAxisInputConst = false;
@@ -79,8 +88,11 @@ private:
     uint64_t afterAxisSize = 0lu;
     uint64_t afterAxisSizeInBytes = 0lu;
     uint64_t axisAndAfterAxisSizeInBytes = 0lu;
+    uint64_t axisAndAfterAxisSize = 0lu;
     uint64_t srcAfterBatchSizeInBytes = 0lu;
+    uint64_t srcAfterBatchSize = 0lu;
     uint64_t specIdxAndAfterAxSizeB = 0lu;
+    uint64_t specIdxAndAfterAxSize = 0lu;
     uint64_t totalWork = 0lu;
 
     std::vector<threadExecParams> execParamsPerThread;
@@ -89,6 +101,12 @@ private:
     static constexpr size_t GATHER_DATA = 0;
     static constexpr size_t GATHER_INDICES = 1;
     static constexpr size_t GATHER_AXIS = 2;
+    static constexpr size_t GATHER_SCALE = 3;
+    static constexpr size_t GATHER_ZP = 4;
+
+    bool have_zp = false;
+    size_t zp_group_size = 1u;
+    size_t scale_group_size = 1u;
 
     std::shared_ptr<jitGatherKernelBase> jitKernel;
 };

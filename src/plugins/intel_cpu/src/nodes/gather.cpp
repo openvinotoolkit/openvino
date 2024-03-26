@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <openvino/op/gather.hpp>
 #include <openvino/op/constant.hpp>
+#include "ov_ops/gather_compressed.hpp"
 
 #include <string>
 #include <vector>
@@ -30,6 +31,11 @@ namespace node {
 
 bool Gather::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
+        const auto gather_compression = std::dynamic_pointer_cast<const ov::op::internal::GatherCompressed>(op);
+        if (gather_compression) {
+            return true;
+        }
+
         if (op->get_output_element_type(0) == element::string) {
             return false;
         }
@@ -59,8 +65,11 @@ Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (op->get_input_size() != 3 || op->get_output_size() != 1)
+    if (one_of(op->get_input_size(), 4u, 5u) && op->get_output_size() == 1u) {
+        weightsCompressed = true;
+    } else if (op->get_input_size() != 3 || op->get_output_size() != 1) {
         THROW_ERROR("has incorrect number of input/output edges!");
+    }
 
     const auto& dataShape = getInputShapeAtPort(GATHER_DATA);
     isDataShapeStat = dataShape.isStatic();
@@ -86,6 +95,9 @@ Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
     } else if (ov::is_type<ov::op::v7::Gather>(op)) {
         batchDims = static_cast<int>(ov::as_type_ptr<ov::op::v7::Gather>(op)->get_batch_dims());
         reverseIndexing = false;
+    } else if (ov::is_type<ov::op::internal::GatherCompressed>(op)) {
+        batchDims = static_cast<int>(ov::as_type_ptr<ov::op::internal::GatherCompressed>(op)->get_batch_dims());
+        reverseIndexing = true;
     }
 
     if (batchDims < 0)
@@ -121,7 +133,9 @@ void Gather::initSupportedPrimitiveDescriptors() {
         afterAxisSize = std::accumulate(dataDims.begin() + axis + 1, dataDims.end(), 1lu, std::multiplies<Dim>());
 
         afterAxisSizeInBytes = afterAxisSize * dataTypeSize;
+        axisAndAfterAxisSize = axisDim * afterAxisSize;
         axisAndAfterAxisSizeInBytes = axisDim * afterAxisSizeInBytes;
+        srcAfterBatchSize = betweenBatchAndAxisSize * axisAndAfterAxisSize;
         srcAfterBatchSizeInBytes = betweenBatchAndAxisSize * axisAndAfterAxisSizeInBytes;
     }
     if (isDataShapeStat) {
@@ -132,18 +146,63 @@ void Gather::initSupportedPrimitiveDescriptors() {
         specIndicesSize = std::accumulate(idxDims.begin() + batchDims, idxDims.end(), 1lu, std::multiplies<Dim>());
 
         if (isDataShapeStat) {
+            specIdxAndAfterAxSize = specIndicesSize * afterAxisSize;
             specIdxAndAfterAxSizeB = specIndicesSize * afterAxisSizeInBytes;
             totalWork = beforeBatchSize * betweenBatchAndAxisSize * specIndicesSize * afterAxisSize;
         }
     }
 
-    // Implementation desc type will be redefined in the fn prepareParams if a kernel will be created.
     ov::element::Type dataPrecision = getOriginalInputPrecisionAtPort(GATHER_DATA);
-    addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
-                          {LayoutType::ncsp, ov::element::i32},
-                          {LayoutType::ncsp, ov::element::i32, isAxisInputConst}},
-                         {{LayoutType::ncsp, dataPrecision}},
-                         ref_any);
+    if (weightsCompressed) {
+        if (!one_of(dataPrecision, ov::element::u8, ov::element::u4, ov::element::i8, ov::element::i4)) {
+            THROW_ERROR("has unsupported 'data' input precision: ", dataPrecision);
+        }
+
+        ov::element::Type scalePrecision = getOriginalInputPrecisionAtPort(GATHER_SCALE);
+        if (scalePrecision != ov::element::f32) {
+            THROW_ERROR("has unsupported 'scale' input precision: ", scalePrecision);
+        }
+
+        ov::element::Type outPrecision = getOriginalOutputPrecisionAtPort(0);
+        if (!one_of(outPrecision, ov::element::f32, ov::element::f16)) {
+            THROW_ERROR("has unsupported out precision: ", outPrecision);
+        }
+        scale_group_size =
+            getInputShapeAtPort(GATHER_DATA).getElementsCount() / getInputShapeAtPort(GATHER_SCALE).getElementsCount();
+
+        if (getOriginalInputsNumber() == 5u) {
+            ov::element::Type zpPrecision = getOriginalInputPrecisionAtPort(GATHER_ZP);
+            if (zpPrecision != ov::element::f32) {
+                THROW_ERROR("has unsupported 'zp' input precision: ", zpPrecision);
+            }
+
+            have_zp = true;
+            zp_group_size =
+                getInputShapeAtPort(GATHER_DATA).getElementsCount() / getInputShapeAtPort(GATHER_ZP).getElementsCount();
+            addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
+                                  {LayoutType::ncsp, ov::element::i32},
+                                  {LayoutType::ncsp, ov::element::i32},
+                                  {LayoutType::ncsp, scalePrecision},
+                                  {LayoutType::ncsp, zpPrecision}},
+                                 {{LayoutType::ncsp, outPrecision}},
+                                 ref_any);
+        } else {
+            addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
+                                  {LayoutType::ncsp, ov::element::i32},
+                                  {LayoutType::ncsp, ov::element::i32},
+                                  {LayoutType::ncsp, scalePrecision}},
+                                 {{LayoutType::ncsp, outPrecision}},
+                                 ref_any);
+        }
+        return;
+    } else {
+        // Implementation desc type will be redefined in the fn prepareParams if a kernel will be created.
+        addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
+                              {LayoutType::ncsp, ov::element::i32},
+                              {LayoutType::ncsp, ov::element::i32, isAxisInputConst}},
+                             {{LayoutType::ncsp, dataPrecision}},
+                             ref_any);
+    }
 
     // Let's check for the special inPlace memory use case
     // in place only makes sense when we split by dense blocks since strided tensors are not supported by most nodes
@@ -305,10 +364,13 @@ void Gather::prepareParams() {
         afterAxisSize = std::accumulate(dataDims.begin() + axis + 1, dataDims.end(), 1lu, std::multiplies<uint64_t>());
 
         afterAxisSizeInBytes = afterAxisSize * dataTypeSize;
+        axisAndAfterAxisSize = axisDim * afterAxisSize;
         axisAndAfterAxisSizeInBytes = axisDim * afterAxisSizeInBytes;
+        srcAfterBatchSize = betweenBatchAndAxisSize * axisAndAfterAxisSize;
         srcAfterBatchSizeInBytes = betweenBatchAndAxisSize * axisAndAfterAxisSizeInBytes;
 
         if (isIdxShapeStat) {
+            specIdxAndAfterAxSize = specIndicesSize * afterAxisSize;
             specIdxAndAfterAxSizeB = specIndicesSize * afterAxisSizeInBytes;
             totalWork = beforeBatchSize * betweenBatchAndAxisSize * specIndicesSize * afterAxisSize;
         }
@@ -318,6 +380,7 @@ void Gather::prepareParams() {
         const auto& idxDims = idxMemPtr->getStaticDims();
         specIndicesSize = std::accumulate(idxDims.begin() + batchDims, idxDims.end(), 1lu, std::multiplies<uint64_t>());
 
+        specIdxAndAfterAxSize = specIndicesSize * afterAxisSize;
         specIdxAndAfterAxSizeB = specIndicesSize * afterAxisSizeInBytes;
         totalWork = beforeBatchSize * betweenBatchAndAxisSize * specIndicesSize * afterAxisSize;
     }
@@ -335,6 +398,7 @@ void Gather::prepareParams() {
 }
 
 void Gather::execute(dnnl::stream strm) {
+    std::cout << "Run:" << __FUNCTION__ << std::endl;
     if (isInPlace()) {
         return;
     }
@@ -342,6 +406,10 @@ void Gather::execute(dnnl::stream strm) {
     if (canOptimize1DCase) {
         exec1DCase();
         return;
+    }
+
+    if (weightsCompressed) {
+        return execWeightsCompressed();
     }
 #if defined(OPENVINO_ARCH_X86_64)
     if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
@@ -399,6 +467,7 @@ void Gather::execute(dnnl::stream strm) {
 }
 
 void Gather::executeDynamicImpl(dnnl::stream strm) {
+    std::cout << "Run:" << __FUNCTION__ << std::endl;
     if (isInPlace()) {
         return;
     }
@@ -406,6 +475,11 @@ void Gather::executeDynamicImpl(dnnl::stream strm) {
         exec1DCase();
         return;
     }
+
+    if (weightsCompressed) {
+        return execWeightsCompressed();
+    }
+
 #if defined(OPENVINO_ARCH_X86_64)
     if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
         const void* srcIndices = getSrcDataAtPort(GATHER_INDICES);
@@ -532,6 +606,227 @@ void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
 
         p.specIdxAndAfterAxIterB = (start * dataTypeSize) % specIdxAndAfterAxSizeB;
     }
+}
+
+template <typename OUT_TYPE>
+void Gather::execWeightsCompressedU4() {
+    const int32_t* srcIndices = getSrcDataAtPortAs<const int32_t>(GATHER_INDICES);
+    const uint8_t* srcData = getSrcDataAtPortAs<const uint8_t>(GATHER_DATA);
+    OUT_TYPE* dstData = getDstDataAtPortAs<OUT_TYPE>(0);
+
+    // zp/scale
+    float const_zp = 0;
+    const auto* zp = have_zp ? getSrcDataAtPortAs<float_t>(GATHER_ZP) : &const_zp;
+    const auto* scale = getSrcDataAtPortAs<float_t>(GATHER_SCALE);
+
+    const size_t dstAfterBatchSize = betweenBatchAndAxisSize * specIdxAndAfterAxSize;
+
+    parallel_for2d(beforeBatchSize, specIndicesSize, [&](const size_t b, const size_t j) {
+        int ii = srcIndices[b * specIndicesSize + j];
+        if (ii < 0) {
+            if (reverseIndexing)
+                ii += axisDim;
+            else
+                ii = axisDim;
+        }
+        const size_t idx = ii;
+        const size_t c2 = dstAfterBatchSize * b + afterAxisSize * j;
+        if (idx < static_cast<size_t>(axisDim)) {
+            size_t c1 = srcAfterBatchSize * b + afterAxisSize * idx;
+            for (size_t i = 0; i < betweenBatchAndAxisSize; i++) {
+                size_t srcIdx = c1 + axisAndAfterAxisSize * i;
+                size_t dstIdx = c2 + specIdxAndAfterAxSize * i;
+
+                OUT_TYPE* pdst = &dstData[dstIdx];
+
+                const size_t scale_offset = srcIdx / scale_group_size;
+                auto cur_zp = have_zp ? zp[srcIdx / zp_group_size] : 0;
+
+                size_t p = srcIdx;
+                size_t dst_idx = 0;
+                for (; p < srcIdx + afterAxisSize; p++) {
+                    if (p % 2 == 0) {
+                        auto val = srcData[p >> 1];
+                        pdst[dst_idx] =
+                            static_cast<OUT_TYPE>((static_cast<float>(val & 0xF) - cur_zp) * scale[scale_offset]);
+                    } else {
+                        auto val = srcData[p >> 1];
+                        pdst[dst_idx] = static_cast<OUT_TYPE>((static_cast<float>((val >> 4) & 0xF) - cur_zp) *
+                                                              scale[scale_offset]);
+                    }
+                    dst_idx++;
+                }
+            }
+        } else {
+            for (size_t i = 0; i < betweenBatchAndAxisSize; i++) {
+                size_t dstIdx = c2 + specIdxAndAfterAxSize * i;
+                for (size_t p = 0; p < afterAxisSize; p++)
+                    dstData[dstIdx] = 0;
+            }
+        }
+    });
+}
+
+template <typename OUT_TYPE>
+void Gather::execWeightsCompressedI4() {
+    const int32_t* srcIndices = getSrcDataAtPortAs<const int32_t>(GATHER_INDICES);
+    const uint8_t* srcData = getSrcDataAtPortAs<const uint8_t>(GATHER_DATA);
+    OUT_TYPE* dstData = getDstDataAtPortAs<OUT_TYPE>(0);
+
+    // zp/scale
+    float const_zp = 0;
+    const auto* zp = have_zp ? getSrcDataAtPortAs<float_t>(GATHER_ZP) : &const_zp;
+    const auto* scale = getSrcDataAtPortAs<float_t>(GATHER_SCALE);
+
+    const size_t dstAfterBatchSize = betweenBatchAndAxisSize * specIdxAndAfterAxSize;
+
+    parallel_for2d(beforeBatchSize, specIndicesSize, [&](const size_t b, const size_t j) {
+        int ii = srcIndices[b * specIndicesSize + j];
+        if (ii < 0) {
+            if (reverseIndexing)
+                ii += axisDim;
+            else
+                ii = axisDim;
+        }
+        const size_t idx = ii;
+        const size_t c2 = dstAfterBatchSize * b + afterAxisSize * j;
+        if (idx < static_cast<size_t>(axisDim)) {
+            size_t c1 = srcAfterBatchSize * b + afterAxisSize * idx;
+            for (size_t i = 0; i < betweenBatchAndAxisSize; i++) {
+                size_t srcIdx = c1 + axisAndAfterAxisSize * i;
+                size_t dstIdx = c2 + specIdxAndAfterAxSize * i;
+
+                OUT_TYPE* pdst = &dstData[dstIdx];
+
+                const size_t scale_offset = srcIdx / scale_group_size;
+                auto cur_zp = have_zp ? zp[srcIdx / zp_group_size] : 0;
+                size_t p = srcIdx;
+                size_t dst_idx = 0;
+
+                auto cvt_i4_low = [](const uint8_t& val) {
+                    if (val & 0x8) {
+                        // Just fill in the high 4 bits with 1
+                        return static_cast<int8_t>((val & 0x7) | 0xf8);
+                    } else {
+                        return static_cast<int8_t>(val & 0xF);
+                    }
+                };
+                auto cvt_i4_high = [](const uint8_t& val) {
+                    if (val & 0x80) {
+                        return static_cast<int8_t>(((val >> 4) & 0x7) | 0xf8);
+                    } else {
+                        return static_cast<int8_t>((val & 0xF) >> 4);
+                    }
+                };
+
+                for (; p < srcIdx + afterAxisSize; p++) {
+                    if (p % 2 == 0) {
+                        auto val = srcData[p >> 1];
+                        pdst[dst_idx] =
+                            static_cast<OUT_TYPE>((static_cast<float>(cvt_i4_low(val)) - cur_zp) * scale[scale_offset]);
+                    } else {
+                        auto val = srcData[p >> 1];
+                        pdst[dst_idx] = static_cast<OUT_TYPE>((static_cast<float>(cvt_i4_high(val)) - cur_zp) *
+                                                              scale[scale_offset]);
+                    }
+                    dst_idx++;
+                }
+            }
+        } else {
+            for (size_t i = 0; i < betweenBatchAndAxisSize; i++) {
+                size_t dstIdx = c2 + specIdxAndAfterAxSize * i;
+                for (size_t p = 0; p < afterAxisSize; p++)
+                    dstData[dstIdx] = 0;
+            }
+        }
+    });
+}
+
+template <typename IN_TYPE, typename OUT_TYPE>
+void Gather::execWeightsCompressed8bit() {
+    const int32_t* srcIndices = getSrcDataAtPortAs<const int32_t>(GATHER_INDICES);
+    const IN_TYPE* srcData = getSrcDataAtPortAs<const IN_TYPE>(GATHER_DATA);
+    OUT_TYPE* dstData = getDstDataAtPortAs<OUT_TYPE>(0);
+
+    // zp/scale
+    float const_zp = 0;
+    const auto* zp = have_zp ? getSrcDataAtPortAs<float_t>(GATHER_ZP) : &const_zp;
+    const auto* scale = getSrcDataAtPortAs<float_t>(GATHER_SCALE);
+
+    const size_t dstAfterBatchSize = betweenBatchAndAxisSize * specIdxAndAfterAxSize;
+
+    parallel_for2d(beforeBatchSize, specIndicesSize, [&](const size_t b, const size_t j) {
+        int ii = srcIndices[b * specIndicesSize + j];
+        if (ii < 0) {
+            if (reverseIndexing)
+                ii += axisDim;
+            else
+                ii = axisDim;
+        }
+        const size_t idx = ii;
+        const size_t c2 = dstAfterBatchSize * b + afterAxisSize * j;
+        if (idx < static_cast<size_t>(axisDim)) {
+            size_t c1 = srcAfterBatchSize * b + afterAxisSize * idx;
+            for (size_t i = 0; i < betweenBatchAndAxisSize; i++) {
+                size_t srcIdx = c1 + axisAndAfterAxisSize * i;
+                size_t dstIdx = c2 + specIdxAndAfterAxSize * i;
+
+                // cpu_memcpy(&dstData[dstIdx], &srcData[srcIdx], afterAxisSize);
+                const IN_TYPE* psrc = &srcData[srcIdx];
+                OUT_TYPE* pdst = &dstData[dstIdx];
+
+                const size_t scale_offset = srcIdx / scale_group_size;
+                auto cur_zp = have_zp ? zp[srcIdx / zp_group_size] : 0;
+                for (size_t p = 0; p < afterAxisSize; p++) {
+                    pdst[p] = static_cast<OUT_TYPE>((static_cast<float>(psrc[p]) - cur_zp) * scale[scale_offset]);
+                }
+            }
+        } else {
+            for (size_t i = 0; i < betweenBatchAndAxisSize; i++) {
+                size_t dstIdx = c2 + specIdxAndAfterAxSize * i;
+                for (size_t p = 0; p < afterAxisSize; p++)
+                    dstData[dstIdx] = 0;
+            }
+        }
+    });
+}
+
+void Gather::execWeightsCompressed() {
+    auto in_precison = getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->getPrecision();
+    auto out_precision = getChildEdgeAt(0)->getMemoryPtr()->getPrecision();
+
+    if (out_precision == ov::element::f16) {
+        switch (in_precison) {
+        case ov::element::u8:
+            return execWeightsCompressed8bit<uint8_t, float16>();
+        case ov::element::i8:
+            return execWeightsCompressed8bit<int8_t, float16>();
+        case ov::element::u4:
+            return execWeightsCompressedU4<float16>();
+        case ov::element::i4:
+            return execWeightsCompressedI4<float16>();
+        default:
+            break;
+        }
+    } else if (out_precision == ov::element::f32) {
+        switch (in_precison) {
+        case ov::element::u8:
+            return execWeightsCompressed8bit<uint8_t, float>();
+        case ov::element::i8:
+            return execWeightsCompressed8bit<int8_t, float>();
+        case ov::element::u4:
+            return execWeightsCompressedU4<float>();
+        case ov::element::i4:
+            return execWeightsCompressedI4<float>();
+        default:
+            break;
+        }
+    }
+
+    THROW_ERROR("only support in precision(u4/i4/u8/i8), out precision(f32/f16), in_precison=",
+                in_precison,
+                ", out_precision=",
+                out_precision);
 }
 
 void Gather::execReference() {

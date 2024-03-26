@@ -116,7 +116,6 @@ enum class Type {
     Ngram,
     ScaledDotProductAttention,
     RoPE,
-    GatherCompressed,
 };
 
 enum class Algorithm {
