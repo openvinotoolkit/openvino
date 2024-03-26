@@ -7,7 +7,7 @@
 from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecoder as Decoder
 from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 from openvino.runtime import op, PartialShape, Type as OVType, OVAny, Shape
-from openvino.frontend.pytorch.utils import maybe_convert_max_int, make_constant, fetch_attr, pt_to_ov_type_map, torch_tensor_to_ov_const
+from openvino.frontend.pytorch.utils import make_constant, fetch_attr, pt_to_ov_type_map, torch_tensor_to_ov_const
 
 import torch
 
@@ -66,9 +66,10 @@ class TorchFXPythonDecoder (Decoder):
                         self.input_types.append(OVAny(DecoderType.List(
                             TorchFXPythonDecoder.get_type_for_value(arg))))
                 else:
-                    new_inputs.append(self._inputs[i])
+                    v = self._inputs[i]
+                    new_inputs.append(v)
                     self.input_types.append(
-                        TorchFXPythonDecoder.get_type_for_value(self._inputs[i]))
+                        TorchFXPythonDecoder.get_type_for_value(v[0] if isinstance(v, tuple) else self._nodes[v]))
             self._inputs = new_inputs
 
     def inputs(self):
@@ -108,12 +109,9 @@ class TorchFXPythonDecoder (Decoder):
         elif isinstance(arg, bool):
             return make_constant(OVType.boolean, Shape([]), [arg])
         elif isinstance(arg, int):
-            arg = maybe_convert_max_int(arg)
-            return make_constant(OVType.i32, Shape(
-                []), [arg])  # TODO: i32? why not i64?
+            return make_constant(OVType.i64, Shape([]), [arg])
         elif isinstance(arg, float):
-            return make_constant(OVType.f32, Shape(
-                []), [arg])  # TODO: f32? why not f64?
+            return make_constant(OVType.f32, Shape([]), [arg])
         return None
 
     def inlined_input(self, index):
@@ -125,7 +123,7 @@ class TorchFXPythonDecoder (Decoder):
         arg = self._inputs[index][0]
         constant = self.arg_to_constant(arg)
 
-        assert constant is not None, "Constant wasn't created for inlined input"
+        assert constant is not None, f"Constant wasn't created for inlined input {index}"
         return constant.outputs()
 
     def input(self, index):  # TODO: remove
@@ -190,14 +188,13 @@ class TorchFXPythonDecoder (Decoder):
                     if str(pt_type) in pt_to_ov_type_map:
                         ov_type = pt_to_ov_type_map[str(pt_type)]
                         return OVAny(ov_type)
-            else:
-                return OVAny(OVType.dynamic)
+            return OVAny(OVType.dynamic)
         elif isinstance(value, int):
-            return OVAny(OVType.i32)
+            return OVAny(DecoderType.PyScalar(OVAny(OVType.i64)))
         elif isinstance(value, float):
-            return OVAny(OVType.f32)
+            return OVAny(DecoderType.PyScalar(OVAny(OVType.f32)))
         elif isinstance(value, bool):
-            return OVAny(OVType.boolean)
+            return OVAny(DecoderType.PyScalar(OVAny(OVType.boolean)))
         return OVAny(OVType.dynamic)
 
     def get_attribute(self, name):
@@ -297,7 +294,7 @@ class TorchFXPythonDecoder (Decoder):
         name = self.get_op_type()
         if "FrameworkNode" not in node.get_type_name():
             name += "/" + node.get_type_name()
-        node.set_friendly_name(name)
+        node.set_friendly_name(self.pt_module.name + "/" + name)
         if self.mark_node_callback is not None:
             self.mark_node_callback(self, node)
         return node
@@ -372,7 +369,7 @@ class TorchFXPythonDecoder (Decoder):
             if isinstance(ivalue, float):
                 return make_constant(OVType.f32, Shape([]), [ivalue]).outputs()
             if isinstance(ivalue, int):
-                return make_constant(OVType.i32, Shape([]), [ivalue]).outputs()
+                return make_constant(OVType.i64, Shape([]), [ivalue]).outputs()
             if isinstance(ivalue, bool):
                 return make_constant(OVType.boolean, Shape([]), [ivalue]).outputs()
 
@@ -423,39 +420,6 @@ class TorchFXPythonDecoder (Decoder):
 
     def debug(self):
         self.pt_module.print()
-
-    def inlined_inputs(self, index):
-        result = []
-        for i in range(len(self._inputs)):
-            if isinstance(self._inputs[i], tuple):
-                constant = None
-                arg = self._inputs[i][0]
-                if isinstance(arg, list):
-                    if len(arg) > 0:
-                        constant = make_constant(pt_to_ov_type_map[type(
-                            arg[0]).__name__], Shape([len(arg)]), arg)
-                    else:
-                        # TODO: which type should we use if list is empty? Need a signaling value here
-                        constant = make_constant(int, Shape([0]), [])
-                elif isinstance(arg, bool):
-                    constant = make_constant(OVType.boolean, Shape([]), [arg])
-                elif isinstance(arg, int):
-                    arg = maybe_convert_max_int(arg)
-                    constant = make_constant(OVType.i32, Shape(
-                        []), [arg])  # TODO: i32? why not i64?
-                elif isinstance(arg, float):
-                    constant = make_constant(OVType.f32, Shape(
-                        []), [arg])  # TODO: f32? why not f64?
-
-                if constant is None:
-                    if arg is None:
-                        self._inputs[i] = None
-                else:
-                    assert len(constant.outputs()) == 1
-                    result.append(constant.outputs()[0])
-                    self._inputs[i] = index
-                    index += 1
-        return result
 
     def may_produce_alias(self, in_index: int, out_index: int) -> bool:
         if self.get_op_type() in ["aten::conv1d", "aten::conv2d", "aten::conv3d", "aten::matmul"]:
