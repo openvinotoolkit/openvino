@@ -26,31 +26,12 @@ OpenVINO™ toolkit is officially supported and validated on the following platf
 
 NPU Plugin is a software library that:
 * Implements the unified OpenVINO Plugin API used to compile and execute neural networks on NPU devices.
-* Depending on the type of compiler instantiated, it uses either the API exposed by the NPU compiler or the graph extension API exposed by the driver to convert the OpenVINO specific representation of the model into a proprietary format. The compiler performs platform specific optimizations in order to efficiently schedule the execution of layers and memory transactions on various NPU hardware submodules.
+* Uses the graph extension API exposed by the driver to convert the OpenVINO specific representation of the model into a proprietary format. The compiler performs platform specific optimizations in order to efficiently schedule the execution of layers and memory transactions on various NPU hardware submodules.
 * Uses the Level Zero API implemented by the NPU user mode driver (UMD) to execute the model on the device.
 
 The plugin library is included inside the OpenVINO package while the compiler is packaged inside UMD and released separately.
 
 Note: Aligning with the platform and OpenVINO documentation, neural networks will be referred to with the more generic term of models in the rest of this document.
-
-&nbsp;
-## Supported Compilers
-
-The compiler is based on the MLIR project. There are two different ways for the plugin to access and use the compiler:
-* Compiler In Plugin: A library that will be dynamically loaded by the plugin to compile the model. This is intended to be used only for development purposes. Backward/Forward compatibility is not guaranteed for precompiled models.
-* Compiler In Driver: A library included in UMD. The plugin will use the available graph extension APIs exposed by the driver to request the model compilation. Two additional adapters are needed to support the integration of the compiler inside the driver:
-    * Compiler adapter: Used by the plugin to serialize the model into an in-memory IR (OpenVINO specific intermediate representation) that is passed to the driver
-    * VCL: Used by the driver to deserialize the IR and pass it to the compiler
-
-&nbsp;
-## Supported Engine Backends
-
-An engine backend is an abstraction layer on top of underlying APIs used to execute models. It is meant to include all the required functionality and infrastructure required to execute multiple models in parallel on one or multiple devices. Multiple engine backends are supported by the plugin:
-* L0 (Level Zero) backend
-    * This is the officially supported backend that uses the Level Zero NPU driver
-* IMD backend
-    * This is used only for internal development and early model enablement
-    * It relies on proprietary tools to bypass the NPU driver and execute the inference on the NPU HW/Simulator
 
 &nbsp;
 ## Model Compilation
@@ -60,17 +41,6 @@ NPU plugin implements the OpenVINO Core "compile_model" API that converts the mo
 ```
     ov::CompiledModel compiled_model = core.compile_model(model, "NPU" [, config]);
 ```
-
-
-Release packages will use the compiler from driver by default. In case the library for compiler in plugin is also included in the build, this compiler type can be used for model compilation by setting the `ov::intel_npu::compiler_type` property to `MLIR`. The default compiler type is `MLIR` when the plugin is built with ENABLE_DEVELOPER_BUILD=ON.
-
-### Device management
-
-NPU Plugin automatically detects the underlying platform by querying device properties from the NPU driver. Platform information is provided through configs to the NPU compiler to compile the model for that specific device.  
-Offline compilation is supported only when "Compiler in Plugin" library is also included in the build and when `ov::intel_npu::compiler_type` is set to `MLIR`.  
-There are two ways to provide the platform information for offline compilation:
-* Through the NPU_PLATFORM config. An extra config can be passed as the third argument to "compile_model". NPU_PLATFORM can be set to one of the supported platforms.
-* Through the DEVICE_ID. Example "NPU.3720". This will be deprecated soon.
 
 ### Model caching
 
@@ -177,7 +147,7 @@ The following properties are supported:
 | :---           | :---       | :---        |:---              |:--            |
 | `ov::supported_properties`/</br>`SUPPORTED_METRICS`/</br>`SUPPORTED_CONFIG_KEYS` | RO | Returns a list of all supported properties.</br> Can be queried on runtime. | `N/A` | `N/A` |
 | `ov::caching_properties`/</br>`CACHING_PROPERTIES` | RW | Returns a list of all properties that are used by OpenVINO cache to build the hash key. | `N/A` | `N/A` |
-| `ov::streams::num`/</br>`NUM_STREAMS` | RO | Not used by the NPU plugin.</br> Always set to 1. | `AUTO/`</br>`INT` | `1` |
+| `ov::num_streams`/</br>`NUM_STREAMS` | RO | Not used by the NPU plugin.</br> Always set to 1. | `AUTO/`</br>`INT` | `1` |
 | `ov::optimal_number_of_infer_requests`/</br>`OPTIMAL_NUMBER_OF_INFER_REQUESTS` | RO | Returns the optimal number of inference requests to be used by the application. Depends on the platform version and on ov::hint::performance_mode. Please see the table below. | `N/A` | `N/A` |
 | `ov::range_for_async_infer_requests`/</br>`RANGE_FOR_ASYNC_INFER_REQUESTS` | RO | Returns a tuple (bottom, top, step). </br> Not used by the NPU plugin. | `N/A` | `N/A` |
 | `ov::range_for_streams`/</br>`RANGE_FOR_STREAMS` | RO | Returns a tuple (bottom, top).</br> Not used by the NPU plugin. | `N/A`| `N/A` |
