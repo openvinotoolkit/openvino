@@ -22,6 +22,7 @@ bool JitEltwiseExecutor::isSupported(
                                      Algorithm::EltwiseClamp,
                                      Algorithm::EltwiseDivide,
                                      Algorithm::EltwiseEqual,
+                                     Algorithm::EltwiseExp,
                                      Algorithm::EltwiseMultiply,
                                      Algorithm::EltwiseMulAdd,
                                      Algorithm::EltwisePowerStatic,
