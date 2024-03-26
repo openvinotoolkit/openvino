@@ -9,17 +9,17 @@
 namespace ov {
 namespace intel_cpu {
 
-class BigPatternNode : public ov::op::Op {
+class CausalMaskPreprocessNode : public ov::op::Op {
 public:
-    OPENVINO_OP("BigPattern", "cpu_plugin_opset");
+    OPENVINO_OP("CausalMaskPreprocess", "cpu_plugin_opset");
 
-    BigPatternNode() = default;
+    CausalMaskPreprocessNode() = default;
 
     struct Config {
         std::string type;
     };
 
-    BigPatternNode(const OutputVector& args, const Config& cfg);
+    CausalMaskPreprocessNode(const OutputVector& args, const Config& cfg);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
 

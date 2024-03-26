@@ -9,10 +9,10 @@
 namespace ov {
 namespace intel_cpu {
 
-class BigPatternFusion : public ov::pass::GraphRewrite {
+class CausalMaskPreprocessFusion : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("BigPatternFusion", "0");
-    BigPatternFusion();
+    OPENVINO_RTTI("CausalMaskPreprocessFusion", "0");
+    CausalMaskPreprocessFusion();
 };
 
 }  // namespace intel_cpu

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "big_pattern_fusion.hpp"
+#include "causal_mask_preprocess_fusion.hpp"
 
 #include <cstdint>
 #include <limits>
@@ -16,7 +16,7 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/type_relaxed.hpp"
-#include "transformations/cpu_opset/common/op/big_pattern.hpp"
+#include "transformations/cpu_opset/common/op/causal_mask_preprocess.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils/gen_pattern.hpp"
 
@@ -206,7 +206,7 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
         if (!validator) {
             return false;
         }
-        ov::intel_cpu::BigPatternNode::Config config;
+        ov::intel_cpu::CausalMaskPreprocessNode::Config config;
         config.type = "CausalMaskPreprocess";
 
         auto triu =
@@ -244,7 +244,7 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
             pattern_map.find(cache_positions)->second,
             pattern_map.find(kvLen)->second,
         };
-        auto replacement = std::make_shared<ov::intel_cpu::BigPatternNode>(inputs, config);
+        auto replacement = std::make_shared<ov::intel_cpu::CausalMaskPreprocessNode>(inputs, config);
         ov::replace_node(root, replacement);
         return true;
     };
@@ -253,6 +253,6 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
     this->register_matcher(m, callback);
 }
 
-ov::intel_cpu::BigPatternFusion::BigPatternFusion() {
+ov::intel_cpu::CausalMaskPreprocessFusion::CausalMaskPreprocessFusion() {
     add_matcher<CausalMaskPreprocess>();
 }

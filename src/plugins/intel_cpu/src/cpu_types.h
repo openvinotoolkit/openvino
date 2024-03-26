@@ -116,7 +116,7 @@ enum class Type {
     Ngram,
     ScaledDotProductAttention,
     RoPE,
-    BigPattern,
+    CausalMaskPreprocess,
 };
 
 enum class Algorithm {

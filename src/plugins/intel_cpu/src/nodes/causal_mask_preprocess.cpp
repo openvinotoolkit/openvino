@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "big_pattern.h"
+#include "causal_mask_preprocess.h"
 
 #include "common/bfloat16.hpp"
 #include "common/cpu_memcpy.h"
@@ -46,10 +46,10 @@ The functionality is equivalent to following python code:
             causal_mask = causal_mask[:, :, cache_position, : key_states.shape[-2]]
 */
 template <typename T>
-struct BigPattern::ExecutorCausalMaskPreprocess : public BigPattern::Executor {
+struct CausalMaskPreprocess::ExecutorCausalMaskPreprocess : public CausalMaskPreprocess::Executor {
     void execute(dnnl::stream strm,
                  intel_cpu::Node * pnode,
-                 const intel_cpu::BigPatternNode::Config& config) override {
+                 const intel_cpu::CausalMaskPreprocessNode::Config& config) override {
         ov::intel_cpu::PlainTensor t_attention_mask(pnode->getSrcMemoryAtPort(0));
         ov::intel_cpu::PlainTensor t_batch_size(pnode->getSrcMemoryAtPort(1));
         ov::intel_cpu::PlainTensor t_cache_positions(pnode->getSrcMemoryAtPort(2));
@@ -64,9 +64,9 @@ struct BigPattern::ExecutorCausalMaskPreprocess : public BigPattern::Executor {
         pnode->redefineOutputMemory({newDims});
         ov::intel_cpu::PlainTensor t_dst(pnode->getDstMemoryAtPort(0));
 
-        DEBUG_LOG("BigPattern::execute", config.type, "  batch_size=", batch_size, " qLen=", qLen, " kvLen=", kvLen);
-        DEBUG_LOG("BigPattern::execute  attention_mask=", t_attention_mask);
-        DEBUG_LOG("BigPattern::execute  cache_positions=", t_cache_positions);
+        DEBUG_LOG("CausalMaskPreprocess::execute", config.type, "  batch_size=", batch_size, " qLen=", qLen, " kvLen=", kvLen);
+        DEBUG_LOG("CausalMaskPreprocess::execute  attention_mask=", t_attention_mask);
+        DEBUG_LOG("CausalMaskPreprocess::execute  cache_positions=", t_cache_positions);
 
         // raw_causal_mask is already ensured to be triu by transformation
         auto* prow = t_cache_positions.ptr<int32_t>(0);
@@ -88,26 +88,26 @@ struct BigPattern::ExecutorCausalMaskPreprocess : public BigPattern::Executor {
                 pdst[j] = cmask_eq0 ? T(0) : min_dtype;
             }
         });
-        DEBUG_LOG("BigPattern::execute  dst=", t_dst);
+        DEBUG_LOG("CausalMaskPreprocess::execute  dst=", t_dst);
     }
 };
 
-BigPattern::BigPattern(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+CausalMaskPreprocess::CausalMaskPreprocess(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW("CPU: " + errorMessage);
     }
 
-    const auto node = std::dynamic_pointer_cast<const intel_cpu::BigPatternNode>(op);
+    const auto node = std::dynamic_pointer_cast<const intel_cpu::CausalMaskPreprocessNode>(op);
     m_config = node->get_config();
 }
 
-bool BigPattern::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+bool CausalMaskPreprocess::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto node = std::dynamic_pointer_cast<const intel_cpu::BigPatternNode>(op);
+        const auto node = std::dynamic_pointer_cast<const intel_cpu::CausalMaskPreprocessNode>(op);
         if (!node) {
-            errorMessage = "Only BigPatternNode operation is supported";
+            errorMessage = "Only CausalMaskPreprocessNode operation is supported";
             return false;
         }
     } catch (...) {
@@ -116,7 +116,7 @@ bool BigPattern::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
     return true;
 }
 
-void BigPattern::initSupportedPrimitiveDescriptors() {
+void CausalMaskPreprocess::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -135,7 +135,7 @@ void BigPattern::initSupportedPrimitiveDescriptors() {
         // all input precisions must be int32
         for (auto& prec : iprecs) prec = ov::element::i32;
     } else {
-        OPENVINO_THROW("CPU: BigPattern type not supported : " + m_config.type);
+        OPENVINO_THROW("CPU: CausalMaskPreprocess type not supported : " + m_config.type);
     }
 
     std::vector<PortConfigurator> inPortConfigs;
@@ -149,7 +149,7 @@ void BigPattern::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any);
 }
 
-void BigPattern::execute(dnnl::stream strm) {
+void CausalMaskPreprocess::execute(dnnl::stream strm) {
     m_executor->execute(strm, this, m_config);
 }
 

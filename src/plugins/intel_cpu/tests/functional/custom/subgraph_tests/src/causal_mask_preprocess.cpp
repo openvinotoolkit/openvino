@@ -148,7 +148,7 @@ static std::shared_ptr<ov::Model> buildCausalMaskPreprocess(const int max_seq_le
                                        ov::ParameterVector{attention_mask, batch_size, cache_positions, kvLen});
 }
 
-class BigPatternCausalMaskPreprocess : public SubgraphBaseTest {
+class CausalMaskPreprocessCausalMaskPreprocess : public SubgraphBaseTest {
 public:
     ov::Tensor create_i32_tensor(const ov::Shape& shape, int start, int step = 1) {
         auto tensor = ov::Tensor(ov::element::i32, shape);
@@ -209,9 +209,9 @@ protected:
     }
 };
 
-TEST_F(BigPatternCausalMaskPreprocess, smoke_CompareWithRefs) {
+TEST_F(CausalMaskPreprocessCausalMaskPreprocess, smoke_CompareWithRefs) {
     run();
-    CheckNumberOfNodesWithType(compiledModel, "BigPattern", 1);
+    CheckNumberOfNodesWithType(compiledModel, "CausalMaskPreprocess", 1);
 }
 
 }  // namespace test

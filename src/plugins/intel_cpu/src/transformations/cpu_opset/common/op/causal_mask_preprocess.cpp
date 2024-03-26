@@ -1,24 +1,24 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "big_pattern.hpp"
+#include "causal_mask_preprocess.hpp"
 
 #include <algorithm>
 
 #include "transformations/itt.hpp"
 
-ov::intel_cpu::BigPatternNode::BigPatternNode(const OutputVector& args, const Config& cfg) : Op(args), m_config(cfg) {
+ov::intel_cpu::CausalMaskPreprocessNode::CausalMaskPreprocessNode(const OutputVector& args, const Config& cfg) : Op(args), m_config(cfg) {
     constructor_validate_and_infer_types();
 }
 
-std::shared_ptr<ov::Node> ov::intel_cpu::BigPatternNode::clone_with_new_inputs(const ov::OutputVector& new_args) const {
-    INTERNAL_OP_SCOPE(BigPatternNode_with_new_inputs);
+std::shared_ptr<ov::Node> ov::intel_cpu::CausalMaskPreprocessNode::clone_with_new_inputs(const ov::OutputVector& new_args) const {
+    INTERNAL_OP_SCOPE(CausalMaskPreprocessNode_with_new_inputs);
     check_new_args_count(this, new_args);
-    return std::make_shared<ov::intel_cpu::BigPatternNode>(new_args, m_config);
+    return std::make_shared<ov::intel_cpu::CausalMaskPreprocessNode>(new_args, m_config);
 }
 
-void ov::intel_cpu::BigPatternNode::validate_and_infer_types() {
-    INTERNAL_OP_SCOPE(BigPatternNode_validate_and_infer_types);
+void ov::intel_cpu::CausalMaskPreprocessNode::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(CausalMaskPreprocessNode_validate_and_infer_types);
     if (m_config.type == "CausalMaskPreprocess") {
         // inputs:
         //   0: attention_mask            : i64[N, kv_len]
@@ -38,8 +38,8 @@ void ov::intel_cpu::BigPatternNode::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, false, "unsupported type : ", m_config.type);
 }
 
-bool ov::intel_cpu::BigPatternNode::visit_attributes(ov::AttributeVisitor& visitor) {
-    INTERNAL_OP_SCOPE(BigPatternNode_visit_attributes);
+bool ov::intel_cpu::CausalMaskPreprocessNode::visit_attributes(ov::AttributeVisitor& visitor) {
+    INTERNAL_OP_SCOPE(CausalMaskPreprocessNode_visit_attributes);
     visitor.start_structure("config");
     visitor.on_attribute("type", m_config.type);
     visitor.finish_structure();
