@@ -18,9 +18,9 @@ OutputVector translate_gelu_op(const NodeContext& node) {
     auto x = node.get_input(0);
 
     // Get the approximate method
-    auto approximate = node.get_attribute<GeluApproximationMode>("approximate");
-    // auto approximation_mode = approximate ? GeluApproximationMode::ERF : GeluApproximationMode::TANH;
-    auto res = make_shared<v7::Gelu>(x, approximate);
+    auto approximate = node.get_attribute<bool>("approximate");
+    auto approximation_mode = approximate ? GeluApproximationMode::ERF : GeluApproximationMode::TANH;
+    auto res = make_shared<v7::Gelu>(x, approximation_mode);
 
     set_node_name(node.get_name(), res);
     return res->outputs();
