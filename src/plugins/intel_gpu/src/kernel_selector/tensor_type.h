@@ -471,8 +471,8 @@ public:
 template <typename DType, typename Layout>
 struct TensorBaseT : public TensorBase {
 protected:
-    DType dtype;
-    Layout layout;
+    DType dtype = DType();
+    Layout layout = Layout();
 
     template <typename ArrayT, typename ChannelName>
     static inline int ChannelIndex(const ArrayT& channelArr, Layout l, ChannelName channelName) {
