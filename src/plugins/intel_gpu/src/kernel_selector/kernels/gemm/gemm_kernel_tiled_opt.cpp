@@ -109,7 +109,7 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
         bool output_ndim_transposed = (params.output_order.size() > 0 && (params.output_order.back() != (static_cast<int>(params.output_order.size()) - 1)));
         if ((params.transpose_input0 == 0 /*X_LAST*/) && (params.transpose_input1 == 0 /*X_LAST*/ || params.transpose_input1 == 1 /*Y_LAST*/)
             && !params.indirect_input0
-            && (!params.inputs[0].has_dynamic_pad() && !params.inputs[1].has_dynamic_pad())
+            && (!params.inputs[0].has_dynamic_pad())
             && (!output_ndim_transposed || params.fused_ops.empty())) {
             // - Not supports dynamic padding / indirect gemm / transposed input0 / transposed input1 for OTHER mode yet
             // - If output X dim (= N) is transposed, cannot read eltwise as aligned data

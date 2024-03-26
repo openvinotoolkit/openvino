@@ -261,9 +261,6 @@ KERNEL(gemm_tiled_opt)(
             else
             #endif // INDIRECT_INPUT1
             {
-            #if HAS_DYNAMIC_N_PADDING || INPUT1_HAS_PADDING
-                b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
-            #else
                 #if B_VEC_SIZE == 1
                 b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
                 #else // B_VEC_SIZE == 1
@@ -279,7 +276,6 @@ KERNEL(gemm_tiled_opt)(
                 b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
                     #endif // TILE_N_NOT_DIVISIBLE
                 #endif // B_VEC_SIZE == 1
-            #endif // HAS_DYNAMIC_N_PADDING || INPUT1_HAS_PADDING
                 b_ptr += input1_offset;
             }
         #elif TRANSPOSE_INPUT1 == TRANSPOSE_OTHER // TRANSPOSE_INPUT1 == TRANSPOSE_X_LAST
@@ -436,9 +432,9 @@ KERNEL(gemm_tiled_opt)(
     #if IS_DYNAMIC && !INDIRECT_INPUT0 && !HAS_DYNAMIC_K_PADDING && !HAS_DYNAMIC_N_PADDING
         // Read A for next dot_id
         #if TILE_K_NOT_DIVISIBLE
-            a_read = TILE_K_NOT_DIVISIBLE_CALC ? a_ptr[sglid] : BLOCK_READ_A(a_ptr, 0);
+            a_read = (dot_id + 1 < tile_m_iterations) ? TILE_K_NOT_DIVISIBLE_CALC ? a_ptr[sglid] : BLOCK_READ_A(a_ptr, 0) : 0;
         #else
-            a_read = BLOCK_READ_A(a_ptr, 0);
+            a_read = (dot_id + 1 < tile_m_iterations) ? BLOCK_READ_A(a_ptr, 0) : 0;
         #endif
     #endif
 #elif TRANSPOSE_INPUT0 == TRANSPOSE_OTHER // TRANSPOSE_INPUT0
@@ -512,9 +508,6 @@ KERNEL(gemm_tiled_opt)(
                 else
             #endif // INDIRECT_INPUT1
                 {
-            #if HAS_DYNAMIC_N_PADDING || INPUT1_HAS_PADDING
-                    b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
-            #else
                 #if B_VEC_SIZE == 1
                     b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
                 #else // B_VEC_SIZE == 1
@@ -530,7 +523,6 @@ KERNEL(gemm_tiled_opt)(
                     b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
                     #endif // TILE_N_NOT_DIVISIBLE
                 #endif // B_VEC_SIZE == 1
-            #endif // HAS_DYNAMIC_N_PADDING || INPUT1_HAS_PADDING
                     b_ptr += input1_offset;
                 }
         #elif TRANSPOSE_INPUT1 == TRANSPOSE_OTHER // TRANSPOSE_INPUT1 == 0
