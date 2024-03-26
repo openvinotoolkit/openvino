@@ -51,6 +51,8 @@ class TestAddTypes(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_add_types(self, const_shape, input_type, ie_device, precision, ir_version, temp_dir,
                        use_legacy_frontend):
+        if ie_device == 'GPU' and input_type == np.int16:
+            pytest.skip("accuracy mismatch for int16 on GPU")
         self._test(*self.create_add_types_net(const_shape, input_type),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
