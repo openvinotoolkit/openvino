@@ -83,7 +83,7 @@ static void paged_attn_memcpy_kernel(const ov::intel_cpu::PlainTensor& k_input,
                                      const ov::intel_cpu::PlainTensor& past_v_output,
                                      const ov::intel_cpu::PlainTensor& slot_mapping) {
     size_t B = k_input.m_dims[0], H = k_input.m_dims[1], L1 = k_input.m_dims[2], S = k_input.m_dims[3];
-    parallel_for3d(B, H, L1, [&](size_t b, size_t h, size_t m) {
+    parallel_for3d(B, L1, H, [&](size_t b, size_t m, size_t h) {
         auto block_idx = slot_mapping.ptr<int32_t>(b)[m];
         if (block_idx < 0) return;
         attn_copy(past_k_output.ptr<T2>(block_idx, h, 0),
@@ -101,7 +101,7 @@ static void paged_attn_memcpy_kernel(const ov::intel_cpu::PlainTensor& k_input,
                                      const ov::intel_cpu::PlainTensor& past_v_output,
                                      const ov::intel_cpu::PlainTensor& slot_mapping) {
     size_t B = k_input.m_dims[0], H = k_input.m_dims[1], L1 = k_input.m_dims[2], S = k_input.m_dims[3];
-    parallel_for3d(B, H, L1, [&](size_t b, size_t h, size_t m) {
+    parallel_for3d(B, L1, H, [&](size_t b, size_t m, size_t h) {
         auto block_idx = slot_mapping.ptr<int32_t>(b)[m];
         if (block_idx < 0) return;
         std::memcpy(past_k_output.ptr_v(block_idx, h, 0),
@@ -141,6 +141,46 @@ void paged_attn_memcpy(const ov::intel_cpu::PlainTensor& k_input,
         paged_attn_memcpy_kernel<float, ov::bfloat16>(k_input, v_input, past_k_output, past_v_output, slot_mapping);
     } else {
         OPENVINO_THROW("unsupport src type: ", k_input.get_precision(), ", dst type: ", past_k_output.get_precision(), " in paged_attn_memcpy");
+    }
+}
+
+void attn_memcpy2d_kernel(void* src,
+                          void* dst,
+                          ov::element::Type src_type,
+                          ov::element::Type dst_type,
+                          size_t src_stride,
+                          size_t dst_stride,
+                          size_t width,
+                          size_t height) {
+    if (src_type == dst_type) {
+        auto src_u8 = reinterpret_cast<uint8_t*>(src);
+        auto dst_u8 = reinterpret_cast<uint8_t*>(dst);
+
+        for (size_t j = 0; j < height; j++) {
+            std::memcpy(dst_u8, src_u8, width * src_type.size());
+            dst_u8 += dst_stride * src_type.size();
+            src_u8 += src_stride * src_type.size();
+        }
+    } else if (src_type == ov::element::f32 && dst_type == ov::element::bf16) {
+        auto src_f = reinterpret_cast<float*>(src);
+        auto dst_f = reinterpret_cast<ov::bfloat16*>(dst);
+
+        for (size_t j = 0; j < height; j++) {
+            attn_copy<ov::bfloat16, float>(dst_f, src_f, width);
+            dst_f += dst_stride;
+            src_f += src_stride;
+        }
+    } else if (src_type == ov::element::f32 && dst_type == ov::element::f16) {
+        auto src_f = reinterpret_cast<float*>(src);
+        auto dst_f = reinterpret_cast<ov::float16*>(dst);
+
+        for (size_t j = 0; j < height; j++) {
+            attn_copy<ov::float16, float>(dst_f, src_f, width);
+            dst_f += dst_stride;
+            src_f += src_stride;
+        }
+    } else {
+        OPENVINO_THROW("unsupport src type: ", src_type, ", dst type: ", dst_type, " in attn_memcpy2d_kernel");
     }
 }
 
