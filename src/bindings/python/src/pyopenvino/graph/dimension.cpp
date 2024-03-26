@@ -136,7 +136,7 @@ void regclass_graph_Dimension(py::module m) {
                 Return this dimension's symbol as Symbol object.
 
                 :return: Value of the dimension.
-                :rtype: Symbol
+                :rtype: openvino.Symbol
             )");
 
     dim.def("set_symbol",
@@ -145,7 +145,7 @@ void regclass_graph_Dimension(py::module m) {
             R"(
                 Sets provided Symbol as this dimension's symbol.
                 :param symbol: The symbol to set to this dimension.
-                :type symbol: Symbol
+                :type symbol: openvino.Symbol
             )");
     /// Symbol-related methods: END
 
