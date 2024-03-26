@@ -13,7 +13,7 @@ class TestAtan2(PytorchLayerTest):
         inputs = [np.array(y).astype(dtype1), np.array(x).astype(dtype2)]
         return inputs
 
-    def create_model(self, dtype1=None, dtype2=None use_out=False):
+    def create_model(self, dtype1=None, dtype2=None, use_out=False):
         dtype_map = {
             "float32": torch.float32,
             "float64": torch.float64,
