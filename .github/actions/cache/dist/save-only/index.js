@@ -33144,27 +33144,26 @@ async function cleanUp() {
     core.debug(`key: ${key}`)
     core.debug(`restore-keys: ${keysRestore}`)
 
-    var keyPattern = key
+    let keyPattern = key
     if (keysRestore && keysRestore.length) {
       keyPattern = keysRestore.join('|')
     }
 
     const files = await getSortedCacheFiles(cacheRemotePath, keyPattern)
+    const maxCacheSizeInBytes = maxCacheSize * 1024 * 1024 * 1024
     let totalSize = await calculateTotalSize(cacheRemotePath, files)
-    let maxCacheSizeInBytes = maxCacheSize * 1024 * 1024 * 1024
 
     if (totalSize > maxCacheSizeInBytes) {
       core.info(
         `The cache storage size ${humanReadableFileSize(totalSize)} exceeds allowed size ${humanReadableFileSize(maxCacheSizeInBytes)}`
       )
       for (let i = files.length - 1; i >= 0; i--) {
-        var file = files[i]
+        const file = files[i]
         const filePath = path.join(cacheRemotePath, file)
         const fileStats = fs.statSync(filePath)
 
         if (fileStats.isFile() && fileStats.atime < minAccessDateAgo) {
           core.info(`Removing file: ${filePath}`)
-          // fs.unlink(filePath)
           fs.unlink(filePath, err => {
             if (err) {
               core.warning(`Could not remove file: ${filePath}: ${err}`)
@@ -33173,22 +33172,20 @@ async function cleanUp() {
               totalSize -= fileStats.size
             }
           })
-          // totalSize -= fileStats.size
         }
-
+        // Exit loop if total size is within limit
         if (totalSize <= maxCacheSizeInBytes) {
-          // Check if total size
-          break // Exit loop if total size is within limit
+          break
         }
       }
       core.info('Old cache files removed successfully')
     } else {
       core.info(
-        `The cache storage size ${humanReadableFileSize(totalSize)} less then allowed size ${humanReadableFileSize(maxCacheSizeInBytes)}`
+        `The cache storage size ${humanReadableFileSize(totalSize)} less then the allowed size ${humanReadableFileSize(maxCacheSizeInBytes)}`
       )
     }
   } catch (error) {
-    core.setFailed('Error removing old cache files.' + error.message)
+    core.setFailed(`Error removing old cache files: ${error.message}`)
   }
 }
 
@@ -33227,10 +33224,10 @@ async function save() {
       return
     }
 
-    var tarName = `${key}.cache`
-    var tarPath = path.join(cacheRemotePath, tarName)
-    var tarNameTmp = `${key}.tmp`
-    var tarPathTmp = path.join(cacheRemotePath, tarNameTmp)
+    const tarName = `${key}.cache`
+    const tarPath = path.join(cacheRemotePath, tarName)
+    const tarNameTmp = `${key}.tmp`
+    const tarPathTmp = path.join(cacheRemotePath, tarNameTmp)
 
     if (fs.existsSync(tarPath)) {
       core.warning(`Cache file ${tarName} already exists`)
@@ -33247,7 +33244,7 @@ async function save() {
       },
       ['.']
     )
-    tarSize = fs.statSync(tarName).size
+    const tarSize = fs.statSync(tarName).size
     core.info(
       `Created cache tarball: ${tarName}, size: ${humanReadableFileSize(tarSize)}`
     )
@@ -33284,20 +33281,20 @@ const core = __nccwpck_require__(2186)
 const fs = __nccwpck_require__(7147)
 const path = __nccwpck_require__(1017)
 
-async function getSortedCacheFiles(path, key = '') {
-  if (!fs.existsSync(path)) {
-    core.warning(`${path} doesn't exist`)
+async function getSortedCacheFiles(cachePath, key = '') {
+  if (!fs.existsSync(cachePath)) {
+    core.warning(`${cachePath} doesn't exist`)
     return []
   }
 
   const cache_pattern = new RegExp(`^((${key}).*[.]cache)$`)
 
-  const files = await fs.promises.readdir(path)
-  filesSorded = files
+  const files = await fs.promises.readdir(cachePath)
+  const filesSorded = files
     .filter(fileName => cache_pattern.test(fileName))
     .map(fileName => ({
       name: fileName,
-      time: fs.statSync(`${path}/${fileName}`).atime.getTime()
+      time: fs.statSync(path.join(cachePath, fileName)).atime.getTime()
     }))
     .sort((a, b) => b.time - a.time)
     .map(file => file.name)
@@ -33305,7 +33302,7 @@ async function getSortedCacheFiles(path, key = '') {
   core.debug(
     filesSorded.map(fileName => ({
       name: fileName,
-      time: fs.statSync(`${path}/${fileName}`).atime.getTime()
+      time: fs.statSync(path.join(cachePath, fileName)).atime.getTime()
     }))
   )
   return filesSorded
@@ -33320,7 +33317,7 @@ function humanReadableFileSize(sizeInBytes) {
     id++
   }
 
-  return sizeInBytes.toFixed(2) + ' ' + units[id]
+  return `${sizeInBytes.toFixed(2)} ${units[id]}`
 }
 
 // Function to calculate the total size of files in bytes
@@ -33336,6 +33333,25 @@ async function calculateTotalSize(dir, files) {
     }
   }
   return totalSize
+}
+
+// Function to lock a file
+async function lockFile(filePath) {
+  return new Promise((resolve, reject) => {
+    fs.open(filePath, 'wx', (err, fd) => {
+      if (err) {
+        if (err.code === 'EEXIST') {
+          // Lock file already exists, another process is holding the lock
+          return resolve(false)
+        }
+        return reject(err)
+      }
+      fs.close(fd, closeErr => {
+        if (closeErr) return reject(closeErr)
+        resolve(true)
+      })
+    })
+  })
 }
 
 module.exports = {

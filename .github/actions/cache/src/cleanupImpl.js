@@ -28,27 +28,26 @@ async function cleanUp() {
     core.debug(`key: ${key}`)
     core.debug(`restore-keys: ${keysRestore}`)
 
-    var keyPattern = key
+    let keyPattern = key
     if (keysRestore && keysRestore.length) {
       keyPattern = keysRestore.join('|')
     }
 
     const files = await getSortedCacheFiles(cacheRemotePath, keyPattern)
+    const maxCacheSizeInBytes = maxCacheSize * 1024 * 1024 * 1024
     let totalSize = await calculateTotalSize(cacheRemotePath, files)
-    let maxCacheSizeInBytes = maxCacheSize * 1024 * 1024 * 1024
 
     if (totalSize > maxCacheSizeInBytes) {
       core.info(
         `The cache storage size ${humanReadableFileSize(totalSize)} exceeds allowed size ${humanReadableFileSize(maxCacheSizeInBytes)}`
       )
       for (let i = files.length - 1; i >= 0; i--) {
-        var file = files[i]
+        const file = files[i]
         const filePath = path.join(cacheRemotePath, file)
         const fileStats = fs.statSync(filePath)
 
         if (fileStats.isFile() && fileStats.atime < minAccessDateAgo) {
           core.info(`Removing file: ${filePath}`)
-          // fs.unlink(filePath)
           fs.unlink(filePath, err => {
             if (err) {
               core.warning(`Could not remove file: ${filePath}: ${err}`)
@@ -57,22 +56,20 @@ async function cleanUp() {
               totalSize -= fileStats.size
             }
           })
-          // totalSize -= fileStats.size
         }
-
+        // Exit loop if total size is within limit
         if (totalSize <= maxCacheSizeInBytes) {
-          // Check if total size
-          break // Exit loop if total size is within limit
+          break
         }
       }
       core.info('Old cache files removed successfully')
     } else {
       core.info(
-        `The cache storage size ${humanReadableFileSize(totalSize)} less then allowed size ${humanReadableFileSize(maxCacheSizeInBytes)}`
+        `The cache storage size ${humanReadableFileSize(totalSize)} less then the allowed size ${humanReadableFileSize(maxCacheSizeInBytes)}`
       )
     }
   } catch (error) {
-    core.setFailed('Error removing old cache files.' + error.message)
+    core.setFailed(`Error removing old cache files: ${error.message}`)
   }
 }
 

@@ -23,10 +23,10 @@ async function save() {
       return
     }
 
-    var tarName = `${key}.cache`
-    var tarPath = path.join(cacheRemotePath, tarName)
-    var tarNameTmp = `${key}.tmp`
-    var tarPathTmp = path.join(cacheRemotePath, tarNameTmp)
+    const tarName = `${key}.cache`
+    const tarPath = path.join(cacheRemotePath, tarName)
+    const tarNameTmp = `${key}.tmp`
+    const tarPathTmp = path.join(cacheRemotePath, tarNameTmp)
 
     if (fs.existsSync(tarPath)) {
       core.warning(`Cache file ${tarName} already exists`)
@@ -43,7 +43,7 @@ async function save() {
       },
       ['.']
     )
-    tarSize = fs.statSync(tarName).size
+    const tarSize = fs.statSync(tarName).size
     core.info(
       `Created cache tarball: ${tarName}, size: ${humanReadableFileSize(tarSize)}`
     )

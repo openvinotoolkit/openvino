@@ -2,20 +2,20 @@ const core = require('@actions/core')
 const fs = require('fs')
 const path = require('path')
 
-async function getSortedCacheFiles(path, key = '') {
-  if (!fs.existsSync(path)) {
-    core.warning(`${path} doesn't exist`)
+async function getSortedCacheFiles(cachePath, key = '') {
+  if (!fs.existsSync(cachePath)) {
+    core.warning(`${cachePath} doesn't exist`)
     return []
   }
 
-  const cache_pattern = new RegExp(`^((${key}).*[.]cache)$`)
+  const cachePattern = new RegExp(`^((${key}).*[.]cache)$`)
 
-  const files = await fs.promises.readdir(path)
-  filesSorded = files
-    .filter(fileName => cache_pattern.test(fileName))
+  const files = await fs.promises.readdir(cachePath)
+  const filesSorded = files
+    .filter(fileName => cachePattern.test(fileName))
     .map(fileName => ({
       name: fileName,
-      time: fs.statSync(`${path}/${fileName}`).atime.getTime()
+      time: fs.statSync(path.join(cachePath, fileName)).atime.getTime()
     }))
     .sort((a, b) => b.time - a.time)
     .map(file => file.name)
@@ -23,7 +23,7 @@ async function getSortedCacheFiles(path, key = '') {
   core.debug(
     filesSorded.map(fileName => ({
       name: fileName,
-      time: fs.statSync(`${path}/${fileName}`).atime.getTime()
+      time: fs.statSync(path.join(cachePath, fileName)).atime.getTime()
     }))
   )
   return filesSorded
@@ -38,7 +38,7 @@ function humanReadableFileSize(sizeInBytes) {
     id++
   }
 
-  return sizeInBytes.toFixed(2) + ' ' + units[id]
+  return `${sizeInBytes.toFixed(2)} ${units[id]}`
 }
 
 // Function to calculate the total size of files in bytes

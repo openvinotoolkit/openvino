@@ -26,17 +26,17 @@ async function restore() {
     core.debug(`key: ${key}`)
     core.debug(`restore-keys: ${keysRestore}`)
 
-    var keyPattern = key
+    let keyPattern = key
     if (keysRestore && keysRestore.length) {
       keyPattern = keysRestore.join('|')
     }
 
     core.info(`Looking for ${keyPattern} in ${cacheRemotePath}`)
-    files = await getSortedCacheFiles(cacheRemotePath, keyPattern)
+    const files = await getSortedCacheFiles(cacheRemotePath, keyPattern)
 
     if (files.length) {
-      cacheFile = files[0]
-      cacheSize = fs.statSync(path.join(cacheRemotePath, cacheFile)).size
+      const cacheFile = files[0]
+      const cacheSize = fs.statSync(path.join(cacheRemotePath, cacheFile)).size
       core.info(
         `Found cache file: ${cacheFile}, size: ${humanReadableFileSize(cacheSize)}`
       )

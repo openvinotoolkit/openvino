@@ -33142,17 +33142,17 @@ async function restore() {
     core.debug(`key: ${key}`)
     core.debug(`restore-keys: ${keysRestore}`)
 
-    var keyPattern = key
+    let keyPattern = key
     if (keysRestore && keysRestore.length) {
       keyPattern = keysRestore.join('|')
     }
 
     core.info(`Looking for ${keyPattern} in ${cacheRemotePath}`)
-    files = await getSortedCacheFiles(cacheRemotePath, keyPattern)
+    const files = await getSortedCacheFiles(cacheRemotePath, keyPattern)
 
     if (files.length) {
-      cacheFile = files[0]
-      cacheSize = fs.statSync(path.join(cacheRemotePath, cacheFile)).size
+      const cacheFile = files[0]
+      const cacheSize = fs.statSync(path.join(cacheRemotePath, cacheFile)).size
       core.info(
         `Found cache file: ${cacheFile}, size: ${humanReadableFileSize(cacheSize)}`
       )
@@ -33206,20 +33206,20 @@ const core = __nccwpck_require__(2186)
 const fs = __nccwpck_require__(7147)
 const path = __nccwpck_require__(1017)
 
-async function getSortedCacheFiles(path, key = '') {
-  if (!fs.existsSync(path)) {
-    core.warning(`${path} doesn't exist`)
+async function getSortedCacheFiles(cachePath, key = '') {
+  if (!fs.existsSync(cachePath)) {
+    core.warning(`${cachePath} doesn't exist`)
     return []
   }
 
   const cache_pattern = new RegExp(`^((${key}).*[.]cache)$`)
 
-  const files = await fs.promises.readdir(path)
-  filesSorded = files
+  const files = await fs.promises.readdir(cachePath)
+  const filesSorded = files
     .filter(fileName => cache_pattern.test(fileName))
     .map(fileName => ({
       name: fileName,
-      time: fs.statSync(`${path}/${fileName}`).atime.getTime()
+      time: fs.statSync(path.join(cachePath, fileName)).atime.getTime()
     }))
     .sort((a, b) => b.time - a.time)
     .map(file => file.name)
@@ -33227,7 +33227,7 @@ async function getSortedCacheFiles(path, key = '') {
   core.debug(
     filesSorded.map(fileName => ({
       name: fileName,
-      time: fs.statSync(`${path}/${fileName}`).atime.getTime()
+      time: fs.statSync(path.join(cachePath, fileName)).atime.getTime()
     }))
   )
   return filesSorded
@@ -33242,7 +33242,7 @@ function humanReadableFileSize(sizeInBytes) {
     id++
   }
 
-  return sizeInBytes.toFixed(2) + ' ' + units[id]
+  return `${sizeInBytes.toFixed(2)} ${units[id]}`
 }
 
 // Function to calculate the total size of files in bytes
@@ -33258,6 +33258,25 @@ async function calculateTotalSize(dir, files) {
     }
   }
   return totalSize
+}
+
+// Function to lock a file
+async function lockFile(filePath) {
+  return new Promise((resolve, reject) => {
+    fs.open(filePath, 'wx', (err, fd) => {
+      if (err) {
+        if (err.code === 'EEXIST') {
+          // Lock file already exists, another process is holding the lock
+          return resolve(false)
+        }
+        return reject(err)
+      }
+      fs.close(fd, closeErr => {
+        if (closeErr) return reject(closeErr)
+        resolve(true)
+      })
+    })
+  })
 }
 
 module.exports = {
