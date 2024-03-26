@@ -411,8 +411,8 @@ void Reorder::execute(dnnl::stream strm) {
 
     if (isOptimized) {
         DEBUG_LOG("#", getExecIndex(), " Reorder ", getName(), "  is Optimized.",
-                   " input @", getParentEdgeAt(0)->getMemory().getData(),
-                   " output @", getChildEdgeAt(0)->getMemory().getData());
+                   " input @", getSrcDataAtPort(0),
+                   " output @", getDstDataAtPort(0));
         return;
     }
 
