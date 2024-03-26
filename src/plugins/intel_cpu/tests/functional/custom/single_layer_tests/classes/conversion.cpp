@@ -49,11 +49,6 @@ bool ConvertCPULayerTest::isInOutPrecisionSupported(ov::element::Type inPrc, ov:
         (inPrc == ov::element::f32 && (outPrc == ov::element::u8 || outPrc == ov::element::i8)))
         return false;
 #endif
-    // CPU Plugin decomposes Convert [FP->Bool] to Abs, Min, Ceiling and Convert[FP->U8].
-    // However, to align output data type of a model the plugin inserts Convert[U8->Bool] before the Result.
-    // This Convert[U8->Bool] is executed using reference impl.
-    // if (inPrc.is_real() && outPrc == ov::element::boolean)
-    //     return false;
     return true;
 }
 
