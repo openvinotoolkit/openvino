@@ -23,6 +23,7 @@
 #include "openvino/pass/manager.hpp"
 #include "shared_node_info.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 
 using namespace std;
 
@@ -927,9 +928,39 @@ ov::Output<ov::Node> ov::Model::add_output(const ov::Output<ov::Node>& port) {
     return result->output(0);
 }
 
+void adjust_variables(ov::Model& model, std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>> & cloned_var_map) {
+    for (const auto& var : model.get_variables()) {
+        if (!cloned_var_map.count(var->get_info().variable_id)) {
+            auto cloned_var = std::make_shared<ov::op::util::Variable>(var->get_info());
+            cloned_var_map[cloned_var->get_info().variable_id] = cloned_var;
+        }
+    }
+
+    std::vector<ov::op::util::Variable::Ptr> variables_vector;
+    for (const auto& op : model.get_ordered_ops()) {
+        if (auto multi_subgraph_op = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(op)) {
+            for (const auto &sub_graph: multi_subgraph_op->get_functions()) {
+                adjust_variables(*sub_graph, cloned_var_map);
+            }
+        }
+
+        if (auto var_extension = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(op)) {
+            model.remove_variable(model.get_variable_by_id(var_extension->get_variable_id()));
+            const auto& variable = cloned_var_map[var_extension->get_variable_id()];
+            variables_vector.push_back(variable);
+            var_extension->set_variable(variable);
+        }
+    }
+
+    model.add_variables(variables_vector);
+}
+
 std::shared_ptr<ov::Model> ov::Model::clone() const {
     std::unordered_map<ov::Node*, std::shared_ptr<ov::Node>> node_map;
-    return ov::clone_ov_model(*this, node_map);
+    auto cloned_model = ov::clone_ov_model(*this, node_map);
+    std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>> cloned_var_map;
+    adjust_variables(*cloned_model, cloned_var_map);
+    return cloned_model;
 }
 
 bool ov::Model::has_rt_info(const std::vector<std::string>& args) const {
