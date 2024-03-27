@@ -13,7 +13,7 @@ except ImportError:
     pass
 
 # #
-# # API 2.0
+# # OpenVINO API
 # # This __init__.py forces checking of runtime modules to propagate errors.
 # # It is not compared with init files from openvino-dev package.
 # #
@@ -32,6 +32,7 @@ from openvino.runtime import CompiledModel
 from openvino.runtime import InferRequest
 from openvino.runtime import AsyncInferQueue
 
+from openvino.runtime import Symbol
 from openvino.runtime import Dimension
 from openvino.runtime import Strides
 from openvino.runtime import PartialShape

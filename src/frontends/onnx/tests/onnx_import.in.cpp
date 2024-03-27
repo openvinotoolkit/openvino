@@ -974,6 +974,28 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_max) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_max_18) {
+    // TEMPLATE plugin has an issue with evaluation for u8 type
+    if (std::string("${BACKEND_NAME}") == std::string("INTERPRETER")) {
+        GTEST_SKIP();
+    }
+
+    auto model = convert_model("reduce_max_18.onnx");
+
+    // input data shape (1, 1, 4, 4)
+    std::vector<std::vector<uint8_t>> inputs{
+        ov::test::NDArray<uint8_t, 4>({{{{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {13, 14, 15, 16}}}})
+            .get_vector()};
+
+    // output data shape (1,)
+    auto expected_output = ov::test::NDArray<uint8_t, 1>({13, 14, 15, 16}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_max_invalid_axes) {
     EXPECT_THROW(convert_model("reduce_max_invalid_axes.onnx"), ov::Exception);
 }
@@ -6228,6 +6250,26 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bitwise_not) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_celu_float) {
+    auto model = convert_model("celu_float.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{2}, {-45.f, 22.98f});
+    test_case.add_expected_output<float>(Shape{2}, {-1.f, 22.98f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_celu_float_alpha) {
+    auto model = convert_model("celu_float_alpha.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{4}, {-5.f, -4.25f, -10.f, 7.3f});
+    test_case.add_expected_output<float>(Shape{4}, {-2.43337319f, -2.27243678f, -2.89297802f, 7.3f});
+
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gelu_float) {
     auto model = convert_model("gelu_float.onnx");
 
@@ -6244,4 +6286,20 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gelu_float_tanh) {
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<float>(Shape{2}, {-0.5f, 24.33f});
     test_case.add_expected_output<float>(Shape{2}, {-0.15428598f, 24.f});
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_mish_activation) {
+    auto model = convert_model("mish.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({1.8079f, -0.2892f, 2.0915f,  12.5101f, -1.8837f, 0.2586f, 2.9528f,  0.001f,
+                                6.0296f, -1.0745f, -0.2703f, 1.319f,   -3.3607f, 0.1434f, -8.4590f, 0.0f,
+                                2.7608f, 0.3126f,  0.3f,     3.0f,     7.6919f,  0.5859f, -11.992f, -37.8f});
+
+    test_case.add_expected_output<float>({1.737521f,  -0.146684f, 2.041557f,  12.5101f,   -0.264820f, 0.176079f,
+                                          2.938304f,  0.0006f,    6.029531f,  -0.306873f, -0.138725f, 1.206575f,
+                                          -0.114629f, 0.092553f,  -0.001792f, 0.0f,       2.741334f,  0.217909f,
+                                          0.208001f,  2.986535f,  7.691896f,  0.453058f,  -0.000074f, 0.0f});
+
+    test_case.run_with_tolerance_as_fp(0.000001f);
 }

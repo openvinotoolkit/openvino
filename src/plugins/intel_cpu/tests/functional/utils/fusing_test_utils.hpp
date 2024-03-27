@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,14 @@
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 #include "cpu_test_utils.hpp"
 #include "openvino/runtime/system_conf.hpp"
-#include "ov_models/utils/data_utils.hpp"
+#include "common_test_utils/data_utils.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
+#include "openvino/op/util/logical_reduction_keep_dims.hpp"
 
 using namespace ov::test;
 
@@ -176,14 +183,14 @@ const auto fusingSqrt = fusingSpecificParams{std::make_shared<postNodesMgr>(std:
 const auto fusingPReluPerChannel = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
             {[](postNodeConfig& cfg){
                 ov::Shape newShape = generatePerChannelShape(cfg.target);
-                auto data = NGraphFunctions::Utils::generateVector<ov::element::Type_t::f32>(ov::shape_size(newShape));
+                auto data = ov::test::utils::generateVector<ov::element::Type_t::f32>(ov::shape_size(newShape));
                 return utils::make_activation(cfg.input, cfg.type, utils::LeakyRelu, newShape, data);
             }, "PRelu(PerChannel)"}}), {"PRelu"}};
 
 const auto fusingPReluPerTensor = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
             {[](postNodeConfig& cfg){
                 ov::Shape shape(1, 1);
-                auto data = NGraphFunctions::Utils::generateVector<ov::element::Type_t::f32>(ov::shape_size(shape));
+                auto data = ov::test::utils::generateVector<ov::element::Type_t::f32>(ov::shape_size(shape));
                 return utils::make_activation(cfg.input, cfg.type, utils::LeakyRelu, shape, data);
             }, "PRelu(PerTensor)"}}), {"PRelu"}};
 
@@ -458,7 +465,7 @@ const auto fusingPRelu1D = fusingSpecificParams{std::make_shared<postNodesMgr>(s
         {[](postNodeConfig& cfg){
             auto shape = cfg.input->get_output_partial_shape(0);
             ov::Shape newShape({static_cast<size_t>(shape[1].get_length())});
-            auto data = NGraphFunctions::Utils::generateVector<ov::element::Type_t::f32>(ov::shape_size(newShape));
+            auto data = ov::test::utils::generateVector<ov::element::Type_t::f32>(ov::shape_size(newShape));
             return utils::make_activation(cfg.input, cfg.type, utils::LeakyRelu, newShape, data);
         }, "PRelu1D"}}), {"PRelu"}};
 
@@ -466,7 +473,7 @@ const auto fusingPRelu1DScaleShift = fusingSpecificParams{std::make_shared<postN
         {[](postNodeConfig& cfg){
             auto shape = cfg.input->get_output_partial_shape(0);
             ov::Shape newShape({static_cast<size_t>(shape[1].get_length())});
-            auto data = NGraphFunctions::Utils::generateVector<ov::element::Type_t::f32>(ov::shape_size(newShape));
+            auto data = ov::test::utils::generateVector<ov::element::Type_t::f32>(ov::shape_size(newShape));
             return utils::make_activation(cfg.input, cfg.type, utils::LeakyRelu, newShape, data);
         }, "PRelu1D"},
         {[](postNodeConfig& cfg) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -80,6 +80,8 @@ ov::TensorVector infer_on_template(const std::shared_ptr<ov::Model>& model, cons
 
 ov::TensorVector infer_on_template(const std::shared_ptr<ov::Model>& model,
                                    const std::map<std::shared_ptr<ov::Node>, ov::Tensor>& inputs);
+
+bool is_tensor_iterator_exist(const std::shared_ptr<ov::Model>&);
 
 }  // namespace utils
 }  // namespace test

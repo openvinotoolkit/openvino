@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "prepare_buffer_fusing.h"
@@ -415,7 +415,7 @@ static bool can_crop_be_optimized_along_batch(const crop_node& node) {
     const auto& out_padding = crop_layout.data_padding;
 
     // Check format's order is 'bxxx' and only batch size is different
-    if (format::is_simple_data_format(format) && format::traits(format)._order[0] == 0 &&
+    if (format::is_simple_data_format(format) && format.dims_order()[0] == 0 &&
         std::equal(input_shape.begin()+1, input_shape.end(), crop_shape.begin()+1) &&
         !out_padding && !in_padding) {
         return true;
@@ -503,6 +503,8 @@ void prepare_buffer_fusing::run(program& p) {
                     return;
                 if (user->is_type<loop>() || user->is_type<non_max_suppression>())
                     return;
+            }
+            for (auto user : node.get_users()) {
                 if (user->is_type<reshape>()) {
                     auto& reshape_node = user->as<reshape>();
                     if (can_reshape_be_optimized(reshape_node))

@@ -3,7 +3,7 @@ Monodepth Estimation with OpenVINO
 
 This tutorial demonstrates Monocular Depth Estimation with MidasNet in
 OpenVINO. Model information can be found
-`here <https://docs.openvino.ai/2023.3/omz_models_model_midasnet.html>`__.
+`here <https://docs.openvino.ai/2024/omz_models_model_midasnet.html>`__.
 
 .. figure:: https://user-images.githubusercontent.com/36741649/127173017-a0bbcf75-db24-4d2c-81b9-616e04ab7cd9.gif
    :alt: monodepth
@@ -67,8 +67,15 @@ Install requirements
 
 .. code:: ipython3
 
+    import platform
+    
     %pip install -q "openvino>=2023.1.0"
-    %pip install -q matplotlib opencv-python requests tqdm
+    %pip install -q opencv-python requests tqdm
+    
+    if platform.system() != "Windows":
+        %pip install -q "matplotlib>=3.4"
+    else:
+        %pip install -q "matplotlib>=3.4,<3.7"
     
     # Fetch `notebook_utils` module
     import urllib.request
@@ -88,11 +95,16 @@ Install requirements
     Note: you may need to restart the kernel to use updated packages.
 
 
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+
 
 
 .. parsed-literal::
 
-    ('notebook_utils.py', <http.client.HTTPMessage at 0x7fe5c4f7e130>)
+    ('notebook_utils.py', <http.client.HTTPMessage at 0x7eff217dc7c0>)
 
 
 
@@ -129,7 +141,8 @@ Download the model
 
 
 The model is in the `OpenVINO Intermediate Representation
-(IR) <https://docs.openvino.ai/nightly/openvino_ir.html>`__ format.
+(IR) <https://docs.openvino.ai/2024/documentation/openvino-ir-format.html>`__
+format.
 
 .. code:: ipython3
 
@@ -292,7 +305,7 @@ original image shape.
 
 .. parsed-literal::
 
-    /tmp/ipykernel_2841459/2076527990.py:15: MatplotlibDeprecationWarning: The get_cmap function was deprecated in Matplotlib 3.7 and will be removed two minor releases later. Use ``matplotlib.colormaps[name]`` or ``matplotlib.colormaps.get_cmap(obj)`` instead.
+    /tmp/ipykernel_3058046/2076527990.py:15: MatplotlibDeprecationWarning: The get_cmap function was deprecated in Matplotlib 3.7 and will be removed two minor releases later. Use ``matplotlib.colormaps[name]`` or ``matplotlib.colormaps.get_cmap(obj)`` instead.
       cmap = matplotlib.cm.get_cmap(colormap)
 
 
@@ -494,7 +507,7 @@ Do Inference on a Video and Create Monodepth Video
 
 .. parsed-literal::
 
-    Processed 60 frames in 37.50 seconds. Total FPS (including video processing): 1.60.Inference FPS: 43.40 
+    Processed 60 frames in 26.30 seconds. Total FPS (including video processing): 2.28.Inference FPS: 43.50 
     Monodepth Video saved to 'output/Coco%20Walking%20in%20Berkeley_monodepth.mp4'.
 
 
@@ -524,7 +537,7 @@ Display Monodepth Video
 .. parsed-literal::
 
     Showing monodepth video saved at
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/201-vision-monodepth/output/Coco%20Walking%20in%20Berkeley_monodepth.mp4
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/201-vision-monodepth/output/Coco%20Walking%20in%20Berkeley_monodepth.mp4
     If you cannot see the video in your browser, please click on the following link to download the video 
 
 

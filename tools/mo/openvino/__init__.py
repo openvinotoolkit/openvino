@@ -12,7 +12,7 @@ try:
 except ImportError:
     pass
 
-# API 2.0
+# OpenVINO API
 try:
     # Import all public modules
     from openvino import runtime as runtime
@@ -29,6 +29,7 @@ try:
     from openvino.runtime import InferRequest
     from openvino.runtime import AsyncInferQueue
 
+    from openvino.runtime import Symbol
     from openvino.runtime import Dimension
     from openvino.runtime import Strides
     from openvino.runtime import PartialShape

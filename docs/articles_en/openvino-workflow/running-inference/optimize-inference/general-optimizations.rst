@@ -5,12 +5,12 @@ General Optimizations
 
 
 .. meta::
-   :description: General optimizations include application-level optimization 
-                 methods that improve data pipelining, pre-processing 
+   :description: General optimizations include application-level optimization
+                 methods that improve data pipelining, pre-processing
                  acceleration and both latency and throughput.
 
 
-This article covers application-level optimization techniques, such as asynchronous execution, to improve data pipelining, pre-processing acceleration and so on. 
+This article covers application-level optimization techniques, such as asynchronous execution, to improve data pipelining, pre-processing acceleration and so on.
 While the techniques (e.g. pre-processing) can be specific to end-user applications, the associated performance improvements are general and shall improve any target scenario -- both latency and throughput.
 
 .. _inputs_pre_processing:
@@ -20,16 +20,16 @@ Inputs Pre-Processing with OpenVINO
 
 In many cases, a network expects a pre-processed image. It is advised not to perform any unnecessary steps in the code:
 
-* Model conversion API can efficiently incorporate the mean and normalization (scale) values into a model (for example, to the weights of the first convolution). For more details, see the :doc:`relevant model conversion API command-line parameters <openvino_docs_MO_DG_Additional_Optimization_Use_Cases>`.
-* Let OpenVINO accelerate other means of :doc:`Image Pre-processing and Conversion <openvino_docs_OV_UG_Preprocessing_Overview>`
-* Data which is already in the "on-device" memory can be input directly by using the :doc:`remote tensors API of the GPU Plugin <openvino_docs_OV_UG_supported_plugins_GPU_RemoteTensor_API>`.
+* Model conversion API can efficiently incorporate the mean and normalization (scale) values into a model (for example, to the weights of the first convolution). For more details, see the :doc:`relevant model conversion API command-line parameters <../../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/[legacy]-embedding-preprocessing-computation>`.
+* Let OpenVINO accelerate other means of :doc:`Image Pre-processing and Conversion <optimize-preprocessing>`
+* Data which is already in the "on-device" memory can be input directly by using the :doc:`remote tensors API of the GPU Plugin <../inference-devices-and-modes/gpu-device/remote-tensor-api-gpu-plugin>`.
 
 .. _async_api:
 
 Prefer OpenVINO Async API
 #########################
 
-The API of the inference requests offers Sync and Async execution. While the `ov::InferRequest::infer() <classov_1_1InferRequest.html#doxid-classov-1-1-infer-request-1abcb7facc9f7c4b9226a1fd343e56958d>`__ is inherently synchronous and executes immediately (effectively serializing the execution flow in the current application thread), the Async "splits" the ``infer()`` into ``ov::InferRequest::start_async()`` and ``ov::InferRequest::wait()``. For more information, see the :doc:`API examples <openvino_docs_OV_UG_Infer_request>`.
+The API of the inference requests offers Sync and Async execution. While the ``ov::InferRequest::infer()`` is inherently synchronous and executes immediately (effectively serializing the execution flow in the current application thread), the Async "splits" the ``infer()`` into ``ov::InferRequest::start_async()`` and ``ov::InferRequest::wait()``. For more information, see the :doc:`API examples <../integrate-openvino-with-your-application/inference-request>`.
 
 A typical use case for the ``ov::InferRequest::infer()`` is running a dedicated application thread per source of inputs (e.g. a camera), so that every step (frame capture, processing, parsing the results, and associated logic) is kept serial within the thread.
 In contrast, the ``ov::InferRequest::start_async()`` and ``ov::InferRequest::wait()`` allow the application to continue its activities and poll or wait for the inference completion when really needed. Therefore, one reason for using an asynchronous code is "efficiency".
@@ -43,7 +43,7 @@ The key advantage of the Async approach is that when a device is busy with the i
 
 In the example below, inference is applied to the results of the video decoding. It is possible to keep two parallel infer requests, and while the current one is processed, the input frame for the next one is being captured. This essentially hides the latency of capturing, so that the overall frame rate is rather determined only by the slowest part of the pipeline (decoding vs inference) and not by the sum of the stages.
 
-.. image:: _static/images/synch-vs-asynch.svg
+.. image:: ../../../_static/images/synch-vs-asynch.svg
    :alt: Intel® VTune™ screenshot
 
 Below are example-codes for the regular and async-based approaches to compare:
@@ -62,16 +62,16 @@ Below are example-codes for the regular and async-based approaches to compare:
 
 
 The technique can be generalized to any available parallel slack. For example, you can do inference and simultaneously encode the resulting or previous frames or run further inference, like emotion detection on top of the face detection results.
-Refer to the `Object Detection C++ Demo <https://docs.openvino.ai/2023.3/omz_demos_object_detection_demo_cpp.html>`__ , `Object Detection Python Demo <https://docs.openvino.ai/2023.3/omz_demos_object_detection_demo_python.html>`__ (latency-oriented Async API showcase) and :doc:`Benchmark App Sample <openvino_sample_benchmark_tool>` for complete examples of the Async API in action.
+Refer to the `Object Detection C++ Demo <https://docs.openvino.ai/2023.3/omz_demos_object_detection_demo_cpp.html>`__ , `Object Detection Python Demo <https://docs.openvino.ai/2023.3/omz_demos_object_detection_demo_python.html>`__ (latency-oriented Async API showcase) and :doc:`Benchmark App Sample <../../../learn-openvino/openvino-samples/benchmark-tool>` for complete examples of the Async API in action.
 
 .. note::
 
-   Using the Asynchronous API is a must for :doc:`throughput-oriented scenarios <openvino_docs_deployment_optimization_guide_tput>`.
+   Using the Asynchronous API is a must for :doc:`throughput-oriented scenarios <optimizing-throughput>`.
 
 Notes on Callbacks
 ++++++++++++++++++++
 
-Keep in mind that the ``ov::InferRequest::wait()`` of the Async API waits for the specific request only. However, running multiple inference requests in parallel provides no guarantees on the completion order. This may complicate a possible logic based on the ``ov::InferRequest::wait``. The most scalable approach is using callbacks (set via the ``ov::InferRequest::set_callback``) that are executed upon completion of the request. The callback functions will be used by OpenVINO Runtime to notify you of the results (or errors). 
+Keep in mind that the ``ov::InferRequest::wait()`` of the Async API waits for the specific request only. However, running multiple inference requests in parallel provides no guarantees on the completion order. This may complicate a possible logic based on the ``ov::InferRequest::wait``. The most scalable approach is using callbacks (set via the ``ov::InferRequest::set_callback``) that are executed upon completion of the request. The callback functions will be used by OpenVINO Runtime to notify you of the results (or errors).
 This is a more event-driven approach.
 
 A few important points on the callbacks:
@@ -84,7 +84,7 @@ A few important points on the callbacks:
 The "get_tensor" Idiom
 ######################
 
-Each device within OpenVINO may have different internal requirements on the memory padding, alignment, etc., for intermediate tensors. The **input/output tensors** are also accessible by the application code. 
+Each device within OpenVINO may have different internal requirements on the memory padding, alignment, etc., for intermediate tensors. The **input/output tensors** are also accessible by the application code.
 As every ``ov::InferRequest`` is created by the particular instance of the ``ov::CompiledModel`` (that is already device-specific) the requirements are respected and the input/output tensors of the requests are still device-friendly.
 To sum it up:
 
@@ -92,7 +92,7 @@ To sum it up:
 
   * For example, for the GPU device, the **input/output tensors** are mapped to the host (which is fast) only when the ``get_tensor`` is used, while for the ``set_tensor`` a copy into the internal GPU structures may happen.
 
-* In contrast, when the input tensors are already in the **on-device memory** (e.g. as a result of the video-decoding), prefer the ``set_tensor`` as a zero-copy way to proceed. For more details, see the :doc:`GPU device Remote tensors API <openvino_docs_OV_UG_supported_plugins_GPU_RemoteTensor_API>`.
+* In contrast, when the input tensors are already in the **on-device memory** (e.g. as a result of the video-decoding), prefer the ``set_tensor`` as a zero-copy way to proceed. For more details, see the :doc:`GPU device Remote tensors API <../inference-devices-and-modes/gpu-device/remote-tensor-api-gpu-plugin>`.
 
 
 Consider the :ref:`API examples <in_out_tensors>` for the ``get_tensor`` and ``set_tensor``.

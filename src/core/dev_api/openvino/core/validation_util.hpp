@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -93,15 +93,15 @@ OPENVINO_API bool is_rank_compatible_any_of(const Rank& r, std::initializer_list
 /// \return True if estimations evaluation was successful, false otherwise.
 OPENVINO_API bool evaluate_as_partial_shape(const Output<Node>& output, PartialShape& pshape);
 
-/// \brief Propagates value label from 0 input to the only output through an operation. Not applicable for operations
+/// \brief Propagates value sumbol from 0 input to the only output through an operation. Not applicable for operations
 /// which require values interaction (example: mathematical operations). Could be used for movement operations (example:
 /// gathering, shape change)
 ///
 /// \param node Operation to be performed
-/// \param output_labels Vector of TensorLabel objects representing resulting value labels
+/// \param output_symbols Vector of TensorSymbol objects representing resulting value symbols
 ///
-/// \return True if label evaluation was successful, false otherwise.
-OPENVINO_API bool default_label_evaluator(const Node* node, TensorLabelVector& output_labels);
+/// \return True if symbol evaluation was successful, false otherwise.
+OPENVINO_API bool default_symbol_evaluator(const Node* node, TensorSymbolVector& output_symbols);
 
 /// \brief Generates default order of axes transposition at the end of input vector.
 ///
@@ -121,11 +121,11 @@ OPENVINO_API void generate_transpose_default_order(std::vector<int64_t>& axes_or
 /// \return True if axes order is valid, false otherwise.
 OPENVINO_API bool is_valid_axes_order(const std::vector<int64_t>& axes_order, size_t size);
 
-/// \brief Checks whether label tensor has no labels.
+/// \brief Checks whether symbol tensor has no symbols.
 ///
-/// \param labels  Label tensor to check.
-/// \return True if there are no labels, false otherwise.
-OPENVINO_API bool has_no_labels(const TensorLabel& labels);
+/// \param symbols  Symbol tensor to check.
+/// \return True if there are no symbols, false otherwise.
+OPENVINO_API bool has_no_symbols(const TensorSymbol& symbols);
 
 /// \brief      Handles out of range axis.
 ///

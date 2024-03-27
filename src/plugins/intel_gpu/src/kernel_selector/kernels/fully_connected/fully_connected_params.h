@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,10 +25,4 @@ struct fully_connected_params : public weight_bias_params {
     }
 };
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// fully_connected_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct fully_connected_optional_params : weight_bias_optional_params {
-    fully_connected_optional_params() : weight_bias_optional_params(KernelType::FULLY_CONNECTED) {}
-};
 }  // namespace kernel_selector

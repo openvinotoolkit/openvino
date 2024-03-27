@@ -1,9 +1,9 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
 
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 
 class TestClamp(PytorchLayerTest):
@@ -43,9 +43,12 @@ class TestClamp(PytorchLayerTest):
 
     @pytest.mark.parametrize("minimum,maximum",
                              [(0., 1.), (-0.5, 1.5), (None, 10.), (None, -10.), (10., None), (-10., None), (100, 200), (1.0, 0.0)])
-    @pytest.mark.parametrize("as_tensors", [True, False])
-    @pytest.mark.parametrize("op_type", ["clamp", "clamp_"])
+    @pytest.mark.parametrize("as_tensors", [skip_if_export(True), False])
+    @pytest.mark.parametrize("op_type", ["clamp", skip_if_export("clamp_")])
     @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
     def test_clamp(self, minimum, maximum, as_tensors, op_type, ie_device, precision, ir_version):
         self._test(*self.create_model(minimum, maximum, as_tensors,
                    op_type), ie_device, precision, ir_version)
@@ -74,6 +77,7 @@ class TestClampMin(PytorchLayerTest):
     @pytest.mark.parametrize("minimum", [0., 1., -1., 0.5, 2])
     @pytest.mark.parametrize("as_tensor", [True, False])
     @pytest.mark.nightly
+    @pytest.mark.precommit_fx_backend
     def test_clamp_min(self, minimum, as_tensor, ie_device, precision, ir_version):
         self._test(*self.create_model(minimum, as_tensor), ie_device,
                    precision, ir_version, use_convert_model=True, trace_model=True)
@@ -103,6 +107,8 @@ class TestClampMax(PytorchLayerTest):
     @pytest.mark.parametrize("as_tensor", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
     def test_clamp(self, maximum, as_tensor, ie_device, precision, ir_version):
         self._test(*self.create_model(maximum, as_tensor), ie_device,
                    precision, ir_version, use_convert_model=True, trace_model=True)

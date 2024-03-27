@@ -1,12 +1,13 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "custom/subgraph_tests/include/fuse_transpose_reorder.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/convolution.hpp"
-#include "ov_models/preprocess/preprocess_builders.hpp"
+#include "common_test_utils/subgraph_builders/preprocess_builders.hpp"
 #include "openvino/openvino.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 
 using namespace CPUTestUtils;
 
@@ -176,15 +177,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseTransposeAndReorderTest1, fuseTranspos
     |Input  |         |Input  |
     ---------         ---------
         |                 |
-        |           -------------
-    ---------       | ----------- |
-    |Reorder|       | |Transpose| |
-    ---------       | ----------- |
-        |           |      |      |
-    ---------       | ----------- |
-    |Transpose|     |  |Reorder|  |
-    ---------       | ----------- |
-        |           |-------------|
+    |------------ |     |-------------|
+    | ----------- |     | ----------- |
+    |  |Reorder|  |     | |Transpose| |
+    | ----------- |     | ----------- |
+    |     |       |     |      |      |
+    | ----------- |     | ----------- |
+    | |Transpose| |     |  |Reorder|  |
+    | ----------- |     | ----------- |
+    |------------ |     |-------------|
         |                 |
         --------   --------
                |   |
@@ -223,7 +224,7 @@ void FuseTransposeAndReorderTest2::create_model() {
 
 TEST_P(FuseTransposeAndReorderTest2, CompareWithRefs) {
     run();
-    check_transpose_count(1);
+    check_transpose_count(0);
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseTransposeAndReorderTest2, fuseTransposeAndReorderCommonParams, FuseTransposeAndReorderTest::getTestCaseName);

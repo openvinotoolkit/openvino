@@ -11,7 +11,7 @@ namespace kernel_selector {
 class beam_table_update_kernel_selector : public kernel_selector_base {
 public:
     beam_table_update_kernel_selector();
-    KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
+    KernelsData GetBestKernels(const Params& params) const override;
     static beam_table_update_kernel_selector& Instance();
 };
 

@@ -12,8 +12,8 @@ unique_count_kernel_selector::unique_count_kernel_selector() {
     Attach<UniqueCountKernelRef>();
 }
 
-KernelsData unique_count_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::UNIQUE_COUNT);
+KernelsData unique_count_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::UNIQUE_COUNT);
 }
 
 unique_count_kernel_selector& unique_count_kernel_selector::Instance() {
@@ -25,8 +25,8 @@ unique_gather_kernel_selector::unique_gather_kernel_selector() {
     Attach<UniqueGatherKernelRef>();
 }
 
-KernelsData unique_gather_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::UNIQUE_GATHER);
+KernelsData unique_gather_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::UNIQUE_GATHER);
 }
 
 unique_gather_kernel_selector& unique_gather_kernel_selector::Instance() {

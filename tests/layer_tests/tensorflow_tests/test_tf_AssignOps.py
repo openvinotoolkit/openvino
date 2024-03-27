@@ -16,15 +16,15 @@ OPS = {
 
 class TestAssignOps(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'x' in inputs_info, "Test error: inputs_info must contain `x`"
-        x_shape = inputs_info['x']
+        assert 'x:0' in inputs_info, "Test error: inputs_info must contain `x`"
+        x_shape = inputs_info['x:0']
         inputs_data = {}
         if np.issubdtype(self.input_type, np.floating):
-            inputs_data['x'] = rng.uniform(-2.0, 2.0, x_shape).astype(self.input_type)
+            inputs_data['x:0'] = rng.uniform(-2.0, 2.0, x_shape).astype(self.input_type)
         elif np.issubdtype(self.input_type, np.signedinteger):
-            inputs_data['x'] = rng.integers(-8, 8, x_shape).astype(self.input_type)
+            inputs_data['x:0'] = rng.integers(-8, 8, x_shape).astype(self.input_type)
         else:
-            inputs_data['x'] = rng.integers(0, 8, x_shape).astype(self.input_type)
+            inputs_data['x:0'] = rng.integers(0, 8, x_shape).astype(self.input_type)
         return inputs_data
 
     def create_assign_net(self, const_shape, input_type):

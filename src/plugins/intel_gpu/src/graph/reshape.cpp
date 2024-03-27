@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <string>
@@ -110,7 +110,7 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
                 break;
             }
             default:
-                OPENVINO_ASSERT("Unsupported reshape mode");
+                OPENVINO_THROW("Unsupported reshape mode");
         }
     };
 
@@ -203,10 +203,14 @@ void reshape_inst::update_output_memory() {
     if (!can_be_optimized())
         return;
 
-    if (_outputs[0] && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+    if (_outputs[0] && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()) &&
+        output_memory().get_layout() == _impl_params->get_output_layout())
         return;
 
     build_deps();  // reshape need deps
+    if (node->get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer) &&
+        input_memory_ptr() == nullptr)
+        return;
     OPENVINO_ASSERT(input_memory_ptr() != nullptr, "[GPU] Failed to reuse input in ", id(), " primitive: input memory was not allocated");
     _outputs = {_network.get_engine().reinterpret_buffer(input_memory(), _impl_params->get_output_layout())};
 }

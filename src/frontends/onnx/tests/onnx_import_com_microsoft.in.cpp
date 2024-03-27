@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1261,4 +1261,18 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_trilu_lower) {
     test_case.run();
 
     // clang-format on
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_nd) {
+    const auto model = convert_model("com.microsoft/gather_nd.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<int> data{0, 1, 2, 3};
+    const std::vector<int> indices{0, 0, 1, 1};
+    const std::vector<int> output{0, 3};
+
+    test_case.add_input<int>(Shape{2, 2}, data);
+    test_case.add_input<int>(Shape{2, 2}, indices);
+    test_case.add_expected_output<int>(Shape{2}, output);
+    test_case.run_with_tolerance_as_fp();
 }

@@ -24,7 +24,7 @@ public:
 
     mvn_kernel_selector();
 
-    KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
+    KernelsData GetBestKernels(const Params& params) const override;
 }
 
 // The list of available kernels is usually specified in kernel_selector c-tor using `Attach` method whith creates instance of each type
@@ -41,7 +41,7 @@ mvn_kernel_selector::mvn_kernel_selector() {
 // There are 2 base methods to pick optimal kernels: `GetNaiveBestKernel` and `GetAutoTuneBestKernel`
 // If kernel supports auto tuning, then it uses `GetAutoTuneBestKernel`, otherwise, it uses `GetNaiveBestKernel`
 // parameterized with `KernelType` which specifies the operation type which is implemented by the specific kernel selector
-KernelsData mvn_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
+KernelsData mvn_kernel_selector::GetBestKernels(const Params& params) const {
     return GetNaiveBestKernel(params, options, KernelType::MVN);
 }
 ```
@@ -52,7 +52,7 @@ The caller code looks as follows:
 // Get static instance of the kernel_selector
 auto& kernel_selector = kernel_selector::mvn_kernel_selector::Instance();
 // Run some heuristics to pick the best mvn kernel for given `mvn_params`
-auto best_kernels = kernel_selector.GetBestKernels(mvn_params, mvn_optional_params);
+auto best_kernels = kernel_selector.GetBestKernels(mvn_params);
 ```
 
 ## Operation parameters
@@ -112,7 +112,7 @@ class MVNKernelRef : public MVNKernelBase {
 public:
     MVNKernelRef() : MVNKernelBase("mvn_gpu_ref") {} // mvn_gpu_ref is the name of the file with kernel template in cl_kernels/ folder without .cl extension
     // Returns the kernel specified for input parameters if the implementation can process it
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
     // Returns `ParamsKey` for current implementation for quick applicability check
     ParamsKey GetSupportedKey() const override;
 
