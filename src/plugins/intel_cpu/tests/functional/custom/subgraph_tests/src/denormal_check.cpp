@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,10 +65,10 @@ TEST_F(DenormalNullifyCheck, smoke_CPU_Denormal_Check) {
     constexpr unsigned denormalsCount = 15u;
     constexpr uint32_t denormalsRange = (0xffffffffu >> 9u) - 1;
     testing::internal::Random random(seed);
-    auto randomRange = NGraphFunctions::Utils::generateVector<ov::element::f32>(elemsCount, 10, -10);
+    auto randomRange = ov::test::utils::generateVector<ov::element::f32>(elemsCount, 10, -10);
 
     for (auto& interval : intervals) {
-        auto randomIndices = NGraphFunctions::Utils::generateVector<ov::element::u32>(denormalsCount, interval.second, interval.first);
+        auto randomIndices = ov::test::utils::generateVector<ov::element::u32>(denormalsCount, interval.second, interval.first);
         std::unordered_set<decltype(randomIndices)::value_type> randomIndexSet(randomIndices.begin(), randomIndices.end());
         for (size_t i = 0; i < elemsCount; ++i) {
             if (randomIndexSet.count(i)) {

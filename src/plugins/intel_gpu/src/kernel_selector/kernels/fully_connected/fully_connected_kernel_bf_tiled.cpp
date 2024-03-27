@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -178,12 +178,13 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
         return false;
 
     if (tparams.kernel_type == FullyConnected_bf_tiled::KernelType::SLM) {
+        bool is_i4_u4 = (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4);
         const auto required_batch_alignment = 64;
         if (!params.is_shape_agnostic && (!IsAligned(output_b, required_batch_alignment) || output_b < 256))
             return false;
 
         const auto required_tile_b = 8;
-        if (tparams.tile_b != required_tile_b)
+        if ((tparams.tile_b != required_tile_b) && !is_i4_u4)
             return false;
 
         const auto required_tile_ofm = 2;
@@ -248,6 +249,10 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
         } else {
             // Try to use SLM kernels if possible
             if (preferred_kernel_type != KernelType::DEFAULT) {
+                if (params.is_shape_agnostic) {
+                    selector.Case(tune_params(16, 2, 2, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
+                            .Case(tune_params(16, 2, 1, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
+                }
                 selector.Case(tune_params(8, 2, 2, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
                         .Case(tune_params(8, 2, 1, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
             }

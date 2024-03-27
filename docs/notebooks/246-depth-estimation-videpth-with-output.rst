@@ -122,13 +122,7 @@ Imports
 
     # Download the correct version of the PyTorch deep learning library associated with image models
     # alongside the lightning module
-    %pip uninstall -q -y openvino-dev openvino openvino-nightly
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "pytorch-lightning" "timm>=0.6.12" "openvino-nightly"
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
+    %pip install -q "openvino>=2024.0.0" --extra-index-url https://download.pytorch.org/whl/cpu "pytorch-lightning" "timm>=0.6.12"
 
 
 .. parsed-literal::
@@ -139,7 +133,7 @@ Imports
 .. parsed-literal::
 
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    googleapis-common-protos 1.62.0 requires protobuf!=3.20.0,!=3.20.1,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<5.0.0.dev0,>=3.19.5, but you have protobuf 3.20.1 which is incompatible.
+    googleapis-common-protos 1.63.0 requires protobuf!=3.20.0,!=3.20.1,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<5.0.0.dev0,>=3.19.5, but you have protobuf 3.20.1 which is incompatible.
     onnx 1.15.0 requires protobuf>=3.20.2, but you have protobuf 3.20.1 which is incompatible.
     paddlepaddle 2.6.0 requires protobuf>=3.20.2; platform_system != "Windows", but you have protobuf 3.20.1 which is incompatible.
     tensorflow 2.12.0 requires protobuf!=4.21.0,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<5.0.0dev,>=3.20.3, but you have protobuf 3.20.1 which is incompatible.
@@ -220,7 +214,6 @@ depth prediction model as you will see.
 \*Also available with pre-training on TartanAir:
 `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_hybrid.nsamples.150.pretrained.ckpt>`__
 
-
 .. code:: ipython3
 
     # Base directory in which models would be stored as a pathlib.Path variable
@@ -297,7 +290,7 @@ depth prediction model as you will see.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/hub.py:294: UserWarning: You are about to download and run code from an untrusted repository. In a future release, this won't be allowed. To add the repository to your trusted list, change the command to {calling_fn}(..., trust_repo=False) and a command prompt will appear asking for an explicit confirmation of trust, or load(..., trust_repo=True), which will assume that the prompt is to be answered with 'yes'. You can also use load(..., trust_repo='check') which will only prompt for confirmation if the repo is not already trusted. This will eventually be the default behaviour
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/hub.py:294: UserWarning: You are about to download and run code from an untrusted repository. In a future release, this won't be allowed. To add the repository to your trusted list, change the command to {calling_fn}(..., trust_repo=False) and a command prompt will appear asking for an explicit confirmation of trust, or load(..., trust_repo=True), which will assume that the prompt is to be answered with 'yes'. You can also use load(..., trust_repo='check') which will only prompt for confirmation if the repo is not already trusted. This will eventually be the default behaviour
       warnings.warn(
     Downloading: "https://github.com/rwightman/gen-efficientnet-pytorch/zipball/master" to model/master.zip
 
@@ -320,1033 +313,92 @@ depth prediction model as you will see.
 .. parsed-literal::
 
 
-  0%|          | 320k/81.8M [00:00<00:27, 3.15MB/s]
+  0%|          | 320k/81.8M [00:00<00:26, 3.27MB/s]
 
 .. parsed-literal::
 
 
-  1%|          | 720k/81.8M [00:00<00:23, 3.68MB/s]
+  3%|▎         | 2.75M/81.8M [00:00<00:05, 16.4MB/s]
 
 .. parsed-literal::
 
 
-  1%|▏         | 1.08M/81.8M [00:00<00:22, 3.78MB/s]
+  9%|▉         | 7.59M/81.8M [00:00<00:02, 32.1MB/s]
 
 .. parsed-literal::
 
 
-  2%|▏         | 1.47M/81.8M [00:00<00:21, 3.88MB/s]
+ 21%|██        | 16.8M/81.8M [00:00<00:01, 57.5MB/s]
 
 .. parsed-literal::
 
 
-  2%|▏         | 1.86M/81.8M [00:00<00:21, 3.83MB/s]
+ 27%|██▋       | 22.3M/81.8M [00:00<00:01, 52.9MB/s]
 
 .. parsed-literal::
 
 
-  3%|▎         | 2.27M/81.8M [00:00<00:21, 3.95MB/s]
+ 33%|███▎      | 27.4M/81.8M [00:00<00:01, 50.4MB/s]
 
 .. parsed-literal::
 
 
-  3%|▎         | 2.67M/81.8M [00:00<00:20, 4.05MB/s]
+ 39%|███▉      | 32.3M/81.8M [00:00<00:01, 42.1MB/s]
 
 .. parsed-literal::
 
 
-  4%|▎         | 3.06M/81.8M [00:00<00:23, 3.55MB/s]
+ 46%|████▋     | 38.0M/81.8M [00:00<00:00, 46.9MB/s]
 
 .. parsed-literal::
 
 
-  4%|▍         | 3.44M/81.8M [00:00<00:23, 3.53MB/s]
+ 52%|█████▏    | 42.7M/81.8M [00:01<00:00, 46.3MB/s]
 
 .. parsed-literal::
 
 
-  5%|▍         | 3.86M/81.8M [00:01<00:21, 3.76MB/s]
+ 58%|█████▊    | 47.3M/81.8M [00:01<00:00, 45.9MB/s]
 
 .. parsed-literal::
 
 
-  5%|▌         | 4.27M/81.8M [00:01<00:21, 3.84MB/s]
+ 63%|██████▎   | 51.8M/81.8M [00:01<00:00, 45.4MB/s]
 
 .. parsed-literal::
 
 
-  6%|▌         | 4.66M/81.8M [00:01<00:20, 3.90MB/s]
+ 69%|██████▊   | 56.2M/81.8M [00:01<00:00, 45.0MB/s]
 
 .. parsed-literal::
 
 
-  6%|▌         | 5.05M/81.8M [00:01<00:21, 3.81MB/s]
+ 74%|███████▍  | 60.5M/81.8M [00:01<00:00, 41.8MB/s]
 
 .. parsed-literal::
 
 
-  7%|▋         | 5.45M/81.8M [00:01<00:20, 3.94MB/s]
+ 79%|███████▉  | 64.6M/81.8M [00:01<00:00, 41.9MB/s]
 
 .. parsed-literal::
 
 
-  7%|▋         | 5.86M/81.8M [00:01<00:19, 4.03MB/s]
+ 84%|████████▍ | 68.9M/81.8M [00:01<00:00, 42.8MB/s]
 
 .. parsed-literal::
 
 
-  8%|▊         | 6.25M/81.8M [00:01<00:19, 4.01MB/s]
+ 89%|████████▉ | 73.0M/81.8M [00:01<00:00, 42.6MB/s]
 
 .. parsed-literal::
 
 
-  8%|▊         | 6.64M/81.8M [00:01<00:19, 4.02MB/s]
+ 94%|█████████▍| 77.1M/81.8M [00:01<00:00, 35.0MB/s]
 
 .. parsed-literal::
 
 
-  9%|▊         | 7.03M/81.8M [00:01<00:20, 3.89MB/s]
-
-.. parsed-literal::
-
-
-  9%|▉         | 7.43M/81.8M [00:02<00:19, 3.97MB/s]
-
-.. parsed-literal::
-
-
- 10%|▉         | 7.84M/81.8M [00:02<00:19, 4.07MB/s]
-
-.. parsed-literal::
-
-
- 10%|█         | 8.23M/81.8M [00:02<00:19, 4.03MB/s]
-
-.. parsed-literal::
-
-
- 11%|█         | 8.64M/81.8M [00:02<00:18, 4.05MB/s]
-
-.. parsed-literal::
-
-
- 11%|█         | 9.03M/81.8M [00:02<00:19, 3.92MB/s]
-
-.. parsed-literal::
-
-
- 12%|█▏        | 9.45M/81.8M [00:02<00:18, 4.06MB/s]
-
-.. parsed-literal::
-
-
- 12%|█▏        | 9.84M/81.8M [00:02<00:18, 4.01MB/s]
-
-.. parsed-literal::
-
-
- 13%|█▎        | 10.2M/81.8M [00:02<00:18, 4.05MB/s]
-
-.. parsed-literal::
-
-
- 13%|█▎        | 10.6M/81.8M [00:02<00:19, 3.92MB/s]
-
-.. parsed-literal::
-
-
- 13%|█▎        | 11.0M/81.8M [00:02<00:19, 3.86MB/s]
-
-.. parsed-literal::
-
-
- 14%|█▍        | 11.4M/81.8M [00:03<00:18, 3.97MB/s]
-
-.. parsed-literal::
-
-
- 14%|█▍        | 11.8M/81.8M [00:03<00:18, 4.04MB/s]
-
-.. parsed-literal::
-
-
- 15%|█▍        | 12.2M/81.8M [00:03<00:17, 4.10MB/s]
-
-.. parsed-literal::
-
-
- 15%|█▌        | 12.6M/81.8M [00:03<00:18, 3.99MB/s]
-
-.. parsed-literal::
-
-
- 16%|█▌        | 13.0M/81.8M [00:03<00:18, 3.91MB/s]
-
-.. parsed-literal::
-
-
- 16%|█▋        | 13.4M/81.8M [00:03<00:17, 4.01MB/s]
-
-.. parsed-literal::
-
-
- 17%|█▋        | 13.8M/81.8M [00:03<00:17, 4.07MB/s]
-
-.. parsed-literal::
-
-
- 17%|█▋        | 14.2M/81.8M [00:03<00:17, 4.11MB/s]
-
-.. parsed-literal::
-
-
- 18%|█▊        | 14.6M/81.8M [00:03<00:18, 3.91MB/s]
-
-.. parsed-literal::
-
-
- 18%|█▊        | 15.0M/81.8M [00:04<00:17, 3.98MB/s]
-
-.. parsed-literal::
-
-
- 19%|█▉        | 15.5M/81.8M [00:04<00:17, 4.09MB/s]
-
-.. parsed-literal::
-
-
- 19%|█▉        | 15.9M/81.8M [00:04<00:17, 3.91MB/s]
-
-.. parsed-literal::
-
-
- 20%|█▉        | 16.2M/81.8M [00:04<00:17, 3.95MB/s]
-
-.. parsed-literal::
-
-
- 20%|██        | 16.7M/81.8M [00:04<00:16, 4.03MB/s]
-
-.. parsed-literal::
-
-
- 21%|██        | 17.1M/81.8M [00:04<00:16, 4.08MB/s]
-
-.. parsed-literal::
-
-
- 21%|██▏       | 17.5M/81.8M [00:04<00:16, 4.02MB/s]
-
-.. parsed-literal::
-
-
- 22%|██▏       | 17.9M/81.8M [00:04<00:17, 3.93MB/s]
-
-.. parsed-literal::
-
-
- 22%|██▏       | 18.2M/81.8M [00:04<00:16, 3.96MB/s]
-
-.. parsed-literal::
-
-
- 23%|██▎       | 18.7M/81.8M [00:04<00:16, 4.10MB/s]
-
-.. parsed-literal::
-
-
- 23%|██▎       | 19.1M/81.8M [00:05<00:16, 4.04MB/s]
-
-.. parsed-literal::
-
-
- 24%|██▍       | 19.5M/81.8M [00:05<00:16, 3.95MB/s]
-
-.. parsed-literal::
-
-
- 24%|██▍       | 19.9M/81.8M [00:05<00:16, 3.97MB/s]
-
-.. parsed-literal::
-
-
- 25%|██▍       | 20.2M/81.8M [00:05<00:16, 4.00MB/s]
-
-.. parsed-literal::
-
-
- 25%|██▌       | 20.7M/81.8M [00:05<00:15, 4.07MB/s]
-
-.. parsed-literal::
-
-
- 26%|██▌       | 21.1M/81.8M [00:05<00:16, 3.98MB/s]
-
-.. parsed-literal::
-
-
- 26%|██▌       | 21.5M/81.8M [00:05<00:15, 3.97MB/s]
-
-.. parsed-literal::
-
-
- 27%|██▋       | 21.9M/81.8M [00:05<00:15, 4.00MB/s]
-
-.. parsed-literal::
-
-
- 27%|██▋       | 22.2M/81.8M [00:05<00:15, 4.02MB/s]
-
-.. parsed-literal::
-
-
- 28%|██▊       | 22.7M/81.8M [00:06<00:15, 4.03MB/s]
-
-.. parsed-literal::
-
-
- 28%|██▊       | 23.1M/81.8M [00:06<00:15, 3.99MB/s]
-
-.. parsed-literal::
-
-
- 29%|██▊       | 23.5M/81.8M [00:06<00:15, 4.00MB/s]
-
-.. parsed-literal::
-
-
- 29%|██▉       | 23.9M/81.8M [00:06<00:15, 4.04MB/s]
-
-.. parsed-literal::
-
-
- 30%|██▉       | 24.3M/81.8M [00:06<00:14, 4.03MB/s]
-
-.. parsed-literal::
-
-
- 30%|███       | 24.7M/81.8M [00:06<00:14, 4.04MB/s]
-
-.. parsed-literal::
-
-
- 31%|███       | 25.1M/81.8M [00:06<00:14, 3.98MB/s]
-
-.. parsed-literal::
-
-
- 31%|███       | 25.5M/81.8M [00:06<00:14, 3.99MB/s]
-
-.. parsed-literal::
-
-
- 32%|███▏      | 25.9M/81.8M [00:06<00:14, 4.04MB/s]
-
-.. parsed-literal::
-
-
- 32%|███▏      | 26.2M/81.8M [00:06<00:14, 4.06MB/s]
-
-.. parsed-literal::
-
-
- 33%|███▎      | 26.6M/81.8M [00:07<00:14, 4.04MB/s]
-
-.. parsed-literal::
-
-
- 33%|███▎      | 27.0M/81.8M [00:07<00:14, 4.04MB/s]
-
-.. parsed-literal::
-
-
- 34%|███▎      | 27.4M/81.8M [00:07<00:14, 3.96MB/s]
-
-.. parsed-literal::
-
-
- 34%|███▍      | 27.8M/81.8M [00:07<00:14, 3.96MB/s]
-
-.. parsed-literal::
-
-
- 35%|███▍      | 28.2M/81.8M [00:07<00:13, 4.03MB/s]
-
-.. parsed-literal::
-
-
- 35%|███▍      | 28.6M/81.8M [00:07<00:13, 4.03MB/s]
-
-.. parsed-literal::
-
-
- 35%|███▌      | 29.0M/81.8M [00:07<00:13, 4.04MB/s]
-
-.. parsed-literal::
-
-
- 36%|███▌      | 29.4M/81.8M [00:07<00:13, 4.04MB/s]
-
-.. parsed-literal::
-
-
- 36%|███▋      | 29.8M/81.8M [00:07<00:13, 3.97MB/s]
-
-.. parsed-literal::
-
-
- 37%|███▋      | 30.2M/81.8M [00:07<00:13, 3.98MB/s]
-
-.. parsed-literal::
-
-
- 37%|███▋      | 30.6M/81.8M [00:08<00:13, 3.99MB/s]
-
-.. parsed-literal::
-
-
- 38%|███▊      | 31.0M/81.8M [00:08<00:13, 4.02MB/s]
-
-.. parsed-literal::
-
-
- 38%|███▊      | 31.4M/81.8M [00:08<00:13, 4.04MB/s]
-
-.. parsed-literal::
-
-
- 39%|███▉      | 31.8M/81.8M [00:08<00:12, 4.04MB/s]
-
-.. parsed-literal::
-
-
- 39%|███▉      | 32.1M/81.8M [00:08<00:13, 3.97MB/s]
-
-.. parsed-literal::
-
-
- 40%|███▉      | 32.5M/81.8M [00:08<00:12, 3.99MB/s]
-
-.. parsed-literal::
-
-
- 40%|████      | 32.9M/81.8M [00:08<00:12, 3.99MB/s]
-
-.. parsed-literal::
-
-
- 41%|████      | 33.3M/81.8M [00:08<00:12, 4.06MB/s]
-
-.. parsed-literal::
-
-
- 41%|████      | 33.7M/81.8M [00:08<00:12, 4.06MB/s]
-
-.. parsed-literal::
-
-
- 42%|████▏     | 34.1M/81.8M [00:09<00:12, 3.99MB/s]
-
-.. parsed-literal::
-
-
- 42%|████▏     | 34.5M/81.8M [00:09<00:12, 4.00MB/s]
-
-.. parsed-literal::
-
-
- 43%|████▎     | 34.9M/81.8M [00:09<00:12, 3.99MB/s]
-
-.. parsed-literal::
-
-
- 43%|████▎     | 35.3M/81.8M [00:09<00:12, 4.01MB/s]
-
-.. parsed-literal::
-
-
- 44%|████▎     | 35.7M/81.8M [00:09<00:11, 4.07MB/s]
-
-.. parsed-literal::
-
-
- 44%|████▍     | 36.1M/81.8M [00:09<00:11, 4.06MB/s]
-
-.. parsed-literal::
-
-
- 45%|████▍     | 36.5M/81.8M [00:09<00:11, 4.05MB/s]
-
-.. parsed-literal::
-
-
- 45%|████▌     | 36.9M/81.8M [00:09<00:11, 3.94MB/s]
-
-.. parsed-literal::
-
-
- 46%|████▌     | 37.3M/81.8M [00:09<00:11, 3.98MB/s]
-
-.. parsed-literal::
-
-
- 46%|████▌     | 37.7M/81.8M [00:09<00:11, 4.00MB/s]
-
-.. parsed-literal::
-
-
- 47%|████▋     | 38.1M/81.8M [00:10<00:11, 4.07MB/s]
-
-.. parsed-literal::
-
-
- 47%|████▋     | 38.5M/81.8M [00:10<00:11, 4.05MB/s]
-
-.. parsed-literal::
-
-
- 47%|████▋     | 38.8M/81.8M [00:10<00:11, 4.04MB/s]
-
-.. parsed-literal::
-
-
- 48%|████▊     | 39.2M/81.8M [00:10<00:11, 3.98MB/s]
-
-.. parsed-literal::
-
-
- 48%|████▊     | 39.6M/81.8M [00:10<00:11, 3.98MB/s]
-
-.. parsed-literal::
-
-
- 49%|████▉     | 40.0M/81.8M [00:10<00:11, 3.97MB/s]
-
-.. parsed-literal::
-
-
- 49%|████▉     | 40.4M/81.8M [00:10<00:10, 4.03MB/s]
-
-.. parsed-literal::
-
-
- 50%|████▉     | 40.8M/81.8M [00:10<00:10, 4.06MB/s]
-
-.. parsed-literal::
-
-
- 50%|█████     | 41.2M/81.8M [00:10<00:10, 4.03MB/s]
-
-.. parsed-literal::
-
-
- 51%|█████     | 41.6M/81.8M [00:10<00:10, 3.96MB/s]
-
-.. parsed-literal::
-
-
- 51%|█████▏    | 42.0M/81.8M [00:11<00:10, 3.97MB/s]
-
-.. parsed-literal::
-
-
- 52%|█████▏    | 42.4M/81.8M [00:11<00:10, 4.00MB/s]
-
-.. parsed-literal::
-
-
- 52%|█████▏    | 42.8M/81.8M [00:11<00:10, 4.06MB/s]
-
-.. parsed-literal::
-
-
- 53%|█████▎    | 43.2M/81.8M [00:11<00:09, 4.05MB/s]
-
-.. parsed-literal::
-
-
- 53%|█████▎    | 43.6M/81.8M [00:11<00:09, 4.05MB/s]
-
-.. parsed-literal::
-
-
- 54%|█████▎    | 44.0M/81.8M [00:11<00:09, 3.99MB/s]
-
-.. parsed-literal::
-
-
- 54%|█████▍    | 44.3M/81.8M [00:11<00:09, 3.94MB/s]
-
-.. parsed-literal::
-
-
- 55%|█████▍    | 44.8M/81.8M [00:11<00:09, 4.03MB/s]
-
-.. parsed-literal::
-
-
- 55%|█████▌    | 45.2M/81.8M [00:11<00:09, 4.08MB/s]
-
-.. parsed-literal::
-
-
- 56%|█████▌    | 45.5M/81.8M [00:11<00:09, 4.03MB/s]
-
-.. parsed-literal::
-
-
- 56%|█████▌    | 45.9M/81.8M [00:12<00:09, 3.99MB/s]
-
-.. parsed-literal::
-
-
- 57%|█████▋    | 46.3M/81.8M [00:12<00:09, 3.98MB/s]
-
-.. parsed-literal::
-
-
- 57%|█████▋    | 46.7M/81.8M [00:12<00:09, 3.97MB/s]
-
-.. parsed-literal::
-
-
- 58%|█████▊    | 47.1M/81.8M [00:12<00:08, 4.05MB/s]
-
-.. parsed-literal::
-
-
- 58%|█████▊    | 47.5M/81.8M [00:12<00:08, 4.04MB/s]
-
-.. parsed-literal::
-
-
- 59%|█████▊    | 47.9M/81.8M [00:12<00:08, 4.00MB/s]
-
-.. parsed-literal::
-
-
- 59%|█████▉    | 48.3M/81.8M [00:12<00:08, 3.98MB/s]
-
-.. parsed-literal::
-
-
- 60%|█████▉    | 48.7M/81.8M [00:12<00:08, 3.98MB/s]
-
-.. parsed-literal::
-
-
- 60%|██████    | 49.1M/81.8M [00:12<00:08, 4.08MB/s]
-
-.. parsed-literal::
-
-
- 61%|██████    | 49.5M/81.8M [00:13<00:08, 4.03MB/s]
-
-.. parsed-literal::
-
-
- 61%|██████    | 49.9M/81.8M [00:13<00:08, 4.03MB/s]
-
-.. parsed-literal::
-
-
- 61%|██████▏   | 50.3M/81.8M [00:13<00:08, 3.98MB/s]
-
-.. parsed-literal::
-
-
- 62%|██████▏   | 50.7M/81.8M [00:13<00:08, 3.91MB/s]
-
-.. parsed-literal::
-
-
- 62%|██████▏   | 51.1M/81.8M [00:13<00:08, 4.02MB/s]
-
-.. parsed-literal::
-
-
- 63%|██████▎   | 51.5M/81.8M [00:13<00:07, 4.08MB/s]
-
-.. parsed-literal::
-
-
- 63%|██████▎   | 51.9M/81.8M [00:13<00:07, 4.03MB/s]
-
-.. parsed-literal::
-
-
- 64%|██████▍   | 52.3M/81.8M [00:13<00:07, 3.91MB/s]
-
-.. parsed-literal::
-
-
- 64%|██████▍   | 52.7M/81.8M [00:13<00:07, 4.01MB/s]
-
-.. parsed-literal::
-
-
- 65%|██████▍   | 53.1M/81.8M [00:13<00:07, 4.04MB/s]
-
-.. parsed-literal::
-
-
- 65%|██████▌   | 53.5M/81.8M [00:14<00:07, 4.05MB/s]
-
-.. parsed-literal::
-
-
- 66%|██████▌   | 53.9M/81.8M [00:14<00:07, 4.02MB/s]
-
-.. parsed-literal::
-
-
- 66%|██████▋   | 54.3M/81.8M [00:14<00:07, 3.93MB/s]
-
-.. parsed-literal::
-
-
- 67%|██████▋   | 54.7M/81.8M [00:14<00:07, 4.01MB/s]
-
-.. parsed-literal::
-
-
- 67%|██████▋   | 55.1M/81.8M [00:14<00:06, 4.02MB/s]
-
-.. parsed-literal::
-
-
- 68%|██████▊   | 55.5M/81.8M [00:14<00:06, 4.08MB/s]
-
-.. parsed-literal::
-
-
- 68%|██████▊   | 55.9M/81.8M [00:14<00:06, 4.04MB/s]
-
-.. parsed-literal::
-
-
- 69%|██████▉   | 56.3M/81.8M [00:14<00:06, 3.93MB/s]
-
-.. parsed-literal::
-
-
- 69%|██████▉   | 56.7M/81.8M [00:14<00:06, 3.98MB/s]
-
-.. parsed-literal::
-
-
- 70%|██████▉   | 57.1M/81.8M [00:14<00:06, 4.04MB/s]
-
-.. parsed-literal::
-
-
- 70%|███████   | 57.5M/81.8M [00:15<00:06, 4.04MB/s]
-
-.. parsed-literal::
-
-
- 71%|███████   | 57.9M/81.8M [00:15<00:06, 4.06MB/s]
-
-.. parsed-literal::
-
-
- 71%|███████   | 58.3M/81.8M [00:15<00:06, 3.94MB/s]
-
-.. parsed-literal::
-
-
- 72%|███████▏  | 58.7M/81.8M [00:15<00:06, 3.98MB/s]
-
-.. parsed-literal::
-
-
- 72%|███████▏  | 59.0M/81.8M [00:15<00:05, 4.01MB/s]
-
-.. parsed-literal::
-
-
- 73%|███████▎  | 59.4M/81.8M [00:15<00:06, 3.76MB/s]
-
-.. parsed-literal::
-
-
- 73%|███████▎  | 59.9M/81.8M [00:15<00:05, 3.97MB/s]
-
-.. parsed-literal::
-
-
- 74%|███████▎  | 60.3M/81.8M [00:15<00:05, 4.09MB/s]
-
-.. parsed-literal::
-
-
- 74%|███████▍  | 60.7M/81.8M [00:15<00:05, 3.84MB/s]
-
-.. parsed-literal::
-
-
- 75%|███████▍  | 61.1M/81.8M [00:16<00:05, 3.98MB/s]
-
-.. parsed-literal::
-
-
- 75%|███████▌  | 61.5M/81.8M [00:16<00:05, 4.09MB/s]
-
-.. parsed-literal::
-
-
- 76%|███████▌  | 61.9M/81.8M [00:16<00:05, 3.88MB/s]
-
-.. parsed-literal::
-
-
- 76%|███████▌  | 62.3M/81.8M [00:16<00:05, 3.90MB/s]
-
-.. parsed-literal::
-
-
- 77%|███████▋  | 62.7M/81.8M [00:16<00:04, 4.09MB/s]
-
-.. parsed-literal::
-
-
- 77%|███████▋  | 63.1M/81.8M [00:16<00:05, 3.89MB/s]
-
-.. parsed-literal::
-
-
- 78%|███████▊  | 63.5M/81.8M [00:16<00:04, 3.93MB/s]
-
-.. parsed-literal::
-
-
- 78%|███████▊  | 63.9M/81.8M [00:16<00:04, 3.98MB/s]
-
-.. parsed-literal::
-
-
- 79%|███████▊  | 64.3M/81.8M [00:16<00:04, 4.10MB/s]
-
-.. parsed-literal::
-
-
- 79%|███████▉  | 64.8M/81.8M [00:17<00:04, 3.95MB/s]
-
-.. parsed-literal::
-
-
- 80%|███████▉  | 65.2M/81.8M [00:17<00:04, 3.97MB/s]
-
-.. parsed-literal::
-
-
- 80%|████████  | 65.6M/81.8M [00:17<00:04, 4.05MB/s]
-
-.. parsed-literal::
-
-
- 81%|████████  | 66.0M/81.8M [00:17<00:03, 4.18MB/s]
-
-.. parsed-literal::
-
-
- 81%|████████  | 66.4M/81.8M [00:17<00:04, 3.93MB/s]
-
-.. parsed-literal::
-
-
- 82%|████████▏ | 66.8M/81.8M [00:17<00:03, 4.00MB/s]
-
-.. parsed-literal::
-
-
- 82%|████████▏ | 67.2M/81.8M [00:17<00:03, 4.15MB/s]
-
-.. parsed-literal::
-
-
- 83%|████████▎ | 67.6M/81.8M [00:17<00:03, 3.93MB/s]
-
-.. parsed-literal::
-
-
- 83%|████████▎ | 68.0M/81.8M [00:17<00:03, 3.93MB/s]
-
-.. parsed-literal::
-
-
- 84%|████████▎ | 68.4M/81.8M [00:17<00:03, 3.95MB/s]
-
-.. parsed-literal::
-
-
- 84%|████████▍ | 68.8M/81.8M [00:18<00:04, 3.23MB/s]
-
-.. parsed-literal::
-
-
- 85%|████████▍ | 69.2M/81.8M [00:18<00:03, 3.47MB/s]
-
-.. parsed-literal::
-
-
- 85%|████████▌ | 69.6M/81.8M [00:18<00:03, 3.44MB/s]
-
-.. parsed-literal::
-
-
- 86%|████████▌ | 70.0M/81.8M [00:18<00:03, 3.65MB/s]
-
-.. parsed-literal::
-
-
- 86%|████████▌ | 70.4M/81.8M [00:18<00:03, 3.81MB/s]
-
-.. parsed-literal::
-
-
- 87%|████████▋ | 70.8M/81.8M [00:18<00:03, 3.74MB/s]
-
-.. parsed-literal::
-
-
- 87%|████████▋ | 71.2M/81.8M [00:18<00:02, 3.84MB/s]
-
-.. parsed-literal::
-
-
- 88%|████████▊ | 71.7M/81.8M [00:18<00:02, 4.00MB/s]
-
-.. parsed-literal::
-
-
- 88%|████████▊ | 72.1M/81.8M [00:19<00:02, 4.11MB/s]
-
-.. parsed-literal::
-
-
- 89%|████████▊ | 72.5M/81.8M [00:19<00:02, 3.87MB/s]
-
-.. parsed-literal::
-
-
- 89%|████████▉ | 72.9M/81.8M [00:19<00:02, 3.99MB/s]
-
-.. parsed-literal::
-
-
- 90%|████████▉ | 73.3M/81.8M [00:19<00:02, 4.07MB/s]
-
-.. parsed-literal::
-
-
- 90%|█████████ | 73.7M/81.8M [00:19<00:02, 3.88MB/s]
-
-.. parsed-literal::
-
-
- 91%|█████████ | 74.1M/81.8M [00:19<00:02, 3.93MB/s]
-
-.. parsed-literal::
-
-
- 91%|█████████ | 74.5M/81.8M [00:19<00:01, 4.02MB/s]
-
-.. parsed-literal::
-
-
- 92%|█████████▏| 74.9M/81.8M [00:19<00:01, 4.13MB/s]
-
-.. parsed-literal::
-
-
- 92%|█████████▏| 75.3M/81.8M [00:19<00:01, 3.93MB/s]
-
-.. parsed-literal::
-
-
- 93%|█████████▎| 75.7M/81.8M [00:19<00:01, 3.93MB/s]
-
-.. parsed-literal::
-
-
- 93%|█████████▎| 76.1M/81.8M [00:20<00:01, 3.98MB/s]
-
-.. parsed-literal::
-
-
- 94%|█████████▎| 76.5M/81.8M [00:20<00:01, 4.10MB/s]
-
-.. parsed-literal::
-
-
- 94%|█████████▍| 76.9M/81.8M [00:20<00:01, 4.15MB/s]
-
-.. parsed-literal::
-
-
- 95%|█████████▍| 77.3M/81.8M [00:20<00:01, 3.94MB/s]
-
-.. parsed-literal::
-
-
- 95%|█████████▌| 77.7M/81.8M [00:20<00:01, 3.94MB/s]
-
-.. parsed-literal::
-
-
- 96%|█████████▌| 78.1M/81.8M [00:20<00:00, 4.03MB/s]
-
-.. parsed-literal::
-
-
- 96%|█████████▌| 78.5M/81.8M [00:20<00:00, 4.14MB/s]
-
-.. parsed-literal::
-
-
- 97%|█████████▋| 78.9M/81.8M [00:20<00:00, 3.93MB/s]
-
-.. parsed-literal::
-
-
- 97%|█████████▋| 79.3M/81.8M [00:20<00:00, 3.94MB/s]
-
-.. parsed-literal::
-
-
- 97%|█████████▋| 79.7M/81.8M [00:21<00:00, 3.98MB/s]
-
-.. parsed-literal::
-
-
- 98%|█████████▊| 80.1M/81.8M [00:21<00:00, 4.11MB/s]
-
-.. parsed-literal::
-
-
- 98%|█████████▊| 80.5M/81.8M [00:21<00:00, 3.93MB/s]
-
-.. parsed-literal::
-
-
- 99%|█████████▉| 80.9M/81.8M [00:21<00:00, 3.97MB/s]
-
-.. parsed-literal::
-
-
- 99%|█████████▉| 81.3M/81.8M [00:21<00:00, 4.00MB/s]
-
-.. parsed-literal::
-
-
-   100%|█████████▉| 81.7M/81.8M [00:21<00:00, 4.07MB/s]
-
-.. parsed-literal::
-
-
-   100%|██████████| 81.8M/81.8M [00:21<00:00, 3.98MB/s]
-
+   100%|██████████| 81.8M/81.8M [00:01<00:00, 43.0MB/s]
 
 
 Cleaning up the model directory
@@ -1778,14 +830,14 @@ common format of all checkpoint files from the model releases.
 
 .. parsed-literal::
 
-    2024-02-10 00:24:12.163962: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-02-10 00:24:12.196054: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-03-12 23:58:07.773970: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-03-12 23:58:07.806115: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 
 
 .. parsed-literal::
 
-    2024-02-10 00:24:12.761536: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-03-12 23:58:08.415108: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. code:: ipython3

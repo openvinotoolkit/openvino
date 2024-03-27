@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,9 +33,10 @@ OPENVINO_API EnumNames<ov::op::PadType>& EnumNames<ov::op::PadType>::get() {
 
 template <>
 OPENVINO_API EnumNames<ov::op::RoundingType>& EnumNames<ov::op::RoundingType>::get() {
-    static auto enum_names =
-        EnumNames<ov::op::RoundingType>("ov::op::RoundingType",
-                                        {{"floor", ov::op::RoundingType::FLOOR}, {"ceil", ov::op::RoundingType::CEIL}});
+    static auto enum_names = EnumNames<ov::op::RoundingType>("ov::op::RoundingType",
+                                                             {{"floor", ov::op::RoundingType::FLOOR},
+                                                              {"ceil", ov::op::RoundingType::CEIL},
+                                                              {"ceil_torch", ov::op::RoundingType::CEIL_TORCH}});
     return enum_names;
 }
 

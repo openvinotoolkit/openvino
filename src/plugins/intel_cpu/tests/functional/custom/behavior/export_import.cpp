@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-corer: Apache-2.0
 //
 
@@ -104,16 +104,9 @@ const std::vector<ov::AnyMap> testing_property_for_performance_mode = {
     {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
     {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}};
 
-const std::vector<ov::AnyMap> testing_property_for_scheduling_core_type_1 = {
+const std::vector<ov::AnyMap> testing_property_for_scheduling_core_type = {
     {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ANY_CORE)},
-    {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::PCORE_ONLY)}};
-
-const std::vector<ov::AnyMap> testing_property_for_scheduling_core_type_2 = {
     {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::PCORE_ONLY)},
-    {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ECORE_ONLY)}};
-
-const std::vector<ov::AnyMap> testing_property_for_scheduling_core_type_3 = {
-    {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ANY_CORE)},
     {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ECORE_ONLY)}};
 
 const std::vector<ov::AnyMap> testing_property_for_enable_hyper_threading = {{ov::hint::enable_hyper_threading(true)},
@@ -128,9 +121,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ExportImportTest,
                                            ::testing::Values(testing_property_for_streams,
                                                              testing_property_for_threads,
                                                              testing_property_for_performance_mode,
-                                                             testing_property_for_scheduling_core_type_1,
-                                                             testing_property_for_scheduling_core_type_2,
-                                                             testing_property_for_scheduling_core_type_3,
+                                                             testing_property_for_scheduling_core_type,
                                                              testing_property_for_enable_hyper_threading,
                                                              testing_property_for_enable_cpu_pinning)));
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -2190,7 +2190,7 @@ bool Interpolate::needShapeInfer() const {
         if (lastScales.empty()) {
             return true;
         }
-        const float *scales = getParentEdgeAt(get_scale_id())->getMemory().getDataAs<const float>();
+        const float *scales = getSrcDataAtPortAs<const float>(get_scale_id());
         for (size_t i = 0; i < lastScales.size(); i++) {
             if (lastScales[i] != scales[i]) {
                 return true;
@@ -2200,7 +2200,7 @@ bool Interpolate::needShapeInfer() const {
         if (lastSizes.empty()) {
             return true;
         }
-        const int32_t *sizes = getParentEdgeAt(TARGET_SHAPE_ID)->getMemory().getDataAs<const int32_t>();
+        const int32_t *sizes = getSrcDataAtPortAs<const int32_t>(TARGET_SHAPE_ID);
         for (size_t i = 0; i < lastSizes.size(); i++) {
             if (sizes[i] != lastSizes[i]) {
                 return true;

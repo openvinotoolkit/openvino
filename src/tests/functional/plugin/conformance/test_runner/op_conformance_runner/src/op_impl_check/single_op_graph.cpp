@@ -42,6 +42,27 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::AvgPool> &
     const auto rounding_type = ov::op::RoundingType::FLOOR;
     const auto auto_pad = ov::op::PadType::SAME_LOWER;
     const auto avgPoolNode = std::make_shared<ov::op::v1::AvgPool>(data,
+                                                                strides,
+                                                                pads_begin,
+                                                                pads_end,
+                                                                kernel,
+                                                                exclude_pad,
+                                                                rounding_type,
+                                                                auto_pad);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(avgPoolNode)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{data}, "AvgPoolGraph");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v14::AvgPool> &node) {
+    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 32});
+    const ov::Strides strides{1};
+    const ov::Shape pads_begin{0};
+    const ov::Shape pads_end{0};
+    const ov::Shape kernel{2};
+    const auto exclude_pad = false;
+    const auto rounding_type = ov::op::RoundingType::CEIL_TORCH;
+    const auto auto_pad = ov::op::PadType::SAME_LOWER;
+    const auto avgPoolNode = std::make_shared<ov::op::v14::AvgPool>(data,
                                                                    strides,
                                                                    pads_begin,
                                                                    pads_end,
@@ -1372,6 +1393,8 @@ std::shared_ptr<ov::Model> generateMaxPoolBase(const std::shared_ptr<ov::op::Op>
         maxPoolNode = std::make_shared<ov::op::v1::MaxPool>(data, strides, pads_begin, pads_end, kernel_shape, rounding_mode, auto_pad);
     } else if (ov::is_type<ov::op::v8::MaxPool>(node)) {
         maxPoolNode = std::make_shared<ov::op::v8::MaxPool>(data, strides, dilations, pads_begin, pads_end, kernel_shape);
+    } else if (ov::is_type<ov::op::v14::MaxPool>(node)) {
+        maxPoolNode = std::make_shared<ov::op::v14::MaxPool>(data, strides, dilations, pads_begin, pads_end, kernel_shape);
     } else {
         return nullptr;
     }

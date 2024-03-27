@@ -37,11 +37,11 @@ static MemoryPtr prepareWeightMemory(const MemoryPtr weightsMemory,
     auto packedBsize = mlas_sgemm_pack_get_size(N, K);
 
     auto create = [&]() {
-        float* weightPtr = reinterpret_cast<float*>(weightsMemory->getData());
+        float* weightPtr = weightsMemory->getDataAs<float>();
         size_t ldb = weightsTransposed ? K : N;
         MemoryPtr _ptr = std::make_shared<Memory>(context->getEngine(),
                                                   intel_cpu::CpuBlockedMemoryDesc(i8, intel_cpu::Shape{packedBsize}));
-        float* prepackedDst = reinterpret_cast<float*>(_ptr->getData());
+        float* prepackedDst = _ptr->getDataAs<float>();
         DEBUG_LOG("MlasGemmExecutor: cache miss, perform packing");
         mlas_sgemm_pack(weightsTransposed ? "T" : "F", N, K, ldb, weightPtr, prepackedDst);
         return _ptr;
@@ -51,7 +51,7 @@ static MemoryPtr prepareWeightMemory(const MemoryPtr weightsMemory,
     if (weightCache != nullptr) {
         std::string format = "gemm_mlas_" + std::to_string(N) + "_" + std::to_string(K);
         const std::string string_hash = format + "_" + std::to_string(weightsMemory->getSize()) + "_" +
-                                        std::to_string(reinterpret_cast<uint64_t>(weightsMemory->getData()));
+            std::to_string(*weightsMemory->getDataAs<uint64_t>());
         DEBUG_LOG("MlasGemmExecutor: findOrCreate, string_hash: ", string_hash);
         return *weightCache->findOrCreate(string_hash, create);
     }

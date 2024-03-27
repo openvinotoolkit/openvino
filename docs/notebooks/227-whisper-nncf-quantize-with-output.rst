@@ -23,10 +23,12 @@ Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
 -  `Prerequisites <#prerequisites>`__
--  `Create and initialize quantization <#create-and-initialize-quantization-#0>`__
+-  `Create and initialize quantization
+    <#create-and-initialize-quantization-#0>`__
 
    -  `Prepare calibration datasets <#prepare-calibration-datasets>`__
-   -  `Quantize Whisper encoder and decoder models <#quantize-whisper-encoder-and-decoder-models>`__
+   -  `Quantize Whisper encoder and decoder
+      models <#quantize-whisper-encoder-and-decoder-models>`__
 
 -  `Transcribe video with quantized OpenVINO
    model <#transcribe-video-with-quantized-openvino-model>`__
@@ -134,8 +136,8 @@ Select the task for the model:
 
 
 
-Create and initialize quantization
-----------------------------------
+## Create and initialize quantization `⇑ <#0>`__ `back to top
+⬆️ <#table-of-contents>`__
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding the quantization layers into the
@@ -340,8 +342,6 @@ and save the quantized IRs after that.
 .. parsed-literal::
 
     Saved quantized decoder at ./whisper_large-v2_decoder_int8.xml
-
-
 
 
 

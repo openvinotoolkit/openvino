@@ -52,6 +52,8 @@ static ExecutorPtr fallback(const executor::Config<Attrs>& config,
 template <typename Attrs, typename NodeT>
 class ExecutorFactory {
 public:
+    using ExecutorImplementationRef = std::reference_wrapper<const ExecutorImplementation<Attrs>>;
+
     ExecutorFactory(const Attrs& attrs,
                     const PostOps& postOps,
                     const ExecutorContext::CPtr context,
@@ -186,7 +188,7 @@ private:
         std::transform(m_suitableImplementations.begin(),
                        m_suitableImplementations.end(),
                        m_implementationRequiresFallback.begin(),
-                       [&config](const std::reference_wrapper<const ExecutorImplementation<Attrs>>& impl) {
+                       [&config](const ExecutorImplementationRef& impl) {
                            return impl.get().requiresFallback(config);
                        });
     }
@@ -203,13 +205,13 @@ private:
      * @note If an implementation is shape agnostic, no further implementations with lower
      *       priority are considered.
      */
-    static std::vector<std::reference_wrapper<const ExecutorImplementation<Attrs>>> filter(
+    static std::vector<ExecutorImplementationRef> filter(
         const Attrs& attrs,
         const PostOps& postOps,
         const MemoryDescArgs& descs,
         const std::string& implementationPriority = {}) {
         const auto& implementations = getImplementations<Attrs>();
-        std::vector<std::reference_wrapper<const ExecutorImplementation<Attrs>>> suitableImplementations;
+        std::vector<ExecutorImplementationRef> suitableImplementations;
         const executor::Config<Attrs> config{descs, attrs, postOps};
 
         for (const auto& implementation : implementations) {
@@ -251,7 +253,7 @@ private:
         const auto selectedImplementation =
             std::find_if(startIt,
                          m_suitableImplementations.end(),
-                         [&memory](const std::reference_wrapper<const ExecutorImplementation<Attrs>> implementation) {
+                         [&memory](const ExecutorImplementationRef& implementation) {
                              return implementation.get().shapeAgnostic() || implementation.get().acceptsShapes(memory);
                          });
         OPENVINO_ASSERT(selectedImplementation != m_suitableImplementations.end(), "Failed to select an implemetation");
@@ -275,7 +277,7 @@ private:
     const Attrs& m_attrs;
     const PostOps& m_postOps;
     const ExecutorContext::CPtr m_context;
-    std::vector<std::reference_wrapper<const ExecutorImplementation<Attrs>>> m_suitableImplementations;
+    std::vector<ExecutorImplementationRef> m_suitableImplementations;
     // stores fallback status to avoid performing the check for every make() call
     std::vector<bool> m_implementationRequiresFallback;
     // executors cache

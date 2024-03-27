@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1301,7 +1301,7 @@ void DeformableConvolution::execute(dnnl::stream strm) {
     const auto *weights = srcMemory2.getDataAs<const float>();
     float* modulation = nullptr;
     if (inputsNumber > 3) {
-        modulation = getParentEdgeAt(3)->getMemory().getDataAs<float>();
+        modulation = getSrcDataAtPortAs<float>(3);
     }
 
     float *dst = dstMemory.getDataAs<float>();

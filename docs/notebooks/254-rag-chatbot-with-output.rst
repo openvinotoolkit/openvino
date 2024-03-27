@@ -71,15 +71,15 @@ Install required dependencies
 
 .. code:: ipython3
 
-    %pip uninstall -q -y openvino-dev openvino openvino-nightly
+    %pip uninstall -q -y openvino-dev openvino openvino-nightly optimum optimum-intel
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu\
     "git+https://github.com/huggingface/optimum-intel.git"\
-    "nncf>=2.8.0"\
+    "git+https://github.com/openvinotoolkit/nncf.git"\
     "datasets"\
     "accelerate"\
     "openvino-nightly"\
     "gradio"\
-    "onnx" "chromadb" "sentence_transformers" "langchain" "langchainhub" "transformers>=4.34.0" "unstructured" "scikit-learn" "python-docx" "pdfminer.six"
+    "onnx" "chromadb" "sentence_transformers" "langchain>=0.1.7" "langchainhub" "transformers>=4.37.0" "unstructured" "scikit-learn" "python-docx" "pdfminer.six" "bitsandbytes"
 
 
 .. parsed-literal::
@@ -87,8 +87,8 @@ Install required dependencies
     WARNING: Skipping openvino-dev as it is not installed.
     WARNING: Skipping openvino as it is not installed.
     Note: you may need to restart the kernel to use updated packages.
-
-    [notice] A new release of pip is available: 23.3.1 -> 23.3.2
+    
+    [notice] A new release of pip is available: 23.3.2 -> 24.0
     [notice] To update, run: pip install --upgrade pip
     Note: you may need to restart the kernel to use updated packages.
 
@@ -100,10 +100,8 @@ Select model for inference
 
 The tutorial supports different models, you can select one from the
 provided options to compare the quality of open source LLM solutions.
-
-
-   **NOTE**: conversion of some models can require additional actions
-   from user side and at least 64GB RAM for conversion.
+>\ **Note**: conversion of some models can require additional actions
+from user side and at least 64GB RAM for conversion.
 
 The available embedding model options are:
 
@@ -132,38 +130,29 @@ The available LLM model options are:
    computation and memory footprint. More details about model can be
    found in `model
    card <https://huggingface.co/TinyLlama/TinyLlama-1.1B-Chat-v0.6>`__
-
--  **red-pajama-3b-chat** - A 2.8B parameter pre-trained language model
-   based on GPT-NEOX architecture. It was developed by Together Computer
-   and leaders from the open-source AI community. The model is
-   fine-tuned on OASST1 and Dolly2 datasets to enhance chatting ability.
-   More details about model can be found in `HuggingFace model
-   card <https://huggingface.co/togethercomputer/RedPajama-INCITE-Chat-3B-v1>`__.
--  **llama-2-7b-chat** - LLama 2 is the second generation of LLama
-   models developed by Meta. Llama 2 is a collection of pre-trained and
-   fine-tuned generative text models ranging in scale from 7 billion to
-   70 billion parameters. llama-2-7b-chat is 7 billions parameters
-   version of LLama 2 finetuned and optimized for dialogue use case.
-   More details about model can be found in the
-   `paper <https://ai.meta.com/research/publications/llama-2-open-foundation-and-fine-tuned-chat-models/>`__,
-   `repository <https://github.com/facebookresearch/llama>`__ and
-   `HuggingFace model
-   card <https://huggingface.co/meta-llama/Llama-2-7b-chat-hf>`__
-
-   **NOTE**: run model with demo, you will need to accept license
-   agreement. You must be a registered user in Hugging Face Hub.
-   Please visit `HuggingFace model
-   card <https://huggingface.co/meta-llama/Llama-2-7b-chat-hf>`__,
-   carefully read terms of usage and click accept button. You will need
-   to use an access token for the code below to run. For more
-   information on access tokens, refer to `this section of the
+-  **gemma-2b-it** - Gemma is a family of lightweight, state-of-the-art
+   open models from Google, built from the same research and technology
+   used to create the Gemini models. They are text-to-text, decoder-only
+   large language models, available in English, with open weights,
+   pre-trained variants, and instruction-tuned variants. Gemma models
+   are well-suited for a variety of text generation tasks, including
+   question answering, summarization, and reasoning. This model is
+   instruction-tuned version of 2B parameters model. More details about
+   model can be found in `model
+   card <https://huggingface.co/google/gemma-2b-it>`__. >\ **Note**: run
+   model with demo, you will need to accept license agreement. >You must
+   be a registered user in Hugging Face Hub. Please visit `HuggingFace
+   model card <https://huggingface.co/google/gemma-2b-it>`__, carefully
+   read terms of usage and click accept button. You will need to use an
+   access token for the code below to run. For more information on
+   access tokens, refer to `this section of the
    documentation <https://huggingface.co/docs/hub/security-tokens>`__.
-   You can login on Hugging Face Hub in notebook environment, using
+   >You can login on Hugging Face Hub in notebook environment, using
    following code:
 
 .. code:: python
 
-       ## login to huggingfacehub to get access to pretrained model
+       ## login to huggingfacehub to get access to pretrained model 
 
        from huggingface_hub import notebook_login, whoami
 
@@ -173,6 +162,98 @@ The available LLM model options are:
        except OSError:
            notebook_login()
 
+-  **mini-cpm-2b-dpo** - MiniCPM is an End-Size LLM developed by
+   ModelBest Inc. and TsinghuaNLP, with only 2.4B parameters excluding
+   embeddings. After Direct Preference Optimization (DPO) fine-tuning,
+   MiniCPM outperforms many popular 7b, 13b and 70b models. More details
+   can be found in
+   `model_card <https://huggingface.co/openbmb/MiniCPM-2B-dpo-fp16>`__.
+-  **red-pajama-3b-chat** - A 2.8B parameter pre-trained language model
+   based on GPT-NEOX architecture. It was developed by Together Computer
+   and leaders from the open-source AI community. The model is
+   fine-tuned on OASST1 and Dolly2 datasets to enhance chatting ability.
+   More details about model can be found in `HuggingFace model
+   card <https://huggingface.co/togethercomputer/RedPajama-INCITE-Chat-3B-v1>`__.
+-  **gemma-7b-it** - Gemma is a family of lightweight, state-of-the-art
+   open models from Google, built from the same research and technology
+   used to create the Gemini models. They are text-to-text, decoder-only
+   large language models, available in English, with open weights,
+   pre-trained variants, and instruction-tuned variants. Gemma models
+   are well-suited for a variety of text generation tasks, including
+   question answering, summarization, and reasoning. This model is
+   instruction-tuned version of 7B parameters model. More details about
+   model can be found in `model
+   card <https://huggingface.co/google/gemma-7b-it>`__. >\ **Note**: run
+   model with demo, you will need to accept license agreement. >You must
+   be a registered user in Hugging Face Hub. Please visit `HuggingFace
+   model card <https://huggingface.co/google/gemma-7b-it>`__, carefully
+   read terms of usage and click accept button. You will need to use an
+   access token for the code below to run. For more information on
+   access tokens, refer to `this section of the
+   documentation <https://huggingface.co/docs/hub/security-tokens>`__.
+   >You can login on Hugging Face Hub in notebook environment, using
+   following code:
+
+.. code:: python
+
+       ## login to huggingfacehub to get access to pretrained model 
+
+       from huggingface_hub import notebook_login, whoami
+
+       try:
+           whoami()
+           print('Authorization token already provided')
+       except OSError:
+           notebook_login()
+
+-  **llama-2-7b-chat** - LLama 2 is the second generation of LLama
+   models developed by Meta. Llama 2 is a collection of pre-trained and
+   fine-tuned generative text models ranging in scale from 7 billion to
+   70 billion parameters. llama-2-7b-chat is 7 billions parameters
+   version of LLama 2 finetuned and optimized for dialogue use case.
+   More details about model can be found in the
+   `paper <https://ai.meta.com/research/publications/llama-2-open-foundation-and-fine-tuned-chat-models/>`__,
+   `repository <https://github.com/facebookresearch/llama>`__ and
+   `HuggingFace model
+   card <https://huggingface.co/meta-llama/Llama-2-7b-chat-hf>`__.
+   >\ **Note**: run model with demo, you will need to accept license
+   agreement. >You must be a registered user in Hugging Face Hub.
+   Please visit `HuggingFace model
+   card <https://huggingface.co/meta-llama/Llama-2-7b-chat-hf>`__,
+   carefully read terms of usage and click accept button. You will need
+   to use an access token for the code below to run. For more
+   information on access tokens, refer to `this section of the
+   documentation <https://huggingface.co/docs/hub/security-tokens>`__.
+   >You can login on Hugging Face Hub in notebook environment, using
+   following code:
+
+.. code:: python
+
+       ## login to huggingfacehub to get access to pretrained model 
+
+       from huggingface_hub import notebook_login, whoami
+
+       try:
+           whoami()
+           print('Authorization token already provided')
+       except OSError:
+           notebook_login()
+
+-  **qwen1.5-0.5b-chat/qwen1.5-1.8b-chat/qwen1.5-7b-chat** - Qwen1.5 is
+   the beta version of Qwen2, a transformer-based decoder-only language
+   model pretrained on a large amount of data. Qwen1.5 is a language
+   model series including decoder language models of different model
+   sizes. It is based on the Transformer architecture with SwiGLU
+   activation, attention QKV bias, group query attention, mixture of
+   sliding window attention and full attention. You can find more
+   details about model in the `model
+   repository <https://huggingface.co/Qwen>`__.
+-  **qwen-7b-chat** - Qwen-7B is the 7B-parameter version of the large
+   language model series, Qwen (abbr. Tongyi Qianwen), proposed by
+   Alibaba Cloud. Qwen-7B is a Transformer-based large language model,
+   which is pretrained on a large volume of data, including web texts,
+   books, codes, etc. For more details about Qwen, please refer to the
+   `GitHub <https://github.com/QwenLM/Qwen>`__ code repository.
 -  **mpt-7b-chat** - MPT-7B is part of the family of
    MosaicPretrainedTransformer (MPT) models, which use a modified
    transformer architecture optimized for efficient training and
@@ -194,12 +275,6 @@ The available LLM model options are:
    `repository <https://github.com/mosaicml/llm-foundry/>`__ and
    `HuggingFace model
    card <https://huggingface.co/mosaicml/mpt-7b-chat>`__.
--  **qwen-7b-chat** - Qwen-7B is the 7B-parameter version of the large
-   language model series, Qwen (abbr. Tongyi Qianwen), proposed by
-   Alibaba Cloud. Qwen-7B is a Transformer-based large language model,
-   which is pretrained on a large volume of data, including web texts,
-   books, codes, etc. For more details about Qwen, please refer to the
-   `GitHub <https://github.com/QwenLM/Qwen>`__ code repository.
 -  **chatglm3-6b** - ChatGLM3-6B is the latest open-source model in the
    ChatGLM series. While retaining many excellent features such as
    smooth dialogue and low deployment threshold from the previous two
@@ -246,11 +321,28 @@ The available LLM model options are:
    `AlpacaEval <https://tatsu-lab.github.io/alpaca_eval/>`__. More
    details about model can be found in `model
    card <https://huggingface.co/argilla/notus-7b-v1>`__.
+-  **youri-7b-chat** - Youri-7b-chat is a Llama2 based model. `Rinna
+   Co., Ltd. <https://rinna.co.jp/>`__ conducted further pre-training
+   for the Llama2 model with a mixture of English and Japanese datasets
+   to improve Japanese task capability. The model is publicly released
+   on Hugging Face hub. You can find detailed information at the
+   `rinna/youri-7b-chat project
+   page <https://huggingface.co/rinna/youri-7b>`__.
+-  **baichuan2-7b-chat** - Baichuan 2 is the new generation of
+   large-scale open-source language models launched by `Baichuan
+   Intelligence inc <https://www.baichuan-ai.com/home>`__. It is trained
+   on a high-quality corpus with 2.6 trillion tokens and has achieved
+   the best performance in authoritative Chinese and English benchmarks
+   of the same size.
+-  **internlm2-chat-1.8b** - InternLM2 is the second generation InternLM
+   series. Compared to the previous generation model, it shows
+   significant improvements in various capabilities, including
+   reasoning, mathematics, and coding. More details about model can be
+   found in `model repository <https://huggingface.co/internlm>`__.
 
 .. code:: ipython3
 
     from pathlib import Path
-    from optimum.intel import OVQuantizer
     from optimum.intel.openvino import OVModelForCausalLM
     import openvino as ov
     import torch
@@ -278,15 +370,15 @@ The available LLM model options are:
 
 .. parsed-literal::
 
-    2023-12-25 07:58:21.310297: I tensorflow/core/util/port.cc:111] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-12-25 07:58:21.312367: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
-    2023-12-25 07:58:21.337757: E tensorflow/compiler/xla/stream_executor/cuda/cuda_dnn.cc:9342] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
-    2023-12-25 07:58:21.337778: E tensorflow/compiler/xla/stream_executor/cuda/cuda_fft.cc:609] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
-    2023-12-25 07:58:21.337798: E tensorflow/compiler/xla/stream_executor/cuda/cuda_blas.cc:1518] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
-    2023-12-25 07:58:21.343045: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
-    2023-12-25 07:58:21.343941: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI AVX512_BF16 AVX_VNNI AMX_TILE AMX_INT8 AMX_BF16 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-12-25 07:58:21.912373: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-03-06 07:05:19.617312: I tensorflow/core/util/port.cc:111] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-03-06 07:05:19.620814: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-03-06 07:05:19.663621: E tensorflow/compiler/xla/stream_executor/cuda/cuda_dnn.cc:9342] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+    2024-03-06 07:05:19.663653: E tensorflow/compiler/xla/stream_executor/cuda/cuda_fft.cc:609] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+    2024-03-06 07:05:19.663683: E tensorflow/compiler/xla/stream_executor/cuda/cuda_blas.cc:1518] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+    2024-03-06 07:05:19.671963: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-03-06 07:05:19.673938: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2024-03-06 07:05:20.726709: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Convert model
@@ -302,16 +394,38 @@ Convert LLM model
 .. code:: ipython3
 
     from config import SUPPORTED_EMBEDDING_MODELS, SUPPORTED_LLM_MODELS
-
-    llm_model_id = list(SUPPORTED_LLM_MODELS)
-
-    llm_model_id = widgets.Dropdown(
-        options=llm_model_id,
-        value=llm_model_id[0],
-        description="LLM Model:",
+    
+    model_languages = list(SUPPORTED_LLM_MODELS)
+    
+    model_language = widgets.Dropdown(
+        options=model_languages,
+        value=model_languages[0],
+        description="Model Language:",
         disabled=False,
     )
+    
+    model_language
 
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Model Language:', options=('English', 'Chinese', 'Japanese'), value='English')
+
+
+
+.. code:: ipython3
+
+    llm_model_ids = list(SUPPORTED_LLM_MODELS[model_language.value])
+    
+    llm_model_id = widgets.Dropdown(
+        options=llm_model_ids,
+        value=llm_model_ids[4],
+        description="Model:",
+        disabled=False,
+    )
+    
     llm_model_id
 
 
@@ -319,19 +433,19 @@ Convert LLM model
 
 .. parsed-literal::
 
-    Dropdown(description='LLM Model:', options=('tiny-llama-1b-chat', 'red-pajama-3b-chat', 'llama-2-chat-7b', 'mp…
+    Dropdown(description='Model:', options=('tiny-llama-1b-chat', 'gemma-2b-it', 'red-pajama-3b-chat', 'gemma-7b-i…
 
 
 
 .. code:: ipython3
 
-    llm_model_configuration = SUPPORTED_LLM_MODELS[llm_model_id.value]
+    llm_model_configuration = SUPPORTED_LLM_MODELS[model_language.value][llm_model_id.value]
     print(f"Selected LLM model {llm_model_id.value}")
 
 
 .. parsed-literal::
 
-    Selected LLM model chatglm3-6b
+    Selected LLM model tiny-llama-1b-chat
 
 
 Optimum Intel can be used to load optimized models from the `Hugging
@@ -400,20 +514,14 @@ Weights Compression using Optimum Intel
 
 
 
-To enable weights compression via NNCF for models supported by Optimum
-Intel ``OVQuantizer`` class should be used for ``OVModelForCausalLM``
-model.
-``OVQuantizer.quantize(save_directory=save_dir, weights_only=True)``
-enables weights compression. We will consider how to do it on RedPajama,
-LLAMA and Zephyr examples.
+Optimum Intel supports weight compression via NNCF out of the box. For
+8-bit compression we pass ``load_in_8bit=True`` to ``from_pretrained()``
+method of ``OVModelForCausalLM``. For 4 bit compression we provide
+``quantization_config=OVWeightQuantizationConfig(bits=4, ...)`` argument
+containing number of bits and other compression parameters. We will
+consider how to do it on RedPajama, LLAMA and Zephyr examples.
 
-   **NOTE**: Weights Compression using Optimum Intel currently supports
-   only INT8 compression. We will apply INT4 compression for these model
-   using NNCF API described below.
-
-..
-
-   **NOTE**: There may be no speedup for INT4/INT8 compressed models on
+   **Note**: There may be no speedup for INT4/INT8 compressed models on
    dGPU.
 
 Weights Compression using NNCF
@@ -426,7 +534,7 @@ directly. ``nncf.compress_weights`` function accepts OpenVINO model
 instance and compresses its weights for Linear and Embedding layers. We
 will consider this variant based on MPT model.
 
-   **NOTE**: This tutorial involves conversion model for FP16 and
+   **Note**: This tutorial involves conversion model for FP16 and
    INT4/INT8 weights compression scenarios. It may be memory and
    time-consuming in the first run. You can manually control the
    compression precision below.
@@ -434,7 +542,7 @@ will consider this variant based on MPT model.
 .. code:: ipython3
 
     from IPython.display import display
-
+    
     prepare_int4_model = widgets.Checkbox(
         value=True,
         description="Prepare INT4 model",
@@ -450,7 +558,7 @@ will consider this variant based on MPT model.
         description="Prepare FP16 model",
         disabled=False,
     )
-
+    
     display(prepare_int4_model)
     display(prepare_int8_model)
     display(prepare_fp16_model)
@@ -476,24 +584,34 @@ will consider this variant based on MPT model.
 
 .. code:: ipython3
 
-    from converter import converters
-
+    from optimum.intel import OVWeightQuantizationConfig
+    from converter import converters, register_configs
+    
+    register_configs()
+    
     nncf.set_log_level(logging.ERROR)
-
+    
     pt_model_id = llm_model_configuration["model_id"]
     pt_model_name = llm_model_id.value.split("-")[0]
     model_type = AutoConfig.from_pretrained(pt_model_id, trust_remote_code=True).model_type
     fp16_model_dir = Path(llm_model_id.value) / "FP16"
     int8_model_dir = Path(llm_model_id.value) / "INT8_compressed_weights"
     int4_model_dir = Path(llm_model_id.value) / "INT4_compressed_weights"
-
-
+    
+    
     def convert_to_fp16():
         if (fp16_model_dir / "openvino_model.xml").exists():
             return
         if not llm_model_configuration["remote"]:
+            remote_code = llm_model_configuration.get("remote_code", False)
+            model_kwargs = {}
+            if remote_code:
+                model_kwargs = {
+                    "trust_remote_code": True,
+                    "config": AutoConfig.from_pretrained(pt_model_id, trust_remote_code=True)
+                }
             ov_model = OVModelForCausalLM.from_pretrained(
-                pt_model_id, export=True, compile=False, load_in_8bit=False
+                pt_model_id, export=True, compile=False, load_in_8bit=False, **model_kwargs
             )
             ov_model.half()
             ov_model.save_pretrained(fp16_model_dir)
@@ -511,23 +629,24 @@ will consider this variant based on MPT model.
             converters[pt_model_name](model, fp16_model_dir)
             del model
         gc.collect()
-
-
+    
+    
     def convert_to_int8():
         if (int8_model_dir / "openvino_model.xml").exists():
             return
         int8_model_dir.mkdir(parents=True, exist_ok=True)
         if not llm_model_configuration["remote"]:
-            if fp16_model_dir.exists():
-                ov_model = OVModelForCausalLM.from_pretrained(fp16_model_dir, compile=False, load_in_8bit=False)
-            else:
-                ov_model = OVModelForCausalLM.from_pretrained(
-                    pt_model_id, export=True, compile=False
-                )
-                ov_model.half()
-            quantizer = OVQuantizer.from_pretrained(ov_model)
-            quantizer.quantize(save_directory=int8_model_dir, weights_only=True)
-            del quantizer
+            remote_code = llm_model_configuration.get("remote_code", False)
+            model_kwargs = {}
+            if remote_code:
+                model_kwargs = {
+                    "trust_remote_code": True,
+                    "config": AutoConfig.from_pretrained(pt_model_id, trust_remote_code=True)
+                }
+            ov_model = OVModelForCausalLM.from_pretrained(
+                pt_model_id, export=True, compile=False, load_in_8bit=True, **model_kwargs
+            )
+            ov_model.save_pretrained(int8_model_dir)
             del ov_model
         else:
             convert_to_fp16()
@@ -543,57 +662,62 @@ will consider this variant based on MPT model.
             del ov_model
             del compressed_model
         gc.collect()
-
-
+    
+    
     def convert_to_int4():
         compression_configs = {
             "zephyr-7b-beta": {
-                "mode": nncf.CompressWeightsMode.INT4_SYM,
+                "sym": True,
                 "group_size": 64,
                 "ratio": 0.6,
             },
             "mistral-7b": {
-                "mode": nncf.CompressWeightsMode.INT4_SYM,
+                "sym": True,
+                "group_size": 64,
+                "ratio": 0.6,
+            },
+            "minicpm-2b-dpo": {
+                "sym": True,
                 "group_size": 64,
                 "ratio": 0.6,
             },
             "notus-7b-v1": {
-                "mode": nncf.CompressWeightsMode.INT4_SYM,
+                "sym": True,
                 "group_size": 64,
                 "ratio": 0.6,
-            },"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1",
+            },
             "neural-chat-7b-v3-1": {
-                "mode": nncf.CompressWeightsMode.INT4_SYM,
+                "sym": True,
                 "group_size": 64,
                 "ratio": 0.6,
             },
             "llama-2-chat-7b": {
-                "mode": nncf.CompressWeightsMode.INT4_SYM,
+                "sym": True,
                 "group_size": 128,
                 "ratio": 0.8,
             },
             "chatglm2-6b": {
-                "mode": nncf.CompressWeightsMode.INT4_SYM,
+                "sym": True,
                 "group_size": 128,
-                "ratio": 0.72
+                "ratio": 0.72,
             },
             "qwen-7b-chat": {
-                "mode": nncf.CompressWeightsMode.INT4_SYM,
-                "group_size": 128,
+                "sym": True, 
+                "group_size": 128, 
                 "ratio": 0.6
             },
             'red-pajama-3b-chat': {
-                "mode": nncf.CompressWeightsMode.INT4_ASYM,
+                "sym": False,
                 "group_size": 128,
                 "ratio": 0.5,
             },
             "default": {
-                "mode": nncf.CompressWeightsMode.INT4_ASYM,
+                "sym": False,
                 "group_size": 128,
                 "ratio": 0.8,
             },
         }
-
+    
         model_compression_params = compression_configs.get(
             llm_model_id.value, compression_configs["default"]
         )
@@ -601,18 +725,21 @@ will consider this variant based on MPT model.
             return
         int4_model_dir.mkdir(parents=True, exist_ok=True)
         if not llm_model_configuration["remote"]:
-            if not fp16_model_dir.exists():
-                model = OVModelForCausalLM.from_pretrained(
-                    pt_model_id, export=True, compile=False, load_in_8bit=False
-                ).half()
-                model.config.save_pretrained(int4_model_dir)
-                ov_model = model._original_model
-                del model
-                gc.collect()
-            else:
-                ov_model = ov.Core().read_model(fp16_model_dir / "openvino_model.xml")
-                shutil.copy(fp16_model_dir / "config.json", int4_model_dir / "config.json")
-
+            remote_code = llm_model_configuration.get("remote_code", False)
+            model_kwargs = {}
+            if remote_code:
+                model_kwargs = {
+                    "trust_remote_code" : True,
+                    "config": AutoConfig.from_pretrained(pt_model_id, trust_remote_code=True)
+                }
+            ov_model = OVModelForCausalLM.from_pretrained(
+                pt_model_id, export=True, compile=False,
+                quantization_config=OVWeightQuantizationConfig(bits=4, **model_compression_params),
+                **model_kwargs
+            )
+            ov_model.save_pretrained(int4_model_dir)
+            del ov_model
+    
         else:
             convert_to_fp16()
             ov_model = ov.Core().read_model(fp16_model_dir / "openvino_model.xml")
@@ -622,13 +749,16 @@ will consider this variant based on MPT model.
                 shutil.copy(
                     configuration_file, int4_model_dir / f"configuration_{model_type}.py"
                 )
-        compressed_model = nncf.compress_weights(ov_model, **model_compression_params)
-        ov.save_model(compressed_model, int4_model_dir / "openvino_model.xml")
-        del ov_model
-        del compressed_model
+            mode = nncf.CompressWeightsMode.INT4_SYM if model_compression_params["sym"] else \
+                nncf.CompressWeightsMode.INT4_ASYM
+            del model_compression_params["sym"]
+            compressed_model = nncf.compress_weights(ov_model, mode=mode, **model_compression_params)
+            ov.save_model(compressed_model, int4_model_dir / "openvino_model.xml")
+            del ov_model
+            del compressed_model
         gc.collect()
-
-
+    
+    
     if prepare_fp16_model.value:
         convert_to_fp16()
     if prepare_int8_model.value:
@@ -643,7 +773,7 @@ Let’s compare model size for different compression types
     fp16_weights = fp16_model_dir / "openvino_model.bin"
     int8_weights = int8_model_dir / "openvino_model.bin"
     int4_weights = int4_model_dir / "openvino_model.bin"
-
+    
     if fp16_weights.exists():
         print(f"Size of FP16 model is {fp16_weights.stat().st_size / 1024 / 1024:.2f} MB")
     for precision, compressed_weights in zip([8, 4], [int8_weights, int4_weights]):
@@ -659,9 +789,7 @@ Let’s compare model size for different compression types
 
 .. parsed-literal::
 
-    Size of FP16 model is 11909.69 MB
-    Size of model with INT4 compressed weights is 3890.41 MB
-    Compression rate for INT4 model: 3.061
+    Size of model with INT4 compressed weights is 1837.58 MB
 
 
 Convert embedding model
@@ -675,17 +803,17 @@ filter them out according the LLM you selected.
 .. code:: ipython3
 
     embedding_model_id = list(SUPPORTED_EMBEDDING_MODELS)
-
-    if "qwen" not in llm_model_id.value and "chatglm" not in llm_model_id.value:
+    
+    if model_language.value != "Chinese":
         embedding_model_id = [x for x in embedding_model_id if "chinese" not in x]
-
+    
     embedding_model_id = widgets.Dropdown(
         options=embedding_model_id,
         value=embedding_model_id[0],
         description="Embedding Model:",
         disabled=False,
     )
-
+    
     embedding_model_id
 
 
@@ -693,7 +821,7 @@ filter them out according the LLM you selected.
 
 .. parsed-literal::
 
-    Dropdown(description='Embedding Model:', options=('all-mpnet-base-v2', 'text2vec-large-chinese'), value='all-m…
+    Dropdown(description='Embedding Model:', options=('all-mpnet-base-v2',), value='all-mpnet-base-v2')
 
 
 
@@ -711,7 +839,7 @@ filter them out according the LLM you selected.
 .. code:: ipython3
 
     embedding_model_dir = Path(embedding_model_id.value)
-
+    
     if not (embedding_model_dir / "openvino_model.xml").exists():
         model = AutoModel.from_pretrained(embedding_model_configuration["model_id"])
         converters[embedding_model_id.value](model, embedding_model_dir)
@@ -724,7 +852,7 @@ Select device for inference and model variant
 
 
 
-   **NOTE**: There may be no speedup for INT4/INT8 compressed models on
+   **Note**: There may be no speedup for INT4/INT8 compressed models on
    dGPU.
 
 Select device for embedding model inference
@@ -741,7 +869,7 @@ Select device for embedding model inference
         description="Device:",
         disabled=False,
     )
-
+    
     embedding_device
 
 
@@ -749,7 +877,7 @@ Select device for embedding model inference
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU', 'GPU', 'AUTO'), value='CPU')
+    Dropdown(description='Device:', options=('CPU', 'AUTO'), value='CPU')
 
 
 
@@ -776,7 +904,7 @@ Select device for LLM model inference
         description="Device:",
         disabled=False,
     )
-
+    
     llm_device
 
 
@@ -784,7 +912,7 @@ Select device for LLM model inference
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU', 'GPU', 'AUTO'), value='CPU')
+    Dropdown(description='Device:', options=('CPU', 'AUTO'), value='CPU')
 
 
 
@@ -814,7 +942,7 @@ text to embeddings.
 .. code:: ipython3
 
     from ov_embedding_model import OVEmbeddings
-
+    
     embedding = OVEmbeddings.from_model_id(
         embedding_model_dir,
         do_norm=embedding_model_configuration["do_norm"],
@@ -832,8 +960,8 @@ Load LLM model
 
 
 
-The cell below create ``OVMPTModel``, ``OVQWENModel`` and
-``OVCHATGLM2Model`` wrapper based on ``OVModelForCausalLM`` model.
+The cell below create ``OVMPTModel`` and ``OVCHATGLM2Model`` wrapper
+based on ``OVModelForCausalLM`` model.
 
 .. code:: ipython3
 
@@ -848,14 +976,14 @@ The cell below create ``OVMPTModel``, ``OVQWENModel`` and
         available_models.append("INT8")
     if fp16_model_dir.exists():
         available_models.append("FP16")
-
+    
     model_to_run = widgets.Dropdown(
         options=available_models,
         value=available_models[0],
         description="Model to run:",
         disabled=False,
     )
-
+    
     model_to_run
 
 
@@ -863,14 +991,14 @@ The cell below create ``OVMPTModel``, ``OVQWENModel`` and
 
 .. parsed-literal::
 
-    Dropdown(description='Model to run:', options=('INT4', 'FP16'), value='INT4')
+    Dropdown(description='Model to run:', options=('FP16',), value='FP16')
 
 
 
 .. code:: ipython3
 
     from langchain.llms import HuggingFacePipeline
-
+    
     if model_to_run.value == "INT4":
         model_dir = int4_model_dir
     elif model_to_run.value == "INT8":
@@ -878,23 +1006,23 @@ The cell below create ``OVMPTModel``, ``OVQWENModel`` and
     else:
         model_dir = fp16_model_dir
     print(f"Loading model from {model_dir}")
-
+    
     ov_config = {"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", "CACHE_DIR": ""}
-
+    
     # On a GPU device a model is executed in FP16 precision. For red-pajama-3b-chat model there known accuracy
     # issues caused by this, which we avoid by setting precision hint to "f32".
     if llm_model_id.value == "red-pajama-3b-chat" and "GPU" in core.available_devices and llm_device.value in ["GPU", "AUTO"]:
         ov_config["INFERENCE_PRECISION_HINT"] = "f32"
-
+    
     model_name = llm_model_configuration["model_id"]
     stop_tokens = llm_model_configuration.get("stop_tokens")
     class_key = llm_model_id.value.split("-")[0]
     tok = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
-
+    
     class StopOnTokens(StoppingCriteria):
         def __init__(self, token_ids):
             self.token_ids = token_ids
-
+    
         def __call__(
             self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs
         ) -> bool:
@@ -902,13 +1030,13 @@ The cell below create ``OVMPTModel``, ``OVQWENModel`` and
                 if input_ids[0][-1] == stop_id:
                     return True
             return False
-
+    
     if stop_tokens is not None:
         if isinstance(stop_tokens[0], str):
             stop_tokens = tok.convert_tokens_to_ids(stop_tokens)
-
+    
         stop_tokens = [StopOnTokens(stop_tokens)]
-
+    
     model_class = (
         OVModelForCausalLM
         if not llm_model_configuration["remote"]
@@ -925,40 +1053,48 @@ The cell below create ``OVMPTModel``, ``OVQWENModel`` and
 
 .. parsed-literal::
 
-    Loading model from chatglm3-6b/INT4_compressed_weights
+    Loading model from chatglm3-6b/FP16
+
 
 
 .. parsed-literal::
 
+    tokenizer_config.json:   0%|          | 0.00/1.41k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    tokenization_chatglm.py:   0%|          | 0.00/13.0k [00:00<?, ?B/s]
+
+
+.. parsed-literal::
+
+    A new version of the following files was downloaded from https://huggingface.co/THUDM/chatglm3-6b:
+    - tokenization_chatglm.py
+    . Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+
+
+
+.. parsed-literal::
+
+    tokenizer.model:   0%|          | 0.00/1.02M [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    special_tokens_map.json:   0%|          | 0.00/3.00 [00:00<?, ?B/s]
+
+
+.. parsed-literal::
+
+    Setting eos_token is not supported, use the default one.
+    Setting pad_token is not supported, use the default one.
+    Setting unk_token is not supported, use the default one.
     The argument `trust_remote_code` is to be used along with export=True. It will be ignored.
     Compiling the model to CPU ...
 
-
-Wrapper around a LLM/chat model for LangChain, used for generating the
-response text. An OpenVINO compiled model can be run locally through the
-``HuggingFacePipeline`` class.
-
-.. code:: ipython3
-
-    streamer = TextIteratorStreamer(
-        tok, timeout=30.0, skip_prompt=True, skip_special_tokens=True
-    )
-    generate_kwargs = dict(
-        model=ov_model,
-        tokenizer=tok,
-        max_new_tokens=256,
-        streamer=streamer,
-        # temperature=1,
-        # do_sample=True,
-        # top_p=0.8,
-        # top_k=20,
-        # repetition_penalty=1.1,
-    )
-    if stop_tokens is not None:
-        generate_kwargs["stopping_criteria"] = StoppingCriteriaList(stop_tokens)
-
-    pipe = pipeline("text-generation", **generate_kwargs)
-    llm = HuggingFacePipeline(pipeline=pipe)
 
 Run QA over Document
 --------------------
@@ -1018,13 +1154,13 @@ question and the retrieved data.
         UnstructuredODTLoader,
         UnstructuredPowerPointLoader,
         UnstructuredWordDocumentLoader, )
-
-
+    
+    
     class ChineseTextSplitter(CharacterTextSplitter):
         def __init__(self, pdf: bool = False, **kwargs):
             super().__init__(**kwargs)
             self.pdf = pdf
-
+    
         def split_text(self, text: str) -> List[str]:
             if self.pdf:
                 text = re.sub(r"\n{3,}", "\n", text)
@@ -1038,16 +1174,16 @@ question and the retrieved data.
                 elif ele:
                     sent_list.append(ele)
             return sent_list
-
-
+    
+    
     TEXT_SPLITERS = {
         "Character": CharacterTextSplitter,
         "RecursiveCharacter": RecursiveCharacterTextSplitter,
         "Markdown": MarkdownTextSplitter,
         "Chinese": ChineseTextSplitter,
     }
-
-
+    
+    
     LOADERS = {
         ".csv": (CSVLoader, {}),
         ".doc": (UnstructuredWordDocumentLoader, {}),
@@ -1063,6 +1199,11 @@ question and the retrieved data.
         ".txt": (TextLoader, {"encoding": "utf8"}),
     }
 
+To reuse RAG pipeline of LangChain, we can wrapper around a LLM/chat
+model for LangChain, used for generating the response text. An OpenVINO
+compiled model can be run locally through the ``HuggingFacePipeline``
+class.
+
 .. code:: ipython3
 
     from langchain.prompts import PromptTemplate
@@ -1073,88 +1214,80 @@ question and the retrieved data.
     import gradio as gr
     import re
     from uuid import uuid4
-
-
+    
+    
     def load_single_document(file_path: str) -> List[Document]:
         """
         helper for loading a single document
-
+    
         Params:
           file_path: document path
         Returns:
           documents loaded
-
+    
         """
         ext = "." + file_path.rsplit(".", 1)[-1]
         if ext in LOADERS:
             loader_class, loader_args = LOADERS[ext]
             loader = loader_class(file_path, **loader_args)
             return loader.load()
-
+    
         raise ValueError(f"File does not exist '{ext}'")
-
-
+    
+    
     def default_partial_text_processor(partial_text: str, new_text: str):
         """
         helper for updating partially generated answer, used by default
-
+    
         Params:
           partial_text: text buffer for storing previosly generated text
           new_text: text update for the current step
         Returns:
           updated text string
-
+    
         """
         partial_text += new_text
         return partial_text
-
-
+    
+    
     text_processor = llm_model_configuration.get(
         "partial_text_processor", default_partial_text_processor
     )
-
-
-    def build_chain(docs, spliter_name, chunk_size, chunk_overlap, vector_search_top_k):
+    
+    
+    def build_retriever(docs, spliter_name, chunk_size, chunk_overlap, vector_search_top_k):
         """
-        Initialize a QA chain
-
+        Initialize a vector database
+    
         Params:
           doc: orignal documents provided by user
           chunk_size:  size of a single sentence chunk
           chunk_overlap: overlap size between 2 chunks
           vector_search_top_k: Vector search top k
-
+    
         """
         documents = []
         for doc in docs:
             documents.extend(load_single_document(doc.name))
-
+    
         text_splitter = TEXT_SPLITERS[spliter_name](
             chunk_size=chunk_size, chunk_overlap=chunk_overlap
         )
-
+    
         texts = text_splitter.split_documents(documents)
-
+    
         db = Chroma.from_documents(texts, embedding)
+    
+        global retriever
         retriever = db.as_retriever(search_kwargs={"k": vector_search_top_k})
-
-        global rag_chain
-        prompt = PromptTemplate.from_template(llm_model_configuration["prompt_template"])
-        chain_type_kwargs = {"prompt": prompt}
-        rag_chain = RetrievalQA.from_chain_type(
-            llm=llm,
-            chain_type="stuff",
-            retriever=retriever,
-            chain_type_kwargs=chain_type_kwargs,
-        )
-
+    
         return "Retriever is Ready"
-
-
+    
+    
     def user(message, history):
         """
         callback function for updating user messages in interface on submit button click
-
+    
         Params:
           message: current message
           history: conversation history
@@ -1163,41 +1296,79 @@ question and the retrieved data.
         """
         # Append the user's message to the conversation history
         return "", history + [[message, ""]]
-
-
-    def bot(history, conversation_id):
+    
+    
+    def bot(history, temperature, top_p, top_k, repetition_penalty, conversation_id):
         """
         callback function for running chatbot on submit button click
-
+    
         Params:
-          history: conversation history.
+          history: conversation history
+          temperature:  parameter for control the level of creativity in AI-generated text.
+                        By adjusting the `temperature`, you can influence the AI model's probability distribution, making the text more focused or diverse.
+          top_p: parameter for control the range of tokens considered by the AI model based on their cumulative probability.
+          top_k: parameter for control the range of tokens considered by the AI model based on their cumulative probability, selecting number of tokens with highest probability.
+          repetition_penalty: parameter for penalizing tokens based on how frequently they occur in the text.
           conversation_id: unique conversation identifier.
-
+    
         """
+        streamer = TextIteratorStreamer(
+            tok, timeout=60.0, skip_prompt=True, skip_special_tokens=True
+        )
+        generate_kwargs = dict(
+            model=ov_model,
+            tokenizer=tok,
+            max_new_tokens=256,
+            temperature=temperature,
+            do_sample=temperature > 0.0,
+            top_p=top_p,
+            top_k=top_k,
+            repetition_penalty=repetition_penalty,
+            streamer=streamer,
+        )
+        if stop_tokens is not None:
+            generate_kwargs["stopping_criteria"] = StoppingCriteriaList(stop_tokens)
+            
+        pipe = pipeline("text-generation", **generate_kwargs)
+        llm = HuggingFacePipeline(pipeline=pipe)
+        
+        prompt = PromptTemplate.from_template(llm_model_configuration["rag_prompt_template"])
+        chain_type_kwargs = {"prompt": prompt}
+        rag_chain = RetrievalQA.from_chain_type(
+            llm=llm,
+            chain_type="stuff",
+            retriever=retriever,
+            chain_type_kwargs=chain_type_kwargs,
+        )
+        
         stream_complete = Event()
-
+    
         def infer(question):
-            rag_chain.run(question)
+            rag_chain.invoke(question)
             stream_complete.set()
-
+    
         t1 = Thread(target=infer, args=(history[-1][0],))
         t1.start()
-
+    
         # Initialize an empty string to store the generated text
         partial_text = ""
         for new_text in streamer:
             partial_text = text_processor(partial_text, new_text)
             history[-1][1] = partial_text
             yield history
-
-
+    
+    
+    def request_cancel():
+        ov_model.request.cancel()
+    
+    
     def get_uuid():
         """
         universal unique identifier for thread
         """
         return str(uuid4())
-
-
+    
+    
     with gr.Blocks(
         theme=gr.themes.Soft(),
         css=".disclaimer {font-variant-caps: all-small-caps;}",
@@ -1235,7 +1406,7 @@ question and the retrieved data.
                         info="Method used to splite the documents",
                         multiselect=False,
                     )
-
+    
                     chunk_size = gr.Slider(
                         label="Chunk size",
                         value=1000,
@@ -1245,7 +1416,7 @@ question and the retrieved data.
                         interactive=True,
                         info="Size of sentence chunk",
                     )
-
+    
                     chunk_overlap = gr.Slider(
                         label="Chunk overlap",
                         value=200,
@@ -1255,11 +1426,11 @@ question and the retrieved data.
                         interactive=True,
                         info=("Overlap between 2 chunks"),
                     )
-
+    
                     vector_search_top_k = gr.Slider(
                         1,
                         10,
-                        value=6,
+                        value=4,
                         step=1,
                         label="Vector search top k",
                         interactive=True,
@@ -1267,6 +1438,55 @@ question and the retrieved data.
                 langchain_status = gr.Textbox(
                     label="Status", value="Retriever is Not ready", interactive=False
                 )
+                with gr.Accordion("Generation Configuration", open=False):
+                    with gr.Row():
+                        with gr.Column():
+                            with gr.Row():
+                                temperature = gr.Slider(
+                                    label="Temperature",
+                                    value=0.1,
+                                    minimum=0.0,
+                                    maximum=1.0,
+                                    step=0.1,
+                                    interactive=True,
+                                    info="Higher values produce more diverse outputs",
+                                )
+                        with gr.Column():
+                            with gr.Row():
+                                top_p = gr.Slider(
+                                    label="Top-p (nucleus sampling)",
+                                    value=1.0,
+                                    minimum=0.0,
+                                    maximum=1,
+                                    step=0.01,
+                                    interactive=True,
+                                    info=(
+                                        "Sample from the smallest possible set of tokens whose cumulative probability "
+                                        "exceeds top_p. Set to 1 to disable and sample from all tokens."
+                                    ),
+                                )
+                        with gr.Column():
+                            with gr.Row():
+                                top_k = gr.Slider(
+                                    label="Top-k",
+                                    value=50,
+                                    minimum=0.0,
+                                    maximum=200,
+                                    step=1,
+                                    interactive=True,
+                                    info="Sample from a shortlist of top-k tokens — 0 to disable and sample from all tokens.",
+                                )
+                        with gr.Column():
+                            with gr.Row():
+                                repetition_penalty = gr.Slider(
+                                    label="Repetition Penalty",
+                                    value=1.1,
+                                    minimum=1.0,
+                                    maximum=2.0,
+                                    step=0.1,
+                                    interactive=True,
+                                    info="Penalize repetition — 1.0 to disable.",
+                                )
             with gr.Column(scale=4):
                 chatbot = gr.Chatbot(height=600)
                 with gr.Row():
@@ -1280,22 +1500,30 @@ question and the retrieved data.
                     with gr.Column():
                         with gr.Row():
                             submit = gr.Button("Submit")
+                            stop = gr.Button("Stop")
                             clear = gr.Button("Clear")
         load_docs.click(
-            build_chain,
+            build_retriever,
             inputs=[docs, spliter, chunk_size, chunk_overlap, vector_search_top_k],
             outputs=[langchain_status],
             queue=False,
         )
         submit_event = msg.submit(
-            user, [msg, chatbot], [msg, chatbot], queue=False, trigger_mode="once"
-        ).then(bot, [chatbot, conversation_id], chatbot, queue=True)
+            user, [msg, chatbot], [msg, chatbot], queue=False
+        ).then(bot, [chatbot, temperature, top_p, top_k, repetition_penalty, conversation_id], chatbot, queue=True)
         submit_click_event = submit.click(
-            user, [msg, chatbot], [msg, chatbot], queue=False, trigger_mode="once"
-        ).then(bot, [chatbot, conversation_id], chatbot, queue=True)
+            user, [msg, chatbot], [msg, chatbot], queue=False
+        ).then(bot, [chatbot, temperature, top_p, top_k, repetition_penalty, conversation_id], chatbot, queue=True)
+        stop.click(
+            fn=request_cancel,
+            inputs=None,
+            outputs=None,
+            cancels=[submit_event, submit_click_event],
+            queue=False,
+        )
         clear.click(lambda: None, None, chatbot, queue=False)
-
-    demo.queue(max_size=2)
+    
+    demo.queue()
     # if you are launching remotely, specify server_name and server_port
     #  demo.launch(server_name='your server name', server_port='server port in int')
     # if you have any issue to launch on your platform, you can pass share=True to launch method:
@@ -1303,41 +1531,13 @@ question and the retrieved data.
     # it creates a publicly shareable link for the interface. Read more in the docs: https://gradio.app/docs/
     demo.launch()
 
-
-.. parsed-literal::
-
-    Running on local URL:  http://10.3.233.70:4888
-
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-.. .. raw:: html
-
-..    <div><iframe src="http://10.3.233.70:4888/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
-
-
-
-
-
-.. parsed-literal::
-
-    /home/ethan/intel/openvino_notebooks/openvino_env/lib/python3.10/site-packages/optimum/intel/openvino/modeling_decoder.py:388: FutureWarning: `shared_memory` is deprecated and will be removed in 2024.0. Value of `shared_memory` is going to override `share_inputs` value. Please use only `share_inputs` explicitly.
-      self.request.start_async(inputs, shared_memory=True)
-    /home/ethan/intel/openvino_notebooks/openvino_env/lib/python3.10/site-packages/optimum/intel/openvino/modeling_decoder.py:388: FutureWarning: `shared_memory` is deprecated and will be removed in 2024.0. Value of `shared_memory` is going to override `share_inputs` value. Please use only `share_inputs` explicitly.
-      self.request.start_async(inputs, shared_memory=True)
-    /home/ethan/intel/openvino_notebooks/openvino_env/lib/python3.10/site-packages/optimum/intel/openvino/modeling_decoder.py:388: FutureWarning: `shared_memory` is deprecated and will be removed in 2024.0. Value of `shared_memory` is going to override `share_inputs` value. Please use only `share_inputs` explicitly.
-      self.request.start_async(inputs, shared_memory=True)
-
-
 .. code:: ipython3
 
     # please run this cell for stopping gradio interface
     demo.close()
-    del rag_chain
 
 
 .. parsed-literal::
 
-    Closing server running on port: 4888
+    Closing server running on port: 5579
 

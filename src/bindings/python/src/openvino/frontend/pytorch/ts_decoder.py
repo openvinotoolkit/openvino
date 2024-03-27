@@ -10,13 +10,24 @@ from openvino.runtime import op, PartialShape, Type as OVType, OVAny
 from openvino.frontend.pytorch.utils import ivalue_to_constant, get_value_from_getattr, pt_to_ov_type_map, prepare_example_inputs_and_model, convert_quantized_tensor, graph_has_ops
 from openvino.runtime import opset11 as ops
 from openvino.frontend.pytorch import gptq
+from openvino.frontend.pytorch import patch_model
+from openvino.frontend.pytorch.module_extension import ModuleExtension
 
 import typing
 import torch
 
 
 class TorchScriptPythonDecoder (Decoder):
-    def __init__(self, pt_module, graph_element=None, example_input=None, alias_db=None, shared_memory=True, skip_freeze=False, constant_cache=None):
+    def __init__(
+            self,
+            pt_module,
+            graph_element=None,
+            example_input=None,
+            alias_db=None,
+            shared_memory=True,
+            skip_freeze=False,
+            constant_cache=None,
+            module_extensions=None):
         Decoder.__init__(self)
         # We store every decoder created by this decoder so that all them are not deleted until the first decoder is deleted
         self.m_decoders = []
@@ -24,6 +35,7 @@ class TorchScriptPythonDecoder (Decoder):
         self._shared_memory = shared_memory
         self._input_is_list = False
         self.constant_cache = constant_cache if constant_cache is not None else dict()
+        self.module_extensions = module_extensions
         if graph_element is None:
             try:
                 pt_module = self._get_scripted_model(
@@ -89,14 +101,22 @@ class TorchScriptPythonDecoder (Decoder):
             input_params = inspect.signature(pt_module.forward if hasattr(
                 pt_module, "forward") else pt_module.__call__).parameters
             input_signature = list(input_params)
+
             if example_inputs is None:
+                if self.module_extensions:
+                    raise RuntimeError("ModuleExtension is not supported for scripting. Please provide valid example_input argument to run tracing.")
                 scripted = torch.jit.script(pt_module)
                 freeze_by_default = True
             else:
                 input_parameters, input_signature, pt_module, self._input_is_list = prepare_example_inputs_and_model(
                     example_inputs, input_params, pt_module)
-                gptq_patched = False
 
+                # name of attribute in a patched module where the original forward method is kept
+                orig_forward_name = '_openvino_module_extension_patch_orig_forward'
+                if self.module_extensions:
+                    patch_model.patch_model(pt_module, self.module_extensions, orig_forward_name)
+
+                gptq_patched = False
                 if gptq.detect_gptq_model(pt_module):
                     try:
                         gptq.patch_model(pt_module)
@@ -115,6 +135,8 @@ class TorchScriptPythonDecoder (Decoder):
                 finally:
                     if gptq_patched:
                         gptq.unpatch_model(pt_module)
+                    if self.module_extensions:
+                        patch_model.unpatch_model(pt_module, orig_forward_name)
 
             if not freeze_by_default and graph_has_ops(scripted.inlined_graph, ["prim::Uninitialized", "prim::unchecked_cast", "aten::append"]):
                 # freeze models with unsupported ops
@@ -185,7 +207,9 @@ class TorchScriptPythonDecoder (Decoder):
         if pt_type is None:
             return OVAny(OVType.dynamic)
         # TODO: Don't use str, use native types
-        if str(pt_type) in pt_to_ov_type_map:
+        if str(pt_type) in ["int", "float", "bool"]:
+            return OVAny(DecoderType.PyScalar(OVAny(pt_to_ov_type_map[str(pt_type)])))
+        elif str(pt_type) in pt_to_ov_type_map:
             return OVAny(pt_to_ov_type_map[str(pt_type)])
         elif isinstance(pt_type, torch.TensorType):
             # Tensor type, parse element type
@@ -230,7 +254,8 @@ class TorchScriptPythonDecoder (Decoder):
                                                node,
                                                alias_db=self.alias_db,
                                                shared_memory=self._shared_memory,
-                                               constant_cache=self.constant_cache)
+                                               constant_cache=self.constant_cache,
+                                               module_extensions=self.module_extensions)
             self.m_decoders.append(decoder)
             node_visitor(decoder)
 
@@ -253,13 +278,28 @@ class TorchScriptPythonDecoder (Decoder):
         decoder = TorchScriptPythonDecoder(self.pt_module,
                                            self.get_subgraphs()[index],
                                            alias_db=self.alias_db,
-                                           shared_memory=self._shared_memory)
+                                           shared_memory=self._shared_memory,
+                                           module_extensions=self.module_extensions)
         self.m_decoders.append(decoder)
         return decoder
 
     def get_op_type(self) -> str:
         assert isinstance(
             self.graph_element, torch.Node), "Function can be called only when self.graph_element is of type torch.Node"
+        if self.graph_element.kind() == "prim::PythonOp":
+            if hasattr(self.graph_element, 'pyobj') and callable(self.graph_element.pyobj) and hasattr(self.graph_element.pyobj(), '__self__'):
+                trampoline = self.graph_element.pyobj().__self__
+                if hasattr(trampoline, 'target_extension') and isinstance(trampoline.target_extension, ModuleExtension):
+                    target_op = trampoline.target_extension.target_op
+                    if callable(target_op):
+                        target = target_op(trampoline.original_module)
+                    elif isinstance(target_op, str):
+                        target = target_op
+                    # TODO: Support target as a callable that will play a role of ConversionExtension for an entire module instead of a single op.
+                    # Without supporting target as a callable here, ConversionExtension functionality is still possible to implement
+                    # by combining two extensions: ModuleExtension that use temporary name as a target op and another extension of type ConversionExtension
+                    # that translates that particular temporary name to custom graph. But providing conversion code as a callable `target` is more convenient.
+                    return target
         return self.graph_element.kind()
 
     def get_schema(self) -> str:
@@ -434,9 +474,6 @@ class TorchScriptPythonDecoder (Decoder):
         except:
             # Sometimes pytorch fails to get result with IndexError exception while these indexes exist in node
             return False
-
-    def inlined_inputs(self, index):
-        return []
 
     def inlined_input(self, index):
         return []

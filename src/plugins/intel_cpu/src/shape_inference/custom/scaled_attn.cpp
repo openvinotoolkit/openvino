@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,7 +53,26 @@ private:
     ScaledDotProductAttentionWithKVCache::Config m_config;
 };
 
+class PAShapeInfer : public ShapeInferEmptyPads {
+public:
+    PAShapeInfer() {}
+
+    IShapeInfer::Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                              const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        const auto& query_dims = input_shapes.front().get();
+
+        return {{query_dims}, ShapeInferStatus::success};
+    }
+
+    port_mask_t get_port_mask() const override {
+        return EMPTY_PORT_MASK;
+    }
+};
+
 ShapeInferPtr SDPAShapeInferFactory::makeShapeInfer() const {
+    if (m_op->get_type_name() == std::string("PagedAttentionExtension")) {
+        return std::make_shared<PAShapeInfer>();
+    }
     if (auto sdpa = std::dynamic_pointer_cast<const ScaledDotProductAttentionWithKVCache>(m_op)) {
         const auto& config = sdpa->get_config();
         if (config.output_BLHxS == false)

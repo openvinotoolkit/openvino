@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -9,7 +9,9 @@ elseif(CMAKE_TOOLCHAIN_FILE MATCHES "conan_toolchain" OR DEFINED CONAN_EXPORTED)
 endif()
 
 set(_old_CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+set(_old_CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
 set(_old_CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ${CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE})
+set(_old_CMAKE_COMPILE_WARNING_AS_ERROR ${CMAKE_COMPILE_WARNING_AS_ERROR})
 
 find_package(PkgConfig QUIET)
 # see https://cmake.org/cmake/help/latest/command/add_library.html#alias-libraries
@@ -21,6 +23,15 @@ endif()
 
 if(SUGGEST_OVERRIDE_SUPPORTED)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
+endif()
+
+# temporarily remove CMAKE_COMPILE_WARNING_AS_ERROR for thirdparty
+if(CMAKE_COMPILE_WARNING_AS_ERROR AND WIN32)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND CMAKE_VERSION VERSION_LESS 3.24)
+        string(REPLACE "/WX" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+        string(REPLACE "/WX" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+    endif()
+    set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
 endif()
 
 if(ENABLE_LTO)
@@ -316,7 +327,10 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         # see https://protobuf.dev/support/version-support/ and
         # https://github.com/protocolbuffers/protobuf/commit/d61f75ff6db36b4f9c0765f131f8edc2f86310fa
         find_package(Protobuf 4.22.0 QUIET CONFIG)
-        if(NOT Protobuf_FOUND)
+        if(Protobuf_FOUND)
+            # protobuf was found via CONFIG mode, let's save it for later usage in OpenVINOConfig.cmake static build
+            set(protobuf_config CONFIG)
+        else()
             if(OV_VCPKG_BUILD)
                 set(protobuf_config CONFIG)
             endif()
@@ -578,4 +592,6 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cnpy
 # restore state
 
 set(CMAKE_CXX_FLAGS "${_old_CMAKE_CXX_FLAGS}")
+set(CMAKE_C_FLAGS "${_old_CMAKE_C_FLAGS}")
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ${_old_CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE})
+set(CMAKE_COMPILE_WARNING_AS_ERROR ${_old_CMAKE_COMPILE_WARNING_AS_ERROR})

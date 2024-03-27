@@ -38,6 +38,8 @@ class GraphIteratorSavedModel : public GraphIteratorProto {
     std::shared_ptr<VariablesIndex> m_variables_index;
     std::shared_ptr<std::map<std::string, std::string>> m_inputs_map;
     std::shared_ptr<std::map<std::string, std::string>> m_outputs_map;
+    HashTableKeysValuesMap m_hash_table_keys_map;
+    HashTableKeysValuesMap m_hash_table_values_map;
     bool m_mmap_enabled;
 
 public:
@@ -63,6 +65,14 @@ public:
 
     std::shared_ptr<std::map<std::string, std::string>> get_saved_model_output_names() const {
         return m_outputs_map;
+    }
+
+    HashTableKeysValuesMap get_hash_table_keys_map() const {
+        return m_hash_table_keys_map;
+    }
+
+    HashTableKeysValuesMap get_hash_table_values_map() const {
+        return m_hash_table_values_map;
     }
 
 private:
@@ -171,7 +181,7 @@ private:
 
         // Update variables map using information by resolving AssignVariableOp graph nodes
         std::map<std::string, std::string> var_map;
-        VariablesIndex::map_assignvariable(m_graph_def, var_map);
+        VariablesIndex::map_assignvariable(m_graph_def, var_map, m_hash_table_keys_map, m_hash_table_values_map);
         if (var_map.size() > 0 && m_variables_index.get() != nullptr) {
             for (auto var : var_map) {
                 m_variables_index->map_variable(var.first, var.second);

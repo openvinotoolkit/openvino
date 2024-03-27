@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -96,6 +96,17 @@ public:
     /// \param[in]  domain  The domain name.
     ///
     void enable_opset_domain(const std::string& domain, const OperatorsBridge& ops_bridge);
+
+    /// \brief Returns opset version for requested domain. If opset version isn't found
+    ///        method returns -1
+    /// \param[in]  domain  The domain name.
+    std::int64_t get_opset_version(const std::string& domain) {
+        try {
+            return ov::frontend::onnx::get_opset_version(*this->m_model_proto, domain);
+        } catch (ov::Exception const&) {
+            return -1;
+        }
+    }
 
 private:
     const std::shared_ptr<ModelProto> m_model_proto;

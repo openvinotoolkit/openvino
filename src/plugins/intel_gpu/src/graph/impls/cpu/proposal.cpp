@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -387,13 +387,16 @@ struct proposal_impl : typed_primitive_impl<proposal> {
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, proposal_inst& instance) override {
-        for (auto& a : events) {
-            a->wait();
-        }
-
         auto& stream = instance.get_network().get_stream();
 
-        auto ev = instance.get_network().get_stream().create_user_event(false);
+        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
+
+        if (!pass_through_events) {
+            for (auto e : events) {
+                e->wait();
+            }
+        }
+
         im_info_t im_info;
         if (instance.dep_memory(proposal_inst::image_info_index).get_layout().data_type == data_types::f16) {
             read_image_info<ov::element_type_traits<data_types::f16>::value_type>(stream, instance, im_info);
@@ -431,8 +434,15 @@ struct proposal_impl : typed_primitive_impl<proposal> {
             }
         }
 
-        ev->set();
-        return ev;
+        if (pass_through_events) {
+            if (events.size() > 1) {
+                return stream.group_events(events);
+            } else if (events.size() == 1) {
+                return events[0];
+            }
+        }
+
+        return stream.create_user_event(true);
     }
 
     void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}

@@ -56,7 +56,7 @@ struct assign : public primitive_base<assign> {
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<assign>::load(ib);
-        ov::element::Type_t data_type;
+        ov::element::Type_t data_type = ov::element::Type_t::undefined;
         ib >> variable_id;
         ib >> output_layout;
         ib >> make_data(&data_type, sizeof(ov::element::Type_t));

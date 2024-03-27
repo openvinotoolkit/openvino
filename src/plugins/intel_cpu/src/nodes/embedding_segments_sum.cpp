@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -119,7 +119,7 @@ void EmbeddingSegmentsSum::getIndices(size_t embIndex, const int*& indices, size
 }
 
 int32_t EmbeddingSegmentsSum::getNumSegments() const {
-    return getParentEdgeAt(NUM_SEGMENTS_IDX)->getMemory().getDataAs<const int32_t>()[0];
+    return getSrcDataAtPortAs<const int32_t>(NUM_SEGMENTS_IDX)[0];
 }
 
 bool EmbeddingSegmentsSum::needShapeInfer() const {

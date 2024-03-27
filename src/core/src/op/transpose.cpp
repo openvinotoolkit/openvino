@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -77,8 +77,8 @@ bool Transpose::evaluate_upper(ov::TensorVector& output_values) const {
     return get_input_tensor(ORDER).has_and_set_bound() && default_upper_bound_evaluator(this, output_values);
 }
 
-bool Transpose::evaluate_label(TensorLabelVector& output_labels) const {
-    return get_input_tensor(ORDER).has_and_set_bound() && ov::util::default_label_evaluator(this, output_labels);
+bool Transpose::evaluate_symbol(TensorSymbolVector& output_symbols) const {
+    return get_input_tensor(ORDER).has_and_set_bound() && ov::util::default_symbol_evaluator(this, output_symbols);
 }
 }  // namespace v1
 }  // namespace op

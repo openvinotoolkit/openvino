@@ -1,10 +1,9 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "topk_shape_inference.hpp"
 
@@ -93,7 +92,7 @@ TYPED_TEST_P(topk_type_prop, negative_axis_support) {
     constexpr auto exp_idx_type = element::i64;
 
     auto data_shape = PartialShape{1, 2, 3, 4};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
     const auto data = std::make_shared<Parameter>(exp_data_type, data_shape);
     const auto k = Constant::create(exp_idx_type, Shape{}, {2});
 
@@ -111,7 +110,7 @@ TYPED_TEST_P(topk_type_prop, negative_axis_support) {
     EXPECT_THAT(op->outputs(), Each(Property("Shape", &Output<Node>::get_shape, Shape({1, 2, 3, 2}))));
     EXPECT_THAT(op->outputs(),
                 Each(Property(&Output<Node>::get_partial_shape,
-                              ResultOf(get_shape_labels, ElementsAre(10, 11, 12, ov::no_label)))));
+                              ResultOf(get_shape_symbols, ElementsAre(symbols[0], symbols[1], symbols[2], nullptr)))));
 }
 
 TYPED_TEST_P(topk_type_prop, default_index_element_type) {
@@ -211,51 +210,52 @@ TYPED_TEST_P(topk_type_prop, data_and_k_shapes_are_dynamic) {
                 Each(Property("Partial Shape", &Output<Node>::get_partial_shape, PartialShape::dynamic())));
 }
 
-TYPED_TEST_P(topk_type_prop_with_evaluate, propagate_label_and_not_interval_value_max) {
+TYPED_TEST_P(topk_type_prop_with_evaluate, propagate_symbol_and_not_interval_value_max) {
     auto p_shape = PartialShape{5, 6, 4, 3, 8};
-    set_shape_labels(p_shape, 1);
+    set_shape_symbols(p_shape);
 
     constexpr auto et = element::i64;
-    const auto labeled_param = std::make_shared<Parameter>(et, p_shape);
-    const auto labeled_shape_of = std::make_shared<ShapeOf>(labeled_param);
+    const auto symboled_param = std::make_shared<Parameter>(et, p_shape);
+    const auto symboled_shape_of = std::make_shared<ShapeOf>(symboled_param);
 
     const auto k = Constant::create(et, Shape{}, {3});
-    const auto op = this->make_op(labeled_shape_of, k, 0, "max", "index", element::i32);
+    const auto op = this->make_op(symboled_shape_of, k, 0, "max", "index", element::i32);
 
     const auto bc_shapes = this->make_broadcast_shapes_of_topk_outs(op.get());
 
     EXPECT_THAT(bc_shapes, ElementsAre(PartialShape({5, 6, 8}), PartialShape({0, 1, 4})));
-    EXPECT_THAT(bc_shapes, Each(ResultOf(get_shape_labels, Each(ov::no_label))));
+    EXPECT_THAT(bc_shapes, Each(ResultOf(get_shape_symbols, Each(nullptr))));
 }
 
-TYPED_TEST_P(topk_type_prop_with_evaluate, propagate_label_and_not_interval_value_min) {
+TYPED_TEST_P(topk_type_prop_with_evaluate, propagate_symbol_and_not_interval_value_min) {
     auto p_shape = PartialShape{5, 6, 3, 4, 8};
-    set_shape_labels(p_shape, 1);
+    set_shape_symbols(p_shape);
 
     constexpr auto et = element::i64;
-    const auto labeled_param = std::make_shared<Parameter>(et, p_shape);
-    const auto labeled_shape_of = std::make_shared<ShapeOf>(labeled_param);
+    const auto symboled_param = std::make_shared<Parameter>(et, p_shape);
+    const auto symboled_shape_of = std::make_shared<ShapeOf>(symboled_param);
 
     const auto k = Constant::create(et, Shape{}, {3});
-    const auto op = this->make_op(labeled_shape_of, k, 0, "min", "index", element::i32);
+    const auto op = this->make_op(symboled_shape_of, k, 0, "min", "index", element::i32);
 
     const auto bc_shapes = this->make_broadcast_shapes_of_topk_outs(op.get());
 
     EXPECT_THAT(bc_shapes, ElementsAre(PartialShape({5, 3, 4}), PartialShape({0, 2, 3})));
-    EXPECT_THAT(bc_shapes, Each(ResultOf(get_shape_labels, Each(ov::no_label))));
+    EXPECT_THAT(bc_shapes, Each(ResultOf(get_shape_symbols, Each(nullptr))));
 }
 
-TYPED_TEST_P(topk_type_prop, preserve_partial_values_and_labels_k_is_interval) {
+TYPED_TEST_P(topk_type_prop, preserve_partial_values_and_symbols_k_is_interval) {
     auto k_dim = Dimension{10, 20};
     auto shape = PartialShape{k_dim};
-    ov::DimensionTracker::set_label(k_dim, 20);
+    auto k_symbol = std::make_shared<Symbol>();
+    k_dim.set_symbol(k_symbol);
 
     const auto p_k = std::make_shared<Parameter>(element::i64, shape);
     const auto shape_of_k = std::make_shared<ShapeOf>(p_k);
     const auto k = std::make_shared<Squeeze>(shape_of_k, Constant::create(element::i64, Shape{}, {0}));
 
     auto data_shape = PartialShape{{2, 5}, {12, 18}, {2, 30}, {30, 40}, {-1, 15}, {15, -1}};
-    set_shape_labels(data_shape, 1);
+    auto symbols = set_shape_symbols(data_shape);
     const auto data = std::make_shared<Parameter>(element::f32, data_shape);
 
     {
@@ -263,48 +263,54 @@ TYPED_TEST_P(topk_type_prop, preserve_partial_values_and_labels_k_is_interval) {
         const auto op = this->make_op(data, k, 0, "max", "value");
         EXPECT_THAT(op->get_output_partial_shape(0),
                     AllOf(PartialShape({{2, 5}, {12, 18}, {2, 30}, {30, 40}, {-1, 15}, {15, -1}}),
-                          ResultOf(get_shape_labels, ElementsAre(no_label, 2, 3, 4, 5, 6))));
+                          ResultOf(get_shape_symbols,
+                                   ElementsAre(nullptr, symbols[1], symbols[2], symbols[3], symbols[4], symbols[5]))));
     }
     {
         // dim{12,18} k{10,20} -> {10,18}
         const auto op = this->make_op(data, k, 1, "max", "value");
         EXPECT_THAT(op->get_output_partial_shape(0),
                     AllOf(PartialShape({{2, 5}, {10, 18}, {2, 30}, {30, 40}, {-1, 15}, {15, -1}}),
-                          ResultOf(get_shape_labels, ElementsAre(1, no_label, 3, 4, 5, 6))));
+                          ResultOf(get_shape_symbols,
+                                   ElementsAre(symbols[0], nullptr, symbols[2], symbols[3], symbols[4], symbols[5]))));
     }
     {
         // dim{2, 30} k{10,20} -> {2,20}
         const auto op = this->make_op(data, k, 2, "max", "value");
         EXPECT_THAT(op->get_output_partial_shape(0),
                     AllOf(PartialShape({{2, 5}, {12, 18}, {2, 20}, {30, 40}, {-1, 15}, {15, -1}}),
-                          ResultOf(get_shape_labels, ElementsAre(1, 2, no_label, 4, 5, 6))));
+                          ResultOf(get_shape_symbols,
+                                   ElementsAre(symbols[0], symbols[1], nullptr, symbols[3], symbols[4], symbols[5]))));
     }
     {
         // dim{30,40} k{10,20} -> {10,20}  (should use k upper bounds??)
         const auto op = this->make_op(data, k, 3, "max", "value");
         EXPECT_THAT(op->get_output_partial_shape(0),
                     AllOf(PartialShape({{2, 5}, {12, 18}, {2, 30}, {10, 20}, {-1, 15}, {15, -1}}),
-                          ResultOf(get_shape_labels, ElementsAre(1, 2, 3, no_label, 5, 6))));
+                          ResultOf(get_shape_symbols,
+                                   ElementsAre(symbols[0], symbols[1], symbols[2], nullptr, symbols[4], symbols[5]))));
     }
     {
         // dim{-inf,15} k{10,20} -> {0,15}
         const auto op = this->make_op(data, k, 4, "max", "value");
         EXPECT_THAT(op->get_output_partial_shape(0),
                     AllOf(PartialShape({{2, 5}, {12, 18}, {2, 30}, {30, 40}, {0, 15}, {15, -1}}),
-                          ResultOf(get_shape_labels, ElementsAre(1, 2, 3, 4, no_label, 6))));
+                          ResultOf(get_shape_symbols,
+                                   ElementsAre(symbols[0], symbols[1], symbols[2], symbols[3], nullptr, symbols[5]))));
     }
     {
         // dim{15,inf} k{10,20} -> {10,inf}
         const auto op = this->make_op(data, k, 5, "max", "value");
         EXPECT_THAT(op->get_output_partial_shape(0),
                     AllOf(PartialShape({{2, 5}, {12, 18}, {2, 30}, {30, 40}, {-1, 15}, {10, -1}}),
-                          ResultOf(get_shape_labels, ElementsAre(1, 2, 3, 4, 5, no_label))));
+                          ResultOf(get_shape_symbols,
+                                   ElementsAre(symbols[0], symbols[1], symbols[2], symbols[3], symbols[4], nullptr))));
     }
 }
 
-TYPED_TEST_P(topk_type_prop, preserve_partial_values_and_labels_k_is_interval_with_no_upper_bound) {
+TYPED_TEST_P(topk_type_prop, preserve_partial_values_and_symbols_k_is_interval_with_no_upper_bound) {
     auto shape = PartialShape{{10, -1}};
-    set_shape_labels(shape, 20);
+    auto k_symbols = set_shape_symbols(shape);
 
     const auto p_k = std::make_shared<Parameter>(element::i64, shape);
     const auto shape_of_k = std::make_shared<ShapeOf>(p_k);
@@ -312,7 +318,7 @@ TYPED_TEST_P(topk_type_prop, preserve_partial_values_and_labels_k_is_interval_wi
     const auto k = std::make_shared<Squeeze>(shape_of_k, Constant::create(element::i64, Shape{}, {0}));
 
     auto data_shape = PartialShape{5, {2, 8}, {2, 100}};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
     const auto data = std::make_shared<Parameter>(element::f32, data_shape);
 
     {
@@ -320,21 +326,21 @@ TYPED_TEST_P(topk_type_prop, preserve_partial_values_and_labels_k_is_interval_wi
         const auto op = this->make_op(data, k, 0, "max", "value");
         EXPECT_THAT(op->get_output_partial_shape(0),
                     AllOf(PartialShape({{0, 5}, {2, 8}, {2, 100}}),
-                          ResultOf(get_shape_labels, ElementsAre(ov::no_label, 11, 12))));
+                          ResultOf(get_shape_symbols, ElementsAre(nullptr, symbols[1], symbols[2]))));
     }
     {
         // dim{2,8} k{0,inf} -> {0,8}
         const auto op = this->make_op(data, k, 1, "max", "value");
-        EXPECT_THAT(
-            op->get_output_partial_shape(0),
-            AllOf(PartialShape({5, {0, 8}, {2, 100}}), ResultOf(get_shape_labels, ElementsAre(10, ov::no_label, 12))));
+        EXPECT_THAT(op->get_output_partial_shape(0),
+                    AllOf(PartialShape({5, {0, 8}, {2, 100}}),
+                          ResultOf(get_shape_symbols, ElementsAre(symbols[0], nullptr, symbols[2]))));
     }
     {
         // dim{2,100} k{0,inf} -> {0,100}
         const auto op = this->make_op(data, k, 2, "max", "value");
-        EXPECT_THAT(
-            op->get_output_partial_shape(0),
-            AllOf(PartialShape({5, {2, 8}, {0, 100}}), ResultOf(get_shape_labels, ElementsAre(10, 11, ov::no_label))));
+        EXPECT_THAT(op->get_output_partial_shape(0),
+                    AllOf(PartialShape({5, {2, 8}, {0, 100}}),
+                          ResultOf(get_shape_symbols, ElementsAre(symbols[0], symbols[1], nullptr))));
     }
 }
 
@@ -370,14 +376,14 @@ REGISTER_TYPED_TEST_SUITE_P(topk_type_prop,
                             k_is_unknown_for_interval_dimension,
                             k_is_unknown_for_interval_with_no_upper_bound_dimension,
                             data_and_k_shapes_are_dynamic,
-                            preserve_partial_values_and_labels_k_is_interval,
-                            preserve_partial_values_and_labels_k_is_interval_with_no_upper_bound,
+                            preserve_partial_values_and_symbols_k_is_interval,
+                            preserve_partial_values_and_symbols_k_is_interval_with_no_upper_bound,
                             negative_axis_dynamic_rank,
                             incorrect_index_element_type);
 
 REGISTER_TYPED_TEST_SUITE_P(topk_type_prop_with_evaluate,
-                            propagate_label_and_not_interval_value_max,
-                            propagate_label_and_not_interval_value_min);
+                            propagate_symbol_and_not_interval_value_max,
+                            propagate_symbol_and_not_interval_value_min);
 
 // TODO: merge the two instantiations into one when v11::TopK gets the evaluate() method
 typedef Types<op::v1::TopK, op::v3::TopK, op::v11::TopK> TopKTypes;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,9 +23,9 @@ using namespace ov::op;
 
 OutputVector translate_gcd(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
-    auto x = context.get_input(0);
-    auto y = context.get_input(1);
-    align_eltwise_input_types(context, x, y, true);
+    Output<Node> x;
+    Output<Node> y;
+    std::tie(x, y) = get_inputs_with_promoted_types(context, 0, 1);
     auto zero_i32 = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
 
     auto trip_count = std::make_shared<v0::Constant>(element::i32, Shape{}, 1000);

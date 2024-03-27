@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/ops.hpp"
 
 using namespace std;
@@ -167,12 +166,12 @@ TEST(type_prop, gather_elements_data_pshape_static_indices_rank_dynamic) {
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({-1, 7, 5}));
 }
 
-TEST(type_prop, gather_elements_interval_dims_with_labels_both_inputs) {
+TEST(type_prop, gather_elements_interval_dims_with_symbols_both_inputs) {
     PartialShape data_shape{-1, {2, 4}, {1, 5}, -1, {4, 8}, {2, 4}};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
 
     PartialShape indices_shape{-1, {3, 6}, {6, 10}, {4, 8}, -1, {4, 6}};
-    set_shape_labels(indices_shape, 20);
+    auto ind_symbols = set_shape_symbols(indices_shape);
 
     int64_t axis = 2;
     const auto data = make_shared<v0::Parameter>(element::Type_t::f32, data_shape);
@@ -182,12 +181,13 @@ TEST(type_prop, gather_elements_interval_dims_with_labels_both_inputs) {
     const auto& out_shape = op->get_output_partial_shape(0);
     EXPECT_EQ(op->get_element_type(), element::Type_t::f32);
     EXPECT_EQ(out_shape, PartialShape({-1, {3, 4}, {6, 10}, {4, 8}, {4, 8}, 4}));
-    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(20, 21, 22, 23, 24, 25));
+    EXPECT_THAT(get_shape_symbols(out_shape),
+                ElementsAre(symbols[0], symbols[1], ind_symbols[2], symbols[3], symbols[4], symbols[5]));
 }
 
-TEST(type_prop, gather_elements_interval_dims_with_labels_data) {
+TEST(type_prop, gather_elements_interval_dims_with_symbols_data) {
     PartialShape data_shape{-1, {2, 4}, {1, 5}, -1, {4, 8}, {2, 4}};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
 
     PartialShape indices_shape{-1, {3, 6}, {6, 10}, {4, 8}, -1, {4, 6}};
 
@@ -199,13 +199,14 @@ TEST(type_prop, gather_elements_interval_dims_with_labels_data) {
     const auto& out_shape = op->get_output_partial_shape(0);
     EXPECT_EQ(op->get_element_type(), element::Type_t::f32);
     EXPECT_EQ(out_shape, PartialShape({-1, {3, 4}, {6, 10}, {4, 8}, {4, 8}, 4}));
-    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(10, 11, ov::no_label, 13, 14, 15));
+    EXPECT_THAT(get_shape_symbols(out_shape),
+                ElementsAre(symbols[0], symbols[1], nullptr, symbols[3], symbols[4], symbols[5]));
 }
 
-TEST(type_prop, gather_elements_interval_dims_with_labels_indices) {
+TEST(type_prop, gather_elements_interval_dims_with_symbols_indices) {
     PartialShape data_shape{-1, {2, 4}, {1, 5}, -1, {4, 8}, {2, 4}};
     PartialShape indices_shape{-1, {3, 6}, {6, 10}, {4, 8}, -1, {4, 6}};
-    set_shape_labels(indices_shape, 20);
+    auto symbols = set_shape_symbols(indices_shape);
 
     int64_t axis = 2;
     const auto data = make_shared<v0::Parameter>(element::Type_t::f32, data_shape);
@@ -215,7 +216,7 @@ TEST(type_prop, gather_elements_interval_dims_with_labels_indices) {
     const auto& out_shape = op->get_output_partial_shape(0);
     EXPECT_EQ(op->get_element_type(), element::Type_t::f32);
     EXPECT_EQ(out_shape, PartialShape({-1, {3, 4}, {6, 10}, {4, 8}, {4, 8}, 4}));
-    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(20, 21, 22, 23, 24, 25));
+    EXPECT_THAT(get_shape_symbols(out_shape), symbols);
 }
 // --------------------- Negative tests ------------------------------
 

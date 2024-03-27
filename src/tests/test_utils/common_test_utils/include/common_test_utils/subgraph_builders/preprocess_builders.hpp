@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -443,6 +443,26 @@ inline std::shared_ptr<Model> crop_dynamic() {
     return function;
 }
 
+inline std::shared_ptr<Model> pad_constant() {
+    using namespace ov::preprocess;
+    auto function = create_preprocess_1input(ov::element::f32, PartialShape{1, 3, 10, 10});
+    auto p = PrePostProcessor(function);
+    p.input().tensor().set_shape({1, 3, 9, 5});
+    p.input().preprocess().pad({0, 0, 2, 2}, {0, 0, -1, 3}, 0, PaddingMode::CONSTANT);
+    function = p.build();
+    return function;
+}
+
+inline std::shared_ptr<Model> pad_edge() {
+    using namespace ov::preprocess;
+    auto function = create_preprocess_1input(ov::element::f32, PartialShape{1, 3, 10, 10});
+    auto p = PrePostProcessor(function);
+    p.input().tensor().set_shape({1, 3, 9, 5});
+    p.input().preprocess().pad({0, 0, 2, 2}, {0, 0, -1, 3}, 0, PaddingMode::EDGE);
+    function = p.build();
+    return function;
+}
+
 inline std::vector<preprocess_func> generic_preprocess_functions() {
     return std::vector<preprocess_func>{
         preprocess_func(mean_only, "mean_only", 0.01f),
@@ -477,7 +497,8 @@ inline std::vector<preprocess_func> generic_preprocess_functions() {
         preprocess_func(cvt_color_i420_to_rgb_single_plane, "cvt_color_i420_to_rgb_single_plane", 1.f),
         preprocess_func(cvt_color_i420_to_bgr_three_planes, "cvt_color_i420_to_bgr_three_planes", 1.f),
         preprocess_func(cvt_color_bgrx_to_bgr, "cvt_color_bgrx_to_bgr", 0.01f),
-    };
+        preprocess_func(pad_constant, "pad_constant", 0.01f),
+        preprocess_func(pad_edge, "pad_edge", 0.01f)};
 }
 
 inline std::shared_ptr<Model> cvt_color_rgb_to_bgr() {

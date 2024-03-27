@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,9 +19,9 @@
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/op_conversions/convert_convertlike.hpp"
+#include "transformations/op_conversions/convert_convertpromotetypes.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "transforms.hpp"
-#include "transforms/align_types_removal.hpp"
 #include "transforms/append_list_unpack_replacer.hpp"
 #include "transforms/aten_cat_replacer.hpp"
 #include "transforms/aten_getitem_replacer.hpp"
@@ -185,7 +185,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
     manager.register_pass<ov::pass::ConstantFolding>();
 
-    manager.register_pass<ov::frontend::pytorch::pass::AlignTypesRemoval>();
+    manager.register_pass<ov::pass::ConvertConvertPromoteTypes>();
     manager.register_pass<ov::pass::PushConstantToSubgraph>();
     manager.register_pass<ov::pass::UnrollIf>();
     manager.register_pass<ov::frontend::pytorch::pass::TupleUnpackInBodyReplacer>();
@@ -218,8 +218,6 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::RemovePackingOps>();
     manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
     manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
-    // Second pass of AlignTypesRemoval after all converting transformations
-    manager.register_pass<ov::frontend::pytorch::pass::AlignTypesRemoval>();
     manager.register_pass<ov::pass::ResolveNameCollisions>(true);
     manager.run_passes(model);
 
@@ -292,7 +290,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
 }
 
 std::map<std::string, CreatorFunction> FrontEnd::get_supported_ops(const ov::frontend::InputModel::Ptr& model) const {
-    std::map<std::string, CreatorFunction> supported_ops = get_supported_ops_fx();
+    std::map<std::string, CreatorFunction> supported_ops;
     if (std::dynamic_pointer_cast<pytorch::InputModel>(model)->decoder_type_name() == "fx")
         supported_ops = get_supported_ops_fx();
     else

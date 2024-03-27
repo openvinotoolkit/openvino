@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -402,18 +402,28 @@ struct non_max_suppression_impl : typed_primitive_impl<non_max_suppression> {
 
     non_max_suppression_impl() : parent("non_max_suppression_impl") {}
 
-    event::ptr execute_impl(const std::vector<event::ptr>& event, typed_primitive_inst<non_max_suppression>& instance) override {
-        for (auto e : event) {
-            e->wait();
-        }
-
+    event::ptr execute_impl(const std::vector<event::ptr>& events, typed_primitive_inst<non_max_suppression>& instance) override {
         auto& stream = instance.get_network().get_stream();
-        auto ev = stream.create_user_event(false);
+
+        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
+
+        if (!pass_through_events) {
+            for (auto e : events) {
+                e->wait();
+            }
+        }
 
         run(instance);
 
-        ev->set();
-        return ev;
+        if (pass_through_events) {
+            if (events.size() > 1) {
+                return stream.group_events(events);
+            } else if (events.size() == 1) {
+                return events[0];
+            }
+        }
+
+        return stream.create_user_event(true);
     }
 
     static std::unique_ptr<primitive_impl> create(const non_max_suppression_node&, const kernel_impl_params&) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,11 +14,11 @@ static size_t GetScatterElementsUpdateChannelIndex(const scatter_elements_update
     const size_t input_size = params.inputs[0].GetDims().size();
     switch (params.axis) {
         case ScatterUpdateAxis::X:
-            return input_size - 1;
+            return (size_t)(input_size - 1);
         case ScatterUpdateAxis::Y:
-            return input_size - 2;
+            return (size_t)(input_size - 2);
         case ScatterUpdateAxis::Z:
-            return input_size - 3;
+            return (size_t)(input_size - 3);
         case ScatterUpdateAxis::W:
             return 2;
         case ScatterUpdateAxis::FEATURE:

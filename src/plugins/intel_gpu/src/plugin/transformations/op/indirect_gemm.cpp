@@ -48,7 +48,15 @@ void IndirectGemm::validate_and_infer_types() {
         input_size,
         ", expected 3.");
 
-    auto out_shapes = shape_infer(this, std::vector<ov::PartialShape>{get_input_partial_shape(0), get_input_partial_shape(1)}, m_order_a, m_order_b, m_order_c);
+    auto out_shapes = shape_infer(this,
+                                  std::vector<ov::PartialShape>{get_input_partial_shape(0), get_input_partial_shape(1)},
+                                  m_target_shape_a,
+                                  m_target_shape_b,
+                                  m_output_pattern_a,
+                                  m_output_pattern_b,
+                                  m_order_a,
+                                  m_order_b,
+                                  m_order_c);
 
     auto output_type = m_output_type == ov::element::undefined ? get_input_element_type(0) : m_output_type;
     set_output_type(0, output_type, out_shapes[0]);

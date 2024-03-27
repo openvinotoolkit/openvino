@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
@@ -13,11 +13,13 @@ import tensorflow.compat.v1 as tf_v1
 import tensorflow_hub as hub
 # noinspection PyUnresolvedReferences
 import tensorflow_text  # do not delete, needed for text models
+from openvino import Core
 
 from models_hub_common.constants import tf_hub_cache_dir, hf_cache_dir
 from models_hub_common.test_convert_model import TestConvertModel
 from models_hub_common.utils import get_models_list
-from utils import type_map, load_graph, get_input_signature, get_output_signature
+from utils import type_map, load_graph, get_input_signature, get_output_signature, unpack_tf_result, \
+    repack_ov_result_to_tf_format, get_output_signature_from_keras_layer
 
 
 def is_hf_link(link: str):
@@ -95,7 +97,18 @@ class TestTFHubConvertModel(TestConvertModel):
             assert input_info.dtype in type_map, "Unsupported input type: {}".format(input_info.dtype)
             inputs_info.append((input_name, input_shape, type_map[input_info.dtype]))
 
+        self.output_signature = get_output_signature_from_keras_layer(model_obj)
         return inputs_info
+
+    def infer_ov_model(self, ov_model, inputs, ie_device):
+        core = Core()
+        compiled = core.compile_model(ov_model, ie_device)
+        ov_outputs = compiled(inputs)
+
+        # TF FE loses output structure in case when original model has output dictionary, where values are tuples.
+        # OV generates in this case a list of tensors with inner tensor names.
+        # TODO:Remove this method when OV supports output dictionary of tuples - Ticket TODO
+        return repack_ov_result_to_tf_format(ov_outputs, self.output_signature)
 
     def infer_fw_model(self, model_obj, inputs):
         if type(model_obj) is tf_v1.Graph:
@@ -123,12 +136,7 @@ class TestTFHubConvertModel(TestConvertModel):
         tf_inputs = {}
         for input_name, input_value in inputs.items():
             tf_inputs[input_name] = tf.constant(input_value)
-
-        output_dict = {}
-        for out_name, out_value in model_obj(**tf_inputs).items():
-            output_dict[out_name] = out_value.numpy()
-
-        return output_dict
+        return unpack_tf_result(model_obj(**tf_inputs))
 
     def clean_dir(self, dir_name: str):
         if os.path.exists(dir_name):

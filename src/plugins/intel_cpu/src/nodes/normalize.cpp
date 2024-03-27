@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1492,7 +1492,7 @@ std::shared_ptr<NormalizeL2::NormalizeL2Executor> NormalizeL2::NormalizeL2Execut
               OV_CASE2(ov::element::i8, ov::element::f32, int8_t, float),
               OV_CASE2(ov::element::f32, ov::element::f32, float, float),
               OV_CASE2(ov::element::bf16, ov::element::bf16, bfloat16_t, bfloat16_t),
-              OV_CASE2(ov::element::f16, ov::element::f16, float16_t, float16_t));
+              OV_CASE2(ov::element::f16, ov::element::f16, dnnl::impl::float16_t, dnnl::impl::float16_t));
 
     return ctx.executor;
 }

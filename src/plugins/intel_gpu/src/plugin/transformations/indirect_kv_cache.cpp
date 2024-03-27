@@ -85,9 +85,9 @@ IndirectKVCache::IndirectKVCache() {
         auto matmul_kv_cache_index = kv_cache_users.begin()->get_index();
 
         auto gemm_node = std::dynamic_pointer_cast<op::Gemm>(m.get_match_root());
-        auto order_in0 = gemm_node->get_input0_order();
-        auto order_in1 = gemm_node->get_input1_order();
-        auto order_out = gemm_node->get_output_order();
+        auto order_in0 = gemm_node->get_input0_transpose_order();
+        auto order_in1 = gemm_node->get_input1_transpose_order();
+        auto order_out = gemm_node->get_output_transpose_order();
 
         auto indirect_gemm = std::make_shared<ov::intel_gpu::op::IndirectGemm>(gemm_node->get_input_node_shared_ptr(0),
                                                                                gemm_node->get_input_node_shared_ptr(1),

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import itertools
@@ -30,6 +30,28 @@ def get_models_list(file_name: str):
             models.append((model_name, model_link, mark, reason))
 
     return models
+
+
+def get_skipped_model_links(filename: str):
+    links = set()
+    if not os.path.exists(filename):
+        return links
+    with open(filename) as f:
+        for model_info in f:
+            model_info = model_info.strip()
+            model_name, model_link = model_info.split(',')
+            links.add(model_link)
+    return links
+
+
+def get_models_list_not_skipped(model_list_file: str, skip_list_file: str):
+    skipped_links = get_skipped_model_links(skip_list_file)
+    not_skipped_models = []
+    for model_name, model_link, mark, reason in get_models_list(model_list_file):
+        if model_link in skipped_links:
+            continue
+        not_skipped_models.append((model_name, model_link, mark, reason))
+    return not_skipped_models
 
 
 def compare_two_tensors(ov_res, fw_res, eps):

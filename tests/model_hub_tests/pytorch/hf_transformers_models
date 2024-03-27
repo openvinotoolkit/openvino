@@ -219,7 +219,7 @@ liamcripwell/pgdyn-plan,context-roberta,skip,Load problem
 linhdo/graphdoc,graphdoc,skip,Load problem
 LinkSoul/Chinese-LLaVA-Baichuan,llava,skip,Load problem
 LinkSoul/LLaSM-Cllama2,llaaa,skip,Load problem
-lintang/t5-v2-xl-flan,umt5
+lintang/pile-t5-base-flan,umt5
 liuhaotian/LLaVA-Lightning-MPT-7B-preview,llava_mpt,skip,Load problem
 liya0121/my_finetune_0121,progen,skip,Load problem
 lucadiliello/BLEURT-20,bleurt,skip,Load problem

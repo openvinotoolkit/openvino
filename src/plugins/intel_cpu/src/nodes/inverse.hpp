@@ -41,7 +41,7 @@ private:
     bool m_const_input = false;
 
     /// General algorithm variables
-    ov::element::Type m_input_precision;
+    ov::element::Type m_input_precision = ov::element::f32;
 
     size_t m_side = 0;
     size_t m_side_squared = 0;

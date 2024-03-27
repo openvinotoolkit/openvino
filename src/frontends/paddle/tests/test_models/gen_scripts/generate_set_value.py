@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import sys
@@ -10,6 +10,7 @@ import numpy as np
 import paddle
 from save_model import saveModel
 
+maxint32 = np.iinfo(np.int32).max
 
 def concat(data):
     data = [np.expand_dims(d, 0) for d in data]
@@ -140,6 +141,21 @@ def main():
     #     return x
 
     # paddle_set_value("set_value7", data, value, set_value_step1, dtype)
+
+    shape = (7, 9)
+    dtype = "int32"
+    data = np.random.randint(0, 5, shape).astype(dtype)
+    value = np.random.randint(-100, -1, (3, 1)).astype(dtype)
+
+    starts = generate_data([4], np.int64)
+    ends = generate_data([maxint32], np.int64)
+    steps = generate_data([1], np.int64)
+
+    def set_value8(x, value, *slice):
+        x[build_slice(*slice)] = value
+        return x
+
+    paddle_set_value("set_value8", data, value, set_value8, dtype, starts, ends, steps)
 
     # shape = (10, 5)
     # dtype = "float32"

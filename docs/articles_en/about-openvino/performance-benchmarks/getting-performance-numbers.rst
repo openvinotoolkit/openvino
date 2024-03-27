@@ -177,7 +177,7 @@ insights in the application-level performance on the timeline view.
 
 .. raw:: html
 
-   <link rel="stylesheet" type="text/css" href="../_static/css/benchmark-banner.css">
+   <link rel="stylesheet" type="text/css" href="../../_static/css/benchmark-banner.css">
 
 .. container:: benchmark-banner
 

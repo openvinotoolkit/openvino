@@ -138,6 +138,13 @@ void ReduceCPULayerTest::SetUp() {
     }
 
     function = makeNgraphFunction(netPrecision, params, reduce, "Reduce");
+
+    if (ov::with_cpu_x86_avx512_core_amx()) {
+        if (netPrecision == ov::element::f32 && configuration.count(ov::hint::inference_precision.name()) &&
+            configuration.at(ov::hint::inference_precision.name()) == ov::element::f16) {
+            abs_threshold = 5e-3;
+        }
+    }
 }
 
 void ReduceCPULayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {

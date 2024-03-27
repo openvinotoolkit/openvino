@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -276,6 +276,22 @@ PreProcessSteps& PreProcessSteps::mean(float value) {
 
 PreProcessSteps& PreProcessSteps::mean(const std::vector<float>& values) {
     m_impl->add_mean_impl(values);
+    return *this;
+}
+
+PreProcessSteps& PreProcessSteps::pad(const std::vector<int>& pads_begin,
+                                      const std::vector<int>& pads_end,
+                                      float value,
+                                      PaddingMode mode) {
+    m_impl->add_pad_impl(pads_begin, pads_end, std::vector<float>{value}, mode);
+    return *this;
+}
+
+PreProcessSteps& PreProcessSteps::pad(const std::vector<int>& pads_begin,
+                                      const std::vector<int>& pads_end,
+                                      const std::vector<float>& values,
+                                      PaddingMode mode) {
+    m_impl->add_pad_impl(pads_begin, pads_end, values, mode);
     return *this;
 }
 

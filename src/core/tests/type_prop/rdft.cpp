@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,8 +21,21 @@ struct RDFTConstantAxesAndConstantSignalSizeTestParams {
     PartialShape ref_output_shape;
     std::vector<int64_t> axes;
     std::vector<int64_t> signal_size;
-    std::vector<ov::label_t> expected_labels;
+    std::vector<size_t> expected_symbols;
 };
+
+namespace {
+TensorSymbol from_idx_to_symbol_vector(const std::vector<size_t>& indices, const TensorSymbol& initial_symbols) {
+    TensorSymbol result;
+    for (const auto& i : indices) {
+        if (i == 0)
+            result.push_back(nullptr);
+        else
+            result.push_back(initial_symbols[i - 10]);
+    }
+    return result;
+}
+}  // namespace
 
 struct RDFTConstantAxesAndConstantSignalSizeTest
     : ::testing::TestWithParam<RDFTConstantAxesAndConstantSignalSizeTestParams> {};
@@ -31,7 +44,7 @@ TEST_P(RDFTConstantAxesAndConstantSignalSizeTest, rdft_constant_axes_and_signal_
     auto params = GetParam();
 
     auto input_shape = params.input_shape;
-    set_shape_labels(input_shape, 10);
+    auto symbols = set_shape_symbols(input_shape);
     auto data = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
     auto axes_input = op::v0::Constant::create<int64_t>(element::i64, params.axes_shape, params.axes);
 
@@ -46,132 +59,133 @@ TEST_P(RDFTConstantAxesAndConstantSignalSizeTest, rdft_constant_axes_and_signal_
 
     EXPECT_EQ(rdft->get_element_type(), element::f32);
     EXPECT_EQ(rdft->get_output_partial_shape(0), params.ref_output_shape);
-    EXPECT_EQ(get_shape_labels(rdft->get_output_partial_shape(0)), params.expected_labels);
+    auto output_expected_symbols = from_idx_to_symbol_vector(params.expected_symbols, symbols);
+    EXPECT_EQ(get_shape_symbols(rdft->get_output_partial_shape(0)), output_expected_symbols);
 }
 
 INSTANTIATE_TEST_SUITE_P(
     type_prop,
     RDFTConstantAxesAndConstantSignalSizeTest,
-    ::testing::Values(
-        RDFTConstantAxesAndConstantSignalSizeTestParams{{2, 180, 180},
-                                                        {2},
-                                                        Shape{},
-                                                        {2, 180, 91, 2},
-                                                        {1, 2},
-                                                        {},
-                                                        {10, 11, ov::no_label, ov::no_label}},
-        RDFTConstantAxesAndConstantSignalSizeTestParams{{6, 180, 180},
-                                                        {2},
-                                                        Shape{},
-                                                        {4, 180, 180, 2},
-                                                        {2, 0},
-                                                        {},
-                                                        {ov::no_label, 11, 12, ov::no_label}},
-        RDFTConstantAxesAndConstantSignalSizeTestParams{{16, 500, 180, 369},
-                                                        {3},
-                                                        Shape{},
-                                                        {16, 251, 180, 369, 2},
-                                                        {0, 3, 1},
-                                                        {},
-                                                        {10, ov::no_label, 12, 13, ov::no_label}},
-        RDFTConstantAxesAndConstantSignalSizeTestParams{{2, 180, Dimension(1, 18)},
-                                                        {2},
-                                                        Shape{},
-                                                        {2, 180, Dimension(1, 10), 2},
-                                                        {1, 2},
-                                                        {},
-                                                        {10, 11, ov::no_label, ov::no_label}},
-        RDFTConstantAxesAndConstantSignalSizeTestParams{{2, 180, Dimension(7, 500)},
-                                                        {2},
-                                                        Shape{},
-                                                        {2, 180, Dimension(4, 251), 2},
-                                                        {1, 2},
-                                                        {},
-                                                        {10, 11, ov::no_label, ov::no_label}},
-        RDFTConstantAxesAndConstantSignalSizeTestParams{{2, Dimension(7, 500), 180},
-                                                        {2},
-                                                        Shape{},
-                                                        {2, Dimension(7, 500), 91, 2},
-                                                        {1, 2},
-                                                        {},
-                                                        {10, 11, ov::no_label, ov::no_label}},
-        RDFTConstantAxesAndConstantSignalSizeTestParams{{2, Dimension(7, 500), Dimension(7, 500)},
-                                                        {2},
-                                                        Shape{},
-                                                        {2, Dimension(7, 500), Dimension(4, 251), 2},
-                                                        {1, 2},
-                                                        {},
-                                                        {10, 11, ov::no_label, ov::no_label}},
-        RDFTConstantAxesAndConstantSignalSizeTestParams{{Dimension(0, 2), 180, 180},
-                                                        {2},
-                                                        Shape{},
-                                                        {Dimension(0, 2), 180, 91, 2},
-                                                        {1, 2},
-                                                        {},
-                                                        {10, 11, ov::no_label, ov::no_label}},
-        RDFTConstantAxesAndConstantSignalSizeTestParams{{Dimension(0, 2), 180, Dimension(7, 500)},
-                                                        {2},
-                                                        Shape{},
-                                                        {Dimension(0, 2), 180, Dimension(4, 251), 2},
-                                                        {1, 2},
-                                                        {},
-                                                        {10, 11, ov::no_label, ov::no_label}},
-        RDFTConstantAxesAndConstantSignalSizeTestParams{{Dimension(0, 2), Dimension(7, 500), 180},
-                                                        {2},
-                                                        Shape{},
-                                                        {Dimension(0, 2), Dimension(7, 500), 91, 2},
-                                                        {1, 2},
-                                                        {},
-                                                        {10, 11, ov::no_label, ov::no_label}},
-        RDFTConstantAxesAndConstantSignalSizeTestParams{{Dimension(0, 2), Dimension(7, 500), Dimension(7, 500)},
-                                                        {2},
-                                                        Shape{},
-                                                        {Dimension(0, 2), Dimension(7, 500), Dimension(4, 251), 2},
-                                                        {1, 2},
-                                                        {},
-                                                        {10, 11, ov::no_label, ov::no_label}},
-        RDFTConstantAxesAndConstantSignalSizeTestParams{{2, 180, 180},
-                                                        {2},
-                                                        {2},
-                                                        {2, 180, 39, 2},
-                                                        {1, 2},
-                                                        {-1, 77},
-                                                        {10, 11, ov::no_label, ov::no_label}},
-        RDFTConstantAxesAndConstantSignalSizeTestParams{{2, 180, 180},
-                                                        {2},
-                                                        {2},
-                                                        {44, 180, 390, 2},
-                                                        {2, 0},
-                                                        {390, 87},
-                                                        {0, 11, ov::no_label, ov::no_label}},
-        RDFTConstantAxesAndConstantSignalSizeTestParams{{7, 50, 130, 400},
-                                                        {3},
-                                                        {3},
-                                                        {7, 21, 130, 600, 2},
-                                                        {3, 0, 1},
-                                                        {600, -1, 40},
-                                                        {10, ov::no_label, 12, ov::no_label, ov::no_label}},
-        RDFTConstantAxesAndConstantSignalSizeTestParams{{2, Dimension(0, 200), 180},
-                                                        {2},
-                                                        {2},
-                                                        {2, Dimension(0, 200), 39, 2},
-                                                        {1, 2},
-                                                        {-1, 77},
-                                                        {10, 11, ov::no_label, ov::no_label}},
-        RDFTConstantAxesAndConstantSignalSizeTestParams{{Dimension(0, 18), 180, Dimension(0, 400)},
-                                                        {2},
-                                                        {2},
-                                                        {44, 180, 390, 2},
-                                                        {2, 0},
-                                                        {390, 87},
-                                                        {ov::no_label, 11, ov::no_label, ov::no_label}},
-        RDFTConstantAxesAndConstantSignalSizeTestParams{{Dimension(8, 129), 50, 130, Dimension(0, 500)},
-                                                        {3},
-                                                        {3},
-                                                        {Dimension(8, 129), 21, 130, 600, 2},
-                                                        {3, 0, 1},
-                                                        {600, -1, 40},
-                                                        {10, ov::no_label, 12, ov::no_label, ov::no_label}}),
+    ::testing::Values(RDFTConstantAxesAndConstantSignalSizeTestParams{{2, 180, 180},
+                                                                      {2},
+                                                                      Shape{},
+                                                                      {2, 180, 91, 2},
+                                                                      {1, 2},
+                                                                      {},
+                                                                      {10, 11, 0, 0}},
+                      RDFTConstantAxesAndConstantSignalSizeTestParams{{6, 180, 180},
+                                                                      {2},
+                                                                      Shape{},
+                                                                      {4, 180, 180, 2},
+                                                                      {2, 0},
+                                                                      {},
+                                                                      {0, 11, 12, 0}},
+                      RDFTConstantAxesAndConstantSignalSizeTestParams{{16, 500, 180, 369},
+                                                                      {3},
+                                                                      Shape{},
+                                                                      {16, 251, 180, 369, 2},
+                                                                      {0, 3, 1},
+                                                                      {},
+                                                                      {10, 0, 12, 13, 0}},
+                      RDFTConstantAxesAndConstantSignalSizeTestParams{{2, 180, Dimension(1, 18)},
+                                                                      {2},
+                                                                      Shape{},
+                                                                      {2, 180, Dimension(1, 10), 2},
+                                                                      {1, 2},
+                                                                      {},
+                                                                      {10, 11, 0, 0}},
+                      RDFTConstantAxesAndConstantSignalSizeTestParams{{2, 180, Dimension(7, 500)},
+                                                                      {2},
+                                                                      Shape{},
+                                                                      {2, 180, Dimension(4, 251), 2},
+                                                                      {1, 2},
+                                                                      {},
+                                                                      {10, 11, 0, 0}},
+                      RDFTConstantAxesAndConstantSignalSizeTestParams{{2, Dimension(7, 500), 180},
+                                                                      {2},
+                                                                      Shape{},
+                                                                      {2, Dimension(7, 500), 91, 2},
+                                                                      {1, 2},
+                                                                      {},
+                                                                      {10, 11, 0, 0}},
+                      RDFTConstantAxesAndConstantSignalSizeTestParams{{2, Dimension(7, 500), Dimension(7, 500)},
+                                                                      {2},
+                                                                      Shape{},
+                                                                      {2, Dimension(7, 500), Dimension(4, 251), 2},
+                                                                      {1, 2},
+                                                                      {},
+                                                                      {10, 11, 0, 0}},
+                      RDFTConstantAxesAndConstantSignalSizeTestParams{{Dimension(0, 2), 180, 180},
+                                                                      {2},
+                                                                      Shape{},
+                                                                      {Dimension(0, 2), 180, 91, 2},
+                                                                      {1, 2},
+                                                                      {},
+                                                                      {10, 11, 0, 0}},
+                      RDFTConstantAxesAndConstantSignalSizeTestParams{{Dimension(0, 2), 180, Dimension(7, 500)},
+                                                                      {2},
+                                                                      Shape{},
+                                                                      {Dimension(0, 2), 180, Dimension(4, 251), 2},
+                                                                      {1, 2},
+                                                                      {},
+                                                                      {10, 11, 0, 0}},
+                      RDFTConstantAxesAndConstantSignalSizeTestParams{{Dimension(0, 2), Dimension(7, 500), 180},
+                                                                      {2},
+                                                                      Shape{},
+                                                                      {Dimension(0, 2), Dimension(7, 500), 91, 2},
+                                                                      {1, 2},
+                                                                      {},
+                                                                      {10, 11, 0, 0}},
+                      RDFTConstantAxesAndConstantSignalSizeTestParams{
+                          {Dimension(0, 2), Dimension(7, 500), Dimension(7, 500)},
+                          {2},
+                          Shape{},
+                          {Dimension(0, 2), Dimension(7, 500), Dimension(4, 251), 2},
+                          {1, 2},
+                          {},
+                          {10, 11, 0, 0}},
+                      RDFTConstantAxesAndConstantSignalSizeTestParams{{2, 180, 180},
+                                                                      {2},
+                                                                      {2},
+                                                                      {2, 180, 39, 2},
+                                                                      {1, 2},
+                                                                      {-1, 77},
+                                                                      {10, 11, 0, 0}},
+                      RDFTConstantAxesAndConstantSignalSizeTestParams{{2, 180, 180},
+                                                                      {2},
+                                                                      {2},
+                                                                      {44, 180, 390, 2},
+                                                                      {2, 0},
+                                                                      {390, 87},
+                                                                      {0, 11, 0, 0}},
+                      RDFTConstantAxesAndConstantSignalSizeTestParams{{7, 50, 130, 400},
+                                                                      {3},
+                                                                      {3},
+                                                                      {7, 21, 130, 600, 2},
+                                                                      {3, 0, 1},
+                                                                      {600, -1, 40},
+                                                                      {10, 0, 12, 0, 0}},
+                      RDFTConstantAxesAndConstantSignalSizeTestParams{{2, Dimension(0, 200), 180},
+                                                                      {2},
+                                                                      {2},
+                                                                      {2, Dimension(0, 200), 39, 2},
+                                                                      {1, 2},
+                                                                      {-1, 77},
+                                                                      {10, 11, 0, 0}},
+                      RDFTConstantAxesAndConstantSignalSizeTestParams{{Dimension(0, 18), 180, Dimension(0, 400)},
+                                                                      {2},
+                                                                      {2},
+                                                                      {44, 180, 390, 2},
+                                                                      {2, 0},
+                                                                      {390, 87},
+                                                                      {0, 11, 0, 0}},
+                      RDFTConstantAxesAndConstantSignalSizeTestParams{{Dimension(8, 129), 50, 130, Dimension(0, 500)},
+                                                                      {3},
+                                                                      {3},
+                                                                      {Dimension(8, 129), 21, 130, 600, 2},
+                                                                      {3, 0, 1},
+                                                                      {600, -1, 40},
+                                                                      {10, 0, 12, 0, 0}}),
     PrintToDummyParamName());
 
 TEST(type_prop, rdft_dynamic_axes) {
@@ -204,7 +218,7 @@ TEST_P(RDFTNonConstantAxesTest, rdft_non_constant_axes) {
 
     EXPECT_EQ(rdft->get_element_type(), element::f32);
     EXPECT_EQ(rdft->get_output_partial_shape(0), params.ref_output_shape);
-    EXPECT_THAT(get_shape_labels(rdft->get_output_partial_shape(0)), Each(ov::no_label));
+    EXPECT_THAT(get_shape_symbols(rdft->get_output_partial_shape(0)), Each(nullptr));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -243,7 +257,7 @@ struct RDFTNonConstantSignalSizeTestParams {
     Shape signal_size_shape;
     PartialShape ref_output_shape;
     std::vector<int64_t> axes;
-    std::vector<ov::label_t> expected_labels;
+    std::vector<size_t> expected_symbols;
 };
 
 struct RDFTNonConstantSignalSizeTest : ::testing::TestWithParam<RDFTNonConstantSignalSizeTestParams> {};
@@ -258,7 +272,8 @@ TEST_P(RDFTNonConstantSignalSizeTest, rdft_non_constant_signal_size) {
 
     EXPECT_EQ(rdft->get_element_type(), element::f32);
     EXPECT_EQ(rdft->get_output_partial_shape(0), params.ref_output_shape);
-    EXPECT_EQ(get_shape_labels(rdft->get_output_partial_shape(0)), params.expected_labels);
+    EXPECT_EQ(get_shape_symbols(rdft->get_output_partial_shape(0)),
+              TensorSymbol(params.expected_symbols.size(), nullptr));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -269,20 +284,20 @@ INSTANTIATE_TEST_SUITE_P(
                                                           {2},
                                                           {2, Dimension(0, 200), Dimension::dynamic(), 2},
                                                           {1, 2},
-                                                          {ov::no_label, ov::no_label, ov::no_label, ov::no_label}},
+                                                          {0, 0, 0, 0}},
                       RDFTNonConstantSignalSizeTestParams{{Dimension(0, 18), 180, Dimension(0, 400)},
                                                           {2},
                                                           {2},
                                                           {Dimension::dynamic(), 180, Dimension(0, 400), 2},
                                                           {2, 0},
-                                                          {ov::no_label, ov::no_label, ov::no_label, ov::no_label}},
+                                                          {0, 0, 0, 0}},
                       RDFTNonConstantSignalSizeTestParams{
                           {Dimension(8, 129), 50, 130, Dimension(0, 500)},
                           {3},
                           {3},
                           {Dimension(8, 129), Dimension::dynamic(), 130, Dimension(0, 500), 2},
                           {3, 0, 1},
-                          {ov::no_label, ov::no_label, ov::no_label, ov::no_label, ov::no_label}}),
+                          {0, 0, 0, 0, 0}}),
     PrintToDummyParamName());
 
 TEST(type_prop, rdft_invalid_input) {

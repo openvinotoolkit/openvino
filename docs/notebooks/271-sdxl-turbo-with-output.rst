@@ -62,7 +62,7 @@ Prerequisites
 .. code:: ipython3
 
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu\
-    torch transformers diffusers "git+https://github.com/huggingface/optimum-intel.git" gradio "openvino>=2023.3.0"
+    torch transformers diffusers "git+https://github.com/huggingface/optimum-intel.git" gradio "peft==0.6.2" "openvino>=2023.3.0"
 
 Convert model to OpenVINO format
 --------------------------------
@@ -725,7 +725,7 @@ launch the interactive demo.
         if not quantized_model_present:
             raise RuntimeError("Quantized model not found.")
         text2image_pipe.unet.model = core.read_model(UNET_INT8_OV_PATH)
-        text2image_pipe.unet.request = core.compile_model(text2image_pipe.unet.model)
+        text2image_pipe.unet.request = core.compile_model(text2image_pipe.unet.model, device.value)
     
     
     def generate_from_text(text, seed, num_steps, height, width):

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -34,8 +34,6 @@
 namespace ov {
 namespace gen_pattern {
 
-static bool force_matcher_verbose = false;
-
 #ifdef CPU_DEBUG_CAPS
 
 template <typename... Args>
@@ -47,15 +45,17 @@ static inline void _verbose_log(Args&&... args) {
     std::cout << ss.str();
 }
 
-static int matcher_verbose_enabled() {
-    static const int enabled = std::getenv("GENP_VERBOSE") ? (atoi(std::getenv("GENP_VERBOSE"))) : 0;
+static bool matcher_verbose_enabled() {
+    static const bool enabled = std::getenv("GENP_VERBOSE") ? (atoi(std::getenv("GENP_VERBOSE")) != 0) : false;
     return enabled;
 }
 
-#    define _VERBOSE_LOG(...)                                   \
-        if (matcher_verbose_enabled() || force_matcher_verbose) \
-        _verbose_log(__VA_ARGS__)
+#    define _VERBOSE_LOG(...) if (matcher_verbose_enabled()) _verbose_log(__VA_ARGS__)
 #else
+static bool matcher_verbose_enabled() {
+    return false;
+}
+
 #    define _VERBOSE_LOG(...)
 #endif
 
@@ -260,6 +260,15 @@ inline Symbol sqrt(Symbol lhs) {
 }
 
 namespace detail {
+
+using SymbolObservationVector = std::vector<std::pair<Symbol, double>>;
+
+template <typename T>
+void add_symbol_observed(SymbolObservationVector& sov, const Symbol& sym, const T& value) {
+    auto v = static_cast<double>(value);
+    OPENVINO_ASSERT(static_cast<T>(v) == value);  // ensure there is no precison lost in double
+    sov.push_back(std::make_pair(sym, v));
+}
 
 // AttrAny is simple wrapper of Any to provide some constructor
 // to take advantage of C++ implicit conversion to allow:
@@ -556,173 +565,6 @@ public:
     }
 };
 
-class GenericPattern : public ov::pass::pattern::op::Pattern {
-public:
-    OPENVINO_RTTI("GenericPattern");
-
-    explicit GenericPattern(const OutputVector& args = {}, const detail::AttrMap& attrs = {})
-        : ov::pass::pattern::op::Pattern(args) {
-        set_output_type(0, element::Type_t::dynamic, PartialShape::dynamic());
-        m_attrs = attrs;
-    }
-
-    // this allows code inside pred to access pattern node itself
-    void set_predicate(ov::pass::pattern::op::ValuePredicate pred) {
-        m_predicate = pred;
-    }
-
-    bool match_value(ov::pass::pattern::Matcher* matcher,
-                     const Output<Node>& pattern_value,
-                     const Output<Node>& graph_value) override {
-        // strictly requires pattern & graph value to come from output port with same index,
-        // this is absolute necessary when pattern contains split node connections.
-        if (pattern_value.get_index() != graph_value.get_index())
-            return false;
-        if (m_predicate(graph_value)) {
-            auto& pattern_map = matcher->get_pattern_value_map();
-            pattern_map[shared_from_this()] = graph_value;
-            matcher->add_node(graph_value);
-            return (get_input_size() == 0
-                        ? true
-                        : matcher->match_arguments(pattern_value.get_node(), graph_value.get_node_shared_ptr()));
-        }
-        return false;
-    }
-
-    detail::AttrMap& get_attrs() {
-        return m_attrs;
-    }
-
-private:
-    detail::AttrMap m_attrs;
-};
-
-// A glue/syntax-sugar type which allows more types to be used as input to makePattern()
-struct PatternNode {
-    std::shared_ptr<Node> node;
-    int output_port = -1;
-
-    operator ov::Output<ov::Node>() const {
-        return get_output();
-    }
-
-    ov::Output<ov::Node> get_output() const {
-        if (output_port >= 0)
-            return node->output(output_port);
-        return node->get_default_output();
-    }
-
-    PatternNode(const Output<Node>& out) : node(out.get_node_shared_ptr()), output_port(out.get_index()) {}
-
-    PatternNode() {
-        node = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
-    }
-    PatternNode(ov::Rank rank) {
-        node = ov::pass::pattern::any_input([rank](const Output<Node>& value) {
-            if (!rank.compatible(value.get_partial_shape().rank())) {
-                _VERBOSE_LOG("*mismatched PatternNode rank ", value, " expecting ", rank);
-                return false;
-            }
-            return true;
-        });
-    }
-
-    PatternNode(values_info vt) {
-        node = ov::pass::pattern::any_input([vt](const Output<Node>& value) {
-            if (!vt.predicate(value)) {
-                _VERBOSE_LOG("*mismatched PatternNode ", value);
-                return false;
-            }
-            _VERBOSE_LOG(" matched PatternNode ", value);
-            return true;
-        });
-    }
-    PatternNode(const std::shared_ptr<Node>& node) : node(node) {}
-    PatternNode(const std::shared_ptr<ov::op::v0::Parameter>& node) : node(node) {}
-    PatternNode(const std::shared_ptr<ov::pass::pattern::op::Or>& pattern)
-        : node(std::dynamic_pointer_cast<Node>(pattern)) {}
-
-    // 1D-vector & scalar of symbol
-    PatternNode(std::initializer_list<Symbol> v) {
-        // initializer_list of Symbol ls special, need to be recorded
-        // and eval/check in the callback after whole match is complete,
-        // where all observed actual constant values are known, first
-        // we will go over all symbols and collect actual value for individual
-        // symbol(named symbol), and then we go over all derived symbols and
-        // evaluate their predicated values and compare against what observed,
-        // and check if they all match.
-        // node = ConstVector(std::vector<float>(v), nullptr);
-        node = ov::pass::pattern::wrap_type<opset1::Constant>();
-
-        auto& rt_info = node->get_rt_info();
-        rt_info["symbolic_const_value"] = std::vector<Symbol>(v);
-    }
-    PatternNode(const std::vector<Symbol>& v) {
-        node = ov::pass::pattern::wrap_type<opset1::Constant>();
-        auto& rt_info = node->get_rt_info();
-        rt_info["symbolic_const_value"] = v;
-    }
-
-    PatternNode(Symbol v) {
-        node = ov::pass::pattern::wrap_type<opset1::Constant>();
-        auto& rt_info = node->get_rt_info();
-        rt_info["symbolic_const_value"] = std::vector<Symbol>({v});
-    }
-
-    // scalar constant (treated as wildcard for single-element-constant with any rank)
-    PatternNode(int v) : node(std::make_shared<ov::op::v0::Constant>(element::from<int>(), Shape({}), v)) {}
-    PatternNode(float v) : node(std::make_shared<ov::op::v0::Constant>(element::from<float>(), Shape({}), v)) {}
-
-    PatternNode(std::initializer_list<int> v, values_info vi = nullptr) {
-        node = ConstVector(std::vector<int>(v), vi);
-    }
-    PatternNode(std::initializer_list<float> v, values_info vi = nullptr) {
-        node = ConstVector(std::vector<float>(v), vi);
-    }
-    PatternNode(std::initializer_list<long> v, values_info vi = nullptr) {
-        node = ConstVector(std::vector<int64_t>(v.begin(), v.end()), vi);
-    }
-    PatternNode(std::initializer_list<long long> v, values_info vi = nullptr) {
-        node = ConstVector(std::vector<int64_t>(v.begin(), v.end()), vi);
-    }
-
-    // 1d const tensor or scalar
-    template <typename T, typename std::enable_if<std::is_arithmetic<T>::value, bool>::type = true>
-    static std::shared_ptr<Node> ConstVector(const std::vector<T>& vec, values_info vi = nullptr) {
-        if (vi.size() > 0)
-            return std::make_shared<ov::op::v0::Constant>(vi[0].first, vi[0].second.to_shape(), vec);
-        // initializer_list w/o value_info means to create normal 1D vector
-        return std::make_shared<ov::op::v0::Constant>(element::from<T>(), Shape({vec.size()}), vec);
-    }
-};
-
-using SymbolObservationVector = std::vector<std::pair<Symbol, double>>;
-
-template <typename T>
-void add_symbol_observed(SymbolObservationVector& sov, const Symbol& sym, const T& value) {
-    auto v = static_cast<double>(value);
-    OPENVINO_ASSERT(static_cast<T>(v) == value);  // ensure there is no precison lost in double
-    sov.push_back(std::make_pair(sym, v));
-}
-/*
-template <typename T>
-static bool vector_equal_to_any(const std::vector<T>& v0, detail::AttrAny& any) {
-    auto v1 = any.cast_to_vector<T>();
-    if (v0.size() != v1.size())
-        return false;
-    return std::equal(v0.begin(), v0.end(), v1.begin());
-}
-
-template <typename T>
-static bool scalar_equal_to_any(const T& v0, detail::AttrAny& any) {
-    if (any.is<int>()) {
-        return v0 == any.as<int>();
-    } else if (any.is<float>()) {
-        return v0 == any.as<float>();
-    }
-    return v0 == any.as<T>();
-}
-*/
 // for arithmetic data type, Attr matcher will success as long as the actuall attributes
 // is equal to the casted attributes from pattern w/o requiring exact type match.
 class AttrMatcher : public ov::AttributeVisitor {
@@ -867,6 +709,221 @@ public:
         add_match_result(name, is_matched);
     }
 };
+
+// GraphRewrite::apply_matcher_passes() has special logic to make matching faster
+// which relies on pattern::op::Pattern subclassing, thus we have to derive
+// from it. but we didn't use the predicate facility.
+class GenericPattern : public ov::pass::pattern::op::Pattern {
+public:
+    OPENVINO_RTTI("GenericPattern");
+
+    explicit GenericPattern(const DiscreteTypeInfo& type_info,
+                            const OutputVector& args,
+                            const detail::AttrMap& attrs,
+                            const char * vt)
+        : ov::pass::pattern::op::Pattern(args),
+          m_type_info(type_info),
+          m_attrs(attrs),
+          m_vt(vt),
+          m_signature() {
+        static int global_id = 0;
+        if (matcher_verbose_enabled()) {
+            // generate signature & friendlyname for verbose debugging log
+            auto id = global_id++;
+            std::stringstream ss;
+            ss << "P" << id << "<" << type_info.get_version() << "::" << type_info.name << ">";
+            ss << "(";
+            const char* sep = "";
+            for (auto& i : args) {
+                ss << sep << i.get_node()->get_friendly_name();
+                sep = ",";
+            }
+            ss << ")";
+            m_signature = ss.str();
+            set_friendly_name(std::string("P") + std::to_string(id));
+        }
+        // default output for most OP types
+        set_output_type(0, element::Type_t::dynamic, PartialShape::dynamic());
+    }
+
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& /* new_args */) const override {
+        OPENVINO_THROW("Uncopyable");
+    }
+
+    bool match_value(ov::pass::pattern::Matcher* matcher,
+                     const Output<Node>& pattern_value,
+                     const Output<Node>& graph_value) override {
+        static std::string level;
+        // strictly requires pattern & graph value to come from output port with same index,
+        // this is absolute necessary when pattern contains split node connections.
+        if (pattern_value.get_index() != graph_value.get_index()) {
+            _VERBOSE_LOG(level, "X output index mismatch: ", pattern_value.get_index(), "!=", graph_value.get_index());
+            return false;
+        }
+
+        auto value_node = graph_value.get_node_shared_ptr();
+        if (!value_node->get_type_info().is_castable(m_type_info)) {
+            _VERBOSE_LOG(level, "X OP type mismatch: ", m_signature, " vs ", graph_value);
+            return false;
+        }
+
+        if (!m_vt.predicate(graph_value)) {
+            _VERBOSE_LOG(level, "X value info mismatch: ", m_signature, " vs ", graph_value);
+            return false;
+        }
+
+        if (!m_attrs.empty()) {
+            detail::AttrMatcher visitor(m_attrs);
+            value_node->visit_attributes(visitor);
+            if (!visitor.matched()) {
+                _VERBOSE_LOG(level, "X OP attrs mismatch: ", m_signature, " vs ", graph_value);
+                return false;
+            }
+        }
+
+        auto& pattern_map = matcher->get_pattern_value_map();
+        pattern_map[shared_from_this()] = graph_value;
+        matcher->add_node(graph_value);
+
+        if (get_input_size() == 0)
+            return true;
+
+        if (matcher_verbose_enabled())
+            level.push_back('\t');
+        bool ret = matcher->match_arguments(pattern_value.get_node(), graph_value.get_node_shared_ptr());
+        if (matcher_verbose_enabled()) {
+            level.pop_back();
+            _VERBOSE_LOG(level, ret ? "O" : "X", m_signature, " vs ", graph_value);
+        }
+        return ret;
+    }
+
+private:
+    const DiscreteTypeInfo& m_type_info;
+    detail::AttrMap m_attrs;
+    values_info m_vt;
+    std::string m_signature;
+};
+
+// A glue/syntax-sugar type which allows more types to be used as input to makePattern()
+struct PatternNode {
+    std::shared_ptr<Node> node;
+    int output_port = -1;
+
+    operator ov::Output<ov::Node>() const {
+        return get_output();
+    }
+
+    ov::Output<ov::Node> get_output() const {
+        if (output_port >= 0)
+            return node->output(output_port);
+        return node->get_default_output();
+    }
+
+    PatternNode(const Output<Node>& out) : node(out.get_node_shared_ptr()), output_port(out.get_index()) {}
+
+    PatternNode() {
+        node = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
+    }
+    PatternNode(ov::Rank rank) {
+        node = ov::pass::pattern::any_input([rank](const Output<Node>& value) {
+            if (!rank.compatible(value.get_partial_shape().rank())) {
+                _VERBOSE_LOG("*mismatched PatternNode rank ", value, " expecting ", rank);
+                return false;
+            }
+            return true;
+        });
+    }
+
+    PatternNode(values_info vt) {
+        node = ov::pass::pattern::any_input([vt](const Output<Node>& value) {
+            if (!vt.predicate(value)) {
+                _VERBOSE_LOG("*mismatched PatternNode ", value);
+                return false;
+            }
+            _VERBOSE_LOG(" matched PatternNode ", value);
+            return true;
+        });
+    }
+    PatternNode(const std::shared_ptr<Node>& node) : node(node) {}
+    PatternNode(const std::shared_ptr<ov::op::v0::Parameter>& node) : node(node) {}
+    PatternNode(const std::shared_ptr<ov::pass::pattern::op::Or>& pattern)
+        : node(std::dynamic_pointer_cast<Node>(pattern)) {}
+
+    // 1D-vector & scalar of symbol
+    PatternNode(std::initializer_list<Symbol> v) {
+        // initializer_list of Symbol ls special, need to be recorded
+        // and eval/check in the callback after whole match is complete,
+        // where all observed actual constant values are known, first
+        // we will go over all symbols and collect actual value for individual
+        // symbol(named symbol), and then we go over all derived symbols and
+        // evaluate their predicated values and compare against what observed,
+        // and check if they all match.
+        // node = ConstVector(std::vector<float>(v), nullptr);
+        node = ov::pass::pattern::wrap_type<opset1::Constant>();
+
+        auto& rt_info = node->get_rt_info();
+        rt_info["symbolic_const_value"] = std::vector<Symbol>(v);
+    }
+    PatternNode(const std::vector<Symbol>& v) {
+        node = ov::pass::pattern::wrap_type<opset1::Constant>();
+        auto& rt_info = node->get_rt_info();
+        rt_info["symbolic_const_value"] = v;
+    }
+
+    PatternNode(Symbol v) {
+        node = ov::pass::pattern::wrap_type<opset1::Constant>();
+        auto& rt_info = node->get_rt_info();
+        rt_info["symbolic_const_value"] = std::vector<Symbol>({v});
+    }
+
+    // scalar constant (treated as wildcard for single-element-constant with any rank)
+    PatternNode(int v) : node(std::make_shared<ov::op::v0::Constant>(element::from<int>(), Shape({}), v)) {}
+    PatternNode(float v) : node(std::make_shared<ov::op::v0::Constant>(element::from<float>(), Shape({}), v)) {}
+
+    PatternNode(std::initializer_list<int> v, values_info vi = nullptr) {
+        node = ConstVector(std::vector<int>(v), vi);
+    }
+    PatternNode(std::initializer_list<float> v, values_info vi = nullptr) {
+        node = ConstVector(std::vector<float>(v), vi);
+    }
+    PatternNode(std::initializer_list<long> v, values_info vi = nullptr) {
+        node = ConstVector(std::vector<int64_t>(v.begin(), v.end()), vi);
+    }
+    PatternNode(std::initializer_list<long long> v, values_info vi = nullptr) {
+        node = ConstVector(std::vector<int64_t>(v.begin(), v.end()), vi);
+    }
+
+    // 1d const tensor or scalar
+    template <typename T, typename std::enable_if<std::is_arithmetic<T>::value, bool>::type = true>
+    static std::shared_ptr<Node> ConstVector(const std::vector<T>& vec, values_info vi = nullptr) {
+        if (vi.size() > 0)
+            return std::make_shared<ov::op::v0::Constant>(vi[0].first, vi[0].second.to_shape(), vec);
+        // initializer_list w/o value_info means to create normal 1D vector
+        return std::make_shared<ov::op::v0::Constant>(element::from<T>(), Shape({vec.size()}), vec);
+    }
+};
+
+/*
+template <typename T>
+static bool vector_equal_to_any(const std::vector<T>& v0, detail::AttrAny& any) {
+    auto v1 = any.cast_to_vector<T>();
+    if (v0.size() != v1.size())
+        return false;
+    return std::equal(v0.begin(), v0.end(), v1.begin());
+}
+
+template <typename T>
+static bool scalar_equal_to_any(const T& v0, detail::AttrAny& any) {
+    if (any.is<int>()) {
+        return v0 == any.as<int>();
+    } else if (any.is<float>()) {
+        return v0 == any.as<float>();
+    }
+    return v0 == any.as<T>();
+}
+*/
+
 }  // namespace detail
 
 //==================================================================================================
@@ -938,9 +995,8 @@ std::shared_ptr<Node> makeConst(const ov::element::Type& type, const ov::Shape& 
 template <class T>
 std::shared_ptr<Node> makePattern(const std::vector<detail::PatternNode>& inputs,
                                   detail::AttrMap attrmap = {},
-                                  values_info vt = nullptr,
+                                  const char* vt = nullptr,
                                   const char* friendly_name = nullptr) {
-    auto* p_type_info = &(T::get_type_info_static());
     OutputVector args;
     for (auto& in : inputs)
         args.push_back(in.get_output());
@@ -948,53 +1004,10 @@ std::shared_ptr<Node> makePattern(const std::vector<detail::PatternNode>& inputs
     // pattern nodes are better for pattern matching because
     //  - it can be generic/incomplete, so normal OP node is not working properly
     //  - it has predicate to correctly decide which branch to take (in Or pattern)
-    auto pattern_node = std::make_shared<detail::GenericPattern>(args, attrmap);
+    auto pattern_node = std::make_shared<detail::GenericPattern>(T::get_type_info_static(), args, attrmap, vt);
 
-    if (friendly_name) {
+    if (friendly_name)
         pattern_node->set_friendly_name(friendly_name);
-    } else {
-        std::stringstream ss;
-        ss << p_type_info->get_version() << "::" << p_type_info->name;
-        ss << "(";
-        const char* sep = "";
-        for (auto& i : args) {
-            ss << sep << i.get_node()->get_name();
-            sep = ",";
-        }
-        ss << ")";
-        pattern_node->set_friendly_name(ss.str());
-    }
-
-    auto* pnode = pattern_node.get();
-    pnode->set_predicate([p_type_info, vt, pnode, friendly_name, attrmap](const Output<Node>& value) {
-        (void)friendly_name;
-        auto value_node = value.get_node_shared_ptr();
-        if (!value_node->get_type_info().is_castable(*p_type_info)) {
-            _VERBOSE_LOG("*mismatched makePattern OP type: ", pnode->get_friendly_name(), "vs", value);
-            return false;
-        }
-
-        if (!vt.predicate(value)) {
-            _VERBOSE_LOG("*mismatched makePattern value info: ", pnode->get_friendly_name(), "vs", value);
-            return false;
-        }
-
-        auto& attr_map = pnode->get_attrs();
-        if (!attr_map.empty()) {
-            detail::AttrMatcher visitor(attr_map);
-            value_node->visit_attributes(visitor);
-            if (!visitor.matched()) {
-                _VERBOSE_LOG("*mismatched attributes : ",
-                             pnode->get_friendly_name(),
-                             " vs ",
-                             value_node->get_friendly_name());
-                return false;
-            }
-        }
-
-        _VERBOSE_LOG(" matched makePattern ", pnode->get_friendly_name(), " == ", value);
-        return true;
-    });
 
     return pattern_node;
 }
@@ -1117,11 +1130,8 @@ inline std::shared_ptr<Node> GenSlice(detail::PatternNode data, Symbol start, Sy
 //==================================================================================================
 class PatternValidator {
 public:
-    PatternValidator(ov::pass::pattern::Matcher& m, bool force_verbose = false) {
-        auto saved_force_matcher_verbose = force_matcher_verbose;
-        force_matcher_verbose = force_verbose;
+    PatternValidator(ov::pass::pattern::Matcher& m) {
         m_is_valid = validate(m);
-        force_matcher_verbose = saved_force_matcher_verbose;
     }
 
     double& operator[](const char* symbol_name) {
@@ -1185,13 +1195,7 @@ public:
                     _VERBOSE_LOG("expecting Constant op, but got ", value_node);
                     return false;
                 }
-                if (pconst_node->get_output_element_type(0) != vconst_node->get_output_element_type(0)) {
-                    _VERBOSE_LOG("expecting Constant of type ",
-                                 pconst_node->get_output_element_type(0),
-                                 " but got ",
-                                 vconst_node);
-                    return false;
-                }
+
                 // for constant node matched in pattern, a scalar constant is considered to
                 // be compatible with any shape with 1 element, like {}, {1,1}, {1,1,...}
                 const auto& expected_shape = pconst_node->get_output_shape(0);
@@ -1206,6 +1210,27 @@ public:
                         return false;
                     }
                 }
+
+                if (pconst_node->get_output_element_type(0) != vconst_node->get_output_element_type(0)) {
+                    // signed integer compare is relaxed, as long as tey are equal when both up-casted to int64_t
+                    if (pconst_node->get_output_element_type(0).is_integral() &&
+                        pconst_node->get_output_element_type(0).is_signed() &&
+                        vconst_node->get_output_element_type(0).is_integral() &&
+                        vconst_node->get_output_element_type(0).is_signed()) {
+                        auto p_values = pconst_node->cast_vector<int64_t>();
+                        auto v_values = vconst_node->cast_vector<int64_t>();
+                        if (p_values == v_values) {
+                            continue;
+                        }
+                    }
+
+                    _VERBOSE_LOG("expecting Constant of type ",
+                                 pconst_node->get_output_element_type(0),
+                                 " but got ",
+                                 vconst_node);
+                    return false;
+                }
+
                 auto byte_size =
                     shape_size(vconst_node->get_output_shape(0)) * vconst_node->get_output_element_type(0).size();
                 if (std::memcmp(pconst_node->get_data_ptr(), vconst_node->get_data_ptr(), byte_size) != 0) {
@@ -1303,6 +1328,7 @@ public:
                 }
             }
         }
+        _VERBOSE_LOG("PatternValidator validate success!");
         return true;
     }
 

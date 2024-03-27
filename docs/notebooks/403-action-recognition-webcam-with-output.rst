@@ -57,7 +57,7 @@ Table of contents:
 
 .. code:: ipython3
 
-    %pip install -q "openvino-dev>=2023.1.0"
+    %pip install -q "openvino-dev>=2024.0.0"
 
 
 .. parsed-literal::

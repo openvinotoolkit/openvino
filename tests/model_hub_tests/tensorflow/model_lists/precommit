@@ -30,5 +30,6 @@ universal-sentence-encoder-multilingual,https://www.kaggle.com/models/google/uni
 microsoft/deberta-v3-small,hf_transformers
 facebook/convnext-tiny-224,hf_transformers
 google/vit-base-patch16-224,hf_transformers
-sentence-transformers/paraphrase-mpnet-base-v2,hf_transformers,xfail,134787 - randomly fails on accuracy
+sentence-transformers/paraphrase-mpnet-base-v2,hf_transformers
 facebook/sam-vit-base,hf_transformers
+distilbert/distilgpt2,hf_transformers

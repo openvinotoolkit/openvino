@@ -18,7 +18,9 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/cos.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/exp.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reduce_sum.hpp"
@@ -506,6 +508,87 @@ TEST(pattern, matching_optional) {
     };
     ASSERT_FALSE(n.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(d, predicate),
                          std::make_shared<op::v0::Abs>(c)));
+}
+
+// Optional is not working properly yet CVS-136454
+TEST(pattern, DISABLED_optional_full_match) {
+    Shape shape{};
+    auto model_input = std::make_shared<op::v0::Parameter>(element::i32, shape);
+    auto model_relu = std::make_shared<op::v0::Relu>(model_input);
+    auto model_relu1 = std::make_shared<op::v0::Relu>(model_relu->output(0));
+
+    auto pattern_relu = ov::pass::pattern::optional<op::v0::Relu>();
+    auto pattern_relu1 = std::make_shared<op::v0::Relu>(pattern_relu->output(0));
+
+    TestMatcher tm;
+
+    ASSERT_TRUE(tm.match(pattern_relu1, model_relu1));
+}
+
+// Optional is not working properly yet CVS-136454
+TEST(pattern, DISABLED_optional_half_match) {
+    Shape shape{};
+    auto model_input = std::make_shared<op::v0::Parameter>(element::i32, shape);
+    auto model_relu = std::make_shared<op::v0::Relu>(model_input);
+    auto model_relu1 = std::make_shared<op::v0::Relu>(model_relu->output(0));
+
+    auto pattern_abs = ov::pass::pattern::optional<op::v0::Abs>();
+    auto pattern_relu = std::make_shared<op::v0::Relu>(pattern_abs->output(0));
+
+    TestMatcher tm;
+
+    ASSERT_TRUE(tm.match(pattern_relu, model_relu1));
+}
+
+// Optional is not working properly yet CVS-136454
+TEST(pattern, DISABLED_optional_testing) {
+    Shape shape{};
+    auto model_input1 = std::make_shared<op::v0::Parameter>(element::i32, shape);
+    auto model_input2 = std::make_shared<op::v0::Parameter>(element::i32, shape);
+    auto model_add = std::make_shared<op::v1::Add>(model_input1->output(0), model_input2->output(0));
+    auto model_relu = std::make_shared<op::v0::Relu>(model_add->output(0));
+    auto model_abs = std::make_shared<op::v0::Abs>(model_add->output(0));
+
+    TestMatcher tm;
+
+    ASSERT_TRUE(tm.match(ov::pass::pattern::optional<op::v0::Exp, op::v0::Relu>(model_add), model_add));
+    ASSERT_TRUE(tm.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(model_add), model_add));
+    ASSERT_TRUE(tm.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Exp>(model_add), model_add));
+    ASSERT_TRUE(tm.match(ov::pass::pattern::optional<op::v0::Exp, op::v0::Cos>(model_add), model_add));
+
+    ASSERT_TRUE(
+        tm.match(ov::pass::pattern::optional<op::v0::Abs>(model_abs), std::make_shared<op::v0::Abs>(model_abs)));
+    ASSERT_FALSE(
+        tm.match(ov::pass::pattern::optional<op::v0::Abs>(model_abs), std::make_shared<op::v0::Relu>(model_abs)));
+    ASSERT_TRUE(tm.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(model_abs),
+                         std::make_shared<op::v0::Relu>(model_abs)));
+
+    ASSERT_FALSE(tm.match(ov::pass::pattern::optional<op::v0::Exp>(model_add), model_abs));
+    ASSERT_TRUE(tm.match(ov::pass::pattern::optional<op::v0::Exp, op::v0::Abs>(model_add), model_abs));
+
+    ASSERT_TRUE(tm.match(ov::pass::pattern::optional<op::v0::Relu>(model_relu),
+                         std::make_shared<op::v0::Relu>(std::make_shared<op::v0::Relu>(model_add))));
+
+    ASSERT_TRUE(tm.match(ov::pass::pattern::optional<op::v0::Relu>(model_relu),
+                         std::make_shared<op::v0::Relu>(std::make_shared<op::v0::Relu>(model_add))));
+}
+
+// Optional is not working properly yet CVS-136454
+TEST(pattern, DISABLED_optional_one_node) {
+    Shape shape{};
+    auto model_input = std::make_shared<op::v0::Parameter>(element::i32, shape);
+    auto model_relu = std::make_shared<op::v0::Relu>(model_input);
+    auto model_abs = std::make_shared<op::v0::Abs>(model_input);
+
+    TestMatcher tm;
+
+    ASSERT_TRUE(tm.match(ov::pass::pattern::optional<op::v0::Relu>(), model_relu));
+    ASSERT_FALSE(tm.match(ov::pass::pattern::optional<op::v0::Abs>(), model_relu));
+
+    ASSERT_FALSE(tm.match(ov::pass::pattern::optional<op::v0::Relu>(), model_abs));
+
+    ASSERT_TRUE(tm.match(ov::pass::pattern::optional<op::v0::Parameter>(), model_input));
+    ASSERT_FALSE(tm.match(ov::pass::pattern::optional<op::v0::Relu>(), model_input));
 }
 
 TEST(pattern, mean) {

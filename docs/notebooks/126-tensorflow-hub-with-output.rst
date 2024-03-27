@@ -1,6 +1,8 @@
 Convert of TensorFlow Hub models to OpenVINO Intermediate Representation (IR)
 =============================================================================
 
+|Colab| |Binder|
+
 This tutorial demonstrates step-by-step instructions on how to convert
 models loaded from TensorFlow Hub using OpenVINO Runtime.
 
@@ -44,6 +46,11 @@ Table of contents:
    -  `Select inference device <#select-inference-device>`__
    -  `Inference <#inference>`__
 
+.. |Colab| image:: https://colab.research.google.com/assets/colab-badge.svg
+   :target: https://colab.research.google.com/github/openvinotoolkit/openvino_notebooks/blob/main/notebooks/126-tensorflow-hub/126-tensorflow-hub.ipynb
+.. |Binder| image:: https://mybinder.org/badge_logo.svg
+   :target: https://mybinder.org/v2/gh/eaidova/openvino_notebooks_binder.git/main?urlpath=git-pull%3Frepo%3Dhttps%253A%252F%252Fgithub.com%252Fopenvinotoolkit%252Fopenvino_notebooks%26urlpath%3Dtree%252Fopenvino_notebooks%252Fnotebooks%2F126-tensorflow-hub%2F126-tensorflow-hub.ipynb
+
 Image classification
 --------------------
 
@@ -74,8 +81,20 @@ Install required packages
 
 .. code:: ipython3
 
-    %pip install -q tensorflow_hub tensorflow pillow numpy matplotlib
+    import platform
+    
+    %pip install -q tensorflow_hub tensorflow pillow numpy
     %pip install -q "openvino>=2023.2.0"
+    
+    if platform.system() != "Windows":
+        %pip install -q "matplotlib>=3.4"
+    else:
+        %pip install -q "matplotlib>=3.4,<3.7"
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
 
 
 .. parsed-literal::
@@ -99,15 +118,15 @@ Import libraries
     import os
     from urllib.request import urlretrieve
     os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
-
+    
     import tensorflow_hub as hub
     import tensorflow as tf
     import PIL
     import numpy as np
     import matplotlib.pyplot as plt
-
+    
     import openvino as ov
-
+    
     tf.get_logger().setLevel("ERROR")
 
 .. code:: ipython3
@@ -131,8 +150,8 @@ and wrap it as a Keras layer with ``hub.KerasLayer``.
 
 .. parsed-literal::
 
-    2024-02-09 23:12:03.569013: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
-    2024-02-09 23:12:03.569190: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
+    2024-03-12 22:55:04.217869: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
+    2024-03-12 22:55:04.218046: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
 
 
 Download a single image to try the model on
@@ -201,16 +220,16 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     import ipywidgets as widgets
-
+    
     core = ov.Core()
-
+    
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value='AUTO',
         description='Device:',
         disabled=False,
     )
-
+    
     device
 
 
@@ -342,9 +361,9 @@ Install required packages
     os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
     from urllib.request import urlretrieve
     from pathlib import Path
-
+    
     import openvino as ov
-
+    
     import tensorflow_hub as hub
     import tensorflow as tf
     import cv2
@@ -355,10 +374,10 @@ Install required packages
 
     CONTENT_IMAGE_URL = "https://upload.wikimedia.org/wikipedia/commons/2/26/YellowLabradorLooking_new.jpg"
     CONTENT_IMAGE_PATH = "./data/YellowLabradorLooking_new.jpg"
-
+    
     STYLE_IMAGE_URL = "https://upload.wikimedia.org/wikipedia/commons/b/b4/Vassily_Kandinsky%2C_1913_-_Composition_7.jpg"
     STYLE_IMAGE_PATH = "./data/Vassily_Kandinsky%2C_1913_-_Composition_7.jpg"
-
+    
     MODEL_URL = "https://www.kaggle.com/models/google/arbitrary-image-stylization-v1/frameworks/tensorFlow1/variations/256/versions/2"
     MODEL_PATH = "./models/arbitrary-image-stylization-v1-256.xml"
 
@@ -409,16 +428,16 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     import ipywidgets as widgets
-
+    
     core = ov.Core()
-
+    
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value='AUTO',
         description='Device:',
         disabled=False,
     )
-
+    
     device
 
 

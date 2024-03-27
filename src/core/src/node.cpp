@@ -692,7 +692,7 @@ bool ov::Node::evaluate_upper(ov::TensorVector& output_values) const {
     return all_have_bounds && ov::default_upper_bound_evaluator(this, output_values);
 }
 
-bool ov::Node::evaluate_label(TensorLabelVector& output_labels) const {
+bool ov::Node::evaluate_symbol(TensorSymbolVector& output_symbols) const {
     return false;
 }
 

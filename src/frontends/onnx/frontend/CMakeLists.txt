@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -10,7 +10,7 @@ ov_add_frontend(NAME onnx
                 FILEDESCRIPTION "FrontEnd to load and convert ONNX file format"
                 LINK_LIBRARIES openvino_onnx_common openvino::core::dev)
 
-set(ONNX_OPSET_VERSION 18 CACHE INTERNAL "Supported version of ONNX operator set")
+set(ONNX_OPSET_VERSION 20 CACHE INTERNAL "Supported version of ONNX operator set")
 target_compile_definitions(${TARGET_NAME} PRIVATE ONNX_OPSET_VERSION=${ONNX_OPSET_VERSION})
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}

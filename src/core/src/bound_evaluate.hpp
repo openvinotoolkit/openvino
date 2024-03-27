@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,15 +59,16 @@ bool has_and_set_equal_bounds(const Output<Node>& source);
 /// greater than node's inputs count.
 bool have_node_inputs_bounds_set(const ov::Node* const node, const size_t first_idx, const size_t last_idx);
 
-/// \brief Propagates value label from given inputs list to the only output through an operation.
+/// \brief Propagates value symbol from given inputs list to the only output through an operation.
 /// Not applicable for operations which require values interaction (example: mathematical
 /// operations). Could be used for movement operations (example: gathering, shape change)
 ///
 /// \param node Operation to be performed
-/// \param labeled_inputs List of node inputs to propagate labels.
-/// \param output_labels Vector of TensorLabel objects representing resulting value labels
-/// \return boolean status if label evaluation was successful.
-bool default_label_evaluator(const Node* node,
-                             std::initializer_list<size_t> labeled_inputs,
-                             TensorLabelVector& output_labels);
+/// \param symbol_inputs List of node input indices to propagate symbols. If empty all inputs are considered for
+/// propagation \param output_symbols Vector of TensorSymbol objects representing resulting value symbols \return
+/// boolean status if symbol evaluation was successful.
+bool default_symbol_evaluator(const Node* node,
+                              std::initializer_list<size_t> symbol_inputs,
+                              TensorSymbolVector& output_symbols);
+
 }  // namespace ov

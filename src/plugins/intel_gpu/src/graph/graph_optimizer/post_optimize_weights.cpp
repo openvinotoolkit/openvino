@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include "deconvolution_inst.h"
 #include "deformable_convolution_inst.h"
 #include "fully_connected_inst.h"
+#include "intel_gpu/runtime/format.hpp"
 
 namespace cldnn {
 
@@ -75,7 +76,10 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
             bool can_be_fused = prev_node.is_type<reorder>() &&
                                 prev_node.as<reorder>().is_simple_reorder() &&
                                 prev_node.get_users().size() == 1 &&
-                                prev_node.get_dependencies().size() == 1;
+                                prev_node.get_dependencies().size() == 1 &&
+                                (format::is_weights_format(prev_node.get_input_layout().format) ||
+                                 format::is_simple_data_format(prev_node.get_input_layout().format));
+
             if (can_be_fused) {
                 // Need to update input data_type for correct merging format reorder with precision reorder
                 auto updated_input_layout = weights_reorder_params->get_input_layout();

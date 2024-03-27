@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -44,6 +44,7 @@ class TestDiv(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
     def test_div_pt_spec(self, input_array, other_array, rounding_mode, ie_device, precision, ir_version):
         self.input_array = input_array
         self.input_type = np.float32

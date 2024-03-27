@@ -17,6 +17,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/op/constant.hpp"
 
 namespace ov {
@@ -154,7 +155,19 @@ void mark_as_optimized_out(ov::Output<ov::Node>& node_output);
 bool is_optimized_out(const ov::Output<ov::Node>& node_output);
 
 /// \brief Collect unsupported operators after convert_partially and all exceptions from translation process.
-std::string collect_translation_exceptions(const std::shared_ptr<ov::Model>& partially_converted);
+/// \param partially_converted ov::Model which has been partially converted
+/// \param telemetry Pointer on a TelemetryExtension if telemetry is enabled
+/// \param output_stream Pointer on a stream for printint error messages
+/// \param unsupported_operations Set for collecting list of unsupported operations, should be nullptr for
+///                               first call (will be created internally)
+/// \param failures Set for collecting list of failed conversions, should be nullptr for
+///                 first call (will be created internally)
+/// \return Returns true in case any issues has been found
+bool collect_translation_exceptions(const std::shared_ptr<ov::Model>& partially_converted,
+                                    const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = nullptr,
+                                    std::ostream* output_stream = nullptr,
+                                    std::shared_ptr<std::set<std::string>> unsupported_operations = nullptr,
+                                    std::shared_ptr<std::set<std::string>> failures = nullptr);
 }  // namespace  common
 }  // namespace onnx
 }  // namespace frontend

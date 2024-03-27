@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -156,20 +156,26 @@ static void CreateGemmOp(ProgramBuilder& p, const std::shared_ptr<ov::op::intern
     auto shape_b = op->get_input_partial_shape(1);
     auto out_shape = op->get_output_partial_shape(0);
 
-    size_t rank_a = shape_a.rank().get_length();
-    size_t rank_b = shape_b.rank().get_length();
+    size_t rank_a = op->get_input0_reshape_pattern().size() > 0 ? op->get_input0_reshape_pattern().size()
+                                                                : shape_a.rank().get_length();
+    size_t rank_b = op->get_input1_reshape_pattern().size() > 0 ? op->get_input1_reshape_pattern().size()
+                                                                :shape_b.rank().get_length();
     size_t output_rank = out_shape.rank().get_length();
 
-    OPENVINO_ASSERT(rank_a == op->get_input0_order().size(), "[GPU] Length of input0_order is not same as rank of input0");
-    OPENVINO_ASSERT(rank_b == op->get_input1_order().size(), "[GPU] Length of input1_order is not same as rank of input1");
-    OPENVINO_ASSERT(output_rank == op->get_output_order().size(), "[GPU] Length of output_order is not same as rank of output");
+    OPENVINO_ASSERT(rank_a == op->get_input0_transpose_order().size(), "[GPU] Length of input0_order is not same as rank of input0");
+    OPENVINO_ASSERT(rank_b == op->get_input1_transpose_order().size(), "[GPU] Length of input1_order is not same as rank of input1");
+    OPENVINO_ASSERT(output_rank == op->get_output_transpose_order().size(), "[GPU] Length of output_order is not same as rank of output");
 
     auto gemmPrim = cldnn::gemm(layerName,
                                 inputs,
                                 cldnn::element_type_to_data_type(op->get_output_element_type(0)),
-                                op->get_input0_order(),
-                                op->get_input1_order(),
-                                op->get_output_order(),
+                                op->get_input0_broadcast_target_shape(),
+                                op->get_input1_broadcast_target_shape(),
+                                op->get_input0_reshape_pattern(),
+                                op->get_input1_reshape_pattern(),
+                                op->get_input0_transpose_order(),
+                                op->get_input1_transpose_order(),
+                                op->get_output_transpose_order(),
                                 alpha,
                                 beta);
 
@@ -200,9 +206,9 @@ static void CreateIndirectGemmOp(ProgramBuilder& p, const std::shared_ptr<ov::in
                                 std::vector<cldnn::input_info>{ inputs[0], inputs[1] },
                                 inputs[2],
                                 cldnn::element_type_to_data_type(op->get_output_element_type(0)),
-                                op->get_input0_order(),
-                                op->get_input1_order(),
-                                op->get_output_order(),
+                                op->get_input0_transpose_order(),
+                                op->get_input1_transpose_order(),
+                                op->get_output_transpose_order(),
                                 op->get_indirect_a(),
                                 op->get_indirect_b(),
                                 alpha,

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -158,6 +158,10 @@ class PreStepsList {
 public:
     void add_scale_impl(const std::vector<float>& values);
     void add_mean_impl(const std::vector<float>& values);
+    void add_pad_impl(const std::vector<int>& pads_begin,
+                      const std::vector<int>& pads_end,
+                      const std::vector<float>& values,
+                      PaddingMode mode);
     void add_convert_impl(const element::Type& type);
     void add_crop_impl(const std::vector<int>& begin, const std::vector<int>& end);
     void add_resize_impl(ResizeAlgorithm alg, int dst_height, int dst_width);

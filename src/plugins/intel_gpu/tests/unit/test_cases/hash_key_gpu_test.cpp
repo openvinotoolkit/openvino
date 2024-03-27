@@ -255,7 +255,7 @@ public:
         const auto primitive_hash = primitve->hash();
         const auto params_hash = prim_inst->get_impl_params()->hash();
         ASSERT_EQ(primitive_hash, 4135863035456568493UL);
-        ASSERT_EQ(params_hash, 5990757629995899044UL);
+        ASSERT_EQ(params_hash, 11563701278302723583UL);
     }
 };
 

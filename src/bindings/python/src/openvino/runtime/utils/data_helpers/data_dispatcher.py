@@ -80,6 +80,9 @@ def _(
         tensor_shape = tuple(tensor.shape)
         if tensor_dtype == value.dtype and tensor_shape == value.shape:
             return Tensor(value, shared_memory=is_shared)
+        elif tensor.size == 0:
+            # the first infer request for dynamic input cannot reshape to 0 shape
+            return Tensor(value.astype(tensor_dtype).reshape((1)), shared_memory=False)
         else:
             return Tensor(value.astype(tensor_dtype).reshape(tensor_shape), shared_memory=False)
     # WA for FP16-->BF16 edge-case, always copy.

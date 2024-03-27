@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "bound_evaluate.hpp"
 
-#include "openvino/core/dimension_tracker.hpp"
+#include "compare.hpp"
+#include "openvino/core/dimension.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/shape_util.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -96,7 +97,7 @@ ov::Tensor evaluate_bound(const Output<Node>& output, bool is_upper, bool invali
 
             if (is_upper ? node->evaluate_upper(outputs) : node->evaluate_lower(outputs)) {
                 const auto& input_values = node->input_values();
-                TensorLabelVector output_labels(outputs.size());
+                TensorSymbolVector output_symbols(outputs.size());
 
                 bool same_inputs = std::all_of(input_values.begin(), input_values.end(), [](const Output<Node>& input) {
                     auto& t = input.get_tensor();
@@ -118,15 +119,15 @@ ov::Tensor evaluate_bound(const Output<Node>& output, bool is_upper, bool invali
                     }
                 }
 
-                bool labels_evaluated = node->evaluate_label(output_labels);
+                bool symbols_evaluated = node->evaluate_symbol(output_symbols);
                 for (size_t i = 0; i < outputs.size(); ++i) {
                     auto& out_tensor = node->get_output_tensor(i);
-                    if (!out_tensor.get_value_label().empty())
+                    if (!out_tensor.get_value_symbol().empty())
                         continue;
-                    if (labels_evaluated)
-                        out_tensor.set_value_label(output_labels[i]);
+                    if (symbols_evaluated)
+                        out_tensor.set_value_symbol(output_symbols[i]);
                     if (outputs[i])
-                        ov::populate_tensor_with_missing_labels(out_tensor);
+                        ov::populate_tensor_with_missing_symbols(out_tensor);
                 }
 
                 for (const auto& input : input_values) {
@@ -330,8 +331,8 @@ std::pair<ov::Tensor, ov::Tensor> ov::evaluate_both_bounds(const Output<Node>& o
                 auto& t = input.get_tensor();
                 return t.has_and_set_bound() || are_equal(t.get_lower_value(), t.get_upper_value());
             });
-            TensorLabelVector output_labels(node->get_output_size());
-            bool labels_evaluated = node->evaluate_label(output_labels);
+            TensorSymbolVector output_symbols(node->get_output_size());
+            bool symbols_evaluated = node->evaluate_symbol(output_symbols);
             for (size_t i = 0; i < node->get_output_size(); ++i) {
                 auto& out_tensor = node->get_output_tensor(i);
 
@@ -342,11 +343,11 @@ std::pair<ov::Tensor, ov::Tensor> ov::evaluate_both_bounds(const Output<Node>& o
                     out_tensor.set_upper_value(outputs_upper[i]);
                 }
 
-                if (!out_tensor.get_value_label().empty())
+                if (!out_tensor.get_value_symbol().empty())
                     continue;
-                if (labels_evaluated)
-                    out_tensor.set_value_label(output_labels[i]);
-                ov::populate_tensor_with_missing_labels(node->get_output_tensor(i));
+                if (symbols_evaluated)
+                    out_tensor.set_value_symbol(output_symbols[i]);
+                ov::populate_tensor_with_missing_symbols(node->get_output_tensor(i));
             }
             for (const auto& input : node->input_values()) {
                 auto& tensor = input.get_tensor();
@@ -565,29 +566,96 @@ bool ov::have_node_inputs_bounds_set(const Node* const node, const size_t first_
     return have_bound_set;
 }
 
-bool ov::default_label_evaluator(const Node* node,
-                                 std::initializer_list<size_t> labeled_inputs,
-                                 TensorLabelVector& output_labels) {
-    bool has_any_input_labels = false;
+namespace {
+/// \brief Encodes tensor symbol vector as tensor integer vector for the purpose of evaluation. Provides the key for
+/// decoding back.
+///
+/// \param symbols All symbols that are planned for evaluation
+/// \param integer_representations Container representing resulting encodings
+/// \param key Map representing resulting key for decoding
+void symbols_to_integer_and_key(const TensorSymbolVector& symbols,
+                                std::vector<std::vector<int32_t>>& integer_representations,
+                                std::unordered_map<int32_t, std::shared_ptr<Symbol>>& key) {
+    int32_t x = 0;
+    std::unordered_map<std::shared_ptr<Symbol>, int32_t> key_for_encoding;
+
+    key_for_encoding[nullptr] = 0;
+    key[0] = nullptr;
+
+    for (const auto& container : symbols) {
+        for (const auto& symbol : container) {
+            if (symbol == nullptr)
+                continue;
+            const auto& root = symbol::ancestor_of(symbol);
+            if (key_for_encoding.find(root) == key_for_encoding.end()) {
+                x += 1;
+                key_for_encoding[root] = x;
+                key[x] = root;
+            }
+        }
+    }
+    integer_representations.resize(symbols.size());
+    for (size_t i = 0; i < symbols.size(); ++i) {
+        integer_representations[i].resize(symbols[i].size());
+        for (size_t j = 0; j < symbols[i].size(); ++j) {
+            const auto& symbol = symbols[i][j];
+            const auto& root = (symbol ? symbol::ancestor_of(symbol) : nullptr);
+            integer_representations[i][j] = key_for_encoding[root];
+        }
+    }
+}
+
+/// \brief Decodes tensor integer vector to tensor symbol vector after the evaluation. Uses provided key for decoding.
+///
+/// \param integer_representations Container representing encodings
+/// \param key Map representing key for decoding
+/// \param symbols Tensor symbol vector representing resulting symbols after evaluation
+void integer_and_key_to_symbols(const std::vector<int32_t>& integer_representations,
+                                const std::unordered_map<int32_t, std::shared_ptr<Symbol>>& key,
+                                TensorSymbol& symbols) {
+    symbols.resize(integer_representations.size());
+    for (size_t i = 0; i < integer_representations.size(); ++i) {
+        if (key.count(integer_representations[i]))
+            symbols[i] = key.at(integer_representations[i]);
+        else
+            symbols[i] = nullptr;
+    }
+}
+}  // namespace
+
+bool ov::default_symbol_evaluator(const Node* node,
+                                  std::initializer_list<size_t> symbol_inputs,
+                                  TensorSymbolVector& output_symbols) {
+    TensorSymbolVector input_symbols;
+    for (const auto& input : node->input_values())
+        input_symbols.push_back(input.get_tensor().get_value_symbol());
+
+    /// turn Symbol objects to int32 to put them through evaluate
+    std::vector<std::vector<int32_t>> integer_representation;
+    std::unordered_map<int32_t, std::shared_ptr<Symbol>> key;
+    symbols_to_integer_and_key(input_symbols, integer_representation, key);
+
+    bool has_any_input_symbols = false;
     const auto& inputs_count = node->get_input_size();
 
     TensorVector inputs;
     inputs.reserve(inputs_count);
 
     for (size_t i = 0; i < inputs_count; ++i) {
-        if (std::find(labeled_inputs.begin(), labeled_inputs.end(), i) != labeled_inputs.end()) {
-            auto labels = node->get_input_tensor(i).get_value_label();
-            if (!ov::util::has_no_labels(labels) && !has_any_input_labels) {
-                has_any_input_labels = true;
-            }
-
-            if (node->get_input_partial_shape(i).is_static()) {
-                labels.resize(shape_size(node->get_input_shape(i)), no_label);
-                inputs.emplace_back(element::from<label_t>(), node->get_input_shape(i));
-                std::copy(labels.begin(), labels.end(), inputs.back().data<label_t>());
-            } else {
+        if (!symbol_inputs.size() || std::find(symbol_inputs.begin(), symbol_inputs.end(), i) != symbol_inputs.end()) {
+            const auto& pshape = node->get_input_partial_shape(i);
+            if (pshape.is_dynamic())
                 return false;
-            }
+
+            auto& representation = integer_representation[i];
+            if (std::any_of(representation.begin(), representation.end(), [](int32_t& s) {
+                    return s > 0;
+                }))
+                has_any_input_symbols = true;
+
+            representation.resize(shape_size(pshape.to_shape()), 0);
+            inputs.emplace_back(element::from<int32_t>(), node->get_input_shape(i));
+            std::copy(representation.begin(), representation.end(), inputs.back().data<int32_t>());
         } else {
             if (node->get_input_tensor(i).has_and_set_bound()) {
                 inputs.push_back(node->get_input_tensor(i).get_lower_value());
@@ -597,7 +665,7 @@ bool ov::default_label_evaluator(const Node* node,
         }
     }
 
-    if (has_any_input_labels) {
+    if (has_any_input_symbols) {
         const auto& outputs_count = node->get_output_size();
         TensorVector outputs;
         outputs.reserve(outputs_count);
@@ -606,13 +674,20 @@ bool ov::default_label_evaluator(const Node* node,
             const auto& partial_shape = node->get_output_partial_shape(i);
             // Set shape for static or special dynamic if partial shape is dynamic.
             const auto& shape = partial_shape.is_static() ? partial_shape.to_shape() : Shape{0};
-            outputs.emplace_back(element::from<label_t>(), shape);
+            outputs.emplace_back(element::from<int32_t>(), shape);
         }
 
         if (node->evaluate(outputs, inputs)) {
-            std::transform(outputs.cbegin(), outputs.cend(), output_labels.begin(), [](const Tensor& t) {
-                // Return empty label tensor if input tensor not valid (can have Shape{0})
-                return t ? TensorLabel(t.data<label_t>(), t.data<label_t>() + t.get_size()) : TensorLabel();
+            std::transform(outputs.cbegin(), outputs.cend(), output_symbols.begin(), [&](const Tensor& t) {
+                // Return empty symbol tensor if input tensor not valid (can have Shape{0})
+                if (t) {
+                    TensorSymbol output_symbol;
+                    std::vector<int32_t> integer_output_data(t.data<int32_t>(), t.data<int32_t>() + t.get_size());
+                    integer_and_key_to_symbols(integer_output_data, key, output_symbol);
+                    return output_symbol;
+                } else {
+                    return TensorSymbol();
+                }
             });
             return true;
         }

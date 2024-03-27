@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -786,8 +786,9 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     ov::SoPtr<ov::ICompiledModel> compiled_model;
 
     auto cacheManager = coreConfig.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
-    // Skip caching for proxy plugin. HW plugin will load network from the cache
+
     if (cacheManager && device_supports_model_caching(plugin) && !is_proxy_device(plugin)) {
+        // Skip caching for proxy plugin. HW plugin will load network from the cache
         CacheContent cacheContent{cacheManager, model_path};
         cacheContent.blobId = ov::ModelCache::compute_hash(model_path, create_compile_config(plugin, parsed._config));
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
@@ -796,13 +797,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
                 auto model = read_model(model_path, std::string{});
                 return compile_model_and_cache(plugin, model, parsed._config, {}, cacheContent);
             });
-    } else if (cacheManager) {
-        // this code path is enabled for AUTO / MULTI / BATCH / PROXY devices which don't support
-        // import / export explicitly, but can redirect this functionality to actual HW plugin
-        compiled_model = plugin.compile_model(model_path, parsed._config);
     } else {
-        auto model = read_model(model_path, std::string());
-        compiled_model = plugin.compile_model(model, parsed._config);
+        compiled_model = plugin.compile_model(model_path, parsed._config);
     }
     return compiled_model;
 }

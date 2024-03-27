@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,6 +62,8 @@ public:
                      const std::shared_ptr<VariablesIndex>& variables_index,
                      const std::shared_ptr<std::map<std::string, std::string>> saved_model_input_names,
                      const std::shared_ptr<std::map<std::string, std::string>> saved_model_output_names,
+                     const HashTableKeysValuesMap hash_table_keys_map,
+                     const HashTableKeysValuesMap hash_table_values_map,
                      const std::shared_ptr<CheckpointV1Reader> checkpoint_v1_reader,
                      const bool native_format = false);
     std::vector<ov::frontend::Place::Ptr> get_inputs() const;
@@ -90,6 +92,10 @@ public:
     std::shared_ptr<VariablesIndex> get_variables_index() const;
     std::shared_ptr<std::map<std::string, std::string>> get_saved_model_input_names() const;
     std::shared_ptr<std::map<std::string, std::string>> get_saved_model_output_names() const;
+    HashTableKeysValuesMap get_hash_table_keys_map() const;
+    HashTableKeysValuesMap get_hash_table_values_map() const;
+    void set_variable(const ov::frontend::Place::Ptr& place, const Variable::Ptr& variable);
+    Variable::Ptr get_variable(const ov::frontend::Place::Ptr& place) const;
     std::shared_ptr<CheckpointV1Reader> get_checkpoint_v1_reader() const;
 
 private:
@@ -115,6 +121,9 @@ private:
     std::shared_ptr<VariablesIndex> m_variables_index;
     std::shared_ptr<std::map<std::string, std::string>> m_saved_model_input_names;
     std::shared_ptr<std::map<std::string, std::string>> m_saved_model_output_names;
+    HashTableKeysValuesMap m_hash_table_keys_map;
+    HashTableKeysValuesMap m_hash_table_values_map;
+    std::map<ov::frontend::Place::Ptr, Variable::Ptr> m_variables_map;
     std::shared_ptr<CheckpointV1Reader> m_checkpoint_v1_reader;
 
     bool m_native_format;
@@ -317,6 +326,22 @@ std::shared_ptr<std::map<std::string, std::string>> InputModel::InputModelTFImpl
     return m_saved_model_output_names;
 }
 
+HashTableKeysValuesMap InputModel::InputModelTFImpl::get_hash_table_keys_map() const {
+    return m_hash_table_keys_map;
+}
+
+HashTableKeysValuesMap InputModel::InputModelTFImpl::get_hash_table_values_map() const {
+    return m_hash_table_values_map;
+}
+
+void InputModel::InputModelTFImpl::set_variable(const ov::frontend::Place::Ptr& place, const Variable::Ptr& variable) {
+    m_variables_map[place] = variable;
+}
+
+Variable::Ptr InputModel::InputModelTFImpl::get_variable(const ov::frontend::Place::Ptr& place) const {
+    return m_variables_map.count(place) > 0 ? m_variables_map.at(place) : nullptr;
+}
+
 std::shared_ptr<CheckpointV1Reader> InputModel::InputModelTFImpl::get_checkpoint_v1_reader() const {
     return m_checkpoint_v1_reader;
 }
@@ -506,6 +531,8 @@ InputModel::InputModelTFImpl::InputModelTFImpl(
     const std::shared_ptr<VariablesIndex>& variables_index,
     const std::shared_ptr<std::map<std::string, std::string>> saved_model_input_names,
     const std::shared_ptr<std::map<std::string, std::string>> saved_model_output_names,
+    const HashTableKeysValuesMap hash_table_keys_map,
+    const HashTableKeysValuesMap hash_table_values_map,
     const std::shared_ptr<CheckpointV1Reader> checkpoint_v1_reader,
     const bool native_format)
     : m_graph_iterator(graph_iterator),
@@ -514,6 +541,8 @@ InputModel::InputModelTFImpl::InputModelTFImpl(
       m_variables_index(variables_index),
       m_saved_model_input_names(saved_model_input_names),
       m_saved_model_output_names(saved_model_output_names),
+      m_hash_table_keys_map(hash_table_keys_map),
+      m_hash_table_values_map(hash_table_values_map),
       m_checkpoint_v1_reader(checkpoint_v1_reader),
       m_native_format(native_format) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
@@ -702,6 +731,8 @@ InputModel::InputModel(const GraphIterator::Ptr& graph_iterator,
                        const std::shared_ptr<VariablesIndex>& variables_index,
                        const std::shared_ptr<std::map<std::string, std::string>> saved_model_input_names,
                        const std::shared_ptr<std::map<std::string, std::string>> saved_model_output_names,
+                       const HashTableKeysValuesMap hash_table_keys_map,
+                       const HashTableKeysValuesMap hash_table_values_map,
                        const std::shared_ptr<CheckpointV1Reader> checkpoint_v1_reader,
                        const bool native_format)
     : _impl{std::make_shared<InputModelTFImpl>(graph_iterator,
@@ -710,6 +741,8 @@ InputModel::InputModel(const GraphIterator::Ptr& graph_iterator,
                                                variables_index,
                                                saved_model_input_names,
                                                saved_model_output_names,
+                                               hash_table_keys_map,
+                                               hash_table_values_map,
                                                checkpoint_v1_reader,
                                                native_format)} {}
 
@@ -723,6 +756,22 @@ std::shared_ptr<std::map<std::string, std::string>> InputModel::get_saved_model_
 
 std::shared_ptr<std::map<std::string, std::string>> InputModel::get_saved_model_output_names() const {
     return _impl->get_saved_model_output_names();
+}
+
+HashTableKeysValuesMap InputModel::get_hash_table_keys_map() const {
+    return _impl->get_hash_table_keys_map();
+}
+
+HashTableKeysValuesMap InputModel::get_hash_table_values_map() const {
+    return _impl->get_hash_table_values_map();
+}
+
+void InputModel::set_variable(const ov::frontend::Place::Ptr& place, const Variable::Ptr& variable) {
+    _impl->set_variable(place, variable);
+}
+
+Variable::Ptr InputModel::get_variable(const ov::frontend::Place::Ptr& place) const {
+    return _impl->get_variable(place);
 }
 
 std::shared_ptr<CheckpointV1Reader> InputModel::get_checkpoint_v1_reader() const {

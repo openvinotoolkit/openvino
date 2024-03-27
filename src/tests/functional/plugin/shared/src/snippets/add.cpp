@@ -97,6 +97,10 @@ void AddRollConst::SetUp() {
     if (!configuration.count("SNIPPETS_MODE")) {
         configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
+
+    if (type == ov::element::bf16) {
+        abs_threshold = 3e-2;
+    }
 }
 
 std::string AddPair::getTestCaseName(testing::TestParamInfo<ov::test::snippets::AddParamsPair> obj) {

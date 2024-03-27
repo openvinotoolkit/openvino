@@ -51,7 +51,7 @@ struct multi_stage_primitive : public typed_primitive_impl<PType> {
         for (size_t k = 0; k < other._kernels.size(); ++k) {
             _kernels.emplace_back(other._kernels[k]->clone());
         }
-        this->can_reuse_memory = false;
+        this->can_reuse_memory = other.can_reuse_memory;
         this->_kernel_name = other._kernel_name;
         this->_is_dynamic = other._is_dynamic;
     }

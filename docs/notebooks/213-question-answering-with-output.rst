@@ -573,7 +573,7 @@ questions in the box.**
     Question: What is the term for a task that generally lends itself to being solved by a computer?
     Answer: A computational problem
     Score: 0.53
-    Time: 0.03s
+    Time: 0.04s
 
 
 Run on websites
@@ -617,7 +617,7 @@ questions in the box.**
 .. parsed-literal::
 
     Question: What does OpenVINO mean?
-    Answer: open-source software toolkit for optimizing and deploying deep learning models
-    Score: 0.06
-    Time: 0.06s
+    Answer: an open-source software toolkit for optimizing and deploying deep learning models
+    Score: 0.09
+    Time: 0.04s
 

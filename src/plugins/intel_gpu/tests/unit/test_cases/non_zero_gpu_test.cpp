@@ -533,3 +533,42 @@ TEST(non_zero_gpu, const_input) {
         ASSERT_FLOAT_EQ(output_ptr[i], out_data[i]);
     }
 }
+
+TEST(non_zero_gpu, empty_input) {
+    auto& engine = get_test_engine();
+    auto in_layout = layout{ov::PartialShape{1, -1}, data_types::f32, format::bfyx};
+    auto in_data_layout = layout{ov::PartialShape{1, 0}, data_types::f32, format::bfyx};
+    auto input_data_mem = engine.allocate_memory(in_data_layout);
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(count_nonzero("count_nonzero", input_info("input")));
+    topology.add(gather_nonzero("gather_nonzero", input_info("input"), input_info("count_nonzero")));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network net(engine, topology, config);
+
+    net.set_input_data("input", input_data_mem);
+
+    auto count_nonzero_inst = net.get_primitive("count_nonzero");
+
+    // Put some value into out buffer to ensure that it's non empty
+    // That is needed to ensure that implementation correctly handles the cases when input tensor is empty and set count non zero to 0
+    count_nonzero_inst->output_memory(0).fill(engine.get_service_stream(), 1);
+    engine.get_service_stream().finish();
+
+    auto count_nonzero_impl = count_nonzero_inst->get_impl();
+    ASSERT_TRUE(count_nonzero_impl != nullptr);
+
+    auto gather_nonzero_inst = net.get_primitive("gather_nonzero");
+    auto gather_nonzero_impl = gather_nonzero_inst->get_impl();
+    ASSERT_TRUE(gather_nonzero_impl != nullptr);
+    ASSERT_TRUE(gather_nonzero_impl->is_dynamic());
+
+    auto outputs = net.execute();
+
+    auto output = outputs.at("gather_nonzero").get_memory();
+    ASSERT_EQ(output, nullptr);
+}

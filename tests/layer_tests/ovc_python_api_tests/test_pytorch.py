@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -747,12 +747,10 @@ def create_pytorch_module_with_compressed_int8_constant_compress_to_fp16_default
     param1 = ov.opset10.parameter(shape, dtype=np.float32)
     weights = ov.opset10.constant(net.weights.numpy(force=True))
     cast1 = ov.opset10.convert(weights, np.float32)
-    sub1_const = np.float16(0.5).reshape(1, 1, 1, 1)
-    mul1_const = np.float16(0.02).reshape(1, 1, 1, 1)
-    sub1_const_decompress = ov.opset10.convert(sub1_const, np.float32)
-    mul1_const_decompress = ov.opset10.convert(mul1_const, np.float32)
-    sub1 = ov.opset10.subtract(cast1, sub1_const_decompress)
-    mul1 = ov.opset10.multiply(sub1, mul1_const_decompress)
+    sub1_const = np.float32(0.5).reshape(1, 1, 1, 1)
+    mul1_const = np.float32(0.02).reshape(1, 1, 1, 1)
+    sub1 = ov.opset10.subtract(cast1, sub1_const)
+    mul1 = ov.opset10.multiply(sub1, mul1_const)
     conv = ov.opset10.convolution(param1, mul1, strides=[1, 1],
                                   pads_begin=[0, 0], pads_end=[0, 0],
                                   dilations=[1, 1])
@@ -986,7 +984,7 @@ def create_pytorch_module_with_nested_list_and_single_input(tmp_dir):
     
     net = PTModel()
     constant_one = ov.opset10.constant(np.ones((1, 1)), dtype=np.float32)
-    const_zero = ov.opset10.constant(0, dtype=np.int32)
+    const_zero = ov.opset10.constant(0, dtype=np.int64)
     constant_zeros1 = ov.opset10.constant(np.zeros((1, 1), dtype=np.float32), dtype=np.float32)
 
     param =  ov.opset10.parameter(PartialShape([-1, -1, -1]), dtype=np.float32)
@@ -1007,7 +1005,7 @@ def create_pytorch_module_with_single_input_as_list(tmp_dir):
     
     net = PTModel()
     constant_one = ov.opset10.constant(np.ones((1,)), dtype=np.float32)
-    const_zero = ov.opset10.constant(0, dtype=np.int32)
+    const_zero = ov.opset10.constant(0, dtype=np.int64)
     constant_zeros1 = ov.opset10.constant(np.zeros((1, ), dtype=np.float32), dtype=np.float32)
 
     param =  ov.opset10.parameter(PartialShape([-1, -1]), dtype=np.float32)

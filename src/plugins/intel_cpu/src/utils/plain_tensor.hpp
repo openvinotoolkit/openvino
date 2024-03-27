@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -495,7 +495,7 @@ struct PlainTensor {
         size_t cur_row_elecnt = 0;
         size_t i;
         for (i = 0; i < sz && max_total_lines > 0; i++) {
-            if ((i % last_dim_size) == 0) {
+            if ((i % last_dim_size) == 0 && m_rank > 1) {
                 ss << row_id << ":\t\t";
                 row_id++;
                 cur_row_lines_left = lines_per_row;
@@ -515,11 +515,13 @@ struct PlainTensor {
                     ss << (ptr<int8_t>())[i] << ",";
                 else if (m_dt == ov::element::Type_t::u8)
                     ss << (ptr<uint8_t>())[i] << ",";
+                else if (m_dt == ov::element::Type_t::boolean)
+                    ss << static_cast<bool>((ptr<uint8_t>())[i]) << ",";
                 else
                     ss << "?,";
                 cur_line_elecnt++;
                 cur_row_elecnt++;
-                if ((cur_line_elecnt % 16) == 15 || (cur_row_elecnt == last_dim_size)) {
+                if (((cur_line_elecnt % 16) == 15 || (cur_row_elecnt == last_dim_size)) && (m_rank > 1)) {
                     max_total_lines--;
                     cur_row_lines_left--;
                     if (cur_row_lines_left == 0) {

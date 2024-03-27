@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -21,6 +21,7 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                       const ov::intel_cpu::PlainTensor& alibi_mask,
                       const ov::intel_cpu::PlainTensor& attention_mask,
                       const ov::intel_cpu::PlainTensor& beams,
+                      const ov::intel_cpu::PlainTensor& context_lens,
                       ov::intel_cpu::PlainTensor& output_emb,
                       ov::intel_cpu::PlainTensor& buf_attn_w,
                       ov::intel_cpu::PlainTensor& buf_attn_score,
