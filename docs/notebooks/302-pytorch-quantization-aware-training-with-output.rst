@@ -161,7 +161,7 @@ models will be stored.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/302-pytorch-quantization-aware-training/model/resnet18_fp32.pth')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-642/.workspace/scm/ov-notebook/notebooks/302-pytorch-quantization-aware-training/model/resnet18_fp32.pth')
 
 
 
@@ -460,9 +460,9 @@ section at the top of this notebook.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-642/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
       warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=None`.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-642/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=None`.
       warnings.warn(msg)
 
 
@@ -572,24 +572,19 @@ about supported parameters can be found on this
 
 .. parsed-literal::
 
-    2024-03-13 01:05:17.144827: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-03-13 01:05:17.180554: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-03-26 00:52:55.414429: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-03-26 00:52:55.450265: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 
 
 .. parsed-literal::
 
-    2024-03-13 01:05:17.770875: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-03-26 00:52:55.970882: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
 
-    WARNING:nncf:NNCF provides best results with torch==2.1.2, while current torch version is 1.13.1+cpu. If you encounter issues, consider switching to torch==2.1.2
-
-
-.. parsed-literal::
-
-    No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
+    WARNING:nncf:NNCF provides best results with torch==2.1.2, while current torch version is 2.2.1+cpu. If you encounter issues, consider switching to torch==2.1.2
 
 
 
@@ -662,37 +657,37 @@ demonstrated here.
 
 .. parsed-literal::
 
-    Test: [10/79]	Time 0.158 (0.160)	Loss 1.992 (1.625)	Acc@1 44.53 (60.37)	Acc@5 79.69 (83.66)
+    Test: [10/79]	Time 0.143 (0.149)	Loss 1.992 (1.625)	Acc@1 44.53 (60.37)	Acc@5 79.69 (83.66)
 
 
 .. parsed-literal::
 
-    Test: [20/79]	Time 0.160 (0.161)	Loss 1.814 (1.705)	Acc@1 60.94 (58.04)	Acc@5 80.47 (82.66)
+    Test: [20/79]	Time 0.143 (0.146)	Loss 1.814 (1.705)	Acc@1 60.94 (58.04)	Acc@5 80.47 (82.66)
 
 
 .. parsed-literal::
 
-    Test: [30/79]	Time 0.157 (0.160)	Loss 2.287 (1.795)	Acc@1 50.78 (56.48)	Acc@5 68.75 (80.97)
+    Test: [30/79]	Time 0.144 (0.146)	Loss 2.287 (1.795)	Acc@1 50.78 (56.48)	Acc@5 68.75 (80.97)
 
 
 .. parsed-literal::
 
-    Test: [40/79]	Time 0.155 (0.160)	Loss 1.615 (1.832)	Acc@1 60.94 (55.43)	Acc@5 82.81 (80.43)
+    Test: [40/79]	Time 0.143 (0.147)	Loss 1.615 (1.832)	Acc@1 60.94 (55.43)	Acc@5 82.81 (80.43)
 
 
 .. parsed-literal::
 
-    Test: [50/79]	Time 0.156 (0.160)	Loss 1.952 (1.833)	Acc@1 57.03 (55.51)	Acc@5 75.00 (80.16)
+    Test: [50/79]	Time 0.143 (0.146)	Loss 1.952 (1.833)	Acc@1 57.03 (55.51)	Acc@5 75.00 (80.16)
 
 
 .. parsed-literal::
 
-    Test: [60/79]	Time 0.160 (0.159)	Loss 1.794 (1.856)	Acc@1 57.03 (55.16)	Acc@5 84.38 (79.84)
+    Test: [60/79]	Time 0.142 (0.145)	Loss 1.794 (1.856)	Acc@1 57.03 (55.16)	Acc@5 84.38 (79.84)
 
 
 .. parsed-literal::
 
-    Test: [70/79]	Time 0.156 (0.159)	Loss 2.371 (1.889)	Acc@1 46.88 (54.68)	Acc@5 74.22 (79.14)
+    Test: [70/79]	Time 0.139 (0.145)	Loss 2.371 (1.889)	Acc@1 46.88 (54.68)	Acc@5 74.22 (79.14)
 
 
 .. parsed-literal::
@@ -729,129 +724,129 @@ training pipeline are required. Here is a simple example.
 
 .. parsed-literal::
 
-    Epoch:[0][  0/782]	Time 0.403 (0.403)	Loss 0.917 (0.917)	Acc@1 76.56 (76.56)	Acc@5 93.75 (93.75)
+    Epoch:[0][  0/782]	Time 0.385 (0.385)	Loss 0.917 (0.917)	Acc@1 76.56 (76.56)	Acc@5 93.75 (93.75)
 
 
 .. parsed-literal::
 
-    Epoch:[0][ 50/782]	Time 0.377 (0.398)	Loss 0.625 (0.812)	Acc@1 85.94 (80.22)	Acc@5 96.88 (93.95)
+    Epoch:[0][ 50/782]	Time 0.360 (0.364)	Loss 0.625 (0.812)	Acc@1 87.50 (80.27)	Acc@5 96.88 (93.92)
 
 
 .. parsed-literal::
 
-    Epoch:[0][100/782]	Time 0.379 (0.393)	Loss 0.761 (0.807)	Acc@1 78.91 (80.37)	Acc@5 94.53 (94.14)
+    Epoch:[0][100/782]	Time 0.354 (0.361)	Loss 0.764 (0.807)	Acc@1 79.69 (80.37)	Acc@5 94.53 (94.17)
 
 
 .. parsed-literal::
 
-    Epoch:[0][150/782]	Time 0.364 (0.392)	Loss 0.864 (0.799)	Acc@1 82.81 (80.54)	Acc@5 92.97 (94.22)
+    Epoch:[0][150/782]	Time 0.361 (0.361)	Loss 0.863 (0.799)	Acc@1 82.81 (80.53)	Acc@5 92.97 (94.25)
 
 
 .. parsed-literal::
 
-    Epoch:[0][200/782]	Time 0.412 (0.391)	Loss 0.581 (0.787)	Acc@1 85.94 (80.84)	Acc@5 96.88 (94.33)
+    Epoch:[0][200/782]	Time 0.362 (0.360)	Loss 0.581 (0.787)	Acc@1 85.16 (80.80)	Acc@5 97.66 (94.34)
 
 
 .. parsed-literal::
 
-    Epoch:[0][250/782]	Time 0.403 (0.391)	Loss 0.724 (0.782)	Acc@1 83.59 (80.92)	Acc@5 93.75 (94.43)
+    Epoch:[0][250/782]	Time 0.360 (0.360)	Loss 0.722 (0.782)	Acc@1 82.81 (80.88)	Acc@5 93.75 (94.42)
 
 
 .. parsed-literal::
 
-    Epoch:[0][300/782]	Time 0.379 (0.391)	Loss 0.738 (0.777)	Acc@1 78.91 (81.06)	Acc@5 93.75 (94.41)
+    Epoch:[0][300/782]	Time 0.359 (0.360)	Loss 0.737 (0.777)	Acc@1 78.91 (81.01)	Acc@5 93.75 (94.41)
 
 
 .. parsed-literal::
 
-    Epoch:[0][350/782]	Time 0.383 (0.390)	Loss 0.819 (0.767)	Acc@1 79.69 (81.31)	Acc@5 92.97 (94.54)
+    Epoch:[0][350/782]	Time 0.359 (0.360)	Loss 0.819 (0.767)	Acc@1 80.47 (81.29)	Acc@5 92.97 (94.53)
 
 
 .. parsed-literal::
 
-    Epoch:[0][400/782]	Time 0.372 (0.390)	Loss 0.783 (0.766)	Acc@1 80.47 (81.36)	Acc@5 94.53 (94.54)
+    Epoch:[0][400/782]	Time 0.362 (0.361)	Loss 0.787 (0.767)	Acc@1 80.47 (81.35)	Acc@5 94.53 (94.53)
 
 
 .. parsed-literal::
 
-    Epoch:[0][450/782]	Time 0.409 (0.391)	Loss 0.732 (0.763)	Acc@1 82.03 (81.49)	Acc@5 96.88 (94.55)
+    Epoch:[0][450/782]	Time 0.359 (0.361)	Loss 0.726 (0.763)	Acc@1 82.03 (81.48)	Acc@5 96.88 (94.55)
 
 
 .. parsed-literal::
 
-    Epoch:[0][500/782]	Time 0.381 (0.391)	Loss 0.726 (0.760)	Acc@1 82.03 (81.56)	Acc@5 95.31 (94.59)
+    Epoch:[0][500/782]	Time 0.361 (0.361)	Loss 0.727 (0.760)	Acc@1 82.03 (81.54)	Acc@5 94.53 (94.58)
 
 
 .. parsed-literal::
 
-    Epoch:[0][550/782]	Time 0.379 (0.390)	Loss 0.774 (0.758)	Acc@1 83.59 (81.60)	Acc@5 95.31 (94.60)
+    Epoch:[0][550/782]	Time 0.357 (0.360)	Loss 0.781 (0.758)	Acc@1 82.81 (81.58)	Acc@5 95.31 (94.59)
 
 
 .. parsed-literal::
 
-    Epoch:[0][600/782]	Time 0.389 (0.390)	Loss 0.721 (0.756)	Acc@1 80.47 (81.65)	Acc@5 97.66 (94.60)
+    Epoch:[0][600/782]	Time 0.357 (0.360)	Loss 0.721 (0.756)	Acc@1 80.47 (81.63)	Acc@5 97.66 (94.61)
 
 
 .. parsed-literal::
 
-    Epoch:[0][650/782]	Time 0.431 (0.390)	Loss 0.919 (0.755)	Acc@1 75.78 (81.66)	Acc@5 92.97 (94.62)
+    Epoch:[0][650/782]	Time 0.354 (0.360)	Loss 0.922 (0.755)	Acc@1 76.56 (81.64)	Acc@5 92.97 (94.63)
 
 
 .. parsed-literal::
 
-    Epoch:[0][700/782]	Time 0.411 (0.390)	Loss 0.645 (0.753)	Acc@1 85.16 (81.70)	Acc@5 93.75 (94.62)
+    Epoch:[0][700/782]	Time 0.359 (0.360)	Loss 0.651 (0.753)	Acc@1 83.59 (81.68)	Acc@5 92.97 (94.63)
 
 
 .. parsed-literal::
 
-    Epoch:[0][750/782]	Time 0.376 (0.390)	Loss 0.780 (0.750)	Acc@1 81.25 (81.72)	Acc@5 93.75 (94.65)
+    Epoch:[0][750/782]	Time 0.359 (0.360)	Loss 0.781 (0.751)	Acc@1 80.47 (81.70)	Acc@5 95.31 (94.66)
 
 
 .. parsed-literal::
 
-    Test: [ 0/79]	Time 0.164 (0.164)	Loss 1.095 (1.095)	Acc@1 72.66 (72.66)	Acc@5 85.94 (85.94)
+    Test: [ 0/79]	Time 0.145 (0.145)	Loss 1.092 (1.092)	Acc@1 73.44 (73.44)	Acc@5 86.72 (86.72)
 
 
 .. parsed-literal::
 
-    Test: [10/79]	Time 0.139 (0.142)	Loss 1.832 (1.524)	Acc@1 50.00 (62.78)	Acc@5 82.03 (83.95)
+    Test: [10/79]	Time 0.144 (0.145)	Loss 1.826 (1.522)	Acc@1 49.22 (62.78)	Acc@5 81.25 (84.23)
 
 
 .. parsed-literal::
 
-    Test: [20/79]	Time 0.137 (0.140)	Loss 1.535 (1.596)	Acc@1 65.62 (60.53)	Acc@5 82.03 (83.71)
+    Test: [20/79]	Time 0.145 (0.145)	Loss 1.531 (1.594)	Acc@1 64.84 (60.83)	Acc@5 82.03 (83.85)
 
 
 .. parsed-literal::
 
-    Test: [30/79]	Time 0.140 (0.141)	Loss 2.056 (1.691)	Acc@1 56.25 (59.12)	Acc@5 71.09 (82.13)
+    Test: [30/79]	Time 0.144 (0.145)	Loss 2.059 (1.690)	Acc@1 57.03 (59.22)	Acc@5 71.09 (82.26)
 
 
 .. parsed-literal::
 
-    Test: [40/79]	Time 0.143 (0.140)	Loss 1.517 (1.745)	Acc@1 64.06 (57.81)	Acc@5 85.16 (81.36)
+    Test: [40/79]	Time 0.145 (0.145)	Loss 1.516 (1.744)	Acc@1 64.06 (57.91)	Acc@5 85.16 (81.46)
 
 
 .. parsed-literal::
 
-    Test: [50/79]	Time 0.140 (0.140)	Loss 1.911 (1.752)	Acc@1 53.91 (57.61)	Acc@5 77.34 (80.99)
+    Test: [50/79]	Time 0.146 (0.145)	Loss 1.922 (1.750)	Acc@1 53.12 (57.69)	Acc@5 76.56 (81.14)
 
 
 .. parsed-literal::
 
-    Test: [60/79]	Time 0.138 (0.140)	Loss 1.587 (1.787)	Acc@1 66.41 (57.04)	Acc@5 85.16 (80.57)
+    Test: [60/79]	Time 0.142 (0.144)	Loss 1.594 (1.785)	Acc@1 65.62 (57.17)	Acc@5 84.38 (80.60)
 
 
 .. parsed-literal::
 
-    Test: [70/79]	Time 0.141 (0.140)	Loss 2.455 (1.813)	Acc@1 45.31 (56.64)	Acc@5 75.00 (80.16)
+    Test: [70/79]	Time 0.142 (0.144)	Loss 2.460 (1.811)	Acc@1 46.09 (56.75)	Acc@5 74.22 (80.08)
 
 
 .. parsed-literal::
 
-     * Acc@1 57.020 Acc@5 80.770
-    Accuracy of tuned INT8 model: 57.020
-    Accuracy drop of tuned INT8 model over pre-trained FP32 model: -1.500
+     * Acc@1 57.180 Acc@5 80.680
+    Accuracy of tuned INT8 model: 57.180
+    Accuracy drop of tuned INT8 model over pre-trained FP32 model: -1.660
 
 
 Export INT8 Model to OpenVINO IR
@@ -949,13 +944,13 @@ throughput (frames per second) values.
 
 .. parsed-literal::
 
-    [ INFO ] Throughput:   2946.75 FPS
+    [ INFO ] Throughput:   2875.92 FPS
     Benchmark INT8 model (IR)
 
 
 .. parsed-literal::
 
-    [ INFO ] Throughput:   11933.05 FPS
+    [ INFO ] Throughput:   12238.34 FPS
 
 
 Show Device Information for reference.

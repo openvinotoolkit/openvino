@@ -71,8 +71,8 @@ Prerequisites
 
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
     googleapis-common-protos 1.63.0 requires protobuf!=3.20.0,!=3.20.1,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<5.0.0.dev0,>=3.19.5, but you have protobuf 3.20.1 which is incompatible.
-    onnx 1.15.0 requires protobuf>=3.20.2, but you have protobuf 3.20.1 which is incompatible.
-    paddlepaddle 2.6.0 requires protobuf>=3.20.2; platform_system != "Windows", but you have protobuf 3.20.1 which is incompatible.
+    onnx 1.16.0 requires protobuf>=3.20.2, but you have protobuf 3.20.1 which is incompatible.
+    paddlepaddle 2.6.1 requires protobuf>=3.20.2; platform_system != "Windows", but you have protobuf 3.20.1 which is incompatible.
     ppgan 2.1.0 requires imageio==2.9.0, but you have imageio 2.34.0 which is incompatible.
     ppgan 2.1.0 requires librosa==0.8.1, but you have librosa 0.9.2 which is incompatible.
     ppgan 2.1.0 requires opencv-python<=4.6.0.66, but you have opencv-python 4.9.0.80 which is incompatible.
@@ -245,7 +245,7 @@ pipeline
 
 .. parsed-literal::
 
-    Diarization pipeline took 15.71 s
+    Diarization pipeline took 15.75 s
 
 
 The result of running the pipeline can be represented as a diagram
@@ -404,7 +404,7 @@ Run speaker diarization with OpenVINO
 
 .. parsed-literal::
 
-    Diarization pipeline took 15.14 s
+    Diarization pipeline took 15.08 s
 
 
 .. code:: ipython3

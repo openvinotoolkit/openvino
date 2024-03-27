@@ -14,7 +14,10 @@ There are four categories:
 -  `Checks and Alerts <#checks-and-alerts>`__
 
 Each category contains a test cell that also shows how to use the
-functions in the section. #### Table of contents:
+functions in the section.
+
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Files <#files>`__
 
@@ -51,7 +54,7 @@ functions in the section. #### Table of contents:
 .. parsed-literal::
 
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
+
 
 .. parsed-literal::
 
@@ -61,7 +64,7 @@ functions in the section. #### Table of contents:
 .. parsed-literal::
 
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
+
 
 .. parsed-literal::
 
@@ -104,7 +107,7 @@ Test File Functions
 
     model_url = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/002-example-models/segmentation.xml"
     download_ir_model(model_url, "model")
-    
+
     assert os.path.exists("model/segmentation.xml")
     assert os.path.exists("model/segmentation.bin")
 
@@ -133,7 +136,7 @@ Test File Functions
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/utils/Safety_Full_Hat_and_Vest.mp4
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-642/.workspace/scm/ov-notebook/notebooks/utils/Safety_Full_Hat_and_Vest.mp4
 
 
 .. code:: ipython3
@@ -155,7 +158,7 @@ Test File Functions
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/utils/openvino_notebooks_readme.md
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-642/.workspace/scm/ov-notebook/notebooks/utils/openvino_notebooks_readme.md
 
 
 .. code:: ipython3
@@ -173,7 +176,7 @@ Test File Functions
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/utils/openvino_notebooks_readme.md
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-642/.workspace/scm/ov-notebook/notebooks/utils/openvino_notebooks_readme.md
 
 
 .. code:: ipython3
@@ -228,7 +231,7 @@ Test Data Conversion Functions
 
     test_array = np.random.randint(0, 255, (100, 100, 3))
     normalized_array = normalize_minmax(test_array)
-    
+
     assert normalized_array.min() == 0
     assert normalized_array.max() == 1
 
@@ -239,9 +242,9 @@ Test Data Conversion Functions
     bgr_array[:, :, 1] = 1
     bgr_array[:, :, 2] = 2
     rgb_array = to_rgb(bgr_array)
-    
+
     assert np.all(bgr_array[:, :, 0] == rgb_array[:, :, 2])
-    
+
     bgr_array_converted = to_bgr(rgb_array)
     assert np.all(bgr_array_converted == bgr_array)
 
@@ -263,7 +266,7 @@ FPS and output size, flip the video horizontally or skip first N frames.
     import cv2
     from IPython.display import Image, clear_output, display
     from notebook_utils import VideoPlayer
-    
+
     ??VideoPlayer
 
 Test Video Player
@@ -274,7 +277,7 @@ Test Video Player
 .. code:: ipython3
 
     video = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/Coco%20Walking%20in%20Berkeley.mp4"
-    
+
     player = VideoPlayer(video, fps=15, skip_first_frames=10)
     player.start()
     for i in range(50):
@@ -283,7 +286,7 @@ Test Video Player
         img = Image(data=encoded_img)
         clear_output(wait=True)
         display(img)
-    
+
     player.stop()
     print("Finished")
 
@@ -350,9 +353,9 @@ the original image.
 
 .. parsed-literal::
 
-    cityscapes segmentation lables: 
+    cityscapes segmentation lables:
     ['road', 'sidewalk', 'building', 'wall', 'fence', 'pole', 'traffic light', 'traffic sign', 'vegetation', 'terrain', 'sky', 'person', 'rider', 'car', 'truck', 'bus', 'train', 'motorcycle', 'bicycle', 'background']
-    cityscales segmentation colors: 
+    cityscales segmentation colors:
     [[128  64 128]
      [244  35 232]
      [ 70  70  70]
@@ -387,9 +390,9 @@ the original image.
 
 .. parsed-literal::
 
-    binary segmentation lables: 
+    binary segmentation lables:
     ['background', 'foreground']
-    binary segmentation colors: 
+    binary segmentation colors:
     [[255 255 255]
      [  0   0   0]]
 
@@ -413,7 +416,7 @@ a legend with labels.
 .. code:: ipython3
 
     from notebook_utils import viz_result_image
-    
+
     ??viz_result_image
 
 Test Visualization Functions
@@ -428,13 +431,13 @@ Test Visualization Functions
     testimage[0:10, 0:10, :] = 100
     testimage[40:60, 40:60, :] = 128
     testimage[testimage == 0] = 128
-    
-    
+
+
     testmask1 = np.zeros((testimage.shape[:2]))
     testmask1[30:80, 30:80] = 1
     testmask1[40:50, 40:50] = 0
     testmask1[0:15, 0:10] = 2
-    
+
     result_image_overlay = segmentation_map_to_overlay(
         image=testimage,
         result=testmask1,
@@ -449,7 +452,7 @@ Test Visualization Functions
     overlay_result_image = segmentation_map_to_overlay(
         testimage, testmask1, 0.6, CityScapesSegmentation.get_colormap(), remove_holes=False
     )
-    
+
     fig1 = viz_result_image(result_image, testimage)
     fig2 = viz_result_image(result_image_no_holes, testimage, labels=CityScapesSegmentation)
     fig3 = viz_result_image(
@@ -464,7 +467,7 @@ Test Visualization Functions
         labels=CityScapesSegmentation,
         result_title="Image with Result Overlay",
     )
-    
+
     display(fig1, fig2, fig3, fig4)
 
 

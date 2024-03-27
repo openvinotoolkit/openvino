@@ -231,13 +231,13 @@ consumption.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4193: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-642/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4225: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/gpt2/modeling_gpt2.py:801: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-642/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/gpt2/modeling_gpt2.py:801: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if batch_size <= 0:
 
 
@@ -347,14 +347,14 @@ at later stage.
 
 .. parsed-literal::
 
-    2024-03-12 23:30:05.170186: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-03-12 23:30:05.202013: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-03-25 23:32:43.972078: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-03-25 23:32:44.004209: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 
 
 .. parsed-literal::
 
-    2024-03-12 23:30:05.770717: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-03-25 23:32:44.565242: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Define Softmax layer
@@ -701,59 +701,59 @@ The style of inference can be selected in the next cell.
 .. parsed-literal::
 
     Person: Hi,How are you?
-    PersonaGPT: good how are you?
+    PersonaGPT: good, how are you?
 
 
 .. parsed-literal::
 
     Person: What are you doing?
-    PersonaGPT: good just hanging out with my friends
+    PersonaGPT: just sitting here thinking about where i can go for lunch
 
 
 .. parsed-literal::
 
     Person: I like to dance,do you?
-    PersonaGPT: not really but i like to play
+    PersonaGPT: no, but i want to learn
 
 
 .. parsed-literal::
 
     Person: Can you recommend me some books?
-    PersonaGPT: any good suggestions i like romance movies
+    PersonaGPT: not usually i teach but i know a few
 
 
 .. parsed-literal::
 
     Person: Hi,How are you?
-    PersonaGPT: good thanks for asking. what do you do for fun?
+    PersonaGPT: i'm well, i'm in a band
 
 
 .. parsed-literal::
 
     Person: What are you doing?
-    PersonaGPT: i like to read. what about you?
+    PersonaGPT: playing some music for my band
 
 
 .. parsed-literal::
 
     Person: I like to dance,do you?
-    PersonaGPT: not really but i do play games.
+    PersonaGPT: not really, i like to read
 
 
 .. parsed-literal::
 
     Person: Can you recommend me some books?
-    PersonaGPT: sure what kind of games do you play
+    PersonaGPT: yeah, i can try to
 
 
 .. parsed-literal::
 
     Person: Hi,How are you?
-    PersonaGPT: i am good do you like movies?
+    PersonaGPT: good, i like tacos and rice
 
 
 .. parsed-literal::
 
     Person: What are you doing?
-    PersonaGPT: reading a romance movie. you seen any good ones lately?
+    PersonaGPT: i'm just reading about tacos
 

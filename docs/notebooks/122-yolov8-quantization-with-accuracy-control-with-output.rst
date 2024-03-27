@@ -486,8 +486,8 @@ is not exceeded.
     ov_config = {}
     if "GPU" in device.value or ("AUTO" in device.value and "GPU" in core.available_devices):
         ov_config = {"GPU_DISABLE_WINOGRAD_CONVOLUTION": "YES"}
-    quantized_compiled_model = core.compile_model(model=quantized_model, device_name=device.value, ov_config)
-    compiled_ov_model = core.compile_model(model=ov_model, device_name=device.value, ov_config)
+    quantized_compiled_model = core.compile_model(quantized_model, device.value, ov_config)
+    compiled_ov_model = core.compile_model(ov_model, device.value, ov_config)
     
     pt_result = validation_ac(compiled_ov_model, data_loader, validator)
     quantized_result = validation_ac(quantized_compiled_model, data_loader, validator)

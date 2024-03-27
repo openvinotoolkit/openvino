@@ -73,7 +73,7 @@ Prerequisites
 .. code:: ipython3
 
     %pip install -q --upgrade pip
-    %pip install -q "transformers>=4.33.1" "openvino>=2023.1.0" "numpy>=1.21.0,<=1.24" "nncf>=2.7.0" 
+    %pip install -q "transformers>=4.33.1" "openvino>=2023.1.0" "numpy>=1.21.0" "nncf>=2.9.0" 
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu torch datasets accelerate soundfile librosa gradio jiwer
 
 .. code:: ipython3

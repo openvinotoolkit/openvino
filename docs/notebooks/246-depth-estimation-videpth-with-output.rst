@@ -134,8 +134,8 @@ Imports
 
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
     googleapis-common-protos 1.63.0 requires protobuf!=3.20.0,!=3.20.1,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<5.0.0.dev0,>=3.19.5, but you have protobuf 3.20.1 which is incompatible.
-    onnx 1.15.0 requires protobuf>=3.20.2, but you have protobuf 3.20.1 which is incompatible.
-    paddlepaddle 2.6.0 requires protobuf>=3.20.2; platform_system != "Windows", but you have protobuf 3.20.1 which is incompatible.
+    onnx 1.16.0 requires protobuf>=3.20.2, but you have protobuf 3.20.1 which is incompatible.
+    paddlepaddle 2.6.1 requires protobuf>=3.20.2; platform_system != "Windows", but you have protobuf 3.20.1 which is incompatible.
     tensorflow 2.12.0 requires protobuf!=4.21.0,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<5.0.0dev,>=3.20.3, but you have protobuf 3.20.1 which is incompatible.
     tensorflow-metadata 1.14.0 requires protobuf<4.21,>=3.20.3, but you have protobuf 3.20.1 which is incompatible.
 
@@ -210,6 +210,7 @@ depth prediction model as you will see.
 +------------------+---------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
 | MiDaS-small      | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.midas_small.nsamples.150.ckpt>`__         | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.midas_small.nsamples.500.ckpt>`__         | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.midas_small.nsamples.1500.ckpt>`__         |
 +------------------+---------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+
 
 \*Also available with pre-training on TartanAir:
 `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_hybrid.nsamples.150.pretrained.ckpt>`__
@@ -290,7 +291,7 @@ depth prediction model as you will see.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/hub.py:294: UserWarning: You are about to download and run code from an untrusted repository. In a future release, this won't be allowed. To add the repository to your trusted list, change the command to {calling_fn}(..., trust_repo=False) and a command prompt will appear asking for an explicit confirmation of trust, or load(..., trust_repo=True), which will assume that the prompt is to be answered with 'yes'. You can also use load(..., trust_repo='check') which will only prompt for confirmation if the repo is not already trusted. This will eventually be the default behaviour
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-642/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/hub.py:294: UserWarning: You are about to download and run code from an untrusted repository. In a future release, this won't be allowed. To add the repository to your trusted list, change the command to {calling_fn}(..., trust_repo=False) and a command prompt will appear asking for an explicit confirmation of trust, or load(..., trust_repo=True), which will assume that the prompt is to be answered with 'yes'. You can also use load(..., trust_repo='check') which will only prompt for confirmation if the repo is not already trusted. This will eventually be the default behaviour
       warnings.warn(
     Downloading: "https://github.com/rwightman/gen-efficientnet-pytorch/zipball/master" to model/master.zip
 
@@ -313,92 +314,74 @@ depth prediction model as you will see.
 .. parsed-literal::
 
 
-  0%|          | 320k/81.8M [00:00<00:26, 3.27MB/s]
+  0%|          | 320k/81.8M [00:00<00:26, 3.22MB/s]
 
 .. parsed-literal::
 
 
-  3%|▎         | 2.75M/81.8M [00:00<00:05, 16.4MB/s]
+  3%|▎         | 2.44M/81.8M [00:00<00:05, 14.3MB/s]
 
 .. parsed-literal::
 
 
-  9%|▉         | 7.59M/81.8M [00:00<00:02, 32.1MB/s]
+ 12%|█▏        | 10.1M/81.8M [00:00<00:01, 44.2MB/s]
 
 .. parsed-literal::
 
 
- 21%|██        | 16.8M/81.8M [00:00<00:01, 57.5MB/s]
+ 21%|██        | 16.9M/81.8M [00:00<00:01, 55.1MB/s]
 
 .. parsed-literal::
 
 
- 27%|██▋       | 22.3M/81.8M [00:00<00:01, 52.9MB/s]
+ 27%|██▋       | 22.2M/81.8M [00:00<00:01, 53.2MB/s]
 
 .. parsed-literal::
 
 
- 33%|███▎      | 27.4M/81.8M [00:00<00:01, 50.4MB/s]
+ 33%|███▎      | 27.3M/81.8M [00:00<00:01, 51.2MB/s]
 
 .. parsed-literal::
 
 
- 39%|███▉      | 32.3M/81.8M [00:00<00:01, 42.1MB/s]
+ 39%|███▉      | 32.2M/81.8M [00:00<00:01, 50.2MB/s]
 
 .. parsed-literal::
 
 
- 46%|████▋     | 38.0M/81.8M [00:00<00:00, 46.9MB/s]
+ 45%|████▌     | 37.0M/81.8M [00:01<00:01, 27.4MB/s]
 
 .. parsed-literal::
 
 
- 52%|█████▏    | 42.7M/81.8M [00:01<00:00, 46.3MB/s]
+ 52%|█████▏    | 42.3M/81.8M [00:01<00:01, 32.8MB/s]
 
 .. parsed-literal::
 
 
- 58%|█████▊    | 47.3M/81.8M [00:01<00:00, 45.9MB/s]
+ 63%|██████▎   | 51.7M/81.8M [00:01<00:00, 43.2MB/s]
 
 .. parsed-literal::
 
 
- 63%|██████▎   | 51.8M/81.8M [00:01<00:00, 45.4MB/s]
+ 69%|██████▉   | 56.6M/81.8M [00:01<00:00, 29.1MB/s]
 
 .. parsed-literal::
 
 
- 69%|██████▊   | 56.2M/81.8M [00:01<00:00, 45.0MB/s]
+ 83%|████████▎ | 67.8M/81.8M [00:01<00:00, 44.0MB/s]
 
 .. parsed-literal::
 
 
- 74%|███████▍  | 60.5M/81.8M [00:01<00:00, 41.8MB/s]
+ 93%|█████████▎| 76.4M/81.8M [00:01<00:00, 52.9MB/s]
 
 .. parsed-literal::
 
 
- 79%|███████▉  | 64.6M/81.8M [00:01<00:00, 41.9MB/s]
-
-.. parsed-literal::
+   100%|██████████| 81.8M/81.8M [00:02<00:00, 42.7MB/s]
 
 
- 84%|████████▍ | 68.9M/81.8M [00:01<00:00, 42.8MB/s]
-
-.. parsed-literal::
-
-
- 89%|████████▉ | 73.0M/81.8M [00:01<00:00, 42.6MB/s]
-
-.. parsed-literal::
-
-
- 94%|█████████▍| 77.1M/81.8M [00:01<00:00, 35.0MB/s]
-
-.. parsed-literal::
-
-
-   100%|██████████| 81.8M/81.8M [00:01<00:00, 43.0MB/s]
 
 
 Cleaning up the model directory
@@ -830,14 +813,14 @@ common format of all checkpoint files from the model releases.
 
 .. parsed-literal::
 
-    2024-03-12 23:58:07.773970: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-03-12 23:58:07.806115: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-03-25 23:59:07.238795: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-03-25 23:59:07.270268: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 
 
 .. parsed-literal::
 
-    2024-03-12 23:58:08.415108: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-03-25 23:59:07.831241: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. code:: ipython3

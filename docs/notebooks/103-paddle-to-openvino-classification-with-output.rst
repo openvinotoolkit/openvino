@@ -70,9 +70,9 @@ Imports
 .. parsed-literal::
 
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    paddleclas 2.5.1 requires easydict, which is not installed.
-    paddleclas 2.5.1 requires faiss-cpu==1.7.1.post2, but you have faiss-cpu 1.8.0 which is incompatible.
-    paddleclas 2.5.1 requires gast==0.3.3, but you have gast 0.4.0 which is incompatible.
+    paddleclas 2.5.2 requires easydict, which is not installed.
+    paddleclas 2.5.2 requires gast==0.3.3, but you have gast 0.4.0 which is incompatible.
+    paddleclas 2.5.2 requires opencv-python==4.6.0.66, but you have opencv-python 4.9.0.80 which is incompatible.
     
 
 .. parsed-literal::
@@ -94,7 +94,7 @@ Imports
 
 .. parsed-literal::
 
-    --2024-03-12 22:20:41--  http://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
+    --2024-03-25 22:21:22--  http://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
     Resolving proxy-dmz.intel.com (proxy-dmz.intel.com)... 10.241.208.166
     Connecting to proxy-dmz.intel.com (proxy-dmz.intel.com)|10.241.208.166|:911... connected.
     Proxy request sent, awaiting response... 
@@ -102,7 +102,7 @@ Imports
 .. parsed-literal::
 
     404 Not Found
-    2024-03-12 22:20:41 ERROR 404: Not Found.
+    2024-03-25 22:21:22 ERROR 404: Not Found.
     
 
 
@@ -135,12 +135,12 @@ Imports
 
 .. parsed-literal::
 
-    2024-03-12 22:20:43 INFO: Loading faiss with AVX512 support.
+    2024-03-25 22:21:24 INFO: Loading faiss with AVX512 support.
 
 
 .. parsed-literal::
 
-    2024-03-12 22:20:43 INFO: Successfully loaded faiss with AVX512 support.
+    2024-03-25 22:21:24 INFO: Successfully loaded faiss with AVX512 support.
 
 
 Settings
@@ -224,7 +224,7 @@ inference on that image, and then show the top three prediction results.
 
 .. parsed-literal::
 
-    [2024/03/12 22:21:11] ppcls WARNING: The current running environment does not support the use of GPU. CPU has been used instead.
+    [2024/03/25 22:21:52] ppcls WARNING: The current running environment does not support the use of GPU. CPU has been used instead.
 
 
 .. parsed-literal::
@@ -294,7 +294,7 @@ clipping values.
 
 .. parsed-literal::
 
-    2024-03-12 22:21:12 WARNING: Clipping input data to the valid range for imshow with RGB data ([0..1] for floats or [0..255] for integers).
+    2024-03-25 22:21:53 WARNING: Clipping input data to the valid range for imshow with RGB data ([0..1] for floats or [0..255] for integers).
 
 
 .. parsed-literal::
@@ -306,7 +306,7 @@ clipping values.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f1d380bd2b0>
+    <matplotlib.image.AxesImage at 0x7f2d987de940>
 
 
 
@@ -489,7 +489,7 @@ Note that many optimizations are possible to improve the performance.
 
 .. parsed-literal::
 
-    PaddlePaddle model on CPU: 0.0074 seconds per image, FPS: 134.43
+    PaddlePaddle model on CPU: 0.0074 seconds per image, FPS: 134.62
     
     PaddlePaddle result:
     Labrador retriever, 0.75138
@@ -553,7 +553,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    OpenVINO IR model in OpenVINO Runtime (AUTO): 0.0028 seconds per image, FPS: 353.76
+    OpenVINO IR model in OpenVINO Runtime (AUTO): 0.0028 seconds per image, FPS: 356.80
     
     OpenVINO result:
     Labrador retriever, 0.74909

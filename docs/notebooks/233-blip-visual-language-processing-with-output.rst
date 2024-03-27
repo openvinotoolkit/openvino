@@ -550,7 +550,7 @@ tokenized by ``BlipProcessor`` are provided to the text encoder and then
 multimodal question embedding is passed to the text decoder for
 performing generation of answers.
 
-|image1|
+|image11|
 
 The next step is implementing both pipelines using OpenVINO models.
 
