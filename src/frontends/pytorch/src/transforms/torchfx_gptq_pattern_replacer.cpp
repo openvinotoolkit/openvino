@@ -7,18 +7,18 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/broadcast.hpp"
+#include "openvino/op/equal.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/select.hpp"
-#include "openvino/op/equal.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/subtract.hpp"
-#include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -33,24 +33,24 @@ namespace pass {
 using namespace ov::op;
 using namespace ov::pass::pattern;
 
-uint32_t read_u4_data(const void *array, size_t index) {
+uint32_t read_u4_data(const void* array, size_t index) {
     auto arr_u32 = reinterpret_cast<const uint32_t*>(array);
     size_t idx_u32 = index / 8;
     size_t offset_u32 = index % 8;
     uint32_t val = arr_u32[idx_u32];
-    val = val >> (offset_u32*4);
+    val = val >> (offset_u32 * 4);
     val = val & 15;
     return val;
 };
 
-void write_u4_data(void *array, size_t index, uint32_t data) {
+void write_u4_data(void* array, size_t index, uint32_t data) {
     auto arr_u32 = reinterpret_cast<uint32_t*>(array);
     size_t idx_u32 = index / 8;
     size_t offset_u32 = index % 8;
     uint32_t old_val = arr_u32[idx_u32];
-    data = data << (offset_u32*4);
+    data = data << (offset_u32 * 4);
     uint32_t mask = 15;
-    mask = ~(mask << (offset_u32*4));
+    mask = ~(mask << (offset_u32 * 4));
     uint32_t new_val = (old_val & mask) | data;
     arr_u32[idx_u32] = new_val;
 };
@@ -89,7 +89,7 @@ GPTQDecompressionReplacer::GPTQDecompressionReplacer() {
         bool dim_added = false;
         size_t stride = 1;
         size_t size_y = 1;
-        for (size_t i=0; i<u8_shape.size(); i++) {
+        for (size_t i = 0; i < u8_shape.size(); i++) {
             if (axis_data[0] == i) {
                 u4_shape.push_back(8);
                 dim_added = true;
@@ -107,15 +107,16 @@ GPTQDecompressionReplacer::GPTQDecompressionReplacer() {
 
         auto new_const = std::make_shared<v0::Constant>(element::u4, u4_shape);
         auto dst = const_cast<uint32_t*>(reinterpret_cast<const uint32_t*>(new_const->get_data_ptr()));
-        if (!dst) return false;
+        if (!dst)
+            return false;
 
         size_t in_idx = 0;
-        for (size_t y=0; y<size_y; y++) {
-            size_t offset = y*stride*8;
-            for (size_t x=0; x<stride; x++) {
-                for (size_t z=0; z<8; z++) {
+        for (size_t y = 0; y < size_y; y++) {
+            size_t offset = y * stride * 8;
+            for (size_t x = 0; x < stride; x++) {
+                for (size_t z = 0; z < 8; z++) {
                     uint32_t val = read_u4_data(src, in_idx);
-                    write_u4_data(dst, (offset+x+stride*z), val);
+                    write_u4_data(dst, (offset + x + stride * z), val);
                     in_idx++;
                 }
             }
@@ -154,7 +155,6 @@ GPTQMultPatternReplacer::GPTQMultPatternReplacer() {
     auto mult = wrap_type<v1::Multiply>({reshape_3, convert_3});
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
-
         auto mult = m.get_match_root();
         if (!mult) {
             return false;
@@ -166,16 +166,18 @@ GPTQMultPatternReplacer::GPTQMultPatternReplacer() {
         auto reshape_node = pattern_map.at(reshape_1).get_node_shared_ptr();
         auto reshape2_node = pattern_map.at(reshape_2).get_node_shared_ptr();
         auto reshape3_node = pattern_map.at(reshape_3).get_node_shared_ptr();
-        //auto mult_node = pattern_map.at(mult).get_node_shared_ptr();
+        // auto mult_node = pattern_map.at(mult).get_node_shared_ptr();
 
         auto add_input0_const = std::dynamic_pointer_cast<v0::Constant>(convert_1_node->get_input_node_shared_ptr(0));
         if (add_input0_const->get_element_type() != element::u4) {
             return false;
         }
         auto add_in0_ptr = add_input0_const->get_data_ptr<uint8_t>();
-        auto convert_2_input_const = std::dynamic_pointer_cast<v0::Constant>(convert_2_node->get_input_node_shared_ptr(0));
+        auto convert_2_input_const =
+            std::dynamic_pointer_cast<v0::Constant>(convert_2_node->get_input_node_shared_ptr(0));
         auto add_in1_ptr = convert_2_input_const->get_data_ptr<uint8_t>();
-        if (!add_in1_ptr) return false;
+        if (!add_in1_ptr)
+            return false;
         auto add_in0_shape = add_input0_const->get_shape();
         auto static_shape_1 = reshape_node->get_shape();
         size_t add_in0_size = shape_size(add_in0_shape);
@@ -183,11 +185,11 @@ GPTQMultPatternReplacer::GPTQMultPatternReplacer() {
         auto add_replace_ptr = const_cast<float*>(reinterpret_cast<const float*>(add_replace_const->get_data_ptr()));
         uint32_t add_val = (uint32_t)(add_in1_ptr[0] & 0x0F);
 
-        if  (!add_replace_ptr || (add_in0_size != shape_size(add_replace_const->get_shape()))) {
+        if (!add_replace_ptr || (add_in0_size != shape_size(add_replace_const->get_shape()))) {
             return false;
         }
 
-        for (size_t i=0; i<add_in0_size; i++) {
+        for (size_t i = 0; i < add_in0_size; i++) {
             uint32_t val = read_u4_data(add_in0_ptr, i);
             val = (val + add_val) & 0x0F;
             add_replace_ptr[i] = (float)val;
@@ -195,13 +197,17 @@ GPTQMultPatternReplacer::GPTQMultPatternReplacer() {
 
         auto static_shape_2 = reshape2_node->get_shape();
         auto reshape2_in0_const = std::dynamic_pointer_cast<v0::Constant>(convert_4_node->get_input_node_shared_ptr(0));
-        auto sub_replace_const = std::make_shared<v0::Constant>(reshape2_in0_const->get_element_type(), static_shape_2, reshape2_in0_const->get_data_ptr<uint8_t>());
+        auto sub_replace_const = std::make_shared<v0::Constant>(reshape2_in0_const->get_element_type(),
+                                                                static_shape_2,
+                                                                reshape2_in0_const->get_data_ptr<uint8_t>());
         auto new_convert_node = std::make_shared<v0::Convert>(sub_replace_const, element::f32);
         auto new_sub_node = std::make_shared<v1::Subtract>(new_convert_node, add_replace_const);
 
         auto static_shape_3 = reshape3_node->get_shape();
         auto reshape3_in0_const = std::dynamic_pointer_cast<v0::Constant>(reshape3_node->get_input_node_shared_ptr(0));
-        auto mult_scale_const = std::make_shared<v0::Constant>(reshape3_in0_const->get_element_type(), static_shape_3, reshape3_in0_const->get_data_ptr<uint8_t>());
+        auto mult_scale_const = std::make_shared<v0::Constant>(reshape3_in0_const->get_element_type(),
+                                                               static_shape_3,
+                                                               reshape3_in0_const->get_data_ptr<uint8_t>());
         auto new_mult_node = std::make_shared<v1::Multiply>(new_sub_node, mult_scale_const);
         replace_node(mult, new_mult_node);
         return false;
