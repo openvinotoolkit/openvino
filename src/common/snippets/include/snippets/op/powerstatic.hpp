@@ -5,7 +5,7 @@
 #pragma once
 
 #include "openvino/op/op.hpp"
-#include <snippets/snippets_isa.hpp>
+#include "openvino/op/util/unary_elementwise_arithmetic.hpp"
 
 namespace ov {
 namespace snippets {

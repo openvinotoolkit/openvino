@@ -46,14 +46,15 @@ std::shared_ptr<Node> LoopBeginDynamic::clone_with_new_inputs(const OutputVector
 }
 
 LoopEnd::LoopEnd(const Output<Node>& loop_begin, size_t work_amount_increment, std::vector<bool> is_incremented,
-                 std::vector<int64_t> element_type_sizes, size_t input_num, size_t output_num, size_t id)
+                 std::vector<int64_t> element_type_sizes, size_t input_num, size_t output_num, size_t id, size_t loop_desc_id)
         : LoopBase({loop_begin}),
         m_is_incremented(std::move(is_incremented)),
         m_element_type_sizes(std::move(element_type_sizes)),
         m_work_amount_increment(work_amount_increment),
         m_input_num(input_num),
         m_output_num(output_num),
-        m_id(id) {
+        m_id(id),
+        m_desc_id(loop_desc_id) {
     constructor_validate_and_infer_types();
 }
 
@@ -88,6 +89,10 @@ size_t LoopEnd::get_id() const {
     return m_id;
 }
 
+size_t LoopEnd::get_desc_id() const {
+    return m_desc_id;
+}
+
 void LoopEnd::set_is_incremented(std::vector<bool> is_incremented) {
     OPENVINO_ASSERT(is_incremented.size() == m_input_num + m_output_num,
                     "LoopEnd set_is_incremented is called with inconsistent is_incremented.size()");
@@ -100,6 +105,10 @@ void LoopEnd::set_increment(size_t new_increment) {
 
 void LoopEnd::set_id(size_t id) {
     m_id = id;
+}
+
+void LoopEnd::set_desc_id(size_t id) {
+    m_desc_id = id;
 }
 
 void LoopEnd::validate_and_infer_types() {
@@ -121,20 +130,25 @@ bool LoopEnd::visit_attributes(AttributeVisitor &visitor) {
     visitor.on_attribute("input_num", m_input_num);
     visitor.on_attribute("output_num", m_output_num);
     visitor.on_attribute("id", m_id);
+    visitor.on_attribute("desc_id", m_desc_id);
     return true;
+}
+
+void LoopEnd::update(const lowered::RuntimeConfig::LoopDescriptor& descriptor) {
+    set_increment(descriptor.increment);
 }
 
 LoopEndStatic::LoopEndStatic(const Output<Node>& loop_begin, size_t work_amount, size_t work_amount_increment,
                              std::vector<bool> is_incremented, std::vector<int64_t> ptr_increments, std::vector<int64_t> finalization_offsets,
-                             std::vector<int64_t> element_type_sizes, size_t input_num, size_t output_num, size_t id)
-    : LoopEnd(loop_begin, work_amount_increment, std::move(is_incremented), std::move(element_type_sizes), input_num, output_num, id),
+                             std::vector<int64_t> element_type_sizes, size_t input_num, size_t output_num, size_t id, size_t loop_desc_id)
+    : LoopEnd(loop_begin, work_amount_increment, std::move(is_incremented), std::move(element_type_sizes), input_num, output_num, id, loop_desc_id),
       m_ptr_increments(std::move(ptr_increments)), m_finalization_offsets(std::move(finalization_offsets)), m_work_amount(work_amount),
       m_evaluate_once(false) {}
 
 std::shared_ptr<Node> LoopEndStatic::clone_with_new_inputs(const OutputVector& inputs) const {
     check_new_args_count(this, inputs);
     const auto loop_end = std::make_shared<LoopEndStatic>(inputs.at(0), m_work_amount, m_work_amount_increment, m_is_incremented, m_ptr_increments,
-                                                          m_finalization_offsets, m_element_type_sizes, m_input_num, m_output_num, m_id);
+                                                          m_finalization_offsets, m_element_type_sizes, m_input_num, m_output_num, m_id, m_desc_id);
     loop_end->m_evaluate_once = m_evaluate_once;
     return loop_end;
 }
@@ -204,13 +218,21 @@ void LoopEndStatic::set_evaluate_once(bool once) {
     m_evaluate_once = once;
 }
 
+void LoopEndStatic::update(const lowered::RuntimeConfig::LoopDescriptor& descriptor) {
+    LoopEnd::update(descriptor);
+    set_work_amount(descriptor.work_amount);
+    set_ptr_increments(descriptor.ptr_increments);
+    set_finalization_offsets(descriptor.finalization_offsets);
+}
+
 LoopEndDynamic::LoopEndDynamic(const Output<Node>& loop_begin, size_t work_amount_increment, std::vector<bool> is_incremented,
-                               std::vector<int64_t> element_type_sizes, size_t input_num, size_t output_num, size_t id)
-    : LoopEnd(loop_begin, work_amount_increment, std::move(is_incremented), std::move(element_type_sizes), input_num, output_num, id) {}
+                               std::vector<int64_t> element_type_sizes, size_t input_num, size_t output_num, size_t id, size_t loop_desc_id)
+    : LoopEnd(loop_begin, work_amount_increment, std::move(is_incremented), std::move(element_type_sizes), input_num, output_num, id, loop_desc_id) {}
 
 std::shared_ptr<Node> LoopEndDynamic::clone_with_new_inputs(const OutputVector& inputs) const {
     check_new_args_count(this, inputs);
-    return std::make_shared<LoopEndDynamic>(inputs.at(0), m_work_amount_increment, m_is_incremented, m_element_type_sizes, m_input_num, m_output_num, m_id);
+    return std::make_shared<LoopEndDynamic>(inputs.at(0), m_work_amount_increment, m_is_incremented, m_element_type_sizes,
+                                            m_input_num, m_output_num, m_id, m_desc_id);
 }
 
 } // namespace op

@@ -4,11 +4,13 @@
 
 #include "snippets/pass/propagate_precision.hpp"
 
-#include "ov_ops/type_relaxed.hpp"
+#include "snippets/snippets_isa.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/utils.hpp"
+
 #include "openvino/core/rt_info.hpp"
 #include "transformations/utils/utils.hpp"
+#include "ov_ops/type_relaxed.hpp"
 
 #include <assert.h>
 #include <memory>

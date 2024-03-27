@@ -5,6 +5,7 @@
 #include "snippets/lowered/pass/validate.hpp"
 
 #include "snippets/lowered/loop_manager.hpp"
+#include "snippets/snippets_isa.hpp"
 #include "snippets/utils.hpp"
 #include "snippets/itt.hpp"
 

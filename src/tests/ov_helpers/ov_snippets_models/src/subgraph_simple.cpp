@@ -3,9 +3,11 @@
 //
 
 #include "subgraph_simple.hpp"
+
 #include "common_test_utils/data_utils.hpp"
 #include "openvino/core/descriptor_tensor.hpp"
-#include <snippets/op/subgraph.hpp>
+#include "snippets/op/subgraph.hpp"
+#include "snippets/snippets_isa.hpp"
 
 namespace ov {
 namespace test {

@@ -8,8 +8,10 @@
  */
 #pragma once
 
-#include "snippets_isa.hpp"
-#include "emitter.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/constant.hpp"
+
+#include "lowered/expression_port.hpp"
 #include "shape_types.hpp"
 
 
@@ -19,10 +21,10 @@ namespace utils {
 
 // Get non-scalar Constant count that will be created after FakeQuantize decomposition.
 // This count is needed to know exact count of non-scalar Constants during tokenization.
-auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<ov::opset1::FakeQuantize>& fq) -> size_t;
+auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<ov::op::v0::FakeQuantize>& fq) -> size_t;
 
 inline auto is_scalar_constant(const std::shared_ptr<ov::Node>& source_output_node) -> bool {
-    return ov::is_type<ov::opset1::Constant>(source_output_node) && ov::shape_size(source_output_node->get_shape()) == 1;
+    return ov::is_type<ov::op::v0::Constant>(source_output_node) && ov::shape_size(source_output_node->get_shape()) == 1;
 }
 
 inline auto normalize_rank(int32_t allocation_rank, const size_t shape_rank) -> int32_t {

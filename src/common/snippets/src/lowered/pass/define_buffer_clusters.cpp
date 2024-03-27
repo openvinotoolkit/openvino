@@ -6,6 +6,9 @@
 
 #include "snippets/lowered/pass/identify_buffers.hpp"
 #include "snippets/pass/tokenization.hpp"
+#include "snippets/op/memory_access.hpp"
+#include "snippets/op/buffer.hpp"
+#include "snippets/op/loop.hpp"
 #include "snippets/itt.hpp"
 
 namespace ov {

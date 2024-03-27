@@ -72,7 +72,7 @@ jit_loop_begin_dynamic_emitter::jit_loop_begin_dynamic_emitter(dnnl::impl::cpu::
     OV_CPU_JIT_EMITTER_ASSERT(ov::is_type<snippets::op::LoopBeginDynamic>(expr->get_node()), "expects LoopBeginDynamic expression");
     const auto loop_end = get_loop_end(expr);
     wa_increment = loop_end->get_increment();
-    loop_id = loop_end->get_id();
+    loop_desc_id = loop_end->get_desc_id();
 }
 
 void jit_loop_begin_dynamic_emitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
@@ -93,7 +93,7 @@ void jit_loop_begin_dynamic_emitter::emit_impl(const std::vector<size_t>& in, co
     Xbyak::Reg64 reg_runtime_params = abi_param1;  // defined by jit_kernel_emitter
     Xbyak::Reg64 reg_work_amount = Xbyak::Reg64(static_cast<int>(out.back()));
     Xbyak::Reg64 reg_loop_args_ptr = Xbyak::Reg64(static_cast<int>(aux_gpr_idxs[0]));
-    const auto id_offset = loop_id * sizeof(jit_snippets_call_args::loop_args_t);
+    const auto id_offset = loop_desc_id * sizeof(jit_snippets_call_args::loop_args_t);
     h->mov(reg_loop_args_ptr, h->ptr[reg_runtime_params + GET_OFF(loop_args)]);
     h->mov(reg_work_amount, h->ptr[reg_loop_args_ptr + id_offset + GET_OFF_LOOP_ARGS(m_work_amount)]);
 
@@ -194,7 +194,7 @@ jit_loop_end_dynamic_emitter::jit_loop_end_dynamic_emitter(dnnl::impl::cpu::x64:
     : jit_loop_end_emitter(h, isa, expr), loop_end_label{new Xbyak::Label()} {
     const auto loop_end = ov::as_type_ptr<snippets::op::LoopEndDynamic>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(loop_end != nullptr, "expected LoopEndDynamic expr");
-    loop_id = loop_end->get_id();
+    loop_desc_id = loop_end->get_desc_id();
 
     const auto begin_expr = get_loop_begin_expr(expr);
     const auto& loop_begin_emitter = std::dynamic_pointer_cast<jit_loop_begin_dynamic_emitter>(begin_expr->get_emitter());
@@ -220,7 +220,7 @@ void jit_loop_end_dynamic_emitter::emit_impl(const std::vector<size_t>& in, cons
     Xbyak::Reg64 reg_runtime_params = abi_param1;  // defined by jit_kernel_emitter
     Xbyak::Reg64 reg_work_amount = Xbyak::Reg64(static_cast<int>(in[in.size() - 2]));
     Xbyak::Reg64 reg_increments = Xbyak::Reg64(static_cast<int>(aux_gpr_idxs[0]));
-    const auto id_offset = loop_id * sizeof(jit_snippets_call_args::loop_args_t);
+    const auto id_offset = loop_desc_id * sizeof(jit_snippets_call_args::loop_args_t);
 
     std::vector<Xbyak::Reg64> data_ptr_regs;
     transform_idxs_to_regs(std::vector<size_t>(in.begin(), in.end() - 2), data_ptr_regs);

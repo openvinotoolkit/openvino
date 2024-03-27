@@ -4,6 +4,7 @@
 
 #include "snippets/lowered/expression_port.hpp"
 
+#include "snippets/lowered/expression.hpp"
 #include "snippets/utils.hpp"
 
 

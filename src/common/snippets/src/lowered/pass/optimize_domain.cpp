@@ -78,12 +78,13 @@ inline bool OptimizeDomain::can_increase_jit_work_amount(const VectorDims& maste
 }
 bool OptimizeDomain::run(snippets::lowered::LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::OptimizeDomain")
-    const auto& config = linear_ir.get_config();
-    if (linear_ir.empty())
+    // If m_tile_rank > 0, it means that backends manually set this value
+    if (linear_ir.empty() || m_tile_rank > 0)
         return false;
 
     m_tile_rank = 1;
 
+    const auto& config = linear_ir.get_config();
     if (!config.m_enable_domain_optimization) {
         // Note: this is a special case: if optimization is not allowed, always assume 2D tile
         m_tile_rank = 2;
