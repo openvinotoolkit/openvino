@@ -7,7 +7,7 @@ from typing import Any, Dict, Union, Optional
 
 import numpy as np
 
-from openvino._pyopenvino import ConstOutput, Tensor, Type
+from openvino._pyopenvino import ConstOutput, Tensor, Type, RemoteTensor
 from openvino.runtime.utils.data_helpers.wrappers import _InferRequestWrapper, OVDict
 
 ContainerTypes = Union[dict, list, tuple, OVDict]
@@ -58,6 +58,16 @@ def _(
     is_shared: bool = False,
     key: Optional[ValidKeys] = None,
 ) -> Tensor:
+    return value
+
+
+@value_to_tensor.register(RemoteTensor)
+def _(
+    value: RemoteTensor,
+    request: Optional[_InferRequestWrapper] = None,
+    is_shared: bool = False,
+    key: Optional[ValidKeys] = None,
+) -> RemoteTensor:
     return value
 
 

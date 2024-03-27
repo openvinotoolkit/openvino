@@ -1113,6 +1113,13 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                                         "_network" + std::to_string(get_id()) +
                                         "_" + get_iteration_prefix(curr_iter) +
                                         layer_name + "_src" + std::to_string(i);
+
+
+                    if (i == 3 || i == 4 || i == 5) {
+                        std::cout << "Skip " << i << "-th port\n";
+                        continue;
+                    }
+
                     auto input_mem = get_primitive(inst->id())->dep_memory_ptr(i);
                     auto dep = inst->dependencies().at(i);
                     auto input_layout = dep.first->get_output_layout(dep.second);

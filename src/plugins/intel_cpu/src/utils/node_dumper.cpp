@@ -123,6 +123,11 @@ void dumpInputBlobs(const NodePtr& node, const DebugCapsConfig& config, int coun
         auto prEdge = node->getParentEdgeAt(i);
         auto pr = prEdge->getParent();
 
+        if (i == 3 || i == 4 || i == 5) {
+            std::cout << "Skip " << i << "-th port\n";
+            continue;
+        }
+
         std::string file_name = NameFromType(node->getType()) + "_" + nodeName;
         if (count != -1)
             file_name += "_iter" + std::to_string(count);
