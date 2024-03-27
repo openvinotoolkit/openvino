@@ -18,6 +18,7 @@
 #include "snippets/pass/canonicalization.hpp"
 #include "snippets/pass/align_element_types.hpp"
 #include "snippets/pass/reduce_to_snippets_reduce.hpp"
+#include "snippets/pass/gn_decomposition.hpp"
 
 #include "snippets/utils.hpp"
 
@@ -386,7 +387,14 @@ void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::data_flow_transformations")
 
     ov::snippets::pass::Manager manager;
-    if (!blocked_input_shapes.empty())
+    bool is_gn_subgraph = false;
+    for (const auto& op : body_ptr()->get_ordered_ops()) {
+        if (ov::is_type<ov::op::v12::GroupNormalization>(op)) {
+            is_gn_subgraph = true;
+            break;
+        }
+    }
+    if (!blocked_input_shapes.empty() && !is_gn_subgraph)
         manager.register_pass<snippets::pass::Canonicalization>(blocked_input_shapes);
     if (!input_precisions.empty() && !output_precisions.empty())
         manager.register_pass<snippets::pass::AlignElementTypes>(input_precisions, output_precisions);
@@ -396,6 +404,7 @@ void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input
         manager.register_pass<snippets::pass::FuseTransposeBrgemm>();
         manager.register_pass<snippets::pass::TransposeDecomposition>();
         manager.register_pass<snippets::pass::SoftmaxDecomposition>();
+        manager.register_pass<snippets::pass::GNDecomposition>();
     }
     manager.register_pass<snippets::pass::BroadcastToMoveBroadcast>();
     manager.register_pass<snippets::pass::ReduceToSnippetsReduce>();
