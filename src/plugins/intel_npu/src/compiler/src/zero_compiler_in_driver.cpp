@@ -948,8 +948,8 @@ void LevelZeroCompilerInDriver<TableExtension>::getNodeOrStateDescriptorLegacy(
  * @param metadata The Level Zero structure fomr which the descriptors will be extracted.
  */
 static void getNodeDescriptor(IONodeDescriptorMap& nodeDescriptors,
-                       std::vector<std::string>& names,
-                       ze_graph_argument_metadata_t& metadata) {
+                              std::vector<std::string>& names,
+                              ze_graph_argument_metadata_t& metadata) {
     const ov::element::Type_t precision = toOVElementType(metadata.data_type);
     ov::Shape shape;
     std::unordered_set<std::string> outputTensorNames;
@@ -968,8 +968,8 @@ static void getNodeDescriptor(IONodeDescriptorMap& nodeDescriptors,
 }
 
 static void getNodeDescriptor(IONodeDescriptorMap& nodeDescriptors,
-                       std::vector<std::string>& names,
-                       ze_graph_argument_properties_3_t& arg) {
+                              std::vector<std::string>& names,
+                              ze_graph_argument_properties_3_t& arg) {
     ov::element::Type_t precision = toOVElementType(arg.devicePrecision);
     ov::Shape shape;
     std::unordered_set<std::string> outputTensorNames;

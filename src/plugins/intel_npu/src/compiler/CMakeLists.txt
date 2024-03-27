@@ -35,3 +35,5 @@ target_link_libraries(${TARGET_NAME}
 # targets install
 #
 ov_install_static_lib(${TARGET_NAME} ${NPU_PLUGIN_COMPONENT})
+# Need to install ze_loader to support static build
+ov_install_static_lib(ze_loader ${NPU_PLUGIN_COMPONENT})
