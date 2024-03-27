@@ -95,13 +95,14 @@ class TestSegmentSum(CommonTFLayerTest):
 
         return tf_net, None
 
-    test_data_basic = [
-        dict(data_shape=[8], segment_ids_shape=[8], data_type=tf.float32, segment_ids_type=tf.int32),
-        dict(data_shape=[3, 7], segment_ids_shape=[3], data_type=tf.float32, segment_ids_type=tf.int32),
-        dict(data_shape=[4, 3, 2], segment_ids_shape=[4], data_type=tf.float32, segment_ids_type=tf.int32),
+    test_data_complex = [
+        dict(data_shape=[8], segment_ids_shape=[8], data_type=tf.complex64, segment_ids_type=tf.int32),
+        dict(data_shape=[3, 7], segment_ids_shape=[3], data_type=tf.complex64, segment_ids_type=tf.int32),
+        dict(data_shape=[4, 3, 2], segment_ids_shape=[4], data_type=tf.complex64, segment_ids_type=tf.int32),
     ]
 
-    @pytest.mark.parametrize("params", test_data_basic)
+
+    @pytest.mark.parametrize("params", test_data_complex)
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
@@ -113,3 +114,20 @@ class TestSegmentSum(CommonTFLayerTest):
         self._test(*self.create_segment_sum_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                      use_legacy_frontend=use_legacy_frontend)
+        
+    test_data_complex_different_types = [
+        dict(data_shape=[2, 3], segment_ids_shape=[2], data_type=tf.complex64, segment_ids_type=tf.int32),
+        dict(data_shape=[3, 2], segment_ids_shape=[3], data_type=tf.complex128, segment_ids_type=tf.int32),
+        dict(data_shape=[3, 1, 2], segment_ids_shape=[3], data_type=tf.complex64, segment_ids_type=tf.int64),
+        dict(data_shape=[4, 2, 1], segment_ids_shape=[4], data_type=tf.complex128, segment_ids_type=tf.int64),
+    ]
+
+    @pytest.mark.parametrize("params", test_data_complex_different_types)
+    @pytest.mark.nightly
+    def test_segment_sum_different_types(self, params, ie_device, precision, ir_version, temp_dir,
+                                         use_legacy_frontend):
+        if not use_legacy_frontend:
+            pytest.skip("SegmentSum operation is not supported via legacy frontend.")
+        self._test(*self.create_segment_sum_net(**params),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_legacy_frontend=use_legacy_frontend)

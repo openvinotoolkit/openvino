@@ -25,8 +25,6 @@ OutputVector translate_segment_sum_op(const NodeContext& node) {
     default_op_checks(node, 2, {"SegmentSum"}, true);
     auto data = node.get_input(0);
     auto segment_ids = node.get_input(1);
-    auto complex_type_mark = as_type_ptr<ComplexTypeMark>(data.get_node_shared_ptr());
-
 
     // create auxiliary constants
     auto const_one = create_same_type_const_scalar<int32_t>(segment_ids, 1);
@@ -48,6 +46,7 @@ OutputVector translate_segment_sum_op(const NodeContext& node) {
     auto num_indices = make_shared<v0::Squeeze>(segment_ids_shape, squeeze_axis);
     auto indices = make_shared<v4::Range>(const_zero, num_indices, const_one, indices_type);
 
+    auto complex_type_mark = as_type_ptr<ComplexTypeMark>(data.get_node_shared_ptr());
     if (complex_type_mark) {
         data = complex_type_mark->input_value(0);
         auto emb_segment_sum_complex = make_shared<v3::EmbeddingSegmentsSum>(data, indices, segment_ids, num_segments);
