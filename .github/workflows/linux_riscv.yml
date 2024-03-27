@@ -106,7 +106,7 @@ jobs:
 
           # install compilers to build OpenVINO for RISC-V 64
           apt --assume-yes install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu
-          apt --assume-yes install gcc g++ python3-pip python3-venv python3-dev
+          apt --assume-yes install -yf gcc g++ python3-pip python3-venv python3-dev
           # generic dependencies
           apt --assume-yes install cmake ccache ninja-build fdupes patchelf
 
