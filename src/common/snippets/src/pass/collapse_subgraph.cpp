@@ -602,7 +602,7 @@ TokenizeSnippets::TokenizeSnippets(const SnippetsTokenization::Config& config) {
         // This limitation will be resolved once generator supports gprs spills [75622].
         // TODO [75567]: move this plugin-specific constraint to the plugin callback
         const auto unique_buffer_count = op::Subgraph::get_estimated_buffer_count(ops_for_buffer_count);
-        const size_t max_data_ptr_count = config.data_ptr_grp_count;
+        const size_t max_data_ptr_count = config.get_data_ptr_grp_count();
         if (body_parameters.size() + body_results.size() + hidden_data_count + unique_buffer_count > max_data_ptr_count) {
             const std::string message_reset = "new subgraph is created. Impossible to schedule subgraph with " +
             std::to_string(body_parameters.size()) + " inputs, " + std::to_string(body_results.size()) + " outputs and " +

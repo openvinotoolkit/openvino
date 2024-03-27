@@ -799,31 +799,32 @@ void Transformations::MainSnippets(void) {
     // TODO [123659] Implement common logic to split optimization and limitation conditions
     const auto ignoreCallback = snippetsMode == Config::SnippetsMode::IgnoreCallback;
 
-    ov::snippets::pass::SnippetsTokenization::Config tokenization_config;
     // [111813]: At the moment Snippets supports Transpose on output of MHA pattern only if it is an one node between MatMul and Result.
     // However there may be Convert [f32->bf16] before Result since:
     //  - bf16 Brgemm has f32 output;
     //  - CPU Node Subgraph requires bf16 on output when inference precision is bf16.
     // To avoid sitations when Transpose is not alone node between MatMul and Result,
     // Plugin disables Transpose tokenization on output
-    tokenization_config.mha_token_enable_transpose_on_output = (inferencePrecision == ov::element::f32);
-    tokenization_config.concurrency = config.streamExecutorConfig.get_threads_per_stream();
-    if (tokenization_config.concurrency == 0)
-        tokenization_config.concurrency = parallel_get_max_threads();
+    bool mha_token_enable_transpose_on_output = (inferencePrecision == ov::element::f32);
+    size_t concurrency = config.streamExecutorConfig.get_threads_per_stream();
+    if (concurrency == 0)
+        concurrency = parallel_get_max_threads();
 #if defined(OPENVINO_ARCH_ARM64)
     // ARM has 32 gprs. After excluding 2 registers for work amounts, 1 register for runtime parameters, 1 platform register,
     // 3 registers for temporary use, and 2 stack related registers, it has 23 remaining registers.
-    tokenization_config.data_ptr_grp_count = 23;
+    size_t data_ptr_grp_count = 23;
 #else
     // X64 has 16 gprs. After excluding 2 registers for work amounts, 1 register for runtime parameters,
     // and 2 stack related registers, it has 11 remaining registers.
-    tokenization_config.data_ptr_grp_count = 11;
+    size_t data_ptr_grp_count = 11;
 #endif
     // The optimization "SplitDimensionM" depends on target machine (thread count).
     // To avoid uncontrolled behavior in tests, we disabled the optimization when there is Config::SnippetsMode::IgnoreCallback
-    tokenization_config.split_m_dimension = !ignoreCallback;
+    bool split_m_dimension = !ignoreCallback;
     // [122706] Some 3D MHA Patterns have perf regressions when Transpose op is tokenized
-    tokenization_config.mha_supported_transpose_ranks = { 4 };
+    std::set<size_t> mha_supported_transpose_ranks = { 4 };
+    ov::snippets::pass::SnippetsTokenization::Config tokenization_config(concurrency, data_ptr_grp_count, split_m_dimension,
+                                                     mha_token_enable_transpose_on_output, mha_supported_transpose_ranks);
 
     ov::pass::Manager snippetsManager;
     snippetsManager.set_per_pass_validation(false);
@@ -882,8 +883,8 @@ void Transformations::MainSnippets(void) {
     auto is_unsupported_parallel_work_amount = [&](const std::shared_ptr<const ov::Node>& n, const ov::Shape& shape) {
         const size_t parallel_work_amount = std::accumulate(shape.rbegin() + 2, shape.rend(), 1, std::multiplies<size_t>());
         const auto is_unsupported_parallel_work_amount =
-            parallel_work_amount < tokenization_config.concurrency &&
-            !ov::snippets::pass::SplitDimensionM::can_be_optimized(n, tokenization_config.concurrency);
+            parallel_work_amount < tokenization_config.get_concurrency() &&
+            !ov::snippets::pass::SplitDimensionM::can_be_optimized(n, tokenization_config.get_concurrency());
         return is_unsupported_parallel_work_amount;
     };
 #endif // OPENVINO_ARCH_X86_64

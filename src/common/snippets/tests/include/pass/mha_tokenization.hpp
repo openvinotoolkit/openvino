@@ -17,7 +17,7 @@ public:
     virtual void run();
 
 protected:
-    ov::snippets::pass::SnippetsTokenization::Config config;
+    ov::snippets::pass::SnippetsTokenization::Config config { 1, std::numeric_limits<size_t>::max(), true, true, { 3, 4 } };
 };
 
 }  // namespace snippets

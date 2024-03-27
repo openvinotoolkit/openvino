@@ -17,7 +17,8 @@ namespace snippets {
 class FakeQuantizeDecompositionTest : public TransformationTestsF {
 public:
     void register_passes() {
-        manager.register_pass<ov::snippets::pass::CommonOptimizations>();
+        ov::snippets::pass::SnippetsTokenization::Config config { 1, std::numeric_limits<size_t>::max(), true, true, { 3, 4 } };
+        manager.register_pass<ov::snippets::pass::CommonOptimizations>(config);
     }
 
     void TearDown() override {

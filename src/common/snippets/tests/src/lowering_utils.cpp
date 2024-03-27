@@ -129,8 +129,9 @@ std::shared_ptr<ov::snippets::op::Subgraph>
 std::shared_ptr<ov::snippets::op::Subgraph> LoweringTests::getTokenizedSubgraph(const std::shared_ptr<Model> &f) {
     // Perform tokenization
     ov::pass::Manager m;
+    ov::snippets::pass::SnippetsTokenization::Config config { 1, std::numeric_limits<size_t>::max(), true, true, { 3, 4 } };
     m.register_pass<ov::snippets::pass::EnumerateNodes>();
-    m.register_pass<ov::snippets::pass::TokenizeSnippets>();
+    m.register_pass<ov::snippets::pass::TokenizeSnippets>(config);
     m.run_passes(f);
     // Perform lowering
     return getSubgraph(f);
