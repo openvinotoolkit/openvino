@@ -298,6 +298,11 @@ Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext
         paddingR = groupConvolutionOp->get_pads_end();
         autoPadding = one_of(groupConvolutionOp->get_auto_pad(), ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER);
     }
+    auto inputDataType = DnnlExtensionUtils::ElementTypeToDataType(getOriginalInputPrecisionAtPort(0));
+    const bool isAvx2FP32 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
+                                    !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
+                                    inputDataType == memory::data_type::f32;
+    avx2DisableBrgconvHeuristic = ((IC == 1 && groupOC * groupNum == 1) && isAvx2FP32);
 }
 
 bool Convolution::canBeExecutedInInt8() const {
@@ -332,8 +337,7 @@ ov::element::Type Convolution::fusedEltwisePrecision(const NodePtr& fusingNode) 
 }
 
 const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
-    static const auto priorities = [] {
-        std::vector<impl_desc_type> priorities = {
+    priorities = {
             impl_desc_type::unknown,
             impl_desc_type::dw_acl,
             impl_desc_type::winograd_acl,
@@ -373,24 +377,19 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
             impl_desc_type::ref_any,
             impl_desc_type::ref,
         };
-        if (!isBrgConvAvailable()) {
-            priorities.erase(std::remove_if(priorities.begin(),
-                                            priorities.end(),
-                                            [](impl_desc_type type) {
-                                                return type & impl_desc_type::brgconv;
-                                            }),
-                             priorities.end());
-        }
-
+        priorities.erase(std::remove_if(priorities.begin(),
+                                priorities.end(),
+                                [&](impl_desc_type type) {
+                                    return !isBrgConvAvailable() && (type & impl_desc_type::brgconv);
+                                }),
+                    priorities.end());
         return priorities;
-    }();
-
-    return priorities;
 }
 
 const bool Convolution::isBrgConvAvailable() {
-    static const bool isBrgConvAvailable = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ||
-                                           dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2);
+    //When avx2 brgconv heuristic case,  disable brgconv to WA the regression.
+    const bool isBrgConvAvailable = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
+                                           !avx2DisableBrgconvHeuristic;
     return isBrgConvAvailable;
 }
 
@@ -1151,12 +1150,13 @@ bool Convolution::isNspcAvailable() const {
             return false;
         }
     }
-
+    // AVX2 heuristic
+    if (avx2DisableBrgconvHeuristic)
+        return false;
     // A bunch of heuristics are designed to cut off not optimal nspc convolution applications
     auto inpDims = getInputShapeAtPort(0).getDims();
     auto outDims = getOutputShapeAtPort(0).getDims();
     auto ndims = inpDims.size();
-
     if (isDepthWise()) {
         // 1d equivalent cases are painfully slow
         if (inpDims.size() == 3 || 1 == inpDims[inpDims.size() - 2]) {
