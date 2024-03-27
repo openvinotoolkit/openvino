@@ -4,61 +4,37 @@
 
 #include "op/multinomial.hpp"
 
-#include <cmath>
-#include <random>
-#include <vector>
-
-#include "openvino/core/shape.hpp"
+#include "exceptions.hpp"
 #include "openvino/op/multinomial.hpp"
+#include "utils/common.hpp"
 
 using namespace ov::op;
-
+using ::ONNX_NAMESPACE::TensorProto_DataType;
 namespace ov {
 namespace frontend {
 namespace onnx {
 namespace op {
 namespace set_1 {
+
 ov::OutputVector multinomial(const ov::frontend::onnx::Node& node) {
     const auto input = node.get_ov_inputs().at(0);
-    int sample_size = node.get_attribute_value<int>("sample_size", 1);
 
-    auto input_shape = input.get_partial_shape();
-    int batch_size = input_shape[0].get_length();
-    int class_size = input_shape[1].get_length();
+    const auto sample_size = node.get_attribute_as_constant<int64_t>("sample_size", 1);
 
-    std::vector<std::vector<int>> samples(batch_size, std::vector<int>(sample_size, 0));
+    const auto dtype =
+        node.get_attribute_value<int64_t>("dtype",
+                                          static_cast<int64_t>(TensorProto_DataType::TensorProto_DataType_INT32));
+    const auto seed = node.get_attribute_value<float>("seed", 0.0f);
+    const auto target_type = common::get_ov_element_type(dtype);
+    const uint64_t global_seed = 0;
+    const auto seed_uint64 = static_cast<uint64_t>(seed * 1000);
 
-    for (int i = 0; i < batch_size; ++i) {
-        std::vector<double> probabilities(class_size);
-        auto data_ptr = input.get_tensor().data<double>();
-        for (int j = 0; j < class_size; ++j) {
-            probabilities[j] = static_cast<double>(data_ptr[j]);
-        }
-        std::discrete_distribution<int> distribution(probabilities.begin(), probabilities.end());
+    auto multinomial_op =
+        std::make_shared<ov::op::v13::Multinomial>(input, sample_size, target_type, seed_uint64, global_seed);
 
-        for (int j = 0; j < sample_size; ++j) {
-            std::random_device rd;
-            std::mt19937 gen(rd());
-            samples[i][j] = distribution(gen);
-        }
-    }
-
-    ov::OutputVector output;
-    for (const auto& sample : samples) {
-        auto constant_tensor =
-            ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1, static_cast<size_t>(sample_size)}, sample);
-        auto output_tensor = std::make_shared<ov::op::v13::Multinomial>(input,
-                                                                        constant_tensor,
-                                                                        ov::element::Type_t::undefined,
-                                                                        false,
-                                                                        false,
-                                                                        0,
-                                                                        0);
-        output.push_back(output_tensor);
-    }
-
-    return output;
+    return {multinomial_op};
 }
+
 }  // namespace set_1
 }  // namespace op
 }  // namespace onnx

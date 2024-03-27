@@ -6304,12 +6304,28 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_mish_activation) {
     test_case.run_with_tolerance_as_fp(0.000001f);
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_multinomial_sampling) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_multinomial_13_param_inputs) {
     auto model = convert_model("multinomial.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_input<float>({0.1f, 0.2f, 0.7, 0.5f, 0.3f, 0.2f});
-    test_case.add_expected_output<int>({1, 0, 2, 2, 1, 0});
+
+    test_case.add_input<float>({0.1f, 0.2f, 0.3f, 0.4f});
+    test_case.add_input<int>({3});
+
+    test_case.add_expected_output<int>({1, 0, 2, 1});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_multinomial_13_const_inputs) {
+    auto model = convert_model("multinomial.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>({0.4f, 0.5f, 0.1f, 0.3f, 0.2f, 0.5f});
+    test_case.add_input<int>({3});
+
+    test_case.add_expected_output<int>({1, 0, 2, 1});
 
     test_case.run();
 }
