@@ -4,22 +4,20 @@
 
 #pragma once
 
-#include "openvino/op/op.hpp"
-#include "openvino/op/util/attr_types.hpp"
+#include "openvino/op/util/avg_pool_base.hpp"
 
 namespace ov {
 namespace op {
 namespace v1 {
 /// \brief Batched average pooling operation.
-///
-class OPENVINO_API AvgPool : public Op {
+/// \ingroup ov_ops_cpp_api
+class OPENVINO_API AvgPool : public util::AvgPoolBase {
 public:
-    OPENVINO_OP("AvgPool", "opset1", op::Op);
+    OPENVINO_OP("AvgPool", "opset1", util::AvgPoolBase);
 
     /// \brief Constructs a batched average pooling operation.
     AvgPool() = default;
 
-    ///
     /// \brief      Constructs a batched average pooling operation.
     ///
     /// \param      arg            The output producing the input data batch tensor.<br>
@@ -35,63 +33,31 @@ public:
     /// \param      rounding_type  Whether to use ceiling or floor rounding type while
     ///                            computing output shape.
     /// \param      auto_pad       Padding type to use for additional padded dimensions
-    ///
     AvgPool(const Output<Node>& arg,
             const Strides& strides,
             const Shape& pads_begin,
             const Shape& pads_end,
             const Shape& kernel,
             bool exclude_pad,
-            op::RoundingType rounding_type = op::RoundingType::FLOOR,
-            const PadType& auto_pad = op::PadType::EXPLICIT);
+            RoundingType rounding_type = RoundingType::FLOOR,
+            const PadType& auto_pad = PadType::EXPLICIT);
 
     void validate_and_infer_types() override;
-    bool visit_attributes(AttributeVisitor& visitor) override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-
-    /// \return The kernel shape.
-    const Shape& get_kernel() const;
-    void set_kernel(const Shape& kernel);
-    /// \return The strides.
-    const Strides& get_strides() const;
-    void set_strides(const Strides& strides);
-    /// \return The beginning of padding shape.
-    const Shape& get_pads_begin() const;
-    void set_pads_begin(const Shape& pads_begin);
-    /// \return The end of padding shape.
-    const Shape& get_pads_end() const;
-    void set_pads_end(const Shape& pads_end);
-    bool get_exclude_pad() const;
-    void set_exclude_pad(bool exclude_pad);
-    /// \return The pad type for pooling.
-    const PadType& get_auto_pad() const;
-    void set_auto_pad(const PadType& auto_pad);
-    op::RoundingType get_rounding_type() const;
-    void set_rounding_type(op::RoundingType rounding_type);
-
-protected:
-    Shape m_kernel;
-    Strides m_strides;
-    Shape m_pads_begin;
-    Shape m_pads_end;
-    bool m_exclude_pad{true};
-    PadType m_auto_pad{PadType::EXPLICIT};
-    op::RoundingType m_rounding_type{op::RoundingType::FLOOR};
 };
 }  // namespace v1
 
 namespace v14 {
 /// \brief Batched average pooling operation.
-///
-class OPENVINO_API AvgPool : public Op {
+/// \ingroup ov_ops_cpp_api
+class OPENVINO_API AvgPool : public util::AvgPoolBase {
 public:
-    OPENVINO_OP("AvgPool", "opset14", op::Op);
+    OPENVINO_OP("AvgPool", "opset14", util::AvgPoolBase);
 
     /// \brief Constructs a batched average pooling operation.
     AvgPool() = default;
 
-    ///
     /// \brief      Constructs a batched average pooling operation.
     ///
     /// \param      arg            The output producing the input data batch tensor.<br>
@@ -107,49 +73,18 @@ public:
     /// \param      rounding_type  Whether to use ceiling or floor rounding type while
     ///                            computing output shape.
     /// \param      auto_pad       Padding type to use for additional padded dimensions
-    ///
     AvgPool(const Output<Node>& arg,
             const Strides& strides,
             const Shape& pads_begin,
             const Shape& pads_end,
             const Shape& kernel,
             bool exclude_pad,
-            op::RoundingType rounding_type = op::RoundingType::FLOOR,
-            const PadType& auto_pad = op::PadType::EXPLICIT);
+            RoundingType rounding_type = RoundingType::FLOOR,
+            const PadType& auto_pad = PadType::EXPLICIT);
 
     void validate_and_infer_types() override;
-    bool visit_attributes(AttributeVisitor& visitor) override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-
-    /// \return The kernel shape.
-    const Shape& get_kernel() const;
-    void set_kernel(const Shape& kernel);
-    /// \return The strides.
-    const Strides& get_strides() const;
-    void set_strides(const Strides& strides);
-    /// \return The beginning of padding shape.
-    const Shape& get_pads_begin() const;
-    void set_pads_begin(const Shape& pads_begin);
-    /// \return The end of padding shape.
-    const Shape& get_pads_end() const;
-    void set_pads_end(const Shape& pads_end);
-    bool get_exclude_pad() const;
-    void set_exclude_pad(bool exclude_pad);
-    /// \return The pad type for pooling.
-    const PadType& get_auto_pad() const;
-    void set_auto_pad(const PadType& auto_pad);
-    op::RoundingType get_rounding_type() const;
-    void set_rounding_type(op::RoundingType rounding_type);
-
-protected:
-    Shape m_kernel;
-    Strides m_strides;
-    Shape m_pads_begin;
-    Shape m_pads_end;
-    bool m_exclude_pad{true};
-    PadType m_auto_pad{PadType::EXPLICIT};
-    op::RoundingType m_rounding_type{op::RoundingType::FLOOR};
 };
 }  // namespace v14
 }  // namespace op
