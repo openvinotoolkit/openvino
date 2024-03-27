@@ -224,31 +224,23 @@ bool Transformations::fuse_type_to_convert(const std::shared_ptr<ov::Node>& node
     // Thus an Abs, Ceil and Min nodes should be added before the Convert node for this scenario.
     if (convert->input(0).get_element_type().is_real() &&
         convert->get_convert_element_type() == ov::element::boolean && to.is_integral_number()) {
-        ov::NodeVector new_ops;
-#define CREATE_OP(NAME, TYPE, ...)                          \
-    const auto& NAME = std::make_shared<TYPE>(__VA_ARGS__); \
-    new_ops.push_back(NAME);
-
+        ov::pass::NodeRegistry reg;
         const auto& in_prec = convert->get_input_element_type(0);
         auto data = convert->input_value(0).get_node_shared_ptr();
         auto item = precisions.find(in_prec);
         if (item != precisions.end()) {
             // Add convert node for unsupported precision, such as FP64
-            CREATE_OP(pre_convert, ov::opset10::Convert, data, item->second);
-            data = pre_convert;
+            data = reg.make<ov::opset10::Convert>(data, item->second);
         }
-
-        CREATE_OP(abs, ov::opset10::Abs, data);
-        CREATE_OP(to_max_value, ov::opset10::Constant, ov::util::make_tensor_of_max_value(to));
-        CREATE_OP(to_max_convert, ov::opset10::Convert, to_max_value, abs->get_output_element_type(0));
-        CREATE_OP(min, ov::opset10::Minimum, abs, to_max_convert);
-        CREATE_OP(ceil, ov::opset10::Ceiling, min);
-        CREATE_OP(new_convert, ov::opset10::Convert, ceil, to);
+        const auto abs = reg.make<ov::opset10::Abs>(data);
+        const auto to_max_value = reg.make<ov::opset10::Constant>(ov::util::make_tensor_of_max_value(to));
+        const auto to_max_convert = reg.make<ov::opset10::Convert>(to_max_value, abs->get_output_element_type(0));
+        const auto min = reg.make<ov::opset10::Minimum>(abs, to_max_convert);
+        const auto ceil = reg.make<ov::opset10::Ceiling>(min);
+        const auto new_convert = reg.make<ov::opset10::Convert>(ceil, to);
         new_convert->set_friendly_name(convert->get_friendly_name());
-        ov::copy_runtime_info(convert, new_ops);
+        ov::copy_runtime_info(convert, reg.get());
         ov::replace_node(convert, new_convert);
-#undef CREATE_OP
-
         return true;
     } else {
         convert->set_convert_element_type(to);
