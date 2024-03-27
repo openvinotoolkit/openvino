@@ -17,7 +17,47 @@
 
 #if OUTPUT_DIMS == 6
 inline uint FUNC(get_idx_pos)(OPTIONAL_SHAPE_INFO_ARG uint out_b, uint out_f, uint out_w, uint out_z, uint out_y, uint out_x) {
+#if defined(INPUT0_LAYOUT_BFWZYX) && defined(OUTPUT_LAYOUT_BFWZYX) && BROADCAST_ORDER_DEFAULT
+    const uint size_x = INPUT0_SIZE_X;
+    const uint size_y = INPUT0_SIZE_Y;
+    const uint size_z = INPUT0_SIZE_Z;
+    const uint size_w = INPUT0_SIZE_W;
+    const uint size_f = INPUT0_FEATURE_NUM;
+    const uint size_b = INPUT0_BATCH_NUM;
 
+    const uint idx_b = out_b % size_b;
+    const uint idx_f = out_f % size_f;
+    const uint idx_w = out_w % size_w;
+    const uint idx_z = out_z % size_z;
+    const uint idx_y = out_y % size_y;
+    const uint idx_x = out_x % size_x;
+
+    const uint pad_before_x = INPUT0_PAD_BEFORE_SIZE_X;
+    const uint pad_after_x = INPUT0_PAD_AFTER_SIZE_X;
+    const uint pad_before_y = INPUT0_PAD_BEFORE_SIZE_Y;
+    const uint pad_after_y = INPUT0_PAD_AFTER_SIZE_Y;
+    const uint pad_before_z = INPUT0_PAD_BEFORE_SIZE_Z;
+    const uint pad_after_z = INPUT0_PAD_AFTER_SIZE_Z;
+    const uint pad_before_w = INPUT0_PAD_BEFORE_SIZE_W;
+    const uint pad_after_w = INPUT0_PAD_AFTER_SIZE_W;
+    const uint pad_before_f = INPUT0_PAD_BEFORE_FEATURE_NUM;
+    const uint pad_after_f = INPUT0_PAD_AFTER_FEATURE_NUM;
+    const uint pad_before_b = INPUT0_PAD_BEFORE_BATCH_NUM;
+    const uint pad_after_b = INPUT0_PAD_AFTER_BATCH_NUM;
+
+    const uint x_pitch = 1;
+    const uint y_pitch = (size_x + pad_before_x + pad_after_x) * x_pitch;
+    const uint z_pitch = (size_y + pad_before_y + pad_after_y) * y_pitch;
+    const uint w_pitch = (size_z + pad_before_z + pad_after_z) * z_pitch;
+    const uint f_pitch = (size_w + pad_before_w + pad_after_w) * w_pitch;
+    const uint b_pitch = (size_f + pad_before_f + pad_after_f) * f_pitch;
+    const uint idx_pos = (pad_before_b + idx_b) * b_pitch +
+                         (pad_before_f + idx_f) * f_pitch +
+                         (pad_before_w + idx_w) * w_pitch +
+                         (pad_before_z + idx_z) * z_pitch +
+                         (pad_before_y + idx_y) * y_pitch +
+                         (pad_before_x + idx_x) * x_pitch;
+#else  // defined(INPUT0_LAYOUT_BFWZYX) && defined(OUTPUT_LAYOUT_BFWZYX)
     uint8 input_indices;
 
     input_indices[0] = INPUT0_BATCH_NUM;
@@ -58,11 +98,47 @@ inline uint FUNC(get_idx_pos)(OPTIONAL_SHAPE_INFO_ARG uint out_b, uint out_f, ui
     const uint idx_x = idx[5];
 
     const uint idx_pos = GET_UPDATES_INDEX(INPUT0, IDX_ORDER);
+#endif  // defined(INPUT0_LAYOUT_BFWZYX) && defined(OUTPUT_LAYOUT_BFWZYX)
+
     return idx_pos;
 }
 #elif OUTPUT_DIMS == 5
 inline uint FUNC(get_idx_pos)(OPTIONAL_SHAPE_INFO_ARG uint out_b, uint out_f, uint out_z, uint out_y, uint out_x) {
+#if defined(INPUT0_LAYOUT_BFZYX) && defined(OUTPUT_LAYOUT_BFZYX) && BROADCAST_ORDER_DEFAULT
+    const uint size_x = INPUT0_SIZE_X;
+    const uint size_y = INPUT0_SIZE_Y;
+    const uint size_z = INPUT0_SIZE_Z;
+    const uint size_f = INPUT0_FEATURE_NUM;
+    const uint size_b = INPUT0_BATCH_NUM;
 
+    const uint idx_b = out_b % size_b;
+    const uint idx_f = out_f % size_f;
+    const uint idx_z = out_z % size_z;
+    const uint idx_y = out_y % size_y;
+    const uint idx_x = out_x % size_x;
+
+    const uint pad_before_x = INPUT0_PAD_BEFORE_SIZE_X;
+    const uint pad_after_x = INPUT0_PAD_AFTER_SIZE_X;
+    const uint pad_before_y = INPUT0_PAD_BEFORE_SIZE_Y;
+    const uint pad_after_y = INPUT0_PAD_AFTER_SIZE_Y;
+    const uint pad_before_z = INPUT0_PAD_BEFORE_SIZE_Z;
+    const uint pad_after_z = INPUT0_PAD_AFTER_SIZE_Z;
+    const uint pad_before_f = INPUT0_PAD_BEFORE_FEATURE_NUM;
+    const uint pad_after_f = INPUT0_PAD_AFTER_FEATURE_NUM;
+    const uint pad_before_b = INPUT0_PAD_BEFORE_BATCH_NUM;
+    const uint pad_after_b = INPUT0_PAD_AFTER_BATCH_NUM;
+    const uint x_pitch = 1;
+    const uint y_pitch = (size_x + pad_before_x + pad_after_x) * x_pitch;
+    const uint z_pitch = (size_y + pad_before_y + pad_after_y) * y_pitch;
+    const uint f_pitch = (size_z + pad_before_z + pad_after_z) * z_pitch;
+    const uint b_pitch = (size_f + pad_before_f + pad_after_f) * f_pitch;
+    const uint idx_pos = (pad_before_b + idx_b) * b_pitch +
+                         (pad_before_f + idx_f) * f_pitch +
+                         (pad_before_z + idx_z) * z_pitch +
+                         (pad_before_y + idx_y) * y_pitch +
+                         (pad_before_x + idx_x) * x_pitch;
+
+#else  // defined(INPUT0_LAYOUT_BFZYX) && defined(OUTPUT_LAYOUT_BFZYX)
     uint8 input_indices;
 
     input_indices[0] = INPUT0_BATCH_NUM;
@@ -97,12 +173,43 @@ inline uint FUNC(get_idx_pos)(OPTIONAL_SHAPE_INFO_ARG uint out_b, uint out_f, ui
     const uint idx_z = idx[2];
     const uint idx_y = idx[3];
     const uint idx_x = idx[4];
+
     const uint idx_pos = GET_UPDATES_INDEX(INPUT0, IDX_ORDER);
+#endif  // defined(INPUT0_LAYOUT_BFZYX) && defined(OUTPUT_LAYOUT_BFZYX)
 
     return idx_pos;
 }
 #else
 inline uint FUNC(get_idx_pos)(OPTIONAL_SHAPE_INFO_ARG uint out_b, uint out_f, uint out_y, uint out_x) {
+#if defined(INPUT0_LAYOUT_BFYX) && defined(OUTPUT_LAYOUT_BFYX) && BROADCAST_ORDER_DEFAULT
+    const uint size_x = INPUT0_SIZE_X;
+    const uint size_y = INPUT0_SIZE_Y;
+    const uint size_f = INPUT0_FEATURE_NUM;
+    const uint size_b = INPUT0_BATCH_NUM;
+
+    const uint idx_b = out_b % size_b;
+    const uint idx_f = out_f % size_f;
+    const uint idx_y = out_y % size_y;
+    const uint idx_x = out_x % size_x;
+
+    const uint pad_before_x = INPUT0_PAD_BEFORE_SIZE_X;
+    const uint pad_after_x = INPUT0_PAD_AFTER_SIZE_X;
+    const uint pad_before_y = INPUT0_PAD_BEFORE_SIZE_Y;
+    const uint pad_after_y = INPUT0_PAD_AFTER_SIZE_Y;
+    const uint pad_before_f = INPUT0_PAD_BEFORE_FEATURE_NUM;
+    const uint pad_after_f = INPUT0_PAD_AFTER_FEATURE_NUM;
+    const uint pad_before_b = INPUT0_PAD_BEFORE_BATCH_NUM;
+    const uint pad_after_b = INPUT0_PAD_AFTER_BATCH_NUM;
+    const uint x_pitch = 1;
+    const uint y_pitch = (size_x + pad_before_x + pad_after_x) * x_pitch;
+    const uint f_pitch = (size_y + pad_before_y + pad_after_y) * y_pitch;
+    const uint b_pitch = (size_f + pad_before_f + pad_after_f) * f_pitch;
+    const uint idx_pos = (pad_before_b + idx_b) * b_pitch +
+                         (pad_before_f + idx_f) * f_pitch +
+                         (pad_before_y + idx_y) * y_pitch +
+                         (pad_before_x + idx_x) * x_pitch;
+
+#else  // defined(INPUT0_LAYOUT_BFYX) && defined(OUTPUT_LAYOUT_BFYX)
 
     uint4 input_indices;
 
@@ -135,7 +242,9 @@ inline uint FUNC(get_idx_pos)(OPTIONAL_SHAPE_INFO_ARG uint out_b, uint out_f, ui
     const uint idx_f = idx[1];
     const uint idx_y = idx[2];
     const uint idx_x = idx[3];
+
     const uint idx_pos = GET_UPDATES_INDEX(INPUT0, IDX_ORDER);
+#endif  // defined(INPUT0_LAYOUT_BFYX) && defined(OUTPUT_LAYOUT_BFYX)
 
     return idx_pos;
 }
