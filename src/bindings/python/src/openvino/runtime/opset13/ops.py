@@ -15,7 +15,7 @@ from openvino.runtime import Node, Shape, Type, Output
 from openvino.runtime.op import Constant, Result
 from openvino.runtime.opset1 import convert_like
 from openvino.runtime.opset_utils import _get_node_factory
-from openvino.runtime.utils.decorators import apply_affix_on, binary_op, nameable_op, unary_op
+from openvino.runtime.utils.decorators import binary_op, nameable_op, unary_op
 from openvino.runtime.utils.types import (
     NumericData,
     NodeInput,
@@ -350,7 +350,6 @@ def result(data: Union[Node, Output, NumericData], name: Optional[str] = None) -
 
 
 @nameable_op
-@apply_affix_on("data", "input_low", "input_high", "output_low", "output_high")
 def fake_quantize(
     data: NodeInput,
     input_low: NodeInput,
@@ -360,9 +359,6 @@ def fake_quantize(
     levels: int,
     auto_broadcast: str = "NUMPY",
     name: Optional[str] = None,
-    *,
-    prefix: Optional[str] = None,
-    suffix: Optional[str] = None,
 ) -> Node:
     r"""Perform an element-wise linear quantization on input data.
 
@@ -375,10 +371,6 @@ def fake_quantize(
     :param auto_broadcast: The type of broadcasting specifies rules used for
                            auto-broadcasting of input tensors.
     :param name:           Optional name of the new node.
-    :param prefix:         Optional keyword-only string to apply before original names of
-                           all generated input nodes (for example: passed as numpy arrays).
-    :param suffix:         Optional keyword-only string to apply after original names of
-                           all generated input nodes (for example: passed as numpy arrays).
     :return: New node with quantized value.
 
     Input floating point values are quantized into a discrete set of floating point values.
@@ -400,6 +392,6 @@ def fake_quantize(
     """
     return _get_node_factory_opset13().create(
         "FakeQuantize",
-        as_nodes(data, input_low, input_high, output_low, output_high),
+        as_nodes(data, input_low, input_high, output_low, output_high, name=name),
         {"levels": levels, "auto_broadcast": auto_broadcast.upper()},
     )
