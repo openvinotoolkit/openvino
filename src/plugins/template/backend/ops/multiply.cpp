@@ -14,7 +14,10 @@ bool evaluate(const std::shared_ptr<ov::op::v1::Multiply>& op,
     ov::reference::multiply(inputs[0].data<const T>(),
                             inputs[1].data<const T>(),
                             outputs[0].data<T>(),
-                            ov::shape_size(inputs[0].get_shape()));
+                            inputs[0].get_shape(),
+                            inputs[1].get_shape(),
+                            op->get_autob());
+                            
     return true;
 }
 
