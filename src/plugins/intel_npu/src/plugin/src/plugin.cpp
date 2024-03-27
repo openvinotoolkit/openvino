@@ -108,14 +108,14 @@ static Config merge_configs(const Config& globalConfig,
     return localConfig;
 }
 
-auto get_specified_device_name(const Config config) {
+static auto get_specified_device_name(const Config config) {
     if (config.has<DEVICE_ID>()) {
         return config.get<DEVICE_ID>();
     }
     return std::string();
 }
 
-Config add_platform_to_the_config(Config config, const std::string_view platform) {
+static Config add_platform_to_the_config(Config config, const std::string_view platform) {
     config.update({{ov::intel_npu::platform.name(), std::string(platform)}});
     return config;
 }
