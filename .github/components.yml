@@ -2,6 +2,7 @@ Core:
   revalidate: 'all'
 
 transformations:
+  # preliminary, we need to run all
   revalidate: 'all'
 
 LP_transformations:
