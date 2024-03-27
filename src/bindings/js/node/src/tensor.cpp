@@ -133,8 +133,8 @@ Napi::Value TensorWrap::get_data(const Napi::CallbackInfo& info) {
 
 Napi::Value TensorWrap::get_shape(const Napi::CallbackInfo& info) {
     if (info.Length() > 0) {
-        reportError(info.Env(), "No parameters are allowed for the get_shape method.");
-        return;
+        reportError(info.Env(), "No parameters are allowed for the getShape() method.");
+        return info.Env().Undefined();
     }
     return cpp_to_js<ov::Shape, Napi::Array>(info, _tensor.get_shape());
 }

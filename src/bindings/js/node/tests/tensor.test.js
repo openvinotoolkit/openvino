@@ -121,11 +121,11 @@ describe('Tensor shape', () => {
     );
   });
 
-  it('get_shape() method does not accept parameters', () => {
+  it('getShape() method does not accept parameters', () => {
     const tensor = new ov.Tensor(ov.element.f32, [1, 3, 224, 224], data);
     assert.throws(
       () => tensor.getShape(1, 2, 3),
-      { message: /No parameters are allowed for the get_shape method/ }
+      { message: /No parameters are allowed for the getShape() method./ }
     );
   });
 });
