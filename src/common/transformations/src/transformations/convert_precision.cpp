@@ -330,16 +330,13 @@ bool convert_function_precision(const std::shared_ptr<Model>& f,
             if (result->get_input_element_type(0) != orig_result_types[i]) {
                 auto result_input = result->input_value(0);
                 const auto convert = std::make_shared<ov::op::v0::Convert>(result_input, orig_result_types[i]);
-                if (result_input.get_node()->get_output_size() > 1) {
-                    convert->set_friendly_name(result_input.get_node()->get_friendly_name() + "." +
-                                               std::to_string(result_input.get_index()));
-                } else {
-                    convert->set_friendly_name(result_input.get_node()->get_friendly_name());
-                    result_input.get_node()->set_friendly_name("");
-                }
+
+                convert->set_friendly_name(result_input.get_node()->get_friendly_name() + "." +
+                                           std::to_string(result_input.get_index()));
 
                 auto& convert_output_tensor = convert->get_output_tensor(0);
                 convert_output_tensor.set_names(result_input.get_names());
+
                 OPENVINO_SUPPRESS_DEPRECATED_START
                 const auto& legacy_name = ov::descriptor::get_ov_tensor_legacy_name(result_input.get_tensor());
                 if (!legacy_name.empty()) {
@@ -347,7 +344,6 @@ bool convert_function_precision(const std::shared_ptr<Model>& f,
                 }
                 OPENVINO_SUPPRESS_DEPRECATED_END
 
-                result_input.set_names({});
                 result->input(0).replace_source_output(convert->output(0));
                 result->revalidate_and_infer_types();
             }

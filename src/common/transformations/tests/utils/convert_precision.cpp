@@ -1982,6 +1982,8 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsForParameterAndResult)
         auto param_1 = make_shared<opset10::Parameter>(element::f64, Shape{3});
         auto converted_param = make_shared<opset10::Convert>(param_1, element::f32);
         auto sin = make_shared<opset10::Sin>(converted_param);
+        sin->set_friendly_name("sine");
+        sin->get_output_tensor(0).add_names({"sine:0"});
         auto converted_sin = make_shared<opset10::Convert>(sin, element::f64);
         converted_sin->get_output_tensor(0).add_names({"sine:0"});
         auto result_sin = make_shared<opset10::Result>(converted_sin);
@@ -1993,7 +1995,7 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsForParameterAndResult)
     ASSERT_TRUE(result.valid) << result.message;
 
     const auto& results = model->get_results();
-    ASSERT_EQ("sine", results[0]->get_input_node_ptr(0)->get_friendly_name());
+    ASSERT_EQ("sine.0", results[0]->get_input_node_ptr(0)->get_friendly_name());
 }
 
 TEST(TransformationTests, ConvertPrecisionExplicitConvertsMultiParam) {
@@ -2057,6 +2059,10 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsMultiParam) {
         auto converted_mul = make_shared<opset10::Convert>(mul, element::f64);
         auto sin = make_shared<opset10::Sin>(convert_1);
 
+        add->get_output_tensor(0).add_names({"add:0"});
+        mul->get_output_tensor(0).add_names({"mul:0"});
+        sin->get_output_tensor(0).add_names({"sine:0"});
+
         converted_add->get_output_tensor(0).add_names({"add:0"});
         converted_mul->get_output_tensor(0).add_names({"mul:0"});
         sin->get_output_tensor(0).add_names({"sine:0"});
@@ -2074,8 +2080,8 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsMultiParam) {
     ASSERT_TRUE(result.valid) << result.message;
 
     const auto& results = model->get_results();
-    ASSERT_EQ("add", results[0]->get_input_node_ptr(0)->get_friendly_name());
-    ASSERT_EQ("mul", results[1]->get_input_node_ptr(0)->get_friendly_name());
+    ASSERT_EQ("add.0", results[0]->get_input_node_ptr(0)->get_friendly_name());
+    ASSERT_EQ("mul.0", results[1]->get_input_node_ptr(0)->get_friendly_name());
     ASSERT_EQ("sine", results[2]->get_input_node_ptr(0)->get_friendly_name());
 }
 
@@ -2112,6 +2118,9 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsSingleNodeMultipleOutp
         auto convert_1 = make_shared<opset10::Convert>(param_1, element::f32);
         auto axis = opset10::Constant::create(element::i32, Shape{}, {0});
         auto split = make_shared<opset10::Split>(convert_1, axis, 3);
+        split->get_output_tensor(0).add_names({"split:0"});
+        split->get_output_tensor(1).add_names({"split:1"});
+        split->get_output_tensor(2).add_names({"split:2"});
 
         auto convert_split_0 = make_shared<opset10::Convert>(split->output(0), element::f64);
         auto convert_split_1 = make_shared<opset10::Convert>(split->output(1), element::f64);
@@ -2238,6 +2247,7 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsMultiSubgraphs) {
         if_op->set_input(convert_1, param_1_then, param_1_else);
         if_op->set_input(convert_2, param_2_then, param_2_else);
         auto result = if_op->set_output(result_then, result_else);
+        result.add_names({"if_result:0"});
         auto converted_result = make_shared<opset10::Convert>(result, element::f64);
         converted_result->get_output_tensor(0).add_names({"if_result:0"});
 
@@ -2249,7 +2259,7 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsMultiSubgraphs) {
     ASSERT_TRUE(result.valid) << result.message;
 
     const auto& results = model->get_results();
-    ASSERT_EQ("if_result", results[0]->get_input_node_ptr(0)->get_friendly_name());
+    ASSERT_EQ("if_result.0", results[0]->get_input_node_ptr(0)->get_friendly_name());
 }
 
 TEST(TransformationTests, align_mixed_fp16_fp32_with_parameter_for_shape_1) {
