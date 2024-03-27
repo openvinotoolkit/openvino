@@ -446,7 +446,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return isCellPrimitiveSupported(node);
             });
 
-        pass_config->set_callback<ov::pass::LSTMCellFusion>(
+        pass_config->set_callback<ov::pass::LSTMCellFusion,
+                                  ov::pass::LSTMCellTfKerasFusion>(
             [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
                 return !isCellPrimitiveSupported(node);
             });

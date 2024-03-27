@@ -143,6 +143,8 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, FoldSubgraphEmptyInputs)
     REGISTER_PASS(manager, DisableRandomUniformConstantFolding)
     REGISTER_PASS(manager, PushConstantToSubgraph)
+    // LSTMCellTfKerasFusion should run before ConstantFolding
+    REGISTER_PASS(manager, LSTMCellTfKerasFusion)
     REGISTER_PASS(manager, ConstantFolding)
     REGISTER_PASS(manager, Validate)
 
