@@ -125,7 +125,7 @@ PDPD_FE:
 
 TF_FE:
   revalidate:
-    - MO  
+    - MO
   build:
     - CPU
     - Python_API
@@ -133,7 +133,7 @@ TF_FE:
 
 TFL_FE:
   revalidate:
-    - MO  
+    - MO
   build:
     - CPU
     - Python_API
