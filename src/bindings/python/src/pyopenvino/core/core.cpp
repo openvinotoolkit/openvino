@@ -227,8 +227,7 @@ void regclass_Core(py::module m) {
             if (bin_size) {
                 // If weights are not empty:
                 tensor = ov::Tensor(ov::element::Type_t::u8, {bin_size}, info.ptr);
-            }
-            else {
+            } else {
                 // If weights are empty:
                 tensor = ov::Tensor(ov::element::Type_t::u8, {bin_size});
             }
