@@ -19,9 +19,11 @@ Integrate OpenVINO™ with Your Application
                  Runtime in an application.
 
 
-Following these steps, you can implement a typical OpenVINO™ Runtime inference
-pipeline in your application. Before proceeding, make sure you have
-:doc:`installed OpenVINO Runtime <../../get-started/install-openvino>` and set environment variables (run ``<INSTALL_DIR>/setupvars.sh`` for Linux, ``setupvars.ps1`` for Windows PowerShell, or ``setupvars.bat`` for Windows CMD), otherwise, the ``OpenVINO_DIR`` variable won't be configured properly to pass ``find_package`` calls).
+Following these steps, you can implement a typical OpenVINO™ Runtime inference pipeline in your
+application. Before proceeding, make sure you have :doc:`installed OpenVINO Runtime <../../get-started/install-openvino>`
+and set environment variables (run ``<INSTALL_DIR>/setupvars.sh`` for Linux, ``setupvars.ps1``
+for Windows PowerShell, or ``setupvars.bat`` for Windows CMD). Otherwise, the ``OpenVINO_DIR``
+variable won't be configured properly to pass ``find_package`` calls.
 
 
 .. image:: ../../_static/images/IMPLEMENT_PIPELINE_with_API_C.svg
@@ -30,7 +32,8 @@ pipeline in your application. Before proceeding, make sure you have
 Step 1. Create OpenVINO Runtime Core
 ####################################
 
-Include next files to work with OpenVINO™ Runtime:
+Include the necessary files to work with OpenVINO™ Runtime and create OpenVINO™ Core to manage
+available devices and read model objects:
 
 .. tab-set::
 
@@ -41,28 +44,6 @@ Include next files to work with OpenVINO™ Runtime:
           :language: python
           :fragment: [import]
 
-    .. tab-item:: C++
-       :sync: cpp
-
-       .. doxygensnippet:: docs/snippets/src/main.cpp
-          :language: cpp
-          :fragment: [include]
-
-    .. tab-item:: C
-       :sync: c
-
-       .. doxygensnippet:: docs/snippets/src/main.c
-          :language: cpp
-          :fragment: [include]
-
-
-Use the following code to create OpenVINO™ Core to manage available devices and read model objects:
-
-.. tab-set::
-
-    .. tab-item:: Python
-       :sync: py
-
        .. doxygensnippet:: docs/snippets/src/main.py
           :language: python
           :fragment: [part1]
@@ -72,6 +53,10 @@ Use the following code to create OpenVINO™ Core to manage available devices an
 
        .. doxygensnippet:: docs/snippets/src/main.cpp
           :language: cpp
+          :fragment: [include]
+
+       .. doxygensnippet:: docs/snippets/src/main.cpp
+          :language: cpp
           :fragment: [part1]
 
     .. tab-item:: C
@@ -79,7 +64,12 @@ Use the following code to create OpenVINO™ Core to manage available devices an
 
        .. doxygensnippet:: docs/snippets/src/main.c
           :language: cpp
+          :fragment: [include]
+
+       .. doxygensnippet:: docs/snippets/src/main.c
+          :language: cpp
           :fragment: [part1]
+
 
 
 Step 2. Compile the Model

@@ -30,6 +30,11 @@ GET STARTED
    </p>
    <div style="clear:both;"> </div>
 
+
+For a quick reference, check out
+`the Quick Start Guide [pdf] <https://docs.openvino.ai/2024/_static/download/OpenVINO_Quick_Start_Guide.pdf>`__
+
+
 .. _quick-start-example:
 
 1. Quick Start Example (No Installation Required)
