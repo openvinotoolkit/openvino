@@ -21,6 +21,7 @@ namespace op {
 
 OutputVector translate_pack_op(const NodeContext& node) {
     default_op_checks(node, 1, {"Pack", "PACK"}, true);
+    auto num_size = static_cast<int>(node.get_input_size());
 
     auto axis = node.get_attribute<int64_t>("axis", 0);
 
