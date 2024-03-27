@@ -615,6 +615,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                              const ov::intel_cpu::PlainTensor& alibi_mask,
                              const ov::intel_cpu::PlainTensor& attention_mask,
                              const ov::intel_cpu::PlainTensor& beams,
+                             size_t max_context_len,
                              const ov::intel_cpu::PlainTensor& context_lens,
                              ov::intel_cpu::PlainTensor& output_emb,
                              ov::intel_cpu::PlainTensor& buf_attn_w,
@@ -634,14 +635,18 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
     auto h_group_num = present_key.size(1);
     size_t h_each_group_len = 1;
     bool is_pagedattn = context_lens;
+    size_t block_size = present_key.size(2);
     if (h_group_num != H) {
         h_each_group_len = H / h_group_num;
     }
     if (d_scale == 0.0f)
         d_scale = 1.0f / sqrt(S);
     auto nthr = parallel_get_max_threads();
-    // max kv len
-    auto kv_len = beams.size(1);
+    size_t kv_len;
+    if (is_pagedattn)
+        kv_len = max_context_len;
+    else
+        kv_len = present_key.size(2);
     char buf[256];
     size_t real_len = 0;
     for (size_t b = 0; b < B; b++)
@@ -672,13 +677,13 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
             auto context_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
             // kv_len must be valid
             if (pk < context_len) {
-                auto block_idx = beams.ptr<int32_t>(b)[pk];
-                OPENVINO_ASSERT(block_idx >= 0, "block idx must be greater or equal than 0");
+                auto block_number = beams.ptr<int32_t>(b)[pk / block_size];
+                auto block_offset = pk % block_size;
 
                 for (size_t pq = 0; pq < q_len; pq++) {
                     for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
                         buf_attn_w.ptr<float>(b, h, pq)[pk] =
-                                dot_product(query.ptr<T>(b, h, pq), present_key.ptr<T2>(block_idx, h_group),
+                                dot_product(query.ptr<T>(b, h, pq), present_key.ptr<T2>(block_number, h_group, block_offset),
                                     S, nullptr, nullptr, nullptr);
                     }
                 }
@@ -797,9 +802,9 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
             auto context_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
             // kv_len must be valid
             if (pv < context_len) {
-                auto block_idx = beams.ptr<int32_t>(b)[pv];
-                OPENVINO_ASSERT(block_idx >= 0, "block idx in vcache must be greater or equal than 0");
-                auto* v = present_value.ptr<T2>(block_idx, h_group);
+                auto block_number = beams.ptr<int32_t>(b)[pv / block_size];
+                auto block_offset = pv % block_size;
+                auto* v = present_value.ptr<T2>(block_number, h_group, block_offset);
                 for (size_t pq = 0; pq < q_len; pq++) {
                     for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
                         attn_acc_value(buf_attn_score.ptr<float>(ithr, b, pq, h),
@@ -872,6 +877,7 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                       const ov::intel_cpu::PlainTensor& alibi_mask,
                       const ov::intel_cpu::PlainTensor& attention_mask,
                       const ov::intel_cpu::PlainTensor& beams,
+                      size_t max_context_len,
                       const ov::intel_cpu::PlainTensor& context_lens,
                       ov::intel_cpu::PlainTensor& output_emb,
                       ov::intel_cpu::PlainTensor& buf_attn_w,
@@ -890,6 +896,7 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                            alibi_mask,
                                                            attention_mask,
                                                            beams,
+                                                           max_context_len,
                                                            context_lens,
                                                            output_emb,
                                                            buf_attn_w,
@@ -907,6 +914,7 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                                 alibi_mask,
                                                                 attention_mask,
                                                                 beams,
+                                                                max_context_len,
                                                                 context_lens,
                                                                 output_emb,
                                                                 buf_attn_w,
@@ -926,6 +934,7 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                     alibi_mask,
                                                     attention_mask,
                                                     beams,
+                                                    max_context_len,
                                                     context_lens,
                                                     output_emb,
                                                     buf_attn_w,
@@ -943,6 +952,7 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                         alibi_mask,
                                                         attention_mask,
                                                         beams,
+                                                        max_context_len,
                                                         context_lens,
                                                         output_emb,
                                                         buf_attn_w,
@@ -960,6 +970,7 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                 alibi_mask,
                                                 attention_mask,
                                                 beams,
+                                                max_context_len,
                                                 context_lens,
                                                 output_emb,
                                                 buf_attn_w,

@@ -751,13 +751,14 @@ struct MHASingleToken {
                     const PlainTensor& attention_mask,
                     PlainTensor& output_emb,
                     const PlainTensor& beams,
+                    size_t max_context_len,
                     const PlainTensor& context_lens,
                     bool has_out_transpose,
                     bool auto_causal,
                     float d_scale,
                     const PlainTensor& k_scale_zp,
                     const PlainTensor& v_scale_zp) {
-        mha_single_token(query, present_key, present_value, alibi_mask, attention_mask, beams, context_lens, output_emb,
+        mha_single_token(query, present_key, present_value, alibi_mask, attention_mask, beams, max_context_len, context_lens, output_emb,
             m_attn_w, m_temp, has_out_transpose, auto_causal, d_scale, k_scale_zp, v_scale_zp, m_head_sum);
     }
 };
@@ -800,6 +801,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         float scale_input = 0.0f;
         size_t B, L1, L0, S;
         size_t sliding_window = 0;
+        size_t max_context_len = 0;
 
         PROFILE(_attn, "attn_execute");
         q_input.reset(inputs[0]);
@@ -809,7 +811,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         present_value.reset(presentv_input);
         if (is_pagedattn) {
             is_prompt = *inputs[ID_IS_PROMPT]->getDataAs<uint8_t>() == 1;
-            //auto max_context_len = static_cast<size_t>(*inputs[ID_MAX_CONTEXT_LEN]->getDataAs<int32_t>());
+            max_context_len = static_cast<size_t>(*inputs[ID_MAX_CONTEXT_LEN]->getDataAs<int32_t>());
             context_lens.reset(inputs[ID_CONTEXT_LENS]);
             beam_table.reset(inputs[ID_BLOCK_TABLES]);
             scale_input = *inputs[ID_SCALE]->getDataAs<float>();
@@ -819,14 +821,14 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             has_out_transpose = true;
 
             // q: [B, L1, H*S], kv: [B, L1, Hk*S]
-            // k_cache: [NUM_BLOCKS, Hk, S / 4, BLOCK_SIZE, 4]
-            // v_cache: [NUM_BLOCKS, Hk, S, BLOCK_SIZE]
+            // k_cache: [NUM_BLOCKS, Hk, 16, S]
+            // v_cache: [NUM_BLOCKS, Hk, 16, S]
             // context_lens: [B]
             // block_tables: [B, max_block_per_request]
             B = k_input.size(0);
             L1 = k_input.size(1);
             auto Hk = present_key.size(1);
-            S = present_value.size(2);
+            S = present_value.size(3);
             auto H = q_input.size(2) / S;
             // L0 in each batch may be different
             L0 = 0;
@@ -842,8 +844,6 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             q_input = q_input.reshape({B, L1, H, S}).permute({0, 2, 1, 3});
             k_input = k_input.reshape({B, L1, Hk, S}).permute({0, 2, 1, 3});
             v_input = v_input.reshape({B, L1, Hk, S}).permute({0, 2, 1, 3});
-            present_key = present_key.reshape({present_key.size(0), Hk, S});
-            present_value = present_value.reshape({present_value.size(0), Hk, S});
         } else {
             if (beam_input)
                 beam_table.reset(beam_input);
@@ -940,7 +940,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             //  2, using float will save the repack cost which typically is required for bf16/int8 opt
             //  3, using dot product can leverage the SIMD while easily adapt to indirect kv cache
             kernel_single_token(q_input, present_key, present_value, {}, use_attn_mask ? attn_mask : PlainTensor(),
-                output_emb, beam_table, context_lens, has_out_transpose, auto_causal, scale_input, k_scale_zp, v_scale_zp);
+                output_emb, beam_table, max_context_len, context_lens, has_out_transpose, auto_causal, scale_input, k_scale_zp, v_scale_zp);
         }
     }
 };
@@ -1356,24 +1356,22 @@ void ScaledDotProductAttention::gatherConcatPastkvForPagedAttn(const std::vector
 
     k.reset(inputs[ID_K]);                          // [B, L1, H * S]
     v.reset(inputs[ID_V]);
-    k_cache.reset(inputs[ID_KCACHE]);               // [NUM_BLOCKS, H, S / 4, BLOCK_SIZE, 4]
-    v_cache.reset(inputs[ID_VCACHE]);               // [NUM_BLOCKS, H, S, BLOCK_SIZE]
+    k_cache.reset(inputs[ID_KCACHE]);               // [NUM_BLOCKS, H, 16, S]
+    v_cache.reset(inputs[ID_VCACHE]);               // [NUM_BLOCKS, H, 16, S]
     slot_mapping.reset(inputs[ID_SLOT_MAPPING]);    // [B, max_context_len]
 
     auto B = k.size(0);
     auto L1 = k.size(1);
     auto H = k_cache.size(1);
-    auto S = v_cache.size(2);
+    auto S = v_cache.size(3);
 
     k.assert_dims({B, L1, H * S});
     v.assert_dims({B, L1, H * S});
-    k_cache.assert_dims({0, H, 0, 1, 0}, true);
-    v_cache.assert_dims({0, H, S, 1}, true);
+    k_cache.assert_dims({0, H, 0, S}, true);
+    v_cache.assert_dims({k_cache.m_dims[0], H, k_cache.m_dims[2], S});
     slot_mapping.assert_dims({B, 0}, true);
     k = k.reshape({B, L1, H, S}).permute({0, 2, 1, 3});
     v = v.reshape({B, L1, H, S}).permute({0, 2, 1, 3});
-    k_cache = k_cache.reshape({k_cache.size(0), H, S});
-    v_cache = v_cache.reshape({v_cache.size(0), H, S});
     paged_attn_memcpy(k, v, k_cache, v_cache, slot_mapping);
     // TODO: add u8 kvcache support
 }
