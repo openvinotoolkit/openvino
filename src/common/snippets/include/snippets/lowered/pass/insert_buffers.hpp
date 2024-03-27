@@ -31,12 +31,12 @@ private:
     void insertion(LinearIR& linear_ir,
                    const LinearIR::constExprIt& begin_it,
                    const LinearIR::constExprIt& end_it,
-                   const LinearIR::LoopManagerPtr& loop_manager,
-                   const std::vector<LinearIR::LoopManager::LoopPort>& loop_entries,
-                   const std::vector<LinearIR::LoopManager::LoopPort>& loop_exits);
+                   const LoopManagerPtr& loop_manager,
+                   const std::vector<LoopPort>& loop_entries,
+                   const std::vector<LoopPort>& loop_exits);
 
     LinearIR::constExprIt insertion_position(const LinearIR& linear_ir,
-                                             const LinearIR::LoopManagerPtr& loop_manager,
+                                             const LoopManagerPtr& loop_manager,
                                              const ExpressionPtr& expr,
                                              const ExpressionPtr& down_expr);
 

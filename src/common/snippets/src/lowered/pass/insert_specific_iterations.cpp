@@ -24,7 +24,7 @@ LinearIR::constExprIt InsertSpecificIterations::insert_copy_loop(LinearIR& linea
     const auto new_loop_end_pos = insert_pos;
 
     const auto original_loop_info = loop_manager->get_loop_info(loop_id);
-    std::vector<LinearIR::LoopManager::LoopPort> new_entry_points, new_exit_points;
+    std::vector<LoopPort> new_entry_points, new_exit_points;
     // Clone loop ports from original loop info to new loop info
     for (const auto& entry : original_loop_info->get_entry_points())
         new_entry_points.push_back(*entry.clone_with_new_expr(expression_map[entry.expr_port->get_expr().get()]));
@@ -38,7 +38,7 @@ LinearIR::constExprIt InsertSpecificIterations::insert_copy_loop(LinearIR& linea
         if (ov::is_type<op::LoopBase>(expr->get_node()))
             continue;
         // Update loop info of all outer loops with new loop ports
-        const auto outer_loop_ids = LinearIR::LoopManager::get_outer_expr_loops(expr, loop_id);
+        const auto outer_loop_ids = LoopManager::get_outer_expr_loops(expr, loop_id);
         for (size_t i = 0; i < expr->get_input_count(); ++i)
             loop_manager->update_loops_port(outer_loop_ids, expr->get_input_port(i), {expr->get_input_port(i), new_expr->get_input_port(i)}, true);
         for (size_t i = 0; i < expr->get_output_count(); ++i)
@@ -53,8 +53,6 @@ LinearIR::constExprIt InsertSpecificIterations::insert_copy_loop(LinearIR& linea
     loop_end->set_id(new_id);
     return new_loop_begin_pos;
 }
-
-using LoopInfo = LinearIR::LoopManager::LoopInfo;
 
 bool InsertSpecificIterations::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::InsertSpecificIterations")
