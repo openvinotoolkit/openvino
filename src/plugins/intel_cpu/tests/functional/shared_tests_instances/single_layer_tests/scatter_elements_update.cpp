@@ -26,8 +26,8 @@ const std::vector<ov::element::Type> model_types = {
         ov::element::f32,
         ov::element::f16,
         ov::element::i32,
-        ov::element::i8,
-        ov::element::u8,
+        // ov::element::i8,     // cannot validate until CVS-136858 addressed
+        // ov::element::u8,     // cannot validate until CVS-136858 addressed
 };
 
 const std::vector<ov::element::Type> idx_types = {
