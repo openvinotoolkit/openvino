@@ -80,7 +80,7 @@ facebook/opt-125m,opt
 facebook/rag-token-nq,rag,skip,Load problem
 facebook/sam-vit-large,sam,xfail,No node with name original_sizes
 facebook/timesformer-base-finetuned-k400,timesformer
-facebook/vit-mae-base,vit_mae,xfail,Accuracy validation failed
+facebook/vit-mae-base,vit_mae
 facebook/wmt19-ru-en,fsmt,xfail,Tracing problem
 facebook/xlm-roberta-xl,xlm-roberta-xl
 facebook/xmod-base,xmod
