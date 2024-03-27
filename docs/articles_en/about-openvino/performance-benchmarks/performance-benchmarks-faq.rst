@@ -163,7 +163,7 @@ Performance Information F.A.Q.
 
 .. raw:: html
 
-   <link rel="stylesheet" type="text/css" href="../_static/css/benchmark-banner.css">
+   <link rel="stylesheet" type="text/css" href="../../_static/css/benchmark-banner.css">
 
 .. container:: benchmark-banner
 
