@@ -196,7 +196,7 @@ or `create an account <https://www.intel.com/content/www/us/en/secure/forms/devc
 
 * Intel® Distribution of OpenVINO™ toolkit performance results are based on release 2024.0, as of March 06, 2024.
 
-* OpenVINO Model Server performance results are based on release 2023.3, as of February 13, 2024.
+* OpenVINO Model Server performance results are based on release 2024.0, as of March 15, 2024.
 
 The results may not reflect all publicly available updates. Intel technologies' features and benefits depend on system configuration
 and may require enabled hardware, software, or service activation. Learn more at intel.com, or from the OEM or retailer.
