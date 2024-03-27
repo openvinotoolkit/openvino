@@ -113,10 +113,6 @@ void check_unique_names(const std::shared_ptr<ov::Model>& f, const std::shared_p
     manager.run_passes(f);
 }
 
-std::shared_ptr<ov::op::v0::Constant> create_zero_constant(const ov::element::Type_t& et, const ov::Shape& shape) {
-    return ov::op::v0::Constant::create(et, shape, {0});
-}
-
 namespace ov {
 namespace test {
 namespace utils {
