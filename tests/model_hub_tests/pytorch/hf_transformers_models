@@ -201,7 +201,6 @@ kiddothe2b/hierarchical-transformer-base-4096-v2,hat,skip,Load problem
 k-l-lambda/clip-text-generator,clip_text_generator,skip,Load problem
 k-l-lambda/stable-diffusion-v1-4-inv-embed,inv_word_embed,skip,Load problem
 KoboldAI/fairseq-dense-13B-Janeway,xglm,skip,Large Model
-konverner/qdq-camembert-apolliner,qdqbert,xfail,Repository not found
 krasserm/perceiver-ar-clm-base,perceiver-ar-causal-language-model,skip,Load problem
 krasserm/perceiver-ar-sam-giant-midi,perceiver-ar-symbolic-audio-model,skip,Load problem
 krasserm/perceiver-io-img-clf,perceiver-io-image-classifier,skip,Load problem
