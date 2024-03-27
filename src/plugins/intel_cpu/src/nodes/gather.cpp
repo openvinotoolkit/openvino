@@ -4,21 +4,21 @@
 
 #include "gather.h"
 
-#include <cstdint>
-#include <openvino/op/gather.hpp>
-#include <openvino/op/constant.hpp>
-#include "ov_ops/gather_compressed.hpp"
+#include <partitioned_mem_mgr.h>
 
+#include <cstdint>
+#include <openvino/op/constant.hpp>
+#include <openvino/op/gather.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include <string>
 #include <vector>
 
-#include "openvino/core/parallel.hpp"
-#include <openvino/opsets/opset1.hpp>
 #include "common/cpu_memcpy.h"
-#include "utils/general_utils.h"
 #include "kernels/x64/gather_uni_kernel.hpp"
-#include <partitioned_mem_mgr.h>
+#include "openvino/core/parallel.hpp"
+#include "ov_ops/gather_compressed.hpp"
 #include "shape_inference/custom/gather.hpp"
+#include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 
 using namespace dnnl::impl::cpu;
@@ -40,8 +40,8 @@ bool Gather::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
             return false;
         }
         if (!one_of(op->get_type_info(),
-                ov::op::v7::Gather::get_type_info_static(),
-                ov::op::v8::Gather::get_type_info_static())) {
+                    ov::op::v7::Gather::get_type_info_static(),
+                    ov::op::v8::Gather::get_type_info_static())) {
             errorMessage = "Not supported Gather operation version. CPU plug-in supports only 7 and 8 versions.";
             return false;
         }
@@ -66,7 +66,7 @@ Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
     }
 
     if (one_of(op->get_input_size(), 4u, 5u) && op->get_output_size() == 1u) {
-        weightsCompressed = true;
+        compressed = true;
     } else if (op->get_input_size() != 3 || op->get_output_size() != 1) {
         THROW_ERROR("has incorrect number of input/output edges!");
     }
@@ -129,7 +129,8 @@ void Gather::initSupportedPrimitiveDescriptors() {
     if (isAxisInputConst && isDataShapeStat) {
         axisDim = dataDims[axis];
         beforeAxisSize = std::accumulate(dataDims.begin(), dataDims.begin() + axis, 1lu, std::multiplies<Dim>());
-        betweenBatchAndAxisSize = std::accumulate(dataDims.begin() + batchDims, dataDims.begin() + axis, 1lu, std::multiplies<Dim>());
+        betweenBatchAndAxisSize =
+            std::accumulate(dataDims.begin() + batchDims, dataDims.begin() + axis, 1lu, std::multiplies<Dim>());
         afterAxisSize = std::accumulate(dataDims.begin() + axis + 1, dataDims.end(), 1lu, std::multiplies<Dim>());
 
         afterAxisSizeInBytes = afterAxisSize * dataTypeSize;
@@ -153,19 +154,19 @@ void Gather::initSupportedPrimitiveDescriptors() {
     }
 
     ov::element::Type dataPrecision = getOriginalInputPrecisionAtPort(GATHER_DATA);
-    if (weightsCompressed) {
+    if (compressed) {
         if (!one_of(dataPrecision, ov::element::u8, ov::element::u4, ov::element::i8, ov::element::i4)) {
-            THROW_ERROR("has unsupported 'data' input precision: ", dataPrecision);
+            dataPrecision = ov::element::f32;
         }
 
         ov::element::Type scalePrecision = getOriginalInputPrecisionAtPort(GATHER_SCALE);
         if (scalePrecision != ov::element::f32) {
-            THROW_ERROR("has unsupported 'scale' input precision: ", scalePrecision);
+            scalePrecision = ov::element::f32;
         }
 
         ov::element::Type outPrecision = getOriginalOutputPrecisionAtPort(0);
         if (!one_of(outPrecision, ov::element::f32, ov::element::f16, ov::element::bf16)) {
-            THROW_ERROR("has unsupported out precision: ", outPrecision);
+            outPrecision = ov::element::f32;
         }
         scale_group_size =
             getInputShapeAtPort(GATHER_DATA).getElementsCount() / getInputShapeAtPort(GATHER_SCALE).getElementsCount();
@@ -173,7 +174,7 @@ void Gather::initSupportedPrimitiveDescriptors() {
         if (getOriginalInputsNumber() == 5u) {
             ov::element::Type zpPrecision = getOriginalInputPrecisionAtPort(GATHER_ZP);
             if (zpPrecision != ov::element::f32) {
-                THROW_ERROR("has unsupported 'zp' input precision: ", zpPrecision);
+                zpPrecision = ov::element::f32;
             }
 
             have_zp = true;
@@ -232,15 +233,17 @@ void Gather::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-    if (std::any_of(parentDims.begin(), parentDims.begin() + axis, [](size_t dim) { return  dim != 1; })) {
+    if (std::any_of(parentDims.begin(), parentDims.begin() + axis, [](size_t dim) {
+            return dim != 1;
+        })) {
         return;
     }
 
     addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
-                    {LayoutType::ncsp, ov::element::i32},
-                    {LayoutType::ncsp, ov::element::i32, isAxisInputConst}},
-                    {{LayoutType::ncsp, dataPrecision, false, GATHER_DATA}},
-                    unknown);
+                          {LayoutType::ncsp, ov::element::i32},
+                          {LayoutType::ncsp, ov::element::i32, isAxisInputConst}},
+                         {{LayoutType::ncsp, dataPrecision, false, GATHER_DATA}},
+                         unknown);
 }
 
 void Gather::createPrimitive() {
@@ -250,13 +253,15 @@ void Gather::createPrimitive() {
 #if defined(OPENVINO_ARCH_X86_64)
     uint64_t idxElPerVec = 1;
     if (!isDynamicNode()) {
-        idxElPerVec = x64::mayiuse(x64::avx512_core) ? x64::cpu_isa_traits<x64::avx512_core>::vlen / idxTypeSize :
-            x64::mayiuse(x64::avx2) ? x64::cpu_isa_traits<x64::avx2>::vlen / idxTypeSize : 1;
+        idxElPerVec = x64::mayiuse(x64::avx512_core) ? x64::cpu_isa_traits<x64::avx512_core>::vlen / idxTypeSize
+                      : x64::mayiuse(x64::avx2)      ? x64::cpu_isa_traits<x64::avx2>::vlen / idxTypeSize
+                                                     : 1;
     }
     // Gather instruction is not supported by SSE.
     if ((x64::mayiuse(x64::avx512_core) || x64::mayiuse(x64::avx2)) &&
-            (isDynamicNode() || afterAxisSize == 1 || (afterAxisSize <= idxElPerVec &&
-            (x64::mayiuse(x64::avx512_core) || (x64::mayiuse(x64::avx2) && dataTypeSize == 4))))) {
+        (isDynamicNode() || afterAxisSize == 1 ||
+         (afterAxisSize <= idxElPerVec &&
+          (x64::mayiuse(x64::avx512_core) || (x64::mayiuse(x64::avx2) && dataTypeSize == 4))))) {
         jGatherConfParams jcp;
         jcp.dataTypeSize = dataTypeSize;
         jcp.reverseIndexing = reverseIndexing;
@@ -303,9 +308,11 @@ void Gather::createPrimitive() {
                     p.betweenBatchAndAxisIter = (dstStart / specIndicesSize) % betweenBatchAndAxisSize;
                     for (uint64_t j = 0lu; j < dataElPerVec; j++) {
                         p.specIdxInBytes[j] = (((dstStart + j) / afterAxisSize) % specIndicesSize) * idxTypeSize;
-                        p.idxBatchSumInBytes[j] = ((dstStart + j) / (betweenBatchAndAxisSize * specIndicesSize * afterAxisSize)) *
-                                specIndicesSize * idxTypeSize;
-                        p.dataBeforeAxisSumInBytes[j] = ((dstStart + j) / (specIndicesSize * afterAxisSize)) * axisAndAfterAxisSizeInBytes;
+                        p.idxBatchSumInBytes[j] =
+                            ((dstStart + j) / (betweenBatchAndAxisSize * specIndicesSize * afterAxisSize)) *
+                            specIndicesSize * idxTypeSize;
+                        p.dataBeforeAxisSumInBytes[j] =
+                            ((dstStart + j) / (specIndicesSize * afterAxisSize)) * axisAndAfterAxisSizeInBytes;
                     }
                     initShortParams(p, dstStart);
                 });
@@ -359,8 +366,10 @@ void Gather::prepareParams() {
     if (!isDataShapeStat || !isAxisInputConst) {
         const auto& dataDims = dataMemPtr->getStaticDims();
         axisDim = dataDims[axis];
-        beforeBatchSize = std::accumulate(dataDims.begin(), dataDims.begin() + batchDims, 1lu, std::multiplies<uint64_t>());
-        betweenBatchAndAxisSize = std::accumulate(dataDims.begin() + batchDims, dataDims.begin() + axis, 1lu, std::multiplies<uint64_t>());
+        beforeBatchSize =
+            std::accumulate(dataDims.begin(), dataDims.begin() + batchDims, 1lu, std::multiplies<uint64_t>());
+        betweenBatchAndAxisSize =
+            std::accumulate(dataDims.begin() + batchDims, dataDims.begin() + axis, 1lu, std::multiplies<uint64_t>());
         afterAxisSize = std::accumulate(dataDims.begin() + axis + 1, dataDims.end(), 1lu, std::multiplies<uint64_t>());
 
         afterAxisSizeInBytes = afterAxisSize * dataTypeSize;
@@ -407,8 +416,8 @@ void Gather::execute(dnnl::stream strm) {
         return;
     }
 
-    if (weightsCompressed) {
-        return execWeightsCompressed();
+    if (compressed) {
+        return execCompressed();
     }
 #if defined(OPENVINO_ARCH_X86_64)
     if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
@@ -440,10 +449,10 @@ void Gather::execute(dnnl::stream strm) {
 
             const uint64_t idxElPerVec = jitKernel->getIdxElPerVec();
 
-            if (afterAxisSize == 1 && specIndicesSize < idxElPerVec) { // Elementwise short case.
+            if (afterAxisSize == 1 && specIndicesSize < idxElPerVec) {  // Elementwise short case.
                 arg.permIdxMask = p.permIdxMask.data();
                 arg.beforeAxisDiff = p.srcBeforeAxisDiff.data();
-            } else if (afterAxisSize > 1 && afterAxisSize <= dataElPerVec) { // Blocked short case.
+            } else if (afterAxisSize > 1 && afterAxisSize <= dataElPerVec) {  // Blocked short case.
                 arg.afterAxIdxB = p.afterAxIdxInBytes.data();
                 arg.specIdxDiff = p.specIdxDiff.data();
                 arg.beforeAxisDiff = p.srcBeforeAxisDiff.data();
@@ -474,8 +483,8 @@ void Gather::executeDynamicImpl(dnnl::stream strm) {
         return;
     }
 
-    if (weightsCompressed) {
-        return execWeightsCompressed();
+    if (compressed) {
+        return execCompressed();
     }
 
 #if defined(OPENVINO_ARCH_X86_64)
@@ -544,9 +553,9 @@ void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
         THROW_ERROR("has uninitialized kernel in function initShortParams.");
     const uint64_t idxElPerVec = jitKernel->getIdxElPerVec();
 
-    if (afterAxisSize == 1) { // Elementwise gather.
+    if (afterAxisSize == 1) {  // Elementwise gather.
         if (specIndicesSize >= idxElPerVec)
-            return; // Is not a short case.
+            return;  // Is not a short case.
 
         p.permIdxMask.resize(idxElPerVec);
         p.srcBeforeAxisDiff.resize(idxElPerVec);
@@ -567,9 +576,9 @@ void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
                 p.srcBeforeAxisDiff[i] = axisDim * (div + 1);
             }
         }
-    } else { // Blocked gather.
+    } else {  // Blocked gather.
         if (afterAxisSize > idxElPerVec)
-            return; // Is not a short case.
+            return;  // Is not a short case.
 
         p.afterAxIdxInBytes.resize(idxElPerVec);
         p.afterAxPermMask.resize(idxElPerVec);
@@ -580,11 +589,13 @@ void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
         int secondStart = start + idxElPerVec;
         for (uint64_t i = 0; i < idxElPerVec; i++) {
             p.afterAxIdxInBytes[i] = (start + i) % afterAxisSize;
-            p.specIdxDiff[i] = (((secondStart + i) / afterAxisSize) % specIndicesSize) * idxTypeSize - p.specIdxInBytes[i];
+            p.specIdxDiff[i] =
+                (((secondStart + i) / afterAxisSize) % specIndicesSize) * idxTypeSize - p.specIdxInBytes[i];
             if (p.specIdxDiff[i] < 0)
                 p.specIdxDiff[i] += specIndicesSize * idxTypeSize;
-            p.srcBeforeAxisDiff[i] = ((start + i + idxElPerVec) / (specIndicesSize * afterAxisSize)) * axisAndAfterAxisSizeInBytes -
-                    ((start + i) / (specIndicesSize * afterAxisSize)) * axisAndAfterAxisSizeInBytes;
+            p.srcBeforeAxisDiff[i] =
+                ((start + i + idxElPerVec) / (specIndicesSize * afterAxisSize)) * axisAndAfterAxisSizeInBytes -
+                ((start + i) / (specIndicesSize * afterAxisSize)) * axisAndAfterAxisSizeInBytes;
 
             p.afterAxIdxInBytes[i] *= dataTypeSize;
             p.afterAxPermMask[i] = idxElPerVec - afterAxisSize + i;
@@ -606,67 +617,8 @@ void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
     }
 }
 
-template <typename OUT_TYPE>
-void Gather::execWeightsCompressedU4() {
-    const int32_t* srcIndices = getSrcDataAtPortAs<const int32_t>(GATHER_INDICES);
-    const uint8_t* srcData = getSrcDataAtPortAs<const uint8_t>(GATHER_DATA);
-    OUT_TYPE* dstData = getDstDataAtPortAs<OUT_TYPE>(0);
-
-    // zp/scale
-    float const_zp = 0;
-    const auto* zp = have_zp ? getSrcDataAtPortAs<float_t>(GATHER_ZP) : &const_zp;
-    const auto* scale = getSrcDataAtPortAs<float_t>(GATHER_SCALE);
-
-    const size_t dstAfterBatchSize = betweenBatchAndAxisSize * specIdxAndAfterAxSize;
-
-    parallel_for2d(beforeBatchSize, specIndicesSize, [&](const size_t b, const size_t j) {
-        int ii = srcIndices[b * specIndicesSize + j];
-        if (ii < 0) {
-            if (reverseIndexing)
-                ii += axisDim;
-            else
-                ii = axisDim;
-        }
-        const size_t idx = ii;
-        const size_t c2 = dstAfterBatchSize * b + afterAxisSize * j;
-        if (idx < static_cast<size_t>(axisDim)) {
-            size_t c1 = srcAfterBatchSize * b + afterAxisSize * idx;
-            for (size_t i = 0; i < betweenBatchAndAxisSize; i++) {
-                size_t srcIdx = c1 + axisAndAfterAxisSize * i;
-                size_t dstIdx = c2 + specIdxAndAfterAxSize * i;
-
-                OUT_TYPE* pdst = &dstData[dstIdx];
-
-                const size_t scale_offset = srcIdx / scale_group_size;
-                auto cur_zp = have_zp ? zp[srcIdx / zp_group_size] : 0;
-
-                size_t p = srcIdx;
-                size_t dst_idx = 0;
-                for (; p < srcIdx + afterAxisSize; p++) {
-                    if (p % 2 == 0) {
-                        auto val = srcData[p >> 1];
-                        pdst[dst_idx] =
-                            static_cast<OUT_TYPE>((static_cast<float>(val & 0xF) - cur_zp) * scale[scale_offset]);
-                    } else {
-                        auto val = srcData[p >> 1];
-                        pdst[dst_idx] = static_cast<OUT_TYPE>((static_cast<float>((val >> 4) & 0xF) - cur_zp) *
-                                                              scale[scale_offset]);
-                    }
-                    dst_idx++;
-                }
-            }
-        } else {
-            for (size_t i = 0; i < betweenBatchAndAxisSize; i++) {
-                size_t dstIdx = c2 + specIdxAndAfterAxSize * i;
-                for (size_t p = 0; p < afterAxisSize; p++)
-                    dstData[dstIdx] = 0;
-            }
-        }
-    });
-}
-
-template <typename OUT_TYPE>
-void Gather::execWeightsCompressedI4() {
+template <typename OUT_TYPE, int8_t get4Bit(const uint8_t&, bool)>
+void Gather::execCompressed4Bit() {
     const int32_t* srcIndices = getSrcDataAtPortAs<const int32_t>(GATHER_INDICES);
     const uint8_t* srcData = getSrcDataAtPortAs<const uint8_t>(GATHER_DATA);
     OUT_TYPE* dstData = getDstDataAtPortAs<OUT_TYPE>(0);
@@ -701,32 +653,9 @@ void Gather::execWeightsCompressedI4() {
                 size_t p = srcIdx;
                 size_t dst_idx = 0;
 
-                auto cvt_i4_low = [](const uint8_t& val) {
-                    if (val & 0x8) {
-                        // Just fill in the high 4 bits with 1
-                        return static_cast<int8_t>((val & 0x7) | 0xf8);
-                    } else {
-                        return static_cast<int8_t>(val & 0xF);
-                    }
-                };
-                auto cvt_i4_high = [](const uint8_t& val) {
-                    if (val & 0x80) {
-                        return static_cast<int8_t>(((val >> 4) & 0x7) | 0xf8);
-                    } else {
-                        return static_cast<int8_t>((val & 0xF) >> 4);
-                    }
-                };
-
                 for (; p < srcIdx + afterAxisSize; p++) {
-                    if (p % 2 == 0) {
-                        auto val = srcData[p >> 1];
-                        pdst[dst_idx] =
-                            static_cast<OUT_TYPE>((static_cast<float>(cvt_i4_low(val)) - cur_zp) * scale[scale_offset]);
-                    } else {
-                        auto val = srcData[p >> 1];
-                        pdst[dst_idx] = static_cast<OUT_TYPE>((static_cast<float>(cvt_i4_high(val)) - cur_zp) *
-                                                              scale[scale_offset]);
-                    }
+                    auto val = srcData[p >> 1];
+                    pdst[dst_idx] = static_cast<OUT_TYPE>((get4Bit(val, p % 2) - cur_zp) * scale[scale_offset]);
                     dst_idx++;
                 }
             }
@@ -741,7 +670,7 @@ void Gather::execWeightsCompressedI4() {
 }
 
 template <typename IN_TYPE, typename OUT_TYPE>
-void Gather::execWeightsCompressed8bit() {
+void Gather::execCompressed8Bit() {
     const int32_t* srcIndices = getSrcDataAtPortAs<const int32_t>(GATHER_INDICES);
     const IN_TYPE* srcData = getSrcDataAtPortAs<const IN_TYPE>(GATHER_DATA);
     OUT_TYPE* dstData = getDstDataAtPortAs<OUT_TYPE>(0);
@@ -769,7 +698,6 @@ void Gather::execWeightsCompressed8bit() {
                 size_t srcIdx = c1 + axisAndAfterAxisSize * i;
                 size_t dstIdx = c2 + specIdxAndAfterAxSize * i;
 
-                // cpu_memcpy(&dstData[dstIdx], &srcData[srcIdx], afterAxisSize);
                 const IN_TYPE* psrc = &srcData[srcIdx];
                 OUT_TYPE* pdst = &dstData[dstIdx];
 
@@ -789,46 +717,68 @@ void Gather::execWeightsCompressed8bit() {
     });
 }
 
-void Gather::execWeightsCompressed() {
+int8_t Gather::get_i4(const uint8_t& val, bool high) {
+    if (high) {
+        if (val & 0x80) {
+            return static_cast<int8_t>(((val >> 4) & 0x7) | 0xf8);
+        } else {
+            return static_cast<int8_t>((val & 0xF) >> 4);
+        }
+    }
+    if (val & 0x8) {
+        // Just fill in the high 4 bits with 1
+        return static_cast<int8_t>((val & 0x7) | 0xf8);
+    } else {
+        return static_cast<int8_t>(val & 0xF);
+    }
+}
+int8_t Gather::get_u4(const uint8_t& val, bool high) {
+    if (high) {
+        return (val >> 4) & 0xF;
+    }
+    return val & 0xF;
+}
+
+void Gather::execCompressed() {
     auto in_precison = getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->getPrecision();
     auto out_precision = getChildEdgeAt(0)->getMemoryPtr()->getPrecision();
 
     if (out_precision == ov::element::f16) {
         switch (in_precison) {
         case ov::element::u8:
-            return execWeightsCompressed8bit<uint8_t, float16>();
+            return execCompressed8Bit<uint8_t, float16>();
         case ov::element::i8:
-            return execWeightsCompressed8bit<int8_t, float16>();
+            return execCompressed8Bit<int8_t, float16>();
         case ov::element::u4:
-            return execWeightsCompressedU4<float16>();
+            return execCompressed4Bit<float16, get_u4>();
         case ov::element::i4:
-            return execWeightsCompressedI4<float16>();
+            return execCompressed4Bit<float16, get_i4>();
         default:
             break;
         }
     } else if (out_precision == ov::element::f32) {
         switch (in_precison) {
         case ov::element::u8:
-            return execWeightsCompressed8bit<uint8_t, float>();
+            return execCompressed8Bit<uint8_t, float>();
         case ov::element::i8:
-            return execWeightsCompressed8bit<int8_t, float>();
+            return execCompressed8Bit<int8_t, float>();
         case ov::element::u4:
-            return execWeightsCompressedU4<float>();
+            return execCompressed4Bit<float, get_u4>();
         case ov::element::i4:
-            return execWeightsCompressedI4<float>();
+            return execCompressed4Bit<float, get_i4>();
         default:
             break;
         }
     } else if (out_precision == ov::element::bf16) {
         switch (in_precison) {
         case ov::element::u8:
-            return execWeightsCompressed8bit<uint8_t, bfloat16>();
+            return execCompressed8Bit<uint8_t, bfloat16>();
         case ov::element::i8:
-            return execWeightsCompressed8bit<int8_t, bfloat16>();
+            return execCompressed8Bit<int8_t, bfloat16>();
         case ov::element::u4:
-            return execWeightsCompressedU4<bfloat16>();
+            return execCompressed4Bit<bfloat16, get_u4>();
         case ov::element::i4:
-            return execWeightsCompressedI4<bfloat16>();
+            return execCompressed4Bit<bfloat16, get_i4>();
         default:
             break;
         }
@@ -939,6 +889,6 @@ void Gather::resolveInPlaceEdges(Edge::LOOK look) {
     }
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

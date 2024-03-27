@@ -59,14 +59,16 @@ private:
     bool canOptimize1DCase = false;
     void exec1DCase();
 
-    bool weightsCompressed = false;
-    void execWeightsCompressed();
-     template <typename IN_TYPE, typename OUT_TYPE>
-    void execWeightsCompressed8bit();
-    template <typename OUT_TYPE>
-    void execWeightsCompressedU4();
-    template <typename OUT_TYPE>
-    void execWeightsCompressedI4();
+    bool compressed = false;
+    void execCompressed();
+    template <typename IN_TYPE, typename OUT_TYPE>
+    void execCompressed8Bit();
+
+    static int8_t get_i4(const uint8_t& val, bool high);
+    static int8_t get_u4(const uint8_t& val, bool high);
+
+    template <typename OUT_TYPE, int8_t get4Bit(const uint8_t&, bool)>
+    void execCompressed4Bit();
 
     bool isDataShapeStat = false;
     bool isIdxShapeStat = false;
