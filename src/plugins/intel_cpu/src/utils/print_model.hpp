@@ -137,8 +137,8 @@ std::string to_code(const std::vector<T>& values, bool no_braces = false, int ma
 }
 
 template <typename T = void>
-std::string to_code(std::shared_ptr<ov::op::v0::Constant> constop) {
-    bool no_braces = (constop->get_shape().size() == 0);
+std::string to_code(std::shared_ptr<ov::op::v0::Constant> constop, bool force_braces = false) {
+    bool no_braces = (constop->get_shape().size() == 0) && (!force_braces);
     auto ele_type = constop->get_element_type();
     if (ele_type == element::Type_t::f32) {
         return to_code(constop->get_vector<float>(), no_braces);
@@ -329,7 +329,7 @@ void dump_cpp_style(std::ostream& os, const std::shared_ptr<ov::Model>& model) {
 
         if (auto constop = std::dynamic_pointer_cast<op::v0::Constant>(op)) {
             os << "auto " << name << " = makeConst(" << to_code(op->get_output_element_type(0)) << ", "
-               << to_code(op->get_output_shape(0)) << ", " << to_code(constop) << ");" << std::endl;
+               << to_code(op->get_output_shape(0)) << ", " << to_code(constop, true) << ");" << std::endl;
         } else {
             os << "auto " << name << " = makeOP<" << type << ">({";
             // input args
