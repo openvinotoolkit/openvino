@@ -24,7 +24,7 @@ layout reshape_inst::calc_output_layout(reshape_node const& node, kernel_impl_pa
         if (desc->output_partial_shape.size() != 0) {
             return layout{desc->output_partial_shape, input_layout.data_type, input_layout.format};
         } else {
-            OPENVINO_THROW("[GPU] Output shape is not provided");
+            OPENVINO_ASSERT("[GPU] Output shape is not provided");
         }
     }
 
@@ -203,7 +203,8 @@ void reshape_inst::update_output_memory() {
     if (!can_be_optimized())
         return;
 
-    if (_outputs[0] && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+    if (_outputs[0] && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()) &&
+        output_memory().get_layout() == _impl_params->get_output_layout())
         return;
 
     build_deps();  // reshape need deps
