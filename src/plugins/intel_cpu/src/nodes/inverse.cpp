@@ -53,7 +53,7 @@ void Inverse::getSupportedDescriptors() {
 
 void Inverse::initSupportedPrimitiveDescriptors() {
     m_input_precision = getOriginalInputPrecisionAtPort(INPUT_PORT);
-    if (!one_of(m_input_precision, ov::element::f32)) {
+    if (m_input_precision != ov::element::f32) {
         m_input_precision = ov::element::f32;
     }
 

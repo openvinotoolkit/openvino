@@ -77,7 +77,7 @@ This operation uses LU decomposition with partial pivoting to compute the invers
 
 Algorithm pseudocode:
 
-1. Start with original matrix :math:`A`.
+1. Start with original matrix :math:`A`. If the data type of :math:`A` is not f32, convert them to f32 to avoid accumulating rounding errors.
 2. Copy initial matrix into matrix :math:`U`. Initialize matrix :math:`L` to be the Identity matrix (zero matrix with all diagonal elements set to 1).
 3. Perform LU decomposition with partial pivoting.
 
@@ -100,7 +100,7 @@ Algorithm pseudocode:
    * Account for each row swap in the LU decomposition step - for every row swap, swap the sign of the determinant.
    * Multiply all elements of :math:`A^{-1}` by the determinant to obtain the adjugate matrix.
 
-6. Return the computed matrix.
+6. Return the computed matrix. Convert it back from f32 to its original element type.
 
 **Attribute**:
 
@@ -126,7 +126,7 @@ Algorithm pseudocode:
 
 **Types**
 
-* **T**: any supported floating-point type.
+* **T**: any supported floating-point type. Any type other than f32 will be converted to f32 before executing this op, and then converted back to the original input type to avoid accumulating rounding errors.
 
 *Example 1: 2D input matrix.*
 

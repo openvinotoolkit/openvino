@@ -21,8 +21,14 @@ ov::intel_cpu::ConvertInverseInputDtype::ConvertInverseInputDtype() {
         }
 
         auto data_node = inverse->input_value(0);
+        const auto input_element_type = data_node.get_element_type();
 
-        if (data_node.get_element_type() == ov::element::f32) {
+        if (input_element_type == ov::element::f32) {
+            return false;
+        }
+
+        // No support for integer types for Inverse and f64 is not supported in CPU plugin
+        if (input_element_type.is_integral() || input_element_type == ov::element::f64) {
             return false;
         }
 
