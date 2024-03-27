@@ -5,7 +5,7 @@
 
 #include "memory_desc/cpu_memory_desc.h"
 #include "arm_compute/core/Types.h"
-// #include "openvino/core/type/element_type.hpp"
+
 namespace ov {
 namespace intel_cpu {
 
@@ -108,6 +108,14 @@ inline arm_compute::DataLayout getAclDataLayoutByMemoryDesc(MemoryDescCPtr desc)
     }
     return arm_compute::DataLayout::UNKNOWN;
 }
+
+/**
+* @brief run thread-safe configure for ComputeLibrary configuration function.
+* Arm Compute Library 23.08 does not officially support thread-safe configure() calls.
+* For example, calling configure for Eltwise operations from multiple streams leads to a data race and seg fault.
+* @param config ComputeLibrary configuration function
+*/
+void configureThreadSafe(const std::function<void(void)>& config);
 
 }   // namespace intel_cpu
 }   // namespace ov

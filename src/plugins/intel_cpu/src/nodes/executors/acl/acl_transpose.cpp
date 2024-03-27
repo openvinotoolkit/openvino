@@ -51,7 +51,7 @@ bool ov::intel_cpu::ACLTransposeExecutor::init(const ov::intel_cpu::TransposePar
     dstTensor.allocator()->init(dstTensorInfo);
 
     acl_permute = std::make_unique<arm_compute::NEPermute>();
-    acl_permute->configure(&srcTensor, &dstTensor, order);
+    configureThreadSafe([&] { acl_permute->configure(&srcTensor, &dstTensor, order); });
     return true;
 }
 

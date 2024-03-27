@@ -88,7 +88,7 @@ bool AclReduceExecutor::init(const ReduceAttrs& reduceAttrs,
         default:
             OPENVINO_THROW("Unsupported operation type for ACL Reduce executor: ", static_cast<int>(reduceAttrs.operation));
     }
-    ifunc = exec_func();
+    configureThreadSafe([&] { ifunc = exec_func(); });
     return true;
 }
 
