@@ -625,7 +625,6 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                              const ov::intel_cpu::PlainTensor& past_k_scale_zp,
                              const ov::intel_cpu::PlainTensor& past_v_scale_zp,
                              ov::intel_cpu::PlainTensor& head_sum) {
-    PROFILE(_attn, "t1_qk");
     ov::intel_cpu::PlainTensor causal_mask;
     bool select_nfltmax_at_0 = false;
     auto B = query.size(0);
@@ -641,11 +640,15 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
     if (d_scale == 0.0f)
         d_scale = 1.0f / sqrt(S);
     auto nthr = parallel_get_max_threads();
-    size_t kv_len;
-    if (is_pagedattn)
-        kv_len = beams.size(1);
-    else
-        kv_len = present_key.size(2);
+    // max kv len
+    auto kv_len = beams.size(1);
+    char buf[256];
+    size_t real_len = 0;
+    for (size_t b = 0; b < B; b++)
+        real_len += static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
+    snprintf(buf, sizeof(buf), "t1_BL%ld,%ld,MC%.2f,%.2f", B, real_len, h_group_num * real_len * S * (32 * 2 * 2.0f) / 260000000.0f,
+        H * real_len * S * 2.0f * 32 / 16 / 2 / 60 / 1800000.0f);
+    PROFILE(_attn, buf);
 
     // use per-token kernel, for each k,v token
     //  attn mask is a matrix of q_len(kv_len)

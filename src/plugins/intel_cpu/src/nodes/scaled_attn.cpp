@@ -926,6 +926,10 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         else
             use_one_token = L1 == 1 || (fuse_concat && L0 > 0);
         if (!use_one_token) {
+            char buf[256];
+            snprintf(buf, sizeof(buf), "first_BL%ld,%ld", B, L1);
+            _attn = ov::intel_cpu::profilerManagerInstance.startProfile(buf);
+
             // multi-token version
             kernel(strm, q_input, k_input, v_input, {}, use_attn_mask ? attn_mask : PlainTensor(),
                    output_emb, has_out_transpose, auto_causal, scale_input, sliding_window);
