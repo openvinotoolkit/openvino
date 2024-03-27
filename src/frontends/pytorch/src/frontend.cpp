@@ -175,7 +175,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     ov::pass::Manager manager;
 
     manager.register_pass<ov::frontend::pytorch::pass::GPTQDecompressionReplacer>();
-    manager.register_pass<ov::frontend::pytorch::pass::GPTQMultPatternReplacer>()
+    manager.register_pass<ov::frontend::pytorch::pass::GPTQMultPatternReplacer>();
 
     // the following 2 transformations are needed for keypoint detectron2 models to work.
     // AtenIndexToSelect will be called twice
