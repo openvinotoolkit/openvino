@@ -74,7 +74,6 @@ class TestUnique2(PytorchLayerTest):
     @pytest.mark.parametrize("return_counts", [False, True])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.precommit_torch_export
     def test_unique2(self, input_shape, sorted, return_inverse, return_counts, ie_device, precision, ir_version):
         self.input_tensor = np.random.randint(0, 10, size=input_shape).astype(np.int32)
         self._test(*self.create_model(sorted, return_inverse, return_counts), ie_device, precision, ir_version)

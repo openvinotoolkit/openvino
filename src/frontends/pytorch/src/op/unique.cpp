@@ -39,6 +39,9 @@ OutputVector translate_unique2(const NodeContext& context) {
     }
 
     OutputVector result;
+    // Since PyTorch 2.2.0 the `Unique` op always returns sorted values, regardless of the parameter `sorted`.
+    // Reference: pytorch/pytorch#105742, pytorch/pytorch#113420,
+    // https://pytorch.org/docs/1.13/generated/torch.unique.html#torch.unique
     auto outputs = context.mark_node(std::make_shared<v10::Unique>(x, true));
     auto unique_values = outputs->output(0);
     result.push_back(unique_values);
