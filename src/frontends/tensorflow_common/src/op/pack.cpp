@@ -43,7 +43,6 @@ OutputVector translate_pack_op(const NodeContext& node) {
     }
 
     auto pack = make_shared<v0::Concat>(concat_inputs, axis);
-    
     set_node_name(node.get_name(), pack);
     if (complex_type_mark) {
         auto complex_result = make_shared<ComplexTypeMark>(pack, complex_type_mark->get_complex_part_type());
