@@ -52,7 +52,7 @@ private:
     ov::AnyMap m_attributes_map;
 };
 
-bool inputs_from_same_source_or_equal_constants(const Node* lhs, const Node* rhs) {
+bool inputs_from_same_source_or_equal_constants(const std::shared_ptr<Node>& lhs, const std::shared_ptr<Node>& rhs) {
     if (lhs->get_input_size() != rhs->get_input_size())
         return false;
     size_t input_size = lhs->get_input_size();
@@ -74,7 +74,7 @@ bool inputs_from_same_source_or_equal_constants(const Node* lhs, const Node* rhs
     return true;
 }
 
-bool nodes_are_equal(Node* lhs, Node* rhs) {
+bool nodes_are_equal(const std::shared_ptr<Node>& lhs, const std::shared_ptr<Node>& rhs) {
     // making sure that nodes are of the same type
     if (lhs->get_type_info() != rhs->get_type_info())
         return false;
@@ -116,9 +116,9 @@ bool shared_node_optimization(const shared_ptr<Model>& model) {
             const auto& target_inputs = output.get_target_inputs();
             if (target_inputs.size() <= 1)
                 continue;  // nothing to optimize
-            unordered_map<Node::type_info_t, vector<Node*>> type_to_node;
+            unordered_map<Node::type_info_t, vector<std::shared_ptr<Node>>> type_to_node;
             for (const auto& input : target_inputs)
-                if (auto node = input.get_node())
+                if (auto node = input.get_node()->shared_from_this())
                     type_to_node[node->get_type_info()].push_back(node);
             for (auto& item : type_to_node) {
                 auto& shared_nodes = item.second;
