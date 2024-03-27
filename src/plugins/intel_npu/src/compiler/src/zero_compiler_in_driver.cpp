@@ -290,7 +290,7 @@ LevelZeroCompilerInDriver<TableExtension>::~LevelZeroCompilerInDriver() {
     _logger.debug("LevelZeroCompilerInDriver obj destroyed");
 }
 
-size_t getFileSize(std::istream& strm) {
+static size_t getFileSize(std::istream& strm) {
     const size_t streamStart = strm.tellg();
     strm.seekg(0, std::ios_base::end);
     const size_t streamEnd = strm.tellg();
@@ -947,7 +947,7 @@ void LevelZeroCompilerInDriver<TableExtension>::getNodeOrStateDescriptorLegacy(
  * @param names The I/O identifiers shall be stored here in the order found within the compiled model.
  * @param metadata The Level Zero structure fomr which the descriptors will be extracted.
  */
-void getNodeDescriptor(IONodeDescriptorMap& nodeDescriptors,
+static void getNodeDescriptor(IONodeDescriptorMap& nodeDescriptors,
                        std::vector<std::string>& names,
                        ze_graph_argument_metadata_t& metadata) {
     const ov::element::Type_t precision = toOVElementType(metadata.data_type);
@@ -967,7 +967,7 @@ void getNodeDescriptor(IONodeDescriptorMap& nodeDescriptors,
         {legacyName, metadata.friendly_name, std::move(outputTensorNames), precision, shape, shape};
 }
 
-void getNodeDescriptor(IONodeDescriptorMap& nodeDescriptors,
+static void getNodeDescriptor(IONodeDescriptorMap& nodeDescriptors,
                        std::vector<std::string>& names,
                        ze_graph_argument_properties_3_t& arg) {
     ov::element::Type_t precision = toOVElementType(arg.devicePrecision);
