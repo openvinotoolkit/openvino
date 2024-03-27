@@ -251,7 +251,7 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
 
                     const auto upper_loop_id = upper_loop_ids[loop_idx];
                     OPENVINO_ASSERT(current_loop_id != upper_loop_id,
-                                    "Loops cannot have parents of entry points with the same identifier");
+                                    "Loops cannot have parents of entry points with the same identifier (", upper_loop_id, ")");
                     if (fuse_upper_into_current(linear_ir, loop_manager, entry_point.expr_port, current_loop_id, upper_loop_id,
                                                 current_loop_begin_pos, current_loop_end_pos)) {
                         was_fusion_up = true;

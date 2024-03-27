@@ -133,6 +133,10 @@ LinearIR::constExprIt InsertBuffers::insertion_position(const LinearIR& linear_i
         const auto down_loop_id = down_loops[loop_idx];
         return loop_manager->get_loop_bounds(linear_ir, down_loop_id).first;
     }
+    // If upper and lower expressions are in the same loop, we should insert Buffer between them
+    if (loop_idx == up_loop_count && loop_idx == down_loop_count) {
+        return linear_ir.find(down_expr);
+    }
     OPENVINO_THROW("Incorrect configuration for Buffer insertion!");
 }
 
