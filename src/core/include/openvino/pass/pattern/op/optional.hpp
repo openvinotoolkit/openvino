@@ -18,8 +18,7 @@ namespace op {
 /// Otherwise fails.
 /// Important notes:
 ///   1. a graph can include only one optional op in the end of graph vs pattern.
-///   2. Operation types should have the same input number
-///   3. Pattern can not be created with empty `inputs`
+///   2. Operation types should have the same input number with optional inputs
 //
 //  +------+   +------+                       +------+  +------+      +------+     +------+
 //  | op_0 |   | op_1 |                       | op_0 |  | op_1 |      | op_0 |     | op_1 |
@@ -84,27 +83,20 @@ void collect_type_info(std::vector<DiscreteTypeInfo>& type_info_vec) {
 }
 
 template <class... NodeTypes>
-std::shared_ptr<Node> optional(const OutputVector& inputs, const pattern::op::ValuePredicate& pred) {
+std::shared_ptr<Node> optional(const OutputVector& inputs, const pattern::op::ValuePredicate& pred = nullptr) {
     std::vector<DiscreteTypeInfo> optional_type_info_vec;
     collect_type_info<NodeTypes...>(optional_type_info_vec);
     return std::make_shared<op::Optional>(optional_type_info_vec, inputs, pred);
 }
 
 template <class... NodeTypes>
-std::shared_ptr<Node> optional(const OutputVector& inputs) {
-    return optional<NodeTypes...>(inputs, [](const Output<Node>& output) {
-        return true;
-    });
+std::shared_ptr<Node> optional(const Output<Node>& input, const pattern::op::ValuePredicate& pred = nullptr) {
+    return optional<NodeTypes...>(OutputVector{input}, pred);
 }
 
 template <class... NodeTypes>
-std::shared_ptr<Node> optional(const Output<Node>& input) {
-    return optional<NodeTypes...>(OutputVector{input});
-}
-
-template <class... NodeTypes>
-std::shared_ptr<Node> optional() {
-    return optional<NodeTypes...>(OutputVector{});
+std::shared_ptr<Node> optional(const pattern::op::ValuePredicate& pred = nullptr) {
+    return optional<NodeTypes...>(OutputVector{}, pred);
 }
 
 }  // namespace pattern

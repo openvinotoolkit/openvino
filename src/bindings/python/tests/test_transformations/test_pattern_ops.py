@@ -86,68 +86,64 @@ def test_any_input_predicate():
     assert not matcher.match(slope)
 
 
-def test_optional_single_in_node():
+def test_optional_full_match():
+    model_input = ops.parameter(PartialShape.dynamic())
+    model_abs = ops.abs(model_input)
+    model_relu = ops.relu(model_abs.output(0))
+    
+    pattern_abs = Optional(["opset13.Abs"])
+    pattern_relu = ops.relu(pattern_abs.output(0))
+
+    matcher = Matcher(pattern_relu, "FindRelu")
+    assert matcher.match(model_relu)
+
+
+def test_optional_half_match():
+    model_input = ops.parameter(PartialShape.dynamic())
+    model_relu = ops.relu(model_input)
+    model_relu1 = ops.relu(model_relu.output(0))
+
+    pattern_abs = Optional(["opset13.Abs"])
+    pattern_relu = ops.relu(pattern_abs.output(0))
+
+    matcher = Matcher(pattern_relu, "FindRelu")
+    assert not matcher.match(model_relu1)
+
+
+def test_optional_one_node():
     model_input = ops.parameter(PartialShape.dynamic())
     model_relu = ops.relu(model_input)
     model_abs = ops.abs(model_input)
 
-    pattern_input = ops.parameter(PartialShape.dynamic())
+    assert Matcher(Optional(["opset13.Relu"]), "OneNodeTest").match(model_relu)
+    assert not Matcher(Optional(["opset13.Abs"]), "OneNodeTest").match(model_relu)
 
-    assert Matcher(Optional(["opset13.Relu", "opset13.Abs"], pattern_input), "single_in_test").match(model_relu)
-    assert Matcher(Optional(["opset13.Relu", "opset13.Abs"], pattern_input, lambda x: True), "single_in_test").match(model_relu)
-    assert not Matcher(Optional(["opset13.Relu", "opset13.Abs"], pattern_input, lambda x: False), "single_in_test").match(model_relu)
-    assert Matcher(Optional(["opset13.Relu", "opset13.Abs"], pattern_input), "single_in_test").match(model_input)
-    assert Matcher(Optional(["opset13.Relu", "opset13.Abs"], pattern_input, consumers_count(1)), "single_in_test").match(model_input)
-    assert Matcher(Optional(["opset13.Relu", "opset13.Abs"], pattern_input), "single_in_test").match(model_abs)
-    assert Matcher(Optional(["opset13.Relu", "opset13.Abs"], pattern_input), "single_in_test").match(model_input)
-    assert not Matcher(Optional(["opset13.Relu", "opset13.Abs"], model_abs), "single_in_test").match(model_relu)
-    assert not Matcher(Optional(["opset13.Relu", "opset13.Abs"], model_relu), "single_in_test").match(model_abs)
+    assert not Matcher(Optional(["opset13.Relu"]), "OneNodeTest").match(model_abs)
 
-# todo
-def test_optional_nodes_without_inputs_matching():
+    assert Matcher(Optional(["opset13.Parameter"]), "OneNodeTest").match(ops.parameter(PartialShape.dynamic()))
+    assert not Matcher(Optional(["opset13.Relu"]), "OneNodeTest").match(ops.parameter(PartialShape.dynamic()))
+
+
+def test_optional_predicate():
     model_input = ops.parameter(PartialShape.dynamic())
-    model_relu = ops.relu(model_input)
-    model_abs = ops.abs(model_input)
+    model_add = ops.add(model_input, model_input)
+    model_relu = ops.relu(model_add.output(0))
+    model_abs = ops.abs(model_add.output(0))
 
-    pattern_input = ops.parameter(PartialShape.dynamic())
-
-    assert Matcher(Optional(["opset13.Relu", "opset13.Abs"], pattern_input), "single_in_test").match(model_relu)
-    assert Matcher(Optional(["opset13.Relu", "opset13.Abs"], pattern_input, lambda x: True), "single_in_test").match(model_relu)
-    assert not Matcher(Optional(["opset13.Relu", "opset13.Abs"], pattern_input, lambda x: False), "single_in_test").match(model_relu)
-    assert Matcher(Optional(["opset13.Relu", "opset13.Abs"], pattern_input), "single_in_test").match(model_input)
-    assert Matcher(Optional(["opset13.Relu", "opset13.Abs"], pattern_input, consumers_count(1)), "single_in_test").match(model_input)
-    assert Matcher(Optional(["opset13.Relu", "opset13.Abs"], pattern_input), "single_in_test").match(model_abs)
-    assert Matcher(Optional(["opset13.Relu", "opset13.Abs"], pattern_input), "single_in_test").match(model_input)
-    assert not Matcher(Optional(["opset13.Relu", "opset13.Abs"], model_abs), "single_in_test").match(model_relu)
-    assert not Matcher(Optional(["opset13.Relu", "opset13.Abs"], model_relu), "single_in_test").match(model_abs)
+    assert Matcher(Optional(["opset13.Relu"], lambda x: True), "TestInputPredicate").match(model_relu)
+    assert not Matcher(Optional(["opset13.Relu"], lambda x: False), "TestInputPredicate").match(model_relu)
+    assert Matcher(Optional(["opset13.Add"], consumers_count(2)), "FindPredicate").match(model_add)
+    assert not Matcher(Optional(["opset13.Add"], consumers_count(1)), "FindPredicate").match(model_add)
+    assert Matcher(Optional(["opset13.Abs", "opset13.Result"], consumers_count(0)), "FindPredicate").match(model_abs)
 
 
-def test_optional_multi_in_cumulative_node():
-    model_input_0 = ops.parameter(PartialShape.dynamic())
-    model_relu = ops.relu(model_input_0)
-    model_input_1 = ops.parameter(PartialShape.dynamic())
-    model_add = ops.add(model_relu, model_input_1)
+def test_optional_with_input():
+    model_input = ops.parameter(PartialShape.dynamic())
+    model_add = ops.add(model_input, model_input)
+    model_relu = ops.relu(model_add.output(0))
 
-    pattern_input_0 = ops.parameter(PartialShape.dynamic())
-    pattern_relu = ops.relu(pattern_input_0)
-    pattern_input_1 = ops.parameter(PartialShape.dynamic())
-
-    assert Matcher(Optional(["opset13.Add"], [pattern_relu, pattern_input_1]), "multi_in_cumulative_test").match(model_add)
-    assert Matcher(Optional(["opset13.Add"], [pattern_input_1, pattern_relu]), "multi_in_cumulative_test").match(model_add)
-    assert Matcher(Optional(["opset13.Add"], [pattern_relu, pattern_input_1]), "multi_in_cumulative_test").match(model_input_0)
-    assert Matcher(Optional(["opset13.Add"], [pattern_relu, pattern_input_1]), "multi_in_cumulative_test").match(model_input_1)
-
-
-def test_optional_multi_in_node():
-    model_input_0 = ops.parameter(PartialShape.dynamic())
-    model_relu = ops.relu(model_input_0)
-    model_input_1 = ops.parameter(PartialShape.dynamic())
-    model_subtract = ops.subtract(model_relu, model_input_1)
-
-    assert Matcher(Optional(["opset13.Subtract"], [model_relu, model_input_1]), "multi_in_node_test").match(model_subtract)
-    assert Matcher(Optional(["opset13.Subtract"], [model_relu, model_input_1]), "multi_in_node_test").match(model_relu)
-    assert Matcher(Optional(["opset13.Subtract"], [model_relu, model_input_1]), "multi_in_node_test").match(model_input_1)
-    assert not Matcher(Optional(["opset13.Subtract"], [model_input_1, model_relu]), "multi_in_node_test").match(model_subtract)
+    assert Matcher(Optional(["opset13.Relu"], model_add.output(0)), "TestInput").match(model_relu)
+    assert not Matcher(Optional(["opset13.Cos"], model_add.output(0)), "TestInput").match(model_relu)
 
 
 def test_optional_with_input_and_predicate():

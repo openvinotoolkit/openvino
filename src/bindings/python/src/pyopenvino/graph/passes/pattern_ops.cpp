@@ -515,7 +515,7 @@ static void reg_pattern_optional(py::module m) {
         :type input: openvino.runtime.Output
     )");
 
-    optional_type.def(py::init([](const std::vector<std::string>& type_names, const ov::Output<ov::Node>& input) {
+    optional_type.def(py::init([](const std::vector<std::string>& type_names, const std::shared_ptr<ov::Node>& input) {
                           return std::make_shared<ov::pass::pattern::op::Optional>(get_types(type_names),
                                                                                    ov::OutputVector{input},
                                                                                    nullptr);
@@ -657,7 +657,7 @@ static void reg_pattern_optional(py::module m) {
                                                                      pred);
         }),
         py::arg("type_names"),
-        py::arg("input"),
+        py::arg("inputs"),
         py::arg("predicate"),
         R"(
         Create Optional with the given node type, input node and predicate.
