@@ -254,5 +254,5 @@ def test_compiled_model_from_buffer_in_memory(request, tmp_path, device):
     with open(xml_path, "r") as f:
         xml = f.read()
 
-    compiled = core.compile_model(model=xml, weight=weights, device_name=device)
-    compiled([np.random.normal(size=list(input.shape)).astype(dtype=input.get_element_type().to_dtype()) for input in compiled.inputs])
+    compiled = core.compile_model(model=xml, weights=weights, device_name=device)
+    _ = compiled([np.random.normal(size=list(input.shape)).astype(dtype=input.get_element_type().to_dtype()) for input in compiled.inputs])

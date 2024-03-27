@@ -223,11 +223,14 @@ void regclass_Core(py::module m) {
                 info = py::buffer(p).request();
             }
             size_t bin_size = static_cast<size_t>(info.size);
-            ov::Tensor tensor(ov::element::Type_t::u8, {bin_size});
-            // if weights are not empty
+            ov::Tensor tensor;
             if (bin_size) {
-                const uint8_t* bin = reinterpret_cast<const uint8_t*>(info.ptr);
-                std::memcpy(tensor.data(), bin, bin_size);
+                // If weights are not empty:
+                tensor = ov::Tensor(ov::element::Type_t::u8, {bin_size}, info.ptr);
+            }
+            else {
+                // If weights are empty:
+                tensor = ov::Tensor(ov::element::Type_t::u8, {bin_size});
             }
             auto _properties = Common::utils::properties_to_any_map(properties);
             py::gil_scoped_release release;
