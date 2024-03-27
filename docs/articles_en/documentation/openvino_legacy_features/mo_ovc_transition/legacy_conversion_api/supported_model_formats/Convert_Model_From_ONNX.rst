@@ -4,7 +4,7 @@
 =============================================
 
 .. meta::
-   :description: Learn how to convert a model from the 
+   :description: Learn how to convert a model from the
                  ONNX format to the OpenVINO Intermediate Representation.
 
 
@@ -12,7 +12,7 @@
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Converting an ONNX Model <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_ONNX>` article. 
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Converting an ONNX Model <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_ONNX>` article.
 
 
 .. note:: ONNX models are supported via FrontEnd API. You may skip conversion to IR and read models directly by OpenVINO runtime API. Refer to the :doc:`inference example <openvino_docs_OV_UG_Integrate_OV_with_your_application>` for more details. Using ``convert_model`` is still necessary in more complex cases, such as new custom inputs/outputs in model pruning, adding pre-processing, or using Python conversion extensions.
@@ -31,6 +31,10 @@ The model conversion process assumes you have an ONNX model that was directly do
 
       .. code-block:: py
          :force:
+
+         import openvino
+         from openvino.tools.mo import convert_model
+         core = openvino.Core()
 
          ov_model = convert_model("<INPUT_MODEL>.onnx")
          compiled_model = core.compile_model(ov_model, "AUTO")
