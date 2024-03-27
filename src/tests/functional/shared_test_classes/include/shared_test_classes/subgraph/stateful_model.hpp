@@ -578,8 +578,8 @@ protected:
     };
 
     struct StatesValues {
-        State outer_state;
-        State inner_state;
+        State variable_1;
+        State variable_2;
     };
 
     // Model Template with Loop operation inside
@@ -687,21 +687,25 @@ protected:
 
     void reset_state() override {
         inferRequest.reset_state();
-        m_state_values.outer_state.reset = true;
-        m_state_values.inner_state.reset = true;
+        m_state_values.variable_1.reset = true;
+        m_state_values.variable_2.reset = true;
+    }
+
+    virtual void initialize_state_values() {
+        // init ref values for States
+        if (m_state_values.variable_2.reset) {
+            m_state_values.variable_2.init_value = std::vector<float>{0.f};
+            m_state_values.variable_2.current_value = std::vector<float>{0.f};
+        }
+
+        if (m_state_values.variable_1.reset) {
+            m_state_values.variable_1.init_value = std::vector<float>{2.f};
+            m_state_values.variable_1.current_value = std::vector<float>{0.f};
+        }
     }
 
     void run_test() {
-        // init ref values for States
-        if (m_state_values.inner_state.reset) {
-            m_state_values.inner_state.init_value = std::vector<float>{0.f};
-            m_state_values.inner_state.current_value = std::vector<float>{0.f};
-        }
-
-        if (m_state_values.outer_state.reset) {
-            m_state_values.outer_state.init_value = std::vector<float>{2.f};
-            m_state_values.outer_state.current_value = std::vector<float>{0.f};
-        }
+        initialize_state_values();
 
         auto model_states = inferRequest.query_state();
         ASSERT_FALSE(model_states.empty());
@@ -741,19 +745,19 @@ protected:
                 name_to_state[state.get_name()] = state;
             }
 
-            const auto& actual_inner_state = name_to_state.at("variable").get_state();
-            const auto& actual_outer_state = name_to_state.at("variable_2").get_state();
+            const auto& actual_state_2 = name_to_state.at("variable").get_state();
+            const auto& actual_state_1 = name_to_state.at("variable_2").get_state();
 
-            EXPECT_EQ(m_state_values.inner_state.current_value.size(), actual_inner_state.get_size());
-            EXPECT_EQ(m_state_values.outer_state.current_value.size(), actual_outer_state.get_size());
+            EXPECT_EQ(m_state_values.variable_2.current_value.size(), actual_state_2.get_size());
+            EXPECT_EQ(m_state_values.variable_1.current_value.size(), actual_state_1.get_size());
 
-            float_compare(m_state_values.inner_state.current_value.data(),
-                          actual_inner_state.data<ov::element_type_traits<testPrc>::value_type>(),
-                          m_state_values.inner_state.current_value.size());
+            float_compare(m_state_values.variable_2.current_value.data(),
+                          actual_state_2.data<ov::element_type_traits<testPrc>::value_type>(),
+                          m_state_values.variable_2.current_value.size());
 
-            float_compare(m_state_values.outer_state.current_value.data(),
-                          actual_outer_state.data<ov::element_type_traits<testPrc>::value_type>(),
-                          m_state_values.outer_state.current_value.size());
+            float_compare(m_state_values.variable_1.current_value.data(),
+                          actual_state_1.data<ov::element_type_traits<testPrc>::value_type>(),
+                          m_state_values.variable_1.current_value.size());
 
             ASSERT_EQ(ref_result.size(), outputTensor1.get_shape()[0]);
 
@@ -863,23 +867,23 @@ public:
     std::vector<float> calc_refs(const std::vector<float>& param_values, StatesValues& states) const override {
         auto num_elements = param_values.size();
         std::vector<float> result(num_elements);
-        auto& outer_state = states.outer_state;
-        auto& inner_state = states.inner_state;
+        auto& state_1 = states.variable_1;
+        auto& state_2 = states.variable_2;
 
         for (int num_iter = 0; num_iter < m_loop_iter; ++num_iter) {
             for (size_t i = 0; i < num_elements; ++i) {
-                auto outer_state_val = outer_state.reset ? outer_state.init_value[i] : outer_state.current_value[i];
-                auto inner_state_val = inner_state.reset ? inner_state.init_value[i] : inner_state.current_value[i];
-                result[i] = param_values[i] + outer_state_val + inner_state_val;
-                inner_state.current_value[i] = result[i];
-                inner_state.reset = false;
+                auto state_1_val = state_1.reset ? state_1.init_value[i] : state_1.current_value[i];
+                auto state_2_val = state_2.reset ? state_2.init_value[i] : state_2.current_value[i];
+                result[i] = param_values[i] + state_1_val + state_2_val;
+                state_2.current_value[i] = result[i];
+                state_2.reset = false;
             }
         }
 
         for (size_t i = 0; i < num_elements; ++i) {
-            outer_state.current_value[i] = result[i] + 1;
+            state_1.current_value[i] = result[i] + 1;
         }
-        outer_state.reset = false;
+        state_1.reset = false;
         return result;
     }
 };
@@ -990,24 +994,24 @@ public:
     std::vector<float> calc_refs(const std::vector<float>& param_values, StatesValues& states) const override {
         auto num_elements = param_values.size();
         std::vector<float> result(num_elements);
-        auto& outer_state = states.outer_state;
-        auto& inner_state = states.inner_state;
+        auto& state_1 = states.variable_1;
+        auto& state_2 = states.variable_2;
 
-        auto invariant_outer_state = outer_state.current_value;
-        auto invariant_inner_state = inner_state.current_value;
+        auto invariant_state_1 = state_1.current_value;
+        auto invariant_state_2 = state_2.current_value;
         for (int num_iter = 0; num_iter < m_loop_iter; ++num_iter) {
             for (size_t i = 0; i < num_elements; ++i) {
-                auto outer_state_val = outer_state.reset ? outer_state.init_value[i] : invariant_outer_state[i];
-                auto inner_state_val = inner_state.reset ? inner_state.init_value[i] : invariant_inner_state[i];
-                result[i] = param_values[i] + outer_state_val + inner_state_val;
-                inner_state.current_value[i] = result[i];
-                inner_state.reset = false;
+                auto state_1_val = state_1.reset ? state_1.init_value[i] : invariant_state_1[i];
+                auto state_2_val = state_2.reset ? state_2.init_value[i] : invariant_state_2[i];
+                result[i] = param_values[i] + state_1_val + state_2_val;
+                state_2.current_value[i] = result[i];
+                state_2.reset = false;
             }
         }
 
         for (size_t i = 0; i < num_elements; ++i) {
-            outer_state.current_value[i] = result[i] + 1;
-            outer_state.reset = false;
+            state_1.current_value[i] = result[i] + 1;
+            state_1.reset = false;
         }
         return result;
     }
@@ -1065,6 +1069,18 @@ TEST_P(StatefulModelMixedStatesInLoop, smoke_Run_StatefulModelMixedStates) {
 
 class StatefulModelMultipleReadValue : public StatefulModelTemplate  {
 public:
+    void initialize_state_values() override {
+        if (m_state_values.variable_2.reset) {
+            m_state_values.variable_2.init_value = std::vector<float>{1.f};
+            m_state_values.variable_2.current_value = std::vector<float>{0.f};
+        }
+
+        if (m_state_values.variable_1.reset) {
+            m_state_values.variable_1.init_value = std::vector<float>{2.f};
+            m_state_values.variable_1.current_value = std::vector<float>{0.f};
+        }
+    }
+
     void SetUp() override {
         targetDevice = GetParam();
         ov::element::Type netPrc = testPrc;
@@ -1082,13 +1098,16 @@ public:
         auto variable_2 = std::make_shared<ov::op::util::Variable>(
                 ov::op::util::VariableInfo{inpShape, netPrc, variable_name_2});
 
-        auto read_value_1 = std::make_shared<ov::op::v6::ReadValue>(variable);
+        auto const_1 = std::make_shared<ov::op::v0::Constant>(netPrc, inpShape, 1);
+        auto read_value_1 = std::make_shared<ov::op::v6::ReadValue>(const_1, variable);
         auto add_1 = std::make_shared<ov::op::v1::Add>(param, read_value_1);
 
-        auto read_value_2 = std::make_shared<ov::op::v6::ReadValue>(variable_2);
+        auto const_2 = std::make_shared<ov::op::v0::Constant>(netPrc, inpShape, 2);
+        auto read_value_2 = std::make_shared<ov::op::v6::ReadValue>(const_2, variable_2);
         auto add_2 = std::make_shared<ov::op::v1::Add>(add_1, read_value_2);
 
-        auto read_value_1_2nd_instance = std::make_shared<ov::op::v6::ReadValue>(variable);
+        auto const_3 = std::make_shared<ov::op::v0::Constant>(netPrc, inpShape, 3);
+        auto read_value_1_2nd_instance = std::make_shared<ov::op::v6::ReadValue>(const_3, variable);
         auto add_3 = std::make_shared<ov::op::v1::Add>(add_2, read_value_1_2nd_instance);
 
         auto result = std::make_shared<ov::op::v0::Result>(add_3);
@@ -1100,18 +1119,20 @@ public:
     std::vector<float> calc_refs(const std::vector<float>& param_values, StatesValues& states) const override {
         auto num_elements = param_values.size();
         std::vector<float> result(num_elements);
-        auto& outer_state = states.outer_state;
-        auto& inner_state = states.inner_state;
+        auto& state_1 = states.variable_1;
+        auto& state_2 = states.variable_2;
 
         for (size_t i = 0; i < num_elements; ++i) {
-            auto outer_state_val = outer_state.reset ? outer_state.init_value[i] : outer_state.current_value[i];
-            auto inner_state_val = inner_state.reset ? inner_state.init_value[i] : inner_state.current_value[i];
+            auto state_1_val = state_1.reset ? state_1.init_value[i] : state_1.current_value[i];
+            auto state_2_val = state_2.reset ? state_2.init_value[i] : state_2.current_value[i];
 
-            result[i] = outer_state_val + inner_state_val + outer_state_val;
+            // the test specific
+            auto state_1_val_different_init = state_1.reset ? 3 : state_1.current_value[i];
+            result[i] = param_values[i] + state_1_val + state_2_val + state_1_val_different_init;
         }
 
-        outer_state.reset = false;
-        inner_state.reset = false;
+        state_1.reset = false;
+        state_2.reset = false;
         return result;
     }
 };
@@ -1215,15 +1236,18 @@ public:
         auto variable_2 = std::make_shared<ov::op::util::Variable>(
                 ov::op::util::VariableInfo{inpShape, netPrc, variable_name_2});
 
-        auto read_value_1 = std::make_shared<ov::op::v6::ReadValue>(variable);
+        auto const_1 = std::make_shared<ov::op::v0::Constant>(netPrc, inpShape, 1);
+        auto read_value_1 = std::make_shared<ov::op::v6::ReadValue>(const_1, variable);
         auto add_1 = std::make_shared<ov::op::v1::Add>(param, read_value_1);
         auto assign_for_2nd = std::make_shared<ov::op::v6::Assign>(add_1, variable_2);
 
-        auto read_value_2 = std::make_shared<ov::op::v6::ReadValue>(variable_2);
+        auto const_2 = std::make_shared<ov::op::v0::Constant>(netPrc, inpShape, 2);
+        auto read_value_2 = std::make_shared<ov::op::v6::ReadValue>(const_2, variable_2);
         auto add_2 = std::make_shared<ov::op::v1::Add>(add_1, read_value_2);
         auto assign_for_1st = std::make_shared<ov::op::v6::Assign>(add_2, variable);
 
-        auto read_value_1_2nd_instance = std::make_shared<ov::op::v6::ReadValue>(variable);
+        auto const_3 = std::make_shared<ov::op::v0::Constant>(netPrc, inpShape, 3);
+        auto read_value_1_2nd_instance = std::make_shared<ov::op::v6::ReadValue>(const_3, variable);
         auto add_3 = std::make_shared<ov::op::v1::Add>(add_2, read_value_1_2nd_instance);
         auto assign_for_2nd_2 = std::make_shared<ov::op::v6::Assign>(add_3, variable_2);
 
@@ -1236,18 +1260,18 @@ public:
     std::vector<float> calc_refs(const std::vector<float>& param_values, StatesValues& states) const override {
         auto num_elements = param_values.size();
         std::vector<float> result(num_elements);
-        auto& outer_state = states.outer_state;
-        auto& inner_state = states.inner_state;
+        auto& state_1 = states.variable_1;
+        auto& state_2 = states.variable_2;
 
         for (size_t i = 0; i < num_elements; ++i) {
-            auto outer_state_val = outer_state.reset ? outer_state.init_value[i] : outer_state.current_value[i];
-            auto inner_state_val = inner_state.reset ? inner_state.init_value[i] : inner_state.current_value[i];
+            auto state_1_val = state_1.reset ? state_1.init_value[i] : state_1.current_value[i];
+            auto state_2_val = state_2.reset ? state_2.init_value[i] : state_2.current_value[i];
 
-            result[i] = outer_state_val + inner_state_val + outer_state_val;
+            result[i] = state_1_val + state_2_val + state_1_val;
         }
 
-        outer_state.reset = false;
-        inner_state.reset = false;
+        state_1.reset = false;
+        state_2.reset = false;
         return result;
     }
 };
