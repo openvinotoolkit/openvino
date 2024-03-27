@@ -169,6 +169,8 @@ static void CreateGemmOp(ProgramBuilder& p, const std::shared_ptr<ov::op::intern
     auto gemmPrim = cldnn::gemm(layerName,
                                 inputs,
                                 cldnn::element_type_to_data_type(op->get_output_element_type(0)),
+                                op->get_input0_unsqueeze_axes(),
+                                op->get_input1_unsqueeze_axes(),
                                 op->get_input0_broadcast_target_shape(),
                                 op->get_input1_broadcast_target_shape(),
                                 op->get_input0_reshape_pattern(),

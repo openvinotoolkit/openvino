@@ -50,6 +50,8 @@ void IndirectGemm::validate_and_infer_types() {
 
     auto out_shapes = shape_infer(this,
                                   std::vector<ov::PartialShape>{get_input_partial_shape(0), get_input_partial_shape(1)},
+                                  m_axes_a,
+                                  m_axes_b,
                                   m_target_shape_a,
                                   m_target_shape_b,
                                   m_output_pattern_a,
