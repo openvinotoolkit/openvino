@@ -8,20 +8,9 @@
 #include <utility>
 #include <algorithm>
 
+#include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/op/gemm.hpp"
 
-namespace {
-template <typename T, typename DT, typename = typename std::enable_if<std::is_convertible<DT, T>::value>::type>
-int find_index_from_vec(const std::vector<T>& vec, const DT value) {
-    int idx = 0;
-    for (auto v : vec) {
-        if (v != static_cast<T>(value))
-            break;
-        idx += 1;
-    }
-    return idx;
-}
-}  // namespace
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(gemm)
 
@@ -139,6 +128,8 @@ std::vector<layout> gemm_inst::calc_output_layouts(gemm_node const& node, const 
 
     std::vector<ShapeType> output_shapes = ov::intel_gpu::op::shape_infer(&op,
                                                                           input_shapes,
+                                                                          prim->input0_unsqueeze_axes,
+                                                                          prim->input1_unsqueeze_axes,
                                                                           prim->input0_broadcast_target_shape,
                                                                           prim->input1_broadcast_target_shape,
                                                                           prim->input0_reshape_pattern,
@@ -159,14 +150,15 @@ template std::vector<layout> gemm_inst::calc_output_layouts<ov::PartialShape>(ge
 std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<const gemm> primitive,
                                                        const std::vector<layout>& input_layouts) {
     auto get_reshaped_input_shape = [&](const ov::PartialShape& input_pshape,
+                                        const std::vector<int64_t>& unsqueeze_axes,
                                         const std::vector<int32_t>& broadcast_target_shape,
                                         const std::vector<int64_t>& reshape_pattern) {
         ov::PartialShape reshaped_input_pshape;
 
-        if (broadcast_target_shape.size() > 0 && reshape_pattern.size() > 0) {
+        if (unsqueeze_axes.empty() && broadcast_target_shape.size() > 0 && reshape_pattern.size() > 0) {
             std::vector<ov::Dimension> dims(input_pshape);
-            int idx_recalc = find_index_from_vec(broadcast_target_shape, 1);
-            int idx_target = find_index_from_vec(reshape_pattern, 0);
+            int idx_recalc = ov::intel_gpu::find_index_from_vec(broadcast_target_shape, 1);
+            int idx_target = ov::intel_gpu::find_index_from_vec(reshape_pattern, 0);
             if (dims[idx_recalc].is_static() && dims[idx_target].is_static()) {
                 dims[idx_recalc] *= dims[idx_target];
             } else {
@@ -215,9 +207,11 @@ std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<con
     };
 
     auto reshaped_input0_pshape = get_reshaped_input_shape(input_layouts[0].get_partial_shape(),
+                                                           primitive->input0_unsqueeze_axes,
                                                            primitive->input0_broadcast_target_shape,
                                                            primitive->input0_reshape_pattern);
     auto reshaped_input1_pshape = get_reshaped_input_shape(input_layouts[1].get_partial_shape(),
+                                                           primitive->input1_unsqueeze_axes,
                                                            primitive->input1_broadcast_target_shape,
                                                            primitive->input1_reshape_pattern);
 
