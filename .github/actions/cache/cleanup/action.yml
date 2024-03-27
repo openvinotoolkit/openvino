@@ -1,0 +1,30 @@
+name: 'Cleanup Cache'
+description: 'Remove old cache artifacts'
+author: 'Mikhail Ryzhov'
+
+inputs:
+  cache-path:
+    description: 'A local path where to search and save caches'
+    required: true
+  key:
+    description: 'An explicit key for restoring and saving the cache'
+    required: true
+  restore-keys:
+    description:
+      'An ordered list of keys to use for restoring stale cache if no cache hit
+      occurred for key. Note `cache-hit` returns false in this case.'
+    default: ''
+    required: false
+  max-cache-size:
+    description:
+      'Maximum cache storage size in Gb. Least recently used caches will be
+      automatically evicted to limit the total cache storage'
+    default: '10'
+    required: false
+
+runs:
+  using: 'node20'
+  main: '../dist/cleanup-only/index.js'
+branding:
+  icon: 'archive'
+  color: 'gray-dark'
