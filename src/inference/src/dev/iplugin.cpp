@@ -339,14 +339,14 @@ std::unordered_set<std::string> ov::get_supported_nodes(
             // split. For example: In the graph above, constant_compressed op will be first obtained by
             // get_ordered_ops(), but it depends on convert op, so need loop again to mark constant_compressed op after
             // convert op is marked.
-            bool changed = true;
-            while (changed) {
-                changed = false;
+            bool update_supported = true;
+            while (update_supported) {
+                update_supported = false;
                 for (auto& op : model->get_ordered_ops()) {
                     if (!supported.count(op->get_friendly_name()) && has_users_supported(supported, op) &&
                         !unsupported.count(op->get_friendly_name())) {
                         supported.insert(op->get_friendly_name());
-                        changed = true;
+                        update_supported = true;
                     }
                 }
             }

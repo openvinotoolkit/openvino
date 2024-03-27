@@ -582,11 +582,11 @@ TEST_F(GetSupportedNodesTest, DivideWillRemoveConvertAndConstant) {
         convert->set_friendly_name("convert");
         auto divide = std::make_shared<ov::op::v1::Divide>(param, convert);
         divide->set_friendly_name("divide");
-        auto const_value2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 3, 2, 2}, {1});
-        const_value2->set_friendly_name("const_val");
-        auto add2 = std::make_shared<ov::op::v1::Add>(divide, const_value2);
-        add2->set_friendly_name("add2");
-        auto result = std::make_shared<ov::op::v0::Result>(add2);
+        auto const_value = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 3, 2, 2}, {1});
+        const_value->set_friendly_name("const_val");
+        auto add = std::make_shared<ov::op::v1::Add>(divide, const_value);
+        add->set_friendly_name("add");
+        auto result = std::make_shared<ov::op::v0::Result>(add);
         result->set_friendly_name("result");
         m_function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
     }
@@ -610,7 +610,7 @@ TEST_F(GetSupportedNodesTest, DivideWillRemoveConvertAndConstant) {
         [&](const std::shared_ptr<ov::Node>& op) {
             return true;
         },
-        {"input", "constant_compressed", "divide", "const_val", "add2", "convert", "result"},
+        {"input", "constant_compressed", "divide", "const_val", "add", "convert", "result"},
         0.98f);
 }
 
