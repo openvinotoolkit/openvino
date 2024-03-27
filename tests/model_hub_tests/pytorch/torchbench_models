@@ -66,7 +66,7 @@ pyhpc_equation_of_state,None,xfail,Accuracy validation failed
 pyhpc_isoneutral_mixing,None,xfail,Accuracy validation failed
 pyhpc_turbulent_kinetic_energy,None,xfail,Unsupported op aten::empty_like
 pytorch_CycleGAN_and_pix2pix,None
-pytorch_stargan,None,xfail,CPU plugin error: Unsupported operation of type: BatchNormInference
+pytorch_stargan,None
 pytorch_unet,None
 #resnet152,None - Already tested by torchvision tests
 #resnet18,None - Already tested by torchvision tests

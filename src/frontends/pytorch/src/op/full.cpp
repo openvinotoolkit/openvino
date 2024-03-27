@@ -107,6 +107,8 @@ OutputVector translate_full_like_fx(const NodeContext& context) {
     if (context.has_attribute("dtype")) {
         auto dtype = context.get_attribute<element::Type>("dtype");
         filled_tensor = context.mark_node(std::make_shared<v0::Convert>(filled_tensor, dtype));
+    } else {
+        filled_tensor = context.mark_node(std::make_shared<v1::ConvertLike>(filled_tensor, input));
     }
     return {filled_tensor};
 };
@@ -200,6 +202,8 @@ OutputVector translate_zeros_like_fx(const NodeContext& context) {
     if (context.has_attribute("dtype")) {
         auto dtype = context.get_attribute<element::Type>("dtype");
         filled_tensor = context.mark_node(std::make_shared<v0::Convert>(filled_tensor, dtype));
+    } else {
+        filled_tensor = context.mark_node(std::make_shared<v1::ConvertLike>(filled_tensor, input));
     }
     return {filled_tensor};
 };
@@ -280,6 +284,8 @@ OutputVector translate_ones_like_fx(const NodeContext& context) {
     if (context.has_attribute("dtype")) {
         auto dtype = context.get_attribute<element::Type>("dtype");
         filled_tensor = context.mark_node(std::make_shared<v0::Convert>(filled_tensor, dtype));
+    } else {
+        filled_tensor = context.mark_node(std::make_shared<v1::ConvertLike>(filled_tensor, input));
     }
     return {filled_tensor};
 };
