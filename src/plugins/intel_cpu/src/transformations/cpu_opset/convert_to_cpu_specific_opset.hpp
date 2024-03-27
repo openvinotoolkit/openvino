@@ -8,7 +8,6 @@
 #include "common/pass/align_matmul_input_ranks.hpp"
 #include "transformations/common_optimizations/reshape_prelu.hpp"
 #include "common/pass/convert_broadcast_to_tiles.hpp"
-#include "common/pass/convert_inverse_input_dtype.hpp"
 #include "common/pass/convert_tile_to_seq_tiles.hpp"
 #include "common/pass/convert_matmul_to_fc.hpp"
 #include "common/pass/convert_to_power_static.hpp"
