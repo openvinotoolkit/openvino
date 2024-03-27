@@ -409,7 +409,7 @@ struct Params {
     }
 
 protected:
-    Params(KernelType kt, const std::string& id) : kType(kt), layerID(id), is_shape_agnostic(false) {}
+    Params(KernelType kt, const std::string& id) : kType(kt), layerID(id), is_shape_agnostic(false), stage_id(0) {}
     KernelType kType;
 
 public:

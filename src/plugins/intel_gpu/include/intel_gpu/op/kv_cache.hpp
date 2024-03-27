@@ -54,8 +54,8 @@ public:
     bool get_indirect() const { return m_indirect; }
 
 private:
-    int64_t m_concat_axis;
-    int64_t m_gather_axis;
+    int64_t m_concat_axis = 0;
+    int64_t m_gather_axis = 0;
     bool m_indirect = false;
     ov::element::Type m_output_type;
 };
