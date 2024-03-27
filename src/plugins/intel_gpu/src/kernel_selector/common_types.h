@@ -15,6 +15,8 @@ enum class KernelType {
     UNKNOWN,
     ARG_MAX_MIN,
     BEAM_TABLE_UPDATE,
+    PA_KV_CACHE_UPDATE,
+    PA_SDPA,
     CONVOLUTION,
     DECONVOLUTION,
     DFT,

@@ -53,6 +53,7 @@ struct multi_stage_primitive : public typed_primitive_impl<PType> {
         }
         this->can_reuse_memory = other.can_reuse_memory;
         this->_kernel_name = other._kernel_name;
+        this->can_reuse_memory = other.can_reuse_memory;
         this->_is_dynamic = other._is_dynamic;
     }
 
