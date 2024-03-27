@@ -164,8 +164,11 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph &graph) {
             results.emplace_back(std::make_shared<ov::op::v0::Result>(get_inputs(node).back()));
             return_node = results.back();
         } else {
+            // Even though outConfs.size() equals childEdges.size() during initailization,
+            // CPUNode's children node may be changed by graphOptimizer such as ShareReOrder
+            // The output_size here must use actual size of childEdges, otherwise out-of-index happens in getChildEdgeAt
             return_node = std::make_shared<ov::exec_model_info::ExecutionNode>(
-                get_inputs(node), node->getSelectedPrimitiveDescriptor()->getConfig().outConfs.size());
+                get_inputs(node), node->getChildEdges().size());
 
             for (size_t port = 0; port < return_node->get_output_size(); ++port) {
                 auto& desc = node->getChildEdgeAt(port)->getMemory().getDesc();
