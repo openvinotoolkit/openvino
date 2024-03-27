@@ -584,13 +584,15 @@ ov::OutputVector create_loop_for_tf_while(const std::string& while_node_name,
     // set external outputs for Loop node
     // do not get execution condition outside of the Loop node
     for (size_t output_ind = 0; output_ind < body_condition_output_idx; ++output_ind) {
+        const auto loop_output = loop->get_iter_value(body_results[output_ind]);
         auto parent_parameter = get_parent_parameter(body_results[output_ind]);
         if (parent_parameter) {
             loop_outputs.push_back(loop_input_nodes[parent_parameter->get_instance_id()]);
-            continue;
+        } else {
+            loop_outputs.push_back(loop_output);
         }
-        loop->get_iter_value(body_results[output_ind]);
     }
+
     loop->validate_and_infer_types();
     set_node_name(while_node_name, loop);
     return loop_outputs;
