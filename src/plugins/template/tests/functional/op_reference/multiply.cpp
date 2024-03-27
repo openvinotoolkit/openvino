@@ -77,8 +77,8 @@ TEST_P(ReferenceMultiplyLayerTest, MultiplyWithHardcodedRefs) {
 template <element::Type_t IN_ET>
 std::vector<MultiplyParams> generateParamsForMultiplyNoOverflow() {
     using T = typename element_type_traits<IN_ET>::value_type;
-    
-        std::vector<MultiplyParams> params{
+
+    std::vector<MultiplyParams> params{
         MultiplyParams(ov::PartialShape{2, 2},
                        ov::PartialShape{2, 2},
                        IN_ET,
@@ -111,7 +111,7 @@ template <element::Type_t IN_ET>
 std::vector<MultiplyParams> generateParamsForMultiply() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<MultiplyParams> params{ 
+    std::vector<MultiplyParams> params{
     MultiplyParams(
             ov::PartialShape{3, 2, 1},
             ov::PartialShape{1, 6},
@@ -147,7 +147,7 @@ std::vector<MultiplyParams> generateParamsForMultiply<element::Type_t::u8>() {
     constexpr element::Type_t IN_ET = element::Type_t::u8;
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<MultiplyParams> params{ 
+    std::vector<MultiplyParams> params{
     MultiplyParams(
             ov::PartialShape{3, 2, 1},
             ov::PartialShape{1, 6},

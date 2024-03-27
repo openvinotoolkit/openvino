@@ -17,7 +17,7 @@ bool evaluate(const std::shared_ptr<ov::op::v1::Multiply>& op,
                             inputs[0].get_shape(),
                             inputs[1].get_shape(),
                             op->get_autob());
-                            
+
     return true;
 }
 
