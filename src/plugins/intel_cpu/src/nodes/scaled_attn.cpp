@@ -478,19 +478,23 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                                      wv_scratch_a ? &wv_scratch_a.at<T>({tid, 0}) : nullptr);
             if (is_xf16) {
                 if (has_out_transpose) {
-                    for (size_t m = m_start; m < m_end; m++) {
-                        cpu_convert(&fp32_out.at<float>({b, m, h, 0}),
-                                    &output_emb.at<T>({b, m, h * head_size}),
-                                    ov::element::f32,
-                                    precision_of<T>::value,
-                                    head_size);
-                    }
+                    attn_memcpy2d_kernel(&fp32_out.at<float>({b, m_start, h, 0}),
+                                         &output_emb.at<T>({b, m_start, h * head_size}),
+                                         ov::element::f32,
+                                         precision_of<T>::value,
+                                         fp32_out.stride(1),
+                                         output_emb.stride(1),
+                                         head_size,
+                                         m_cnt);
                 } else {
-                    cpu_convert(&fp32_out.at<float>({b, h, m_start, 0}),
-                                &output_emb.at<T>({b, h, m_start, 0}),
-                                ov::element::f32,
-                                precision_of<T>::value,
-                                m_cnt * head_size);
+                    attn_memcpy2d_kernel(&fp32_out.at<float>({b, h, m_start, 0}),
+                                         &output_emb.at<T>({b, h, m_start, 0}),
+                                         ov::element::f32,
+                                         precision_of<T>::value,
+                                         0,
+                                         0,
+                                         m_cnt * head_size,
+                                         1);
                 }
             }
         });
