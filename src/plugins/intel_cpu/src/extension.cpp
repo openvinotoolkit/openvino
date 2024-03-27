@@ -12,6 +12,7 @@
 #include "ov_ops/nms_static_shape_ie.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "snippets/op/subgraph.hpp"
+#include "transformations/cpu_opset/common/op/causal_mask_preprocess.hpp"
 #include "transformations/cpu_opset/common/op/fully_connected.hpp"
 #include "transformations/cpu_opset/common/op/leaky_relu.hpp"
 #include "transformations/cpu_opset/common/op/ngram.hpp"
@@ -69,6 +70,7 @@ private:
     OP_EXTENSION(ov::intel_cpu::LeakyReluNode)                              \
     OP_EXTENSION(ov::intel_cpu::PowerStaticNode)                            \
     OP_EXTENSION(ov::intel_cpu::RoPENode)                                   \
+    OP_EXTENSION(ov::intel_cpu::CausalMaskPreprocessNode)                             \
     OP_EXTENSION(ov::intel_cpu::SwishNode)                                  \
     OP_EXTENSION(ov::intel_cpu::NgramNode)                                  \
     OP_EXTENSION(ov::op::internal::NonMaxSuppressionIEInternal)             \
