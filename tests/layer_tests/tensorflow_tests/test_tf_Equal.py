@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
+from common.utils.tf_utils import run_in_jenkins
 
 # Testing operation Equal
 # Documentation: https://www.tensorflow.org/versions/r1.15/api_docs/python/tf/math/equal
@@ -252,7 +253,7 @@ class TestEqualStr(CommonTFLayerTest):
     def test_equal_str(self, x_shape, y_shape,
                        ie_device, precision, ir_version, temp_dir,
                        use_legacy_frontend):
-        if ie_device == 'GPU':
+        if ie_device == 'GPU' or run_in_jenkins():
             pytest.skip("operation extension is not supported on GPU")
         self._test(*self.create_equal_net(x_shape=x_shape, y_shape=y_shape),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
