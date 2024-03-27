@@ -146,7 +146,7 @@ object detection model.
 
 .. parsed-literal::
 
-    <DisplayHandle display_id=6e9bd356e09a9465ea275c04ca5ea451>
+    <DisplayHandle display_id=4117e86f53bc13874caee2b44a01c054>
 
 
 
@@ -413,12 +413,12 @@ optimizations applied. We will treat it as our baseline.
 
 .. parsed-literal::
 
-    PyTorch model on CPU. First inference time: 0.0262 seconds
+    PyTorch model on CPU. First inference time: 0.0261 seconds
 
 
 .. parsed-literal::
 
-    PyTorch model on CPU: 0.0205 seconds per image (48.72 FPS)
+    PyTorch model on CPU: 0.0217 seconds per image (46.10 FPS)
 
 
 OpenVINO IR model
@@ -464,12 +464,12 @@ step in this notebook.
 
 .. parsed-literal::
 
-    OpenVINO model on CPU. First inference time: 0.0147 seconds
+    OpenVINO model on CPU. First inference time: 0.0153 seconds
 
 
 .. parsed-literal::
 
-    OpenVINO model on CPU: 0.0070 seconds per image (142.58 FPS)
+    OpenVINO model on CPU: 0.0070 seconds per image (142.14 FPS)
 
 
 OpenVINO IR model + bigger batch
@@ -526,12 +526,12 @@ hardware and model.
 
 .. parsed-literal::
 
-    OpenVINO model + bigger batch on CPU. First inference time: 0.0514 seconds
+    OpenVINO model + bigger batch on CPU. First inference time: 0.0548 seconds
 
 
 .. parsed-literal::
 
-    OpenVINO model + bigger batch on CPU: 0.0068 seconds per image (146.52 FPS)
+    OpenVINO model + bigger batch on CPU: 0.0069 seconds per image (144.65 FPS)
 
 
 Asynchronous processing
@@ -604,12 +604,12 @@ feature, which sets the batch size to the optimal level.
 
 .. parsed-literal::
 
-    OpenVINO model on CPU (THROUGHPUT). First inference time: 0.0244 seconds
+    OpenVINO model on CPU (THROUGHPUT). First inference time: 0.0242 seconds
 
 
 .. parsed-literal::
 
-    OpenVINO model on CPU (THROUGHPUT): 0.0040 seconds per image (249.04 FPS)
+    OpenVINO model on CPU (THROUGHPUT): 0.0040 seconds per image (248.24 FPS)
 
 
 OpenVINO IR model in throughput mode on GPU
@@ -663,12 +663,12 @@ performance hint.
 
 .. parsed-literal::
 
-    OpenVINO model on AUTO (THROUGHPUT). First inference time: 0.0233 seconds
+    OpenVINO model on AUTO (THROUGHPUT). First inference time: 0.0208 seconds
 
 
 .. parsed-literal::
 
-    OpenVINO model on AUTO (THROUGHPUT): 0.0040 seconds per image (250.58 FPS)
+    OpenVINO model on AUTO (THROUGHPUT): 0.0040 seconds per image (249.53 FPS)
 
 
 OpenVINO IR model in cumulative throughput mode on AUTO
@@ -695,12 +695,12 @@ activate all devices.
 
 .. parsed-literal::
 
-    OpenVINO model on AUTO (CUMULATIVE THROUGHPUT). First inference time: 0.0204 seconds
+    OpenVINO model on AUTO (CUMULATIVE THROUGHPUT). First inference time: 0.0219 seconds
 
 
 .. parsed-literal::
 
-    OpenVINO model on AUTO (CUMULATIVE THROUGHPUT): 0.0040 seconds per image (251.22 FPS)
+    OpenVINO model on AUTO (CUMULATIVE THROUGHPUT): 0.0040 seconds per image (248.18 FPS)
 
 
 Other tricks

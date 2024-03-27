@@ -173,7 +173,7 @@ source code.
 
 .. parsed-literal::
 
-    [03/12 23:24:03] ppgan INFO: Found /opt/home/k8sworker/.cache/ppgan/DF2K_JPEG.pdparams
+    [03/25 23:26:31] ppgan INFO: Found /opt/home/k8sworker/.cache/ppgan/DF2K_JPEG.pdparams
 
 
 .. code:: ipython3
@@ -301,12 +301,12 @@ Convert PaddlePaddle Model to ONNX
 
 .. parsed-literal::
 
-    2024-03-12 23:24:10 [INFO]	Static PaddlePaddle model saved in model/paddle_model_static_onnx_temp_dir.
+    2024-03-25 23:26:38 [INFO]	Static PaddlePaddle model saved in model/paddle_model_static_onnx_temp_dir.
 
 
 .. parsed-literal::
 
-    I0312 23:24:10.040381 3060798 program_interpreter.cc:212] New Executor is Running.
+    I0325 23:26:37.920796 874079 program_interpreter.cc:212] New Executor is Running.
 
 
 .. parsed-literal::
@@ -315,13 +315,13 @@ Convert PaddlePaddle Model to ONNX
     [Paddle2ONNX] Model file path: model/paddle_model_static_onnx_temp_dir/model.pdmodel
     [Paddle2ONNX] Paramters file path: model/paddle_model_static_onnx_temp_dir/model.pdiparams
     [Paddle2ONNX] Start to parsing Paddle model...
-    [Paddle2ONNX] Use opset_version = 13 for ONNX export.
-    [Paddle2ONNX] PaddlePaddle model is exported as ONNX format now.
 
 
 .. parsed-literal::
 
-    2024-03-12 23:24:13 [INFO]	ONNX model saved in model/paddlegan_sr.onnx.
+    [Paddle2ONNX] Use opset_version = 13 for ONNX export.
+    [Paddle2ONNX] PaddlePaddle model is exported as ONNX format now.
+    2024-03-25 23:26:41 [INFO]	ONNX model saved in model/paddlegan_sr.onnx.
 
 
 Convert ONNX Model to OpenVINO IR with `Model Conversion Python API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__
@@ -406,7 +406,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7fa4a90a0d60>
+    <matplotlib.image.AxesImage at 0x7f096ae38520>
 
 
 
@@ -458,7 +458,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7fa48e2ae5e0>
+    <matplotlib.image.AxesImage at 0x7f09683d7c10>
 
 
 

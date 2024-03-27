@@ -11,15 +11,13 @@ Compression Framework) and infer optimized model via OpenVINO™ Toolkit.
    notebook first to generate OpenVINO IR model that is used for
    optimization.
 
-The optimization process contains the following steps: 1. Compress
-weights of the converted OpenVINO text encoder from
-`notebook <238-deep-floyd-if-convert-with-output.html>`__ with NNCF. 2. Quantize
-the converted stage_1 and stage_2 U-Nets from
-`notebook <238-deep-floyd-if-convert-with-output.html>`__ with NNCF. 2. Check the
-model result using the same input data from the
-`notebook <238-deep-floyd-if-convert-with-output.html>`__. 3. Compare model size of
-converted and optimized models. 4. Compare performance of converted and
-optimized models.
+The optimization process contains the following steps:
+
+1. Compress weights of the converted OpenVINO text encoder from `notebook <238-deep-floyd-if-convert-with-output.html>`__ with NNCF.
+2. Quantize the converted stage_1 and stage_2 U-Nets from `notebook <238-deep-floyd-if-convert-with-output.html>`__ with NNCF.
+2. Check the model result using the same input data from the `notebook <238-deep-floyd-if-convert-with-output.html>`__.
+3. Compare model size of converted and optimized models.
+4. Compare performance of converted and optimized models.
 
 Table of contents:
 ^^^^^^^^^^^^^^^^^^

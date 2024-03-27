@@ -143,7 +143,7 @@ that
     
     convert_script = genai_llm_bench / "convert.py"
     
-    if not (stateful_model_path / "openvino_model.xml").exists()
+    if not (stateful_model_path / "openvino_model.xml").exists():
         !python $convert_script --model_id stabilityai/stable-zephyr-3b --precision FP16 --compress_weights 4BIT_DEFAULT --output stable-zephyr-3b-stateful --force_convert
 
 
@@ -815,73 +815,3 @@ You can modify them in ``Advanced generation options`` section.
     # demo.launch(share=True)
     # it creates a publicly shareable link for the interface. Read more in the docs: https://gradio.app/docs/
     demo.launch(share=True)
-
-
-.. parsed-literal::
-
-    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
-    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/gradio/deprecation.py:40: UserWarning: `height` is deprecated in `Interface()`, please use it within `launch()` instead.
-      warnings.warn(value)
-    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/gradio/deprecation.py:43: UserWarning: You have unused kwarg parameters in Textbox, please remove them: {'container': False}
-      warnings.warn(
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-
-
-::
-
-
-    ---------------------------------------------------------------------------
-
-    KeyboardInterrupt                         Traceback (most recent call last)
-
-    Cell In[9], line 326
-        320 demo.queue(max_size=2)
-        321 # if you are launching remotely, specify server_name and server_port
-        322 #  demo.launch(server_name='your server name', server_port='server port in int')
-        323 # if you have any issue to launch on your platform, you can pass share=True to launch method:
-        324 # demo.launch(share=True)
-        325 # it creates a publicly shareable link for the interface. Read more in the docs: https://gradio.app/docs/
-    --> 326 demo.launch(share=True)
-
-
-    File ~/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/gradio/blocks.py:1542, in Blocks.launch(self, inline, inbrowser, share, debug, enable_queue, max_threads, auth, auth_message, prevent_thread_lock, show_error, server_name, server_port, show_tips, height, width, encrypt, favicon_path, ssl_keyfile, ssl_certfile, ssl_keyfile_password, quiet, show_api, file_directories, _frontend)
-       1540 try:
-       1541     if self.share_url is None:
-    -> 1542         self.share_url = networking.setup_tunnel(
-       1543             self.server_name, self.server_port, self.share_token
-       1544         )
-       1545     print(strings.en["SHARE_LINK_DISPLAY"].format(self.share_url))
-       1546     if not (quiet):
-
-
-    File ~/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/gradio/networking.py:168, in setup_tunnel(local_host, local_port, share_token)
-        164     remote_host, remote_port = payload["host"], int(payload["port"])
-        165     tunnel = Tunnel(
-        166         remote_host, remote_port, local_host, local_port, share_token
-        167     )
-    --> 168     address = tunnel.start_tunnel()
-        169     return address
-        170 except Exception as e:
-
-
-    File ~/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/gradio/tunneling.py:61, in Tunnel.start_tunnel(self)
-         59 def start_tunnel(self) -> str:
-         60     binary_path = self.download_binary()
-    ---> 61     self.url = self._start_tunnel(binary_path)
-         62     return self.url
-
-
-    File ~/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/gradio/tunneling.py:97, in Tunnel._start_tunnel(self, binary)
-         95 if self.proc.stdout is None:
-         96     continue
-    ---> 97 line = self.proc.stdout.readline()
-         98 line = line.decode("utf-8")
-         99 if "start proxy success" in line:
-
-
-    KeyboardInterrupt: 
-

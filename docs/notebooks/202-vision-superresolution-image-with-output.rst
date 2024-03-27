@@ -786,8 +786,8 @@ as total time to process each patch.
 
 .. parsed-literal::
 
-    Processed 42 patches in 4.63 seconds. Total patches per second (including processing): 9.08.
-    Inference patches per second: 17.95 
+    Processed 42 patches in 4.65 seconds. Total patches per second (including processing): 9.03.
+    Inference patches per second: 17.87 
 
 
 Save superresolution image and the bicubic image

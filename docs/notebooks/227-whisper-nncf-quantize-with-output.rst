@@ -23,17 +23,13 @@ Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
 -  `Prerequisites <#prerequisites>`__
--  `Create and initialize quantization
-    <#create-and-initialize-quantization-#0>`__
+-  `Create and initialize quantization <#create-and-initialize-quantization>`__
 
    -  `Prepare calibration datasets <#prepare-calibration-datasets>`__
-   -  `Quantize Whisper encoder and decoder
-      models <#quantize-whisper-encoder-and-decoder-models>`__
+   -  `Quantize Whisper encoder and decoder models <#quantize-whisper-encoder-and-decoder-models>`__
 
--  `Transcribe video with quantized OpenVINO
-   model <#transcribe-video-with-quantized-openvino-model>`__
--  `Compare performance and accuracy of the FP32 and INT8
-   IRs <#compare-performance-and-accuracy-of-the-fp32-and-int8-irs>`__
+-  `Transcribe video with quantized OpenVINO model <#transcribe-video-with-quantized-openvino-model>`__
+-  `Compare performance and accuracy of the FP32 and INT8 IRs <#compare-performance-and-accuracy-of-the-fp32-and-int8-irs>`__
 
 Prerequisites
 -------------
@@ -136,8 +132,8 @@ Select the task for the model:
 
 
 
-## Create and initialize quantization `⇑ <#0>`__ `back to top
-⬆️ <#table-of-contents>`__
+Create and initialize quantization
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding the quantization layers into the

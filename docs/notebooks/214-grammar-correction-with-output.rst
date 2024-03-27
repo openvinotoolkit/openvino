@@ -132,8 +132,8 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 
 .. code:: ipython3
 
-    %pip install -q "git+https://github.com/huggingface/optimum-intel.git" "openvino>=2023.1.0" onnx gradio "transformers>=4.33.0" --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "nncf>=2.7.0" datasets jiwer
+    %pip install -q "torch>=2.1.0" "git+https://github.com/huggingface/optimum-intel.git" "openvino>=2024.0.0" onnx gradio "transformers>=4.33.0" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "nncf>=2.9.0" datasets jiwer
 
 
 .. parsed-literal::
@@ -182,22 +182,20 @@ Tokenizer class and pipelines API are compatible with Optimum models.
 
 .. parsed-literal::
 
-    2023-09-27 14:53:36.462575: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-09-27 14:53:36.496914: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-03-25 11:56:04.043628: I tensorflow/core/util/port.cc:111] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-03-25 11:56:04.045940: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-03-25 11:56:04.079112: E tensorflow/compiler/xla/stream_executor/cuda/cuda_dnn.cc:9342] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+    2024-03-25 11:56:04.079147: E tensorflow/compiler/xla/stream_executor/cuda/cuda_fft.cc:609] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+    2024-03-25 11:56:04.079167: E tensorflow/compiler/xla/stream_executor/cuda/cuda_blas.cc:1518] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+    2024-03-25 11:56:04.085243: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-03-25 11:56:04.085971: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-09-27 14:53:37.063292: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-03-25 11:56:05.314633: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
 
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-
-
-.. parsed-literal::
-
-    No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda-11.7'
-    /home/nsavel/venvs/ov_notebooks_tmp/lib/python3.8/site-packages/transformers/deepspeed.py:23: FutureWarning: transformers.deepspeed module is deprecated and will be removed in a future version. Please import deepspeed modules directly from transformers.integrations
-      warnings.warn(
 
 
 Select inference device
@@ -211,16 +209,16 @@ select device from dropdown list for running inference using OpenVINO
 
     import ipywidgets as widgets
     import openvino as ov
-
+    
     core = ov.Core()
-
+    
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value='AUTO',
         description='Device:',
         disabled=False,
     )
-
+    
     device
 
 
@@ -228,7 +226,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=3, options=('CPU', 'GPU.0', 'GPU.1', 'AUTO'), value='AUTO')
 
 
 
@@ -242,7 +240,7 @@ Grammar Checker
     grammar_checker_model_id = "textattack/roberta-base-CoLA"
     grammar_checker_dir = Path("roberta-base-cola")
     grammar_checker_tokenizer = AutoTokenizer.from_pretrained(grammar_checker_model_id)
-
+    
     if grammar_checker_dir.exists():
         grammar_checker_model = OVModelForSequenceClassification.from_pretrained(grammar_checker_dir, device=device.value)
     else:
@@ -252,25 +250,18 @@ Grammar Checker
 
 .. parsed-literal::
 
-    Framework not specified. Using pt to export to ONNX.
-    Some weights of the model checkpoint at textattack/roberta-base-CoLA were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.weight', 'roberta.pooler.dense.bias']
+    Framework not specified. Using pt to export the model.
+    Some weights of the model checkpoint at textattack/roberta-base-CoLA were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
     - This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
     - This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
-    Using framework PyTorch: 1.13.1+cpu
+    Using the export variant default. Available variants are:
+        - default: The default ONNX variant.
+    Using framework PyTorch: 2.2.1+cpu
     Overriding 1 configuration item(s)
     	- use_cache -> False
-
-
-.. parsed-literal::
-
-    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
-
-
-.. parsed-literal::
-
-    [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-    Compiling the model to CPU ...
-    Set CACHE_DIR to /tmp/tmpcqv99eqb/model_cache
+    /home/ea/miniconda3/lib/python3.11/site-packages/transformers/modeling_utils.py:4225: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+      warnings.warn(
+    Compiling the model to AUTO ...
 
 
 Let us check model work, using inference pipeline for
@@ -313,7 +304,7 @@ to run it.
     grammar_corrector_model_id = "pszemraj/flan-t5-large-grammar-synthesis"
     grammar_corrector_dir = Path("flan-t5-large-grammar-synthesis")
     grammar_corrector_tokenizer = AutoTokenizer.from_pretrained(grammar_corrector_model_id)
-
+    
     if grammar_corrector_dir.exists():
         grammar_corrector_model = OVModelForSeq2SeqLM.from_pretrained(grammar_corrector_dir, device=device.value)
     else:
@@ -323,23 +314,33 @@ to run it.
 
 .. parsed-literal::
 
-    Framework not specified. Using pt to export to ONNX.
-    Using framework PyTorch: 1.13.1+cpu
+    Framework not specified. Using pt to export the model.
+    Using the export variant default. Available variants are:
+        - default: The default ONNX variant.
+    Some non-default generation parameters are set in the model config. These should go into a GenerationConfig file (https://huggingface.co/docs/transformers/generation_strategies#save-a-custom-decoding-strategy-with-your-model) instead. This warning will be raised to an exception in v4.41.
+    Non-default generation parameters: {'max_length': 512, 'min_length': 8, 'num_beams': 2, 'no_repeat_ngram_size': 4}
+    Using framework PyTorch: 2.2.1+cpu
     Overriding 1 configuration item(s)
     	- use_cache -> False
-    Using framework PyTorch: 1.13.1+cpu
+    /home/ea/miniconda3/lib/python3.11/site-packages/transformers/modeling_utils.py:4225: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+      warnings.warn(
+    Using framework PyTorch: 2.2.1+cpu
     Overriding 1 configuration item(s)
     	- use_cache -> True
-    /home/nsavel/venvs/ov_notebooks_tmp/lib/python3.8/site-packages/transformers/modeling_utils.py:875: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /home/ea/miniconda3/lib/python3.11/site-packages/transformers/modeling_utils.py:943: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if causal_mask.shape[1] < attention_mask.shape[1]:
-    Using framework PyTorch: 1.13.1+cpu
+    Using framework PyTorch: 2.2.1+cpu
     Overriding 1 configuration item(s)
     	- use_cache -> True
-    /home/nsavel/venvs/ov_notebooks_tmp/lib/python3.8/site-packages/transformers/models/t5/modeling_t5.py:509: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /home/ea/miniconda3/lib/python3.11/site-packages/transformers/models/t5/modeling_t5.py:509: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       elif past_key_value.shape[2] != key_value_states.shape[1]:
+    Some non-default generation parameters are set in the model config. These should go into a GenerationConfig file (https://huggingface.co/docs/transformers/generation_strategies#save-a-custom-decoding-strategy-with-your-model) instead. This warning will be raised to an exception in v4.41.
+    Non-default generation parameters: {'max_length': 512, 'min_length': 8, 'num_beams': 2, 'no_repeat_ngram_size': 4}
     Compiling the encoder to AUTO ...
     Compiling the decoder to AUTO ...
     Compiling the decoder to AUTO ...
+    Some non-default generation parameters are set in the model config. These should go into a GenerationConfig file (https://huggingface.co/docs/transformers/generation_strategies#save-a-custom-decoding-strategy-with-your-model) instead. This warning will be raised to an exception in v4.41.
+    Non-default generation parameters: {'max_length': 512, 'min_length': 8, 'num_beams': 2, 'no_repeat_ngram_size': 4}
 
 
 .. code:: ipython3
@@ -349,16 +350,8 @@ to run it.
 .. code:: ipython3
 
     result = grammar_corrector_pipe(input_text)[0]
-    print(f"input text:     {input_text}")
-    print(f'generated text: {result["generated_text"]}')
-
-
-.. parsed-literal::
-
-    /home/nsavel/venvs/ov_notebooks_tmp/lib/python3.8/site-packages/optimum/intel/openvino/modeling_seq2seq.py:339: FutureWarning: `shared_memory` is deprecated and will be removed in 2024.0. Value of `shared_memory` is going to override `share_inputs` value. Please use only `share_inputs` explicitly.
-      last_hidden_state = torch.from_numpy(self.request(inputs, shared_memory=True)["last_hidden_state"]).to(
-    /home/nsavel/venvs/ov_notebooks_tmp/lib/python3.8/site-packages/optimum/intel/openvino/modeling_seq2seq.py:416: FutureWarning: `shared_memory` is deprecated and will be removed in 2024.0. Value of `shared_memory` is going to override `share_inputs` value. Please use only `share_inputs` explicitly.
-      self.request.start_async(inputs, shared_memory=True)
+    print(f"input text:     {input_text}") 
+    print(f'generated text: {result["generated_text"]}') 
 
 
 .. parsed-literal::
@@ -389,69 +382,69 @@ several steps:
     import re
     import transformers
     from tqdm.notebook import tqdm
-
-
+    
+    
     def split_text(text: str) -> list:
         """
         Split a string of text into a list of sentence batches.
-
+    
         Parameters:
         text (str): The text to be split into sentence batches.
-
+    
         Returns:
         list: A list of sentence batches. Each sentence batch is a list of sentences.
         """
         # Split the text into sentences using regex
         sentences = re.split(r"(?<=[^A-Z].[.?]) +(?=[A-Z])", text)
-
+    
         # Initialize a list to store the sentence batches
         sentence_batches = []
-
+    
         # Initialize a temporary list to store the current batch of sentences
         temp_batch = []
-
+    
         # Iterate through the sentences
         for sentence in sentences:
             # Add the sentence to the temporary batch
             temp_batch.append(sentence)
-
+    
             # If the length of the temporary batch is between 2 and 3 sentences, or if it is the last batch, add it to the list of sentence batches
             if len(temp_batch) >= 2 and len(temp_batch) <= 3 or sentence == sentences[-1]:
                 sentence_batches.append(temp_batch)
                 temp_batch = []
-
+    
         return sentence_batches
-
-
+    
+    
     def correct_text(text: str, checker: transformers.pipelines.Pipeline, corrector: transformers.pipelines.Pipeline, separator: str = " ") -> str:
         """
         Correct the grammar in a string of text using a text-classification and text-generation pipeline.
-
+    
         Parameters:
         text (str): The inpur text to be corrected.
         checker (transformers.pipelines.Pipeline): The text-classification pipeline to use for checking the grammar quality of the text.
         corrector (transformers.pipelines.Pipeline): The text-generation pipeline to use for correcting the text.
         separator (str, optional): The separator to use when joining the corrected text into a single string. Default is a space character.
-
+    
         Returns:
         str: The corrected text.
         """
         # Split the text into sentence batches
         sentence_batches = split_text(text)
-
+    
         # Initialize a list to store the corrected text
         corrected_text = []
-
+    
         # Iterate through the sentence batches
         for batch in tqdm(
             sentence_batches, total=len(sentence_batches), desc="correcting text.."
         ):
             # Join the sentences in the batch into a single string
             raw_text = " ".join(batch)
-
+    
             # Check the grammar quality of the text using the text-classification pipeline
             results = checker(raw_text)
-
+    
             # Only correct the text if the results of the text-classification are not LABEL_1 or are LABEL_1 with a score below 0.9
             if results[0]["label"] != "LABEL_1" or (
                 results[0]["label"] == "LABEL_1" and results[0]["score"] < 0.9
@@ -461,10 +454,10 @@ several steps:
                 corrected_text.append(corrected_batch[0]["generated_text"])
             else:
                 corrected_text.append(raw_text)
-
+    
         # Join the corrected text into a single string
         corrected_text = separator.join(corrected_text)
-
+    
         return corrected_text
 
 Let us see it in action.
@@ -477,16 +470,8 @@ Let us see it in action.
         " this point, He introduces herself as his native English speaker and goes on to say that if"
         " you contine to work on social scnce"
     )
-
+    
     corrected_text = correct_text(default_text, grammar_checker_pipe, grammar_corrector_pipe)
-
-
-.. parsed-literal::
-
-    huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
-    To disable this warning, you can either:
-    	- Avoid using `tokenizers` before the fork if possible
-    	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
 
 
 
@@ -497,14 +482,14 @@ Let us see it in action.
 
 .. code:: ipython3
 
-    print(f"input text:     {default_text}\n")
+    print(f"input text:     {default_text}\n") 
     print(f'generated text: {corrected_text}')
 
 
 .. parsed-literal::
 
     input text:     Most of the course is about semantic or  content of language but there are also interesting topics to be learned from the servicefeatures except statistics in characters in documents.At this point, He introduces herself as his native English speaker and goes on to say that if you contine to work on social scnce
-
+    
     generated text: Most of the course is about the semantic content of language but there are also interesting topics to be learned from the service features except statistics in characters in documents. At this point, she introduces herself as a native English speaker and goes on to say that if you continue to work on social science, you will continue to be successful.
 
 
@@ -543,7 +528,7 @@ improve model inference speed.
         description='Quantization',
         disabled=False,
     )
-
+    
     to_quantize
 
 
@@ -567,7 +552,7 @@ some time to complete.
 .. code:: ipython3
 
     from utils import get_quantized_pipeline
-
+    
     grammar_corrector_pipe_fp32 = grammar_corrector_pipe
     grammar_corrector_pipe_int8 = None
     if to_quantize.value:
@@ -579,15 +564,33 @@ some time to complete.
 
 .. parsed-literal::
 
+    Downloading readme:   0%|          | 0.00/5.94k [00:00<?, ?B/s]
+
+
+.. parsed-literal::
+
+    Downloading data: 100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 148k/148k [00:01<00:00, 79.1kB/s]
+    Downloading data: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 141k/141k [00:01<00:00, 131kB/s]
+
+
+
+.. parsed-literal::
+
+    Generating validation split:   0%|          | 0/755 [00:00<?, ? examples/s]
+
+
+
+.. parsed-literal::
+
+    Generating test split:   0%|          | 0/748 [00:00<?, ? examples/s]
+
+
+
+.. parsed-literal::
+
     Collecting calibration data:   0%|          | 0/10 [00:00<?, ?it/s]
 
 
-.. parsed-literal::
-
-    /home/nsavel/workspace/openvino_notebooks/notebooks/214-grammar-correction/utils.py:39: FutureWarning: `shared_memory` is deprecated and will be removed in 2024.0. Value of `shared_memory` is going to override `share_inputs` value. Please use only `share_inputs` explicitly.
-      return original_fn(\*args, \*\*kwargs)
-
-
 
 .. parsed-literal::
 
@@ -628,6 +631,12 @@ some time to complete.
     <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
     </pre>
 
+
+
+.. parsed-literal::
+
+    INFO:nncf:72 ignored nodes were found by name in the NNCFGraph
+    INFO:nncf:145 ignored nodes were found by name in the NNCFGraph
 
 
 
@@ -679,8 +688,8 @@ model and original FP32 model should be almost the same.
 .. parsed-literal::
 
     Input text:                   Most of the course is about semantic or  content of language but there are also interesting topics to be learned from the servicefeatures except statistics in characters in documents.At this point, He introduces herself as his native English speaker and goes on to say that if you contine to work on social scnce
-
-    Generated text by INT8 model: Most of the course is about the semantic content of language but there are also interesting topics to be learned from the service features except statistics in characters in documents. At this point, she introduces himself as a native English speaker and goes on to say that if you continue to work on social issues, you will continue to be successful.
+    
+    Generated text by INT8 model: Most of the course is about semantics or content of language but there are also interesting topics to be learned from the service features except statistics in characters in documents. At this point, she introduces himself as a native English speaker and goes on to say that if you continue to work on social science, you will continue to do so.
 
 
 Compare model size, performance and accuracy
@@ -693,7 +702,7 @@ First, we compare file size of ``FP32`` and ``INT8`` models.
 .. code:: ipython3
 
     from utils import calculate_compression_rate
-
+    
     if to_quantize.value:
         model_size_fp32, model_size_int8 = calculate_compression_rate(grammar_corrector_dir / "openvino_decoder_with_past_model.xml", quantized_model_path)
 
@@ -701,13 +710,14 @@ First, we compare file size of ``FP32`` and ``INT8`` models.
 .. parsed-literal::
 
     Model footprint comparison:
-        * FP32 IR model size: 1658150.26 KB
-        * INT8 IR model size: 415713.38 KB
+        * FP32 IR model size: 1658150.25 KB
+        * INT8 IR model size: 415711.39 KB
+
 
 Second, we compare two grammar correction pipelines from performance and
 accuracy stand points.
 
-Test split of \ `jfleg <https://huggingface.co/datasets/jfleg>`__\
+Test split of \ `jfleg <https://huggingface.co/datasets/jfleg>`__\ 
 dataset is used for testing. One dataset sample consists of a text with
 errors as input and several corrected versions as labels. When measuring
 accuracy we use mean ``(1 - WER)`` against corrected text versions,
@@ -716,9 +726,9 @@ where WER is Word Error Rate metric.
 .. code:: ipython3
 
     from utils import calculate_inference_time_and_accuracy
-
+    
     TEST_SUBSET_SIZE = 50
-
+    
     if to_quantize.value:
         inference_time_fp32, accuracy_fp32 = calculate_inference_time_and_accuracy(grammar_corrector_pipe_fp32, TEST_SUBSET_SIZE)
         print(f"Evaluation results of FP32 grammar correction pipeline. Accuracy: {accuracy_fp32:.2f}%. Time: {inference_time_fp32:.2f} sec.")
@@ -737,7 +747,7 @@ where WER is Word Error Rate metric.
 
 .. parsed-literal::
 
-    Evaluation results of FP32 grammar correction pipeline. Accuracy: 58.04%. Time: 61.03 sec.
+    Evaluation results of FP32 grammar correction pipeline. Accuracy: 58.04%. Time: 62.44 sec.
 
 
 
@@ -748,10 +758,11 @@ where WER is Word Error Rate metric.
 
 .. parsed-literal::
 
-    Evaluation results of INT8 grammar correction pipeline. Accuracy: 57.46%. Time: 42.38 sec.
-    Performance speedup: 1.440
-    Accuracy drop :0.59%.
+    Evaluation results of INT8 grammar correction pipeline. Accuracy: 59.04%. Time: 40.32 sec.
+    Performance speedup: 1.549
+    Accuracy drop :-0.99%.
     Model footprint reduction: 3.989
+
 
 Interactive demo
 ----------------
@@ -762,18 +773,18 @@ Interactive demo
 
     import gradio as gr
     import time
-
-
+    
+    
     def correct(text, quantized, progress=gr.Progress(track_tqdm=True)):
         grammar_corrector = grammar_corrector_pipe_int8 if quantized else grammar_corrector_pipe
-
+        
         start_time = time.perf_counter()
         corrected_text = correct_text(text, grammar_checker_pipe, grammar_corrector)
         end_time = time.perf_counter()
-
+        
         return corrected_text, f"{end_time - start_time:.2f}"
-
-
+        
+    
     def create_demo_block(quantized: bool, show_model_type: bool):
         model_type = (" optimized" if quantized else " original") if show_model_type else ""
         with gr.Row():
@@ -789,16 +800,16 @@ Interactive demo
         with gr.Row():
             button = gr.Button(f"Run{model_type}")
             button.click(correct, inputs=[input_text, gr.Number(quantized, visible=False)], outputs=[output_text, correction_time])
-
-
+    
+    
     with gr.Blocks() as demo:
         gr.Markdown("# Interactive demo")
         quantization_is_present = grammar_corrector_pipe_int8 is not None
         create_demo_block(quantized=False, show_model_type=quantization_is_present)
         if quantization_is_present:
             create_demo_block(quantized=True, show_model_type=True)
-
-
+    
+    
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
@@ -806,17 +817,3 @@ Interactive demo
         demo.queue().launch(debug=False)
     except Exception:
         demo.queue().launch(share=True, debug=False)
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-

@@ -80,14 +80,14 @@ Imports
 
 .. parsed-literal::
 
-    2024-03-12 22:35:25.130181: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-03-12 22:35:25.164310: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-03-25 22:36:13.077697: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-03-25 22:36:13.113131: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 
 
 .. parsed-literal::
 
-    2024-03-12 22:35:25.734617: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-03-25 22:36:13.713380: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Settings
@@ -198,10 +198,14 @@ is a command-line application that can be run in the notebook with
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.LATENCY.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 13.37 ms
+    [ INFO ] Read model took 13.32 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     input.1 (node: input.1) : f32 / [...] / [1,1,512,512]
+
+
+.. parsed-literal::
+
     [ INFO ] Model outputs:
     [ INFO ]     153 (node: 153) : f32 / [...] / [1,1,512,512]
     [Step 5/11] Resizing model to match image sizes and given batch
@@ -216,7 +220,7 @@ is a command-line application that can be run in the notebook with
 
 .. parsed-literal::
 
-    [ INFO ] Compile model took 259.78 ms
+    [ INFO ] Compile model took 289.11 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: pretrained_unet_kits19
@@ -249,23 +253,27 @@ is a command-line application that can be run in the notebook with
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'input.1'!. This input will be filled with random values!
     [ INFO ] Fill input 'input.1' with random values 
+
+
+.. parsed-literal::
+
     [Step 10/11] Measuring performance (Start inference synchronously, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 26.09 ms
+    [ INFO ] First inference took 26.20 ms
 
 
 .. parsed-literal::
 
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            1346 iterations
-    [ INFO ] Duration:         15003.91 ms
+    [ INFO ] Count:            1360 iterations
+    [ INFO ] Duration:         15007.90 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        10.91 ms
-    [ INFO ]    Average:       10.96 ms
-    [ INFO ]    Min:           10.64 ms
-    [ INFO ]    Max:           12.98 ms
-    [ INFO ] Throughput:   89.71 FPS
+    [ INFO ]    Median:        10.80 ms
+    [ INFO ]    Average:       10.84 ms
+    [ INFO ]    Min:           10.57 ms
+    [ INFO ]    Max:           13.55 ms
+    [ INFO ] Throughput:   90.62 FPS
 
 
 Download and Prepare Data
@@ -502,7 +510,7 @@ Create asynchronous inference queue and perform it
 
 .. parsed-literal::
 
-    Loaded model to Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO') in 0.26 seconds.
-    Total time to infer all frames: 2.496s
-    Time per frame: 0.036711s (27.239 FPS)
+    Loaded model to Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO') in 0.27 seconds.
+    Total time to infer all frames: 2.446s
+    Time per frame: 0.035964s (27.806 FPS)
 

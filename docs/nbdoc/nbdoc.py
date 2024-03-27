@@ -170,7 +170,7 @@ class NbProcessor:
                 repo_owner + "/" + repo_name + "#-installation-guide' target='_blank' title='Install " + \
                 notebook_item + " locally'>local installation</a> \n\n"
             binder_badge = ".. raw:: html\n\n   <a href='" + notebooks_binder + \
-                nb_path + "' target='_blank' title='Launch " + notebook_item + \
+                nb_path.replace('/', '%2F') + "' target='_blank' title='Launch " + notebook_item + \
                 " in Binder'><img src='data:image/svg+xml;base64," + binder_image_base64 + "' class='notebook-badge' alt='Binder'></a>\n\n"
             colab_badge = ".. raw:: html\n\n   <a href='" + notebooks_colab + \
                 nb_path + "' target='_blank' title='Open " + notebook_item + \

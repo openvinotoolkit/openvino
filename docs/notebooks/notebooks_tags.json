@@ -197,7 +197,6 @@
         "Pytorch"
     ],
     "214-grammar-correction": [
-        "Async Inference",
         "Transformers"
     ],
     "216-attention-center": [
@@ -266,6 +265,11 @@
         "Pytorch",
         "Reshape Model"
     ],
+    "230-yolov8-obb": [
+        "Benchmark Model",
+        "NNCF",
+        "Pytorch"
+    ],
     "230-yolov8-object-detection": [
         "Benchmark Model",
         "NNCF",
@@ -328,10 +332,7 @@
         "Pytorch",
         "Reshape Model"
     ],
-    "239-image-bind-convert": [
-        "Pytorch"
-    ],
-    "239-image-bind-quantize": [
+    "239-image-bind": [
         "Benchmark Model",
         "NNCF",
         "Pytorch"
@@ -580,6 +581,9 @@
     "289-mobileclip-video-search": [
         "Pytorch",
         "Torchvision"
+    ],
+    "291-stable-diffusion-keras-cv": [
+        "Tensorflow"
     ],
     "301-tensorflow-training-openvino-nncf": [
         "Benchmark Model",

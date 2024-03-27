@@ -225,7 +225,7 @@ Download Model Checkpoint
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/219-knowledge-graphs-conve/models/conve.pt')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-642/.workspace/scm/ov-notebook/notebooks/219-knowledge-graphs-conve/models/conve.pt')
 
 
 
@@ -387,7 +387,7 @@ typical to use metrics such as Mean Reciprocal Rank, Hits@10 etc.
 
 .. parsed-literal::
 
-    Average time taken for inference: 0.6546974182128906 ms
+    Average time taken for inference: 0.6728072961171468 ms
     Mean accuracy of the model on the test dataset: 0.875
 
 
@@ -531,7 +531,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Average time taken for inference: 0.6280839443206787 ms
+    Average time taken for inference: 0.6727079550425211 ms
     Mean accuracy of the model on the test dataset: 0.10416666666666667
 
 
@@ -550,7 +550,7 @@ Determine the platform specific speedup obtained through OpenVINO graph optimiza
 
 .. parsed-literal::
 
-    Speedup with OpenVINO optimizations: 1.04 X
+    Speedup with OpenVINO optimizations: 1.0 X
 
 
 Benchmark the converted OpenVINO model using benchmark app
@@ -599,11 +599,7 @@ inference can also be obtained by looking at the benchmark app results.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-
-
-.. parsed-literal::
-
-    [ INFO ] Read model took 13.40 ms
+    [ INFO ] Read model took 13.24 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     e1 (node: e1) : i64 / [...] / []
@@ -623,7 +619,7 @@ inference can also be obtained by looking at the benchmark app results.
 
 .. parsed-literal::
 
-    [ INFO ] Compile model took 60.07 ms
+    [ INFO ] Compile model took 78.19 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -652,21 +648,21 @@ inference can also be obtained by looking at the benchmark app results.
     [ INFO ] Fill input 'rel' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 10000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 1.33 ms
+    [ INFO ] First inference took 1.54 ms
 
 
 .. parsed-literal::
 
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            101124 iterations
-    [ INFO ] Duration:         10001.56 ms
+    [ INFO ] Count:            100704 iterations
+    [ INFO ] Duration:         10001.30 ms
     [ INFO ] Latency:
     [ INFO ]    Median:        1.02 ms
     [ INFO ]    Average:       1.03 ms
-    [ INFO ]    Min:           0.68 ms
-    [ INFO ]    Max:           8.62 ms
-    [ INFO ] Throughput:   10110.83 FPS
+    [ INFO ]    Min:           0.67 ms
+    [ INFO ]    Max:           8.32 ms
+    [ INFO ] Throughput:   10069.09 FPS
 
 
 Conclusions
