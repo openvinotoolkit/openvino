@@ -31,9 +31,6 @@ public:
         // but scratch pad cannot be shared.
         numNumaNodes = 1;
         if (streamExecutor) {
-            // cpuStreamExecutor = std::dynamic_pointer_cast<ov::threading::CPUStreamsExecutor>(streamExecutor);
-            auto cpuStreamExecutor = std::dynamic_pointer_cast<ov::threading::CPUStreamsExecutor>(streamExecutor);
-            // auto nNumaNodes = static_cast<int>(cpuStreamExecutor->get_sub_streams());
             auto nNumaNodes = get_num_numa_nodes();
             if (numNumaNodes < nNumaNodes)
                 numNumaNodes = nNumaNodes;
@@ -78,10 +75,6 @@ public:
         return streamExecutor;
     }
 
-    // ov::threading::CPUStreamsExecutor::Ptr getCPUStreamExecutor() const {
-    //     return cpuStreamExecutor;
-    // }
-
     int getNumNumaNodes() const {
         return numNumaNodes;
     }
@@ -99,7 +92,6 @@ private:
     std::vector<DnnlScratchPadPtr> rtScratchPads;  // scratch pad (each sub-stream has its own copy)
 
     ov::threading::IStreamsExecutor::Ptr streamExecutor;   // stream executor for current graph
-    // ov::threading::CPUStreamsExecutor::Ptr cpuStreamExecutor;   // stream executor for current graph
 
     int numNumaNodes;
 };
