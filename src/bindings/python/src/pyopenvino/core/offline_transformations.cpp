@@ -96,10 +96,8 @@ void regmodule_offline_transformations(py::module m) {
     m_offline_transformations.def(
         "compress_model_transformation",
         [](std::shared_ptr<ov::Model> model) {
-            ov::pass::Manager manager;
-            manager.register_pass<ov::pass::MarkPrecisionSensitiveConstants>();
-            manager.register_pass<ov::pass::CompressFloatConstants>();
-            manager.run_passes(model);
+            bool postponed = false;
+            return ov::pass::compress_model_to_f16(model, postponed);
         },
         py::arg("model"));
 
