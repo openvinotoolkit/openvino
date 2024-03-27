@@ -25,7 +25,7 @@ using namespace ov::snippets::lowered::pass;
 
 BrgemmBlocking::BrgemmBlocking() : RangedPass() {}
 
-void BrgemmBlocking::move_new_memory_buffer(snippets::lowered::LinearIR& linear_ir, const snippets::lowered::LinearIR::constExprIt& brgemm_it) {
+LinearIR::constExprIt BrgemmBlocking::move_new_memory_buffer(LinearIR& linear_ir, const LinearIR::constExprIt& brgemm_it) {
     const auto& brgemm_expr = brgemm_it->get();
     const auto wsp_expr = brgemm_expr->get_input_port_connector(2)->get_source().get_expr();
     const auto wsp_buffer = ov::as_type_ptr<ov::snippets::op::NewMemoryBuffer>(wsp_expr->get_node());
@@ -35,6 +35,22 @@ void BrgemmBlocking::move_new_memory_buffer(snippets::lowered::LinearIR& linear_
         const auto wsp_it = linear_ir.find(wsp_expr);
         linear_ir.move(wsp_it, brgemm_it);
     }
+    return std::prev(brgemm_it);
+}
+
+LinearIR::constExprIt BrgemmBlocking::get_loop_begin_pos(LinearIR& linear_ir, const LinearIR::constExprIt& brgemm_it) {
+    auto loop_begin_it = brgemm_it;
+    const auto& brgemm_expr = *brgemm_it;
+    const auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node());
+    if (brgemm->is_amx()) {
+        loop_begin_it = move_new_memory_buffer(linear_ir, brgemm_it);
+    }
+    if (brgemm->is_with_data_repacking()) {
+        const auto& copy_b = brgemm->get_brgemm_copy();
+        const auto& copy_b_expr = linear_ir.get_expr_by_node(copy_b);
+        loop_begin_it = linear_ir.find(copy_b_expr);
+    }
+    return loop_begin_it;
 }
 
 bool BrgemmBlocking::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) {
@@ -79,81 +95,85 @@ bool BrgemmBlocking::run(LinearIR& linear_ir, LinearIR::constExprIt begin, Linea
         auto in_1_subtensor = in_1_desc->get_subtensor();
         auto out_subtensor = out_desc->get_subtensor();
 
-        auto apply_m_blocking = [&]() {
-            const auto& m = *(out_preordered_dims.rbegin() + 1);
-            const auto block_size_m = brgemm->get_m_block_size();
-            if (block_size_m >= m) {
-                *(in_0_subtensor.rbegin() + 1) = m;
-                *(out_subtensor.rbegin() + 1) = m;
-                return;
-            }
+        const auto& m = *++out_preordered_dims.rbegin();
+        const auto& n = *out_preordered_dims.rbegin();
+        const auto& k = *in_0_planar_dims.rbegin();
+        OPENVINO_ASSERT(k == *++in_1_planar_dims.rbegin(), "Brgemm input descriptors have different K dimension value.");
 
-            *(in_0_subtensor.rbegin() + 1) = block_size_m;
-            *(out_subtensor.rbegin() + 1) = block_size_m;
-            auto loop_begin_it = expr_it, loop_end_it = std::next(expr_it);
-            std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), true),
-                                          LoopPort(brgemm_expr->get_input_port(1), false)};
-            if (brgemm_cpu) {
-                if (brgemm_cpu->is_with_compensations()) {
+        const auto block_size_m = brgemm->get_m_block_size() < m ? brgemm->get_m_block_size() : m;
+        const auto block_size_n = brgemm->get_n_block_size() < n ? brgemm->get_n_block_size() : n;
+        const auto block_size_k = brgemm->get_k_block_size() < k ? brgemm->get_k_block_size() : k;
+
+        *++in_0_subtensor.rbegin() = block_size_m;
+        *++out_subtensor.rbegin() = block_size_m;
+        *in_1_subtensor.rbegin() = block_size_n;
+        *out_subtensor.rbegin() = block_size_n;
+        *in_0_subtensor.rbegin() = block_size_k;
+        *++in_1_subtensor.rbegin() = block_size_k;
+
+        brgemm_expr->get_input_port_descriptor(0)->set_subtensor(in_0_subtensor);
+        brgemm_expr->get_input_port_descriptor(1)->set_subtensor(in_1_subtensor);
+        brgemm_expr->get_output_port_descriptor(0)->set_subtensor(out_subtensor);
+
+        ov::snippets::lowered::ExpressionPtr copy_b_expr = nullptr;
+        if (brgemm_cpu && brgemm_cpu->is_with_data_repacking()) {
+            const auto copy_b = brgemm_cpu->get_brgemm_copy();
+            copy_b_expr = linear_ir.get_expr_by_node(copy_b);
+
+            auto copy_b_subtensor = copy_b_expr->get_input_port_descriptor(0)->get_subtensor();
+            *copy_b_subtensor.rbegin() = block_size_n;
+            *++copy_b_subtensor.rbegin() = block_size_k;
+
+            copy_b_expr->get_input_port_descriptor(0)->set_subtensor(copy_b_subtensor);
+            copy_b_expr->get_output_port_descriptor(0)->set_subtensor(copy_b_subtensor);
+            if (copy_b->is_with_compensations())
+                copy_b_expr->get_output_port_descriptor(1)->set_subtensor(copy_b_subtensor);
+        }
+
+        auto mark_m_blocking = [&]() {
+            const auto loop_begin_it = get_loop_begin_pos(linear_ir, expr_it);
+            const auto loop_end_it = std::next(expr_it);
+
+            std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), true)};
+            if (brgemm_cpu && brgemm_cpu->is_with_data_repacking()) {
+                 entries.emplace_back(copy_b_expr->get_input_port(0), false);
+            } else {
+                 entries.emplace_back(brgemm_expr->get_input_port(1), false);
+                if (brgemm_cpu && brgemm_cpu->is_with_compensations())
                     entries.emplace_back(brgemm_expr->get_input_port(2), false);
-                } else if (brgemm_cpu->is_amx()) {
-                    move_new_memory_buffer(linear_ir, expr_it);
-                    loop_begin_it = std::prev(expr_it);
-                }
             }
             std::vector<LoopPort> exits{LoopPort(brgemm_expr->get_output_port(0), true)};
             loop_manager->mark_loop(loop_begin_it, loop_end_it, m, block_size_m, 1, entries, exits);
         };
 
-        auto apply_n_blocking = [&]() {
-            const auto& n = *out_preordered_dims.rbegin();
-            const auto block_size_n = brgemm->get_n_block_size();
-            if (block_size_n >= n) {
-                *in_1_subtensor.rbegin() = n;
-                *out_subtensor.rbegin() = n;
-                return;
+        auto mark_n_blocking = [&]() {
+            const auto loop_begin_it = get_loop_begin_pos(linear_ir, expr_it);
+            const auto loop_end_it = std::next(expr_it);
+
+            std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), false)};
+            if (brgemm_cpu && brgemm_cpu->is_with_data_repacking()) {
+                 entries.emplace_back(copy_b_expr->get_input_port(0), true);
+            } else {
+                 entries.emplace_back(brgemm_expr->get_input_port(1), true);
+                if (brgemm_cpu && brgemm_cpu->is_with_compensations())
+                    entries.emplace_back(brgemm_expr->get_input_port(2), true);
             }
 
-            *in_1_subtensor.rbegin() = block_size_n;
-            *out_subtensor.rbegin() = block_size_n;
-            auto loop_begin_it = expr_it, loop_end_it = std::next(expr_it);
-            std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), false),
-                                          LoopPort(brgemm_expr->get_input_port(1), true)};
-            if (brgemm_cpu) {
-                if (brgemm_cpu->is_with_compensations()) {
-                    entries.emplace_back(brgemm_expr->get_input_port(2), true);
-                } else if (brgemm_cpu->is_amx()) {
-                    move_new_memory_buffer(linear_ir, expr_it);
-                    loop_begin_it = std::prev(expr_it);
-                }
-            }
             std::vector<LoopPort> exits{LoopPort(brgemm_expr->get_output_port(0), true)};
             loop_manager->mark_loop(loop_begin_it, loop_end_it, n, block_size_n, 0, entries, exits);
         };
 
-        auto apply_k_blocking = [&]() {
-            const auto& k = *in_0_planar_dims.rbegin();
-            OPENVINO_ASSERT(k == *(in_1_planar_dims.rbegin() + 1), "Brgemm input descriptors have different K dimension value.");
-            const auto block_size_k = brgemm->get_k_block_size();
-            if (block_size_k >= k) {
-                *in_0_subtensor.rbegin() = k;
-                *(in_1_subtensor.rbegin() + 1) = k;
-                brgemm->set_beta(0.f);
-                return;
-            }
+        auto mark_k_blocking = [&]() {
+            const auto loop_begin_it = get_loop_begin_pos(linear_ir, expr_it);
+            const auto loop_end_it = std::next(expr_it);
 
-            *in_0_subtensor.rbegin() = block_size_k;
-            *(in_1_subtensor.rbegin() + 1) = block_size_k;
-            auto loop_begin_it = expr_it, loop_end_it = std::next(expr_it);
-            std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), true, 0),
-                                          LoopPort(brgemm_expr->get_input_port(1), true, 1)};
-            if (brgemm_cpu) {
-                if (brgemm_cpu->is_with_compensations()) {
-                    entries.emplace_back(brgemm_expr->get_input_port(2), false, 1);
-                } else if (brgemm_cpu->is_amx()) {
-                    move_new_memory_buffer(linear_ir, expr_it);
-                    loop_begin_it = std::prev(expr_it);
-                }
+            std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), true, 0)};
+            if (brgemm_cpu && brgemm_cpu->is_with_data_repacking()) {
+                 entries.emplace_back(copy_b_expr->get_input_port(0), true, 1);
+            } else {
+                 entries.emplace_back(brgemm_expr->get_input_port(1), true, 1);
+                if (brgemm_cpu && brgemm_cpu->is_with_compensations())
+                    entries.emplace_back(brgemm_expr->get_input_port(2), true, 1);
             }
             std::vector<LoopPort> exits{LoopPort(brgemm_expr->get_output_port(0), false)};
             const auto id = loop_manager->mark_loop(loop_begin_it, loop_end_it, k, block_size_k, entries, exits);
@@ -161,13 +181,15 @@ bool BrgemmBlocking::run(LinearIR& linear_ir, LinearIR::constExprIt begin, Linea
             loop_info->register_handler<ov::snippets::lowered::SpecificIterationHandlers::HandlerType::FIRST_ITER, SetBrgemmBeta>(0.f);
         };
 
-        apply_k_blocking();
-        apply_n_blocking();
-        apply_m_blocking();
-
-        brgemm_expr->get_input_port_descriptor(0)->set_subtensor(in_0_subtensor);
-        brgemm_expr->get_input_port_descriptor(1)->set_subtensor(in_1_subtensor);
-        brgemm_expr->get_output_port_descriptor(0)->set_subtensor(out_subtensor);
+        if (block_size_k != k) {
+            mark_k_blocking();
+        } else {
+            brgemm->set_beta(0.f);
+        }
+        if (block_size_n != n)
+            mark_n_blocking();
+        if (block_size_m != m)
+            mark_m_blocking();
         modified = true;
     }
 
