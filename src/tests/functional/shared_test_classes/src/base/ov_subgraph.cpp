@@ -262,12 +262,6 @@ void SubgraphBaseTest::compare(const std::vector<ov::Tensor>& expected,
         const auto result = results[j];
         for (size_t i = 0; i < result->get_input_size(); ++i) {
             std::shared_ptr<ov::Node> inputNode = result->get_input_node_shared_ptr(i);
-            if (std::dynamic_pointer_cast<ov::op::v0::Convert>(inputNode)) {
-                std::shared_ptr<ov::Node> nextNodePtr = inputNode->get_input_node_shared_ptr(0);
-                if (!ov::is_type<ov::op::v0::Result>(nextNodePtr)) {
-                    inputNode = nextNodePtr;
-                }
-            }
             auto it = compareMap.find(inputNode->get_type_info());
             ASSERT_NE(it, compareMap.end());
             it->second(inputNode, i, expected[j], actual[j], abs_threshold, rel_threshold);
