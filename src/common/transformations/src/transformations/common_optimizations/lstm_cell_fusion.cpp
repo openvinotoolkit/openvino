@@ -352,3 +352,205 @@ ov::pass::LSTMCellFusion::LSTMCellFusion() {
     auto m = std::make_shared<pattern::Matcher>(Ho_label, matcher_name);
     this->register_matcher(m, callback);
 }
+
+namespace {
+/*
+ * We accept B_shape = {1,...1, 4*hidden_size, 1, ... 1}
+ */
+size_t get_hidden_size_from_bias_shape(const ov::Shape& shape, bool& is_shape_correct) {
+    is_shape_correct = false;
+    // B_shape cannot be empty
+    if (shape.empty())
+        return 0;
+    const size_t n_one_items = std::count(shape.begin(), shape.end(), 1);
+    /*
+     * B_shape = {K}
+     * K > 1 => n_one_items = 0
+     * B_shape = {1, ... K, ... 1}
+     * K > 1 => n_one_items = B_shape.size() - 1
+     */
+    if (n_one_items != (shape.size() - 1))
+        return 0;
+    auto it = std::find_if(shape.begin(), shape.end(), [](ov::Shape::value_type elem) {
+        return elem != 1;
+    });
+    // that cannot be since we have dimension = 4*hidden_size
+    if (it == shape.end())
+        return 0;
+    const size_t hidden_size_4 = *it;
+    if (hidden_size_4 % 4)
+        return 0;
+    is_shape_correct = true;
+    return hidden_size_4 / 4;
+}
+
+/*
+ * We accept shape [4*hidden_size, input_size] if transposed otherwise [input_size, 4*hidden_size]
+ */
+bool is_w_weights_shape_correct(const ov::Shape& shape, bool weights_transposed, size_t hidden_size) {
+    if (shape.size() != 2)
+        return false;
+    const size_t hidden_size_4_idx = weights_transposed ? 0 : 1;
+    if (shape[hidden_size_4_idx] % 4)
+        return false;
+    return (shape[hidden_size_4_idx] / 4) == hidden_size;
+}
+
+/*
+ * We accept shape [4*hidden_size, hidden_size] if transposed otherwise [hidden_size, 4*hidden_size]
+ */
+bool is_r_weights_shape_correct(const ov::Shape& shape, bool is_r_weights_transposed, size_t hidden_size) {
+    if (shape.size() != 2)
+        return false;
+    const size_t hidden_size_idx = is_r_weights_transposed ? 1 : 0;
+    const size_t hidden_size_4_idx = is_r_weights_transposed ? 0 : 1;
+    if (shape[hidden_size_4_idx] % 4)
+        return false;
+    return shape[hidden_size_4_idx] / 4 == shape[hidden_size_idx] && shape[hidden_size_idx] == hidden_size;
+}
+
+std::shared_ptr<ov::Node> convert_weights_input(const std::shared_ptr<ov::Node>& node, bool transpose) {
+    std::shared_ptr<ov::Node> tail = node;
+    if (transpose) {
+        auto transpose_order = std::make_shared<ov::op::v0::Constant>(ov::element::u32, ov::Shape{2}, ov::Shape{1, 0});
+        tail = std::make_shared<ov::op::v1::Transpose>(tail, transpose_order);
+    }
+    tail = ov::op::util::convert_lstm_node_format(tail,
+                                                  ov::op::util::LSTMWeightsFormat::IFCO,
+                                                  ov::op::util::LSTMWeightsFormat::FICO);
+    return ov::util::constantfold_subgraph(tail);
+}
+
+}  // namespace
+
+ov::pass::LSTMCellTfKerasFusion::LSTMCellTfKerasFusion() {
+    MATCHER_SCOPE(LSTMCellTfKerasFusion);
+
+    auto x_label = pattern::any_input(pattern::rank_equals(2));
+    auto weights_label = pattern::any_input([](const Output<Node>& output) {
+        return pattern::has_static_shape()(output) && pattern::rank_equals(2)(output);
+    });
+    auto h_label = pattern::any_input(pattern::rank_equals(2));
+    auto r_label = pattern::any_input([](const Output<Node>& output) {
+        return pattern::has_static_shape()(output) && pattern::rank_equals(2)(output);
+    });
+    auto xw_matmul_label = pattern::wrap_type<op::v0::MatMul>({x_label, weights_label});
+    auto hr_matmul_label = pattern::wrap_type<op::v0::MatMul>({h_label, r_label});
+    auto while_add_label = pattern::wrap_type<op::v1::Add>({xw_matmul_label, hr_matmul_label});
+    auto bias_label = pattern::any_input(pattern::has_static_shape());
+    auto bias_add_label = pattern::wrap_type<op::v1::Add>({while_add_label, bias_label});
+    auto axis_label = pattern::wrap_type<op::v0::Constant>();
+    auto split_label = pattern::wrap_type<op::v1::Split>({bias_add_label, axis_label});
+    auto it_label = pattern::wrap_type<op::v0::Relu, op::v0::Sigmoid, op::v0::Tanh>({split_label});
+    auto ct_label = pattern::wrap_type<op::v0::Relu, op::v0::Sigmoid, op::v0::Tanh>({split_label});
+    auto ft_label = pattern::wrap_type<op::v0::Relu, op::v0::Sigmoid, op::v0::Tanh>({/*add_label*/ split_label});
+    auto ot_label = pattern::wrap_type<op::v0::Relu, op::v0::Sigmoid, op::v0::Tanh>({split_label});
+    auto mul_label = pattern::wrap_type<op::v1::Multiply>({it_label, ct_label});
+    auto c_label = pattern::any_input();
+    auto mul1_label = pattern::wrap_type<op::v1::Multiply>({ft_label, c_label});
+    auto Co_label = pattern::wrap_type<op::v1::Add>({mul_label, mul1_label});
+    auto Co_activation_label = pattern::wrap_type<op::v0::Relu, op::v0::Sigmoid, op::v0::Tanh>({Co_label});
+    auto Ho_label = pattern::wrap_type<op::v1::Multiply>({Co_activation_label, ot_label});
+
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+        const auto& X = pattern_map.at(x_label);
+        const auto& H = pattern_map.at(h_label);
+        const auto& C = pattern_map.at(c_label);
+        auto W = pattern_map.at(weights_label).get_node_shared_ptr();
+        auto R = pattern_map.at(r_label).get_node_shared_ptr();
+        auto B = pattern_map.at(bias_label).get_node_shared_ptr();
+        auto Ho = pattern_map.at(Ho_label);
+        auto Co = pattern_map.at(Co_label);
+        auto ot = pattern_map.at(ot_label).get_node_shared_ptr();
+        auto it = pattern_map.at(it_label).get_node_shared_ptr();
+        auto xw_matmul = ov::as_type_ptr<op::v0::MatMul>(pattern_map.at(xw_matmul_label).get_node_shared_ptr());
+        auto hr_matmul = ov::as_type_ptr<op::v0::MatMul>(pattern_map.at(hr_matmul_label).get_node_shared_ptr());
+        const auto& W_shape = W->get_output_shape(0);  // must be [4*hidden_size, input_size] if transposed
+        const auto& R_shape = R->get_output_shape(0);  // must be [4*hidden_size, hidden_size] if transposed
+        const auto& B_shape = B->get_output_shape(0);  // must be [4*hidden_size]
+        bool is_shape_correct = false;
+        const size_t hidden_size = get_hidden_size_from_bias_shape(B_shape, is_shape_correct);
+        if (!is_shape_correct)
+            return false;
+        const bool is_weights_transposed = xw_matmul->get_transpose_b();
+        if (!is_w_weights_shape_correct(W_shape, is_weights_transposed, hidden_size))
+            return false;
+        const bool is_r_weights_transposed = hr_matmul->get_transpose_b();
+        if (!is_r_weights_shape_correct(R_shape, is_r_weights_transposed, hidden_size))
+            return false;
+
+        // get activation names
+        auto ft = pattern_map.at(ft_label).get_node_shared_ptr();
+        std::string f_activation_name = get_activation_name(ft);
+        auto ct = pattern_map.at(ct_label).get_node_shared_ptr();
+        std::string g_activation_name = get_activation_name(ct);
+        auto Co_activation = pattern_map.at(Co_activation_label).get_node_shared_ptr();
+        std::string h_activation_name = get_activation_name(Co_activation);
+
+        if (f_activation_name != get_activation_name(it) || f_activation_name != get_activation_name(ot))
+            return false;
+
+        // proceed W,R and B inputs
+        std::shared_ptr<Node> w_input = convert_weights_input(W, !is_weights_transposed);
+        if (!w_input) {
+            return false;
+        }
+        std::shared_ptr<Node> r_input = convert_weights_input(R, !is_r_weights_transposed);
+        if (!r_input) {
+            return false;
+        }
+        std::shared_ptr<Node> b_input = convert_weights_input(B, false);
+        if (!b_input) {
+            return false;
+        }
+
+        auto lstm_cell = std::make_shared<op::v4::LSTMCell>(
+            X,
+            H,
+            C,
+            w_input,
+            r_input,
+            b_input,
+            hidden_size,
+            std::vector<std::string>{f_activation_name, g_activation_name, h_activation_name});
+
+        if (transformation_callback(lstm_cell)) {
+            return false;
+        }
+
+        lstm_cell->set_friendly_name(m.get_match_root()->get_friendly_name());
+        Ho.replace(lstm_cell->output(0));
+        Co.replace(lstm_cell->output(1));
+
+        copy_runtime_info(
+            {
+                W,
+                R,
+                B,
+                xw_matmul,
+                hr_matmul,
+                pattern_map.at(while_add_label).get_node_shared_ptr(),
+                pattern_map.at(bias_add_label).get_node_shared_ptr(),
+                pattern_map.at(axis_label).get_node_shared_ptr(),
+                pattern_map.at(split_label).get_node_shared_ptr(),
+                pattern_map.at(split_label).get_node_shared_ptr(),
+                it,
+                ct,
+                ft,
+                ot,
+                pattern_map.at(mul_label).get_node_shared_ptr(),
+                C.get_node_shared_ptr(),
+                pattern_map.at(mul1_label).get_node_shared_ptr(),
+                Co.get_node_shared_ptr(),
+                Co_activation,
+                Ho.get_node_shared_ptr(),
+            },
+            {w_input, r_input, b_input, lstm_cell});
+
+        return true;
+    };
+
+    auto m = std::make_shared<pattern::Matcher>(Ho_label, matcher_name);
+    this->register_matcher(m, callback);
+}
