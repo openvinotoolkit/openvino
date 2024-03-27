@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -107,6 +107,12 @@ bool ConvolutionKernel_bfyx_GEMMLike::Validate(const Params& p) const {
         return false;
 
     if (!params.engineInfo.supports_intel_subgroups_short && params.inputs[0].GetDType() == Datatype::F16) {
+        return false;
+    }
+
+    // To prevent big sized filter which causes lots of CL build time.
+    const size_t acceptable_filter_x_size = 64;     // This acceptable size was decided by heuristics
+    if (params.filterSize.x > acceptable_filter_x_size) {
         return false;
     }
 

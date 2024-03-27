@@ -118,6 +118,7 @@
 #include "transformations/cpu_opset/common/pass/permute_slice_n_interpolation.hpp"
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
 #include "transformations/cpu_opset/common/pass/rope_fusion.hpp"
+#include "transformations/cpu_opset/common/pass/causal_mask_preprocess_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/stateful_sdpa_fusion.hpp"
 
 // Snippets
@@ -318,9 +319,10 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         // @todo should we always convert to f32 regardless of hardware support, as it is done for f16?
         if (!hasHardwareSupport(ov::element::bf16))
             map.insert({ov::element::bf16, ov::element::f32});
-#if defined(OV_CPU_ARM_ENABLE_FP16)
-        if (inferencePrecision != ov::element::f16)
-            map.insert({ov::element::f16, ov::element::f32});
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+        if (inferencePrecision != ov::element::f16) {
+                map.insert({ov::element::f16, ov::element::f32});
+        }
 #else
         map.insert({ov::element::f16, ov::element::f32});
 #endif
@@ -329,11 +331,12 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 
     type_to_fuse_map type_to_fuse = {{ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert}};
 
-#if defined(OV_CPU_ARM_ENABLE_FP16)
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     // It cannot be static data, because it may be difference for different inferencePrecision
     const auto precisions = get_convert_precisions();
     if (inferencePrecision == ov::element::f16) {
         precisions_map fp_convert_precision_map = {{ov::element::f32, ov::element::f16}};
+        //keep fq nodes in f32 prec to avoid performance degradation
         type_to_fuse_map f16_fuse_map = {{ov::opset1::FakeQuantize::get_type_info_static(), fuse_type_to_fq}};
         const bool keep_precision_sensitive_in_fp32 = true;
         CPU_REGISTER_PASS_COMMON(manager,
@@ -708,6 +711,7 @@ void Transformations::PostLpt() {
 
     CPU_REGISTER_PASS_X64(postLPTPassManager, EliminateStridedSlice);
     CPU_REGISTER_PASS_X64(postLPTPassManager, RoPEFusion);
+    CPU_REGISTER_PASS_X64(postLPTPassManager, CausalMaskPreprocessFusion);
 
     CPU_REGISTER_PASS_X64(postLPTPassManager, StatefulSDPAFusion);
 
@@ -770,13 +774,6 @@ void Transformations::MainSnippets(void) {
         // The current solution with ExtractExplicitMatMulTranspose pass is slower for non-f32 cases than using of brgemm_copy_b kernel
         if (matmul->get_transpose_a() || matmul->get_transpose_b())
             return false;
-        // [115165] At the moment Quantized and BF16 Brgemm doesn't support blocking by K and N.
-        // Big shapes may lead to perf degradation
-        const auto K = *(matmul->get_input_partial_shape(0).rbegin());
-        const auto N = *(matmul->get_input_partial_shape(1).rbegin());
-        if ((K.is_static() && K.get_length() > 512) || // heuristic values
-            (N.is_static() && N.get_length() > 256))
-            return false;
         if (in_type0 == ov::element::i8)
             return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni);
         if ((in_type0 == ov::element::bf16 && in_type1 == ov::element::bf16) ||
@@ -785,6 +782,8 @@ void Transformations::MainSnippets(void) {
             // Vector madd BF16 instruction on SPR has reduced performance on HW level, which results in overall perf degradation
             size_t bf16Factor = 2;
             if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
+                const auto K = *(matmul->get_input_partial_shape(0).rbegin());
+                const auto N = *(matmul->get_input_partial_shape(1).rbegin());
                 return K.is_static() && (K.get_length() % bf16Factor == 0) &&
                        N.is_static() && (N.get_length() % bf16Factor == 0);
             }
@@ -837,7 +836,9 @@ void Transformations::MainSnippets(void) {
                                                        ov::is_type<const ov::op::v0::MatMul>(n) ||
                                                        ov::is_type<const ov::op::v1::Transpose>(n) ||
                                                        ov::is_type<const ov::op::v1::Broadcast>(n) ||
-                                                       ov::is_type<const ov::op::v3::Broadcast>(n));
+                                                       ov::is_type<const ov::op::v3::Broadcast>(n) ||
+                                                       ov::is_type<const ov::op::v1::ReduceMax>(n) ||
+                                                       ov::is_type<const ov::op::v1::ReduceSum>(n));
                 if (is_disabled_tokenization)
                     return true;
                 const auto& inputs = n->inputs();

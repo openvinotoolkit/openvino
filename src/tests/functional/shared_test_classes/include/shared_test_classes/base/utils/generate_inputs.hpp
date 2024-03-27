@@ -12,9 +12,6 @@ namespace ov {
 namespace test {
 namespace utils {
 
-void set_const_ranges(double _min, double _max);
-void reset_const_ranges();
-
 std::vector<uint8_t> color_test_image(size_t height, size_t width, int b_step, ov::preprocess::ColorFormat format);
 
 using InputsMap = std::map<ov::NodeTypeInfo, std::function<ov::Tensor(

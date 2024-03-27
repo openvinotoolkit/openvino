@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -37,6 +37,7 @@ class TestGridSampler(PytorchLayerTest):
     @pytest.mark.parametrize("align_corners", [True, False, None])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_fx_backend
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_grid_sampler(self, h_in, w_in, h_out, w_out, mode, padding_mode, align_corners, ie_device, precision, ir_version):
