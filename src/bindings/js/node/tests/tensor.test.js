@@ -125,7 +125,7 @@ describe('Tensor shape', () => {
     const tensor = new ov.Tensor(ov.element.f32, [1, 3, 224, 224], data);
     assert.throws(
       () => tensor.getShape(1, 2, 3),
-      { message: /No parameters are allowed for the getShape() method./ }
+      { message: 'No parameters are allowed for the getShape() method.'}
     );
   });
 });
