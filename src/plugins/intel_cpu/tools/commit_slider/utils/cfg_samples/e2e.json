@@ -2,10 +2,10 @@
     "appPath" : "/<e2e_path>/e2e/frameworks.ai.openvino.tests/e2e_oss/",
     "appCmd" : "pytest test_dynamism.py <e2e_args>",
     "envVars" : [
-        {"name" : "PYTHONPATH", "val" : "/<ov_path>/bin/intel64/Release/python/"},
-        {"name" : "LD_LIBRARY_PATH", "val" : "/<ov_path>/bin/intel64/Release/"},
-        {"name" : "MO_ROOT", "val" : "/<ov_path>/tools/mo/openvino/tools/"},
-        {"name" : "OPENVINO_ROOT_DIR", "val" : "/<ov_path>/"}
+        {"name" : "PYTHONPATH", "val" : "{gitPath}/bin/intel64/Release/python/"},
+        {"name" : "LD_LIBRARY_PATH", "val" : "{gitPath}/bin/intel64/Release/"},
+        {"name" : "MO_ROOT", "val" : "{gitPath}/tools/mo/openvino/tools/"},
+        {"name" : "OPENVINO_ROOT_DIR", "val" : "{gitPath}/"}
     ],
     "makeCmd" : "cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_PYTHON=ON -DPython3_EXECUTABLE=/usr/bin/python3.8 -DTHREADING=TBB -DENABLE_INTEL_GPU=OFF -DENABLE_SAMPLES=OFF -DENABLE_TESTS=OFF -DENABLE_CPU_DEBUG_CAPS=OFF -DENABLE_HETERO=OFF -DENABLE_TEMPLATE=OFF -DENABLE_CPU_DEBUG_CAPS=OFF -DENABLE_DEBUG_CAPS=OFF -DENABLE_OPENVINO_DEBUG=OFF -DCMAKE_CXX_FLAGS=-Wno-deprecated -DCMAKE_C_FLAGS=-Wno-deprecated -DCMAKE_CXX_FLAGS=-Wno-deprecated-declarations -DCMAKE_C_FLAGS=-Wno-deprecated-declarations ..",
     "runConfig" : {
