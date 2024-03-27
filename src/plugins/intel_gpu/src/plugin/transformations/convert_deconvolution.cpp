@@ -34,7 +34,6 @@ DeconvolutionMatcher::DeconvolutionMatcher() {
     auto input_m = any_input();
     auto weights_m = any_input(has_static_dim(0));
     auto output_shape_m = any_input();
-    auto bias_val_m = wrap_type<ov::op::v0::Constant>();
     auto deconvolution_m = wrap_type<ov::op::v1::ConvolutionBackpropData, ov::op::v1::GroupConvolutionBackpropData>({ input_m, weights_m });
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
