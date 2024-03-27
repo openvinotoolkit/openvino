@@ -104,9 +104,18 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
         // In shape agnostic kernel case, the vector size of FusedOpsConfiguration cannot be specified at build time,
         // so the tile sizes must be the same as simd_size
         tuning_data.simd_size = 16;
-        tuning_data.tile_n_size = tuning_data.simd_size;
         tuning_data.tile_k_size = tuning_data.simd_size;
         tuning_data.tile_m_size = tuning_data.simd_size;
+        bool output_ndim_transposed = (params.output_order.size() > 0 && (params.output_order.back() != (static_cast<int>(params.output_order.size()) - 1)));
+        if ((params.transpose_input0 == 0 /*X_LAST*/) && (params.transpose_input1 == 0 /*X_LAST*/ || params.transpose_input1 == 1 /*Y_LAST*/)
+            && (!params.indirect_input0 && !params.inputs[0].has_dynamic_pad())
+            && (!output_ndim_transposed || params.fused_ops.empty())) {
+            // - Not supports transposed input0 / transposed input1 for OTHER mode yet
+            // - If output X dim (= N) is transposed, cannot read eltwise as aligned data
+            tuning_data.tile_n_size = 32;
+        } else {
+            tuning_data.tile_n_size = 16;
+        }
     }
 
     GPU_DEBUG_LOG << params.layerID << ": tile_m_size: " << tuning_data.tile_m_size
@@ -146,6 +155,20 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
         const std::string not_divisible_k = "(" + leftover_k + "!=0)";
         const std::string full_iteration_k = "(" + k_size + "/" + std::to_string(tuning_data.tile_k_size) + ")";
 
+        bool tile_k_may_have_leftover = false;
+        if (k_size.find("shape_info") == std::string::npos) {
+            tile_k_may_have_leftover = ((std::stoi(k_size) % tuning_data.tile_k_size) != 0);
+        } else {
+            tile_k_may_have_leftover = true;
+        }
+
+        bool tile_n_may_have_leftover = false;
+        if (n_size.find("shape_info") == std::string::npos) {
+            tile_n_may_have_leftover = ((std::stoi(n_size) % tuning_data.tile_n_size) != 0);
+        } else {
+            tile_n_may_have_leftover = true;
+        }
+
         jit.AddConstants({
             MakeJitConstant("M", m_size),
             MakeJitConstant("K", k_size),
@@ -158,8 +181,10 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
             MakeJitConstant("TILE_N", tuning_data.tile_n_size),
             MakeJitConstant("K_FULL_ITERATIONS", full_iteration_k),
             MakeJitConstant("TILE_M_NOT_DIVISIBLE", not_divisible_m),
-            MakeJitConstant("TILE_K_NOT_DIVISIBLE", not_divisible_k),
-            MakeJitConstant("TILE_N_NOT_DIVISIBLE", not_divisible_n),
+            MakeJitConstant("TILE_K_NOT_DIVISIBLE", tile_k_may_have_leftover),
+            MakeJitConstant("TILE_K_NOT_DIVISIBLE_CALC", not_divisible_k),
+            MakeJitConstant("TILE_N_NOT_DIVISIBLE", tile_n_may_have_leftover),
+            MakeJitConstant("TILE_N_NOT_DIVISIBLE_CALC", not_divisible_n),
             MakeJitConstant("TILE_M_LEFTOVER", leftover_m),
             MakeJitConstant("TILE_K_LEFTOVER", leftover_k),
             MakeJitConstant("TILE_N_LEFTOVER", leftover_n),
@@ -290,14 +315,25 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
+        auto vec_load_type = LoadType::LT_ALIGNED_READ;
+        for (auto op : params.fused_ops) {
+            if (op.GetType() == FusedOpType::ELTWISE) {
+                auto vec_axis_dim = op.tensors[0].X().v;
+                // If vector axis of the eltwise input data is to be broadcasted we cannot use aligned load
+                if ((vec_axis_dim == 1 && op.tensors[0].LogicalSize() != 1) && (params.inputs[1].X().v != vec_axis_dim)) {
+                    vec_load_type = LoadType::LT_UNALIGNED;
+                }
+            }
+        }
         FusedOpsConfiguration conf_vec = { "_VEC", {"b", "f", "(y + write_id)", "x"},
                                            "dequantized",
                                            input_dt,
                                            b_vec_size,
-                                           LoadType::LT_ALIGNED_READ,
+                                           vec_load_type,
                                            BoundaryCheck::ENABLED,
                                            IndexType::TENSOR_COORD,
-                                           Tensor::DataChannelName::Y };
+                                           Tensor::DataChannelName::X };
+
         FusedOpsConfiguration conf_scalar = { "_SCALAR", {"b", "f", "(y + write_id)", "x"},
                                                "dequantized",
                                                input_dt,
@@ -305,7 +341,7 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
                                                LoadType::LT_UNALIGNED,
                                                BoundaryCheck::ENABLED,
                                                IndexType::TENSOR_COORD,
-                                               Tensor::DataChannelName::Y };
+                                               Tensor::DataChannelName::X };
         jit.Merge(MakeFusedOpsJitConstants(params, { conf_vec, conf_scalar }));
     }
 

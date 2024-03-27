@@ -28,12 +28,12 @@ OutputVector translate_flatten(const NodeContext& context) {
     Output<Node> start_dim_node;
     Output<Node> end_dim_node;
     if (!context.input_is_none(1)) {
-        start_dim_node = context.get_input(1);
+        start_dim_node = get_input_as_i32(context, 1);
     } else {
         start_dim_node = v0::Constant::create(element::i32, Shape{}, {0});
     }
     if (!context.input_is_none(2)) {
-        end_dim_node = context.get_input(2);
+        end_dim_node = get_input_as_i32(context, 2);
     } else {
         end_dim_node = v0::Constant::create(element::i32, Shape{}, {-1});
     }

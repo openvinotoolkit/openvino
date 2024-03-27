@@ -52,9 +52,14 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
     uint32_t range = 0;
     int32_t resolution = 0;
 
-    if (activationType == utils::ActivationTypes::Exp && netPrecision == ov::element::bf16) {
-        startFrom = 0;
-        range = 2;
+    if (activationType == utils::ActivationTypes::Exp) {
+        if (netPrecision == ov::element::bf16) {
+            startFrom = 0;
+            range = 2;
+        } else {
+            startFrom = -10;
+            range = 25;
+        }
         resolution = 32768;
     } else if (activationType == utils::ActivationTypes::Acosh) {
         startFrom = 2;
@@ -149,6 +154,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
 #if defined(OPENVINO_ARCH_ARM64)
     if ((element_type == ov::element::f32) &&
         ((activation_type == utils::ActivationTypes::Clamp) ||
+        (activation_type == utils::ActivationTypes::Exp) ||
         (activation_type == utils::ActivationTypes::Relu))) {
         return "jit";
     }
