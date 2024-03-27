@@ -154,7 +154,7 @@ class TestUnaryOps(CommonTFLayerTest):
                                          'Erf',
                                          'BitwiseNot'
                                          ])
-    @pytest.mark.precommit
+    @pytest.mark.nightly
     def test_unary_op_precommit(self, params, ie_device, precision, ir_version, temp_dir, op_type,
                                 use_legacy_frontend):
         if not use_legacy_frontend and op_type in ['BitwiseNot']:
@@ -169,7 +169,7 @@ class TestUnaryOps(CommonTFLayerTest):
     @pytest.mark.xfail(sys.version_info > (3, 10),
                        reason="tensorflow_addons package is not available for Python 3.11 and higher")
     @pytest.mark.parametrize("params", test_data_precommit)
-    @pytest.mark.precommit
+    @pytest.mark.nightly
     def test_unary_op_mish_precommit(self, params, ie_device, precision, ir_version, temp_dir,
                                      use_legacy_frontend):
         """
