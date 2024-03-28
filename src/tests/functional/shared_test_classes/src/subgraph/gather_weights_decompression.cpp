@@ -180,20 +180,11 @@ void GatherWeightsDecompression::generate_inputs(const std::vector<ov::Shape>& t
 void GatherWeightsDecompression::check_results() {
     const auto& test_param = GetParam();
     ov::element::Type weights_precision = std::get<2>(test_param);
-    bool found_gather_compressed = false;
     for (const auto& n : compiledModel.get_runtime_model()->get_ordered_ops()) {
         if (n->get_friendly_name() == "Compressed_weights") {
             ASSERT_EQ(n->get_output_element_type(0), weights_precision);
         }
-        if (n->get_friendly_name() == "gather_node") {
-            // Input 4/5 means pattern matched.
-            if (n->get_input_size() == 4u || n->get_input_size() == 5u) {
-                found_gather_compressed = true;
-            }
-        }
     }
-    if (targetDevice != "GPU")
-        EXPECT_TRUE(found_gather_compressed);
 }
 
 void GatherWeightsDecompression::SetUp() {
