@@ -6,7 +6,9 @@
 #include "node/include/errors.hpp"
 #include "node/include/helper.hpp"
 
-InputModelInfo::InputModelInfo(const Napi::CallbackInfo& info) : Napi::ObjectWrap<InputModelInfo>(info){};
+InputModelInfo::InputModelInfo(const Napi::CallbackInfo& info)
+    : Napi::ObjectWrap<InputModelInfo>(info),
+      _model_info(nullptr){};
 
 Napi::Function InputModelInfo::get_class_constructor(Napi::Env env) {
     return DefineClass(env, "InputModelInfo", {InstanceMethod("setLayout", &InputModelInfo::set_layout)});
