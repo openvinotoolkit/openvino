@@ -9,6 +9,9 @@ jobs:
   clang-format:
     runs-on: ubuntu-20.04
     permissions:
+      contents: read
+      checks: write
+      issues: write
       pull-requests: write
     steps:
       - uses: actions/checkout@v4
@@ -28,16 +31,20 @@ jobs:
         run: cmake --build build --target clang_format_fix_all -j8
 
       - name: suggester / clang-format
-        if: startsWith(github.event_name, 'pull_request')
         uses: reviewdog/action-suggester@v1
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ github.token }}
+          tool_name: "clang-format"
+          reviewdog_flags: -reporter=github-pr-review
           level: warning
           fail_on_error: true
 
   ShellCheck:
     runs-on: ubuntu-22.04
     permissions:
+      contents: read
+      checks: write
+      issues: write
       pull-requests: write
     steps:
       - uses: actions/checkout@v4
@@ -51,25 +58,34 @@ jobs:
 
       - name: CMake configure
         run: cmake -B build
+#
+#      - name: Shellcheck cmake target
+#        run: cmake --build build --target ov_shellcheck -j8
 
-      - name: Shellcheck cmake target
-        run: cmake --build build --target ov_shellcheck -j8
-
-      # always provide suggestions even for skipped scripts in ov_shellcheck tagret
+      # always provide suggestions even for skipped scripts in ov_shellcheck target
       - name: ShellCheck action
         if: always()
         uses: reviewdog/action-shellcheck@v1
         with:
-          level: style
           reporter: github-pr-review
           check_all_files_with_shebangs: true
+          github_token: ${{ github.token }}
           fail_on_error: true
+          path: |
+            samples/cpp/
+            ${{ github.workspace }}
           exclude: |
               "*/thirdparty/*"
               "./temp/*"
+              "*/.git/*"
 
   NamingConventionCheck:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      checks: write
+      issues: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -85,7 +101,16 @@ jobs:
         run: python3 -m pip install -r cmake/developer_package/ncc_naming_style/requirements_dev.txt
 
       - name: CMake configure
-        run: cmake -B build
+        run: cmake -DENABLE_NCC_STYLE=ON -B build
 
       - name: Naming convention check
         run: cmake --build build --target ncc_all -j8
+
+      - name: suggester / Naming Convention
+        if: always()
+        uses: reviewdog/action-suggester@v1
+        with:
+          github_token: ${{ github.token }}
+          reviewdog_flags: -reporter=github-pr-review
+          level: error
+          fail_on_error: true
