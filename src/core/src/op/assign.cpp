@@ -125,7 +125,6 @@ bool Assign::evaluate(TensorVector& outputs,
 
     std::memcpy(outputs[0].data(), inputs[0].data(), inputs[0].get_byte_size());
     std::memcpy(memory_buffer.data(), inputs[0].data(), inputs[0].get_byte_size());
-
     return true;
 }
 

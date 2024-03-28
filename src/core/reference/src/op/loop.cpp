@@ -11,6 +11,7 @@
 #include "openvino/reference/function.hpp"
 #include "openvino/reference/split.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace reference {
@@ -19,7 +20,8 @@ void loop(const std::shared_ptr<Model>& func,
           const op::util::InputDescriptionVector& input_descs,
           const op::v5::Loop::SpecialBodyPorts& special_ports,
           ov::TensorVector& out,
-          const ov::TensorVector& args) {
+          const ov::TensorVector& args,
+          const EvaluationContext& evaluation_context) {
     const auto& cur_iter_idx = special_ports.current_iteration_input_idx;
     auto val = std::find_if(input_descs.begin(),
                             input_descs.end(),
@@ -137,7 +139,8 @@ void loop(const std::shared_ptr<Model>& func,
 
             // Evaluate body
             body_outputs.clear();
-            reference::function(func, inputs_to_body, body_outputs);
+            body_outputs.resize(func->get_results().size());
+            func->evaluate(body_outputs, inputs_to_body, const_cast<EvaluationContext&>(evaluation_context));
 
             // Store values for later concatenation
             for (size_t i = 0; i < values_to_concat.size(); ++i) {
