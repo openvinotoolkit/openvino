@@ -9,7 +9,7 @@ graph {
     attribute {
       name: "end"
       type: INT
-      i: -1
+      i: -2
     }
   }
   input {

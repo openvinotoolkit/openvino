@@ -7,9 +7,9 @@ graph {
     output: "shape_output"
     op_type: "Shape"
     attribute {
-      name: "end"
+      name: "start"
       type: INT
-      i: -1
+      i: -2
     }
   }
   input {

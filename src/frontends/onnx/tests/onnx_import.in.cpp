@@ -1924,6 +1924,40 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_shape15_start_negative_1) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_shape15_start_negative_2) {
+    // shape 15 tests
+    auto model = convert_model("shape_opset15_start_negative_2.onnx");
+
+    Inputs inputs;
+    inputs.emplace_back(
+        ov::test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                     {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                     {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}})
+            .get_vector());
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output<int64_t>({4, 5});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_shape15_end_negative_2) {
+    // shape 15 tests
+    auto model = convert_model("shape_opset15_end_negative_2.onnx");
+
+    Inputs inputs;
+    inputs.emplace_back(
+        ov::test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                     {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                     {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}})
+            .get_vector());
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output<int64_t>({3});
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_elu) {
     auto model = convert_model("elu.onnx");
 
