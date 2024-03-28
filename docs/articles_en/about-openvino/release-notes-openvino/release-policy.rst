@@ -114,6 +114,31 @@ The following package distributions are available for installation:
 
          pip install openvino-nightly
 
+Determing the OpenVINO version
+--------------------------------
+
+There are two ways to determine which version of OpenVINO is included in the package:
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: python
+
+      Execute the following command within the installed package:
+
+      .. code-block:: python
+
+         python3 -c "import openvino; print(openvino.__version__)"
+
+   .. tab-item:: Archives
+      :sync: archives
+
+      You can find the file version in:
+
+      .. code-block::
+
+         <UNZIPPED_ARCHIVE_ROOT>/runtime/version.txt
+
 
 Additional Resources
 ########################
