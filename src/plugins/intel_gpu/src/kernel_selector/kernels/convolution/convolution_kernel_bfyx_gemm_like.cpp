@@ -110,6 +110,12 @@ bool ConvolutionKernel_bfyx_GEMMLike::Validate(const Params& p) const {
         return false;
     }
 
+    // To prevent big sized filter which causes lots of CL build time.
+    const size_t acceptable_filter_x_size = 64;     // This acceptable size was decided by heuristics
+    if (params.filterSize.x > acceptable_filter_x_size) {
+        return false;
+    }
+
     return true;
 }
 
