@@ -347,6 +347,14 @@ def test_reshape_with_python_types(device):
     model.reshape(shape10)
     check_shape(PartialShape([Dimension(-1), Dimension(3), Dimension(-1, 224), Dimension(-1, 224)]))
 
+    shape11 = [[2, 4], [1, 3], [10, 12]]
+    model.reshape(shape11)
+    check_shape(PartialShape([Dimension(2, 4), Dimension(1, 3), Dimension(10, 12)]))
+
+    shape12 = [model.inputs[0].partial_shape[0], [1, 22], model.inputs[0].partial_shape[2]]
+    model.reshape(shape12)
+    check_shape(PartialShape([Dimension(2, 4), Dimension(1, 22), Dimension(10, 12)]))
+
     # check exceptions
     shape10 = [1, 1, 1, 1]
     with pytest.raises(TypeError) as e:
