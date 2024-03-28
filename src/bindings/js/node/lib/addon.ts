@@ -61,7 +61,7 @@ interface Model {
   getName(): string;
   isDynamic(): boolean;
   setFriendlyName(name: string): void;
-  getFriendlyName(): string;  
+  getFriendlyName(): string;
 }
 
 interface CompiledModel {
