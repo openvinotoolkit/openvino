@@ -5,13 +5,17 @@
 #include "openvino/op/select.hpp"
 
 #include "common_op_table.hpp"
+#include "helper_ops/complex_type_mark.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 using namespace std;
 using namespace ov;
@@ -25,6 +29,26 @@ OutputVector translate_select_base_op(const NodeContext& node,
                                       const Output<Node>& condition,
                                       const Output<Node>& x,
                                       const Output<Node>& y) {
+    auto complex_type_mark_x = as_type_ptr<ComplexTypeMark>(x.get_node_shared_ptr());
+    auto complex_type_mark_y = as_type_ptr<ComplexTypeMark>(y.get_node_shared_ptr());
+
+    if (complex_type_mark_x && complex_type_mark_y) {
+        auto const_1 = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
+        auto cond_shape = make_shared<v3::ShapeOf>(condition, element::i32);
+        auto new_cond_shape = make_shared<v0::Concat>(OutputVector{const_1, cond_shape}, 0);
+        auto prep_cond = make_shared<v1::Reshape>(condition, new_cond_shape, false)->output(0);
+        // at this point all inputs are NumPy broadcastable
+
+        auto complex_x = complex_type_mark_x->input_value(0);
+        auto complex_y = complex_type_mark_y->input_value(0);
+
+        auto select = make_shared<v1::Select>(prep_cond, complex_x, complex_y);
+        set_node_name(node.get_name(), select);
+
+        auto complex_result =
+            make_shared<ComplexTypeMark>(select->output(0), complex_type_mark_x->get_complex_part_type());
+        return {complex_result};
+    }
     // at this point all inputs are NumPy broadcastable
     auto select = make_shared<v1::Select>(condition, x, y);
     set_node_name(node.get_name(), select);
@@ -54,10 +78,61 @@ OutputVector translate_select_op(const NodeContext& node) {
     // 1. Either the same shape (in which case the select is elementwise), or
     // 2. condition must be Rank 1 and match over the first dimension, or
     // 3. condition is scalar
-    default_op_checks(node, 3, {"Select"});
+    default_op_checks(node, 3, {"Select"}, true);
     auto condition = node.get_input(0);
     auto x = node.get_input(1);
     auto y = node.get_input(2);
+    auto complex_type_mark_x = as_type_ptr<ComplexTypeMark>(x.get_node_shared_ptr());
+    auto complex_type_mark_y = as_type_ptr<ComplexTypeMark>(y.get_node_shared_ptr());
+    auto x_rank = compute_subgraph_scalar_rank(x, element::i32);
+
+    if (complex_type_mark_x || complex_type_mark_y) {
+        x = complex_type_mark_x->input_value(0);
+        y = complex_type_mark_y->input_value(0);
+
+        auto gather_index_real = make_shared<v0::Constant>(element::i32, Shape{}, 0);
+        auto gather_index_imag = make_shared<v0::Constant>(element::i32, Shape{}, 1);
+        auto minus_one = make_shared<v0::Constant>(element::i32, Shape{1}, -1);
+
+        auto x_real = make_shared<v8::Gather>(x, gather_index_real, minus_one)->output(0);
+        auto x_imag = make_shared<v8::Gather>(x, gather_index_imag, minus_one)->output(0);
+
+        auto y_real = make_shared<v8::Gather>(y, gather_index_real, minus_one)->output(0);
+        auto y_imag = make_shared<v8::Gather>(y, gather_index_imag, minus_one)->output(0);
+        x_rank = compute_subgraph_scalar_rank(x_real, element::i32);
+
+        // compute number of dimensions to unsqueeze the condition
+        auto cond_rank = compute_subgraph_scalar_rank(condition, element::i32);
+        auto num_new_axes = make_shared<v1::Subtract>(x_rank, cond_rank);
+
+        // generate a new shape for the condition
+        auto const_one = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
+        auto new_subshape = make_shared<v3::Broadcast>(const_one, num_new_axes);
+        auto cond_shape = make_shared<v3::ShapeOf>(condition, element::i32);
+        // use extra dimensions in the begin to avoid concatenation of empty tensors that is not supported by Concat
+        auto const_1 = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
+        auto new_cond_shape = make_shared<v0::Concat>(OutputVector{const_1, cond_shape, new_subshape}, 0);
+
+        // prepare the condition to have the same rank as operands `x` and `y`
+        auto prep_cond = make_shared<v1::Reshape>(condition, new_cond_shape, false)->output(0);
+        // squeeze prep_cond by one extra dimension specially added
+        auto const_0 = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
+        prep_cond = make_shared<v0::Squeeze>(prep_cond, const_0);
+
+        auto select_real = translate_select_base_op(node, prep_cond, x_real, y_real);
+        auto select_imag = translate_select_base_op(node, prep_cond, x_imag, y_imag);
+
+        auto real_unsqueeze = make_shared<v0::Unsqueeze>(select_real, minus_one);
+        auto imag_unsqueeze = make_shared<v0::Unsqueeze>(select_imag, minus_one);
+
+        auto concat_result = make_shared<v0::Concat>(OutputVector{real_unsqueeze, imag_unsqueeze}, -1);
+
+        set_node_name(node.get_name(), concat_result);
+
+        auto complex_result =
+            make_shared<ComplexTypeMark>(concat_result->output(0), complex_type_mark_x->get_complex_part_type());
+        return {complex_result};
+    }
 
     // compute number of dimensions to unsqueeze the condition
     auto cond_rank = compute_subgraph_scalar_rank(condition, element::i32);
