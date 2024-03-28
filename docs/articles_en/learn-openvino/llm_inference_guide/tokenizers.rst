@@ -108,7 +108,7 @@ Python Installation
       pip install --no-deps .
 
 You can also install OpenVINO Tokenizers with Conda distribution. Check `the OpenVINO Tokenizers
-repository <https://storage.openvinotoolkit.org/repositories/openvino_tokenizers/packages/>`__ for more
+repository <https://github.com/openvinotoolkit/openvino_tokenizers.git>`__ for more
 information.
 
 C++ Installation
