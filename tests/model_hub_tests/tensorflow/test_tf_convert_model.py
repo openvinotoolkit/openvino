@@ -66,13 +66,7 @@ class TestTFHubConvertModel(TestConvertModel):
         return concrete_func
 
     def get_inputs_info(self, model_obj):
-        if type(model_obj) is tf_v1.Graph:
-            input_signature = get_input_signature(model_obj)
-        elif hasattr(model_obj, "input_signature") and model_obj.input_signature is not None:
-            input_signature = model_obj.input_signature
-        else:
-            assert len(model_obj.structured_input_signature) > 1, "incorrect model or test issue"
-            input_signature = model_obj.structured_input_signature[1].items()
+        input_signature = get_input_signature(model_obj)
 
         inputs_info = []
         for input_name, input_info in (input_signature.items() if isinstance(input_signature, dict) else input_signature):
@@ -136,7 +130,13 @@ class TestTFHubConvertModel(TestConvertModel):
         tf_inputs = {}
         for input_name, input_value in inputs.items():
             tf_inputs[input_name] = tf.constant(input_value)
-        return unpack_tf_result(model_obj(**tf_inputs))
+
+        if hasattr(model_obj, "model") and isinstance(model_obj.model, (tf.keras.layers.Layer, tf.Module, tf.keras.Model)):
+            fw_output = model_obj.model(**tf_inputs)
+        else:
+            fw_output = model_obj(**tf_inputs)
+
+        return unpack_tf_result(fw_output)
 
     def clean_dir(self, dir_name: str):
         if os.path.exists(dir_name):
