@@ -4,6 +4,7 @@
 
 #include "openvino/op/abs.hpp"
 
+#include "bound_evaluate.hpp"
 #include "element_visitor.hpp"
 #include "itt.hpp"
 #include "openvino/reference/abs.hpp"
@@ -68,6 +69,26 @@ bool Abs::has_evaluate() const {
     default:
         return false;
     }
+}
+
+bool Abs::evaluate_lower(ov::TensorVector& output_values) const {
+    return tensor_is_non_negative(get_input_tensor(0).get_lower_value()) &&
+           ov::default_lower_bound_evaluator(this, output_values);
+}
+
+bool Abs::evaluate_upper(ov::TensorVector& output_values) const {
+    return tensor_is_non_negative(get_input_tensor(0).get_upper_value()) &&
+           ov::default_upper_bound_evaluator(this, output_values);
+}
+
+bool Abs::evaluate_symbol(ov::TensorSymbolVector& output_symbols) const {
+    if (tensor_is_non_negative(get_input_tensor(0).get_lower_value()) &&
+        !get_input_tensor(0).get_value_symbol().empty()) {
+        output_symbols.resize(1);
+        output_symbols[0] = get_input_tensor(0).get_value_symbol();
+        return true;
+    }
+    return false;
 }
 }  // namespace v0
 }  // namespace op

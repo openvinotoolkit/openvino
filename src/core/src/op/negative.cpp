@@ -4,6 +4,7 @@
 
 #include "openvino/op/negative.hpp"
 
+#include "bound_evaluate.hpp"
 #include "element_visitor.hpp"
 #include "itt.hpp"
 #include "openvino/reference/negate.hpp"
@@ -51,6 +52,14 @@ bool Negative::evaluate(TensorVector& outputs, const TensorVector& inputs) const
                                       inputs[0],
                                       outputs[0],
                                       shape_size(inputs[0].get_shape()));
+}
+
+bool Negative::evaluate_lower(ov::TensorVector& output_values) const {
+    return ov::default_upper_bound_evaluator(this, output_values);
+}
+
+bool Negative::evaluate_upper(ov::TensorVector& output_values) const {
+    return ov::default_lower_bound_evaluator(this, output_values);
 }
 
 bool Negative::has_evaluate() const {
