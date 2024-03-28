@@ -286,26 +286,80 @@ void JitKernelBase::uni_vpbroadcastd(const Xbyak::Ymm &x, const Xbyak::Operand &
 }
 
 void JitKernelBase::fillRestWorkMask(const Xbyak::Opmask& dstMask,
-                                     const Xbyak::Zmm&    zAux,
-                                     const Xbyak::Reg64&  rWorkRest) {
-    auto rAux0 = getReg64();
-    auto rAux1 = getReg64();
-    Xbyak::Label lKmov;
-    Xbyak::Reg32 rOnes(rAux1.getIdx());
-    const uint64_t typeSize = 4;
-    const uint64_t elPerVec = x64::cpu_isa_traits<x64::avx512_core>::vlen / typeSize;
+                                     const Xbyak::Reg64& rWorkRest) {
+    auto rOnes = getReg64();
 
-    mov(rOnes, 0x0000FFFF);
-    cmp(rWorkRest, elPerVec);
-    jge(lKmov);
-    {
-        Xbyak::Reg32 rShift(rAux0.getIdx());
-        mov(rShift, elPerVec);
-        sub(rShift, rWorkRest);
-        shrx(rOnes, rOnes, rShift);
+    mov(rOnes, 0xFFFFFFFFFFFFFFFF);
+    shlx(rOnes, rOnes, rWorkRest);
+    not_(rOnes);
+    kmovq(dstMask, rOnes);
+}
+
+void JitKernelBase::fillRestWorkMask(const Xbyak::Xmm& xmmDstMask,
+                                     const Xbyak::Reg64& rWorkRest,
+                                     const uint64_t typeSize) {
+    if (!one_of(typeSize, 1, 2, 4, 8)) {
+        IE_THROW() << "Could not fill data with type size " << typeSize;
     }
-    L(lKmov);
-    kmovw(dstMask, rOnes);
+    Xbyak::Label lEnd;
+    auto r32Ones = getReg32();
+    Xbyak::Reg64 r64Ones(r32Ones.getIdx());
+    auto elPerVec = x64::cpu_isa_traits<x64::sse41>::vlen / typeSize;
+
+    mov(r64Ones, 0xFFFFFFFFFFFFFFFF);
+    for (uint8_t i = 0; i < elPerVec; i++) {
+        cmp(rWorkRest, i);
+        jle(lEnd, T_NEAR);
+
+        if (typeSize == 1) {
+            pinsrb(xmmDstMask, r32Ones, i);
+        } else if (typeSize == 2) {
+            pinsrw(xmmDstMask, r32Ones, i);
+        } else if (typeSize == 4) {
+            pinsrd(xmmDstMask, r32Ones, i);
+        } else if (typeSize == 8) {
+            pinsrq(xmmDstMask, r64Ones, i);
+        }
+    }
+    L(lEnd);
+}
+
+void JitKernelBase::fillRestWorkMask(const Xbyak::Ymm& ymmDstMask,
+                                     const Xbyak::Reg64& rWorkRest,
+                                     const uint64_t typeSize) {
+    if (!one_of(typeSize, 1, 2, 4, 8)) {
+        IE_THROW() << "Could not fill data with type size " << typeSize;
+    }
+    Xbyak::Label lEnd;
+    auto elPerVec = x64::cpu_isa_traits<x64::sse41>::vlen / typeSize;
+    auto r32Ones = getReg32();
+    Xbyak::Reg64 r64Ones(r32Ones.getIdx());
+    Xbyak::Xmm xmmDstMask(ymmDstMask.getIdx());
+
+    mov(r64Ones, 0xFFFFFFFFFFFFFFFF);
+    uni_vpxor(ymmDstMask, ymmDstMask, ymmDstMask);
+    for (uint8_t i = 0; i < 2; i++) {
+        Xbyak::Label lPerm;
+        for (uint8_t j = 0; j < elPerVec; j++) {
+            cmp(rWorkRest, i * elPerVec + j);
+            jle(i == 0 ? lEnd : lPerm, T_NEAR);
+
+            if (typeSize == 1) {
+                pinsrb(xmmDstMask, r32Ones, j);
+            } else if (typeSize == 2) {
+                pinsrw(xmmDstMask, r32Ones, j);
+            } else if (typeSize == 4) {
+                pinsrd(xmmDstMask, r32Ones, j);
+            } else if (typeSize == 8) {
+                pinsrq(xmmDstMask, r64Ones, j);
+            }
+        }
+        cmp(rWorkRest, elPerVec);
+        je(lEnd, T_NEAR);
+        L(lPerm);
+        vperm2f128(ymmDstMask, ymmDstMask, ymmDstMask, 0x1);
+    }
+    L(lEnd);
 }
 
 void JitKernelBase::load(const Xbyak::Xmm&     vDst,
