@@ -50,8 +50,7 @@ static void init_linear_ir(const std::vector<ov::PartialShape>& in_shapes, Linea
     const auto& outer_loop_info = loop_manager->get_loop_info(loop_id);
     const auto outer_tail_size = outer_wa % outer_inc;
     if (outer_tail_size != 0) {
-        outer_loop_info->register_handler<LinearIR::LoopManager::LoopInfo::SpecificIterationHandlers::HandlerType::LAST_ITER,
-                                          pass::TransformInnerSplitLoop>(outer_tail_size);
+        outer_loop_info->register_handler<SpecificIterationHandlers::HandlerType::LAST_ITER, pass::TransformInnerSplitLoop>(outer_tail_size);
     }
 }
 

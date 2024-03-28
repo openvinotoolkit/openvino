@@ -17,9 +17,9 @@ namespace ov {
 namespace intel_cpu {
 namespace pass {
 using LinearIR = snippets::lowered::LinearIR;
-using LoopPort = LinearIR::LoopManager::LoopPort;
+using LoopPort = snippets::lowered::LoopPort;
+using LoopInfo = snippets::lowered::LoopInfo;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
-using LoopInfo = LinearIR::LoopManager::LoopInfo;
 using namespace ov::snippets::lowered::pass;
 
 BrgemmBlocking::BrgemmBlocking() : RangedPass() {}
@@ -147,7 +147,7 @@ bool BrgemmBlocking::run(LinearIR& linear_ir, LinearIR::constExprIt begin, Linea
             std::vector<LoopPort> exits{LoopPort(brgemm_expr->get_output_port(0), false)};
             const auto id = loop_manager->mark_loop(loop_begin_it, loop_end_it, k, block_size_k, entries, exits);
             const auto loop_info = loop_manager->get_loop_info(id);
-            loop_info->register_handler<LoopInfo::SpecificIterationHandlers::HandlerType::FIRST_ITER, SetBrgemmBeta>(0.f);
+            loop_info->register_handler<ov::snippets::lowered::SpecificIterationHandlers::HandlerType::FIRST_ITER, SetBrgemmBeta>(0.f);
         };
 
         apply_k_blocking();

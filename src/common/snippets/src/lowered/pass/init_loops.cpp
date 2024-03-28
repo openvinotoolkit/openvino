@@ -15,8 +15,6 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-using LoopPort = LinearIR::LoopManager::LoopPort;
-
 namespace {
 inline int64_t get_stride(size_t dim, const VectorDims& shape) {
     int64_t stride = 1;
@@ -75,7 +73,7 @@ inline void init_data_size(LoopPort& loop_port) {
     }
 }
 
-inline void init_work_amount(const LinearIR::LoopManager::LoopInfoPtr& loop_info) {
+inline void init_work_amount(const LoopInfoPtr& loop_info) {
     size_t work_amount = 1;
     for (const auto& loop_port : loop_info->get_entry_points()) {
         if (loop_port.is_incremented) {
@@ -97,7 +95,7 @@ inline void init_work_amount(const LinearIR::LoopManager::LoopInfoPtr& loop_info
 }
 }  // namespace
 
-void InitLoops::init_loop_info(const LinearIR::LoopManager::LoopInfoPtr& loop_info, bool only_runtime_args) {
+void InitLoops::init_loop_info(const LoopInfoPtr& loop_info, bool only_runtime_args) {
     if (utils::is_dynamic_value(loop_info->get_work_amount()))
         init_work_amount(loop_info);
 
