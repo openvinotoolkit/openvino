@@ -10,6 +10,7 @@
 
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <typeindex>
 #include <typeinfo>
@@ -209,6 +210,18 @@ struct Read<std::vector<T, A>, typename std::enable_if<std::is_default_construct
     }
 };
 
+template <typename K, typename C, typename A>
+struct Read<std::set<K, C, A>, typename std::enable_if<std::is_default_constructible<K>::value>::type> {
+    void operator()(std::istream& is, std::set<K, C, A>& set) const {
+        while (is.good()) {
+            std::string str;
+            is >> str;
+            auto v = from_string<K>(str);
+            set.insert(std::move(v));
+        }
+    }
+};
+
 template <typename K, typename T, typename C, typename A>
 struct Read<
     std::map<K, T, C, A>,
@@ -336,6 +349,21 @@ struct Write<std::vector<T, A>> {
             for (auto&& v : vec) {
                 os << to_string(v);
                 if (i < (vec.size() - 1))
+                    os << ' ';
+                ++i;
+            }
+        }
+    }
+};
+
+template <typename K, typename C, typename A>
+struct Write<std::set<K, C, A>> {
+    void operator()(std::ostream& os, const std::set<K, C, A>& set) const {
+        if (!set.empty()) {
+            std::size_t i = 0;
+            for (auto&& v : set) {
+                os << to_string(v);
+                if (i < (set.size() - 1))
                     os << ' ';
                 ++i;
             }
