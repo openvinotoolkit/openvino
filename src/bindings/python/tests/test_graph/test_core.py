@@ -398,15 +398,18 @@ def test_shape_negative_index():
     assert shape[-1] == 5
     assert shape[-3] == 3
 
+
 def test_partial_shape_negative_index():
     shape = PartialShape([1, 2, 3, 4, 5])
     assert shape[-1] == 5
     assert shape[-3] == 3
 
+
 def test_shape_slicing_step():
     shape = Shape([1, 2, 3, 4, 5])
     assert list(shape[::2]) == [1, 3, 5]
     assert list(shape[1::2]) == [2, 4]
+
 
 def test_partial_shape_slicing_step():
     shape = PartialShape([1, 2, 3, 4, 5])
