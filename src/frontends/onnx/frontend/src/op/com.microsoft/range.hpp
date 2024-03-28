@@ -1,0 +1,18 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace op {
+namespace set_1 {
+ov::OutputVector range(const ov::frontend::onnx::Node& node);
+
+}  // namespace set_1
+}  // namespace op
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
