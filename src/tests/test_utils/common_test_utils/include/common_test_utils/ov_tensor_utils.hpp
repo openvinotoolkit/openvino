@@ -105,7 +105,7 @@ ov::Tensor create_and_fill_tensor_act_dft(const ov::element::Type element_type,
                                           const int seed = 1);
 
 ov::Tensor create_and_fill_tensor_unique_sequence(const ov::element::Type element_type,
-                                                  const  ov::Shape& shape,
+                                                  const ov::Shape& shape,
                                                   const int32_t start_from = 0,
                                                   const int32_t resolution = 1,
                                                   const int seed = 1);
@@ -131,11 +131,11 @@ ov::Tensor create_and_fill_tensor_real_distribution(const ov::element::Type elem
 // function to compare tensors using different metrics:
 // `expected` : reference tensor
 // `actual` : plugin/calculated tensor
-// `inference_precision` : real plugin calculation precision. Default abs and rel thresholds will be calculated using this value
-// `abs_threshold` : abs difference between reference and calculated value
-// `rel_threshold` : define first incorrect element rank in mantissa
-// `topk_threshold` : percentage of incorrect values in tensor. The value is [0.f, 1.f]
-// `mvn_threshold` : avg value of `std::diff(ref_value - calculated_value) / threshold`. The value is [0.f, 1.f]. Shows tensor jitter relative to treshold
+// `inference_precision` : real plugin calculation precision. Default abs and rel thresholds will be calculated using
+// this value `abs_threshold` : abs difference between reference and calculated value `rel_threshold` : define first
+// incorrect element rank in mantissa `topk_threshold` : percentage of incorrect values in tensor. The value is
+// [0.f, 1.f] `mvn_threshold` : avg value of `std::diff(ref_value - calculated_value) / threshold`. The value is
+// [0.f, 1.f]. Shows tensor jitter relative to treshold
 void compare(const ov::Tensor& expected,
              const ov::Tensor& actual,
              const ov::element::Type& inference_precision,
@@ -145,11 +145,11 @@ void compare(const ov::Tensor& expected,
              const double mvn_threshold = 1.f);
 
 inline void compare(const ov::Tensor& expected,
-             const ov::Tensor& actual,
-             const double abs_threshold = -1,
-             const double rel_threshold = -1,
-             const double topk_threshold = 1.f,
-             const double mvn_threshold = 1.f) {
+                    const ov::Tensor& actual,
+                    const double abs_threshold = -1,
+                    const double rel_threshold = -1,
+                    const double topk_threshold = 1.f,
+                    const double mvn_threshold = 1.f) {
     compare(expected, actual, ov::element::undefined, abs_threshold, rel_threshold, topk_threshold, mvn_threshold);
 }
 

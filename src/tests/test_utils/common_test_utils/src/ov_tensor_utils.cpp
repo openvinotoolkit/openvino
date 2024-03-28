@@ -440,10 +440,10 @@ public:
 
 template <typename T1, typename T2>
 inline double calculate_default_abs_threshold(const ov::element::Type& inference_precision) {
-    std::vector<double> values = { std::numeric_limits<T1>::epsilon(), std::numeric_limits<T2>::epsilon()};
-#define CASE(X)                                                                                     \
-    case X:                                                                                         \
-        values.push_back(std::numeric_limits<element_type_traits<X>::value_type>::epsilon());       \
+    std::vector<double> values = {std::numeric_limits<T1>::epsilon(), std::numeric_limits<T2>::epsilon()};
+#define CASE(X)                                                                               \
+    case X:                                                                                   \
+        values.push_back(std::numeric_limits<element_type_traits<X>::value_type>::epsilon()); \
         break;
 
     switch (inference_precision) {
@@ -475,10 +475,11 @@ inline double calculate_default_abs_threshold(const ov::element::Type& inference
 inline double calculate_default_rel_threshold(const ov::element::Type& expected_type,
                                               const ov::element::Type& actual_type,
                                               const ov::element::Type& inference_precision) {
-    std::vector<double> values{ get_eps_by_ov_type(expected_type), get_eps_by_ov_type(actual_type)};
+    std::vector<double> values{get_eps_by_ov_type(expected_type), get_eps_by_ov_type(actual_type)};
     try {
         values.push_back(get_eps_by_ov_type(inference_precision));
-    } catch (const std::exception& e) {}
+    } catch (const std::exception& e) {
+    }
     double threshold = *std::max_element(values.begin(), values.end());
     return threshold;
 }
@@ -506,8 +507,7 @@ void compare(const ov::Tensor& expected,
 
     // Set default values in case threshold values are incorrect
     if (abs_threshold < 0) {
-        abs_threshold =
-            tensor_comparation::calculate_default_abs_threshold<ActualT, ExpectedT>(inference_precision);
+        abs_threshold = tensor_comparation::calculate_default_abs_threshold<ActualT, ExpectedT>(inference_precision);
     }
     if (rel_threshold < 0) {
         const auto expected_type = expected.get_element_type();
@@ -517,13 +517,15 @@ void compare(const ov::Tensor& expected,
     }
     if (topk_threshold < 0.f || topk_threshold > 1.f) {
         topk_threshold = 1.f;
-        std::cout << "[ WARNING ] Incorrect value: " << topk_threshold << " for Topk_threshold. It should be [0.f, 1.f]. Reset default value is 1.f" << std::endl;
+        std::cout << "[ WARNING ] Incorrect value: " << topk_threshold
+                  << " for Topk_threshold. It should be [0.f, 1.f]. Reset default value is 1.f" << std::endl;
     }
     if (mvn_threshold < 0.f || mvn_threshold > 1.f) {
         mvn_threshold = 1.f;
-        std::cout << "[ WARNING ] Incorrect value: " << mvn_threshold << " for MVN_threshold. It should be [0.f, 1.f]. Reset default value is 1.f" << std::endl;
+        std::cout << "[ WARNING ] Incorrect value: " << mvn_threshold
+                  << " for MVN_threshold. It should be [0.f, 1.f]. Reset default value is 1.f" << std::endl;
     }
-    
+
     // error is a place with whole data related to incorrect element in tensor
     size_t shape_size_cnt = shape_size(expected_shape);
     tensor_comparation::Error error(abs_threshold, rel_threshold, topk_threshold, mvn_threshold, shape_size_cnt);
@@ -571,7 +573,7 @@ void compare(const ov::Tensor& expected,
                                                                                         abs_threshold,       \
                                                                                         rel_threshold,       \
                                                                                         topk_threshold,      \
-                                                                                        mvn_threshold);     \
+                                                                                        mvn_threshold);      \
         break;
 
 #define CASE(X)                                          \
