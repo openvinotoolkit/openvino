@@ -246,7 +246,10 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
                                                     ov::device::capabilities,
                                                     ov::device::type,
                                                     ov::range_for_async_infer_requests,
-                                                    ov::execution_devices};
+                                                    ov::execution_devices,
+                                                    ov::optimal_batch_size,
+                                                    ov::max_batch_size,
+                                                    ov::loaded_from_cache};
         return ro_properties;
     };
     const auto& default_rw_properties = []() {
@@ -258,7 +261,10 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
                                                     ov::hint::execution_mode,
                                                     ov::num_streams,
                                                     ov::template_plugin::disable_transformations,
-                                                    ov::log::level};
+                                                    ov::log::level,
+                                                    ov::enable_mmap,
+                                                    ov::compilation_num_threads,
+                                                    ov::inference_num_threads};
         return rw_properties;
     };
     if (ov::supported_properties == name) {
