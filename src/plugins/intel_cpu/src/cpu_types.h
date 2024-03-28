@@ -15,6 +15,9 @@ namespace intel_cpu {
 using Dim = std::size_t;
 using VectorDims = std::vector<Dim>;
 
+std::string dim2str(Dim dim);
+std::string dims2str(const VectorDims& dims);
+
 enum class Type {
     Unknown,
     If,
