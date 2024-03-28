@@ -51,17 +51,14 @@ NamedOutputs reduce_ops(const NodeContext& node) {
     }
 
     auto reduce_node = std::make_shared<T>(x, axes_node, keep_dim);
+    const auto output_info = node.get_output_port_infos("Out");
+    size_t output_size = output_info[0].second.size();
     std::shared_ptr<Node> result = reduce_node;
-    if (scalar_output) {
+    if (scalar_output && output_size) {
         auto unsqueeze_scalar = default_opset::Constant::create(ov::element::i64, {}, {0});
         result = std::make_shared<default_opset::Unsqueeze>(reduce_node, unsqueeze_scalar);
     }
 
-    const auto output_info = node.get_output_port_infos("Out");
-    size_t output_size = output_info[0].second.size();
-    if (reduce_all && !output_size) {
-        result = std::make_shared<default_opset::Squeeze>(reduce_node);
-    }
     return node.default_single_output_mapping({result}, {"Out"});
 }
 
