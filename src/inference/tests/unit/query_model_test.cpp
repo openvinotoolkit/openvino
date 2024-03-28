@@ -614,11 +614,11 @@ TEST_F(GetSupportedNodesTest, DivideWillRemoveConvertAndConstant) {
         0.98f);
 }
 
-using GetSupportedNodesStatefulTest = GetSupportedNodesTest;
+using GetSupportedNodesCommonTest = GetSupportedNodesTest;
 using GetSupportedNodesOneConstOp = GetSupportedNodesTest;
 using GetSupportedNodesStopSplit = GetSupportedNodesTest;
 
-TEST_P(GetSupportedNodesStatefulTest, SplitModelTest) {
+TEST_P(GetSupportedNodesCommonTest, SplitModelWithDifferentRatioTest) {
     {
         auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 2, 2});
         param->set_friendly_name("input");
@@ -729,6 +729,6 @@ const std::vector<ConfigParams> testConfigs2 = {
     ConfigParams{0.9f, std::unordered_set<std::string>{"input", "const_val1", "add"}},
     ConfigParams{1.0f, std::unordered_set<std::string>{"input", "const_val1", "add"}}};
 
-INSTANTIATE_TEST_SUITE_P(GetSupportedNodesTest, GetSupportedNodesStatefulTest, ::testing::ValuesIn(testConfigs));
+INSTANTIATE_TEST_SUITE_P(GetSupportedNodesTest, GetSupportedNodesCommonTest, ::testing::ValuesIn(testConfigs));
 INSTANTIATE_TEST_SUITE_P(GetSupportedNodesTest, GetSupportedNodesOneConstOp, ::testing::ValuesIn(testConfigs1));
 INSTANTIATE_TEST_SUITE_P(GetSupportedNodesTest, GetSupportedNodesStopSplit, ::testing::ValuesIn(testConfigs2));
