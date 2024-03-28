@@ -75,6 +75,7 @@ interface Tensor {
   getElementType(): element;
   getShape(): number[];
   getData(): number[];
+  getSize(): number;
 }
 interface TensorConstructor {
   new(type: element | elementTypeString,
