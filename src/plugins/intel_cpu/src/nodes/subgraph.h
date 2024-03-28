@@ -4,10 +4,15 @@
 
 #pragma once
 
-#include "emitters/snippets/x64/jit_kernel_emitter.hpp"
 #include "node.h"
 #include "onednn/dnnl.h"
 #include "snippets/op/subgraph.hpp"
+
+#if defined(OPENVINO_ARCH_ARM64)
+#include "emitters/snippets/aarch64/jit_kernel_emitter.hpp"
+#else
+#include "emitters/snippets/x64/jit_kernel_emitter.hpp"
+#endif
 
 #include <array>
 
@@ -63,7 +68,11 @@ private:
     size_t outputNum = 0;
 
     // Holds ISA version used is codeGeneration target
+#if defined(OPENVINO_ARCH_ARM64)
+    dnnl::impl::cpu::aarch64::cpu_isa_t host_isa;
+#else
     dnnl::impl::cpu::x64::cpu_isa_t host_isa;
+#endif
 
     std::vector<MemoryPtr> srcMemPtrs = {};
     std::vector<MemoryPtr> dstMemPtrs = {};

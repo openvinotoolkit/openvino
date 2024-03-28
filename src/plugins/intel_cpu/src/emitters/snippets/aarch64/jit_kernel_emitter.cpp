@@ -1,20 +1,23 @@
-// Copyright (C) 2020-2023 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "jit_kernel_emitter.hpp"
+#include "emitters/utils.hpp"
 
-
-using namespace Xbyak;
-using namespace dnnl::impl;
-using namespace dnnl::impl::cpu::x64;
+using namespace Xbyak_aarch64;
 
 namespace ov {
 namespace intel_cpu {
+namespace aarch64 {
 
-inline static std::vector<Reg64> transform_idxs_to_regs(const std::vector<size_t>& idxs) {
-    std::vector<Reg64> regs(idxs.size());
-    std::transform(idxs.begin(), idxs.end(), regs.begin(), [](size_t idx){return Reg64(static_cast<int>(idx));});
+using jit_generator = dnnl::impl::cpu::aarch64::jit_generator;
+using cpu_isa_t = dnnl::impl::cpu::aarch64::cpu_isa_t;
+using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
+
+inline static std::vector<XReg> transform_idxs_to_regs(const std::vector<size_t>& idxs) {
+    std::vector<XReg> regs(idxs.size(), XReg(0));
+    std::transform(idxs.begin(), idxs.end(), regs.begin(), [](size_t idx){return XReg(idx);});
     return regs;
 }
 
@@ -25,10 +28,10 @@ inline static std::vector<size_t> transform_snippets_regs_to_idxs(const std::vec
 }
 
 jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_emitter(h, isa), reg_runtime_params_idx(abi_param1.getIdx()) {
+    : jit_emitter(h, isa), reg_runtime_params_idx(Operand::X0) {
     const auto kernel = ov::as_type_ptr<snippets::op::Kernel>(expr->get_node());
-    OV_CPU_JIT_EMITTER_ASSERT(kernel != nullptr, "invoked with invalid op argument");
-    OV_CPU_JIT_EMITTER_ASSERT(!kernel->region->empty(), "invoked with empty body");
+    OV_CPU_JIT_EMITTER_ASSERT(kernel != nullptr, "Invoked with invalid op argument");
+    OV_CPU_JIT_EMITTER_ASSERT(!kernel->region->empty(), "Invoked with empty body");
     body = kernel->region;
     jcp = *reinterpret_cast<const jit_snippets_compile_args*>(kernel->compile_params);
     num_inputs = 0;
@@ -44,7 +47,7 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov
                 num_outputs++;
                 break;
             } default : {
-                OV_CPU_JIT_EMITTER_THROW("detected unsupported io_type");
+                OV_CPU_JIT_EMITTER_THROW("Detected unsupported io_type");
             }
         }
         mem_access_exprs.push_back(expr);
@@ -65,21 +68,59 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov
     num_unique_buffers = unique_buffers.size();
 }
 
+//====================================================================================
+// GPR    | Description                   | Usage             | Purpose
+// ===================================================================================
+// X0     | Argument register             | Use directly      | reg_runtime_params_idx
+// X1     | Argument register             | Use directly      | Data pointer register
+// X2     | Argument register             | Use directly      | Data pointer register
+// X3     | Argument register             | Use directly      | Data pointer register
+// X4     | Argument register             | Use directly      | Data pointer register
+// X5     | Argument register             | Use directly      | Data pointer register
+// X6     | Argument register             | Use directly      | Data pointer register
+// X7     | Argument register             | Use directly      | Data pointer register
+// X8     | Indirect result reg           | Use directly      | Data pointer register
+// X9     | Caller-saved temp reg         | Use directly      | Data pointer register
+// X10    | Caller-saved temp reg         | Use directly      | Data pointer register
+// X11    | Caller-saved temp reg         | Use directly      | Data pointer register
+// X12    | Caller-saved temp reg         | Use directly      | Data pointer register
+// X13    | Caller-saved temp reg         | Use directly      | Data pointer register
+// X14    | Caller-saved temp reg         | Use directly      | Data pointer register
+// X15    | Caller-saved temp reg         | Use directly      | Data pointer register
+// X16    | Intra-procedure-call temp reg | Saved in preamble | Data pointer register
+// X17    | Intra-procedure-call temp reg | Saved in preamble | Data pointer register
+// X18    | Platform register             | Do not use        | Do not use
+// X19    | Callee-saved register         | Saved in preamble | Data pointer register
+// X20    | Callee-saved register         | Saved in preamble | Data pointer register
+// X21    | Callee-saved register         | Saved in preamble | Data pointer register
+// X22    | Callee-saved register         | Saved in preamble | Data pointer register
+// X23    | Callee-saved register         | Saved in preamble | X_TMP_0
+// X24    | Callee-saved register         | Saved in preamble | X_TMP_1
+// X25    | Callee-saved register         | Saved in preamble | Data pointer register
+// X26    | Callee-saved register         | Saved in preamble | Data pointer register
+// X27    | Callee-saved register         | Saved in preamble | Data pointer register
+// X28    | Callee-saved register         | Saved in preamble | X_DEFAULT_ADDR
+// X29    | Frame pointer register (FP)   | Saved in preamble | Frame pointer register
+// X30    | Link register (LR)            | Saved in preamble | Data pointer register
+// X31    | Stack Pointer (SP)            | Use directly      | Stack Pointer
+//====================================================================================
+// Note that 2 of the 25 marked Data pointer registers will be used as work_amounts in
+// two-level loops, so the actual number of Data pointer register is 23.
+//====================================================================================
 void jit_kernel_emitter::init_reg_pools(const std::set<size_t>& gpr_blacklist, const std::set<size_t>& vec_blacklist) {
-    gp_regs_pool.resize(16);
-    vec_regs_pool.resize(16);
+    gp_regs_pool.resize(32);
+    vec_regs_pool.resize(32);
     // It's easier to remove the last item during mapping, so fill descending to map ascending
-    for (size_t i = 0; i < 16; i++)
-        gp_regs_pool[i] = vec_regs_pool[i] = 15 - i;
+    for (size_t i = 0; i < 32; i++)
+        gp_regs_pool[i] = vec_regs_pool[i] = 31 - i;
     auto remove_regs_from_pool = [](std::vector<size_t>& pool, const std::set<size_t>& to_remove) {
         // It's important to keep the order of other elements
         pool.erase(std::remove_if(pool.begin(), pool.end(),
                                   [&](size_t x) {return to_remove.count(x) != 0;}), pool.end());
     };
-    // Reserve stack base and pointer for push(...) and pop(...) operations
-    std::set<size_t> gprs_blacklist_extended{Xbyak::Operand::RSP, Xbyak::Operand::RBP};
+    std::set<size_t> gprs_blacklist_extended{Operand::X18, Operand::X23, Operand::X24, Operand::X28, Operand::X29, Operand::SP};
     gprs_blacklist_extended.insert(gpr_blacklist.begin(), gpr_blacklist.end());
-    // Reserve abi_param1 and abi_param2, since they'll be used to pass runtime call args to kernel
+    // Reserve reg_indexes_idx and reg_runtime_params_idx, since they'll be used to pass runtime call args to kernel
     remove_regs_from_pool(gp_regs_pool, gprs_blacklist_extended);
     remove_regs_from_pool(vec_regs_pool, vec_blacklist);
 }
@@ -91,18 +132,18 @@ void jit_kernel_emitter::emit_code(const std::vector<size_t> &in, const std::vec
 }
 
 void jit_kernel_emitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
-    OV_CPU_JIT_EMITTER_ASSERT(in.empty() && out.empty(), ": expects 0 registers on input and output");
+    OV_CPU_JIT_EMITTER_ASSERT(in.empty() && out.empty(), ": Expects 0 registers on input and output");
     const auto num_params = num_inputs + num_outputs + num_unique_buffers;
     // The number of used gpr may be >= num_params since LoopBegin+LoopEnd could also use gpr to store work_amount
     OV_CPU_JIT_EMITTER_ASSERT(data_ptr_regs_idx.size() == num_params,
-                              "number of inputs and outputs is inconsistent with the number of allocated registers ", num_params,
+                              "Number of inputs and outputs is inconsistent with the number of allocated registers ", num_params,
                               " data_ptr_regs_idx.size() = ", data_ptr_regs_idx.size());
 }
 
 void jit_kernel_emitter::init_body_regs(const std::set<size_t>& kernel_regs,
                                         const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
     // Initialize pools of gp and vec registers
-    // Reserve kernel regs (abi_param1 and, if there is, abi_param2), since they'll be used to pass runtime call args to kernel
+    // Reserve kernel regs (reg_indexes_idx and, if there is, reg_runtime_params_idx), since they'll be used to pass runtime call args to kernel
     init_reg_pools(kernel_regs, {});
 
     mapping_info gpr_map_pool({}, gp_regs_pool);
@@ -114,8 +155,8 @@ void jit_kernel_emitter::init_body_regs(const std::set<size_t>& kernel_regs,
     for (const auto& abstract_to_physical : gpr_map_pool.first)
         data_ptr_regs_idx.push_back(abstract_to_physical.second);
 
-    gpr_map_pool.second.insert(gpr_map_pool.second.end(), pool_gpr_idxs.cbegin(), pool_gpr_idxs.cend());
     vec_map_pool.second.insert(vec_map_pool.second.end(), pool_vec_idxs.cbegin(), pool_vec_idxs.cend());
+    gpr_map_pool.second.insert(gpr_map_pool.second.end(), pool_gpr_idxs.cbegin(), pool_gpr_idxs.cend());
     map_abstract_registers(gpr_map_pool, vec_map_pool, general_exprs);
 }
 
@@ -136,11 +177,11 @@ void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
     h->postamble();
 }
 
-jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
+jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::aarch64::jit_generator* h, dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                                                      const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_kernel_emitter(h, isa, expr), reg_indexes_idx(abi_param2.getIdx()) {
+    : jit_kernel_emitter(h, isa, expr), reg_indexes_idx(Operand::X1) {
     const auto kernel = ov::as_type_ptr<snippets::op::KernelStatic>(expr->get_node());
-    OV_CPU_JIT_EMITTER_ASSERT(kernel != nullptr, "jit_kernel_static_emitter expectes KernelStatic expression");
+    OV_CPU_JIT_EMITTER_ASSERT(kernel != nullptr, "Expectes KernelStatic expression");
     master_shape = body->get_master_shape();
     io_shapes.reserve(num_inputs + num_outputs);
     io_data_layouts.reserve(num_inputs + num_outputs);
@@ -151,48 +192,47 @@ jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::x64::jit_g
         element::Type etype;
         switch (expr->get_type()) {
             case snippets::lowered::IOExpression::io_type::INPUT: {
-                // Note that here we consider only the first child (which is usually load),
-                // but often there is another child - LoopEnd
-                auto consumer_inputs = expr->get_output_port_connector(0)->get_consumers();
-                const auto& first_consumer = consumer_inputs.begin()->get_expr();
-                // If there is a RankNormalization op after a parameter - we should skip it
-                if (is_type<snippets::op::RankNormalization>(first_consumer->get_node()))
-                    consumer_inputs = first_consumer->get_output_port_connector(0)->get_consumers();
-                for (const auto& child_input : consumer_inputs) {
-                    const auto ma = ov::as_type_ptr<snippets::op::MemoryAccess>(child_input.get_expr()->get_node());
-                    if (ma && ma->is_memory_access_input_port(child_input.get_index())) {
-                        desc = child_input.get_descriptor_ptr();
-                        break;
-                    }
+                const auto first_consumer = expr->get_output_port_connector(0)->get_consumers().begin()->get_expr();
+                if (ov::is_type<snippets::op::RankNormalization>(first_consumer->get_node())) {
+                    desc = first_consumer->get_output_port_descriptor(0);
+                } else {
+                    desc = expr->get_output_port_descriptor(0);
                 }
                 etype = expr->get_node()->get_output_element_type(0);
                 break;
             }
             case snippets::lowered::IOExpression::io_type::OUTPUT: {
-                desc = expr->get_input_port_connector(0)->get_source().get_descriptor_ptr();
+                desc = expr->get_input_port_descriptor(0);
                 etype = expr->get_node()->get_input_element_type(0);
                 break;
             } default : {
-                OPENVINO_THROW("Kernel detected unsupported io_type");
+                OV_CPU_JIT_EMITTER_THROW("Detected unsupported io_type");
             }
         }
-        io_shapes.push_back(desc->get_shape());
-        io_data_layouts.push_back(desc->get_layout());
+        const auto& shape = desc->get_shape();
+        const auto& layout = desc->get_layout();
+        OV_CPU_JIT_EMITTER_ASSERT(shape.size() == layout.size(), "Shape and layout must have the same length");
+        const auto max_dim = *std::max_element(layout.begin(), layout.end());
+        OV_CPU_JIT_EMITTER_ASSERT(max_dim < shape.size(), "Max layout index can't be larger than the shape size");
+        io_shapes.push_back(shape);
+        io_data_layouts.push_back(layout);
         io_data_sizes.push_back(etype.size());
     }
     // Note: plugin can prepend master shape with 1 to facilitate parallel execution (usually up to 6D tensor)
     //       so we have to reproduce this behavior here
     master_shape.insert(master_shape.begin(), jcp.parallel_executor_ndims - master_shape.size(), 1);
 
-    // - Reserve abi_param1 and abi_param2, since they'll be used to pass runtime call args to kernel
+    // - Reserve reg_indexes_idx and reg_runtime_params_idx, since they'll be used to pass runtime call args to kernel
     // - However we can use reg_indexes_idx for non memory access operations
     //   since we won't need them after offsets calculation
     init_body_regs({reg_indexes_idx, reg_runtime_params_idx}, {}, {reg_indexes_idx});
 }
 
-void jit_kernel_static_emitter::init_data_pointers(const std::vector<Xbyak::Reg64>& data_ptr_regs) const {
-    Xbyak::Reg64 reg_indexes = Xbyak::Reg64(static_cast<int>(reg_indexes_idx));
-    Xbyak::Reg64 reg_runtime_params = Xbyak::Reg64(static_cast<int>(reg_runtime_params_idx));
+void jit_kernel_static_emitter::init_data_pointers(const std::vector<XReg>& data_ptr_regs) const {
+    XReg reg_indexes = XReg(static_cast<int>(reg_indexes_idx));
+    XReg reg_runtime_params = XReg(static_cast<int>(reg_runtime_params_idx));
+    XReg reg_tmp = XReg(h->X_TMP_0);
+    XReg reg_aux = XReg(h->X_TMP_1);
 
     const auto num_params = num_inputs + num_outputs;
     // Note that we don't need offset for the last dim, since it's handled directly by Tile emitter
@@ -236,77 +276,60 @@ void jit_kernel_static_emitter::init_data_pointers(const std::vector<Xbyak::Reg6
         data_offsets[i] = offset_calculation(io_shapes[i],  io_data_layouts[i], io_data_sizes[i], i < num_inputs);
     }
     // master_shape size must be valid in both static and dynamic cases
-    std::function<void(Reg64, const std::vector<size_t>&, Reg64)> init_ptr_with_offset;
-    init_ptr_with_offset = [&](Reg64 pointer, const std::vector<size_t>& offsets, Reg64 reg_tmp) {
+    auto init_ptr_with_offset = [&](XReg pointer, const std::vector<size_t>& offsets) {
         for (size_t j = 0; j < offset_rank; j++) {
             if (master_shape[j] != 1 && offsets[j] != 0) {
                 h->mov(reg_tmp, offsets[j]);
-                h->imul(reg_tmp, h->ptr[reg_indexes + j * sizeof(size_t)]);
-                h->add(pointer, reg_tmp);
+                h->ldr(reg_aux, ptr(reg_indexes, static_cast<int32_t>(j * sizeof(size_t))));
+                h->mul(reg_tmp, reg_tmp, reg_aux);
+                h->add(pointer, pointer, reg_tmp);
             }
         }
     };
-    const auto spare_corruptable_gpr = std::find_if(gp_regs_pool.begin(), gp_regs_pool.end(),
-                                                   [this](size_t reg) {
-                                                        return reg != reg_indexes_idx && reg != reg_runtime_params_idx;
-                                                   });
-    const bool last_iter_explicitly = spare_corruptable_gpr == gp_regs_pool.end();
-    Reg64 reg_tmp = last_iter_explicitly ? data_ptr_regs[num_params - 1] : Reg64(static_cast<int>(*spare_corruptable_gpr));
     // Vector "data_ptr_regs" is sorted by abstract regs.
     // It means that the vector contains the physical registers in order [src, .., src, dst, .., dst, buffer]
     // So we can initialize buffer register firstly as last value of vector "data_ptr_regs"
     // NOTE: Snippets Buffer Scratchpad has the common data pointer for all Buffers (even with different ID).
     //       The accessing memory is covered by correct offsets in each Buffer and the corresponding MemoryAccess ops
-    for (size_t i = 0; i < num_unique_buffers; ++i) {
-        h->mov(data_ptr_regs[num_params + i], h->ptr[reg_runtime_params + GET_OFF(buffer_scratchpad_ptr)]);
+    for (size_t i = 0; i < num_unique_buffers; i++) {
+        h->ldr(data_ptr_regs[num_params + i], ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(buffer_scratchpad_ptr))));
     }
-    size_t i = 0;
-    for (; i < num_params - last_iter_explicitly; i++) {
+    for (size_t i = 0; i < num_params; i++) {
         if (i < num_inputs)
-            h->mov(data_ptr_regs[i], h->ptr[reg_runtime_params + GET_OFF(src_ptrs) + i * sizeof(void*)]);
+            h->ldr(data_ptr_regs[i], ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(src_ptrs) + i * sizeof(void*))));
         else
-            h->mov(data_ptr_regs[i], h->ptr[reg_runtime_params + GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*)]);
-        init_ptr_with_offset(data_ptr_regs[i], data_offsets[i], reg_tmp);
-    }
-    // a rare case when num_params is maximal, so we have no spare gprs
-    // * Static case: we can use reg_runtime_params as the last reg_tmp for the last iteration (and corrupt it), since
-    //     it won't be used anymore
-    // * Dynamic case: we will need reg_runtime_params to pass runtime args to LoopScheduler, so we have to
-    //     push a reg on the stack, and restore it value afterwards
-    if (last_iter_explicitly) {
-        h->mov(data_ptr_regs[i], h->ptr[reg_runtime_params + GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*)]);
-        reg_tmp = reg_runtime_params;
-        // can corrupt reg_runtime_params, since we won't use it anymore
-        init_ptr_with_offset(data_ptr_regs[i], data_offsets[i], reg_tmp);
+            h->ldr(data_ptr_regs[i], ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*))));
+        init_ptr_with_offset(data_ptr_regs[i], data_offsets[i]);
     }
 }
 
-jit_kernel_dynamic_emitter::jit_kernel_dynamic_emitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
+jit_kernel_dynamic_emitter::jit_kernel_dynamic_emitter(dnnl::impl::cpu::aarch64::jit_generator* h, dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                                                        const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_kernel_emitter(h, isa, expr) {
     const auto kernel = ov::as_type_ptr<snippets::op::KernelDynamic>(expr->get_node());
-    OV_CPU_JIT_EMITTER_ASSERT(kernel, "expectes KernelDynamic expression");
+    OV_CPU_JIT_EMITTER_ASSERT(kernel, "Expectes KernelDynamic expression");
 
-    // - Reserve abi_param1, since it wll be used to pass runtime call args to all dynamic emitters that needs runtime args
+    // - Reserve reg_runtime_params_idx, since it wll be used to pass runtime call args to all dynamic emitters that needs runtime args
     // - We cannot assign this register to the body emitters since runtime params MUST be valid during whole execution
     //   for all dynamic emitters
     init_body_regs({reg_runtime_params_idx});
 }
 
-void jit_kernel_dynamic_emitter::init_data_pointers(const std::vector<Xbyak::Reg64>& data_ptr_regs) const {
-    Xbyak::Reg64 reg_runtime_params = Xbyak::Reg64(static_cast<int>(reg_runtime_params_idx));
+void jit_kernel_dynamic_emitter::init_data_pointers(const std::vector<XReg>& data_ptr_regs) const {
+    XReg reg_runtime_params = XReg(static_cast<int>(reg_runtime_params_idx));
 
     const auto num_params = num_inputs + num_outputs;
     for (size_t i = 0; i < num_unique_buffers; ++i) {
-        h->mov(data_ptr_regs[num_params + i], h->ptr[reg_runtime_params + GET_OFF(buffer_scratchpad_ptr)]);
+        h->ldr(data_ptr_regs[num_params + i], ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(buffer_scratchpad_ptr))));
     }
     for (size_t i = 0; i < num_params; i++) {
         if (i < num_inputs)
-            h->mov(data_ptr_regs[i], h->ptr[reg_runtime_params + GET_OFF(src_ptrs) + i * sizeof(void*)]);
+            h->ldr(data_ptr_regs[i], ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(src_ptrs) + i * sizeof(void*))));
         else
-            h->mov(data_ptr_regs[i], h->ptr[reg_runtime_params + GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*)]);
+            h->ldr(data_ptr_regs[i], ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*))));
     }
 }
 
+}   // namespace aarch64
 }   // namespace intel_cpu
 }   // namespace ov

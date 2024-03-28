@@ -1,20 +1,13 @@
-// Copyright (C) 2020-2023 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "jit_container_emitter.hpp"
-
-
-using namespace Xbyak;
-using namespace dnnl::impl;
-using namespace dnnl::impl::cpu::x64;
+#include "emitters/utils.hpp"
+#include "utils/general_utils.h"
 
 namespace ov {
 namespace intel_cpu {
-
-jit_container_emitter::jit_container_emitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa) : jit_emitter(h, isa) {
-    in_out_type_ = emitter_in_out_map::gpr_to_gpr;
-}
 
 void jit_container_emitter::map_abstract_registers(mapping_info& gpr_map_pool, mapping_info& vec_map_pool,
                                                    snippets::lowered::LinearIR::container& expressions) const {
@@ -54,7 +47,6 @@ void jit_container_emitter::map_abstract_registers(mapping_info& gpr_map_pool, m
             container->map_abstract_registers(gpr_map_pool, vec_map_pool, expressions);
     }
 }
-
 
 }   // namespace intel_cpu
 }   // namespace ov

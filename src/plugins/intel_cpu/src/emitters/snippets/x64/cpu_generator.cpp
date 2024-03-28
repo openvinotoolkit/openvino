@@ -21,7 +21,7 @@
 
 #include "transformations/snippets/x64/op/load_convert.hpp"
 #include "transformations/snippets/x64/op/store_convert.hpp"
-#include "transformations/snippets/x64/op/fused_mul_add.hpp"
+#include "transformations/snippets/common/op/fused_mul_add.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"

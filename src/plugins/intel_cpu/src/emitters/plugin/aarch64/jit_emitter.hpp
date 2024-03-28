@@ -66,8 +66,8 @@ protected:
     size_t get_max_vecs_count() const;
     int32_t get_vec_length() const;
 
-    mutable std::vector<uint32_t> aux_vec_idxs;
-    mutable std::vector<uint32_t> aux_gpr_idxs;
+    mutable std::vector<size_t> aux_vec_idxs;
+    mutable std::vector<size_t> aux_gpr_idxs;
 
     dnnl::impl::cpu::aarch64::jit_generator* h;
     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa_;
@@ -156,6 +156,8 @@ private:
         const auto scale = te.bcast ? get_vec_length() : sizeof(table_entry_val_t);
         return te.off + key_off_val_shift * scale;
     }
+
+    virtual void validate_arguments(const std::vector<size_t>&, const std::vector<size_t>&) const {}
 
     static inline size_t get_asimd_vectors_count() {
         return 32;

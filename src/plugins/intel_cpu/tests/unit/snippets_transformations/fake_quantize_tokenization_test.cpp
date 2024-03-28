@@ -10,7 +10,7 @@
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "fake_quantize_helper.hpp"
 #include "snippets/op/subgraph.hpp"
-#include "transformations/snippets/x64/pass/snippets_mark_skipped.hpp"
+#include "transformations/snippets/common/pass/snippets_mark_skipped.hpp"
 #include "function_helper.hpp"
 
 namespace ov {

@@ -6,7 +6,7 @@
 
 #include "mul_add_to_fma.hpp"
 #include "snippets/snippets_isa.hpp"
-#include "transformations/snippets/x64/op/fused_mul_add.hpp"
+#include "transformations/snippets/common/op/fused_mul_add.hpp"
 
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
