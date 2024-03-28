@@ -18,13 +18,18 @@ tokenizer conversion for seamless integration into your projects. With OpenVINO 
 
 * Add text processing operations to OpenVINO. Both tokenizer and detokenizer are OpenVINO
 models, meaning that you can work with them as with any regular model: read, compile, save, and other.
+
 * Perform tokenization and detokenization without third-party dependencies.
+
 * Convert Hugging Face tokenizers into OpenVINO model tokenizer and detokenizer for efficient
 deployment of deep learning pipelines across varied environments.
+
 * Combine OpenVINO models into a single model. Recommended for specific models, like classifiers
 or RAG Embedders, where both tokenizer and a model are used once in each pipeline inference.
 For more information, see the `OpenVINO Tokenizers Notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/master/notebooks/openvino-tokenizers/openvino-tokenizers.ipynb>`__.
+
 * Add greedy decoding pipeline to text generation model.
+
 * Use TensorFlow models, such as TensorFlow Text MUSE model.
 
 .. note::
@@ -32,13 +37,13 @@ For more information, see the `OpenVINO Tokenizers Notebook <https://github.com/
    OpenVINO Tokenizers can be inferred **only** on a CPU device.
 
 Supported Tokenizers
-++++++++++++++++++++++
+#####################
 
 .. list-table::
    :widths: 30 25 20 20
    :header-rows: 1
 
-   * - Huggingface Tokenizer Type
+   * - Hugging Face Tokenizer Type
      - Tokenizer Model Type
      - Tokenizer
      - Detokenizer
@@ -88,13 +93,13 @@ Python Installation
 
       pip install openvino-tokenizers[transformers]
 
-   To install pre-release versions, use:
+   Install pre-release versions, if you want to experiment with latest changes:
 
    .. code-block:: python
 
       pip install --pre -U openvino openvino-tokenizers --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
 
-   To build and install from source:
+   Build and install from source:
 
    .. code-block:: python
 
@@ -117,8 +122,7 @@ You can use converted tokenizers in C++ pipelines with prebuild binaries.
 
 1. Download :doc:`OpenVINO archive distribution <../../get-started/install-openvino>` for your OS and extract the archive.
 
-2. Download `OpenVINO Tokenizers prebuild libraries <https://storage.openvinotoolkit.org/repositories/openvino_tokenizers/packages/>`__.
-To ensure compatibility, the first three numbers of the OpenVINO Tokenizers version should match the OpenVINO version and OS.
+2. Download `OpenVINO Tokenizers prebuild libraries <https://storage.openvinotoolkit.org/repositories/openvino_tokenizers/packages/>`__. To ensure compatibility, the first three numbers of the OpenVINO Tokenizers version should match the OpenVINO version and OS.
 
 3. Extract OpenVINO Tokenizers archive into OpenVINO installation directory:
 
@@ -177,7 +181,7 @@ After that you can add binary extension in the code with:
          core.add_extension("libopenvino_tokenizers.dylib") 
 
 
-If you use version ``2023.3.0.0``, the binary extension file is called ``(lib)user_ov_extension.(dll/dylib/so)``.
+If you use the ``2023.3.0.0`` version, the binary extension file is called ``(lib)user_ov_extension.(dll/dylib/so)``.
 
 You can learn how to read and compile converted models in the
 :doc:`Model Preparation <../../openvino-workflow/model-preparation>` guide.
@@ -186,17 +190,18 @@ Tokenizers Usage
 ################
 
 1. Convert a Tokenizer to OpenVINO Intermediate Representation (IR).
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 You can convert Hugging Face tokenizers to IR using either a CLI tool bundled with Tokenizers or
 Python API. Skip this step if you have a converted OpenVINO tokenizer.
 
-1.1 Install dependencies.
+Install dependencies:
 
 .. code-block:: python
 
    pip install openvino-tokenizers[transformers]
 
-1.2 Convert Tokenizers.
+Convert Tokenizers:
 
 .. tab-set::
 
@@ -218,11 +223,11 @@ Python API. Skip this step if you have a converted OpenVINO tokenizer.
          ov_tokenizer, ov_detokenizer
 
 The result is two OpenVINO models: openvino tokenizer and openvino detokenizer.
-Both can be used with read_model, compile_model and save_model, similar to any other OpenVINO model.
+Both can be used with ``read_model``, ``compile_model`` and ``save_model``, similar to any other OpenVINO model.
 
 2. Optional. Merge tokenizer into a model.
 
-Since the model cannot be used without a tokenizer, it could be beneficial to create a model
+Since the model can not be used without a tokenizer, it could be beneficial to create a model
 that combines a converted tokenizer and the original model. See the `OpenVINO Tokenizers Notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/master/notebooks/openvino-tokenizers/openvino-tokenizers.ipynb>`__
 to learn more about use cases benefiting from tokenizer merge.
 
