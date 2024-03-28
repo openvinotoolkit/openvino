@@ -7,9 +7,9 @@
 #pragma once
 
 #include "npu/utils/logger/logger.hpp"
+#include "npu_private_properties.hpp"  // AL
 #include "openvino/runtime/so_ptr.hpp"
 #include "vpux/al/icompiler.hpp"
-#include "vpux_private_properties.hpp"  // AL
 
 namespace vpux {
 

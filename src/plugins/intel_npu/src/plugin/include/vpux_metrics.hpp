@@ -8,12 +8,12 @@
 #include <unordered_set>
 #include <vector>
 
+#include "npu_private_properties.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "vpux.hpp"
 #include "vpux_backends.hpp"
-#include "vpux_private_properties.hpp"
 
 namespace vpux {
 
@@ -51,8 +51,9 @@ private:
     };
     const std::vector<ov::PropertyName> _cachingProperties = {ov::device::architecture.name(),
                                                               ov::intel_npu::compilation_mode_params.name(),
-                                                              ov::intel_npu::dma_engines.name(),
+                                                              ov::intel_npu::tiles.name(),
                                                               ov::intel_npu::dpu_groups.name(),
+                                                              ov::intel_npu::dma_engines.name(),
                                                               ov::intel_npu::compilation_mode.name(),
                                                               ov::intel_npu::driver_version.name(),
                                                               ov::intel_npu::compiler_type.name(),

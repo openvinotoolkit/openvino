@@ -30,32 +30,9 @@ static constexpr ov::Property<uint64_t, ov::PropertyMutability::RO> device_total
 /**
  * @brief [Only for NPU plugin]
  * Type: uint32_t
- * Read-only property to get VPU driver version (for both discrete/integrated VPU devices)
+ * Read-only property to get NPU driver version (for both discrete/integrated NPU devices)
  */
 static constexpr ov::Property<uint32_t, ov::PropertyMutability::RO> driver_version{"NPU_DRIVER_VERSION"};
-
-/**
- * @brief Read-only property to get the name of used backend
- */
-static constexpr ov::Property<std::string, ov::PropertyMutability::RO> backend_name{"NPU_BACKEND_NAME"};
-
-/**
- * @brief Defines the options corresponding to the legacy set of values.
- */
-enum class LegacyPriority {
-    LOW = 0,     //!<  Low priority
-    MEDIUM = 1,  //!<  Medium priority
-    HIGH = 2     //!<  High priority
-};
-
-/**
- * @brief Due to driver compatibility constraints, the set of model priority values corresponding to the OpenVINO legacy
- * API is being maintained here.
- * @details The OpenVINO API has made changes with regard to the values used to describe model priorities (e.g.
- * "MODEL_PRIORITY_MED" -> "MEDIUM"). The NPU plugin can't yet discard this since the newer values may not be
- * recognized by older drivers.
- */
-static constexpr ov::Property<LegacyPriority, ov::PropertyMutability::RO> legacy_model_priority{"MODEL_PRIORITY"};
 
 }  // namespace intel_npu
 }  // namespace ov

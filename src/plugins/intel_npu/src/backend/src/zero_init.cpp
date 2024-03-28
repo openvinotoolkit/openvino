@@ -3,7 +3,6 @@
 //
 
 #include "zero_init.h"
-
 #include "vpux/al/itt.hpp"
 #include "zero_utils.h"
 

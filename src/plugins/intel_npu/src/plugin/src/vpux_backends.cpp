@@ -15,8 +15,8 @@
 #endif
 
 #if !defined(OPENVINO_STATIC_LIBRARY) && defined(ENABLE_IMD_BACKEND)
-#    include <openvino/util/file_util.hpp>
-#    include <openvino/util/shared_object.hpp>
+#    include "openvino/util/file_util.hpp"
+#    include "openvino/util/shared_object.hpp"
 #endif
 
 using namespace vpux;

@@ -12,8 +12,8 @@ namespace intel_npu {
 namespace Platform {
 
 constexpr std::string_view AUTO_DETECT = "AUTO_DETECT";  // Auto detection
-constexpr std::string_view NPU3700 = "3700";             // VPU30XX
-constexpr std::string_view NPU3720 = "3720";             // VPU37XX
+constexpr std::string_view NPU3700 = "3700";             // NPU30XX
+constexpr std::string_view NPU3720 = "3720";             // NPU37XX
 
 /**
  * @brief Converts the given platform value to the standard one.
@@ -84,9 +84,9 @@ inline std::ostream& operator<<(std::ostream& out, const ColorFormat& fmt) {
 }
 
 /**
- * @brief [Only for VPUX Plugin]
+ * @brief [Only for NPU Plugin]
  * Type: string, default is MLIR.
- * Type of VPU compiler to be used for compilation of a network
+ * Type of NPU compiler to be used for compilation of a network
  * @note Configuration API v 2.0
  */
 enum class CompilerType { MLIR, DRIVER };
@@ -114,7 +114,7 @@ inline std::ostream& operator<<(std::ostream& out, const CompilerType& fmt) {
 }
 
 /**
- * @brief [Only for VPUX Plugin]
+ * @brief [Only for NPU Plugin]
  * Type: String. Default is "AUTO".
  * This option is added for enabling ELF backend.
  * Possible values: "AUTO", "YES", "NO".
@@ -152,7 +152,7 @@ inline std::ostream& operator<<(std::ostream& out, const ElfCompilerBackend& fmt
 }
 
 /**
- * @brief [Only for VPUX Plugin]
+ * @brief [Only for NPU Plugin]
  * Type: string, default is MODEL.
  * Type of profiling to execute. Can be Model (default) or INFER (based on npu timestamps)
  * @note Configuration API v 2.0
@@ -182,7 +182,53 @@ inline std::ostream& operator<<(std::ostream& out, const ProfilingType& fmt) {
 }
 
 /**
- * @brief [Only for VPUX Plugin]
+ * @brief Defines the options corresponding to the legacy set of values.
+ */
+enum class LegacyPriority {
+    LOW = 0,     //!<  Low priority
+    MEDIUM = 1,  //!<  Medium priority
+    HIGH = 2     //!<  High priority
+};
+
+inline std::ostream& operator<<(std::ostream& os, const LegacyPriority& priority) {
+    switch (priority) {
+    case LegacyPriority::LOW:
+        return os << "MODEL_PRIORITY_LOW";
+    case LegacyPriority::MEDIUM:
+        return os << "MODEL_PRIORITY_MED";
+    case LegacyPriority::HIGH:
+        return os << "MODEL_PRIORITY_HIGH";
+    default:
+        OPENVINO_THROW("Unsupported model priority value");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, LegacyPriority& priority) {
+    std::string str;
+    is >> str;
+    if (str == "MODEL_PRIORITY_LOW") {
+        priority = LegacyPriority::LOW;
+    } else if (str == "MODEL_PRIORITY_MED") {
+        priority = LegacyPriority::MEDIUM;
+    } else if (str == "MODEL_PRIORITY_HIGH") {
+        priority = LegacyPriority::HIGH;
+    } else {
+        OPENVINO_THROW("Unsupported model priority: ", str);
+    }
+    return is;
+}
+
+/**
+ * @brief Due to driver compatibility constraints, the set of model priority values corresponding to the OpenVINO legacy
+ * API is being maintained here.
+ * @details The OpenVINO API has made changes with regard to the values used to describe model priorities (e.g.
+ * "MODEL_PRIORITY_MED" -> "MEDIUM"). The NPU plugin can't yet discard this since the newer values may not be
+ * recognized by older drivers.
+ */
+static constexpr ov::Property<LegacyPriority, ov::PropertyMutability::RO> legacy_model_priority{"MODEL_PRIORITY"};
+
+/**
+ * @brief [Only for NPU Plugin]
  * Type: Arbitrary string.
  * This option allows to specify device.
  * The plugin accepts any value given through this option. If the device is not available, either the driver or the
@@ -198,16 +244,16 @@ static constexpr ov::Property<std::string> platform{"NPU_PLATFORM"};
 static constexpr ov::Property<int64_t> stepping{"NPU_STEPPING"};
 
 /**
- * @brief [Only for VPUX Plugin]
+ * @brief [Only for NPU Plugin]
  * Type: string, default is MLIR for DEVELOPER_BUILD, DRIVER otherwise.
- * Type of VPU compiler to be used for compilation of a network
+ * Type of NPU compiler to be used for compilation of a network
  */
 static constexpr ov::Property<CompilerType> compiler_type{"NPU_COMPILER_TYPE"};
 
 static constexpr ov::Property<std::string> compilation_mode{"NPU_COMPILATION_MODE"};
 
 /**
- * @brief [Only for VPUX compiler]
+ * @brief [Only for NPU compiler]
  * Type: std::string, default is empty.
  * Config for HW-mode's pipeline
  * Available values: low-precision=true/low-precision=false
@@ -215,11 +261,18 @@ static constexpr ov::Property<std::string> compilation_mode{"NPU_COMPILATION_MOD
 static constexpr ov::Property<std::string> compilation_mode_params{"NPU_COMPILATION_MODE_PARAMS"};
 
 /**
- * @brief [Only for VPUX Plugin]
+ * @brief [Only for NPU Plugin]
  * Type: integer, default is None
  * Number of DPU groups
  */
 static constexpr ov::Property<int64_t> dpu_groups{"NPU_DPU_GROUPS"};
+
+/**
+ * @brief [Only for NPU Compiler]
+ * Type: integer, default is None
+ * Number of tiles to compile for
+ */
+static constexpr ov::Property<int64_t> tiles{"NPU_TILES"};
 
 /**
  * @brief
@@ -229,7 +282,7 @@ static constexpr ov::Property<int64_t> dpu_groups{"NPU_DPU_GROUPS"};
 static constexpr ov::Property<int64_t> max_tiles{"NPU_MAX_TILES"};
 
 /**
- * @brief [Only for VPUX Plugin]
+ * @brief [Only for NPU Plugin]
  * Type: integer, default is None
  * Number of DMA engines
  */
@@ -247,7 +300,7 @@ static constexpr ov::Property<int64_t> dma_engines{"NPU_DMA_ENGINES"};
 static constexpr ov::Property<std::string> dynamic_shape_to_static{"NPU_DYNAMIC_SHAPE_TO_STATIC"};
 
 /**
- * @brief [Only for VPUX Plugin]
+ * @brief [Only for NPU Plugin]
  * Type: string, default is empty.
  * MODEL - model layer profiling is done
  * INFER - vpu inference performance numbers are measured
@@ -264,14 +317,19 @@ static constexpr ov::Property<ProfilingType> profiling_type{"NPU_PROFILING_TYPE"
 static constexpr ov::Property<ElfCompilerBackend> use_elf_compiler_backend{"NPU_USE_ELF_COMPILER_BACKEND"};
 
 /**
- * @brief [Only for VPUX Plugin]
+ * @brief [Only for NPU Plugin]
  * Type: integer, default is 1
  * This option allows to omit creating an executor and therefore to omit running an inference when its value is 0
  */
 static constexpr ov::Property<int64_t> create_executor{"NPU_CREATE_EXECUTOR"};
 
 /**
- * @brief [Only for VPUX compiler]
+ * @brief Read-only property to get the name of used backend
+ */
+static constexpr ov::Property<std::string, ov::PropertyMutability::RO> backend_name{"NPU_BACKEND_NAME"};
+
+/**
+ * @brief [Only for NPU compiler]
  * Type: std::string, default is empty.
  * Config for Backend pipeline
 
@@ -279,46 +337,6 @@ static constexpr ov::Property<int64_t> create_executor{"NPU_CREATE_EXECUTOR"};
  * Available values: enable-partial-workload-management=true/false
  */
 static constexpr ov::Property<std::string> backend_compilation_params{"NPU_BACKEND_COMPILATION_PARAMS"};
-
-/**
- * @brief Prints a string representation of ov::intel_npu::LegacyPriority to a stream
- * @param os An output stream to send to
- * @param priority A prioity value to print to a stream
- * @return A reference to the `os` stream
- */
-inline std::ostream& operator<<(std::ostream& os, const LegacyPriority& priority) {
-    switch (priority) {
-    case LegacyPriority::LOW:
-        return os << "MODEL_PRIORITY_LOW";
-    case LegacyPriority::MEDIUM:
-        return os << "MODEL_PRIORITY_MED";
-    case LegacyPriority::HIGH:
-        return os << "MODEL_PRIORITY_HIGH";
-    default:
-        OPENVINO_THROW("Unsupported model priority value");
-    }
-}
-
-/**
- * @brief Gets value of ov::intel_npu::LegacyPriority from a stream
- * @param is An input stream to read
- * @param priority A priority variable to save result
- * @return A reference to the `is` stream
- */
-inline std::istream& operator>>(std::istream& is, LegacyPriority& priority) {
-    std::string str;
-    is >> str;
-    if (str == "MODEL_PRIORITY_LOW") {
-        priority = LegacyPriority::LOW;
-    } else if (str == "MODEL_PRIORITY_MED") {
-        priority = LegacyPriority::MEDIUM;
-    } else if (str == "MODEL_PRIORITY_HIGH") {
-        priority = LegacyPriority::HIGH;
-    } else {
-        OPENVINO_THROW("Unsupported model priority: ", str);
-    }
-    return is;
-}
 
 }  // namespace intel_npu
 }  // namespace ov

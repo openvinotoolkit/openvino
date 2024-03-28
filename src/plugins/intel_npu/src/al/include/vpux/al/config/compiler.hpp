@@ -4,10 +4,12 @@
 
 #pragma once
 
+#include <thread>
+
 #include "common.hpp"
+#include "npu_private_properties.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "vpux/al/config/config.hpp"
-#include "vpux_private_properties.hpp"
 
 namespace ov {
 
@@ -169,6 +171,38 @@ struct DPU_GROUPS final : OptionBase<DPU_GROUPS, int64_t> {
 };
 
 //
+// SELECTED_TILES
+//
+
+struct TILES final : OptionBase<TILES, int64_t> {
+    static std::string_view key() {
+        return ov::intel_npu::tiles.name();
+    }
+
+    static std::vector<std::string_view> deprecatedKeys() {
+        return {};
+    }
+
+    static int64_t defaultValue() {
+        return -1;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+
+    static bool isPublic() {
+        return false;
+    }
+
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+    static std::string_view envVar() {
+        return "IE_NPU_TILES";
+    }
+#endif
+};
+
+//
 // STEPPING
 //
 
@@ -291,6 +325,34 @@ struct BACKEND_COMPILATION_PARAMS final : OptionBase<BACKEND_COMPILATION_PARAMS,
 
     static std::string defaultValue() {
         return {};
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+
+    static bool isPublic() {
+        return false;
+    }
+};
+
+//
+// COMPILATION_NUM_THREADS
+//
+
+struct COMPILATION_NUM_THREADS final : OptionBase<COMPILATION_NUM_THREADS, int32_t> {
+    static std::string_view key() {
+        return ov::compilation_num_threads.name();
+    }
+
+    static int32_t defaultValue() {
+        return std::max(1, static_cast<int>(std::thread::hardware_concurrency()));
+    }
+
+    static void validateValue(const int32_t& num) {
+        if (num <= 0) {
+            OPENVINO_THROW("ov::compilation_num_threads must be positive int32 value");
+        }
     }
 
     static OptionMode mode() {
