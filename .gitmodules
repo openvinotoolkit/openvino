@@ -68,6 +68,7 @@
 [submodule "ARMComputeLibrary"]
 	path = src/plugins/intel_cpu/thirdparty/ComputeLibrary
 	url = https://github.com/ARM-software/ComputeLibrary.git
+	ignore = dirty
 [submodule "src/plugins/intel_cpu/thirdparty/mlas"]
 	path = src/plugins/intel_cpu/thirdparty/mlas
 	url = https://github.com/openvinotoolkit/mlas.git
