@@ -18,7 +18,7 @@ def sum_(name: str, input):
         outs = exe.run(
             feed={"data": input},
             fetch_list=[out])
-        saveModel(name, exe, feedkeys=["data"], fetchlist=[out], inputs=[input], outputs=[outs[0]],
+        saveModel(name, exe, feed_vars=[data], fetchlist=[out], inputs=[input], outputs=[outs[0]],
                   target_dir=sys.argv[1])
     return outs[0]
 
@@ -39,7 +39,7 @@ def sum(name: str, inputs):
                   "data1": inputs[1],
                   "data2": inputs[2]},
             fetch_list=[out])
-        saveModel(name, exe, feedkeys=["data0", "data1", "data2"], fetchlist=[out],
+        saveModel(name, exe, feed_vars=[data0, data1, data2], fetchlist=[out],
                   inputs=[inputs[0], inputs[1], inputs[2]], outputs=[outs[0]],
                   target_dir=sys.argv[1])
     return outs[0]

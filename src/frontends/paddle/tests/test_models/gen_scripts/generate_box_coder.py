@@ -44,8 +44,12 @@ def test_box_coder(name: str, prior_box, prior_box_var, target_box, code_type, b
         outs = exe.run(
             feed=feed_dict,
             fetch_list=[out])
+        
+        feed_vars = [prior_box_decode, target_box_decode]
+        if is_tensor:
+            feed_vars.append(prior_box_var_decode)
 
-        saveModel(name, exe, feedkeys=[*feed_dict.keys()], fetchlist=[out], inputs=[*feed_dict.values()],
+        saveModel(name, exe, feed_vars=feed_vars, fetchlist=[out], inputs=[*feed_dict.values()],
                   outputs=[outs[0]],
                   target_dir=sys.argv[1])
 

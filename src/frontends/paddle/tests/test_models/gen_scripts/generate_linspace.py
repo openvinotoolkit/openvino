@@ -30,7 +30,7 @@ def linspace(name: str, start, stop, num, type='float32'):
 
         outs = exe.run(feed={"Start": start, "Stop": stop, "Num": num}, fetch_list=[out])
 
-        saveModel(name, exe, feedkeys=["Start", "Stop", "Num"], fetchlist=[out], inputs=[start, stop, num],
+        saveModel(name, exe, feed_vars=[data_start, data_stop, data_num], fetchlist=[out], inputs=[start, stop, num],
                   outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]

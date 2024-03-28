@@ -23,8 +23,8 @@ def paddle_bmm(x1, x2):
     outs = exe.run(
         feed={'x1': x1, 'x2': x2},
         fetch_list=[result])
-    saveModel("bmm", exe, feedkeys=[node_x1, node_x2], fetchlist=[result],
-              inputs=[x1, x2], outputs=[outs[0]], target_dir=sys.argv[1], use_static_api=True)
+    saveModel("bmm", exe, feed_vars=[node_x1, node_x2], fetchlist=[result],
+              inputs=[x1, x2], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
 

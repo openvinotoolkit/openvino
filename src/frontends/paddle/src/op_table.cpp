@@ -107,6 +107,7 @@ OP_CONVERTER(share_data);
 OP_CONVERTER(sigmoid);
 OP_CONVERTER(silu);
 OP_CONVERTER(sin);
+OP_CONVERTER(skip);
 OP_CONVERTER(slice);
 OP_CONVERTER(softmax);
 OP_CONVERTER(softplus);
@@ -206,6 +207,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"max_pool2d_with_index", op::pool2d},
             {"max_pool3d_with_index", op::pool3d_with_index},
             {"matrix_nms", op::matrix_nms},
+            {"memcpy", op::skip},
             {"meshgrid", op::meshgrid},
             {"multiclass_nms3", op::multiclass_nms},
             {"nearest_interp_v2", op::nearest_interp_v2},
