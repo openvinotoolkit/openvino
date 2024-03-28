@@ -480,6 +480,8 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("RandomUniformLike", 1, random_uniform_like);
     REGISTER_OPERATOR("Reciprocal", 1, reciprocal);
     REGISTER_OPERATOR("ReduceLogSum", 1, reduce_log_sum);
+    register_operator("ReduceLogSum", VersionRange{1, 17}, op::set_1::reduce_log_sum);
+    register_operator("ReduceLogSum", VersionRange::since(18), op::set_18::reduce_log_sum);
     REGISTER_OPERATOR("ReduceLogSumExp", 1, reduce_log_sum_exp);
     REGISTER_OPERATOR("ReduceL1", 1, reduce_l1);
     REGISTER_OPERATOR("ReduceL2", 1, reduce_l2);
