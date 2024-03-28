@@ -15,12 +15,13 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "transformations/common_optimizations/compress_float_constants.hpp"
 #include "transformations/common_optimizations/fused_names_cleanup.hpp"
-#include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 
 namespace {
 
@@ -330,14 +331,16 @@ void serialize(const std::shared_ptr<const ov::Model>& m,
 }
 
 void save_model(const std::shared_ptr<const ov::Model>& m, const std::string& output_model, bool compress_to_fp16) {
-    ov::pass::Manager manager;
+    auto cloned = m->clone();
     if (compress_to_fp16) {
-        manager.register_pass<ov::pass::MarkPrecisionSensitiveConstants>();
-        manager.register_pass<ov::pass::CompressFloatConstants>(/*postponed=*/true);
+        // TODO: Implement on-the-fly compression in pass::Serialize
+        bool postponed = true;
+        ov::pass::compress_model_to_f16(cloned, postponed);
     }
+
+    ov::pass::Manager manager;
     manager.register_pass<ov::pass::FusedNamesCleanup>();
     manager.register_pass<ov::pass::Serialize>(output_model, "");
-    auto cloned = m->clone();  // TODO: Implement on-the-fly compression in pass::Serialize
     manager.run_passes(cloned);
 }
 

@@ -770,7 +770,7 @@ TEST_P(conv_fp32_wrong_bias, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_wrong_bias, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_FP32_15, 3, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_15, 3, 3, 3 },
 }));
 
 class conv_fp32_add_per_element_planar_const : public ConvFusingTest {};
@@ -1819,7 +1819,7 @@ TEST_P(conv_fp32_group_conv_eltwise_sum, basic) {
 #define CASE_GROUP_CONV_ELTW_FP32_1 { 1, 48, 3, 3 }, { 1, 48, 3, 3 }, { 1, 48, 3, 3 }, { 16, 3, 3, 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 16, data_types::f32, format::bfyx, data_types::f32, format::g_os_iyx_osv16, data_types::f32, format::bfyx
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_group_conv_eltwise_sum, ::testing::ValuesIn(std::vector<conv_eltw_test_params>{
-    conv_eltw_test_params{ CASE_GROUP_CONV_ELTW_FP32_1, 3, 2, 3 },
+    conv_eltw_test_params{ CASE_GROUP_CONV_ELTW_FP32_1, 3, 3, 3 },
 }));
 
 class conv_swap_xy_with_eltwise_diff_sizes : public ConvEltwTest {};
@@ -4335,7 +4335,7 @@ TEST_P(onednn_replace_full_tensor_sum_to_binary_add, basic) {
 #define CASE_CONV_ELTW_SUM_TO_BINARY_ADD { 1, 32, 4, 4 }, { 1, 32, 2, 2 }, { 32, 32, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::bfyx, data_types::f16, format::b_fs_yx_fsv16, data_types::f16, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
 
 INSTANTIATE_TEST_SUITE_P(eltwise_sum_fusings_gpu, onednn_replace_full_tensor_sum_to_binary_add, ::testing::ValuesIn(std::vector<convolution_eltw_sum_test_params>{
-    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_TO_BINARY_ADD, 2, 2, 3 },
+    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_TO_BINARY_ADD, 3, 3, 3 },
 }));
 
 #endif  // ENABLE_ONEDNN_FOR_GPU
