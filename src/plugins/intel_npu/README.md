@@ -165,21 +165,6 @@ The following properties are supported:
 | `ov::device::architecture`/</br>`DEVICE_ARCHITECTURE` | RO | Returns the platform information. | `N/A`| `N/A` |
 | `ov::device::full_name`/</br>`FULL_DEVICE_NAME` | RO | Returns the full name of the NPU device. | `N/A`| `N/A` |
 | `ov::internal::exclusive_async_requests`/</br>`EXCLUSIVE_ASYNC_REQUESTS` | RW | Allows to use exclusive task executor for asynchronous infer requests. | `YES`/ `NO`| `NO` |
-| `ov::intel_npu::tiles`/</br>`NPU_TILES` | RW | Sets the number of npu tiles that will be used to execute the model. (Replaces NPU_DPU_GROUPS) | `[1-4]` for NPU 3700,</br> `[1-2]` for NPU 3720 | `-1` |
-| `ov::intel_npu::dma_engines`/</br>`NPU_DMA_ENGINES` | RW | Sets the number of DMA engines that will be used to execute the model. | `[1-2]` for NPU 3700,</br> `[1-2]` for NPU 3720  |  `-1` |
-| `ov::intel_npu::compilation_mode`/</br>`NPU_COMPILATION_MODE` | RW | Selects different compilation pipelines. | `ReferenceSW`/</br>`ReferenceHW`/</br>`DefaultHW`/</br>`ShaveCodeGen` | empty |
-| `ov::intel_npu::compilation_mode_params`/</br>`NPU_COMPILATION_MODE_PARAMS` | RW | Sets various parameters supported by the NPU compiler. |  `<params>` | empty  |
-| `ov::intel_npu::compiler_type`/</br>`NPU_COMPILER_TYPE` | RW | Selects the type of NPU compiler to be used for compilation of a network. </br> 'DRIVER' is the default value. | `MLIR`/</br>`DRIVER` | `DRIVER` |
-| `ov::intel_npu::print_profiling`/</br>`NPU_PRINT_PROFILING` | RW | `NONE` - Do not print profiling info;</br>`TEXT`, `JSON` - Print detailed profiling info during inference in the requested format. | `NONE`/</br>`TEXT`/</br>`JSON` | `NONE` |
-| `ov::intel_npu::profiling_output_file`/</br>`NPU_PROFILING_OUTPUT_FILE` | RW | std::cout is used if parameter value was empty. | `<path>` | empty |
-| `ov::intel_npu::vpux_platform`/</br>`NPU_PLATFORM` | RW | Used to compile and run on a specific device.</br>If device is not available, creating infer request will throw an exception. | `AUTO_DETECT`/</br>`VPU3700`/</br>`VPU3720` | `AUTO_DETECT`|
-| `ov::intel_npu::stepping`/</br>`NPU_STEPPING` | RW | Device stepping ID</br>If unset, it will be automatically obtained from driver | `N/A` | `obtained from driver` |
-| `ov::intel_npu::max_tiles`/</br>`NPU_MAX_TILES` | RW | Maximum number of tiles supported by the device</br>If unset, it will be automatically obtained from driver | `[1-6]` | `obtained from driver` |
-| `ov::intel_npu::use_elf_compiler_backend`/</br>`NPU_USE_ELF_COMPILER_BACKEND` | RW | Sets the format in which the compiled model is stored. | `YES`/ `NO`| `NO` |
-| `ov::intel_npu::device_total_mem_size`/</br>`NPU_DEVICE_TOTAL_MEM_SIZE` | RO | Returns the total device available memory size. |  `N/A`| `N/A` |
-| `ov::intel_npu::driver_version`/</br>`NPU_DRIVER_VERSION` | RO | Returns the driver version. | `N/A`| `N/A` |
-
-Note: 'intel_npu' namespace will be renamed and 'vpux' prefix will be removed in future releases.
 
 &nbsp;
 ### Performance Hint: Default Number of DPU Groups / DMA Engines
