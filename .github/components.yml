@@ -27,7 +27,6 @@ CPU:
   revalidate:
     - C_API
     - Python_API
-    - JS_API
     - samples
     - ONNX_RT
     - PyTorch_FE
@@ -106,7 +105,6 @@ IR_FE:
   revalidate:
     - C_API
     - Python_API
-    - JS_API
     - samples
   build:
     - CPU
@@ -176,8 +174,6 @@ Python_API:
     - PyTorch_FE
 
 JS_API:
-  revalidate:
-    - samples
   build:
     - CPU
     - IR_FE
