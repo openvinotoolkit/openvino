@@ -540,7 +540,7 @@ void compare(const ov::Tensor& expected,
 
         bool status = error.update(actual_value, expected_value, i);
 #ifdef NDEBUG
-        if (!status && equal(topk_threshold, 1.f)) {
+        if (!status && tensor_comparation::equal(topk_threshold, 1.f)) {
             break;
         }
 #endif
