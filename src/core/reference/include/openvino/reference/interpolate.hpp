@@ -411,15 +411,19 @@ void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out) {
     if (input_rank >= 4) {
         std::vector<int64_t> all_axes;
         std::vector<int64_t> axes_without_batch_and_channels;
+        std::vector<int64_t> axes_without_batch_and_channels_last;
         all_axes.push_back(0);
+        all_axes.push_back(1);
         all_axes.push_back(1);
         for (int64_t i = 2; i < static_cast<int64_t>(input_rank); ++i) {
             all_axes.push_back(i);
             axes_without_batch_and_channels.push_back(i);
+            if(i != static_cast<int64_t>(input_rank)-1) axes_without_batch_and_channels_last.push_back(i);
         }
 
         correct_axes = ((num_of_axes == input_rank) && (m_axes == all_axes)) ||
-                       ((num_of_axes == input_rank - 2) && (m_axes == axes_without_batch_and_channels));
+                       ((num_of_axes == input_rank - 2) && (m_axes == axes_without_batch_and_channels)) ||
+                       ((num_of_axes == input_rank - 2) && (m_axes == axes_without_batch_and_channels_last));
     }
 
     if (!correct_axes)
