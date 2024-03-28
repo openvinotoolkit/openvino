@@ -86,13 +86,11 @@ def full_shape_tensor(name : str, shape, dtype, value):
     return outs[0]
 
 
-def full_shape_tensor_list(name : str, shape: list, dtype, value):
+def full_shape_tensor_list(name : str, shape_list: list, dtype, value):
     paddle.enable_static()
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
-        node_shape1 = paddle.to_tensor(3)
-        node_shape2 = paddle.to_tensor(2)
-        shape_list = [node_shape1, node_shape2]
-        x1 = paddle.full(shape=shape_list, fill_value=value, dtype=dtype, name='full')
+        shape_tensor_list = [paddle.to_tensor(shape) for shape in shape_list]
+        x1 = paddle.full(shape=shape_tensor_list, fill_value=value, dtype=dtype, name='full')
         out = paddle.cast(x1, np.float32)
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])
@@ -112,7 +110,8 @@ def main():
     full("full_int64", [2, 3, 4], "int64", 4)
     full_tensor("full_tensor", [2, 3, 4], 'float32', 0.05)
     full_shape_tensor("full_shape_tensor", 2, 'float32', 0.05)
-    full_shape_tensor_list("full_shape_tensor_list", 2, 'float32', 0.05)
+    shape_tensor_list = [paddle.to_tensor(3), paddle.to_tensor(2)]
+    full_shape_tensor_list("full_shape_tensor_list", [3, 2], 'float32', 0.05)
 
 
 if __name__ == "__main__":

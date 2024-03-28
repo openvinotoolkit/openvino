@@ -42,7 +42,7 @@ def paddle_rnn_lstm(input_size, hidden_size, layers, direction):
             saveModel("place_test_model", exe, feed_vars=feed_vars,
                     fetchlist=fetch_vars,
                     inputs=[np.ones([4, 3, input_size]).astype(np.float32)],
-                    outputs=[outs[0], outs[1], outs[2]], target_dir=sys.argv[1])
+                    outputs=outs, target_dir=sys.argv[1])
             path_prefix = os.path.join(sys.argv[1], "place_test_model", "place_test_model")
             program, feed_target_names, fetch_targets = paddle.static.io.load_inference_model(path_prefix, exe)
 
@@ -68,7 +68,7 @@ def paddle_rnn_lstm(input_size, hidden_size, layers, direction):
             saveModel("place_test_model", exe, feed_vars=[data],
                     fetch_vars=[y, h, c, relu_1, relu_2, relu_3],
                     inputs=[np.ones([4, 3, input_size]).astype(np.float32)],
-                    outputs=[outs[0], outs[1], outs[2]], target_dir=sys.argv[1])
+                    outputs=outs, target_dir=sys.argv[1])
 
     return outs[0]
 

@@ -67,7 +67,7 @@ def generate_proposals_v2(name: str, input_data: dict, attr: dict):
         saveModel(name, exe, feed_vars=[scores, bbox_deltas, im_shape, anchors, variances],
                   fetchlist=[rois, roi_probs, rois_num],
                   inputs=[scores_np, bbox_deltas_np, im_shape_np, anchors_np, variances_np],
-                  outputs=[outs[0], outs[1], outs[2]], target_dir=sys.argv[1])
+                  outputs=outs, target_dir=sys.argv[1])
 
 if __name__ == "__main__":
     input_data = dict()
