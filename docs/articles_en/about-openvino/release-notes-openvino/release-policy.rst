@@ -9,7 +9,7 @@ the next version arrives. This makes regular releases suitable only for:
 * Dynamically developed solutions, benefiting from the newest technologies.
 * Products requiring frequent changes in supported hardware, libraries, operating systems, and models.
 
-:ref:`Long-Term Support (LTS) <long-term-support-policy>`:
+:ref:`Long-Term Support (LTS) <long-term-support-policy>` :
 
 Each year’s final release becomes a Long-Term Support version, which continues to be supported
 with bug fixes and security updates, even after newer versions are published. Therefore, LTS
@@ -19,7 +19,7 @@ is advised for production environments where:
 * There is no need for frequent changes in hardware or model support.
 * Upgrading is challenging, e.g., due to a high software complexity.
 
-Nightly packages:
+:ref:`Nightly packages <nightly-packages>` :
 
 OpenVINO also offers nightly packages, as a preview of most recent changes. Due to potential
 stability and performance issues, these should never be used for production purposes. Instead,
@@ -27,6 +27,8 @@ they may serve:
 
 * Early integration testing.
 * Previewing newest features/improvements.
+
+.. _long-term-support-policy:
 
 Long-Term Support Policy
 ###########################
@@ -52,6 +54,8 @@ Long-Term Support Policy
 * **White-box:** Unit, behavior, and functional tests.
 * **Black-box:** Performance, backward compatibility, load (7x24) and stress testing.
 * **Security:** Code coverage, static analysis, BDBA scans, and others.
+
+.. _nightly-packages:
 
 Nightly Packages
 ###########################
