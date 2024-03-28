@@ -76,13 +76,16 @@ bool ov::intel_cpu::ACLInterpolateExecutor::init(const InterpolateAttrs &interpo
     dstTensor.allocator()->init(dstTensorInfo);
 
     acl_scale = std::make_unique<arm_compute::NEScale>();
-    acl_scale->configure(&srcTensor, &dstTensor, arm_compute::ScaleKernelInfo(acl_policy,
-                                                                              arm_compute::BorderMode::REPLICATE,
-                                                                              arm_compute::PixelValue(),
-                                                                              acl_coord,
-                                                                              false,
-                                                                              aclInterpolateAttrs.coordTransMode == InterpolateCoordTransMode::align_corners,
-                                                                              getAclDataLayoutByMemoryDesc(srcDescs[0])));
+    configureThreadSafe([&] {
+        acl_scale->configure(&srcTensor, &dstTensor, arm_compute::ScaleKernelInfo(acl_policy,
+                                                                                  arm_compute::BorderMode::REPLICATE,
+                                                                                  arm_compute::PixelValue(),
+                                                                                  acl_coord,
+                                                                                  false,
+                                                                                  aclInterpolateAttrs.coordTransMode ==
+                                                                                  InterpolateCoordTransMode::align_corners,
+                                                                                  getAclDataLayoutByMemoryDesc(srcDescs[0])));
+    });
     return true;
 }
 
