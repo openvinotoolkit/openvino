@@ -98,7 +98,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         std::vector<Task> tasks;
         tasks.resize(sub_streams);
         for (auto&& task : tasks) {
-            task = [this] {};
+            task = [] {};
         }
         stream_executor->run_sub_stream_and_wait(tasks);
     }
