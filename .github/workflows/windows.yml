@@ -618,7 +618,7 @@ jobs:
         run: |
           :: requires 'unit_tests' from 'tools/mo'
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\mo;%PYTHONPATH%
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/ -n logical -m precommit_tf_fe  --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_fe.xml
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/ -n logical -m precommit  --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_fe.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
