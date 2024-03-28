@@ -48,7 +48,7 @@ bool can_shuffle_features(program_node& node, program_node& concat_node, stream&
     if (pass_through) {
         // Primitives that are feature order invariant, pass-through shuffled features to users
         for (auto& user : node.get_users()) {
-            if (!can_shuffle_features(*user, concat_node, stream))
+            if (!can_shuffle_features(*user, node, stream))
                 return false;
         }
         return true;
