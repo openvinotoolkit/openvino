@@ -123,9 +123,17 @@ def main():
                         raise RuntimeError("Incorrect performance hint. Please set -hint option to"
                             "`throughput`(tput), `latency', 'cumulative_throughput'(ctput) value or 'none'.")
                 else:
-                    perf_hint = properties.hint.PerformanceMode.LATENCY if benchmark.api_type == "sync" else properties.hint.PerformanceMode.THROUGHPUT
-                    logger.warning(f"Performance hint was not explicitly specified in command line. " +
-                    f"Device({device}) performance hint will be set to {perf_hint}.")
+                    if properties.hint.performance_mode() in config[device]:
+                        if config[device][properties.hint.performance_mode()] == "LATENCY":
+                            perf_hint = properties.hint.PerformanceMode.LATENCY
+                        elif config[device][properties.hint.performance_mode()] == "THROUGHPUT":
+                            perf_hint = properties.hint.PerformanceMode.THROUGHPUT
+                        elif config[device][properties.hint.performance_mode()] == "CUMULATIVE_THROUGHPUT":
+                            perf_hint = perf_hint = properties.hint.PerformanceMode.CUMULATIVE_THROUGHPUT
+                    else:
+                        perf_hint = properties.hint.PerformanceMode.LATENCY if benchmark.api_type == "sync" else properties.hint.PerformanceMode.THROUGHPUT
+                        logger.warning(f"Performance hint was not explicitly specified in command line. " +
+                        f"Device({device}) performance hint will be set to {perf_hint}.")
                 config[device][properties.hint.performance_mode()] = perf_hint
             else:
                 logger.warning(f"Device {device} does not support performance hint property(-hint).")
