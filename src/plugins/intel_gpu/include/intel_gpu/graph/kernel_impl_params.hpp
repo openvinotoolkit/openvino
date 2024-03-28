@@ -25,7 +25,7 @@ struct program;
 struct network;
 
 
-struct kernel_impl_params {
+struct kernel_impl_params final {
     struct Hasher {
         size_t operator()(const kernel_impl_params &k) const {
             return k.hash();
@@ -143,7 +143,7 @@ struct kernel_impl_params {
         return std::static_pointer_cast<const PType>(desc)->type == PType::type_id();
     }
 
-    virtual primitive_type_id type() const { return desc->type; }
+    primitive_type_id type() const { return desc->type; }
 
     const program& get_program() const {
         OPENVINO_ASSERT(prog != nullptr, "[GPU] Program pointer in kernel_impl_params is not initialized");
