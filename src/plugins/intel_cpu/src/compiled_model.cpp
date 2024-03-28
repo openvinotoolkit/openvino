@@ -23,6 +23,10 @@
 #include <cstring>
 #include <utility>
 
+#if defined(OV_CPU_WITH_ACL)
+#include "nodes/executors/acl/acl_ie_scheduler.hpp"
+#endif
+
 using namespace ov::threading;
 
 namespace ov {
@@ -82,6 +86,13 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         do {
             for (auto&& task : tasks) {
                 task = [this] {
+#if defined(OV_CPU_WITH_ACL)
+                    static std::once_flag flag_once;
+                    std::call_once(flag_once, [&]() {
+                        std::shared_ptr<arm_compute::IScheduler> acl_scheduler = std::make_shared<ACLScheduler>();
+                        arm_compute::Scheduler::set(std::static_pointer_cast<arm_compute::IScheduler>(acl_scheduler));
+                    });
+#endif
                     CompiledModel::get_graph();
                 };
             }
