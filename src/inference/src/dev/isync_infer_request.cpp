@@ -124,6 +124,14 @@ ov::ISyncInferRequest::FoundPort ov::ISyncInferRequest::find_port(const ov::Outp
     // check if the tensor names of target port is a subset of source port's tensor names
     auto check_tensor_names = [](const std::unordered_set<std::string>& source,
                                  const std::unordered_set<std::string>& target) {
+        std::cout << "[YANG2-DEBUG] node1 port names: \n";
+        for (const auto& item : source) {
+            std::cout << "\tname: " << item << std::endl;
+        }
+        std::cout << "[YANG2-DEBUG] node2 port names: \n";
+        for (const auto& item : target) {
+            std::cout << "\tname: " << item << std::endl;
+        }
         for (auto const& name : target) {
             if (source.find(name) == source.end())
                 return false;
@@ -133,6 +141,19 @@ ov::ISyncInferRequest::FoundPort ov::ISyncInferRequest::find_port(const ov::Outp
 
     // This function is hotspot, need optimization.
     auto check_nodes = [](const ov::Node* node1, const ov::Node* node2) {
+        std::cout << "[YANG2-DEBUG] node1 == node2: " << (node1 == node2) << std::endl;
+        std::cout << "[YANG2-DEBUG] node1->outputs().size(): " << node1->outputs().size()
+                  << " <-> node2->outputs().size(): " << node2->outputs().size()
+                  << "\tEqual: " << (node1->outputs().size() == node2->outputs().size()) << std::endl;
+        std::cout << "[YANG2-DEBUG] node1->inputs().size(): " << node1->inputs().size()
+                  << " <-> node2->inputs().size(): " << node2->inputs().size()
+                  << "\tEqual: " << (node1->inputs().size() == node2->inputs().size()) << std::endl;
+        std::cout << "[YANG2-DEBUG] node1->get_type_info(): " << node1->get_type_info()
+                  << " <-> node2->get_type_info(): " << node2->get_type_info()
+                  << "\tEqual: " << (node1->get_type_info() == node2->get_type_info()) << std::endl;
+        std::cout << "[YANG2-DEBUG] node1->get_friendly_name(): " << node1->get_friendly_name()
+                  << " <-> node2->get_friendly_name(): " << node2->get_friendly_name()
+                  << "\tEqual: " << (node1->get_friendly_name() == node2->get_friendly_name()) << std::endl;
         return node1 == node2 ||
                (node1->outputs().size() == node2->outputs().size() &&
                 node1->inputs().size() == node2->inputs().size() && node1->get_type_info() == node2->get_type_info() &&
@@ -153,6 +174,9 @@ ov::ISyncInferRequest::FoundPort ov::ISyncInferRequest::find_port(const ov::Outp
     ov::ISyncInferRequest::FoundPort::Type type = ov::ISyncInferRequest::FoundPort::Type::INPUT;
     for (const auto& ports : {get_inputs(), get_outputs()}) {
         for (size_t i = 0; i < ports.size(); i++) {
+            std::cout << "[YANG2-DEBUG] ports[i].get_index(): " << ports[i].get_index()
+                      << " <-> port.get_index(): " << port.get_index()
+                      << "\t Equal: " << (ports[i].get_index() == port.get_index()) << std::endl;
             if (ports[i].get_index() == port.get_index() && check_nodes(ports[i].get_node(), port.get_node()) &&
                 check_tensor_names(ports[i].get_names(), port.get_names())) {
                 std::lock_guard<std::mutex> lock(m_cache_mutex);
