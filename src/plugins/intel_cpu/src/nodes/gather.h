@@ -47,6 +47,13 @@ public:
         uint64_t dstStart = 0;
     };
 
+    template <typename OUT_TYPE, typename IN_TYPE>
+    void execCompressed8Bit();
+    static int8_t get_i4(const uint8_t& val, bool high);
+    static int8_t get_u4(const uint8_t& val, bool high);
+    template <typename OUT_TYPE, int8_t get4Bit(const uint8_t&, bool)>
+    void execCompressed4Bit();
+
 protected:
     void executeDynamicImpl(dnnl::stream strm) override;
     bool needPrepareParams() const override;
@@ -61,14 +68,6 @@ private:
 
     bool compressed = false;
     void execCompressed();
-    template <typename IN_TYPE, typename OUT_TYPE>
-    void execCompressed8Bit();
-
-    static int8_t get_i4(const uint8_t& val, bool high);
-    static int8_t get_u4(const uint8_t& val, bool high);
-
-    template <typename OUT_TYPE, int8_t get4Bit(const uint8_t&, bool)>
-    void execCompressed4Bit();
 
     bool isDataShapeStat = false;
     bool isIdxShapeStat = false;

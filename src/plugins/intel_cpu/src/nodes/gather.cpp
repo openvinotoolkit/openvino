@@ -17,6 +17,7 @@
 #include "kernels/x64/gather_uni_kernel.hpp"
 #include "openvino/core/parallel.hpp"
 #include "ov_ops/gather_compressed.hpp"
+#include "selective_build.h"
 #include "shape_inference/custom/gather.hpp"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
@@ -669,7 +670,7 @@ void Gather::execCompressed4Bit() {
     });
 }
 
-template <typename IN_TYPE, typename OUT_TYPE>
+template <typename OUT_TYPE, typename IN_TYPE>
 void Gather::execCompressed8Bit() {
     const int32_t* srcIndices = getSrcDataAtPortAs<const int32_t>(GATHER_INDICES);
     const IN_TYPE* srcData = getSrcDataAtPortAs<const IN_TYPE>(GATHER_DATA);
@@ -732,6 +733,7 @@ int8_t Gather::get_i4(const uint8_t& val, bool high) {
         return static_cast<int8_t>(val & 0xF);
     }
 }
+
 int8_t Gather::get_u4(const uint8_t& val, bool high) {
     if (high) {
         return (val >> 4) & 0xF;
@@ -739,55 +741,61 @@ int8_t Gather::get_u4(const uint8_t& val, bool high) {
     return val & 0xF;
 }
 
-void Gather::execCompressed() {
-    auto in_precison = getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->getPrecision();
-    auto out_precision = getChildEdgeAt(0)->getMemoryPtr()->getPrecision();
+struct ExecCompressedContext {
+    Gather* node;
+    ov::element::Type inType;
+};
 
-    if (out_precision == ov::element::f16) {
-        switch (in_precison) {
-        case ov::element::u8:
-            return execCompressed8Bit<uint8_t, float16>();
-        case ov::element::i8:
-            return execCompressed8Bit<int8_t, float16>();
-        case ov::element::u4:
-            return execCompressed4Bit<float16, get_u4>();
-        case ov::element::i4:
-            return execCompressed4Bit<float16, get_i4>();
-        default:
-            break;
+template <typename OUT_PRECISION>
+struct ExecCompressedDispatcher {
+    void operator()(ExecCompressedContext& ctx) {
+        if (ctx.inType.bitwidth() == 8) {
+            ExecCompressed8Bit_dispatch(ctx);
+        } else {
+            ExecCompressed4Bit_dispatch(ctx);
         }
-    } else if (out_precision == ov::element::f32) {
-        switch (in_precison) {
-        case ov::element::u8:
-            return execCompressed8Bit<uint8_t, float>();
-        case ov::element::i8:
-            return execCompressed8Bit<int8_t, float>();
-        case ov::element::u4:
-            return execCompressed4Bit<float, get_u4>();
-        case ov::element::i4:
-            return execCompressed4Bit<float, get_i4>();
-        default:
-            break;
+    }
+
+    template <typename IN_PRECISION>
+    struct ExecCompressed8BitDispatcher {
+        void operator()(ExecCompressedContext& ctx) {
+            ctx.node->execCompressed8Bit<OUT_PRECISION, IN_PRECISION>();
         }
-    } else if (out_precision == ov::element::bf16) {
-        switch (in_precison) {
-        case ov::element::u8:
-            return execCompressed8Bit<uint8_t, bfloat16>();
-        case ov::element::i8:
-            return execCompressed8Bit<int8_t, bfloat16>();
+    };
+
+private:
+    void ExecCompressed8Bit_dispatch(ExecCompressedContext& ctx) {
+        OV_SWITCH(intel_cpu,
+                  ExecCompressed8BitDispatcher,
+                  ctx,
+                  ctx.inType,
+                  OV_CASE(ov::element::u8, uint8_t),
+                  OV_CASE(ov::element::i8, uint8_t));
+    }
+    void ExecCompressed4Bit_dispatch(ExecCompressedContext& ctx) {
+        switch (ctx.inType) {
         case ov::element::u4:
-            return execCompressed4Bit<bfloat16, get_u4>();
+            return ctx.node->execCompressed4Bit<OUT_PRECISION, Gather::get_u4>();
         case ov::element::i4:
-            return execCompressed4Bit<bfloat16, get_i4>();
+            return ctx.node->execCompressed4Bit<OUT_PRECISION, Gather::get_i4>();
         default:
             break;
         }
     }
+};
 
-    THROW_ERROR("only support in precision(u4/i4/u8/i8), out precision(f32/f16/bf16), in_precison=",
-                in_precison,
-                ", out_precision=",
-                out_precision);
+void Gather::execCompressed() {
+    auto in_precison = getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->getPrecision();
+    auto out_precision = getChildEdgeAt(0)->getMemoryPtr()->getPrecision();
+    ExecCompressedContext ctx{this, in_precison};
+
+    OV_SWITCH(intel_cpu,
+              ExecCompressedDispatcher,
+              ctx,
+              out_precision,
+              OV_CASE(ov::element::f32, float),
+              OV_CASE(ov::element::bf16, ov::bfloat16),
+              OV_CASE(ov::element::f16, ov::float16));
 }
 
 void Gather::execReference() {
