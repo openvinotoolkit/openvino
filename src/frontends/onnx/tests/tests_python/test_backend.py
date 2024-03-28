@@ -470,6 +470,10 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_99968,
+<<<<<<< HEAD
+=======
+        
+>>>>>>> d417e4c65ea9ba608cc76092ce738ac5c4c9dcac
         "OnnxBackendNodeModelTest.test_reduce_l2_do_not_keepdims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_l2_do_not_keepdims_random_cpu",
         "OnnxBackendNodeModelTest.test_reduce_l2_keep_dims_example_cpu",

@@ -971,6 +971,41 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_l1) {
     test_case.run();
 }
 
+<<<<<<< HEAD
+=======
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_l1_11) {
+    auto model = convert_model("reduce_l1_11.onnx");
+
+    // input data shape (1, 1, 4, 4)
+    Inputs inputs{
+        ov::test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
+
+    // output data shape (1,)
+    auto expected_output = ov::test::NDArray<float, 4>({{{{16}}}}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_l1_13) {
+    auto model = convert_model("reduce_l1_13.onnx");
+
+    // input data shape (1, 1, 4, 4)
+    Inputs inputs{
+        ov::test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
+
+    // output data shape (1,)
+    auto expected_output = ov::test::NDArray<float, 4>({{{{16}}}}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
+>>>>>>> d417e4c65ea9ba608cc76092ce738ac5c4c9dcac
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_l1_18) {
     auto model = convert_model("reduce_l1_18.onnx");
 
@@ -987,6 +1022,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_l1_18) {
     test_case.run();
 }
 
+<<<<<<< HEAD
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_l1_18_axes_as_input) {
     auto model = convert_model("reduce_l1_18_axes_as_input.onnx");
 
@@ -1001,6 +1037,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_l1_18_axes_as_input) {
     test_case.run();
 }
 
+=======
+>>>>>>> d417e4c65ea9ba608cc76092ce738ac5c4c9dcac
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_l2) {
     auto model = convert_model("reduce_l2.onnx");
 

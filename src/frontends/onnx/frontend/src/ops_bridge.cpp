@@ -483,8 +483,15 @@ OperatorsBridge::OperatorsBridge() {
     register_operator("ReduceLogSum", VersionRange{1, 17}, op::set_1::reduce_log_sum);
     register_operator("ReduceLogSum", VersionRange::since(18), op::set_18::reduce_log_sum);
     REGISTER_OPERATOR("ReduceLogSumExp", 1, reduce_log_sum_exp);
+<<<<<<< HEAD
     REGISTER_OPERATOR("ReduceL1", VersionRange{1, 17}, op::set_1::reduce_l1);
     REGISTER_OPERATOR("ReduceL1", VersionRange::since(18), op::set_18::reduce_l1);
+=======
+    REGISTER_OPERATOR("ReduceL1", 1, reduce_l1);
+    REGISTER_OPERATOR("ReduceL1", 11, reduce_l1);
+    REGISTER_OPERATOR("ReduceL1", 13, reduce_l1);
+    REGISTER_OPERATOR("ReduceL1", 18, reduce_l1);
+>>>>>>> d417e4c65ea9ba608cc76092ce738ac5c4c9dcac
     REGISTER_OPERATOR("ReduceL2", 1, reduce_l2);
     REGISTER_OPERATOR("ReduceMax", 1, reduce_max);
     REGISTER_OPERATOR("ReduceMax", 13, reduce_max);
