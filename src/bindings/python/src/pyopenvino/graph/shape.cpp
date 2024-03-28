@@ -41,7 +41,8 @@ void regclass_graph_Shape(py::module m) {
         self[key] = d.get_length();
     });
     shape.def("__getitem__", [](const ov::Shape& v, int key) {
-        if (key < 0 ) key += v.size();
+        if (key < 0)
+            key += v.size();
         return v[key];
     });
 
@@ -51,7 +52,7 @@ void regclass_graph_Shape(py::module m) {
             throw py::error_already_set();
         ov::Shape result(slicelength);
         for (size_t i = 0; i < slicelength; ++i) {
-            result[i] = v[start]; 
+            result[i] = v[start];
             start += step;
         }
         return result;
