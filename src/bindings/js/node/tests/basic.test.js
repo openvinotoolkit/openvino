@@ -20,12 +20,30 @@ it('Core.getAvailableDevices()', () => {
     assert.ok(devices.includes('CPU'));
 });
 
-it('Core.getVersions()', () => {    
+describe('Core.getVersions()', () => {
   const devices = core.getAvailableDevices();
-  const deviceVersion = core.getVersions(devices[0]);
 
-  assert.ok(deviceVersion.size()>=1);
+  it('getVersions(validDeviceName: string)', () => {    
+    let deviceVersion = core.getVersions(devices[0]);
+    assert.ok(deviceVersion.size()>=1);
+  });
+
+  it('getVersions() throws if no arguments are passed into the function', () => {
+    assert.throws(
+      () => core.getVersions(),
+      /No argument provided in the getVersions() method call./
+    );
+  });
+
+  it('getVersions() throws if no arguments are passed into the function', () => {
+    assert.throws(
+      () => core.getVersions({deviceName:devices[0]}),
+      /The argument in getVersions() method must be a string or convertible to a string./
+    );
+  });
+
 });
+
 
 it('CompiledModel type', () => {
   assert.ok(compiledModel instanceof ov.CompiledModel);

@@ -38,7 +38,7 @@ interface Core {
   readModelSync(modelBuffer: Uint8Array, weightsBuffer?: Uint8Array): Model;
   importModelSync(modelStream: Buffer, device: string): CompiledModel;
   getAvailableDevices(): string[];
-  getVersions():{ deviceName: string; version: string }[];
+  getVersions(deviceName: string):{ deviceName: string, version: string, versionDescription: string }[];
 }
 interface CoreConstructor {
   new(): Core;

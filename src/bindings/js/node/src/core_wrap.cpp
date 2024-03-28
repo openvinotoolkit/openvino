@@ -234,17 +234,32 @@ Napi::Value CoreWrap::get_available_devices(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value CoreWrap::get_versions(const Napi::CallbackInfo& info) {
-    const auto& devices_map = _core.get_versions(info[0].As<Napi::String>().Utf8Value());
+    // If no arguments are passed into the method.
+    if(info.Length()==0) {
+        reportError(info.Env(), "No argument provided in the getVersions() method call.");
+        return info.Env().Undefined();
+    }
+    auto device_arg=info[0];
+    // If argument is not convertible to a string.
+    if(!device_arg.IsString()){
+        reportError(info.Env(), "The argument in getVersions() method must be a string or convertible to a string.");
+        return info.Env().Undefined();
+    }
+    const auto& devices_map = _core.get_versions(device_arg.ToString());
     Napi::Array js_devices = Napi::Array::New(info.Env(), devices_map.size());
 
     size_t i = 0;
     for (const auto& dev : devices_map) {
         Napi::Object js_device = Napi::Object::New(info.Env());
+        // js_device Object is of the form:
+        // {
+        //   deviceName: String,
+        //   version: String,
+        //   versionDescription: String
+        // }
         js_device.Set("deviceName", Napi::String::New(info.Env(), dev.first));
-        std::string versionStr = dev.second.buildNumber;
-        versionStr += " ";
-        versionStr += dev.second.description;
-        js_device.Set("version", Napi::String::New(info.Env(), versionStr));
+        js_device.Set("version", Napi::String::New(info.Env(), dev.second.buildNumber));
+        js_device.Set("versionDescription", Napi::String::New(info.Env(), dev.second.description));
         js_devices.Set(i++, js_device);
     }
 
