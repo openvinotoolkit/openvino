@@ -90,7 +90,7 @@ def test_optional_full_match():
     model_input = ops.parameter(PartialShape.dynamic())
     model_abs = ops.abs(model_input)
     model_relu = ops.relu(model_abs.output(0))
-
+    
     pattern_abs = Optional(["opset13.Abs"])
     pattern_relu = ops.relu(pattern_abs.output(0))
 
@@ -98,7 +98,6 @@ def test_optional_full_match():
     assert matcher.match(model_relu)
 
 
-@pytest.mark.skip("Optional is not working properly yet CVS-136454")
 def test_optional_half_match():
     model_input = ops.parameter(PartialShape.dynamic())
     model_relu = ops.relu(model_input)
@@ -108,10 +107,9 @@ def test_optional_half_match():
     pattern_relu = ops.relu(pattern_abs.output(0))
 
     matcher = Matcher(pattern_relu, "FindRelu")
-    assert matcher.match(model_relu1)
+    assert not matcher.match(model_relu1)
 
 
-@pytest.mark.skip("Optional is not working properly yet CVS-136454")
 def test_optional_one_node():
     model_input = ops.parameter(PartialShape.dynamic())
     model_relu = ops.relu(model_input)
@@ -126,7 +124,6 @@ def test_optional_one_node():
     assert not Matcher(Optional(["opset13.Relu"]), "OneNodeTest").match(ops.parameter(PartialShape.dynamic()))
 
 
-@pytest.mark.skip("Optional is not working properly yet CVS-136454")
 def test_optional_predicate():
     model_input = ops.parameter(PartialShape.dynamic())
     model_add = ops.add(model_input, model_input)

@@ -8,6 +8,7 @@
 #include <regex>
 
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/util/env_util.hpp"
 #include "openvino/util/log.hpp"
 
@@ -139,6 +140,27 @@ bool Matcher::match_permutation(const OutputVector& pattern_args, const OutputVe
     return true;
 }
 
+// matching aguments in case of `optional`: input values size can be different
+// in this case pattern should cover all posible cases by `optional` pattern
+// againt graph with `lost` inputs
+// Operation example: ov::op::v5::NMS
+inline bool are_arguments_mislagned(const std::vector<ov::Output<Node>>& args,
+                                    const std::vector<ov::Output<Node>>& pattern_args) {
+    // 'lost' operation can be defined in the end
+    // try to find them
+    int start_node_id = pattern_args.size() - args.size() + 1;
+    if (start_node_id < 0) {
+        return true;
+    }
+    for (size_t i = start_node_id; i < pattern_args.size(); ++i) {
+        const auto pattern_in_node_type = pattern_args[i].get_node()->get_type_info();
+        if (!pattern_in_node_type.is_castable(ov::pass::pattern::op::Optional::get_type_info_static())) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& graph_node) {
     OPENVINO_DEBUG << "[MATCHER] Match arguments at " << *graph_node << " for pattern " << *pattern_node;
 
@@ -146,8 +168,10 @@ bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& g
     auto pattern_args = pattern_node->input_values();
 
     if (args.size() != pattern_args.size()) {
-        OPENVINO_DEBUG << "[MATCHER] Aborting at " << *graph_node << " for pattern " << *pattern_node;
-        return false;
+        if (are_arguments_mislagned(args, pattern_args)) {
+            OPENVINO_DEBUG << "[MATCHER] Aborting at " << *graph_node << " for pattern " << *pattern_node;
+            return false;
+        }
     }
 
     if (ov::op::util::is_commutative(graph_node)) {
