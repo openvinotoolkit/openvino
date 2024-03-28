@@ -59,8 +59,9 @@ interface Model {
   output(nameOrId?: string | number): Output;
   input(nameOrId?: string | number): Output;
   getName(): string;
+  isDynamic(): boolean;
   setFriendlyName(name: string): void;
-  getFriendlyName(): string;
+  getFriendlyName(): string;  
 }
 
 interface CompiledModel {

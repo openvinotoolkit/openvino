@@ -103,7 +103,7 @@ Table of Contents
 * :doc:`I420toRGB <../operation-specs/image/i420-to-rgb-8>`
 * :doc:`If <../operation-specs/condition/if-8>`
 * :doc:`Interpolate <../operation-specs/image/interpolate-11>`
-* :doc:`Inverse <../operation-specs/matrix/Inverse_14>`
+* :doc:`Inverse <../operation-specs/matrix/inverse-14>`
 * :doc:`IRDFT <../operation-specs/signals/irdft-9>`
 * :doc:`IsInf <../operation-specs/comparison/isinf-10>`
 * :doc:`IsNaN <../operation-specs/comparison/isnan-10>`
