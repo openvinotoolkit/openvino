@@ -188,6 +188,8 @@ void CompiledModel::configure_stream_executors() {
 
 void CompiledModel::initialize_properties() {
     _properties = {
+        // OV Public
+        // =========
         {ov::supported_properties.name(),
          {true,
           ov::PropertyMutability::RO,
@@ -200,71 +202,11 @@ void CompiledModel::initialize_properties() {
           [](const Config& config) {
               return config.get<DEVICE_ID>();
           }}},
-        {ov::intel_npu::profiling_type.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.getString<PROFILING_TYPE>();
-          }}},
-        {ov::intel_npu::platform.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<PLATFORM>();
-          }}},
-        {ov::hint::model_priority.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<MODEL_PRIORITY>();
-          }}},
         {ov::enable_profiling.name(),
          {true,
           ov::PropertyMutability::RO,
           [](const Config& config) {
               return config.get<PERF_COUNT>();
-          }}},
-        {ov::hint::performance_mode.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<PERFORMANCE_HINT>();
-          }}},
-        {ov::hint::num_requests.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<PERFORMANCE_HINT_NUM_REQUESTS>();
-          }}},
-        {ov::hint::inference_precision.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<INFERENCE_PRECISION_HINT>();
-          }}},
-        {ov::hint::enable_cpu_pinning.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<ENABLE_CPU_PINNING>();
-          }}},
-        {ov::intel_npu::dynamic_shape_to_static.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.getString<DYNAMIC_SHAPE_TO_STATIC>();
-          }}},
-        {ov::intel_npu::use_elf_compiler_backend.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.getString<USE_ELF_COMPILER_BACKEND>();
-          }}},
-        {ov::intel_npu::create_executor.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<CREATE_EXECUTOR>();
           }}},
         {ov::model_name.name(),
          {true,
@@ -289,22 +231,43 @@ void CompiledModel::initialize_properties() {
               if (config.get<PLATFORM>() == ov::intel_npu::Platform::AUTO_DETECT) {
                   return std::string("NPU");
               }
-
               OPENVINO_ASSERT(_device != nullptr, "GetMetric: the device is not initialized");
               return std::string("NPU.") + _device->getName();
           }}},
         {ov::loaded_from_cache.name(),
          {true,
           ov::PropertyMutability::RO,
-          [&](const Config& config) {
+          [](const Config& config) {
               return config.get<LOADED_FROM_CACHE>();
           }}},
-        {ov::loaded_from_cache.name(),
+        // OV Public Hints
+        // =========
+        {ov::hint::performance_mode.name(),
          {true,
           ov::PropertyMutability::RO,
-          [&](const Config& config) {
-              return config.get<LOADED_FROM_CACHE>();
+          [](const Config& config) {
+              return config.get<PERFORMANCE_HINT>();
           }}},
+        {ov::hint::num_requests.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.get<PERFORMANCE_HINT_NUM_REQUESTS>();
+          }}},
+        {ov::hint::inference_precision.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.get<INFERENCE_PRECISION_HINT>();
+          }}},
+        {ov::hint::enable_cpu_pinning.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.get<ENABLE_CPU_PINNING>();
+          }}},
+        // OV Internals
+        // =========
         {ov::internal::supported_properties.name(),
          {true,
           ov::PropertyMutability::RO,
@@ -313,6 +276,50 @@ void CompiledModel::initialize_properties() {
                   ov::PropertyName(ov::internal::caching_properties.name(), ov::PropertyMutability::RO),
               };
               return supportedProperty;
+          }}},
+        // NPU Private
+        // =========
+        {ov::hint::model_priority.name(),
+         {false,
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.get<MODEL_PRIORITY>();
+          }}},
+        {ov::intel_npu::tiles.name(),
+         {false,
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.get<TILES>();
+          }}},
+        {ov::intel_npu::profiling_type.name(),
+         {false,
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.getString<PROFILING_TYPE>();
+          }}},
+        {ov::intel_npu::platform.name(),
+         {false,
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.get<PLATFORM>();
+          }}},
+        {ov::intel_npu::dynamic_shape_to_static.name(),
+         {false,
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.getString<DYNAMIC_SHAPE_TO_STATIC>();
+          }}},
+        {ov::intel_npu::use_elf_compiler_backend.name(),
+         {false,
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.getString<USE_ELF_COMPILER_BACKEND>();
+          }}},
+        {ov::intel_npu::create_executor.name(),
+         {false,
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.get<CREATE_EXECUTOR>();
           }}},
     };
 

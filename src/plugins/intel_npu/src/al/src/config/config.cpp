@@ -42,6 +42,14 @@ bool OptionParser<bool>::parse(std::string_view val) {
     OPENVINO_THROW("Value '", val.data(), "' is not a valid BOOL option");
 }
 
+int32_t OptionParser<int32_t>::parse(std::string_view val) {
+    try {
+        return std::stol(val.data());
+    } catch (...) {
+        OPENVINO_THROW("Value '%s' is not a valid INT32 option", val.data());
+    }
+}
+
 int64_t OptionParser<int64_t>::parse(std::string_view val) {
     try {
         return std::stoll(val.data());

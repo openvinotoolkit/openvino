@@ -479,6 +479,21 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeConfig(
         _logger.warning("NPU_MAX_TILES property is not suppored by this compiler version. Removing from parameters");
         content = std::regex_replace(content, std::regex(maxtilestr.str()), "");
     }
+    /// Removing INFERENCE_PRECISION_HINT for older compilers
+    if ((compilerVersion.major < 5) || (compilerVersion.major <= 5 && compilerVersion.minor < 4)) {
+        std::ostringstream precstr;
+        precstr << ov::hint::inference_precision.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
+                << VALUE_DELIMITER;
+        _logger.warning(
+            "INFERENCE_PRECISION_HINT property is not suppored by this compiler version. Removing from parameters");
+        content = std::regex_replace(content, std::regex(precstr.str()), "");
+    }
+    /// Replacing NPU_TILES (for all versions) with NPU_DPU_GROUPS for backwards compatibility
+    if (std::regex_search(content, std::regex(ov::intel_npu::tiles.name()))) {
+        _logger.warning("NPU_TILES property is not suppored by this compiler version. Swaping it to "
+                        "NPU_DPU_GROUPS (obsolete)");
+        content = std::regex_replace(content, std::regex(ov::intel_npu::tiles.name()), "NPU_DPU_GROUPS");
+    }
 
     return "--config " + content;
 }

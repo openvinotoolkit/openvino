@@ -73,6 +73,11 @@ struct OptionParser<bool> final {
 };
 
 template <>
+struct OptionParser<int32_t> final {
+    static int32_t parse(std::string_view val);
+};
+
+template <>
 struct OptionParser<int64_t> final {
     static int64_t parse(std::string_view val);
 };

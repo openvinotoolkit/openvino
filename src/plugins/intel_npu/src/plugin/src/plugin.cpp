@@ -168,31 +168,13 @@ Plugin::Plugin()
     // Map from name to function {Config -> ov::Any}
     // Note that some properties are RW before network is loaded, and become RO after network is loaded
     _properties = {
+        // OV Public
+        // =========
         {ov::supported_properties.name(),
          {true,
           ov::PropertyMutability::RO,
           [&](const Config&) {
               return _supportedProperties;
-          }}},
-        {ov::internal::caching_properties.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [&](const Config&) {
-              return _metrics->GetCachingProperties();
-          }}},
-        {ov::internal::exclusive_async_requests.name(),
-         {true,
-          ov::PropertyMutability::RW,
-          [&](const Config& config) {
-              return config.get<EXCLUSIVE_ASYNC_REQUESTS>();
-          }}},
-        {ov::optimal_number_of_infer_requests.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [&](const Config& config) {
-              return static_cast<uint32_t>(getOptimalNumberOfInferRequestsInParallel(add_platform_to_the_config(
-                  config,
-                  _backends->getCompilationPlatform(config.get<PLATFORM>(), config.get<DEVICE_ID>()))));
           }}},
         {ov::enable_profiling.name(),
          {true,
@@ -232,8 +214,8 @@ Plugin::Plugin()
           }}},
         {ov::cache_dir.name(),
          {true,
-          ov::PropertyMutability::RO,
-          [&](const Config& config) {
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
               return config.get<CACHE_DIR>();
           }}},
         {ov::device::id.name(),
@@ -242,72 +224,96 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.get<DEVICE_ID>();
           }}},
-        {ov::intel_npu::dpu_groups.name(),
+        {ov::compilation_num_threads.name(),
          {true,
           ov::PropertyMutability::RW,
           [](const Config& config) {
-              return config.get<DPU_GROUPS>();
+              return config.getString<COMPILATION_NUM_THREADS>();
           }}},
-        {ov::intel_npu::stepping.name(),
+        {ov::available_devices.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [&](const Config&) {
+              return _metrics->GetAvailableDevicesNames();
+          }}},
+        {ov::device::capabilities.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [&](const Config&) {
+              return _metrics->GetOptimizationCapabilities();
+          }}},
+        {ov::optimal_number_of_infer_requests.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [&](const Config& config) {
+              return static_cast<uint32_t>(getOptimalNumberOfInferRequestsInParallel(add_platform_to_the_config(
+                  config,
+                  _backends->getCompilationPlatform(config.get<PLATFORM>(), config.get<DEVICE_ID>()))));
+          }}},
+        {ov::range_for_async_infer_requests.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [&](const Config&) {
+              return _metrics->GetRangeForAsyncInferRequest();
+          }}},
+        {ov::range_for_streams.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [&](const Config&) {
+              return _metrics->GetRangeForStreams();
+          }}},
+        {ov::num_streams.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.get<NUM_STREAMS>();
+          }}},
+        {ov::device::uuid.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [&](const Config& config) {
+              const auto specifiedDeviceName = get_specified_device_name(config);
+              auto devUuid = _metrics->GetDeviceUuid(specifiedDeviceName);
+              return decltype(ov::device::uuid)::value_type{devUuid};
+          }}},
+        // Add FULL_DEVICE_NAME and DEVICE_ARCHITECTURE in supported
+        // properties list only in case of non-empty device list (#1424144d)
+        {ov::device::architecture.name(),
+         {!_metrics->GetAvailableDevicesNames().empty(),
+          ov::PropertyMutability::RO,
+          [&](const Config& config) {
+              const auto specifiedDeviceName = get_specified_device_name(config);
+              return _metrics->GetDeviceArchitecture(specifiedDeviceName);
+          }}},
+        {ov::device::full_name.name(),
+         {!_metrics->GetAvailableDevicesNames().empty(),
+          ov::PropertyMutability::RO,
+          [&](const Config& config) {
+              const auto specifiedDeviceName = get_specified_device_name(config);
+              return _metrics->GetFullDeviceName(specifiedDeviceName);
+          }}},
+        // OV Internals
+        // =========
+        {ov::internal::caching_properties.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [&](const Config&) {
+              return _metrics->GetCachingProperties();
+          }}},
+        {ov::internal::exclusive_async_requests.name(),
          {true,
           ov::PropertyMutability::RW,
           [](const Config& config) {
-              return config.get<STEPPING>();
+              return config.get<EXCLUSIVE_ASYNC_REQUESTS>();
           }}},
-        {ov::intel_npu::max_tiles.name(),
+        {ov::internal::supported_properties.name(),
          {true,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<MAX_TILES>();
+          ov::PropertyMutability::RO,
+          [&](const Config&) {
+              return _metrics->GetInternalSupportedProperties();
           }}},
-        {ov::intel_npu::dma_engines.name(),
-         {true,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<DMA_ENGINES>();
-          }}},
-        {ov::intel_npu::compilation_mode.name(),
-         {true,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<COMPILATION_MODE>();
-          }}},
-        {ov::intel_npu::compilation_mode_params.name(),
-         {true,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<COMPILATION_MODE_PARAMS>();
-          }}},
-        {ov::intel_npu::compiler_type.name(),
-         {true,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.getString<COMPILER_TYPE>();
-          }}},
-        {ov::intel_npu::platform.name(),
-         {true,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<PLATFORM>();
-          }}},
-        {ov::hint::model_priority.name(),
-         {true,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<MODEL_PRIORITY>();
-          }}},
-        {ov::intel_npu::use_elf_compiler_backend.name(),
-         {true,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.getString<USE_ELF_COMPILER_BACKEND>();
-          }}},
-        {ov::intel_npu::dynamic_shape_to_static.name(),
-         {true,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<DYNAMIC_SHAPE_TO_STATIC>();
-          }}},
+        // NPU Public
+        // =========
         {ov::intel_npu::device_alloc_mem_size.name(),
          {true,
           ov::PropertyMutability::RO,
@@ -326,77 +332,88 @@ Plugin::Plugin()
           [&](const Config& config) {
               return _metrics->GetDriverVersion(get_specified_device_name(config));
           }}},
-
-        {ov::available_devices.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [&](const Config&) {
-              return _metrics->GetAvailableDevicesNames();
+        // NPU Private
+        // =========
+        {ov::hint::model_priority.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<MODEL_PRIORITY>();
           }}},
-        {ov::device::capabilities.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [&](const Config&) {
-              return _metrics->GetOptimizationCapabilities();
+        {ov::intel_npu::dma_engines.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<DMA_ENGINES>();
           }}},
-        {ov::range_for_async_infer_requests.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [&](const Config&) {
-              return _metrics->GetRangeForAsyncInferRequest();
+        {ov::intel_npu::tiles.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<TILES>();
           }}},
-        {ov::range_for_streams.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [&](const Config&) {
-              return _metrics->GetRangeForStreams();
+        {ov::intel_npu::dpu_groups.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<DPU_GROUPS>();
           }}},
-        {ov::num_streams.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [&](const Config& config) {
-              return config.get<NUM_STREAMS>();
+        {ov::intel_npu::stepping.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<STEPPING>();
+          }}},
+        {ov::intel_npu::max_tiles.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<MAX_TILES>();
+          }}},
+        {ov::intel_npu::compilation_mode.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<COMPILATION_MODE>();
+          }}},
+        {ov::intel_npu::compilation_mode_params.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<COMPILATION_MODE_PARAMS>();
+          }}},
+        {ov::intel_npu::compiler_type.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.getString<COMPILER_TYPE>();
+          }}},
+        {ov::intel_npu::platform.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<PLATFORM>();
           }}},
         {ov::intel_npu::backend_name.name(),
-         {true,
+         {false,
           ov::PropertyMutability::RO,
           [&](const Config&) {
               return _metrics->GetBackendName();
           }}},
-        {ov::device::uuid.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [&](const Config& config) {
-              const auto specifiedDeviceName = get_specified_device_name(config);
-              auto devUuid = _metrics->GetDeviceUuid(specifiedDeviceName);
-              return decltype(ov::device::uuid)::value_type{devUuid};
+        {ov::intel_npu::use_elf_compiler_backend.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.getString<USE_ELF_COMPILER_BACKEND>();
           }}},
-        {ov::internal::supported_properties.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [&](const Config&) {
-              return _metrics->GetInternalSupportedProperties();
-          }}},
-
-        // Add FULL_DEVICE_NAME and DEVICE_ARCHITECTURE in supported
-        // properties list only in case of non-empty device list (#1424144d)
-        {ov::device::architecture.name(),
-         {!_metrics->GetAvailableDevicesNames().empty(),
-          ov::PropertyMutability::RO,
-          [&](const Config& config) {
-              const auto specifiedDeviceName = get_specified_device_name(config);
-              return _metrics->GetDeviceArchitecture(specifiedDeviceName);
-          }}},
-
-        {ov::device::full_name.name(),
-         {!_metrics->GetAvailableDevicesNames().empty(),
-          ov::PropertyMutability::RO,
-          [&](const Config& config) {
-              const auto specifiedDeviceName = get_specified_device_name(config);
-              return _metrics->GetFullDeviceName(specifiedDeviceName);
+        {ov::intel_npu::dynamic_shape_to_static.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<DYNAMIC_SHAPE_TO_STATIC>();
           }}},
         {ov::intel_npu::profiling_type.name(),
-         {true,
+         {false,
           ov::PropertyMutability::RW,
           [](const Config& config) {
               return config.get<PROFILING_TYPE>();
@@ -413,8 +430,12 @@ Plugin::Plugin()
 void Plugin::set_property(const ov::AnyMap& properties) {
     const std::map<std::string, std::string> config = any_copy(properties);
     for (const auto& configEntry : config) {
-        if (std::get<0>(_properties[configEntry.first]) == false) {
+        if (_properties.find(configEntry.first) == _properties.end()) {
             OPENVINO_THROW("Unsupported configuration key: ", configEntry.first);
+        } else {
+            if (std::get<1>(_properties[configEntry.first]) == ov::PropertyMutability::RO) {
+                OPENVINO_THROW("READ-ONLY configuration key: ", configEntry.first);
+            }
         }
     }
 
@@ -460,7 +481,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
 
     // Update stepping w/ information from driver, unless provided by user or we are off-device
-    if (!localConfig.has<STEPPING>() && device != nullptr) {
+    // Ignore, if compilation was requested for platform, different from current
+    if (!localConfig.has<STEPPING>() && device != nullptr && device->getName() == platform) {
         try {
             localConfig.update({{ov::intel_npu::stepping.name(), std::to_string(device->getSubDevId())}});
         } catch (...) {
@@ -469,7 +491,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
     // Update max_tiles w/ information from driver, unless provided by user or we are off-device
-    if (!localConfig.has<MAX_TILES>() && device != nullptr) {
+    // Ignore, if compilation was requested for platform, different from current
+    if (!localConfig.has<MAX_TILES>() && device != nullptr && device->getName() == platform) {
         try {
             localConfig.update({{ov::intel_npu::max_tiles.name(), std::to_string(device->getMaxNumSlices())}});
         } catch (...) {

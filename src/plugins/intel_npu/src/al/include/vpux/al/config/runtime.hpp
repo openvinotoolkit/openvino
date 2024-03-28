@@ -4,11 +4,11 @@
 
 #pragma once
 
+#include "npu_private_properties.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "vpux/al/config/config.hpp"
-#include "vpux_private_properties.hpp"
 
 namespace ov {
 

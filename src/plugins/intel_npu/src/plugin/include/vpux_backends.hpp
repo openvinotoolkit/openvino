@@ -13,8 +13,8 @@
 
 // Plugin
 #include "npu/utils/logger/logger.hpp"
+#include "npu_private_properties.hpp"
 #include "vpux.hpp"
-#include "vpux_private_properties.hpp"
 
 namespace vpux {
 

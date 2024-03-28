@@ -5,9 +5,9 @@
 #include "vpux_compiler.hpp"
 
 #include "npu/utils/logger/logger.hpp"
+#include "npu_private_properties.hpp"  // AL
 #include "vpux/al/config/compiler.hpp"
 #include "vpux/al/itt.hpp"
-#include "vpux_private_properties.hpp"  // AL
 
 #ifdef ENABLE_DRIVER_COMPILER_ADAPTER
 #    include "vpux_driver_compiler_adapter.h"

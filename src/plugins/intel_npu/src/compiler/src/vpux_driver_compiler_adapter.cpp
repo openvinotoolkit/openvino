@@ -3,7 +3,6 @@
 //
 
 #include "vpux_driver_compiler_adapter.h"
-
 #include "graph_transformations.h"
 #include "npu/utils/zero/zero_result.hpp"
 #include "vpux/al/config/common.hpp"
@@ -132,7 +131,7 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter() : _logger("LevelZeroCompile
                        " mismatch!");
     }
 
-#if defined(VPUX_DEVELOPER_BUILD)
+#if defined(NPU_PLUGIN_DEVELOPER_BUILD)
     auto adapterManualConfig = std::getenv("ADAPTER_MANUAL_CONFIG");
     if (adapterManualConfig != nullptr) {
         if (strcmp(adapterManualConfig, "ZE_extension_graph_1_5") == 0) {

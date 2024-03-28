@@ -7,7 +7,7 @@
 #include <cstdint>
 #include <map>
 
-#include "vpux_private_properties.hpp"
+#include "npu_private_properties.hpp"
 
 namespace utils {
 bool isVPUDevice(const uint32_t deviceId);

@@ -6,8 +6,8 @@
 #include "vpux_metrics.hpp"
 
 #include "device_helpers.hpp"
+#include "npu_private_properties.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
-#include "vpux_private_properties.hpp"
 
 namespace vpux {
 

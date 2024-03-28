@@ -16,7 +16,9 @@ void vpux::registerCompilerOptions(OptionsDesc& desc) {
     desc.add<COMPILATION_MODE>();
     desc.add<COMPILATION_MODE_PARAMS>();
     desc.add<BACKEND_COMPILATION_PARAMS>();
+    desc.add<COMPILATION_NUM_THREADS>();
     desc.add<DPU_GROUPS>();
+    desc.add<TILES>();
     desc.add<STEPPING>();
     desc.add<MAX_TILES>();
     desc.add<DMA_ENGINES>();
