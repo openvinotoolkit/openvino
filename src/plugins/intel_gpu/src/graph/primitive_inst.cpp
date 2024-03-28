@@ -1130,6 +1130,21 @@ void primitive_inst::do_runtime_skip_permute() {
         set_can_be_optimized(false);
         return;
     }
+
+    auto check_dependency_all_cpu = [&]() -> bool {
+        for (auto& dep : dependencies()) {
+            if (!is_user_cpu(&(dep.first->get_node())))
+                return false;
+        }
+        return true;
+    };
+
+    if (get_network().get_stream().get_queue_type() == QueueTypes::in_order && _needs_completion_event && !check_dependency_all_cpu()) {
+        GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because in order queue, and" << id() << " needs syncronization" << std::endl;
+        set_can_be_optimized(false);
+        return;
+    }
+
     GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_permute] " << id() << " : can_be_optimized" << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "            - Input layout : " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "            - Output layout : " << _impl_params->get_output_layout().to_short_string() << std::endl;
