@@ -93,17 +93,14 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         CompiledModel::get_graph();
     }
     // init sub stream threads of executor
-    if (m_cfg.streamExecutorConfig.get_sub_stream_mode() ==
-            IStreamsExecutor::Config::StreamsMode::SUB_STREAMS_FOR_SOCKET &&
-        stream_executor != nullptr) {
-        std::atomic<int> nodes_remain(m_cfg.streamExecutorConfig.get_sub_streams());
-        stream_executor->run_sub_stream(
-            [&]() {
-                nodes_remain--;
-            },
-            0);
-        while (nodes_remain.load() > 0) {
+    int sub_streams = m_cfg.streamExecutorConfig.get_sub_streams();
+    if (sub_streams > 0 && stream_executor != nullptr) {
+        std::vector<Task> tasks;
+        tasks.resize(sub_streams);
+        for (auto&& task : tasks) {
+            task = [this] {};
         }
+        stream_executor->run_sub_stream_and_wait(tasks);
     }
 }
 
