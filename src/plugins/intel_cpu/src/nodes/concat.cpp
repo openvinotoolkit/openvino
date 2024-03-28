@@ -372,6 +372,7 @@ void Concat::prepareParams() {
     }
 
     std::vector<memory::desc> srcs_d;
+    nelemTotal = 0;
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         const auto& srcMemPtr = getSrcMemoryAtPort(i);
         if (!srcMemPtr || !srcMemPtr->isAllocated()) {
@@ -394,6 +395,7 @@ void Concat::prepareParams() {
             nelemToCopy[i] = nElem * elemSize;
             dstOffset[i] = outputStrides[reorderedAxis] * curConcatOffset * elemSize;
             curConcatOffset += inputShape[reorderedAxis];
+            nelemTotal += nelemToCopy[i];
         } else {
             if (srcMemPtr->getShape().hasZeroDims()) {
                 continue;
@@ -571,29 +573,21 @@ void Concat::execNspcSpecCase() {
 void Concat::execRef() {
     const size_t numSrc = getParentEdges().size();
     const auto& dstMemory = getChildEdgeAt(0)->getMemory();
-    const size_t elemSize = DnnlExtensionUtils::sizeOfDataType(dstMemory.getDataType());
-    const auto dstMemBlkDesc = dstMemory.getDescPtr()->as<BlockedMemoryDesc>();
-    const auto& outputShape = dstMemBlkDesc->getBlockDims();
     uint8_t* dstPtr = dstMemory.getDataAs<uint8_t>();
     for (size_t i = 0; i < numSrc; i++) {
         const auto& srcMem = getParentEdgeAt(i)->getMemory();
         srcPtrs[i] = srcMem.getDataAs<const uint8_t>();
     }
 
-    size_t outputStrides[MAX_RANK_REF] = {0};
-    const auto strides = dstMemBlkDesc->getStrides();
-    std::transform(strides.begin(), strides.end(), outputStrides, [&elemSize](const Dim& i) {
-        return i * elemSize;
-    });
     if (!hasOuterLoop) {
-        int nthr = parallel_get_max_threads();
-        if (nthr == 1) {
+        if (nelemTotal < 64*1024 || parallel_get_max_threads() == 1) {
             for (size_t a = 0; a < srcPtrs.size(); ++a) {
                 const auto inData = srcPtrs[a];
                 auto outputData = &dstPtr[dstOffset[a]];
                 std::memcpy(outputData, inData, nelemToCopy[a]);
             }
         } else {
+            int nthr = parallel_get_max_threads();
             parallel_nt(nthr, [&](int ithr, int nthr) {
                 for (size_t a = 0; a < srcPtrs.size(); ++a) {
                     size_t start = 0, end = 0;
@@ -605,6 +599,14 @@ void Concat::execRef() {
             });
         }
     } else {
+        const size_t elemSize = DnnlExtensionUtils::sizeOfDataType(dstMemory.getDataType());
+        const auto dstMemBlkDesc = dstMemory.getDescPtr()->as<BlockedMemoryDesc>();
+        const auto& outputShape = dstMemBlkDesc->getBlockDims();
+        size_t outputStrides[MAX_RANK_REF] = {0};
+        const auto strides = dstMemBlkDesc->getStrides();
+        std::transform(strides.begin(), strides.end(), outputStrides, [&elemSize](const Dim& i) {
+            return i * elemSize;
+        });
         size_t physDims[5] = {1, 1, 1, 1, 1};
         for (size_t i = 0; i < reorderedAxis; i++) {
             physDims[i] = outputShape[i];

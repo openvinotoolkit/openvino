@@ -204,6 +204,10 @@ int get_current_socket_id() {
     return 0;
 }
 
+int get_memory_numa_node_id(const int cpu_numa_node) {
+    return cpu_numa_node;
+};
+
 std::vector<std::vector<int>> get_proc_type_table() {
     return {{-1}};
 }
@@ -264,6 +268,10 @@ bool is_cpu_map_available() {
 int get_current_socket_id() {
     return 0;
 }
+
+int get_memory_numa_node_id(const int cpu_numa_node) {
+    return cpu_numa_node;
+};
 
 std::vector<std::vector<int>> get_proc_type_table() {
     CPU& cpu = cpu_info();
@@ -370,10 +378,24 @@ int get_current_socket_id() {
 
     return 0;
 }
+
+int get_memory_numa_node_id(const int numa_node_id) {
+    CPU& cpu = cpu_info();
+    auto iter = cpu._numaid_mapping_table.find(numa_node_id);
+    if (iter != cpu._numaid_mapping_table.end()) {
+        return cpu._hbm_enabled ? (iter->second == 0 ? cpu._numa_nodes : iter->second) : iter->second;
+        return iter->second;
+    }
+    return -1;
+};
 #    else
 int get_current_socket_id() {
     return 0;
 }
+
+int get_memory_numa_node_id(const int cpu_numa_node) {
+    return cpu_numa_node;
+};
 #    endif
 
 std::vector<std::vector<int>> get_proc_type_table() {

@@ -69,6 +69,26 @@ public:
         return m_primitive ? m_primitive->implType() : undef;
     }
 
+    void moveMemToNumaNode(int numaNodeID) override {
+        if (curNumaNode == numaNodeID) {
+            return;
+        }
+        const auto newPrimMemDesc = m_primitive->scratchPadDesc();
+        m_scratchPadMemory = m_context->getScratchPad(numaNodeID)->createScratchPadMem(*newPrimMemDesc);
+        m_primArgs[DNNL_ARG_SCRATCHPAD] = m_scratchPadMemory->getPrimitive();
+
+        if (m_primArgs.count(DNNL_ARG_WEIGHTS)) {
+            if (!mbind_move(m_primArgs[DNNL_ARG_WEIGHTS], numaNodeID))
+                std::cout << "move DNNL_ARG_WEIGHTS to node " << numaNodeID << " failed\n";
+        }
+
+        if (m_primArgs.count(DNNL_ARG_BIAS)) {
+            if (!mbind_move(m_primArgs[DNNL_ARG_BIAS], numaNodeID))
+                std::cout << "move DNNL_ARG_BIAS to node " << numaNodeID << " failed\n";
+        }
+        curNumaNode = numaNodeID;
+    }
+
 private:
     void updateSrcMemory(const DnnlMemoryDescPtr& memDesc, const PrimitivePtr primitive, const MemoryPtr memory) {
         const auto& primMemDesc = primitive->srcDesc();
@@ -119,7 +139,7 @@ private:
         if (currentPrimitive && currentPrimitive->scratchPadDesc()->isCompatible(*newPrimMemDesc))
             return;
 
-        m_scratchPadMemory = m_context->getScratchPad()->createScratchPadMem(newPrimMemDesc);
+        m_scratchPadMemory = m_context->getScratchPad(curNumaNode)->createScratchPadMem(*newPrimMemDesc);
         m_primArgs[DNNL_ARG_SCRATCHPAD] = m_scratchPadMemory->getPrimitive();
     }
 
@@ -149,6 +169,7 @@ private:
     bool resetDstMemoryDataHandle = false;
     MemoryPtr m_scratchPadMemory;
     PrimitivePtr m_primitive;
+    int curNumaNode = -1;
 };
 
 }  // namespace intel_cpu
