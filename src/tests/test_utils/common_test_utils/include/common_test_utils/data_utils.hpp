@@ -236,11 +236,45 @@ void inline fill_data_random(T* pointer,
     if (start_from < 0 && !std::numeric_limits<T>::is_signed) {
         start_from = 0;
     }
-    pointer[0] = static_cast<T>(start_from);
-    pointer[size - 1] = static_cast<T>(start_from + range);
 
     for (std::size_t i = 0; i < size; i++) {
         pointer[i] = static_cast<T>(start_from + static_cast<T>(random.Generate(k_range)) / k);
+    }
+}
+
+template <class T>
+void inline fill_data_random_4bit(T* pointer,
+                                  std::size_t size,
+                                  const uint32_t range = 10,
+                                  double_t start_from = 0,
+                                  const int32_t k = 1,
+                                  const int seed = 1) {
+    if (range == 0) {
+        size_t i = 0;
+        for (; i < size / 2; i++) {
+            pointer[i] = (static_cast<T>(start_from) & 0x0F << 4) | static_cast<T>(start_from) & 0x0F;
+        }
+        if (size % 2)
+            pointer[i] = static_cast<T>(start_from) & 0x0F;
+        return;
+    }
+
+    testing::internal::Random random(seed);
+    const uint32_t k_range = k * range;  // range with respect to k
+    random.Generate(k_range);
+
+    if (start_from < 0 && !std::numeric_limits<T>::is_signed)
+        start_from = 0;
+
+    T v1, v2;
+    size_t i = 0;
+    for (; i < size / 2; i++) {
+        v1 = static_cast<T>(start_from + static_cast<T>(random.Generate(k_range)) / k) & 0x0F;
+        v2 = static_cast<T>(start_from + static_cast<T>(random.Generate(k_range)) / k) & 0x0F;
+        pointer[i] = (v2 << 4) | v1;
+    }
+    if (size % 2) {
+        pointer[i] = static_cast<T>(start_from + static_cast<T>(random.Generate(k_range)) / k) & 0x0F;
     }
 }
 
@@ -251,10 +285,8 @@ void inline fill_data_ptr_real_random_float(T* pointer,
                                             const float max,
                                             const int seed) {
     std::mt19937 gen(seed);
-    std::uniform_real_distribution<float> dist(min, max);
-    pointer[0] = min;
-    pointer[size - 1] = max;
-    for (std::size_t i = 1; i < size - 1; i++) {
+    std::uniform_real_distribution<double> dist(min, max);
+    for (std::size_t i = 0; i < size; i++) {
         pointer[i] = static_cast<T>(dist(gen));
     }
 }

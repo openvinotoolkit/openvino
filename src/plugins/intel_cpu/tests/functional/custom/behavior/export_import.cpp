@@ -21,9 +21,7 @@ std::shared_ptr<ov::Model> MakeMatMulModel() {
     const ov::Shape input_shape = {1, 4096};
 
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape(input_shape))};
-    auto matmul_const_tensor = ov::test::utils::create_and_fill_tensor(ov::element::f32, {4096, 1024},
-        ov::test::utils::InputGenerateData(1, 10, 1000));
-    auto matmul_const = std::make_shared<ov::op::v0::Constant>(matmul_const_tensor);
+    auto matmul_const = ov::test::utils::make_constant(ov::element::f32, {4096, 1024});
     auto matmul = std::make_shared<ov::op::v0::MatMul>(params[0], matmul_const);
 
     auto add_const = ov::test::utils::make_constant(ov::element::f32, {1, 1024});

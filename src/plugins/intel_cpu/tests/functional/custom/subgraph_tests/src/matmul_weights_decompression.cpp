@@ -166,7 +166,9 @@ protected:
         }
 
         auto up_to = weights_precision == ov::element::i4 ? 7 : 15;
-        auto weights = ov::test::utils::make_constant(weights_precision, transformed_weights_shape, ov::test::utils::InputGenerateData(1, up_to - 1));
+        auto weights_tensor =
+            ov::test::utils::create_and_fill_tensor(weights_precision, transformed_weights_shape, ov::test::utils::InputGenerateData(1, up_to));
+        auto weights = std::make_shared<ov::op::v0::Constant>(weights_tensor);
         weights->set_friendly_name("Compressed_weights");
         auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, decompression_precision);
 
@@ -189,7 +191,9 @@ protected:
             scaleshift_const_shape.erase(std::remove(scaleshift_const_shape.begin(), scaleshift_const_shape.end(), 1), scaleshift_const_shape.end());
         if (decompression_subtract_type != DecompressionSubtractType::empty) {
             auto subtract_shape = decompression_subtract_type == DecompressionSubtractType::full ? scaleshift_const_shape : Shape({});
-            auto shift_const = ov::test::utils::make_constant(weights_precision, subtract_shape, ov::test::utils::InputGenerateData(1, up_to));
+            auto shift_const_tensor =
+                ov::test::utils::create_and_fill_tensor(weights_precision, transformed_weights_shape, ov::test::utils::InputGenerateData(1, up_to));
+            auto shift_const = std::make_shared<ov::op::v0::Constant>(shift_const_tensor);
             std::shared_ptr<ov::Node> shift_convert = std::make_shared<ov::op::v0::Convert>(shift_const, decompression_precision);
             if (reshape_on_decompression_constant) {
                 auto subtract_target_shape = decompression_subtract_type == DecompressionSubtractType::full

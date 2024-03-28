@@ -18,7 +18,8 @@ protected:
 
         auto type = element::f32;
         auto param = std::make_shared<ov::opset8::Parameter>(type, Shape{1, 32, 64, 32});
-        auto weights = ov::test::utils::make_constant(type, Shape{32, 32, 1, 1});
+        auto weights_tensor = ov::test::utils::create_and_fill_tensor_real_distribution(type, Shape{32, 32, 1, 1}, 1, 10, 1);
+        auto weights = std::make_shared<ov::op::v0::Constant>(weights_tensor);
         auto conv = std::make_shared<ov::opset8::Convolution>(param,
                                                               weights,
                                                               Strides{1, 1},

@@ -137,11 +137,9 @@ protected:
 
         auto W = ov::test::utils::make_constant(ov::element::f32, {numDirections, numOfGates     * hiddenSize, inputSize},  in_gen_data);
         auto R = ov::test::utils::make_constant(ov::element::f32, {numDirections, numOfGates     * hiddenSize, hiddenSize}, in_gen_data);
-        in_gen_data.start_from = -0.1;
-        in_gen_data.range = 0.2;
 
         auto B_tensor = ov::test::utils::create_and_fill_tensor_real_distribution(
-            ov::element::f32, {numDirections, numOfBiasGates * hiddenSize}, -0.1, 0.1, 1);
+            ov::element::f32, {numDirections, numOfBiasGates * hiddenSize}, -0.1f, 0.1f, 1);
         auto B = std::make_shared<ov::op::v0::Constant>(B_tensor);
 
         auto makeWeightsFQ = [](const std::shared_ptr<Node> weight) {
