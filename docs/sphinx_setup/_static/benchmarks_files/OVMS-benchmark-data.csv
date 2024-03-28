@@ -1,4 +1,4 @@
-﻿Network model,Release,IE-Type,Platform name,Throughput-OVMS-INT8,Throughput-OV-INT8,Throughput-OVMS-FP32,Throughput-OV-FP32
+Network model,Release,IE-Type,Platform name,Throughput-OVMS-INT8,Throughput-OV-INT8,Throughput-OVMS-FP32,Throughput-OV-FP32
 begin_rec,,,,,,,
 bert-base-cased,OV-2023.3,xeon,Intel®  Xeon® 8260M CPU-only,470.601,484.228,183.162,184.893
 bert-base-cased,OV-2023.3,xeon,Intel®  Xeon® Gold 6238M CPU-only,411.942,425.333,155.666,156.808
