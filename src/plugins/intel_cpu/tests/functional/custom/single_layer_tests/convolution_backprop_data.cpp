@@ -288,24 +288,24 @@ const std::vector<size_t> numOutChannels_Planar = {6};
 const std::vector<size_t> numOutChannels_Blocked = {64};
 
 /* ============= Deconvolution params (2D) ============= */
-const std::vector<std::vector<size_t>> kernels2d = {{3, 3}, {1, 1}};
+const std::vector<std::vector<size_t>> kernels2d = {{3, 3}, {2, 2}};
 const std::vector<std::vector<size_t>> strides2d = {{1, 1}, {2, 2}};
 const std::vector<std::vector<ptrdiff_t>> padBegins2d = {{0, 0}};
 const std::vector<std::vector<ptrdiff_t>> padEnds2d = {{0, 0}};
 const std::vector<std::vector<size_t>> dilations2d = {{1, 1}};
 
 const std::vector<std::vector<size_t>> deconvAmxKernels2d = {{3, 3}, {2, 2}};
-const std::vector<std::vector<size_t>> deconvAmxStrides2d = {{2, 2}};
+const std::vector<std::vector<size_t>> deconvAmxStrides2d = {{1, 1}};
 
 /* ============= Deconvolution params (3D) ============= */
-const std::vector<std::vector<size_t>> kernels3d = {{3, 3, 3}, {1, 1, 1}};
+const std::vector<std::vector<size_t>> kernels3d = {{3, 3, 3}, {2, 2, 2}};
 const std::vector<std::vector<size_t>> strides3d = {{1, 1, 1}, {2, 2, 2}};
 const std::vector<std::vector<ptrdiff_t>> padBegins3d = {{0, 0, 0}};
 const std::vector<std::vector<ptrdiff_t>> padEnds3d = {{0, 0, 0}};
 const std::vector<std::vector<size_t>> dilations3d = {{1, 1, 1}};
 
 const std::vector<std::vector<size_t>> deconvAmxKernels3d = {{3, 3, 3}, {2, 2, 2}};
-const std::vector<std::vector<size_t>> deconvAmxStrides3d = {{2, 2, 2}};
+const std::vector<std::vector<size_t>> deconvAmxStrides3d = {{1, 1, 1}};
 
 /* ============= */
 
@@ -523,7 +523,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_NSPC_BF16_AMX_NO_FUSING,
                                             ::testing::ValuesIn(Blocked_2D_inputs_smoke),
                                             ::testing::Values(ElementType::f32),
                                             ::testing::ValuesIn({emptyFusingSpec}),
-                                            ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D_nspc_amx})),
+                                            ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D_nspc_brgconv_amx})),
                                             ::testing::Values(cpu_bf16_plugin_config)),
                          DeconvolutionLayerCPUTest::getTestCaseName);
 
@@ -629,7 +629,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_NSPC_BF16_AMX_NO_FUSING,
                                             ::testing::ValuesIn(Blocked_3D_inputs_smoke),
                                             ::testing::Values(ElementType::f32),
                                             ::testing::ValuesIn({emptyFusingSpec}),
-                                            ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_3D_nspc_amx})),
+                                            ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_3D_nspc_brgconv_amx})),
                                             ::testing::Values(cpu_bf16_plugin_config)),
                          DeconvolutionLayerCPUTest::getTestCaseName);
 
