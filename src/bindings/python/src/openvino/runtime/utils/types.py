@@ -155,7 +155,7 @@ def make_constant_node(value: NumericData, dtype: Union[NumericType, Type] = Non
 
     const = Constant(element_type, Shape(ndarray.shape), ndarray.flatten().tolist())
 
-    if name is not None:
+    if name:
         const.friendly_name = name + "/" + const.friendly_name
 
     return const
