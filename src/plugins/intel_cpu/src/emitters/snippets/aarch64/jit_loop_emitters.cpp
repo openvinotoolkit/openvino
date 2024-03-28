@@ -179,12 +179,12 @@ void jit_loop_end_static_emitter::emit_impl(const std::vector<size_t>& in, const
                 continue;
             XReg data_reg = XReg(data_ptr_reg_idxs[idx]);
             if (ptr_increments[idx] > 0) {
-                h->add(data_reg, data_reg, ptr_increments[idx] * wa_increment * data_sizes[idx]);
+                h->add_imm(data_reg, data_reg, ptr_increments[idx] * wa_increment * data_sizes[idx], h->X_TMP_0);
             } else if (ptr_increments[idx] < 0) {
-                h->sub(data_reg, data_reg, - ptr_increments[idx] * wa_increment * data_sizes[idx]);
+                h->sub_imm(data_reg, data_reg, - ptr_increments[idx] * wa_increment * data_sizes[idx], h->X_TMP_0);
             }
         }
-        h->sub(reg_work_amount, reg_work_amount, wa_increment);
+        h->sub_imm(reg_work_amount, reg_work_amount, wa_increment, h->X_TMP_0);
         h->cmp(reg_work_amount, wa_increment);
         h->b(GE, *loop_begin_label);
     }
@@ -194,9 +194,9 @@ void jit_loop_end_static_emitter::emit_impl(const std::vector<size_t>& in, const
             continue;
         XReg data_reg = XReg(static_cast<int>(data_ptr_reg_idxs[idx]));
         if (finalization_offsets[idx] > 0) {
-            h->add(data_reg, data_reg, finalization_offsets[idx] * data_sizes[idx]);
+            h->add_imm(data_reg, data_reg, finalization_offsets[idx] * data_sizes[idx], h->X_TMP_0);
         } else if (finalization_offsets[idx] < 0) {
-            h->sub(data_reg, data_reg, - finalization_offsets[idx] * data_sizes[idx]);
+            h->sub_imm(data_reg, data_reg, - finalization_offsets[idx] * data_sizes[idx], h->X_TMP_0);
         }
     }
 }
@@ -247,7 +247,7 @@ void jit_loop_end_dynamic_emitter::emit_impl(const std::vector<size_t>& in, cons
             h->add(data_ptr_regs[idx], data_ptr_regs[idx], reg_aux);
         }
     }
-    h->sub(reg_work_amount, reg_work_amount, wa_increment);
+    h->sub_imm(reg_work_amount, reg_work_amount, wa_increment, h->X_TMP_0);
     h->cmp(reg_work_amount, wa_increment);
     h->b(GE, *loop_begin_label);
 
