@@ -63,6 +63,7 @@ describe('InferRequest', () => {
     ['string', 'Cannot create a tensor from the passed Napi::Value.'],
     [tensorData.slice(-10), 'Memory allocated using shape and element::type mismatch passed data\'s size'],
     [new Float32Array(buffer, 4), 'TypedArray.byteOffset has to be equal to zero.'],
+    [{}, /Invalid argument/], // Test for object that is not Tensor
   ];
 
   inputMessagePairs.forEach( ([tl, msg]) => {
@@ -114,6 +115,13 @@ describe('InferRequest', () => {
     assert.deepStrictEqual(tensor.data[0], t1.data[0]);
   });
 
+  it('Test setInputTensor throws when passed object is not a Tensor.', () => {
+    assert.throws(
+      () => inferRequest.setInputTensor([{}]),
+      {message: /Invalid argument/}
+    );
+  });
+
   it('Test setInputTensor(idx, tensor)', () => {
     inferRequest.setInputTensor(0, tensor);
     const t1 = inferRequest.getInputTensor();
@@ -138,6 +146,13 @@ describe('InferRequest', () => {
     assert.deepStrictEqual(resTensor.data[0], res2.data[0]);
   });
 
+  it('Test setOutputTensor throws when passed object is not a Tensor.', () => {
+    assert.throws(
+      () => inferRequest.setOutputTensor([{}]),
+      {message: /Invalid argument/}
+    );
+  });
+
   it('Test setOutputTensor(idx, tensor)', () => {
     inferRequest.setOutputTensor(0, resTensor);
     const res2 = inferRequest.getOutputTensor();
@@ -155,6 +170,12 @@ describe('InferRequest', () => {
     const res2 = inferRequest.getTensor('fc_out');
     assert.ok(res2 instanceof ov.Tensor);
     assert.deepStrictEqual(resTensor.data[0], res2.data[0]);
+  });
+
+  it('Test setTensor(string, object) - throws', () => {
+    assert.throws(
+      () => inferRequest.setTensor('fc_out', {}),
+      {message: /Invalid argument/});
   });
 
   it('Test setTensor(string, tensor) - pass one arg', () => {
