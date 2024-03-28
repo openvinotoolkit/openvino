@@ -57,13 +57,79 @@ models will be stored.
     import sys
     import importlib.util
     
-    %pip install -q "openvino>=2023.1.0" "nncf>=2.5.0"
+    %pip install -q "openvino>=2024.0.0" "nncf>=2.9.0"
+    %pip install -q "tensorflow-macos>=2.5,<=2.14.0; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version > '3.8'" # macOS M1 and M2
+    %pip install -q "tensorflow-macos>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version <= '3.8'" # macOS M1 and M2
+    %pip install -q "tensorflow>=2.5,<=2.14.0; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version > '3.8'" # macOS x86
+    %pip install -q "tensorflow>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version <= '3.8'" # macOS x86
+    %pip install -q "tensorflow>=2.5,<=2.14.0; sys_platform != 'darwin' and python_version > '3.8'"
+    %pip install -q "tensorflow>=2.5,<=2.12.0; sys_platform != 'darwin' and python_version <= '3.8'"
     if sys.platform == "win32":
         if importlib.util.find_spec("tensorflow_datasets"):
             %pip uninstall -q tensorflow-datasets
         %pip install -q --upgrade "tfds-nightly"
     else:
         %pip install -q "tensorflow-datasets>=4.8.0"
+
+
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
 
 
 .. parsed-literal::
@@ -99,8 +165,6 @@ models will be stored.
     
     import tensorflow as tf
     import tensorflow_datasets as tfds
-    from tensorflow.keras import layers
-    from tensorflow.keras import models
     
     from nncf import NNCFConfig
     from nncf.tensorflow.helpers.model_creation import create_compressed_model
@@ -138,14 +202,14 @@ models will be stored.
 
 .. parsed-literal::
 
-    2024-03-13 01:11:54.839379: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-03-13 01:11:54.874069: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-03-26 00:59:12.563133: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-03-26 00:59:12.598412: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 
 
 .. parsed-literal::
 
-    2024-03-13 01:11:55.482764: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-03-26 00:59:13.193820: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -166,107 +230,87 @@ models will be stored.
 .. parsed-literal::
 
     
-   147456/134604992 [..............................] - ETA: 1:02
+    57344/134604992 [..............................] - ETA: 2:49
 
 .. parsed-literal::
 
     
-   655360/134604992 [..............................] - ETA: 27s 
+   278528/134604992 [..............................] - ETA: 1:09
+
+.. parsed-literal::
+
+    
+   475136/134604992 [..............................] - ETA: 55s 
 
 .. parsed-literal::
 
     
-  2719744/134604992 [..............................] - ETA: 9s 
+  1064960/134604992 [..............................] - ETA: 31s
+
+.. parsed-literal::
+
+    
+  2670592/134604992 [..............................] - ETA: 14s
+
+.. parsed-literal::
+
+    
+  7004160/134604992 [>.............................] - ETA: 6s 
 
 .. parsed-literal::
 
     
-  6914048/134604992 [>.............................] - ETA: 5s
+ 12820480/134604992 [=>............................] - ETA: 3s
 
 .. parsed-literal::
 
     
- 12705792/134604992 [=>............................] - ETA: 3s
+ 18677760/134604992 [===>..........................] - ETA: 2s
 
 .. parsed-literal::
 
     
- 17588224/134604992 [==>...........................] - ETA: 2s
+ 24510464/134604992 [====>.........................] - ETA: 2s
 
 .. parsed-literal::
 
     
- 20963328/134604992 [===>..........................] - ETA: 2s
+ 30326784/134604992 [=====>........................] - ETA: 1s
 
 .. parsed-literal::
 
     
- 23764992/134604992 [====>.........................] - ETA: 2s
+ 35381248/134604992 [======>.......................] - ETA: 1s
 
 .. parsed-literal::
 
     
- 26558464/134604992 [====>.........................] - ETA: 2s
+ 38526976/134604992 [=======>......................] - ETA: 1s
 
 .. parsed-literal::
 
     
- 28844032/134604992 [=====>........................] - ETA: 2s
+ 41934848/134604992 [========>.....................] - ETA: 1s
 
 .. parsed-literal::
 
     
- 31449088/134604992 [======>.......................] - ETA: 2s
+ 46653440/134604992 [=========>....................] - ETA: 1s
 
 .. parsed-literal::
 
     
- 33857536/134604992 [======>.......................] - ETA: 2s
+ 47808512/134604992 [=========>....................] - ETA: 1s
 
 .. parsed-literal::
 
     
- 36683776/134604992 [=======>......................] - ETA: 2s
+ 51224576/134604992 [==========>...................] - ETA: 1s
 
 .. parsed-literal::
 
     
- 40517632/134604992 [========>.....................] - ETA: 2s
-
-.. parsed-literal::
-
-    
- 41484288/134604992 [========>.....................] - ETA: 2s
-
-.. parsed-literal::
-
-    
- 41934848/134604992 [========>.....................] - ETA: 2s
-
-.. parsed-literal::
-
-    
- 43761664/134604992 [========>.....................] - ETA: 2s
-
-.. parsed-literal::
-
-    
- 47177728/134604992 [=========>....................] - ETA: 2s
-
-.. parsed-literal::
-
-    
- 52133888/134604992 [==========>...................] - ETA: 1s
-
-.. parsed-literal::
-
-    
- 52420608/134604992 [==========>...................] - ETA: 1s
-
-.. parsed-literal::
-
-    
- 52551680/134604992 [==========>...................] - ETA: 2s
+ 55738368/134604992 [===========>..................] - ETA: 1s
 
 .. parsed-literal::
 
@@ -276,82 +320,72 @@ models will be stored.
 .. parsed-literal::
 
     
- 61620224/134604992 [============>.................] - ETA: 1s
+ 62504960/134604992 [============>.................] - ETA: 1s
 
 .. parsed-literal::
 
     
- 64462848/134604992 [=============>................] - ETA: 1s
+ 65609728/134604992 [=============>................] - ETA: 1s
 
 .. parsed-literal::
 
     
- 68149248/134604992 [==============>...............] - ETA: 1s
+ 67969024/134604992 [==============>...............] - ETA: 1s
 
 .. parsed-literal::
 
     
- 72540160/134604992 [===============>..............] - ETA: 1s
+ 71794688/134604992 [===============>..............] - ETA: 1s
 
 .. parsed-literal::
 
     
- 73392128/134604992 [===============>..............] - ETA: 1s
+ 73523200/134604992 [===============>..............] - ETA: 1s
 
 .. parsed-literal::
 
     
- 77783040/134604992 [================>.............] - ETA: 1s
+ 78561280/134604992 [================>.............] - ETA: 0s
 
 .. parsed-literal::
 
     
- 78635008/134604992 [================>.............] - ETA: 1s
+ 78635008/134604992 [================>.............] - ETA: 0s
 
 .. parsed-literal::
 
     
- 83025920/134604992 [=================>............] - ETA: 1s
+ 83501056/134604992 [=================>............] - ETA: 0s
 
 .. parsed-literal::
 
     
- 83877888/134604992 [=================>............] - ETA: 1s
+ 86622208/134604992 [==================>...........] - ETA: 0s
 
 .. parsed-literal::
 
     
- 88268800/134604992 [==================>...........] - ETA: 1s
+ 89120768/134604992 [==================>...........] - ETA: 0s
 
 .. parsed-literal::
 
     
- 89120768/134604992 [==================>...........] - ETA: 1s
+ 93323264/134604992 [===================>..........] - ETA: 0s
 
 .. parsed-literal::
 
     
- 90234880/134604992 [===================>..........] - ETA: 1s
+ 94355456/134604992 [====================>.........] - ETA: 0s
 
 .. parsed-literal::
 
     
- 92659712/134604992 [===================>..........] - ETA: 1s
+ 99229696/134604992 [=====================>........] - ETA: 0s
 
 .. parsed-literal::
 
     
- 95322112/134604992 [====================>.........] - ETA: 1s
-
-.. parsed-literal::
-
-    
- 99606528/134604992 [=====================>........] - ETA: 0s
-
-.. parsed-literal::
-
-    
-104275968/134604992 [======================>.......] - ETA: 0s
+102719488/134604992 [=====================>........] - ETA: 0s
 
 .. parsed-literal::
 
@@ -361,7 +395,7 @@ models will be stored.
 .. parsed-literal::
 
     
-109240320/134604992 [=======================>......] - ETA: 0s
+109658112/134604992 [=======================>......] - ETA: 0s
 
 .. parsed-literal::
 
@@ -371,17 +405,17 @@ models will be stored.
 .. parsed-literal::
 
     
-112508928/134604992 [========================>.....] - ETA: 0s
+113344512/134604992 [========================>.....] - ETA: 0s
 
 .. parsed-literal::
 
     
-115335168/134604992 [========================>.....] - ETA: 0s
+117178368/134604992 [=========================>....] - ETA: 0s
 
 .. parsed-literal::
 
     
-120201216/134604992 [=========================>....] - ETA: 0s
+119717888/134604992 [=========================>....] - ETA: 0s
 
 .. parsed-literal::
 
@@ -391,7 +425,7 @@ models will be stored.
 .. parsed-literal::
 
     
-125231104/134604992 [==========================>...] - ETA: 0s
+125034496/134604992 [==========================>...] - ETA: 0s
 
 .. parsed-literal::
 
@@ -401,28 +435,23 @@ models will be stored.
 .. parsed-literal::
 
     
-130924544/134604992 [============================>.] - ETA: 0s
+128942080/134604992 [===========================>..] - ETA: 0s
 
 .. parsed-literal::
 
     
-131538944/134604992 [============================>.] - ETA: 0s
+131678208/134604992 [============================>.] - ETA: 0s
 
 .. parsed-literal::
 
     
-134447104/134604992 [============================>.] - ETA: 0s
-
-.. parsed-literal::
-
-    
-134604992/134604992 [==============================] - 3s 0us/step
+134604992/134604992 [==============================] - 2s 0us/step
 
 
 .. parsed-literal::
 
     Absolute path where the model weights are saved:
-     /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/305-tensorflow-quantization-aware-training/model/ResNet-18_fp32.h5
+     /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-642/.workspace/scm/ov-notebook/notebooks/305-tensorflow-quantization-aware-training/model/ResNet-18_fp32.h5
 
 
 Dataset Preprocessing
@@ -450,17 +479,17 @@ Download size: 94.18 MiB
 
 .. parsed-literal::
 
-    2024-03-13 01:12:03.781864: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
-    2024-03-13 01:12:03.781896: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:168] retrieving CUDA diagnostic information for host: iotg-dev-workstation-07
-    2024-03-13 01:12:03.781901: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:175] hostname: iotg-dev-workstation-07
-    2024-03-13 01:12:03.782051: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:199] libcuda reported version is: 470.223.2
-    2024-03-13 01:12:03.782066: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:203] kernel reported version is: 470.182.3
-    2024-03-13 01:12:03.782070: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
-    2024-03-13 01:12:03.899468: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int64 and shape [1]
-    	 [[{{node Placeholder/_4}}]]
-    2024-03-13 01:12:03.899790: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_1' with dtype string and shape [1]
+    2024-03-26 00:59:20.446530: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
+    2024-03-26 00:59:20.446561: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:168] retrieving CUDA diagnostic information for host: iotg-dev-workstation-07
+    2024-03-26 00:59:20.446565: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:175] hostname: iotg-dev-workstation-07
+    2024-03-26 00:59:20.446723: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:199] libcuda reported version is: 470.223.2
+    2024-03-26 00:59:20.446738: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:203] kernel reported version is: 470.182.3
+    2024-03-26 00:59:20.446741: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
+    2024-03-26 00:59:20.540193: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_2' with dtype string and shape [1]
+    	 [[{{node Placeholder/_2}}]]
+    2024-03-26 00:59:20.540514: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_1' with dtype string and shape [1]
     	 [[{{node Placeholder/_1}}]]
-    2024-03-13 01:12:03.971431: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
+    2024-03-26 00:59:20.610180: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
 
 
 
@@ -494,27 +523,26 @@ Define a Floating-Point Model
 
     def residual_conv_block(filters, stage, block, strides=(1, 1), cut='pre'):
         def layer(input_tensor):
-            x = layers.BatchNormalization(epsilon=2e-5)(input_tensor)
-            x = layers.Activation('relu')(x)
+            x = tf.keras.layers.BatchNormalization(epsilon=2e-5)(input_tensor)
+            x = tf.keras.layers.Activation('relu')(x)
     
             # Defining shortcut connection.
             if cut == 'pre':
                 shortcut = input_tensor
             elif cut == 'post':
-                shortcut = layers.Conv2D(filters, (1, 1), strides=strides, kernel_initializer='he_uniform', 
-                                         use_bias=False)(x)
+                shortcut = tf.keras.layers.Conv2D(filters, (1, 1), strides=strides, kernel_initializer='he_uniform', use_bias=False)(x)
     
             # Continue with convolution layers.
-            x = layers.ZeroPadding2D(padding=(1, 1))(x)
-            x = layers.Conv2D(filters, (3, 3), strides=strides, kernel_initializer='he_uniform', use_bias=False)(x)
+            x = tf.keras.layers.ZeroPadding2D(padding=(1, 1))(x)
+            x = tf.keras.layers.Conv2D(filters, (3, 3), strides=strides, kernel_initializer='he_uniform', use_bias=False)(x)
     
-            x = layers.BatchNormalization(epsilon=2e-5)(x)
-            x = layers.Activation('relu')(x)
-            x = layers.ZeroPadding2D(padding=(1, 1))(x)
-            x = layers.Conv2D(filters, (3, 3), kernel_initializer='he_uniform', use_bias=False)(x)
+            x = tf.keras.layers.BatchNormalization(epsilon=2e-5)(x)
+            x = tf.keras.layers.Activation('relu')(x)
+            x = tf.keras.layers.ZeroPadding2D(padding=(1, 1))(x)
+            x = tf.keras.layers.Conv2D(filters, (3, 3), kernel_initializer='he_uniform', use_bias=False)(x)
     
             # Add residual connection.
-            x = layers.Add()([x, shortcut])
+            x = tf.keras.layers.Add()([x, shortcut])
             return x
     
         return layer
@@ -522,16 +550,16 @@ Define a Floating-Point Model
     
     def ResNet18(input_shape=None):
         """Instantiates the ResNet18 architecture."""
-        img_input = layers.Input(shape=input_shape, name='data')
+        img_input = tf.keras.layers.Input(shape=input_shape, name='data')
     
         # ResNet18 bottom
-        x = layers.BatchNormalization(epsilon=2e-5, scale=False)(img_input)
-        x = layers.ZeroPadding2D(padding=(3, 3))(x)
-        x = layers.Conv2D(64, (7, 7), strides=(2, 2), kernel_initializer='he_uniform', use_bias=False)(x)
-        x = layers.BatchNormalization(epsilon=2e-5)(x)
-        x = layers.Activation('relu')(x)
-        x = layers.ZeroPadding2D(padding=(1, 1))(x)
-        x = layers.MaxPooling2D((3, 3), strides=(2, 2), padding='valid')(x)
+        x = tf.keras.layers.BatchNormalization(epsilon=2e-5, scale=False)(img_input)
+        x = tf.keras.layers.ZeroPadding2D(padding=(3, 3))(x)
+        x = tf.keras.layers.Conv2D(64, (7, 7), strides=(2, 2), kernel_initializer='he_uniform', use_bias=False)(x)
+        x = tf.keras.layers.BatchNormalization(epsilon=2e-5)(x)
+        x = tf.keras.layers.Activation('relu')(x)
+        x = tf.keras.layers.ZeroPadding2D(padding=(1, 1))(x)
+        x = tf.keras.layers.MaxPooling2D((3, 3), strides=(2, 2), padding='valid')(x)
     
         # ResNet18 body
         repetitions = (2, 2, 2, 2)
@@ -544,16 +572,16 @@ Define a Floating-Point Model
                     x = residual_conv_block(filters, stage, block, strides=(2, 2), cut='post')(x)
                 else:
                     x = residual_conv_block(filters, stage, block, strides=(1, 1), cut='pre')(x)
-        x = layers.BatchNormalization(epsilon=2e-5)(x)
-        x = layers.Activation('relu')(x)
+        x = tf.keras.layers.BatchNormalization(epsilon=2e-5)(x)
+        x = tf.keras.layers.Activation('relu')(x)
     
         # ResNet18 top
-        x = layers.GlobalAveragePooling2D()(x)
-        x = layers.Dense(NUM_CLASSES)(x)
-        x = layers.Activation('softmax')(x)
+        x = tf.keras.layers.GlobalAveragePooling2D()(x)
+        x = tf.keras.layers.Dense(NUM_CLASSES)(x)
+        x = tf.keras.layers.Activation('softmax')(x)
     
         # Create the model.
-        model = models.Model(img_input, x)
+        model = tf.keras.models.Model(img_input, x)
     
         return model
 
@@ -595,10 +623,10 @@ model and a training pipeline.
 
 .. parsed-literal::
 
-    2024-03-13 01:12:04.910372: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int64 and shape [1]
-    	 [[{{node Placeholder/_4}}]]
-    2024-03-13 01:12:04.910741: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int64 and shape [1]
-    	 [[{{node Placeholder/_4}}]]
+    2024-03-26 00:59:21.525208: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [1]
+    	 [[{{node Placeholder/_0}}]]
+    2024-03-26 00:59:21.525587: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_3' with dtype int64 and shape [1]
+    	 [[{{node Placeholder/_3}}]]
 
 
 .. parsed-literal::
@@ -624,7 +652,7 @@ model and a training pipeline.
 .. parsed-literal::
 
     
-4/4 [==============================] - 1s 254ms/sample - loss: 0.9807 - acc@1: 0.8220
+4/4 [==============================] - 1s 288ms/sample - loss: 0.9807 - acc@1: 0.8220
 
 
 .. parsed-literal::
@@ -676,25 +704,25 @@ scenario and requires only 3 modifications.
 
 .. parsed-literal::
 
-    2024-03-13 01:12:07.816084: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int64 and shape [1]
+    2024-03-26 00:59:24.268395: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int64 and shape [1]
     	 [[{{node Placeholder/_4}}]]
-    2024-03-13 01:12:07.816469: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [1]
-    	 [[{{node Placeholder/_0}}]]
+    2024-03-26 00:59:24.268776: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_1' with dtype string and shape [1]
+    	 [[{{node Placeholder/_1}}]]
 
 
 .. parsed-literal::
 
-    2024-03-13 01:12:08.749313: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
+    2024-03-26 00:59:25.148037: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
 
 
 .. parsed-literal::
 
-    2024-03-13 01:12:09.358441: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
+    2024-03-26 00:59:25.807554: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
 
 
 .. parsed-literal::
 
-    2024-03-13 01:12:17.326475: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
+    2024-03-26 00:59:33.723199: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
 
 
 Evaluate the new model on the validation set after initialization of
@@ -741,7 +769,7 @@ demonstrated here.
 .. parsed-literal::
 
     
-4/4 [==============================] - 1s 301ms/sample - loss: 0.9766 - acc@1: 0.8120
+4/4 [==============================] - 1s 300ms/sample - loss: 0.9766 - acc@1: 0.8120
 
 
 Fine-tune the Compressed Model
@@ -784,27 +812,27 @@ training pipeline are required. Here is a simple example.
 .. parsed-literal::
 
     
-  1/101 [..............................] - ETA: 11:57 - loss: 0.6168 - acc@1: 0.9844
+  1/101 [..............................] - ETA: 11:52 - loss: 0.6168 - acc@1: 0.9844
 
 .. parsed-literal::
 
     
-  2/101 [..............................] - ETA: 43s - loss: 0.6303 - acc@1: 0.9766  
+  2/101 [..............................] - ETA: 45s - loss: 0.6303 - acc@1: 0.9766  
 
 .. parsed-literal::
 
     
-  3/101 [..............................] - ETA: 42s - loss: 0.6613 - acc@1: 0.9609
+  3/101 [..............................] - ETA: 43s - loss: 0.6613 - acc@1: 0.9609
 
 .. parsed-literal::
 
     
-  4/101 [>.............................] - ETA: 41s - loss: 0.6650 - acc@1: 0.9551
+  4/101 [>.............................] - ETA: 42s - loss: 0.6650 - acc@1: 0.9551
 
 .. parsed-literal::
 
     
-  5/101 [>.............................] - ETA: 40s - loss: 0.6783 - acc@1: 0.9469
+  5/101 [>.............................] - ETA: 41s - loss: 0.6783 - acc@1: 0.9469
 
 .. parsed-literal::
 
@@ -854,7 +882,7 @@ training pipeline are required. Here is a simple example.
 .. parsed-literal::
 
     
- 15/101 [===>..........................] - ETA: 36s - loss: 0.6956 - acc@1: 0.9385
+ 15/101 [===>..........................] - ETA: 35s - loss: 0.6956 - acc@1: 0.9385
 
 .. parsed-literal::
 
@@ -864,7 +892,7 @@ training pipeline are required. Here is a simple example.
 .. parsed-literal::
 
     
- 17/101 [====>.........................] - ETA: 35s - loss: 0.6948 - acc@1: 0.9393
+ 17/101 [====>.........................] - ETA: 34s - loss: 0.6948 - acc@1: 0.9393
 
 .. parsed-literal::
 
@@ -889,7 +917,7 @@ training pipeline are required. Here is a simple example.
 .. parsed-literal::
 
     
- 22/101 [=====>........................] - ETA: 33s - loss: 0.6953 - acc@1: 0.9382
+ 22/101 [=====>........................] - ETA: 32s - loss: 0.6953 - acc@1: 0.9382
 
 .. parsed-literal::
 
@@ -914,7 +942,7 @@ training pipeline are required. Here is a simple example.
 .. parsed-literal::
 
     
- 27/101 [=======>......................] - ETA: 31s - loss: 0.6963 - acc@1: 0.9372
+ 27/101 [=======>......................] - ETA: 30s - loss: 0.6963 - acc@1: 0.9372
 
 .. parsed-literal::
 
@@ -924,7 +952,7 @@ training pipeline are required. Here is a simple example.
 .. parsed-literal::
 
     
- 29/101 [=======>......................] - ETA: 30s - loss: 0.6967 - acc@1: 0.9375
+ 29/101 [=======>......................] - ETA: 29s - loss: 0.6967 - acc@1: 0.9375
 
 .. parsed-literal::
 
@@ -949,7 +977,7 @@ training pipeline are required. Here is a simple example.
 .. parsed-literal::
 
     
- 34/101 [=========>....................] - ETA: 28s - loss: 0.6978 - acc@1: 0.9370
+ 34/101 [=========>....................] - ETA: 27s - loss: 0.6978 - acc@1: 0.9370
 
 .. parsed-literal::
 
@@ -959,7 +987,7 @@ training pipeline are required. Here is a simple example.
 .. parsed-literal::
 
     
- 36/101 [=========>....................] - ETA: 27s - loss: 0.6992 - acc@1: 0.9382
+ 36/101 [=========>....................] - ETA: 26s - loss: 0.6992 - acc@1: 0.9382
 
 .. parsed-literal::
 
@@ -984,7 +1012,7 @@ training pipeline are required. Here is a simple example.
 .. parsed-literal::
 
     
- 41/101 [===========>..................] - ETA: 25s - loss: 0.7021 - acc@1: 0.9371
+ 41/101 [===========>..................] - ETA: 24s - loss: 0.7021 - acc@1: 0.9371
 
 .. parsed-literal::
 
@@ -1019,7 +1047,7 @@ training pipeline are required. Here is a simple example.
 .. parsed-literal::
 
     
- 48/101 [=============>................] - ETA: 22s - loss: 0.7045 - acc@1: 0.9357
+ 48/101 [=============>................] - ETA: 21s - loss: 0.7045 - acc@1: 0.9357
 
 .. parsed-literal::
 
@@ -1044,7 +1072,7 @@ training pipeline are required. Here is a simple example.
 .. parsed-literal::
 
     
- 53/101 [==============>...............] - ETA: 20s - loss: 0.7061 - acc@1: 0.9350
+ 53/101 [==============>...............] - ETA: 19s - loss: 0.7061 - acc@1: 0.9350
 
 .. parsed-literal::
 
@@ -1079,7 +1107,7 @@ training pipeline are required. Here is a simple example.
 .. parsed-literal::
 
     
- 60/101 [================>.............] - ETA: 17s - loss: 0.7064 - acc@1: 0.9345
+ 60/101 [================>.............] - ETA: 16s - loss: 0.7064 - acc@1: 0.9345
 
 .. parsed-literal::
 
@@ -1104,7 +1132,7 @@ training pipeline are required. Here is a simple example.
 .. parsed-literal::
 
     
- 65/101 [==================>...........] - ETA: 15s - loss: 0.7073 - acc@1: 0.9337
+ 65/101 [==================>...........] - ETA: 14s - loss: 0.7073 - acc@1: 0.9337
 
 .. parsed-literal::
 
@@ -1139,7 +1167,7 @@ training pipeline are required. Here is a simple example.
 .. parsed-literal::
 
     
- 72/101 [====================>.........] - ETA: 12s - loss: 0.7083 - acc@1: 0.9329
+ 72/101 [====================>.........] - ETA: 11s - loss: 0.7083 - acc@1: 0.9329
 
 .. parsed-literal::
 
@@ -1289,7 +1317,7 @@ training pipeline are required. Here is a simple example.
 .. parsed-literal::
 
     
-101/101 [==============================] - 49s 415ms/step - loss: 0.7134 - acc@1: 0.9299
+101/101 [==============================] - 48s 411ms/step - loss: 0.7134 - acc@1: 0.9299
 
 
 .. parsed-literal::
@@ -1300,7 +1328,7 @@ training pipeline are required. Here is a simple example.
 .. parsed-literal::
 
     
-  1/101 [..............................] - ETA: 43s - loss: 0.5798 - acc@1: 1.0000
+  1/101 [..............................] - ETA: 41s - loss: 0.5798 - acc@1: 1.0000
 
 .. parsed-literal::
 
@@ -1340,7 +1368,7 @@ training pipeline are required. Here is a simple example.
 .. parsed-literal::
 
     
-  9/101 [=>............................] - ETA: 37s - loss: 0.6435 - acc@1: 0.9740
+  9/101 [=>............................] - ETA: 38s - loss: 0.6435 - acc@1: 0.9740
 
 .. parsed-literal::
 
@@ -1355,7 +1383,7 @@ training pipeline are required. Here is a simple example.
 .. parsed-literal::
 
     
- 12/101 [==>...........................] - ETA: 36s - loss: 0.6548 - acc@1: 0.9681
+ 12/101 [==>...........................] - ETA: 37s - loss: 0.6548 - acc@1: 0.9681
 
 .. parsed-literal::
 
@@ -1415,7 +1443,7 @@ training pipeline are required. Here is a simple example.
 .. parsed-literal::
 
     
- 24/101 [======>.......................] - ETA: 31s - loss: 0.6630 - acc@1: 0.9609
+ 24/101 [======>.......................] - ETA: 32s - loss: 0.6630 - acc@1: 0.9609
 
 .. parsed-literal::
 
@@ -1475,7 +1503,7 @@ training pipeline are required. Here is a simple example.
 .. parsed-literal::
 
     
- 36/101 [=========>....................] - ETA: 27s - loss: 0.6665 - acc@1: 0.9588
+ 36/101 [=========>....................] - ETA: 26s - loss: 0.6665 - acc@1: 0.9588
 
 .. parsed-literal::
 
@@ -1535,7 +1563,7 @@ training pipeline are required. Here is a simple example.
 .. parsed-literal::
 
     
- 48/101 [=============>................] - ETA: 22s - loss: 0.6715 - acc@1: 0.9552
+ 48/101 [=============>................] - ETA: 21s - loss: 0.6715 - acc@1: 0.9552
 
 .. parsed-literal::
 
@@ -1560,7 +1588,7 @@ training pipeline are required. Here is a simple example.
 .. parsed-literal::
 
     
- 53/101 [==============>...............] - ETA: 20s - loss: 0.6734 - acc@1: 0.9542
+ 53/101 [==============>...............] - ETA: 19s - loss: 0.6734 - acc@1: 0.9542
 
 .. parsed-literal::
 
@@ -1595,7 +1623,7 @@ training pipeline are required. Here is a simple example.
 .. parsed-literal::
 
     
- 60/101 [================>.............] - ETA: 17s - loss: 0.6741 - acc@1: 0.9530
+ 60/101 [================>.............] - ETA: 16s - loss: 0.6741 - acc@1: 0.9530
 
 .. parsed-literal::
 
@@ -1655,7 +1683,7 @@ training pipeline are required. Here is a simple example.
 .. parsed-literal::
 
     
- 72/101 [====================>.........] - ETA: 12s - loss: 0.6761 - acc@1: 0.9516
+ 72/101 [====================>.........] - ETA: 11s - loss: 0.6761 - acc@1: 0.9516
 
 .. parsed-literal::
 
@@ -1680,12 +1708,12 @@ training pipeline are required. Here is a simple example.
 .. parsed-literal::
 
     
- 77/101 [=====================>........] - ETA: 10s - loss: 0.6759 - acc@1: 0.9520
+ 77/101 [=====================>........] - ETA: 9s - loss: 0.6759 - acc@1: 0.9520 
 
 .. parsed-literal::
 
-    
- 78/101 [======================>.......] - ETA: 9s - loss: 0.6761 - acc@1: 0.9521 
+    
+ 78/101 [======================>.......] - ETA: 9s - loss: 0.6761 - acc@1: 0.9521
 
 .. parsed-literal::
 
@@ -1740,7 +1768,7 @@ training pipeline are required. Here is a simple example.
 .. parsed-literal::
 
     
- 89/101 [=========================>....] - ETA: 5s - loss: 0.6768 - acc@1: 0.9515
+ 89/101 [=========================>....] - ETA: 4s - loss: 0.6768 - acc@1: 0.9515
 
 .. parsed-literal::
 
@@ -1805,7 +1833,7 @@ training pipeline are required. Here is a simple example.
 .. parsed-literal::
 
     
-101/101 [==============================] - 42s 417ms/step - loss: 0.6807 - acc@1: 0.9489
+101/101 [==============================] - 42s 412ms/step - loss: 0.6807 - acc@1: 0.9489
 
 
 .. parsed-literal::
@@ -1831,7 +1859,7 @@ training pipeline are required. Here is a simple example.
 .. parsed-literal::
 
     
-4/4 [==============================] - 1s 146ms/sample - loss: 0.9760 - acc@1: 0.8160
+4/4 [==============================] - 1s 139ms/sample - loss: 0.9760 - acc@1: 0.8160
 
 
 .. parsed-literal::
@@ -1950,14 +1978,14 @@ Please select a benchmarking device using the dropdown list:
 
 .. parsed-literal::
 
-    [ INFO ] Throughput:   2840.25 FPS
+    [ INFO ] Throughput:   2789.30 FPS
     
     Benchmark INT8 model (IR)
 
 
 .. parsed-literal::
 
-    [ INFO ] Throughput:   11202.29 FPS
+    [ INFO ] Throughput:   11432.95 FPS
 
 
 Show Device Information for reference.

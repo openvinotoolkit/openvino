@@ -174,15 +174,15 @@ By default, ``compile_model`` API will select **AUTO** as
 
 .. parsed-literal::
 
-    [22:24:04.4814]I[plugin.cpp:418][AUTO] device:CPU, config:LOG_LEVEL=LOG_INFO
-    [22:24:04.4815]I[plugin.cpp:418][AUTO] device:CPU, config:PERFORMANCE_HINT=LATENCY
-    [22:24:04.4815]I[plugin.cpp:418][AUTO] device:CPU, config:PERFORMANCE_HINT_NUM_REQUESTS=0
-    [22:24:04.4815]I[plugin.cpp:418][AUTO] device:CPU, config:PERF_COUNT=NO
-    [22:24:04.4815]I[plugin.cpp:423][AUTO] device:CPU, priority:0
-    [22:24:04.4815]I[schedule.cpp:17][AUTO] scheduler starting
-    [22:24:04.4815]I[auto_schedule.cpp:131][AUTO] select device:CPU
-    [22:24:04.6260]I[auto_schedule.cpp:109][AUTO] device:CPU compiling model finished
-    [22:24:04.6262]I[plugin.cpp:451][AUTO] underlying hardware does not support hardware context
+    [22:24:50.0331]I[plugin.cpp:418][AUTO] device:CPU, config:LOG_LEVEL=LOG_INFO
+    [22:24:50.0332]I[plugin.cpp:418][AUTO] device:CPU, config:PERFORMANCE_HINT=LATENCY
+    [22:24:50.0332]I[plugin.cpp:418][AUTO] device:CPU, config:PERFORMANCE_HINT_NUM_REQUESTS=0
+    [22:24:50.0332]I[plugin.cpp:418][AUTO] device:CPU, config:PERF_COUNT=NO
+    [22:24:50.0332]I[plugin.cpp:423][AUTO] device:CPU, priority:0
+    [22:24:50.0332]I[schedule.cpp:17][AUTO] scheduler starting
+    [22:24:50.0333]I[auto_schedule.cpp:131][AUTO] select device:CPU
+    [22:24:50.1951]I[auto_schedule.cpp:109][AUTO] device:CPU compiling model finished
+    [22:24:50.1952]I[plugin.cpp:451][AUTO] underlying hardware does not support hardware context
     Successfully compiled model without a device_name.
 
 
@@ -195,7 +195,7 @@ By default, ``compile_model`` API will select **AUTO** as
 
 .. parsed-literal::
 
-    [22:24:04.6373]I[schedule.cpp:303][AUTO] scheduler ending
+    [22:24:50.2059]I[schedule.cpp:303][AUTO] scheduler ending
     Deleted compiled_model
 
 
@@ -354,7 +354,7 @@ executed on CPU until GPU is ready.
 
 .. parsed-literal::
 
-    Time to load model using AUTO device and get first inference: 0.16 seconds.
+    Time to load model using AUTO device and get first inference: 0.17 seconds.
 
 
 .. code:: ipython3
@@ -532,32 +532,32 @@ Loop for inference and update the FPS/Latency every
 
 .. parsed-literal::
 
-    throughput:  181.84fps, latency:  31.28ms, time interval: 10.00s
+    throughput:  180.20fps, latency:  31.64ms, time interval: 10.01s
 
 
 .. parsed-literal::
 
-    throughput:  183.53fps, latency:  31.88ms, time interval: 10.01s
+    throughput:  179.68fps, latency:  32.64ms, time interval: 10.00s
 
 
 .. parsed-literal::
 
-    throughput:  182.49fps, latency:  32.10ms, time interval: 10.00s
+    throughput:  180.30fps, latency:  32.45ms, time interval: 10.02s
 
 
 .. parsed-literal::
 
-    throughput:  183.45fps, latency:  31.92ms, time interval: 10.00s
+    throughput:  180.82fps, latency:  32.36ms, time interval: 10.01s
 
 
 .. parsed-literal::
 
-    throughput:  182.69fps, latency:  32.02ms, time interval: 10.00s
+    throughput:  179.51fps, latency:  32.64ms, time interval: 10.01s
 
 
 .. parsed-literal::
 
-    throughput:  181.11fps, latency:  32.34ms, time interval: 10.02s
+    throughput:  179.47fps, latency:  32.66ms, time interval: 10.01s
 
 
 .. parsed-literal::
@@ -615,32 +615,32 @@ Loop for inference and update the FPS/Latency for each
 
 .. parsed-literal::
 
-    throughput:  138.83fps, latency:  6.64ms, time interval: 10.01s
+    throughput:  138.40fps, latency:  6.69ms, time interval: 10.00s
 
 
 .. parsed-literal::
 
-    throughput:  141.03fps, latency:  6.64ms, time interval: 10.00s
+    throughput:  141.33fps, latency:  6.70ms, time interval: 10.01s
 
 
 .. parsed-literal::
 
-    throughput:  140.77fps, latency:  6.64ms, time interval: 10.00s
+    throughput:  140.71fps, latency:  6.71ms, time interval: 10.01s
 
 
 .. parsed-literal::
 
-    throughput:  141.80fps, latency:  6.65ms, time interval: 10.01s
+    throughput:  141.55fps, latency:  6.69ms, time interval: 10.00s
 
 
 .. parsed-literal::
 
-    throughput:  142.26fps, latency:  6.66ms, time interval: 10.00s
+    throughput:  141.20fps, latency:  6.67ms, time interval: 10.01s
 
 
 .. parsed-literal::
 
-    throughput:  141.36fps, latency:  6.63ms, time interval: 10.00s
+    throughput:  140.83fps, latency:  6.66ms, time interval: 10.01s
 
 
 .. parsed-literal::

@@ -70,8 +70,56 @@ Settings
 
 .. code:: ipython3
 
+    import platform
     # Install openvino package
-    %pip install -q "openvino>=2023.1.0" tensorflow opencv-python matplotlib
+    %pip install -q "openvino>=2023.1.0" opencv-python
+    if platform.system() != "Windows":
+        %pip install -q "matplotlib>=3.4"
+    else:
+        %pip install -q "matplotlib>=3.4,<3.7"
+    
+    %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version > '3.8'" # macOS M1 and M2
+    %pip install -q "tensorflow-macos>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version <= '3.8'" # macOS M1 and M2
+    %pip install -q "tensorflow>=2.5; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version > '3.8'" # macOS x86
+    %pip install -q "tensorflow>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version <= '3.8'" # macOS x86
+    %pip install -q "tensorflow>=2.5; sys_platform != 'darwin' and python_version > '3.8'"
+    %pip install -q "tensorflow>=2.5; sys_platform != 'darwin' and python_version <= '3.8'"
+
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
 
 
 .. parsed-literal::
@@ -87,7 +135,11 @@ Imports
 .. code:: ipython3
 
     import time
+    import os
     from pathlib import Path
+    
+    os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+    os.environ["TF_USE_LEGACY_KERAS"] = "1"
     
     import cv2
     import matplotlib.pyplot as plt
@@ -102,19 +154,6 @@ Imports
         filename='notebook_utils.py'
     )
     from notebook_utils import download_file
-
-
-.. parsed-literal::
-
-    2024-03-12 22:47:40.396566: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-03-12 22:47:40.431134: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-
-
-.. parsed-literal::
-
-    2024-03-12 22:47:40.948008: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-
 
 Setup image and device
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -194,12 +233,8 @@ and save it to the disk.
 
 .. parsed-literal::
 
-    2024-03-12 22:47:44.291989: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
-    2024-03-12 22:47:44.292027: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:168] retrieving CUDA diagnostic information for host: iotg-dev-workstation-07
-    2024-03-12 22:47:44.292031: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:175] hostname: iotg-dev-workstation-07
-    2024-03-12 22:47:44.292168: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:199] libcuda reported version is: 470.223.2
-    2024-03-12 22:47:44.292184: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:203] kernel reported version is: 470.182.3
-    2024-03-12 22:47:44.292187: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
+    2024-03-25 22:49:11.169219: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
+    2024-03-25 22:49:11.169410: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
 
 
 .. parsed-literal::
@@ -360,7 +395,7 @@ for mean/scale normalization.
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.InputTensorInfo at 0x7f12e449edf0>
+    <openvino._pyopenvino.preprocess.InputTensorInfo at 0x7f2fa0530430>
 
 
 
@@ -391,7 +426,7 @@ may be specified is input data
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.InputModelInfo at 0x7f12e448f9f0>
+    <openvino._pyopenvino.preprocess.InputModelInfo at 0x7f2f4dc369b0>
 
 
 
@@ -432,7 +467,7 @@ then such conversion will be added explicitly.
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.PreProcessSteps at 0x7f12e448fdf0>
+    <openvino._pyopenvino.preprocess.PreProcessSteps at 0x7f2f4dc364b0>
 
 
 
@@ -651,10 +686,10 @@ Compare performance
 
 .. parsed-literal::
 
-    IR model in OpenVINO Runtime/CPU with manual image preprocessing: 0.0153 seconds per image, FPS: 65.44
+    IR model in OpenVINO Runtime/CPU with manual image preprocessing: 0.0153 seconds per image, FPS: 65.48
 
 
 .. parsed-literal::
 
-    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0183 seconds per image, FPS: 54.74
+    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0182 seconds per image, FPS: 54.90
 

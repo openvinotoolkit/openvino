@@ -81,7 +81,7 @@ Prerequisites
 .. code:: ipython3
 
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu\
-    torch transformers diffusers "git+https://github.com/huggingface/optimum-intel.git" gradio "openvino>=2023.3.0"
+    torch transformers diffusers "git+https://github.com/huggingface/optimum-intel.git" gradio "openvino>=2023.3.0" "peft==0.6.2"
 
 
 .. parsed-literal::

@@ -104,7 +104,7 @@ Install requirements
 
 .. parsed-literal::
 
-    ('notebook_utils.py', <http.client.HTTPMessage at 0x7eff217dc7c0>)
+    ('notebook_utils.py', <http.client.HTTPMessage at 0x7f998c3872e0>)
 
 
 
@@ -305,7 +305,7 @@ original image shape.
 
 .. parsed-literal::
 
-    /tmp/ipykernel_3058046/2076527990.py:15: MatplotlibDeprecationWarning: The get_cmap function was deprecated in Matplotlib 3.7 and will be removed two minor releases later. Use ``matplotlib.colormaps[name]`` or ``matplotlib.colormaps.get_cmap(obj)`` instead.
+    /tmp/ipykernel_871529/2076527990.py:15: MatplotlibDeprecationWarning: The get_cmap function was deprecated in Matplotlib 3.7 and will be removed two minor releases later. Use ``matplotlib.colormaps[name]`` or ``matplotlib.colormaps.get_cmap(obj)`` instead.
       cmap = matplotlib.cm.get_cmap(colormap)
 
 
@@ -507,7 +507,7 @@ Do Inference on a Video and Create Monodepth Video
 
 .. parsed-literal::
 
-    Processed 60 frames in 26.30 seconds. Total FPS (including video processing): 2.28.Inference FPS: 43.50 
+    Processed 60 frames in 28.20 seconds. Total FPS (including video processing): 2.13.Inference FPS: 43.22 
     Monodepth Video saved to 'output/Coco%20Walking%20in%20Berkeley_monodepth.mp4'.
 
 
@@ -537,7 +537,7 @@ Display Monodepth Video
 .. parsed-literal::
 
     Showing monodepth video saved at
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/201-vision-monodepth/output/Coco%20Walking%20in%20Berkeley_monodepth.mp4
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-642/.workspace/scm/ov-notebook/notebooks/201-vision-monodepth/output/Coco%20Walking%20in%20Berkeley_monodepth.mp4
     If you cannot see the video in your browser, please click on the following link to download the video 
 
 

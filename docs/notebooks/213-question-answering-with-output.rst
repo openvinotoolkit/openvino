@@ -619,5 +619,5 @@ questions in the box.**
     Question: What does OpenVINO mean?
     Answer: an open-source software toolkit for optimizing and deploying deep learning models
     Score: 0.09
-    Time: 0.04s
+    Time: 0.03s
 

@@ -96,14 +96,14 @@ Imports
 
 .. parsed-literal::
 
-    2024-03-12 22:22:23.157910: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-03-12 22:22:23.191787: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-03-25 22:23:04.924906: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-03-25 22:23:04.958417: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 
 
 .. parsed-literal::
 
-    2024-03-12 22:22:23.830567: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-03-25 22:23:05.596972: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -191,7 +191,7 @@ PyTorch model formats are supported:
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/_utils.py:831: UserWarning: TypedStorage is deprecated. It will be removed in the future and UntypedStorage will be the only storage class. This should only matter to you if you are using storages directly.  To access UntypedStorage directly, use tensor.untyped_storage() instead of tensor.storage()
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-642/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/_utils.py:831: UserWarning: TypedStorage is deprecated. It will be removed in the future and UntypedStorage will be the only storage class. This should only matter to you if you are using storages directly.  To access UntypedStorage directly, use tensor.untyped_storage() instead of tensor.storage()
       return self.fget.__get__(instance, owner)()
 
 
@@ -217,7 +217,7 @@ PyTorch model formats are supported:
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4193: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-642/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4225: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
 
 
@@ -571,17 +571,17 @@ Frames Per Second (FPS) for images.
 
 .. parsed-literal::
 
-    PyTorch model on CPU: 0.073 seconds per sentence, SPS: 13.63
+    PyTorch model on CPU: 0.073 seconds per sentence, SPS: 13.76
 
 
 .. parsed-literal::
 
-    IR FP32 model in OpenVINO Runtime/AUTO: 0.020 seconds per sentence, SPS: 48.91
+    IR FP32 model in OpenVINO Runtime/AUTO: 0.020 seconds per sentence, SPS: 48.86
 
 
 .. parsed-literal::
 
-    OpenVINO IR INT8 model in OpenVINO Runtime/AUTO: 0.009 seconds per sentence, SPS: 112.60
+    OpenVINO IR INT8 model in OpenVINO Runtime/AUTO: 0.009 seconds per sentence, SPS: 112.97
 
 
 Finally, measure the inference performance of OpenVINO ``FP32`` and
@@ -622,7 +622,7 @@ in OpenVINO.
     Device with "device" name is not registered in the OpenVINO Runtime
     
     Traceback (most recent call last):
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 166, in main
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-642/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 166, in main
         supported_properties = benchmark.core.get_property(device, properties.supported_properties())
     RuntimeError: Exception from src/inference/src/cpp/core.cpp:216:
     Exception from src/inference/src/dev/core_impl.cpp:556:
@@ -655,7 +655,7 @@ in OpenVINO.
     Device with "device" name is not registered in the OpenVINO Runtime
     
     Traceback (most recent call last):
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 166, in main
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-642/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 166, in main
         supported_properties = benchmark.core.get_property(device, properties.supported_properties())
     RuntimeError: Exception from src/inference/src/cpp/core.cpp:216:
     Exception from src/inference/src/dev/core_impl.cpp:556:
