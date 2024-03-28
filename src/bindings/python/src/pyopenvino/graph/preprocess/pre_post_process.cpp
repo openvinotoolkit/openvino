@@ -169,6 +169,24 @@ static void regclass_graph_PreProcessSteps(py::module m) {
     steps.def("reverse_channels", [](ov::preprocess::PreProcessSteps& self) {
         return &self.reverse_channels();
     });
+
+    steps.def("pad",
+              [](ov::preprocess::PreProcessSteps& self,
+                 const std::vector<int>& pads_begin,
+                 const std::vector<int>& pads_end,
+                 float value,
+                 ov::preprocess::PaddingMode mode) {
+                  return &self.pad(pads_begin, pads_end, value, mode);
+              });
+
+    steps.def("pad",
+              [](ov::preprocess::PreProcessSteps& self,
+                 const std::vector<int>& pads_begin,
+                 const std::vector<int>& pads_end,
+                 const std::vector<float>& values,
+                 ov::preprocess::PaddingMode mode) {
+                  return &self.pad(pads_begin, pads_end, values, mode);
+              });
 }
 
 static void regclass_graph_PostProcessSteps(py::module m) {
