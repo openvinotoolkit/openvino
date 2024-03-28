@@ -1206,21 +1206,22 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
         if (xmlDir != m_xmlPath)
             ov::util::create_directory_recursive(xmlDir);
 
-        std::ofstream bin_file(m_binPath, std::ios::out | std::ios::binary);
-        OPENVINO_ASSERT(bin_file, "Can't open bin file: \"" + m_binPath + "\"");
-
-        // create xml file
-        std::ofstream xml_file(m_xmlPath, std::ios::out);
-        OPENVINO_ASSERT(xml_file, "Can't open xml file: \"" + m_xmlPath + "\"");
-
         try {
+            // create bin file
+            std::ofstream bin_file;
+            bin_file.exceptions(std::ofstream::failbit | std::ofstream::badbit);
+            bin_file.open(m_binPath, std::ios::out | std::ios::binary);
+            OPENVINO_ASSERT(bin_file, "Can't open bin file: \"" + m_binPath + "\"");
+        
+            // create xml file 
+            std::ofstream xml_file;
+            xml_file.exceptions(std::ofstream::failbit | std::ofstream::badbit);
+            xml_file.open(m_xmlPath, std::ios::out | std::ios::binary);
+            OPENVINO_ASSERT(xml_file, "Can't open xml file: \"" + m_xmlPath + "\"");
+
             serializeFunc(xml_file, bin_file, model, m_version);
-        } catch (const ov::AssertFailure&) {
-            // optimization decision was made to create .bin file upfront and
-            // write to it directly instead of buffering its content in memory,
-            // hence we need to delete it here in case of failure
-            xml_file.close();
-            bin_file.close();
+        } catch (const ov::AssertFailure& e) {
+            // Handle exceptions
             std::remove(m_xmlPath.c_str());
             std::remove(m_binPath.c_str());
             throw;
