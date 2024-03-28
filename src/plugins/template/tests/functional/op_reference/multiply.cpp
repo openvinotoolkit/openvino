@@ -124,7 +124,7 @@ std::vector<MultiplyParams> generateParamsForMultiply() {
 
 template <>
 std::vector<MultiplyParams> generateParamsForMultiply<element::Type_t::i8>() {
-    constexpr element::Type_t IN_ET = element::Type_t::i8;
+    constexpr auto IN_ET = element::Type_t::i8;
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<MultiplyParams> params{MultiplyParams(
@@ -141,7 +141,7 @@ std::vector<MultiplyParams> generateParamsForMultiply<element::Type_t::i8>() {
 
 template <>
 std::vector<MultiplyParams> generateParamsForMultiply<element::Type_t::u8>() {
-    constexpr element::Type_t IN_ET = element::Type_t::u8;
+    constexpr auto IN_ET = element::Type_t::u8;
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<MultiplyParams> params{MultiplyParams(
