@@ -234,9 +234,8 @@ bool MemoryMngrWithReuse::resize(size_t size) {
         sizeChanged = true;
 
         if (numa_node >= 0) {
-            memset(ptr, 0, size);
             if (!mbind_move(ptr, size, numa_node)) {
-                std::cout << "MemoryMngrWithReuse move_memory to node " << numa_node << " failed\n";
+                DEBUG_LOG("MemoryMngrWithReuse move_memory to node ", numa_node, " failed\n");
             }
         }
     }
@@ -605,12 +604,12 @@ void StaticMemory::StaticMemoryMngr::unregisterMemory(Memory* memPtr) {
 #if !defined(__NR_mbind) && defined(__x86_64__)
 #    define __NR_mbind 237
 #endif
-long mbind(void* start,
-           unsigned long len,
-           int mode,
-           const unsigned long* nmask,
-           unsigned long maxnode,
-           unsigned flags) {
+static long mbind(void* start,
+                  unsigned long len,
+                  int mode,
+                  const unsigned long* nmask,
+                  unsigned long maxnode,
+                  unsigned flags) {
     return syscall(__NR_mbind, (long)start, len, mode, (long)nmask, maxnode, flags);
 }
 #endif

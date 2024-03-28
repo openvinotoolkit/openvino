@@ -772,7 +772,7 @@ protected:
 
     MemoryPtr getScratchPadMem(const DnnlMemoryDescPtr& desc) {
         if (!scratchpadMem || !scratchpadMem->getDesc().isCompatible(*desc)) {
-            scratchpadMem = context->getScratchPad(curNumaNode)->createScratchPadMem(*desc);
+            scratchpadMem = context->getScratchPad(curNumaNode)->createScratchPadMem(desc);
         }
         return scratchpadMem;
     }

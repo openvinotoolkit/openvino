@@ -1332,9 +1332,7 @@ void Graph::InferDynamic(SyncInferRequest* request) {
     size_t inferCounter = 0;
 
     for (auto stopIndx : syncIndsWorkSet) {
-        {
-            updateNodes->run(stopIndx);
-        }
+        updateNodes->run(stopIndx);
         for (; inferCounter < stopIndx; ++inferCounter) {
             auto& node = executableGraphNodes[inferCounter];
             VERBOSE(node, getConfig().debugCaps.verbose);
@@ -1352,10 +1350,7 @@ inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) 
         // run nodes in parallel
         auto& parallelNodes = node->parallelWith;
         if (node == parallelNodes[0]) {
-            auto cpuExecutor =
-                std::dynamic_pointer_cast<ov::threading::CPUStreamsExecutor>(context->getStreamExecutor());
-
-            if (cpuExecutor) {
+            if (const auto& cpuExecutor = context->getCPUStreamExecutor()) {
                 auto num_parallel_nodes = parallelNodes.size();
                 ParalleMtNuma(num_parallel_nodes, cpuExecutor, [&](int subStreamID, size_t i) {
                     auto& n = parallelNodes[i];
@@ -1396,36 +1391,34 @@ inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) 
 void Graph::ParalleMtNuma(size_t num_nodes,
                           ov::threading::CPUStreamsExecutor::Ptr executor,
                           const std::function<void(size_t, size_t)>& func) const {
-    if (num_nodes > 1) {
-        std::atomic<int> nodes_remain(num_nodes);
-        // enqueue (nsockets-1) sub stream tasks
-        for (size_t socket_id = 1; socket_id < num_nodes; socket_id++) {
-            size_t i0{0}, i1{0};
-            splitter(num_nodes, num_nodes, socket_id, i0, i1);
-            executor->run_sub_stream(
-                [socket_id, i0, i1, &func, &nodes_remain]() {
-                    for (size_t i = i0; i < i1; i++) {
-                        func(socket_id, i);
-                        nodes_remain--;
-                    }
-                },
-                socket_id - 1);
-        }
-        // run in main stream (current socket)
-        {
-            size_t i0{0}, i1{0};
-            splitter(num_nodes, num_nodes, static_cast<size_t>(0), i0, i1);
-            for (size_t i = i0; i < i1; i++) {
-                func(0, i);
-                nodes_remain--;
-            }
-        }
-
-        {
-            while (nodes_remain.load() > 0) {
-        }
+    OPENVINO_ASSERT(num_nodes > 1, "Parallel Nodes must be more than 1. But now got ",
+                                   num_nodes,
+                                   " Nodes, which shouldn't invoke multi nodes parallel.");
+    std::atomic<int> nodes_remain(num_nodes);
+    // enqueue (nsockets-1) sub stream tasks
+    for (size_t socket_id = 1; socket_id < num_nodes; socket_id++) {
+        size_t i0{0}, i1{0};
+        splitter(num_nodes, num_nodes, socket_id, i0, i1);
+        executor->run_sub_stream(
+            [socket_id, i0, i1, &func, &nodes_remain]() {
+                for (size_t i = i0; i < i1; i++) {
+                    func(socket_id, i);
+                    nodes_remain--;
+                }
+            },
+            socket_id - 1);
+    }
+    // run in main stream (current socket)
+    {
+        size_t i0{0}, i1{0};
+        splitter(num_nodes, num_nodes, static_cast<size_t>(0), i0, i1);
+        for (size_t i = i0; i < i1; i++) {
+            func(0, i);
+            nodes_remain--;
         }
     }
+    // wait and sync
+    while (nodes_remain.load() > 0) {}
 }
 
 void Graph::Infer(SyncInferRequest* request) {
@@ -1442,7 +1435,7 @@ void Graph::Infer(SyncInferRequest* request) {
         OPENVINO_THROW("Unknown ov::intel_cpu::Graph state: " , static_cast<size_t>(status));
     }
 
-    infer_count++;
+    if (infer_count != -1) infer_count++;
 }
 
 void Graph::SortTopologically() {
@@ -1460,7 +1453,7 @@ void Graph::SortTopologically() {
             if (!inserted)
                 return; // already visited
 
-            if (node->parallelWith.size() > 0) {
+            if (!node->parallelWith.empty()) {
                 for (auto& n : node->parallelWith) {
                     for (size_t i = 0; i < n->getChildEdges().size(); i++) {
                         visit(n->getChildEdgeAt(i)->getChild());
