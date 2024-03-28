@@ -26,7 +26,7 @@ class TestLRN(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    #@pytest.mark.precommit_tf_fe - ticket 116032
+    #@pytest.mark.precommit - ticket 116032
     @pytest.mark.nightly
     def test_lrn_basic(self, params, ie_device, precision, ir_version, temp_dir,
                        use_legacy_frontend):
