@@ -17,52 +17,6 @@
 
 namespace py = pybind11;
 
-template <typename T>
-std::vector<size_t> _get_byte_strides(const ov::Shape& s) {
-    std::vector<size_t> byte_strides;
-    std::vector<size_t> element_strides = ov::row_major_strides(s);
-    for (auto v : element_strides) {
-        byte_strides.push_back(static_cast<size_t>(v) * sizeof(T));
-    }
-    return byte_strides;
-}
-
-std::vector<size_t> _get_strides(const ov::op::v0::Constant& self) {
-    auto element_type = self.get_element_type();
-    auto shape = self.get_shape();
-    if (element_type == ov::element::boolean) {
-        return _get_byte_strides<char>(shape);
-    } else if (element_type == ov::element::f16 || element_type == ov::element::bf16) {
-        // WA for bf16, returned as f16 array
-        return _get_byte_strides<ov::float16>(shape);
-    } else if (element_type == ov::element::f32) {
-        return _get_byte_strides<float>(shape);
-    } else if (element_type == ov::element::f64) {
-        return _get_byte_strides<double>(shape);
-    } else if (element_type == ov::element::i8 || element_type == ov::element::i4) {
-        // WA for i4, returned as int8 array
-        return _get_byte_strides<int8_t>(shape);
-    } else if (element_type == ov::element::i16) {
-        return _get_byte_strides<int16_t>(shape);
-    } else if (element_type == ov::element::i32) {
-        return _get_byte_strides<int32_t>(shape);
-    } else if (element_type == ov::element::i64) {
-        return _get_byte_strides<int64_t>(shape);
-    } else if (element_type == ov::element::u8 || element_type == ov::element::u1 || element_type == ov::element::u4 ||
-               element_type == ov::element::nf4) {
-        // WA for u1, u4, nf4, all returned as packed uint8 arrays
-        return _get_byte_strides<uint8_t>(shape);
-    } else if (element_type == ov::element::u16) {
-        return _get_byte_strides<uint16_t>(shape);
-    } else if (element_type == ov::element::u32) {
-        return _get_byte_strides<uint32_t>(shape);
-    } else if (element_type == ov::element::u64) {
-        return _get_byte_strides<uint64_t>(shape);
-    } else {
-        throw std::runtime_error("Unsupported data type!");
-    }
-}
-
 // TODO: Remove in future and re-use `get_data`
 template <typename T>
 py::buffer_info _get_buffer_info(const ov::op::v0::Constant& c) {
@@ -72,7 +26,7 @@ py::buffer_info _get_buffer_info(const ov::op::v0::Constant& c) {
                            py::format_descriptor<T>::format(),               /* Python struct-style format descriptor */
                            static_cast<size_t>(shape.size()),                /* Number of dimensions */
                            std::vector<size_t>{shape.begin(), shape.end()},  /* Buffer dimensions */
-                           _get_byte_strides<T>(shape)                       /* Strides (in bytes) for each index */
+                           Common::constant_helpers::_get_byte_strides<T>(shape) /* Strides (in bytes) for each index */
     );
 }
 
@@ -85,7 +39,7 @@ py::buffer_info _get_buffer_info<ov::float16>(const ov::op::v0::Constant& c) {
                            std::string(1, 'H'),                              /* Python struct-style format descriptor */
                            static_cast<size_t>(shape.size()),                /* Number of dimensions */
                            std::vector<size_t>{shape.begin(), shape.end()},  /* Buffer dimensions */
-                           _get_byte_strides<ov::float16>(shape)             /* Strides (in bytes) for each index */
+                           Common::constant_helpers::_get_byte_strides<ov::float16>(shape) /* Strides (in bytes) for each index */
     );
 }
 
@@ -201,14 +155,46 @@ void regclass_graph_op_Constant(py::module m) {
 
     constant.def(
         "get_data",
-        [](ov::op::v0::Constant& self) {
-            auto ov_type = self.get_element_type();
-            auto dtype = Common::type_helpers::get_dtype(ov_type);
-            if (ov_type.bitwidth() < Common::values::min_bitwidth) {
-                return py::array(dtype, self.get_byte_size(), self.get_data_ptr());
+        [](ov::op::v0::Constant& self, py::object& dtype, bool copy) {
+            // auto ov_type = self.get_element_type();
+            // auto dtype = Common::type_helpers::get_dtype(ov_type);
+            // if (ov_type.bitwidth() < Common::values::min_bitwidth) {
+            //     return py::array(dtype, self.get_byte_size(), self.get_data_ptr());
+            // }
+            // return py::array(dtype, self.get_shape(), _get_strides(self), self.get_data_ptr());
+
+            // Destination type was set:
+            if (!dtype.is(py::none())) {
+                auto dst_dtype = dtype.cast<py::dtype>();
+                const auto& ov_type = self.get_element_type();
+                const auto dtype = Common::type_helpers::get_dtype(ov_type);
+                // If dtype is the same as Constant type
+                // casting is NOT required, only check copy flag
+                if (dst_dtype == dtype) {
+                    if (copy) {
+                        return Common::array_helpers::array_from_constant_copy(std::forward<ov::op::v0::Constant>(self));
+                    }
+                    else {
+                        return Common::array_helpers::array_from_constant_view(std::forward<ov::op::v0::Constant>(self));
+                    }
+                }
+                // Otherwise always copy:
+                else {
+                    return Common::array_helpers::array_from_constant_copy(std::forward<ov::op::v0::Constant>(self), dst_dtype);   
+                }
             }
-            return py::array(dtype, self.get_shape(), _get_strides(self), self.get_data_ptr());
+            // Copy of data in Constant type:
+            else if (copy) {
+                return Common::array_helpers::array_from_constant_copy(std::forward<ov::op::v0::Constant>(self));
+            }
+            // Shared view of data in Constant type:
+            else {
+                return Common::array_helpers::array_from_constant_view(std::forward<ov::op::v0::Constant>(self));
+            }
         },
+        py::kw_only(),
+        py::arg("dtype") = py::none(),
+        py::arg("copy") = false,
         R"(
             Access to Constant's data - creates a copy of data.
 
@@ -222,12 +208,7 @@ void regclass_graph_op_Constant(py::module m) {
     constant.def_property_readonly(
         "data",
         [](ov::op::v0::Constant& self) {
-            auto ov_type = self.get_element_type();
-            auto dtype = Common::type_helpers::get_dtype(ov_type);
-            if (ov_type.bitwidth() < Common::values::min_bitwidth) {
-                return py::array(dtype, self.get_byte_size(), self.get_data_ptr(), py::cast(self));
-            }
-            return py::array(dtype, self.get_shape(), _get_strides(self), self.get_data_ptr(), py::cast(self));
+            return Common::array_helpers::array_from_constant_view(std::forward<ov::op::v0::Constant>(self));
         },
         R"(
             Access to Constant's data - creates a view of data.

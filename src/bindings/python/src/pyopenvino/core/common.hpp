@@ -82,7 +82,39 @@ py::array as_contiguous(py::array& array, ov::element::Type type);
 
 py::array array_from_tensor(ov::Tensor&& t, bool is_shared);
 
+template <typename T>
+py::array array_from_constant_cast(ov::op::v0::Constant&& c, py::dtype& dst_dtype) {
+    // Do the copy via constant interface switch-case on dtype to std::vector
+    auto tmp = c.cast_vector<T>();
+    return py::array(dst_dtype, c.get_shape(), tmp.data());
+}
+
+py::array array_from_constant_copy(ov::op::v0::Constant&& c);
+
+py::array array_from_constant_copy(ov::op::v0::Constant&& c, py::dtype& dst_dtype);
+
+py::array array_from_constant_view(ov::op::v0::Constant&& c);
+
 }; // namespace array_helpers
+
+namespace constant_helpers {
+template <typename T>
+std::vector<size_t> _get_byte_strides(const ov::Shape& s) {
+    // std::vector<size_t> byte_strides;
+    // std::vector<size_t> element_strides = ov::row_major_strides(s);
+    // for (auto v : element_strides) {
+    //     byte_strides.push_back(static_cast<size_t>(v) * sizeof(T));
+    // }
+    // return byte_strides;
+    auto byte_strides = ov::row_major_strides(s);
+    for (auto&& stride : byte_strides) {
+        stride *= sizeof(T);
+     }
+    return byte_strides;
+}
+
+std::vector<size_t> _get_strides(const ov::op::v0::Constant& self);
+}
 
 template <typename T>
 T create_copied(py::array& array);
