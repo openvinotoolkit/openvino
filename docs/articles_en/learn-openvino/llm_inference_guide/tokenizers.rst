@@ -44,24 +44,24 @@ Supported Tokenizers
      - Detokenizer
    * - Fast
      - WordPiece
-     - ✅
-     - ❌
+     - yes
+     - no
    * -
      - BPE
-     - ✅
-     - ✅
+     - yes
+     - yes
    * -
      - Unigram
-     - ❌
-     - ❌
+     - no
+     - no
    * - Legacy
      - SentencePiece .model
-     - ✅
-     - ✅
+     - yes
+     - yes
    * - Custom
      - tiktoken
-     - ✅
-     - ✅
+     - yes
+     - yes
 
 Python Installation
 ###################
@@ -289,9 +289,10 @@ to learn more about use cases benefiting from tokenizer merge.
    print(openvino_output["string_output"])
    # ['sc�ouition�', 'intvenord hasient', 'g shouldwer M more']
 
-The outputs of the converted and the original tokenizer can differ, decreasing or increasing
-model accuracy on a specific task. While working with LLMs, you can change the prompt to avoid
-any changes in the output. See the test results of OpenVINO Tokenizers work in the `OpenVINO Tokenizers repository <https://github.com/openvinotoolkit/openvino_tokenizers>`__.
+The outputs of the converted and the original tokenizer can differ, either decreasing or increasing
+model accuracy on a specific task. You can modify the prompt to avoid these changes.
+In the `OpenVINO Tokenizers repository <https://github.com/openvinotoolkit/openvino_tokenizers>`__
+you can see the percentage of tests in which the output of the original and converted tokenizer/detokenizer match.
 
 Additional Resources
 ####################
@@ -300,6 +301,5 @@ Additional Resources
 * `OpenVINO Tokenizers Notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/master/notebooks/openvino-tokenizers/openvino-tokenizers.ipynb>`__
 * `Text generation C++ samples that support most popular models like LLaMA 2 <https://github.com/openvinotoolkit/openvino.genai/tree/master/text_generation/causal_lm/cpp>`__
 * `OpenVINO GenAI Repo <https://github.com/openvinotoolkit/openvino.genai>`__
-* :doc:`Working with Textual Data <../../openvino-workflow/running-inference/string-tensors>`
 
 
