@@ -107,7 +107,9 @@ class TestComplexParams(CommonMOConvertTest):
          'params_ref': {'input': 'Input1:0[1,3,?,?]{i32},Input2:0{i32},Input3:0{i32}'}}
     ]
 
-    @pytest.mark.parametrize("params", test_data)
+    test_ids = ["Test{}".format(id) for id in range(len(test_data))]
+    
+    @pytest.mark.parametrize("params",test_data,ids=test_ids)
     @pytest.mark.nightly
     def test_mo_convert_tf_model(self, params, ie_device, precision, ir_version,
                                  temp_dir, use_legacy_frontend):
@@ -145,8 +147,10 @@ class TestComplexParams(CommonMOConvertTest):
         {'params_test': {'input': [Dimension(3, 10), 10, -1]},
          'params_ref': {'input': 'Input:0[3..10,10,?]'}},
     ]
+    
+    test_ids = ["Test{}".format(id) for id in range(len(test_data))]
 
-    @pytest.mark.parametrize("params", test_data)
+    @pytest.mark.parametrize("params", test_data,ids=test_ids)
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_mo_convert_tf_model_single_input_output(self, params, ie_device, precision, ir_version,
