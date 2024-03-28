@@ -492,7 +492,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_keepdims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_negative_axes_keepdims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_keepdims_random_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_log_sum_negative_axes_cpu",
         "OnnxBackendNodeModelTest.test_reduce_mean_do_not_keepdims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_negative_axes_keepdims_random_cpu",
         "OnnxBackendNodeModelTest.test_reduce_mean_do_not_keepdims_random_cpu",
@@ -708,7 +707,6 @@ tests_expected_to_fail = [
         xfail_issue_125493,
         "OnnxBackendNodeModelTest.test_reduce_l1_empty_set_cpu",
         "OnnxBackendNodeModelTest.test_reduce_l2_empty_set_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_log_sum_empty_set_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_empty_set_cpu",
         "OnnxBackendNodeModelTest.test_reduce_min_empty_set_cpu",
         "OnnxBackendNodeModelTest.test_reduce_prod_empty_set_cpu",
@@ -721,7 +719,6 @@ tests_expected_to_fail = [
     (
         skip_misalignment,
         "OnnxBackendNodeModelTest.test_gelu_default_2_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_log_sum_empty_set_expanded_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_empty_set_expanded_cpu",
     ),
     (
