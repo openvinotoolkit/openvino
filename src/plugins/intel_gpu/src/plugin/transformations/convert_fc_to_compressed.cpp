@@ -86,8 +86,9 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
             OPENVINO_ASSERT(constant != nullptr);
             ov::Shape current_shape = constant->get_shape();
-            if (current_shape.size() == 2)
+            if (current_shape.size() <= 2)
                 return constant;
+
             OPENVINO_ASSERT(current_shape.size() == 3);
 
             auto new_shape = (has_transpose || !grouped) ? ov::Shape{current_shape[0] * current_shape[1], current_shape[2]}

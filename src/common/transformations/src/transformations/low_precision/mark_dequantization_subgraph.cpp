@@ -79,14 +79,18 @@ ov::pass::MarkDequantizationSubgraph::MarkDequantizationSubgraph(const element::
             // mark Subtract as dequantization node
             ov::mark_as_dequantization_node(subtract_it->second.get_node_shared_ptr());
             auto zero_point = pattern_map.at(zero_point_pattern).get_node_shared_ptr();
-            if (!fold_subtract_const && ov::is_type<opset10::Convert>(zero_point) &&
-                input_precision == zero_point->get_input_element_type(0) &&
+            if (ov::is_type<opset10::Convert>(zero_point) && input_precision == zero_point->get_input_element_type(0) &&
                 ov::is_type<opset10::Constant>(zero_point->get_input_node_ptr(0))) {
-                // disable ConstantFolding also for Convert on zero_point
-                // so we don't have to constantfold it and then convert it back to
-                // low precision in LP transformations
-                ov::disable_constant_folding(zero_point);
-                ov::enable_keep_const_precision(zero_point->get_input_node_shared_ptr(0));
+                if (!fold_subtract_const) {
+                    // disable ConstantFolding also for Convert on zero_point
+                    // so we don't have to constantfold it and then convert it back to
+                    // low precision in LP transformations
+                    ov::disable_constant_folding(zero_point);
+                    ov::enable_keep_const_precision(zero_point->get_input_node_shared_ptr(0));
+                } else {
+                    ov::enable_constant_folding(zero_point);
+                    ov::disable_keep_const_precision(zero_point->get_input_node_shared_ptr(0));
+                }
             }
         }
 

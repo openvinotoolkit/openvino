@@ -224,6 +224,66 @@ void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream, bool dump
     file_stream << buffer.str();
 }
 
+void unpack(cldnn::data_types type, uint8_t input, int8_t &v0, int8_t &v1) {
+    if (type == cldnn::data_types::i4) {
+        char s_bit = (input & 0x08);
+        char mask = s_bit > 0 ? 0xF0 : 0x00;
+        v0 = (input & 0x0F) | mask;
+
+        input >>= 4;
+        s_bit = (input & 0x08);
+        mask = s_bit > 0 ? 0xF0 : 0x00;
+        v1 = (input & 0x0F) | mask;
+    } else if (type == cldnn::data_types::u4) {
+        v0 = input & 0x0F;
+        v1 = input >> 4;
+    } else {
+        OPENVINO_ASSERT(false, "not supported unpacking");
+    }
+}
+
+void dump_i4u4(cldnn::data_types type, memory::ptr mem, stream& stream, std::ofstream& file_stream, bool dump_raw) {
+    auto&& size = mem->get_layout().get_tensor();
+
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    auto batch_size = std::max(std::min(debug_config->dump_layers_limit_batch, size.batch[0]), 1);
+    tensor tmp_size(size);
+    tmp_size.batch[0] = batch_size;
+    if (tmp_size == size) {
+        file_stream << "shape: " << size.to_string() << " ";
+        file_stream << "(count: " << size.count()
+                    << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format) << ")"
+                    << (dump_raw ? " raw data" : "") << std::endl;
+    } else {
+        file_stream << "shape: " << tmp_size.to_string() << " ";
+        file_stream << "(count: " << tmp_size.count()
+                    << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format)
+                    << ", original shape: " << size.to_string() << ")"
+                    << (dump_raw ? " raw data" : "") << std::endl;
+    }
+
+    if (size.count() == 0) {
+        file_stream << "Empty buffer" << std::endl;
+        return;
+    }
+
+    mem_lock<uint8_t, mem_lock_type::read> lock(mem, stream);
+    auto mem_ptr = lock.data();
+    std::stringstream buffer;
+
+    if (dump_raw) {
+        for (size_t i = 0; i < lock.size(); ++i) {
+            int8_t v0, v1;
+            unpack(type, mem_ptr[i], v0, v1);
+            buffer << std::fixed << std::setprecision(6) << static_cast<int>(v0) << std::endl;
+            buffer << std::fixed << std::setprecision(6) << static_cast<int>(v1) << std::endl;
+        }
+    } else {
+        std::cout << __func__ << " supports raw dump only" << std::endl;
+    }
+    file_stream << buffer.str();
+}
+
 void log_memory_to_file(memory::ptr mem, layout data_layout, stream& stream, std::string layerName, bool dump_raw) {
     std::cout << "Dump " << (dump_raw ? "raw " : "") << layerName << std::endl;
     GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -251,6 +311,12 @@ void log_memory_to_file(memory::ptr mem, layout data_layout, stream& stream, std
         dump<int8_t>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::u8)
         dump<uint8_t>(actual_mem, stream, file_stream, dump_raw);
+    else if (mem_dt == cldnn::data_types::u8)
+        dump<uint8_t>(actual_mem, stream, file_stream, dump_raw);
+    else if (mem_dt == cldnn::data_types::i4 || mem_dt == cldnn::data_types::u4)
+        dump_i4u4(mem_dt, actual_mem, stream, file_stream, dump_raw);
+    else
+        std::cout << "Dump for this data type is not supported: " << dt_to_str(mem_dt) << std::endl;
 }
 
 void wait_for_the_turn() {
@@ -980,16 +1046,18 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                     auto dump_file = debug_config->get_matched_from_filelist(files, "_src0__");
                     OPENVINO_ASSERT(dump_file.length() != 0, "Could not find expected pattern '_src[N]__' for binary dump input : " + layer_name);
 
-                    OPENVINO_ASSERT(files.size() == get_primitive(inst->id())->dependencies().size(), "Mis-match dump file count");
-
                     for (size_t i = 0; i < get_primitive(inst->id())->dependencies().size(); i++) {
                         auto dump_file = files[0];
                         if (files.size() > 1 || get_primitive(inst->id())->dependencies().size() != 1) {
                             std::string pattern = "_src" + std::to_string(i) + "__";
                             dump_file = debug_config->get_matched_from_filelist(files, pattern);
                         }
+                        if (dump_file.length() == 0) {
+                            GPU_DEBUG_COUT  << " Skip loading for  input(" << i << ") of " << layer_name << std::endl;
+                            continue;
+                        }
                         OPENVINO_ASSERT((dump_file.length() > 0), "Could not find expected pattern '_src[N]__' for binary dump input");
-                        GPU_DEBUG_COUT  << " Load binary dump : " << dump_file << " for input of " << layer_name << std::endl;
+                        GPU_DEBUG_COUT  << " Load binary dump : " << dump_file << " for input(" << i << ") of " << layer_name << std::endl;
 
                         std::vector<uint8_t> bin = ov::util::load_binary(dump_file);
                         OPENVINO_ASSERT(!bin.empty(), "Failure loading binary from OV_GPU_LoadDumpRawBinary : " + dump_file);
@@ -1006,9 +1074,6 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         // Dump input buffers of 'inst'
         GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
             const std::string layer_name = inst->id();
-            GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                std::cerr << inst->id() << std::endl;
-            }
 
             GPU_DEBUG_IF(debug_config->is_target_iteration(curr_iter) &&
                         debug_config->dump_layers_dst_only == 0 && debug_config->is_layer_for_dumping(layer_name)) {
