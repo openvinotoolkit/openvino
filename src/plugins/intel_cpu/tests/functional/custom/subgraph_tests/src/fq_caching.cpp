@@ -169,13 +169,13 @@ protected:
 
             auto ranges = rangesVec[i];
 
-            auto il = ov::test::utils::deprecated::make_constant(ngInPrec, ranges[0], extendData(rangesBounds[0],
+            auto il = ov::op::v0::Constant::create(ngInPrec, ranges[0], extendData(rangesBounds[0],
                 std::accumulate(ranges[0].begin(), ranges[0].end(), 1, std::multiplies<size_t>())));
-            auto ih = ov::test::utils::deprecated::make_constant(ngInPrec, ranges[1], extendData(rangesBounds[1],
+            auto ih = ov::op::v0::Constant::create(ngInPrec, ranges[1], extendData(rangesBounds[1],
                 std::accumulate(ranges[1].begin(), ranges[1].end(), 1, std::multiplies<size_t>())));
-            auto ol = ov::test::utils::deprecated::make_constant(ngInPrec, ranges[2], extendData(rangesBounds[2],
+            auto ol = ov::op::v0::Constant::create(ngInPrec, ranges[2], extendData(rangesBounds[2],
                 std::accumulate(ranges[2].begin(), ranges[2].end(), 1, std::multiplies<size_t>())));
-            auto oh = ov::test::utils::deprecated::make_constant(ngInPrec, ranges[3], extendData(rangesBounds[3],
+            auto oh = ov::op::v0::Constant::create(ngInPrec, ranges[3], extendData(rangesBounds[3],
                 std::accumulate(ranges[3].begin(), ranges[3].end(), 1, std::multiplies<size_t>())));
 
             auto fqNode = std::make_shared<ov::op::v0::FakeQuantize>(paramVect[i], il, ih, ol, oh, levels);
@@ -188,7 +188,7 @@ protected:
 
         if (!reshapeShape.empty()) {
             auto reshapeConstNode =
-                ov::test::utils::deprecated::make_constant(ov::element::i32, {reshapeShape.size()}, reshapeShape);
+                ov::op::v0::Constant::create(ov::element::i32, ov::Shape{reshapeShape.size()}, reshapeShape);
             lastNode1 = std::make_shared<ov::op::v1::Reshape>(lastNode1, reshapeConstNode, false);
         }
         auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{lastNode0, lastNode1}, 0);

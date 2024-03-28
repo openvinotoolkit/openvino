@@ -43,10 +43,10 @@ std::shared_ptr<ov::Model> makeFakeQuantizeReluFunction(const std::vector<ov::el
     OPENVINO_ASSERT(inputPrecisions.size() == 1);
 
     ov::ParameterVector inputs{std::make_shared<ov::op::v0::Parameter>(inputPrecisions[0], ov::Shape{1, 16, 5, 4})};
-    auto inputLowNode = ov::test::utils::deprecated::make_constant<float>(ov::element::f32, {1, 1, 1, 1}, {0});
-    auto inputHighNode = ov::test::utils::deprecated::make_constant<float>(ov::element::f32, {1, 1, 1, 1}, {255});
-    auto outputLowNode = ov::test::utils::deprecated::make_constant<float>(ov::element::f32, {1, 1, 1, 1}, {0});
-    auto outputHighNode = ov::test::utils::deprecated::make_constant<float>(ov::element::f32, {1, 1, 1, 1}, {255});
+    auto inputLowNode = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 1}, std::vector<float>{0});
+    auto inputHighNode = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 1}, std::vector<float>{255});
+    auto outputLowNode = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 1}, std::vector<float>{0});
+    auto outputHighNode = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 1}, std::vector<float>{255});
     auto fakeQuantize = std::make_shared<ov::op::v0::FakeQuantize>(inputs[0], inputLowNode, inputHighNode, outputLowNode, outputHighNode, 256);
     fakeQuantize->set_friendly_name("FakeQuantize");
 
@@ -61,10 +61,10 @@ std::shared_ptr<ov::Model> makeFakeQuantizeBinaryConvolutionFunction(const std::
     OPENVINO_ASSERT(inputPrecisions.size() == 1);
 
     ov::ParameterVector inputs{std::make_shared<ov::op::v0::Parameter>(inputPrecisions[0], ov::Shape{1, 16, 5, 4})};
-    auto inputLowNode = ov::test::utils::deprecated::make_constant<float>(ov::element::f32, {1, 1, 1, 1}, {1});
-    auto inputHighNode = ov::test::utils::deprecated::make_constant<float>(ov::element::f32, {1, 1, 1, 1}, {1});
-    auto outputLowNode = ov::test::utils::deprecated::make_constant<float>(ov::element::f32, {1, 1, 1, 1}, {0});
-    auto outputHighNode = ov::test::utils::deprecated::make_constant<float>(ov::element::f32, {1, 1, 1, 1}, {1});
+    auto inputLowNode = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 1}, std::vector<float>{1});
+    auto inputHighNode = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 1}, std::vector<float>{1});
+    auto outputLowNode = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 1}, std::vector<float>{0});
+    auto outputHighNode = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 1}, std::vector<float>{1});
     auto fakeQuantize = std::make_shared<ov::op::v0::FakeQuantize>(inputs[0], inputLowNode, inputHighNode, outputLowNode, outputHighNode, 2);
     fakeQuantize->set_friendly_name("FakeQuantize");
 

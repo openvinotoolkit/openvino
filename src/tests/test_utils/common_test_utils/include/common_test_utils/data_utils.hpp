@@ -222,6 +222,8 @@ void inline fill_data_random(T* pointer,
                              double_t start_from = 0,
                              const int32_t k = 1,
                              const int seed = 1) {
+    if (!size)
+        return;
     if (range == 0) {
         for (std::size_t i = 0; i < size; i++) {
             pointer[i] = static_cast<T>(start_from);
@@ -236,7 +238,10 @@ void inline fill_data_random(T* pointer,
     if (start_from < 0 && !std::numeric_limits<T>::is_signed) {
         start_from = 0;
     }
-    for (std::size_t i = 0; i < size; i++) {
+    pointer[0] = static_cast<T>(start_from);
+    pointer[size - 1] = static_cast<T>(start_from + range);
+
+    for (std::size_t i = 1; i < size - 1; i++) {
         pointer[i] = static_cast<T>(start_from + static_cast<T>(random.Generate(k_range)) / k);
     }
 }
@@ -249,8 +254,9 @@ void inline fill_data_ptr_real_random_float(T* pointer,
                                             const int seed) {
     std::mt19937 gen(seed);
     std::uniform_real_distribution<float> dist(min, max);
-
-    for (std::size_t i = 0; i < size; i++) {
+    pointer[0] = static_cast<T>(min);
+    pointer[size - 1] = static_cast<T>(max);
+    for (std::size_t i = 1; i < size - 1; i++) {
         pointer[i] = static_cast<T>(dist(gen));
     }
 }
