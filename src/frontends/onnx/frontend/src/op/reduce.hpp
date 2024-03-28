@@ -24,6 +24,9 @@ ov::OutputVector reduce_log_sum_exp(const ov::frontend::onnx::Node& node);
 namespace set_1 {
 ov::OutputVector reduce_l1(const ov::frontend::onnx::Node& node);
 }  // namespace set_1
+namespace set_18 {
+ov::OutputVector reduce_l1(const ov::frontend::onnx::Node& node);
+}  // namespace set_18
 
 namespace set_1 {
 ov::OutputVector reduce_l2(const ov::frontend::onnx::Node& node);
