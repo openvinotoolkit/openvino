@@ -462,7 +462,7 @@ void prepare_buffer_fusing::run(program& p) {
     2. Crops
     3. Others
     Concat before crops is needed because of the crop fusing padding requirments.
-    If crop is before concat there can be padding mismtach, since concat changes padding.
+    If crop is before concat there can be padding mismatch, since concat changes padding.
     */
     auto can_optimize = [](const program_node* node) {
         bool is_dynamic = node->is_dynamic();
