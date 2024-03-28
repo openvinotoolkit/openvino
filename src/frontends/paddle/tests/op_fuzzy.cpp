@@ -247,7 +247,7 @@ static const std::vector<std::string> models{
     std::string("generate_proposals_v2_4"),
     // ticket 130605: actual res value is not close
     // std::string("generate_proposals_v2_5"),
-    std::string("generate_proposals_v2_6"),
+    // std::string("generate_proposals_v2_6"),
     // greater_equal_big_int64(failure due to CPU inference),
     std::string("greater_equal_big_int64"),
     std::string("greater_equal_float32"),

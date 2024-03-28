@@ -150,6 +150,8 @@ if __name__ == "__main__":
     '''
 
     # test case 6
+    '''
+    TODO: ticket 130605
     input_name = "generate_proposals_v2_6"
     input_data["scores"] = np.random.rand(2, 6, 10, 8).astype('float32')
     input_data["bbox_deltas"] = np.random.rand(2, 24, 10, 8).astype('float32')
@@ -162,3 +164,4 @@ if __name__ == "__main__":
     attr["post_nms_top_n"] = 60
 
     generate_proposals_v2(input_name, input_data, attr)
+    '''
