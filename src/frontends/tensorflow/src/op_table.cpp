@@ -173,7 +173,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"BitwiseOr", CreatorFunction(translate_binary_op<v13::BitwiseOr>)},
         {"BitwiseXor", CreatorFunction(translate_binary_op<v13::BitwiseXor>)},
         {"Div", CreatorFunction(translate_div_op)},
-        {"Equal", CreatorFunction(translate_binary_op<v1::Equal>)},
+        {"Equal", CreatorFunction(translate_equal_op)},
         {"FloorMod", CreatorFunction(translate_binary_op<v1::FloorMod>)},
         {"Greater", CreatorFunction(translate_binary_op<v1::Greater>)},
         {"GreaterEqual", CreatorFunction(translate_binary_op<v1::GreaterEqual>)},
