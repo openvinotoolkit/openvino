@@ -197,7 +197,7 @@ class TestMul(CommonTFLayerTest):
     test_data_broadcast_5D = [
         dict(x_shape=[1, 1, 1, 1, 1], y_shape=[1]),
         dict(x_shape=[1, 3, 1, 1, 1], y_shape=[1, 1]),
-        pytest.param(dict(x_shape=[1, 3, 1, 1, 1], y_shape=[3]), marks=pytest.mark.precommit_tf_fe),
+        pytest.param(dict(x_shape=[1, 3, 1, 1, 1], y_shape=[3]), marks=pytest.mark.precommit),
         dict(x_shape=[1, 1, 1, 1, 3], y_shape=[3]),
         dict(x_shape=[1, 3, 1, 1, 1], y_shape=[3, 1]),
         dict(x_shape=[1, 3, 1, 1, 2], y_shape=[1, 3, 2]),
@@ -261,7 +261,7 @@ class TestComplexMul(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_complex_mul(self, params, ie_device, precision, ir_version, temp_dir,
                          use_legacy_frontend):
