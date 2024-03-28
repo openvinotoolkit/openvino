@@ -75,9 +75,7 @@ def test_input_get_source_output(device):
     net_input = compiled_model.output(0)
     input_node = net_input.get_node().inputs()[0]
     name = input_node.get_source_output().get_node().get_friendly_name()
-    # conversion can be applied then additional convert node will be inserted
-    # then its friendly name will be extended by index
-    assert name in ["relu", "relu.0"]
+    assert name == "relu"
 
 
 def test_input_get_tensor(device):
