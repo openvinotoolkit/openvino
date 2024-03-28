@@ -143,7 +143,7 @@ void regclass_graph_Node(py::module m) {
         py::arg("evaluationContext"),
         R"(
                 Evaluate the node on inputs, putting results in outputs
-                
+
                 :param output_tensors: Tensors for the outputs to compute. One for each result.
                 :type output_tensors: List[openvino.runtime.Tensor]
                 :param input_tensors: Tensors for the inputs. One for each inputs.
@@ -355,6 +355,10 @@ void regclass_graph_Node(py::module m) {
                 :rtype: openvino.runtime.RTMap
              )");
 
+    node.def("get_input_element_type", &ov::Node::get_input_element_type);
+    node.def("get_input_partial_shape", &ov::Node::get_input_partial_shape);
+    node.def("set_output_type", &ov::Node::set_output_type);
+
     node.def("set_argument", &ov::Node::set_argument);
     node.def("set_arguments", [](const std::shared_ptr<ov::Node>& self, const ov::NodeVector& args) {
         self->set_arguments(args);
@@ -385,7 +389,11 @@ void regclass_graph_Node(py::module m) {
     node.def("set_arguments", [](const std::shared_ptr<ov::Node>& self, const ov::OutputVector& arguments) {
         return self->set_arguments(arguments);
     });
+    // TODO: Why it was called validate but not just constructor_validate_and_infer_types?
     node.def("validate", [](const std::shared_ptr<ov::Node>& self) {
         return self->constructor_validate_and_infer_types();
+    });
+    node.def("validate_and_infer_types", [](const std::shared_ptr<ov::Node>& self) {
+        return self->validate_and_infer_types();
     });
 }
