@@ -78,13 +78,15 @@ public:
         m_primArgs[DNNL_ARG_SCRATCHPAD] = m_scratchPadMemory->getPrimitive();
 
         if (m_primArgs.count(DNNL_ARG_WEIGHTS)) {
-            if (!mbind_move(m_primArgs[DNNL_ARG_WEIGHTS], numaNodeID))
+            if (!mbind_move(m_primArgs[DNNL_ARG_WEIGHTS], numaNodeID)) {
                 DEBUG_LOG("[FullyConnected] move DNNL_ARG_WEIGHTS to node ", numaNodeID, " failed");
+            }
         }
 
         if (m_primArgs.count(DNNL_ARG_BIAS)) {
-            if (!mbind_move(m_primArgs[DNNL_ARG_BIAS], numaNodeID))
+            if (!mbind_move(m_primArgs[DNNL_ARG_BIAS], numaNodeID)) {
                 DEBUG_LOG("[FullyConnected] move DNNL_ARG_BIAS to node ", numaNodeID, " failed");
+            }
         }
         curNumaNode = numaNodeID;
     }
