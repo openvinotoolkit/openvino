@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
+from common.utils.tf_utils import run_in_jenkins
 
 # Testing operation Equal
 # Documentation: https://www.tensorflow.org/versions/r1.15/api_docs/python/tf/math/equal
@@ -97,7 +98,7 @@ class TestTFEqual(CommonTFLayerTest):
         pytest.param(
             dict(x_shape=[2, 3], y_shape=[2, 3]),
             # Comparing shapes with random values (verifies false and possible true)
-            marks=pytest.mark.precommit_tf_fe),
+            marks=pytest.mark.precommit),
         dict(x_shape=[2, 3], y_value=2),  # Comparing shape with scalar value (verifies false and possible true)
         dict(x_shape=[2, 3], y_shape=[2, 3],  # Comparing shapes with same values (verifies true statement)
              x_value=2, y_value=2),
@@ -122,7 +123,7 @@ class TestTFEqual(CommonTFLayerTest):
         pytest.param(
             dict(x_shape=[2, 3], y_shape=[2, 3]),
             # Comparing shapes with random values (verifies false and possible true)
-            marks=pytest.mark.precommit_tf_fe),
+            marks=pytest.mark.precommit),
         dict(x_shape=[2, 3], y_value=2),  # Comparing shape with scalar value (verifies false and possible true)
         dict(x_shape=[2, 3], y_shape=[2, 3],  # Comparing shapes with same values (verifies true statement)
              x_value=2, y_value=2),
@@ -152,7 +153,7 @@ class TestTFEqual(CommonTFLayerTest):
         pytest.param(
             dict(x_shape=[2, 3], y_shape=[2, 3]),
             # Comparing shapes with different dimensions, random values (false and possible true)
-            marks=pytest.mark.precommit_tf_fe),
+            marks=pytest.mark.precommit),
         pytest.param(
             dict(x_shape=[9], y_shape=[9],  # Comparing shapes which contains corner cases
                  x_value=x_corner, y_value=y_corner),
@@ -174,7 +175,7 @@ class TestTFEqual(CommonTFLayerTest):
         pytest.param(
             dict(x_shape=[2, 3], y_shape=[2, 3]),
             # Comparing shapes with random values (verifies false and possible true)
-            marks=pytest.mark.precommit_tf_fe),
+            marks=pytest.mark.precommit),
         pytest.param(
             dict(x_shape=[9], y_shape=[9],  # Comparing shapes which contains corner cases
                  x_value=x_corner, y_value=y_corner),
@@ -196,7 +197,7 @@ class TestTFEqual(CommonTFLayerTest):
         pytest.param(
             dict(x_shape=[2, 3], y_shape=[2, 3]),
             # Comparing shapes with different dimensions, random values (false and possible true)
-            marks=pytest.mark.precommit_tf_fe),
+            marks=pytest.mark.precommit),
         pytest.param(
             dict(x_shape=[9], y_shape=[9],  # Comparing shapes which contains corner cases
                  x_value=x_corner, y_value=y_corner),
@@ -243,7 +244,7 @@ class TestEqualStr(CommonTFLayerTest):
 
     @pytest.mark.parametrize('x_shape', [[], [1], [5]])
     @pytest.mark.parametrize('y_shape', [[], [1], [5]])
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['arm', 'armv7l',
                                                                                                      'aarch64',
@@ -252,6 +253,8 @@ class TestEqualStr(CommonTFLayerTest):
     def test_equal_str(self, x_shape, y_shape,
                        ie_device, precision, ir_version, temp_dir,
                        use_legacy_frontend):
+        if ie_device == 'GPU' or run_in_jenkins():
+            pytest.skip("operation extension is not supported on GPU")
         self._test(*self.create_equal_net(x_shape=x_shape, y_shape=y_shape),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)

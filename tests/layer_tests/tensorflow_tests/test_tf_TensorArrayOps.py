@@ -49,7 +49,7 @@ class TestTensorArraySizeV3(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_tensor_array_size_v3(self, params, ie_device, precision, ir_version, temp_dir,
                                   use_legacy_frontend):
@@ -93,10 +93,12 @@ class TestTensorArrayReadV3(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_tensor_array_read_v3(self, params, ie_device, precision, ir_version, temp_dir,
                                   use_legacy_frontend):
+        if ie_device == 'GPU':
+            pytest.skip("segmentation fault or accuracy issue on GPU")
         self._test(*self.create_tensor_array_read_v3(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
@@ -159,10 +161,13 @@ class TestTensorArrayWriteGatherV3(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_tensor_array_write_v3(self, params, ie_device, precision, ir_version, temp_dir,
                                    use_legacy_frontend):
+        if ie_device == 'GPU' and (params['data_shape'] == [6] or params['data_shape'] == [7]):
+            pytest.skip("Every input must have the same size issue or accuracy issue on GPU")
+
         self._test(*self.create_tensor_array_write_v3(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
@@ -202,7 +207,7 @@ class TestTensorArrayConcatV3(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_tensor_array_concat_v3(self, params, ie_device, precision, ir_version, temp_dir,
                                     use_legacy_frontend):

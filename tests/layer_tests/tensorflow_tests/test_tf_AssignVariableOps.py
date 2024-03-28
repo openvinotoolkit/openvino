@@ -41,7 +41,7 @@ class TestAssignVariableOps(CommonTFLayerTest):
         return tf_net, None
 
     @pytest.mark.parametrize("const_shape", [[], [2], [3, 4], [3, 2, 1, 4]])
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_assign_variable_ops(self, const_shape, ie_device, precision, ir_version, temp_dir,
                                  use_legacy_frontend):

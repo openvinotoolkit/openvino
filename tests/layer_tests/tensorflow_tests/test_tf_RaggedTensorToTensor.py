@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
+from common.utils.tf_utils import run_in_jenkins
 
 rng = np.random.default_rng()
 
@@ -49,7 +50,7 @@ class TestRaggedTensorToTensor(CommonTFLayerTest):
     @pytest.mark.parametrize('default_value', [-1, 0])
     @pytest.mark.parametrize('row_partition_tensors', [[[0, 1, 6, 8, 15, 20, 21]]])
     @pytest.mark.parametrize('row_partition_types', [["ROW_SPLITS"]])
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['arm', 'armv7l',
                                                                                                      'aarch64',
@@ -58,6 +59,8 @@ class TestRaggedTensorToTensor(CommonTFLayerTest):
     def test_ragged_tensor_to_tensor(self, shape_type, shape_value, values_shape, values_type, default_value,
                                      row_partition_tensors, row_partition_types,
                                      ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+        if ie_device == 'GPU' or run_in_jenkins():
+            pytest.skip("operation extension is not supported on GPU")
         self._test(*self.create_ragged_tensor_to_tensor_net(shape_type=shape_type, shape_value=shape_value,
                                                             values_shape=values_shape, values_type=values_type,
                                                             default_value=default_value,
@@ -105,7 +108,7 @@ class TestRaggedTensorToTensorRowIds(CommonTFLayerTest):
     @pytest.mark.parametrize('default_value', [-1, 0])
     @pytest.mark.parametrize('row_partition_tensors', [[20, [1, 2, 3, 3, 4, 8, 8, 9, 9, 9]]])
     @pytest.mark.parametrize('row_partition_types', [["FIRST_DIM_SIZE", "VALUE_ROWIDS"]])
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['arm', 'armv7l',
                                                                                                      'aarch64',
@@ -114,6 +117,8 @@ class TestRaggedTensorToTensorRowIds(CommonTFLayerTest):
     def test_ragged_tensor_to_tensor(self, shape_type, shape_value, values_shape, values_type, default_value,
                                      row_partition_tensors, row_partition_types,
                                      ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+        if ie_device == 'GPU' or run_in_jenkins():
+            pytest.skip("operation extension is not supported on GPU")
         self._test(*self.create_ragged_tensor_to_tensor_net(shape_type=shape_type, shape_value=shape_value,
                                                             values_shape=values_shape, values_type=values_type,
                                                             default_value=default_value,

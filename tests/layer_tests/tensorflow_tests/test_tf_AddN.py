@@ -54,7 +54,7 @@ class TestAddN(CommonTFLayerTest):
         dict(input_shapes=[[4]]),                             # Tests sum of scalar values in a single shape
         pytest.param(
             dict(input_shapes=[[4, 3], [4, 3]]),              # Tests sum of shapes
-            marks=pytest.mark.precommit_tf_fe),
+            marks=pytest.mark.precommit),
         dict(input_shapes=[[3, 4, 5], [3, 4, 5], [3, 4, 5]]), # Tests sum of shapes which may trigger nchw/nhcw transformation
     ]
 

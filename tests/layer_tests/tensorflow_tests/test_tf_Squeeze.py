@@ -37,7 +37,7 @@ class TestSqueeze(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_squeeze_basic(self, params, ie_device, precision, ir_version, temp_dir,
                            use_legacy_frontend):
@@ -147,7 +147,7 @@ class TestComplexSqueeze(CommonTFLayerTest):
         dict(input_shape=[1, 22, 1, 1, 10], axis=[0, 2, -2]),
     ]
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_complex_squeeze(self, params, ie_device, precision, ir_version, temp_dir,
                                use_legacy_frontend):

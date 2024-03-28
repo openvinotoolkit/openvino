@@ -58,7 +58,7 @@ class TestCTCLoss(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("preprocess_collapse_repeated", [True, False, None])
     @pytest.mark.parametrize("ctc_merge_repeated", [True, False, None])
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122182")
     def test_ctcloss_placeholder_const(self, params, preprocess_collapse_repeated, ctc_merge_repeated,

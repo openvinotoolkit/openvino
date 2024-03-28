@@ -58,7 +58,7 @@ class TestBincount(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_bincount(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_bincount_net(**params),

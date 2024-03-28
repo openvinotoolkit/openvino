@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
+from common.utils.tf_utils import run_in_jenkins
 
 rng = np.random.default_rng()
 
@@ -39,7 +40,7 @@ class TestStringSplitV2(CommonTFLayerTest):
     @pytest.mark.parametrize('input_shape', [[1], [2], [5]])
     @pytest.mark.parametrize('sep', ['', '<>'])
     @pytest.mark.parametrize('maxsplit', [None, -1])
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['arm', 'armv7l',
                                                                                                      'aarch64',
@@ -48,6 +49,8 @@ class TestStringSplitV2(CommonTFLayerTest):
     def test_string_split_v2(self, input_shape, sep, maxsplit,
                              ie_device, precision, ir_version, temp_dir,
                              use_legacy_frontend):
+        if ie_device == 'GPU' or run_in_jenkins():
+            pytest.skip("operation extension is not supported on GPU")
         self._test(*self.create_string_split_v2_net(input_shape=input_shape, sep=sep, maxsplit=maxsplit),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)

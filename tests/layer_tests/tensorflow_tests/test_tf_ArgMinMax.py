@@ -55,7 +55,7 @@ class TestArgMinMax(CommonTFLayerTest):
     @pytest.mark.parametrize("input_type", [np.float32, np.int32])
     @pytest.mark.parametrize("output_type", [tf.int32, tf.int64])
     @pytest.mark.parametrize("op_type", ['tf.raw_ops.ArgMax', 'tf.raw_ops.ArgMin'])
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['arm', 'armv7l',
                                                                                                      'aarch64',
