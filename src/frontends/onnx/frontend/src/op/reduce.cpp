@@ -152,7 +152,7 @@ ov::OutputVector reduce_log_sum_exp(const ov::frontend::onnx::Node& node) {
 }
 
 ov::OutputVector reduce_l1(const ov::frontend::onnx::Node& node) {
-    return {make_ov_reduction_op<v4::ReduceL1>(node, node.get_ov_inputs().at(0), supported_types_v1)};
+    return {make_ov_reduction_op<v4::ReduceL1>(node, node.get_ov_inputs().at(0), supported_types_v2)};
 }
 
 ov::OutputVector reduce_l2(const ov::frontend::onnx::Node& node) {
@@ -185,6 +185,7 @@ ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceSum>(node, square_node, supported_types_v1)};
 }
 }  // namespace set_1
+
 /*
     Opset 11 is skipped because there are no significant difference between opset1 and opset 11.
     Found difference is:
@@ -211,6 +212,9 @@ ov::OutputVector reduce_log_sum(const ov::frontend::onnx::Node& node) {
     const ov::Output<ov::Node> sum_node =
         make_ov_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), supported_types_v2, false);
     return {std::make_shared<v0::Log>(sum_node)};
+}
+ov::OutputVector reduce_l1(const ov::frontend::onnx::Node& node) {
+    return {make_ov_reduction_op<v4::ReduceL1>(node, node.get_ov_inputs().at(0), supported_types_v2, false)};
 }
 }  // namespace set_18
 
