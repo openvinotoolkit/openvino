@@ -74,17 +74,17 @@ public:
             return;
         }
         const auto newPrimMemDesc = m_primitive->scratchPadDesc();
-        m_scratchPadMemory = m_context->getScratchPad(numaNodeID)->createScratchPadMem(*newPrimMemDesc);
+        m_scratchPadMemory = m_context->getScratchPad(numaNodeID)->createScratchPadMem(newPrimMemDesc);
         m_primArgs[DNNL_ARG_SCRATCHPAD] = m_scratchPadMemory->getPrimitive();
 
         if (m_primArgs.count(DNNL_ARG_WEIGHTS)) {
             if (!mbind_move(m_primArgs[DNNL_ARG_WEIGHTS], numaNodeID))
-                std::cout << "move DNNL_ARG_WEIGHTS to node " << numaNodeID << " failed\n";
+                DEBUG_LOG("[FullyConnected] move DNNL_ARG_WEIGHTS to node ", numaNodeID, " failed");
         }
 
         if (m_primArgs.count(DNNL_ARG_BIAS)) {
             if (!mbind_move(m_primArgs[DNNL_ARG_BIAS], numaNodeID))
-                std::cout << "move DNNL_ARG_BIAS to node " << numaNodeID << " failed\n";
+                DEBUG_LOG("[FullyConnected] move DNNL_ARG_BIAS to node ", numaNodeID, " failed");
         }
         curNumaNode = numaNodeID;
     }
@@ -139,7 +139,7 @@ private:
         if (currentPrimitive && currentPrimitive->scratchPadDesc()->isCompatible(*newPrimMemDesc))
             return;
 
-        m_scratchPadMemory = m_context->getScratchPad(curNumaNode)->createScratchPadMem(*newPrimMemDesc);
+        m_scratchPadMemory = m_context->getScratchPad(curNumaNode)->createScratchPadMem(newPrimMemDesc);
         m_primArgs[DNNL_ARG_SCRATCHPAD] = m_scratchPadMemory->getPrimitive();
     }
 
