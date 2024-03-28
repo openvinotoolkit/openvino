@@ -165,7 +165,7 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph &graph) {
             return_node = results.back();
         } else {
             return_node = std::make_shared<ov::exec_model_info::ExecutionNode>(
-                get_inputs(node), node->getSelectedPrimitiveDescriptor()->getConfig().outConfs.size());
+                get_inputs(node), node->getChildEdges().size());
 
             for (size_t port = 0; port < return_node->get_output_size(); ++port) {
                 auto& desc = node->getChildEdgeAt(port)->getMemory().getDesc();
