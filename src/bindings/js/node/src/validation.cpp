@@ -4,7 +4,7 @@
 #include "node/include/validation.hpp"
 
 bool check_object(const Napi::CallbackInfo& info, int index) {
-    return info[index].ToObject();
+    return info[index].IsObject();
 }
 
 bool check_tensor(const Napi::CallbackInfo& info, int index) {
