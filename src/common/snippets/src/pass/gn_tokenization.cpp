@@ -28,7 +28,9 @@ ov::snippets::pass::TokenizeGNSnippets::TokenizeGNSnippets() {
         ov::replace_node(group_norm_node, subgraph);
         op::update_out_tensor_name(subgraph);
 
-        // mark the Subgraph as Completed to not allow Snippets to include any nodes into the GN Subgraph in common Tokenization
+        // Mark the Subgraph as Completed to not allow Snippets to include any nodes into the GN Subgraph in common Tokenization.
+        // This is because GN has specific parallel domain(bacth * group_num), which maybe suboptimal to other part if tokenized as a big subgraph,
+        // as there is a unified paralell domain for the whole subgraph. Ticket 137310 is to relax and track this.
         SetSnippetsSubgraphType(subgraph, SnippetsSubgraphType::Completed);
 
         return true;

@@ -275,8 +275,7 @@ auto Subgraph::constant_input_should_be_inside_body(const std::shared_ptr<ov::No
     return ov::is_type<ov::op::v1::Transpose>(node) ||
            ov::is_type<ov::op::v1::Broadcast>(node) ||
            ov::is_type<ov::op::v3::Broadcast>(node) ||
-           ov::is_type<ov::op::v1::Reshape>(node) ||
-           ov::is_type<op::ReduceBase>(node);
+           ov::is_type<ov::op::v1::Reshape>(node);
 }
 
 bool Subgraph::check_broadcast(const std::shared_ptr<const ov::Node>& node) noexcept {
@@ -387,13 +386,11 @@ void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::data_flow_transformations")
 
     ov::snippets::pass::Manager manager;
-    bool is_gn_subgraph = false;
-    for (const auto& op : body_ptr()->get_ordered_ops()) {
-        if (ov::is_type<ov::op::v12::GroupNormalization>(op)) {
-            is_gn_subgraph = true;
-            break;
-        }
-    }
+    // GN subgraph has its own specific canonicalization inside GNDecomposition with reshape, which is different with common behavior.
+    // for example, scale and bias shape [c] are canonicalized to [1,c,1,1], not [1,1,1,c]. Common canonicalization is disabled in this case.
+    const auto& ops = body_ptr()->get_ordered_ops();
+    const auto& is_gn_subgraph = std::any_of(ops.cbegin(), ops.cend(),
+        [](const std::shared_ptr<Node>& op) { return ov::is_type<ov::op::v12::GroupNormalization>(op); });
     if (!blocked_input_shapes.empty() && !is_gn_subgraph)
         manager.register_pass<snippets::pass::Canonicalization>(blocked_input_shapes);
     if (!input_precisions.empty() && !output_precisions.empty())

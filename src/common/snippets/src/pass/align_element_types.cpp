@@ -78,7 +78,7 @@ bool pass::AlignElementTypes::run_on_model(const std::shared_ptr<ov::Model>& m) 
             parameter->set_element_type(needed_in_type);
             parameter->validate_and_infer_types();
 
-            // Note: shape infer ops is designed for shape-inference purposes only.
+            // Note: shape infer ops are designed for shape-inference purposes only.
             // It does not process any data (nor does it emit any code), so it doesn't require Convert operations
             const auto& shape_infer_leaf = utils::get_leaf_node_of_first_child_shape_infer_seq(parameter);
             const auto& first_child = shape_infer_leaf ? shape_infer_leaf : parameter;
