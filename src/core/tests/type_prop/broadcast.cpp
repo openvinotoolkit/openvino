@@ -8,7 +8,6 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -29,7 +28,8 @@ TYPED_TEST_SUITE_P(BroadcastTests);
 
 TYPED_TEST_P(BroadcastTests, broadcast_dynamic_value_propagation) {
     ov::Dimension marked = ov::Dimension(3);
-    ov::DimensionTracker::set_label(marked, 10);
+    auto A = std::make_shared<ov::Symbol>();
+    marked.set_symbol(A);
     ov::PartialShape target = ov::PartialShape{1, 2, marked, 4};
 
     auto param = make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1});
@@ -47,7 +47,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_dynamic_value_propagation) {
     auto bc = make_shared<TypeParam>(param, target_shape);
     ASSERT_EQ(bc->get_element_type(), ov::element::f32);
     ASSERT_EQ(bc->get_shape(), (ov::Shape{3, 5}));
-    ASSERT_EQ(ov::DimensionTracker::get_label(bc->get_output_partial_shape(0)[0]), 10);
+    ASSERT_TRUE(ov::symbol::are_equal(bc->get_output_partial_shape(0)[0].get_symbol(), A));
 }
 
 TYPED_TEST_P(BroadcastTests, broadcast_numpy) {
@@ -987,15 +987,23 @@ TEST(type_prop, broadcast_v3_bidirectional_data_bigger_rank_numpy) {
                     HasSubstr("Broadcast target_shape has smaller rank"));
 }
 
-TEST(type_prop, broadcast_v3_labels_in0_dynamic_mixed_dims_bidirectional) {
-    // All dimensions of A have labels, B without labels
+TEST(type_prop, broadcast_v3_symbols_in0_dynamic_mixed_dims_bidirectional) {
+    // All dimensions of A have symbols, B without symbols
     ov::PartialShape pshape_a{-1, 2, 1, {4, 8}, -1, {4, 8}, -1, {1, 8}, {1, 10}, {4, 18}};
     ov::PartialShape pshape_b{-1, 2, {3, 9}, 1, {3, 9}, -1, {1, 9}, -1, {3, 19}, {1, 10}};
 
     ov::PartialShape expected_shape = {-1, 2, {3, 9}, {4, 8}, {3, 9}, {4, 8}, -1, -1, {3, 19}, {4, 18}};
-    ov::TensorLabel expected_labels{10, 11, ov::no_label, 13, ov::no_label, 15, 16, 17, ov::no_label, 19};
 
-    set_shape_labels(pshape_a, {10, 11, 12, 13, 14, 15, 16, 17, 18, 19});
+    auto A = std::make_shared<ov::Symbol>(), B = std::make_shared<ov::Symbol>(), C = std::make_shared<ov::Symbol>(),
+         D = std::make_shared<ov::Symbol>();
+    auto E = std::make_shared<ov::Symbol>(), F = std::make_shared<ov::Symbol>(), G = std::make_shared<ov::Symbol>(),
+         H = std::make_shared<ov::Symbol>();
+    auto I = std::make_shared<ov::Symbol>(), J = std::make_shared<ov::Symbol>();
+    const std::shared_ptr<ov::Symbol> NO = nullptr;
+
+    ov::TensorSymbol expected_symbols{A, B, NO, D, NO, F, G, H, NO, J};
+
+    set_shape_symbols(pshape_a, {A, B, C, D, E, F, G, H, I, J});
 
     auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, pshape_a);
     auto target_shape = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, pshape_b);
@@ -1006,18 +1014,25 @@ TEST(type_prop, broadcast_v3_labels_in0_dynamic_mixed_dims_bidirectional) {
     const auto out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+    EXPECT_EQ(get_shape_symbols(out_shape), expected_symbols);
 }
 
-TEST(type_prop, broadcast_v3_labels_in1_dynamic_mixed_dims_bidirectional) {
-    // All dimensions of B have labels, A without labels
+TEST(type_prop, broadcast_v3_symbols_in1_dynamic_mixed_dims_bidirectional) {
+    // All dimensions of B have symbols, A without symbols
     ov::PartialShape pshape_a{-1, 2, 1, {4, 8}, -1, {4, 8}, -1, {1, 8}, {1, 10}, {4, 18}};
     ov::PartialShape pshape_b{-1, 2, {3, 9}, 1, {3, 9}, -1, {1, 9}, -1, {3, 19}, {1, 10}};
 
-    ov::PartialShape expected_shape = {-1, 2, {3, 9}, {4, 8}, {3, 9}, {4, 8}, -1, -1, {3, 19}, {4, 18}};
-    ov::TensorLabel expected_labels{10, 11, 12, ov::no_label, 14, ov::no_label, 16, 17, 18, ov::no_label};
+    auto A = std::make_shared<ov::Symbol>(), B = std::make_shared<ov::Symbol>(), C = std::make_shared<ov::Symbol>(),
+         D = std::make_shared<ov::Symbol>();
+    auto E = std::make_shared<ov::Symbol>(), F = std::make_shared<ov::Symbol>(), G = std::make_shared<ov::Symbol>(),
+         H = std::make_shared<ov::Symbol>();
+    auto I = std::make_shared<ov::Symbol>(), J = std::make_shared<ov::Symbol>();
+    const std::shared_ptr<ov::Symbol> NO = nullptr;
 
-    set_shape_labels(pshape_b, {10, 11, 12, 13, 14, 15, 16, 17, 18, 19});
+    ov::PartialShape expected_shape = {-1, 2, {3, 9}, {4, 8}, {3, 9}, {4, 8}, -1, -1, {3, 19}, {4, 18}};
+    ov::TensorSymbol expected_symbols{A, B, C, NO, E, NO, G, H, I, NO};
+
+    set_shape_symbols(pshape_b, {A, B, C, D, E, F, G, H, I, J});
 
     auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, pshape_a);
     auto target_shape = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, pshape_b);
@@ -1028,19 +1043,31 @@ TEST(type_prop, broadcast_v3_labels_in1_dynamic_mixed_dims_bidirectional) {
     const auto out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+    EXPECT_EQ(get_shape_symbols(out_shape), expected_symbols);
 }
 
-TEST(type_prop, broadcast_v3_labels_different_dynamic_mixed_dims_broadcast_bidirectional) {
-    // Both params have dimensions with different labels
+TEST(type_prop, broadcast_v3_symbols_different_dynamic_mixed_dims_broadcast_bidirectional) {
+    // Both params have dimensions with different symbols
     ov::PartialShape pshape_a{-1, 2, 1, {4, 8}, -1, {4, 8}, -1, {1, 8}, {1, 10}, {4, 18}};
     ov::PartialShape pshape_b{-1, 2, {3, 9}, 1, {3, 9}, -1, {1, 9}, -1, {3, 19}, {1, 10}};
 
     ov::PartialShape expected_shape = {-1, 2, {3, 9}, {4, 8}, {3, 9}, {4, 8}, -1, -1, {3, 19}, {4, 18}};
-    ov::TensorLabel expected_labels{ov::no_label, 21, 22, 13, 24, 15, ov::no_label, ov::no_label, 28, 19};
 
-    set_shape_labels(pshape_a, {10, 11, 12, 13, 14, 15, 16, 17, 18, 19});
-    set_shape_labels(pshape_b, {20, 21, 22, 23, 24, 25, 26, 27, 28, 29});
+    auto A = std::make_shared<ov::Symbol>(), B = std::make_shared<ov::Symbol>(), C = std::make_shared<ov::Symbol>(),
+         D = std::make_shared<ov::Symbol>();
+    auto E = std::make_shared<ov::Symbol>(), F = std::make_shared<ov::Symbol>(), G = std::make_shared<ov::Symbol>(),
+         H = std::make_shared<ov::Symbol>();
+    auto I = std::make_shared<ov::Symbol>(), J = std::make_shared<ov::Symbol>(), K = std::make_shared<ov::Symbol>(),
+         L = std::make_shared<ov::Symbol>();
+    auto M = std::make_shared<ov::Symbol>(), N = std::make_shared<ov::Symbol>(), O = std::make_shared<ov::Symbol>(),
+         P = std::make_shared<ov::Symbol>();
+    auto Q = std::make_shared<ov::Symbol>(), R = std::make_shared<ov::Symbol>(), S = std::make_shared<ov::Symbol>(),
+         T = std::make_shared<ov::Symbol>();
+    const std::shared_ptr<ov::Symbol> NO = nullptr;
+    ov::TensorSymbol expected_symbols{NO, B, M, D, O, F, NO, NO, S, J};
+
+    set_shape_symbols(pshape_a, {A, B, C, D, E, F, G, H, I, J});
+    set_shape_symbols(pshape_b, {K, L, M, N, O, P, Q, R, S, T});
 
     auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, pshape_a);
     auto target_shape = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, pshape_b);
@@ -1051,19 +1078,19 @@ TEST(type_prop, broadcast_v3_labels_different_dynamic_mixed_dims_broadcast_bidir
     const auto out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+    EXPECT_EQ(get_shape_symbols(out_shape), expected_symbols);
 }
 
-TEST(type_prop, broadcast_v3_labels_same_dynamic_mixed_dims_broadcast_bidirectional) {
-    // Both params have dimensions with the same labels
+TEST(type_prop, broadcast_v3_symbols_same_dynamic_mixed_dims_broadcast_bidirectional) {
+    // Both params have dimensions with the same symbols
     ov::PartialShape pshape_a{-1, 2, 1, {4, 8}, -1, {4, 8}, -1, {1, 8}, {1, 10}, {4, 18}};
     ov::PartialShape pshape_b{-1, 2, {3, 9}, 1, {3, 9}, -1, {1, 9}, -1, {3, 19}, {1, 10}};
 
     ov::PartialShape expected_shape = {-1, 2, {3, 9}, {4, 8}, {3, 9}, {4, 8}, -1, -1, {3, 19}, {4, 18}};
-    ov::TensorLabel expected_labels{10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
+    auto expected_symbols = set_shape_symbols(expected_shape);
 
-    set_shape_labels(pshape_a, expected_labels);
-    set_shape_labels(pshape_b, expected_labels);
+    set_shape_symbols(pshape_a, expected_symbols);
+    set_shape_symbols(pshape_b, expected_symbols);
 
     auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, pshape_a);
     auto target_shape = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, pshape_b);
@@ -1074,7 +1101,7 @@ TEST(type_prop, broadcast_v3_labels_same_dynamic_mixed_dims_broadcast_bidirectio
     const auto out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+    EXPECT_EQ(get_shape_symbols(out_shape), expected_symbols);
 }
 
 TEST(type_prop, broadcast_v3_in0_interval_in1_param_rank_bigger_bidirectional) {
@@ -1095,12 +1122,12 @@ TEST(type_prop, broadcast_v3_in0_interval_in1_param_rank_smaller_bidirectional) 
     EXPECT_EQ(broadcast->get_output_partial_shape(0), (ov::PartialShape{-1, 2, -1, {4, 8}, -1}));
 }
 
-TEST(type_prop, broadcast_v3_labels_in0_dims_in1_param_bidirectional) {
+TEST(type_prop, broadcast_v3_symbols_in0_dims_in1_param_bidirectional) {
     ov::PartialShape pshape_a{-1, 2, 1, {4, 8}, {1, 10}};
 
     ov::PartialShape expected_shape{-1, 2, -1, {4, 8}, -1};
-    ov::TensorLabel expected_labels{10, 11, 12, 13, 14};
-    set_shape_labels(pshape_a, expected_labels);
+    auto expected_symbols = set_shape_symbols(expected_shape);
+    set_shape_symbols(pshape_a, expected_symbols);
 
     auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, pshape_a);
     auto target_shape_param = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{5});
@@ -1109,7 +1136,7 @@ TEST(type_prop, broadcast_v3_labels_in0_dims_in1_param_bidirectional) {
     const auto& out_shape = broadcast->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+    EXPECT_EQ(get_shape_symbols(out_shape), expected_symbols);
 }
 
 TEST(type_prop, broadcast_v3_non_broadcastable_dims_numpy) {
@@ -1130,15 +1157,15 @@ TEST(type_prop, broadcast_v3_non_broadcastable_dims_numpy) {
     EXPECT_EQ(out_shape, expected_shape);
 }
 
-TEST(type_prop, broadcast_v3_labels_in0_dynamic_mixed_dims_numpy) {
+TEST(type_prop, broadcast_v3_symbols_in0_dynamic_mixed_dims_numpy) {
     // Numpy mode for v3::Broadcast mode is one directional
-    // All dimensions of A have labels, B without labels
+    // All dimensions of A have symbols, B without symbols
     ov::PartialShape pshape_a{-1, 2, 1, -1, {4, 8}, -1, {1, 8}, {1, 10}, {4, 18}};
     ov::PartialShape pshape_b{-1, 2, {3, 9}, {4, 10}, -1, {5, 11}, -1, {6, 20}, {1, 10}};
 
     ov::PartialShape expected_shape = {-1, 2, {3, 9}, {4, 10}, -1, {5, 11}, -1, {6, 20}, {1, 10}};
 
-    set_shape_labels(pshape_a, {10, 11, 12, 13, 14, 15, 16, 17, 18});
+    set_shape_symbols(pshape_a);
 
     auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, pshape_a);
     auto target_shape = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, pshape_b);
@@ -1148,46 +1175,20 @@ TEST(type_prop, broadcast_v3_labels_in0_dynamic_mixed_dims_numpy) {
 
     const auto out_shape = op->get_output_partial_shape(0);
     EXPECT_EQ(out_shape, expected_shape);
-    // Output shape is a copy of the target shape value, the `A` labels are not propagated
-    EXPECT_THAT(get_shape_labels(out_shape), Each(ov::no_label));
+    // Output shape is a copy of the target shape value, the `A` symbols are not propagated
+    EXPECT_THAT(get_shape_symbols(out_shape), Each(nullptr));
 }
 
-TEST(type_prop, broadcast_v3_labels_in1_dynamic_mixed_dims_numpy) {
+TEST(type_prop, broadcast_v3_symbols_in1_dynamic_mixed_dims_numpy) {
     // Numpy mode for v3::Broadcast mode is one directional
-    // All dimensions of B have labels, A without labels
+    // All dimensions of B have symbols, A without symbols
     ov::PartialShape pshape_a{-1, 2, 1, -1, {4, 8}, -1, {1, 8}, {1, 10}, {4, 18}};
     ov::PartialShape pshape_b{-1, 2, {3, 9}, {4, 10}, -1, {5, 11}, -1, {6, 20}, {1, 10}};
 
     ov::PartialShape expected_shape = {-1, 2, {3, 9}, {4, 10}, -1, {5, 11}, -1, {6, 20}, {1, 10}};
-    // Output shape is a copy of the target shape, `B` labels are propagated
-    ov::TensorLabel expected_labels{10, 11, 12, 13, 14, 15, 16, 17, 18};
-
-    set_shape_labels(pshape_b, expected_labels);
-
-    auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, pshape_a);
-    auto target_shape = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, pshape_b);
-    auto shape_of = make_shared<ov::op::v3::ShapeOf>(target_shape);
-
-    auto op = make_shared<ov::op::v3::Broadcast>(data, shape_of, "NUMPY");
-
-    const auto out_shape = op->get_output_partial_shape(0);
-
-    EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
-}
-
-TEST(type_prop, broadcast_v3_labels_both_inputs_dynamic_mixed_dims_numpy) {
-    // Numpy mode for v3::Broadcast mode is one directional
-    // All dimensions of A and B have labels
-    ov::PartialShape pshape_a{-1, 2, 1, -1, {4, 8}, -1, {1, 8}, {1, 10}, {4, 18}};
-    ov::PartialShape pshape_b{-1, 2, {3, 9}, {4, 10}, -1, {5, 11}, -1, {6, 20}, {1, 10}};
-
-    ov::PartialShape expected_shape = {-1, 2, {3, 9}, {4, 10}, -1, {5, 11}, -1, {6, 20}, {1, 10}};
-    // Output shape is a copy of the target shape, `B` labels are propagated
-    ov::TensorLabel expected_labels{20, 21, 22, 23, 24, 25, 26, 27, 28};
-
-    set_shape_labels(pshape_a, {10, 11, 12, 13, 14, 15, 16, 17, 18});
-    set_shape_labels(pshape_b, {20, 21, 22, 23, 24, 25, 26, 27, 28});
+    // Output shape is a copy of the target shape, `B` symbols are propagated
+    auto expected_symbols = set_shape_symbols(expected_shape);
+    set_shape_symbols(pshape_b, expected_symbols);
 
     auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, pshape_a);
     auto target_shape = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, pshape_b);
@@ -1198,17 +1199,40 @@ TEST(type_prop, broadcast_v3_labels_both_inputs_dynamic_mixed_dims_numpy) {
     const auto out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+    EXPECT_EQ(get_shape_symbols(out_shape), expected_symbols);
 }
 
-TEST(type_prop, broadcast_v3_labels_dynamic_mixed_dims_explicit) {
+TEST(type_prop, broadcast_v3_symbols_both_inputs_dynamic_mixed_dims_numpy) {
+    // Numpy mode for v3::Broadcast mode is one directional
+    // All dimensions of A and B have symbols
+    ov::PartialShape pshape_a{-1, 2, 1, -1, {4, 8}, -1, {1, 8}, {1, 10}, {4, 18}};
+    ov::PartialShape pshape_b{-1, 2, {3, 9}, {4, 10}, -1, {5, 11}, -1, {6, 20}, {1, 10}};
+
+    ov::PartialShape expected_shape = {-1, 2, {3, 9}, {4, 10}, -1, {5, 11}, -1, {6, 20}, {1, 10}};
+    // Output shape is a copy of the target shape, `B` symbols are propagated
+
+    set_shape_symbols(pshape_a);
+    auto expected_symbols = set_shape_symbols(pshape_b);
+
+    auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, pshape_a);
+    auto target_shape = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, pshape_b);
+    auto shape_of = make_shared<ov::op::v3::ShapeOf>(target_shape);
+
+    auto op = make_shared<ov::op::v3::Broadcast>(data, shape_of, "NUMPY");
+
+    const auto out_shape = op->get_output_partial_shape(0);
+
+    EXPECT_EQ(out_shape, expected_shape);
+    EXPECT_EQ(get_shape_symbols(out_shape), expected_symbols);
+}
+
+TEST(type_prop, broadcast_v3_symbols_dynamic_mixed_dims_explicit) {
     ov::PartialShape pshape_a{2, {6, 8}, -1};
     ov::PartialShape pshape_b{2, -1, {6, 8}, -1, 5};
 
     ov::PartialShape expected_shape = {2, -1, {6, 8}, -1, 5};
-    ov::TensorLabel expected_labels{21, 22, 23, 24, 25};
 
-    set_shape_labels(pshape_b, {21, 22, 23, 24, 25});
+    auto expected_symbols = set_shape_symbols(pshape_b);
     auto axis_map =
         std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{0, 2, 3});
 
@@ -1221,20 +1245,19 @@ TEST(type_prop, broadcast_v3_labels_dynamic_mixed_dims_explicit) {
     const auto out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+    EXPECT_EQ(get_shape_symbols(out_shape), expected_symbols);
 }
 
-TEST(type_prop, broadcast_v3_eval_labels_static_dims_numpy) {
+TEST(type_prop, broadcast_v3_eval_symbols_static_dims_numpy) {
     // Numpy mode for v3::Broadcast mode is one directional
-    // All dimensions of A have labels, B without labels
+    // All dimensions of A have symbols, B without symbols
     ov::PartialShape pshape_a{1, 1};
     ov::PartialShape pshape_b{2, 3};
     ov::PartialShape pshape_c{1, 3};
 
     ov::PartialShape expected_shape = {2, 3};
-    ov::TensorLabel expected_labels{22, 23};
 
-    set_shape_labels(pshape_b, {22, 23});
+    auto expected_symbols = set_shape_symbols(pshape_b);
 
     auto a = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, pshape_a);
     auto b = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, pshape_b);
@@ -1250,20 +1273,24 @@ TEST(type_prop, broadcast_v3_eval_labels_static_dims_numpy) {
     const auto out_shape = broadcast_c->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+    EXPECT_EQ(get_shape_symbols(out_shape), expected_symbols);
 }
 
-TEST(type_prop, broadcast_v3_eval_labels_static_dims_bidirectional) {
+TEST(type_prop, broadcast_v3_eval_symbols_static_dims_bidirectional) {
     ov::PartialShape pshape_a{1, 3};
     ov::PartialShape pshape_b{2, 1};
     ov::PartialShape pshape_c{1, 1};
 
     ov::PartialShape expected_shape = {2, 3};
-    ov::TensorLabel expected_labels{22, 13};
 
-    set_shape_labels(pshape_a, {12, 13});
-    set_shape_labels(pshape_b, {22, 23});
-    set_shape_labels(pshape_c, {33, 33});
+    auto A = std::make_shared<ov::Symbol>(), B = std::make_shared<ov::Symbol>(), C = std::make_shared<ov::Symbol>(),
+         D = std::make_shared<ov::Symbol>();
+    auto E = std::make_shared<ov::Symbol>(), F = std::make_shared<ov::Symbol>();
+    ov::TensorSymbol expected_symbols{C, B};
+
+    set_shape_symbols(pshape_a, {A, B});
+    set_shape_symbols(pshape_b, {C, D});
+    set_shape_symbols(pshape_c, {E, F});
 
     auto a = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, pshape_a);
     auto b = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, pshape_b);
@@ -1279,7 +1306,7 @@ TEST(type_prop, broadcast_v3_eval_labels_static_dims_bidirectional) {
     const auto out_shape = broadcast_c->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+    EXPECT_EQ(get_shape_symbols(out_shape), expected_symbols);
 }
 
 TEST(type_prop, broadcast_v3_bidirectional_tricky_partial_value_case_and_equal_partial_value_propagation) {

@@ -133,6 +133,11 @@ const std::vector<ov::AnyMap> configsDevicePropertiesDouble = {
      ov::device::properties(ov::AnyMap{{"CPU", ov::AnyMap{ov::num_streams(5)}}})}};
 
 
+
+
+
+
+
 // OV Class load and check network with ov::device::properties
 INSTANTIATE_TEST_SUITE_P(smoke_CPU_OVClassCompileModelAndCheckSecondaryPropertiesTest,
                          OVClassCompileModelAndCheckSecondaryPropertiesTest,

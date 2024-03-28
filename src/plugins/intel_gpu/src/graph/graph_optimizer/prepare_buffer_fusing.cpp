@@ -344,6 +344,11 @@ void concat_in_place_optimization::update_in_place_concat_paddings(
 }  // namespace cldnn
 
 static bool can_reshape_be_optimized(const reshape_node& node) {
+    // In case if pad is not propagated, the primitive can't be optimized out
+    if (node.get_input_layout(0).has_dynamic_pad() && !node.get_output_layout(0).has_dynamic_pad()) {
+        return false;
+    }
+
     if (node.has_fused_primitives())
         return false;
 
@@ -503,6 +508,8 @@ void prepare_buffer_fusing::run(program& p) {
                     return;
                 if (user->is_type<loop>() || user->is_type<non_max_suppression>())
                     return;
+            }
+            for (auto user : node.get_users()) {
                 if (user->is_type<reshape>()) {
                     auto& reshape_node = user->as<reshape>();
                     if (can_reshape_be_optimized(reshape_node))

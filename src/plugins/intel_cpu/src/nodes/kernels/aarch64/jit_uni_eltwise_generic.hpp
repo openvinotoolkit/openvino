@@ -173,7 +173,10 @@ private:
     // 09      | dst
     // 10      | aux
     // 11      | aux
-    // 12-15   | [not used]
+    // 12      | aux
+    // 13      | aux
+    // 14      | aux
+    // 15      | [not used]
     // 16      | src
     // 17      | src
     // 18      | src
@@ -201,7 +204,7 @@ private:
     }
 
     inline TReg get_aux_vmm(const uint32_t idx) {
-        if (idx > 2) {
+        if (idx > 4) {
             OPENVINO_THROW("aux vector register " + std::to_string(idx) + " is not supported");
         }
         return TReg(10 + idx);

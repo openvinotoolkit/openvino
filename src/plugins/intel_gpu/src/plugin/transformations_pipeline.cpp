@@ -61,6 +61,7 @@
 #include "plugin/transformations/transpose_matmul_fusion.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
 #include "plugin/transformations/convert_convolution.hpp"
+#include "plugin/transformations/broadcast_reshape_matmul_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
@@ -275,7 +276,16 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return !is_type<ov::op::v0::MatMul>(next_node);
             });
 
-        manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8, ov::element::u4, ov::element::i4}, true);
+        // Disable subtract folding only for the dGPUs to meet the requirements of oneDNN:
+        // it expects to have the same data type for weights and zero points (apply it only for u8 data type, since other compression
+        // types are not supported by oneDNN)
+        if (device_info.supports_immad) {
+            manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8}, false);
+            manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u4, ov::element::i4}, true);
+        } else {
+            manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8, ov::element::u4, ov::element::i4}, true);
+        }
+
         // Need to check if transfomrations work correctly for mixed models with both compression and quantization at the same time.
         if (!is_model_quantized)
             pass_config->set_callback<ov::pass::MarkDequantizationSubgraph>(is_non_supported_decompression_op);
@@ -711,6 +721,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();
         manager.register_pass<ov::intel_gpu::ConvertConvolutionToInternal>();
+        if (!device_info.supports_immad)
+            manager.register_pass<ov::intel_gpu::BroadcastReshapeMatmulFusion>();
 
         const size_t zp_pad_size = 32;
         manager.register_pass<ov::intel_gpu::BroadcastAndPadZeroPointBuffers>(zp_pad_size);
