@@ -412,8 +412,53 @@ public:
     }
 };
 
+template <typename T1, typename T2>
+inline double calculate_default_abs_threshold(const ov::element::Type& inference_precision) {
+    std::vector<double> values = { std::numeric_limits<T1>::epsilon(), std::numeric_limits<T2>::epsilon()};
+#define CASE(X)                                                                                     \
+    case X:                                                                                         \
+        values.push_back(std::numeric_limits<element_type_traits<X>::value_type>::epsilon());       \
+        break;
+
+    switch (inference_precision) {
+        CASE(ov::element::Type_t::boolean)
+        CASE(ov::element::Type_t::bf16)
+        CASE(ov::element::Type_t::f16)
+        CASE(ov::element::Type_t::f32)
+        CASE(ov::element::Type_t::f64)
+        CASE(ov::element::Type_t::i4)
+        CASE(ov::element::Type_t::i8)
+        CASE(ov::element::Type_t::i16)
+        CASE(ov::element::Type_t::i32)
+        CASE(ov::element::Type_t::i64)
+        CASE(ov::element::Type_t::u1)
+        CASE(ov::element::Type_t::u4)
+        CASE(ov::element::Type_t::u8)
+        CASE(ov::element::Type_t::u16)
+        CASE(ov::element::Type_t::u32)
+        CASE(ov::element::Type_t::u64)
+    default:
+        break;
+    }
+#undef CASE
+
+    double threshold = *std::max_element(values.begin(), values.end());
+    return threshold;
+}
+
+inline double calculate_default_rel_threshold(const ov::element::Type& expected_type,
+                                              const ov::element::Type& actual_type,
+                                              const ov::element::Type& inference_precision) {
+    std::vector<double> values{ get_eps_by_ov_type(expected_type), get_eps_by_ov_type(actual_type)};
+    try {
+        values.push_back(get_eps_by_ov_type(inference_precision));
+    } catch (const std::exception& e) {}
+    double threshold = *std::max_element(values.begin(), values.end());
+    return threshold;
+}
+
 template <typename ExpectedT, typename ActualT>
-void compare(const ov::Tensor& expected, const ov::Tensor& actual, double abs_threshold, double rel_threshold) {
+void compare(const ov::Tensor& expected, const ov::Tensor& actual, double abs_threshold, double rel_threshold, const ov::element::Type& inference_precision) {
     auto expected_shape = expected.get_shape();
     auto actual_shape = actual.get_shape();
     if (expected_shape != actual_shape) {
@@ -424,13 +469,12 @@ void compare(const ov::Tensor& expected, const ov::Tensor& actual, double abs_th
         return;
     }
 
-    if (abs_threshold == std::numeric_limits<double>::max()) {
-        abs_threshold = std::max((double)std::numeric_limits<ExpectedT>::epsilon(),
-                                 (double)std::numeric_limits<ActualT>::epsilon());
+    if (abs_threshold < 0) {
+        abs_threshold = calculate_default_abs_threshold<ActualT, ExpectedT>(inference_precision);
     }
 
-    if (rel_threshold == std::numeric_limits<double>::max()) {
-        rel_threshold = get_eps_by_ov_type(expected.get_element_type());
+    if (rel_threshold < 0) {
+        rel_threshold = calculate_default_rel_threshold(expected.get_element_type(), actual.get_element_type(), inference_precision);
     }
 
     size_t shape_size_cnt = shape_size(expected_shape);
@@ -468,13 +512,15 @@ void compare_str(const ov::Tensor& expected, const ov::Tensor& actual) {
 void compare(const ov::Tensor& expected,
              const ov::Tensor& actual,
              const double abs_threshold,
-             const double rel_threshold) {
+             const double rel_threshold,
+             const ov::element::Type& inference_precision) {
 #define CASE0(X, Y)                                                                                     \
     case Y:                                                                                             \
         compare<element_type_traits<X>::value_type, element_type_traits<Y>::value_type>(expected,       \
                                                                                         actual,         \
                                                                                         abs_threshold,  \
-                                                                                        rel_threshold); \
+                                                                                        rel_threshold,  \
+                                                                                        inference_precision); \
         break;
 
 #define CASE(X)                                          \

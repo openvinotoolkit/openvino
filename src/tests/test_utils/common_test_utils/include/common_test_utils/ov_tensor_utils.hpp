@@ -130,9 +130,11 @@ ov::Tensor create_and_fill_tensor_real_distribution(const ov::element::Type elem
 
 void compare(const ov::Tensor& expected,
              const ov::Tensor& actual,
-             const double abs_threshold = std::numeric_limits<double>::max(),
-             const double rel_threshold = std::numeric_limits<double>::max());
+             const double abs_threshold = -1,
+             const double rel_threshold = -1,
+             const ov::element::Type& inference_precision = ov::element::undefined);
 
+// todo: replace this function by `compare(expected, actual)`
 void compare_str(const ov::Tensor& expected, const ov::Tensor& actual);
 }  // namespace utils
 }  // namespace test

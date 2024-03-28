@@ -18,15 +18,17 @@ namespace utils {
 namespace {
 void compare(const std::shared_ptr<ov::Node> &node,
              size_t port,
+             const ov::element::Type& inference_precision,
              const ov::Tensor &expected,
              const ov::Tensor &actual,
              double absThreshold,
              double relThreshold) {
-    ov::test::utils::compare(expected, actual, absThreshold, relThreshold);
+    ov::test::utils::compare(expected, actual, absThreshold, relThreshold, inference_precision);
 }
 
 void compare(const std::shared_ptr<ov::op::v0::DetectionOutput> &node,
              size_t port,
+             const ov::element::Type& inference_precision,
              const ov::Tensor &expected,
              const ov::Tensor &actual,
              double absThreshold,
@@ -52,7 +54,7 @@ void compare(const std::shared_ptr<ov::op::v0::DetectionOutput> &node,
             actSize += 7;
         }
         ASSERT_EQ(expSize, actSize);
-        ov::test::utils::compare(expected, actual, 1e-2f, relThreshold);
+        ov::test::utils::compare(expected, actual, 1e-2f, relThreshold, inference_precision);
 }
 
 namespace color_conversion {
@@ -103,11 +105,12 @@ inline void validate_colors(const ov::Tensor& expected, const ov::Tensor& actual
 
 void compare(const std::shared_ptr<ov::op::v8::I420toRGB> &node,
              size_t port,
+             const ov::element::Type& inference_precision,
              const ov::Tensor &expected,
              const ov::Tensor &actual,
              double absThreshold,
              double relThreshold) {
-    ov::test::utils::compare(expected, actual, absThreshold, relThreshold);
+    ov::test::utils::compare(expected, actual, absThreshold, relThreshold, inference_precision);
 
     // Allow less than 2% of deviations with 1 color step. 2% is experimental value
     // For different calculation methods - 1.4% deviation is observed
@@ -116,11 +119,12 @@ void compare(const std::shared_ptr<ov::op::v8::I420toRGB> &node,
 
 void compare(const std::shared_ptr<ov::op::v8::I420toBGR> &node,
              size_t port,
+             const ov::element::Type& inference_precision,
              const ov::Tensor &expected,
              const ov::Tensor &actual,
              double absThreshold,
              double relThreshold) {
-    ov::test::utils::compare(expected, actual, absThreshold, relThreshold);
+    ov::test::utils::compare(expected, actual, absThreshold, relThreshold, inference_precision);
 
     // Allow less than 2% of deviations with 1 color step. 2% is experimental value
     // For different calculation methods - 1.4% deviation is observed
@@ -129,11 +133,12 @@ void compare(const std::shared_ptr<ov::op::v8::I420toBGR> &node,
 
 void compare(const std::shared_ptr<ov::op::v8::NV12toRGB> &node,
              size_t port,
+             const ov::element::Type& inference_precision,
              const ov::Tensor &expected,
              const ov::Tensor &actual,
              double absThreshold,
              double relThreshold) {
-    ov::test::utils::compare(expected, actual, absThreshold, relThreshold);
+    ov::test::utils::compare(expected, actual, absThreshold, relThreshold, inference_precision);
 
     // Allow less than 2% of deviations with 1 color step. 2% is experimental value
     // For different calculation methods - 1.4% deviation is observed
@@ -142,11 +147,12 @@ void compare(const std::shared_ptr<ov::op::v8::NV12toRGB> &node,
 
 void compare(const std::shared_ptr<ov::op::v8::NV12toBGR> &node,
              size_t port,
+             const ov::element::Type& inference_precision,
              const ov::Tensor &expected,
              const ov::Tensor &actual,
              double absThreshold,
              double relThreshold) {
-    ov::test::utils::compare(expected, actual, absThreshold, relThreshold);
+    ov::test::utils::compare(expected, actual, absThreshold, relThreshold, inference_precision);
 
     // Allow less than 2% of deviations with 1 color step. 2% is experimental value
     // For different calculation methods - 1.4% deviation is observed
@@ -156,11 +162,12 @@ void compare(const std::shared_ptr<ov::op::v8::NV12toBGR> &node,
 template<typename T>
 void compareResults(const std::shared_ptr<ov::Node> &node,
                     size_t port,
+                    const ov::element::Type& inference_precision,
                     const ov::Tensor &expected,
                     const ov::Tensor &actual,
                     double absThreshold,
                     double relThreshold) {
-    return compare(ov::as_type_ptr<T>(node), port, expected, actual, absThreshold, relThreshold);
+    return compare(ov::as_type_ptr<T>(node), port, inference_precision, expected, actual, absThreshold, relThreshold);
 }
 
 } // namespace
