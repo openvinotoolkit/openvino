@@ -235,7 +235,6 @@ void max_pool(const Values_t* data,
               const Shape& pads_begin,
               const Shape& pads_end,
               const int64_t axis = 0) {
-    std::cout << "\n\n Using reference implementation\n\n";
     const auto data_batch_elems = shape_size(std::begin(data_shape) + 1, std::end(data_shape));
     const auto data_channel_elems = shape_size(std::begin(data_shape) + 2, std::end(data_shape));
 

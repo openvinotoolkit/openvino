@@ -16,20 +16,16 @@ ov::pass::ConvertMaxPool8ToMaxPool1::ConvertMaxPool8ToMaxPool1() {
     
     auto maxpool_v8_pattern = pattern::wrap_type<ov::op::v8::MaxPool>();
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-    std::cout << "\n\nLaunching 8->1 downgrade\n\n";
         auto maxpool_v8_node = std::dynamic_pointer_cast<ov::op::v8::MaxPool>(m.get_match_root());
 
         if (!maxpool_v8_node || maxpool_v8_node->get_output_target_inputs(1).size() != 0) {
-            std::cout << "\n\n1st false\n\n";
             return false;
         }
             
 
         for (auto dilation : maxpool_v8_node->get_dilations())
         {
-            std::cout << "\nDilations: " << dilation << "\n";
             if (dilation != 1) {
-                std::cout << "\n\n2nd false\n\n";
                 return false;
             }
                 
@@ -56,7 +52,6 @@ ov::pass::ConvertMaxPool8ToMaxPool1::ConvertMaxPool8ToMaxPool1() {
         ov::descriptor::set_ov_tensor_legacy_name(maxpool_v1_node->output(0).get_tensor(), out_name);
         OPENVINO_SUPPRESS_DEPRECATED_END
 
-        std::cout << "\n\nTransformation 8->1 complete\n\n";
         return true;
     };
 
@@ -70,31 +65,18 @@ ov::pass::ConvertMaxPool14ToMaxPool8::ConvertMaxPool14ToMaxPool8() {
     const auto max_pool_v14_pattern = pattern::wrap_type<ov::op::v14::MaxPool>();
 
     const matcher_pass_callback callback = [](pattern::Matcher& m) {
-        std::cout << "\n\nLaunching 14->8 downgrade\n\n";
         const auto max_pool_v14 = std::dynamic_pointer_cast<ov::op::v14::MaxPool>(m.get_match_root());
 
         if (!max_pool_v14 || max_pool_v14->get_output_target_inputs(1).size() != 0) {
-            std::cout << "\n\n1st false\n\n";
             return false;
-        }
-
-        for (auto dilation : max_pool_v14->get_dilations())
-        {
-            std::cout << "\nDilations: " << dilation << "\n";
-            if (dilation != 1)
-                std::cout << "\n\n2nd false\n\n";
-                return false;
         }
 
         const auto rounding_type_v14 = max_pool_v14->get_rounding_type();
         const auto rounding_type_v8 =
             rounding_type_v14 == ov::op::RoundingType::CEIL_TORCH ? ov::op::RoundingType::CEIL : rounding_type_v14;
-        std::cout << "\n\nDUPA1\n\n";
-        const auto dilations_v8 = max_pool_v14->get_dilations().size() > 1 ? ov::Strides(2, 1) : ov::Strides(1, 1);
-        std::cout << "\n\nDUPA2\n\n";
         const auto max_pool_v8 = std::make_shared<ov::op::v8::MaxPool>(max_pool_v14->input_value(0),
                                                                        max_pool_v14->get_strides(),
-                                                                       dilations_v8,
+                                                                       max_pool_v14->get_dilations(),
                                                                        max_pool_v14->get_pads_begin(),
                                                                        max_pool_v14->get_pads_end(),
                                                                        max_pool_v14->get_kernel(),
@@ -102,12 +84,11 @@ ov::pass::ConvertMaxPool14ToMaxPool8::ConvertMaxPool14ToMaxPool8() {
                                                                        max_pool_v14->get_auto_pad(),
                                                                        max_pool_v14->get_index_element_type(),
                                                                        max_pool_v14->get_axis());
-        std::cout << "\n\nMaxPool14 op created in transformation\n\n";
         max_pool_v8->set_friendly_name(max_pool_v14->get_friendly_name());
+        max_pool_v14->output(0).replace(max_pool_v8->output(0));
         copy_runtime_info(max_pool_v14, max_pool_v8);
-        replace_node(max_pool_v14, max_pool_v8);
+        max_pool_v14->clear_control_dependencies();
 
-        std::cout << "\n\nTransformation 14->8 complete\n\n";
         return true;
     };
 

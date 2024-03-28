@@ -152,7 +152,9 @@ bool Pooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
         std::cout << "\n\nThe op is v1 type: " << v1op;
         std::cout << "\nThe op is v8 type: " << v8op;
         std::cout << "\nThe op is v14 type: " << v14op << "\n\n";
-
+        if (ov::is_type<const ov::op::v14::MaxPool>(op)) {
+            return false;
+        }
         if (ov::is_type<const ov::op::v8::MaxPool>(op) || ov::is_type<const ov::op::v14::MaxPool>(op)) {
             std::cout << "\n\nIt's v8 or v14\n\n";
             if (!op->get_output_target_inputs(1).empty()) {
@@ -169,7 +171,7 @@ bool Pooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
         std::cout << "\n\nRandom error\n\n";
         return false;
     }
-    std::cout << "\n\nOperation is supported\n\n";
+    std::cout << "\n\nCPU implementation used\n\n";
     return true;
 }
 
