@@ -80,8 +80,9 @@ bool AclDeconvExecutor::init(const DeconvAttrs& deconvAttrs,
         biasTensor.allocator()->init(biasTensorInfo);
 
     deconv = std::make_unique<arm_compute::NEDeconvolutionLayer>();
-    deconv->configure(&srcTensor, &weiTensor, deconvAttrs.withBiasesParam ? &biasTensor : nullptr, &dstTensor, deconv_info);
-
+    configureThreadSafe([&] {
+        deconv->configure(&srcTensor, &weiTensor, deconvAttrs.withBiasesParam ? &biasTensor : nullptr, &dstTensor, deconv_info);
+    });
     // weights tensor shape is changed because ACL expects [O, I, H, W] tensor while OV uses [I, O, H, W] tensor
      weiBuffer = std::vector<float>(srcDescs[1]->getShape().getStaticDims()[0] *
                                     srcDescs[1]->getShape().getStaticDims()[1] *

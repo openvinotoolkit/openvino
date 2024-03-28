@@ -445,7 +445,7 @@ void compare(const ov::Tensor& expected, const ov::Tensor& actual, double abs_th
             continue;
         }
 
-        bool status = error.update(expected_value, actual_value, i);
+        bool status = error.update(actual_value, expected_value, i);
 #ifdef NDEBUG
         if (!status) {
             break;
