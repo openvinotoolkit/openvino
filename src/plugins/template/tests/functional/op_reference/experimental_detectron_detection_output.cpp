@@ -65,6 +65,7 @@ class ReferenceExperimentalDOLayerTest : public testing::TestWithParam<Experimen
                                          public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params);
         inputData = {params.roisData, params.deltasData, params.scoresData, params.imageSizeInfoData};

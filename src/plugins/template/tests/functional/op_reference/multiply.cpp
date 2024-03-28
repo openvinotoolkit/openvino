@@ -15,8 +15,9 @@ namespace {
 
 struct MultiplyParams {
     template <class IT>
-    MultiplyParams(const PartialShape& iShape1,
-                   const PartialShape& iShape2,
+    MultiplyParams(const Shape& iShape1,
+                   const Shape& iShape2,
+                   const Shape& oShape,
                    const element::Type& iType,
                    const std::vector<IT>& iValues1,
                    const std::vector<IT>& iValues2,
@@ -25,12 +26,12 @@ struct MultiplyParams {
           pshape2(iShape2),
           inType(iType),
           outType(iType),
-          inputData1(CreateTensor(iType, iValues1)),
-          inputData2(CreateTensor(iType, iValues2)),
-          refData(CreateTensor(iType, oValues)) {}
+          inputData1(CreateTensor(iShape1, iType, iValues1)),
+          inputData2(CreateTensor(iShape2, iType, iValues2)),
+          refData(CreateTensor(oShape, iType, oValues)) {}
 
-    PartialShape pshape1;
-    PartialShape pshape2;
+    Shape pshape1;
+    Shape pshape2;
     element::Type inType;
     element::Type outType;
     ov::Tensor inputData1;
@@ -58,8 +59,8 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape1,
-                                                 const PartialShape& input_shape2,
+    static std::shared_ptr<Model> CreateFunction(const Shape& input_shape1,
+                                                 const Shape& input_shape2,
                                                  const element::Type& input_type,
                                                  const element::Type& expected_output_type) {
         const auto in1 = std::make_shared<op::v0::Parameter>(input_type, input_shape1);
@@ -79,22 +80,25 @@ std::vector<MultiplyParams> generateParamsForMultiply() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<MultiplyParams> params{
-        MultiplyParams(ov::PartialShape{2, 2},
-                       ov::PartialShape{2, 2},
+        MultiplyParams(ov::Shape{2, 2},
+                       ov::Shape{2, 2},
+                       ov::Shape{2, 2},
                        IN_ET,
                        std::vector<T>{1, 2, 3, 4},
                        std::vector<T>{5, 6, 7, 8},
                        std::vector<T>{5, 12, 21, 32}),
         MultiplyParams(
-            ov::PartialShape{3, 2, 1},
-            ov::PartialShape{1, 6},
+            ov::Shape{3, 2, 1},
+            ov::Shape{1, 6},
+            ov::Shape{3, 2, 6},
             IN_ET,
             std::vector<T>{12, 24, 36, 48, 60, 72},
             std::vector<T>{1, 2, 3, 4, 6, 1},
             std::vector<T>{12, 24, 36,  48,  72,  12, 24, 48,  72,  96,  144, 24, 36, 72,  108, 144, 216, 36,
                            48, 96, 144, 192, 288, 48, 60, 120, 180, 240, 360, 60, 72, 144, 216, 288, 432, 72}),
-        MultiplyParams(ov::PartialShape{1},
-                       ov::PartialShape{1},
+        MultiplyParams(ov::Shape{1},
+                       ov::Shape{1},
+                       ov::Shape{1},
                        IN_ET,
                        std::vector<T>{2},
                        std::vector<T>{8},
@@ -106,8 +110,9 @@ template <element::Type_t IN_ET>
 std::vector<MultiplyParams> generateParamsForMultiplyFloat() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<MultiplyParams> params{MultiplyParams(ov::PartialShape{1},
-                                                      ov::PartialShape{1},
+    std::vector<MultiplyParams> params{MultiplyParams(ov::Shape{1},
+                                                      ov::Shape{1},
+                                                      ov::Shape{1},
                                                       IN_ET,
                                                       std::vector<T>{3.1},
                                                       std::vector<T>{8},

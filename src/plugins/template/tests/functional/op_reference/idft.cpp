@@ -28,8 +28,8 @@ struct IDFTParams {
         m_expected_shape = expected_shape;
         m_input_type = input_type;
         m_expected_type = expected_type;
-        m_input_value = CreateTensor(input_type, input_value);
-        m_expected_value = CreateTensor(expected_type, expected_value);
+        m_input_value = CreateTensor(input_shape, input_type, input_value);
+        m_expected_value = CreateTensor(expected_shape, expected_type, expected_value);
         m_axes = axes;
         m_signal = signal;
     }
@@ -1238,7 +1238,7 @@ std::vector<IDFTParams> generateParamsForIDFT() {
                    NULL),
         // idft2d_signal_size_eval_1
         IDFTParams(Shape{4, 6, 8, 2},
-                   Shape{4, 6, 8, 2},
+                   Shape{5, 6, 9, 2},
                    ET,
                    ET,
                    data_1,
@@ -1256,7 +1256,7 @@ std::vector<IDFTParams> generateParamsForIDFT() {
                    op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {4, 6})),
         // idft2d_signal_size_eval_3
         IDFTParams(Shape{4, 6, 8, 2},
-                   Shape{4, 6, 8, 2},
+                   Shape{3, 6, 4, 2},
                    ET,
                    ET,
                    data_1,
@@ -1274,7 +1274,7 @@ std::vector<IDFTParams> generateParamsForIDFT() {
                    op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {4, 8})),
         // idft2d_signal_size_eval_5
         IDFTParams(Shape{4, 6, 8, 2},
-                   Shape{4, 6, 8, 2},
+                   Shape{5, 6, 4, 2},
                    ET,
                    ET,
                    data_1,
@@ -1283,7 +1283,7 @@ std::vector<IDFTParams> generateParamsForIDFT() {
                    op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {5, 4})),
         // idft3d_signal_size_eval
         IDFTParams(Shape{4, 6, 8, 2},
-                   Shape{4, 6, 8, 2},
+                   Shape{3, 7, 5, 2},
                    ET,
                    ET,
                    data_1,
@@ -1292,7 +1292,7 @@ std::vector<IDFTParams> generateParamsForIDFT() {
                    op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {3, 7, 5})),
         // idft1d_signal_size_eval
         IDFTParams(Shape{4, 6, 8, 2},
-                   Shape{4, 6, 8, 2},
+                   Shape{4, 7, 8, 2},
                    ET,
                    ET,
                    data_1,

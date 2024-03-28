@@ -42,6 +42,7 @@ class ReferenceGroupNormalization : public testing::TestWithParam<GroupNormaliza
                                     public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         const auto& params = GetParam();
         function = CreateFunction(params);
         inputData = {params.data_tensor.data, params.scale_tensor.data, params.bias_tensor.data};

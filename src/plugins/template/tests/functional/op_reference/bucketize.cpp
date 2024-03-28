@@ -46,6 +46,7 @@ struct BucketizeParams {
 class ReferenceBucketizeLayerTest : public testing::TestWithParam<BucketizeParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params.input_type,
                                   params.input_pshape,

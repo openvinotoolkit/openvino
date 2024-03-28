@@ -46,6 +46,7 @@ struct RDFTParams {
 class ReferenceRDFTLayerTest : public testing::TestWithParam<RDFTParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         if (params.m_signal != NULL) {
             function = CreateFunctionWithSignal(params);

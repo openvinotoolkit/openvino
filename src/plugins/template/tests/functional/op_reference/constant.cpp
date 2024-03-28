@@ -19,7 +19,7 @@ using namespace ov;
 namespace {
 struct ConstantParams {
     template <class IT, class OT>
-    ConstantParams(const PartialShape& inputShape,
+    ConstantParams(const Shape& inputShape,
                    const element::Type& inType,
                    const element::Type& refType,
                    const std::vector<IT>& inputData,
@@ -28,11 +28,11 @@ struct ConstantParams {
         : inputShape(inputShape),
           inType(inType),
           refType(refType),
-          inputData(CreateTensor(inType, inputData)),
-          refData(CreateTensor(refType, refData)),
+          inputData(CreateTensor(inputShape, inType, inputData)),
+          refData(CreateTensor(inputShape, refType, refData)),
           testcaseName(test_name) {}
 
-    PartialShape inputShape;
+    Shape inputShape;
     element::Type inType;
     element::Type refType;
     ov::Tensor inputData;
@@ -64,7 +64,7 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const ParamType& params) {
-        auto A = op::v0::Constant::create(params.inType, params.inputShape.to_shape(), params.inputData.data());
+        auto A = op::v0::Constant::create(params.inType, params.inputShape, params.inputData.data());
         return std::make_shared<Model>(A, ParameterVector{});
     }
 };
@@ -79,8 +79,8 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const ParamType& params) {
-        auto A = op::v0::Constant::create(params.inType, params.inputShape.to_shape(), params.inputData.data());
-        auto B = op::v0::Constant::create(params.inType, params.inputShape.to_shape(), params.inputData.data());
+        auto A = op::v0::Constant::create(params.inType, params.inputShape, params.inputData.data());
+        auto B = op::v0::Constant::create(params.inType, params.inputShape, params.inputData.data());
         return std::make_shared<Model>(NodeVector{A, B}, ParameterVector{});
     }
 };
@@ -95,7 +95,7 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const ParamType& params) {
-        auto A = op::v0::Constant::create(params.inType, params.inputShape.to_shape(), params.inputData.data());
+        auto A = op::v0::Constant::create(params.inType, params.inputShape, params.inputData.data());
         return std::make_shared<Model>(std::make_shared<op::v0::Abs>(A), ParameterVector{});
     }
 };
@@ -112,7 +112,7 @@ private:
     static std::shared_ptr<Model> CreateFunction(const ParamType& params) {
         const auto A = std::make_shared<op::v0::Constant>(
             params.inType,
-            params.inputShape.to_shape(),
+            params.inputShape,
             std::vector<std::string>{std::to_string(*reinterpret_cast<int*>(params.inputData.data()))});
         return std::make_shared<Model>(A, ParameterVector{});
     }
@@ -128,8 +128,8 @@ public:
 
 protected:
     static std::shared_ptr<Model> CreateFunction(const ParamType& params) {
-        auto A = op::v0::Constant::create(params.inType, params.inputShape.to_shape(), params.inputData.data());
-        auto B = op::v0::Constant::create(params.inType, params.inputShape.to_shape(), {true, true, true, true});
+        auto A = op::v0::Constant::create(params.inType, params.inputShape, params.inputData.data());
+        auto B = op::v0::Constant::create(params.inType, params.inputShape, {true, true, true, true});
         return std::make_shared<Model>(std::make_shared<op::v1::Equal>(A, B), ParameterVector{});
     }
 };

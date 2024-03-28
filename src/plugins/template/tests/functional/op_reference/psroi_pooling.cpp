@@ -72,6 +72,7 @@ struct PSROIPoolingParams {
 class ReferencePSROIPoolingLayerTest : public testing::TestWithParam<PSROIPoolingParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params);
         inputData = {params.imageData, params.coordsData};

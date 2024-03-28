@@ -15,7 +15,7 @@ using namespace ov;
 namespace {
 struct HardSigmoidParams {
     template <class IT>
-    HardSigmoidParams(const ov::PartialShape& shape,
+    HardSigmoidParams(const ov::Shape& shape,
                       const ov::element::Type& iType,
                       const std::vector<IT>& iValues,
                       const std::vector<IT>& oValues,
@@ -24,12 +24,12 @@ struct HardSigmoidParams {
         : pshape(shape),
           inType(iType),
           outType(iType),
-          inputData(CreateTensor(iType, iValues)),
-          refData(CreateTensor(iType, oValues)),
+          inputData(CreateTensor(shape, iType, iValues)),
+          refData(CreateTensor(shape, iType, oValues)),
           alpha(alpha),
           beta(beta) {}
 
-    ov::PartialShape pshape;
+    ov::Shape pshape;
     ov::element::Type inType;
     ov::element::Type outType;
     ov::Tensor inputData;
@@ -58,7 +58,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape,
+    static std::shared_ptr<Model> CreateFunction(const Shape& input_shape,
                                                  const element::Type& input_type,
                                                  const element::Type& expected_output_type,
                                                  const float alphaData,
@@ -84,13 +84,13 @@ std::vector<HardSigmoidParams> generateHardSigmoidFloatParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<HardSigmoidParams> hardSigmoidParams{
-        HardSigmoidParams(ov::PartialShape{3},
+        HardSigmoidParams(ov::Shape{3},
                           IN_ET,
                           std::vector<T>{-1.0f, 0.0f, 1.0f},
                           std::vector<T>{0.1f, 0.6f, 1.f},
                           0.5,
                           0.6),
-        HardSigmoidParams(ov::PartialShape{2, 5},
+        HardSigmoidParams(ov::Shape{2, 5},
                           IN_ET,
                           std::vector<T>{-3.0f, -1.0f, 0.0f, 1.0f, 3.0f, 0.5f, -0.2f, 6.0f, 8.0f, 0.1f},
                           std::vector<T>{0.0f, 0.3f, 0.5f, 0.7f, 1.0f, 0.6f, 0.46f, 1.0f, 1.0f, 0.52f},

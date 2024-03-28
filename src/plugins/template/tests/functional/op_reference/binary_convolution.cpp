@@ -15,9 +15,9 @@ using namespace ov;
 namespace {
 struct BinaryConvolutionParams {
     template <class T>
-    BinaryConvolutionParams(const PartialShape& inputShape,
+    BinaryConvolutionParams(const Shape& inputShape,
                             const Shape& filterShape,
-                            const PartialShape& outputShape,
+                            const Shape& outputShape,
                             const element::Type& iType,
                             const std::vector<T>& iValues,
                             const std::vector<uint8_t>& filterValues,
@@ -33,18 +33,18 @@ struct BinaryConvolutionParams {
           outputShape(outputShape),
           inType(iType),
           outType(iType),
-          inputData(CreateTensor(iType, iValues)),
+          inputData(CreateTensor(inputShape, iType, iValues)),
           filterData(filterValues),
-          refData(CreateTensor(iType, oValues)),
+          refData(CreateTensor(outputShape, iType, oValues)),
           strides(strides),
           padBegin(padBegin),
           padEnd(padEnd),
           dialations(dialations),
           padValue(padValue) {}
 
-    PartialShape inputShape;
+    Shape inputShape;
     Shape filterShape;
-    PartialShape outputShape;
+    Shape outputShape;
     ov::element::Type inType;
     ov::element::Type outType;
     ov::Tensor inputData;
@@ -119,9 +119,9 @@ std::vector<BinaryConvolutionParams> generateBinaryConvolutionParams() {
 
     std::vector<BinaryConvolutionParams> binaryConvolutionParams{
         // --------------------- 2D BinaryConvolution ------------------------------------------
-        BinaryConvolutionParams(PartialShape{1, 1, 4, 4},
+        BinaryConvolutionParams(Shape{1, 1, 4, 4},
                                 Shape{1, 1, 3, 3},
-                                PartialShape{1, 1, 2, 2},
+                                Shape{1, 1, 2, 2},
                                 IN_ET,
                                 std::vector<T>{1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1},
                                 std::vector<uint8_t>{0xAA, 0x80},  // 10101010 10000000
@@ -130,9 +130,9 @@ std::vector<BinaryConvolutionParams> generateBinaryConvolutionParams() {
                                 {0, 0},
                                 {0, 0},
                                 {1, 1}),
-        BinaryConvolutionParams(PartialShape{1, 1, 4, 4},
+        BinaryConvolutionParams(Shape{1, 1, 4, 4},
                                 Shape{1, 1, 3, 3},
-                                PartialShape{1, 1, 4, 4},
+                                Shape{1, 1, 4, 4},
                                 IN_ET,
                                 std::vector<T>{1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1},
                                 std::vector<uint8_t>{0xAA, 0x80},  // 10101010 10000000
@@ -141,9 +141,9 @@ std::vector<BinaryConvolutionParams> generateBinaryConvolutionParams() {
                                 {1, 1},
                                 {1, 1},
                                 {1, 1}),
-        BinaryConvolutionParams(PartialShape{1, 1, 4, 4},
+        BinaryConvolutionParams(Shape{1, 1, 4, 4},
                                 Shape{1, 1, 3, 3},
-                                PartialShape{1, 1, 4, 4},
+                                Shape{1, 1, 4, 4},
                                 IN_ET,
                                 std::vector<T>{1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1},
                                 std::vector<uint8_t>{0xAA, 0x80},  // 10101010 10000000
@@ -154,9 +154,9 @@ std::vector<BinaryConvolutionParams> generateBinaryConvolutionParams() {
                                 {1, 1},
                                 1.0f),
         BinaryConvolutionParams(
-            PartialShape{1, 1, 5, 5},
+            Shape{1, 1, 5, 5},
             Shape{1, 1, 3, 3},
-            PartialShape{1, 1, 2, 2},
+            Shape{1, 1, 2, 2},
             IN_ET,
             std::vector<T>{0, 1, 1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 1, 1, 1},
             std::vector<uint8_t>{0x2E, 0x00},  // 10101010 10000000
@@ -166,9 +166,9 @@ std::vector<BinaryConvolutionParams> generateBinaryConvolutionParams() {
             {0, 0},
             {1, 1}),
         BinaryConvolutionParams(
-            PartialShape{1, 1, 7, 7},
+            Shape{1, 1, 7, 7},
             Shape{1, 1, 3, 3},
-            PartialShape{1, 1, 3, 3},
+            Shape{1, 1, 3, 3},
             IN_ET,
             std::vector<T>{1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1,
                            1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0},
@@ -179,9 +179,9 @@ std::vector<BinaryConvolutionParams> generateBinaryConvolutionParams() {
             {0, 0},
             {2, 2}),
         BinaryConvolutionParams(
-            PartialShape{1, 1, 7, 7},
+            Shape{1, 1, 7, 7},
             Shape{1, 1, 3, 3},
-            PartialShape{1, 1, 4, 4},
+            Shape{1, 1, 4, 4},
             IN_ET,
             std::vector<T>{1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1,
                            1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0},
@@ -192,9 +192,9 @@ std::vector<BinaryConvolutionParams> generateBinaryConvolutionParams() {
             {2, 2},
             {2, 2}),
         BinaryConvolutionParams(
-            PartialShape{1, 1, 7, 7},
+            Shape{1, 1, 7, 7},
             Shape{1, 1, 3, 3},
-            PartialShape{1, 1, 4, 4},
+            Shape{1, 1, 4, 4},
             IN_ET,
             std::vector<T>{1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1,
                            1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0},
@@ -205,9 +205,9 @@ std::vector<BinaryConvolutionParams> generateBinaryConvolutionParams() {
             {2, 2},
             {2, 2},
             1.0f),
-        BinaryConvolutionParams(PartialShape{1, 2, 4, 4},
+        BinaryConvolutionParams(Shape{1, 2, 4, 4},
                                 Shape{1, 2, 3, 3},
-                                PartialShape{1, 1, 2, 2},
+                                Shape{1, 1, 2, 2},
                                 IN_ET,
                                 std::vector<T>{// channel 1
                                                1,
@@ -249,9 +249,9 @@ std::vector<BinaryConvolutionParams> generateBinaryConvolutionParams() {
                                 {0, 0},
                                 {0, 0},
                                 {1, 1}),
-        BinaryConvolutionParams(PartialShape{2, 1, 4, 4},
+        BinaryConvolutionParams(Shape{2, 1, 4, 4},
                                 Shape{1, 1, 3, 3},
-                                PartialShape{2, 1, 2, 2},
+                                Shape{2, 1, 2, 2},
                                 IN_ET,
                                 std::vector<T>{// batch 1
                                                1,

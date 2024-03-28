@@ -29,6 +29,7 @@ struct Builder : ParamsBuilder<AtanhParams> {
 class ReferenceAtanhLayerTest : public testing::TestWithParam<AtanhParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params.input.shape, params.input.type);
         inputData = {params.input.data};

@@ -30,8 +30,8 @@ struct NormalizeL2Params {
         m_expected_shape = expected_shape;
         m_input_type = input_type;
         m_expected_type = expected_type;
-        m_input_value = CreateTensor(input_type, input_value);
-        m_expected_value = CreateTensor(expected_type, expected_value);
+        m_input_value = CreateTensor(input_shape, input_type, input_value);
+        m_expected_value = CreateTensor(expected_shape, expected_type, expected_value);
         m_axes = axes;
         m_eps_mode = eps_mode;
         m_eps = eps;
@@ -55,8 +55,8 @@ struct NormalizeL2Params {
         m_expected_type = expected_type;
         std::vector<T> input_value(shape_size(input_shape));
         std::iota(begin(input_value), end(input_value), input_value_step);
-        m_input_value = CreateTensor(input_type, input_value);
-        m_expected_value = CreateTensor(expected_type, expected_value);
+        m_input_value = CreateTensor(input_shape, input_type, input_value);
+        m_expected_value = CreateTensor(expected_shape, expected_type, expected_value);
         m_axes = axes;
         m_eps_mode = eps_mode;
         m_eps = eps;

@@ -201,7 +201,7 @@ std::vector<EyeBatchShapeParams> generateEyeBatchShapeParams(bool is_dyn_shape_t
             reference_tests::Tensor{{1}, element::i32, std::vector<int32_t>{0}},
             reference_tests::Tensor{{1}, element::i32, std::vector<int32_t>{2}},
             element::Type_t::f32,
-            reference_tests::Tensor{{2, 3, 3}, element::f32, std::vector<float>{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1,
+            reference_tests::Tensor{{2, 4, 4}, element::f32, std::vector<float>{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1,
                                                                                 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1,
                                                                                 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}},
             "f32_2x4x4_diag0",
@@ -325,20 +325,21 @@ std::vector<EyeBatchShapeParams> generateEyeBatchShapeParams(bool is_dyn_shape_t
             reference_tests::Tensor{{1}, element::i32, std::vector<int32_t>{2}},
             reference_tests::Tensor{{2}, element::i32, std::vector<int32_t>{2, 2}},
             element::Type_t::i64,
-            reference_tests::Tensor{{2, 2, 4, 2}, element::i64, std::vector<int64_t>{0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1,
+            reference_tests::Tensor{{2, 2, 2, 4}, element::i64, std::vector<int64_t>{0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1,
                                                                                      0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0,
                                                                                      0, 1, 0, 0, 1, 0, 0, 0, 0, 1}},
-            "int64_2x2x3x3",
+            "int64_2x2x2x4",
             is_dyn_shape_test),
-        EyeBatchShapeParams(
-            reference_tests::Tensor{{1}, element::i32, std::vector<int32_t>{2}},
-            reference_tests::Tensor{{1}, element::i32, std::vector<int32_t>{2}},
-            reference_tests::Tensor{{1}, element::i32, std::vector<int32_t>{3}},
-            reference_tests::Tensor{{2}, element::i32, std::vector<int32_t>{1, 3}},
-            element::Type_t::u8,
-            reference_tests::Tensor{{2, 3, 3}, element::u8, std::vector<uint8_t>{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
-            "uint8_1x3x2x2",
-            is_dyn_shape_test)};
+        EyeBatchShapeParams(reference_tests::Tensor{{1}, element::i32, std::vector<int32_t>{2}},
+                            reference_tests::Tensor{{1}, element::i32, std::vector<int32_t>{2}},
+                            reference_tests::Tensor{{1}, element::i32, std::vector<int32_t>{3}},
+                            reference_tests::Tensor{{2}, element::i32, std::vector<int32_t>{1, 3}},
+                            element::Type_t::u8,
+                            reference_tests::Tensor{{1, 3, 2, 2},
+                                                    element::u8,
+                                                    std::vector<uint8_t>{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+                            "uint8_1x3x2x2",
+                            is_dyn_shape_test)};
     return test_params;
 }
 

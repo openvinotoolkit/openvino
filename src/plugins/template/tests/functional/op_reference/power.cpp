@@ -15,8 +15,9 @@ namespace {
 
 struct PowerParams {
     template <class IT>
-    PowerParams(const PartialShape& iShape1,
-                const PartialShape& iShape2,
+    PowerParams(const Shape& iShape1,
+                const Shape& iShape2,
+                const Shape& oShape,
                 const element::Type& iType,
                 const std::vector<IT>& iValues1,
                 const std::vector<IT>& iValues2,
@@ -25,12 +26,12 @@ struct PowerParams {
           pshape2(iShape2),
           inType(iType),
           outType(iType),
-          inputData1(CreateTensor(iType, iValues1)),
-          inputData2(CreateTensor(iType, iValues2)),
-          refData(CreateTensor(iType, oValues)) {}
+          inputData1(CreateTensor(iShape1, iType, iValues1)),
+          inputData2(CreateTensor(iShape2, iType, iValues2)),
+          refData(CreateTensor(oShape, iType, oValues)) {}
 
-    PartialShape pshape1;
-    PartialShape pshape2;
+    Shape pshape1;
+    Shape pshape2;
     element::Type inType;
     element::Type outType;
     ov::Tensor inputData1;
@@ -58,8 +59,8 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape1,
-                                                 const PartialShape& input_shape2,
+    static std::shared_ptr<Model> CreateFunction(const Shape& input_shape1,
+                                                 const Shape& input_shape2,
                                                  const element::Type& input_type,
                                                  const element::Type& expected_output_type) {
         const auto in1 = std::make_shared<op::v0::Parameter>(input_type, input_shape1);
@@ -79,26 +80,30 @@ std::vector<PowerParams> generateParamsForPower() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<PowerParams> params{
-        PowerParams(ov::PartialShape{2, 2},
-                    ov::PartialShape{2, 2},
+        PowerParams(ov::Shape{2, 2},
+                    ov::Shape{2, 2},
+                    ov::Shape{2, 2},
                     IN_ET,
                     std::vector<T>{1, 2, 3, 5},
                     std::vector<T>{2, 0, 6, 3},
                     std::vector<T>{1, 1, 729, 125}),
-        PowerParams(ov::PartialShape{2, 1, 5},
-                    ov::PartialShape{2, 1},
+        PowerParams(ov::Shape{2, 1, 5},
+                    ov::Shape{2, 1},
+                    ov::Shape{2, 2, 5},
                     IN_ET,
                     std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
                     std::vector<T>{1, 2},
                     std::vector<T>{1, 2, 3, 4, 5, 1, 4, 9, 16, 25, 6, 7, 8, 9, 10, 36, 49, 64, 81, 100}),
-        PowerParams(ov::PartialShape{1},
-                    ov::PartialShape{1},
+        PowerParams(ov::Shape{1},
+                    ov::Shape{1},
+                    ov::Shape{1},
                     IN_ET,
                     std::vector<T>{2},
                     std::vector<T>{3},
                     std::vector<T>{8}),
-        PowerParams(ov::PartialShape{2, 2},
-                    ov::PartialShape{1},
+        PowerParams(ov::Shape{2, 2},
+                    ov::Shape{1},
+                    ov::Shape{2, 2},
                     IN_ET,
                     std::vector<T>{2, 3, 4, 5},
                     std::vector<T>{2},

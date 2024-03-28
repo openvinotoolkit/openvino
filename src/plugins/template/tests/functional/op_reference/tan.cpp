@@ -33,6 +33,7 @@ struct TanParams {
 class ReferenceTanLayerTest : public testing::TestWithParam<TanParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params.pshape, params.inType);
         inputData = {params.inputData};

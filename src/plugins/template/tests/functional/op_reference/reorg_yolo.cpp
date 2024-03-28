@@ -21,7 +21,8 @@ namespace {
 struct ReorgYoloParams {
     template <class IT>
     ReorgYoloParams(const ov::Strides& stride,
-                    const ov::PartialShape& inputShape,
+                    const ov::Shape& inputShape,
+                    const ov::Shape& outputShape,
                     const ov::element::Type& iType,
                     const std::vector<IT>& oValues,
                     const std::string& testcaseName = "")
@@ -29,15 +30,15 @@ struct ReorgYoloParams {
           inputShape(inputShape),
           inType(iType),
           outType(iType),
-          refData(CreateTensor(iType, oValues)),
+          refData(CreateTensor(outputShape, iType, oValues)),
           testcaseName(testcaseName) {
-        std::vector<IT> iValues(shape_size(inputShape.get_shape()));
+        std::vector<IT> iValues(shape_size(inputShape));
         std::iota(iValues.begin(), iValues.end(), 0);
-        inputData = CreateTensor(iType, iValues);
+        inputData = CreateTensor(inputShape, iType, iValues);
     }
 
     ov::Strides stride;
-    ov::PartialShape inputShape;
+    ov::Shape inputShape;
     ov::element::Type inType;
     ov::element::Type outType;
     ov::Tensor inputData;
@@ -87,7 +88,8 @@ std::vector<ReorgYoloParams> generateReorgYoloParams() {
 
     std::vector<ReorgYoloParams> reorgYoloParams{
         ReorgYoloParams({2},
-                        PartialShape{1, 8, 4, 4},
+                        Shape{1, 8, 4, 4},
+                        Shape{1, 32, 2, 2},
                         IN_ET,
                         std::vector<T>{0,  2,  4,  6,  16, 18, 20, 22, 32,  34,  36,  38,  48,  50,  52,  54,
                                        64, 66, 68, 70, 80, 82, 84, 86, 96,  98,  100, 102, 112, 114, 116, 118,
@@ -99,7 +101,8 @@ std::vector<ReorgYoloParams> generateReorgYoloParams() {
                                        73, 75, 77, 79, 89, 91, 93, 95, 105, 107, 109, 111, 121, 123, 125, 127}),
         ReorgYoloParams(
             {3},
-            PartialShape{1, 9, 3, 3},
+            Shape{1, 9, 3, 3},
+            Shape{1, 81, 1, 1},
             IN_ET,
             std::vector<T>{0,  3,  6,  27, 30, 33, 54, 57, 60, 1,  4,  7,  28, 31, 34, 55, 58, 61, 2,  5,  8,
                            29, 32, 35, 56, 59, 62, 9,  12, 15, 36, 39, 42, 63, 66, 69, 10, 13, 16, 37, 40, 43,

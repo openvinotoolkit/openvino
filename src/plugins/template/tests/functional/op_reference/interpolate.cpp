@@ -35,8 +35,8 @@ struct InterpolateV1Params {
           outShape(oShape),
           inType(iType),
           outType(oType),
-          inData(CreateTensor(iType, iValues)),
-          outData(CreateTensor(oType, oValues)),
+          inData(CreateTensor(iShape, iType, iValues)),
+          outData(CreateTensor(oShape, oType, oValues)),
           outShapeInput(outShapeInput) {
         attrs.axes = axes;
         attrs.mode = mode;
@@ -72,8 +72,8 @@ struct InterpolateV4Params {
           outShape(oShape),
           inType(iType),
           outType(oType),
-          inData(CreateTensor(iType, iValues)),
-          outData(CreateTensor(oType, oValues)),
+          inData(CreateTensor(iShape, iType, iValues)),
+          outData(CreateTensor(oShape, oType, oValues)),
           outShapeInput(outShapeInput),
           outShapeInputType(outShapeInputType),
           scales(scales),
@@ -823,8 +823,8 @@ public:
           scales_data(scales_data),
           axes_data(axes_data),
           attrs(interp_attrs),
-          m_input_data(CreateTensor(inType, input_data)),
-          m_expected_result(CreateTensor(inType, expected_results)),
+          m_input_data(CreateTensor(input_data_shape, inType, input_data)),
+          m_expected_result(CreateTensor(output_shape, inType, expected_results)),
           inType(inType) {
         attrs.cube_coeff = cube_coeff_a;
     };
@@ -838,8 +838,8 @@ public:
           scales_data(v4_params.scales_data),
           axes_data(v4_params.axes_data),
           attrs(v4_params.attrs),
-          m_input_data(CreateTensor(element::from<Data_t>(), v4_params.input_data)),
-          m_expected_result(CreateTensor(element::from<Data_t>(), v4_params.expected_results)),
+          m_input_data(CreateTensor(v4_params.input_data_shape, element::from<Data_t>(), v4_params.input_data)),
+          m_expected_result(CreateTensor(v4_params.output_shape, element::from<Data_t>(), v4_params.expected_results)),
           inType(element::from<Data_t>()){};
 
     std::string test_name;
@@ -1100,7 +1100,7 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bicubic_pil_i
             "bicubic.downsample_sizes_1x1x8x8_nchw",
             Shape{1, 1, 8, 8},
             {4, 4},
-            Shape{4, 4},
+            Shape{1, 1, 4, 4},
             {},
             {2, 3},
             {InterpolateMode::BICUBIC_PILLOW, ShapeCalcMode::SIZES, {0, 0}, {0, 0}},
@@ -1114,7 +1114,7 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bicubic_pil_i
             "bicubic.downsample_sizes_1x8x8x1_nhwc",
             Shape{1, 8, 8, 1},
             {4, 4},
-            Shape{4, 4},
+            Shape{1, 4, 4, 1},
             {},
             {1, 2},
             {InterpolateMode::BICUBIC_PILLOW, ShapeCalcMode::SIZES, {0, 0}, {0, 0}},
@@ -1268,7 +1268,7 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bilinear_pil_
             "bilinear.downsample_to_2x3_2D_scales",
             Shape{5, 6},
             {},
-            Shape{2, 4},
+            Shape{2, 3},
             {0.4f, 0.6666f},
             {0, 1},
             {InterpolateMode::BILINEAR_PILLOW, ShapeCalcMode::SCALES, {0, 0}, {0, 0}},
