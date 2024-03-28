@@ -760,7 +760,7 @@ public:
         topology.add(input_layout("input0", input0_layout),
                      input_layout("input1", input1_layout),
                      input_layout("beam_table", beam_table_layout),
-                     gemm("gemm", { input_info("input0"), input_info("input1") }, input_info("beam_table"), data_types::f32, input0_order, input1_order, {}, indirect_input0, indirect_input1)
+                     gemm("gemm", { input_info("input0"), input_info("input1") }, input_info("beam_table"), data_types::f32, {}, {}, {}, {}, {}, {}, input0_order, input1_order, {}, indirect_input0, indirect_input1)
             );
 
         ExecutionConfig config = get_test_default_config(engine);

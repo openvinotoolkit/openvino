@@ -29,6 +29,22 @@ public:
                  const std::vector<int64_t>& order_c,
                  const ov::element::Type output_type = ov::element::undefined);
 
+    IndirectGemm(const ov::Output<Node>& A,
+                 const ov::Output<Node>& B,
+                 const ov::Output<Node>& I,
+                 bool indirect_a,
+                 bool indirect_b,
+                 const std::vector<int64_t>& axes_a,
+                 const std::vector<int64_t>& axes_b,
+                 const std::vector<int32_t>& target_shape_a,
+                 const std::vector<int32_t>& target_shape_b,
+                 const std::vector<int64_t>& output_pattern_a,
+                 const std::vector<int64_t>& output_pattern_b,
+                 const std::vector<int64_t>& order_a,
+                 const std::vector<int64_t>& order_b,
+                 const std::vector<int64_t>& order_c,
+                 const ov::element::Type output_type = ov::element::undefined);
+
     bool visit_attributes(ov::AttributeVisitor &visitor) override;
     void validate_and_infer_types() override;
 

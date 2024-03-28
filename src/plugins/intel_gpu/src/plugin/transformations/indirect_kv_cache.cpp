@@ -85,6 +85,12 @@ IndirectKVCache::IndirectKVCache() {
         auto matmul_kv_cache_index = kv_cache_users.begin()->get_index();
 
         auto gemm_node = std::dynamic_pointer_cast<op::Gemm>(m.get_match_root());
+        auto axes_in0 = gemm_node->get_input0_unsqueeze_axes();
+        auto axes_in1 = gemm_node->get_input1_unsqueeze_axes();
+        auto target_shape_in0 = gemm_node->get_input0_broadcast_target_shape();
+        auto target_shape_in1 = gemm_node->get_input1_broadcast_target_shape();
+        auto pattern_in0 = gemm_node->get_input0_reshape_pattern();
+        auto pattern_in1 = gemm_node->get_input1_reshape_pattern();
         auto order_in0 = gemm_node->get_input0_transpose_order();
         auto order_in1 = gemm_node->get_input1_transpose_order();
         auto order_out = gemm_node->get_output_transpose_order();
@@ -94,6 +100,12 @@ IndirectKVCache::IndirectKVCache() {
                                                                                indirect_kv_cache->output(1), // beam table
                                                                                matmul_kv_cache_index == 0,
                                                                                matmul_kv_cache_index == 1,
+                                                                               axes_in0,
+                                                                               axes_in1,
+                                                                               target_shape_in0,
+                                                                               target_shape_in1,
+                                                                               pattern_in0,
+                                                                               pattern_in1,
                                                                                order_in0,
                                                                                order_in1,
                                                                                order_out);
