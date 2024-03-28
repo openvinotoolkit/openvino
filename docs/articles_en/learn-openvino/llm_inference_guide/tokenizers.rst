@@ -16,17 +16,13 @@ There are two important points in the tokenizer-model relation:
 **OpenVINO Tokenizers** is an OpenVINO extension and a Python library designed to streamline
 tokenizer conversion for seamless integration into your projects. With OpenVINO Tokenizers you can:
 
-* Add text processing operations to OpenVINO. Both tokenizer and detokenizer are OpenVINO
-models, meaning that you can work with them as with any regular model: read, compile, save, and other.
+* Add text processing operations to OpenVINO. Both tokenizer and detokenizer are OpenVINO models, meaning that you can work with them as with any regular model: read, compile, save, and other.
 
 * Perform tokenization and detokenization without third-party dependencies.
 
-* Convert Hugging Face tokenizers into OpenVINO model tokenizer and detokenizer for efficient
-deployment of deep learning pipelines across varied environments.
+* Convert Hugging Face tokenizers into OpenVINO model tokenizer and detokenizer for efficient deployment of deep learning pipelines across varied environments.
 
-* Combine OpenVINO models into a single model. Recommended for specific models, like classifiers
-or RAG Embedders, where both tokenizer and a model are used once in each pipeline inference.
-For more information, see the `OpenVINO Tokenizers Notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/master/notebooks/openvino-tokenizers/openvino-tokenizers.ipynb>`__.
+* Combine OpenVINO models into a single model. Recommended for specific models, like classifiers or RAG Embedders, where both tokenizer and a model are used once in each pipeline inference. For more information, see the `OpenVINO Tokenizers Notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/master/notebooks/openvino-tokenizers/openvino-tokenizers.ipynb>`__.
 
 * Add greedy decoding pipeline to text generation model.
 
@@ -226,12 +222,14 @@ The result is two OpenVINO models: openvino tokenizer and openvino detokenizer.
 Both can be used with ``read_model``, ``compile_model`` and ``save_model``, similar to any other OpenVINO model.
 
 2. Optional. Merge tokenizer into a model.
+++++++++++++++++++++++++++++++++++++++++++++
 
 Since the model can not be used without a tokenizer, it could be beneficial to create a model
 that combines a converted tokenizer and the original model. See the `OpenVINO Tokenizers Notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/master/notebooks/openvino-tokenizers/openvino-tokenizers.ipynb>`__
 to learn more about use cases benefiting from tokenizer merge.
 
 3. Generate text.
++++++++++++++++++++++++++++
 
 .. code-block:: python
 
@@ -276,6 +274,7 @@ to learn more about use cases benefiting from tokenizer merge.
    print(f"Generated:\n{text_result[0]}")
 
 4. Detokenize output.
++++++++++++++++++++++++++++++
 
 .. code-block:: python
 
