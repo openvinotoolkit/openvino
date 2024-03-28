@@ -79,7 +79,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores-32gb
+    runs-on: aks-linux-16-cores-32gb-staging
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64_cc }}
       volumes:
@@ -258,7 +258,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores-32gb
+    runs-on: aks-linux-16-cores-32gb-staging
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64_cc }}
       volumes:
@@ -340,7 +340,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_cpu_functional_tests.yml
     with:
-      runner: 'aks-linux-8-cores-32gb'
+      runner: 'aks-linux-8-cores-32gb-staging'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
 
   Overall_Status:
