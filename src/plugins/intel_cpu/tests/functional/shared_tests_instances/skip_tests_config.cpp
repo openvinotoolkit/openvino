@@ -179,8 +179,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_TopK/TopKLayerTest.Inference.*_k=21_.*_sort=value_modelType=f16_trgDev=CPU.*)",
         // Issue: 121812
         R"(.*ConvertCPULayerTest.*outFmts=(nhwc|nChw8c|nChw16c).*)",
-        // Issue: 122321
-        R"(.*smoke_ConvertCPULayerTest_BOOL.*)",
         // Need to generate sequence exactly in the i64 data type. Enable in scope of i64 enabling.
         R"(.*RandomUniformLayerTestCPU.*OutPrc=i64.*)",
         // Issue: 123321

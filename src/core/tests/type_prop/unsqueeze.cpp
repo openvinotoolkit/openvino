@@ -10,7 +10,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "sequnce_generator.hpp"
+#include "sequence_generator.hpp"
 
 using namespace std;
 using namespace ov;

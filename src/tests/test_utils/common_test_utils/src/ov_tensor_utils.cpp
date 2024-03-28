@@ -33,7 +33,6 @@ ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
         break;
 
     switch (element_type) {
-        CASE(ov::element::boolean)
         CASE(ov::element::i8)
         CASE(ov::element::i16)
         CASE(ov::element::i32)
@@ -46,6 +45,11 @@ ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
         CASE(ov::element::f16)
         CASE(ov::element::f32)
         CASE(ov::element::f64)
+    case ov::element::boolean:
+        fill_data_boolean(static_cast<fundamental_type_for<ov::element::boolean>*>(tensor.data()),
+                          tensor.get_size(),
+                          inGenData.seed);
+        break;
     case ov::element::Type_t::u1:
     case ov::element::Type_t::i4:
     case ov::element::Type_t::u4:

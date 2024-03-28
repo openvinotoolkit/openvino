@@ -7,7 +7,7 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/opsets/opset9.hpp"
-#include "sequnce_generator.hpp"
+#include "sequence_generator.hpp"
 
 using namespace ov;
 using namespace testing;

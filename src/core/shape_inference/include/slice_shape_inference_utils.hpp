@@ -7,7 +7,7 @@
 #include "dimension_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
-#include "sequnce_generator.hpp"
+#include "sequence_generator.hpp"
 #include "utils.hpp"
 
 namespace ov {

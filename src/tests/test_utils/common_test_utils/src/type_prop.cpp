@@ -5,7 +5,7 @@
 #include "common_test_utils/type_prop.hpp"
 
 #include "openvino/core/dimension.hpp"
-#include "sequnce_generator.hpp"
+#include "sequence_generator.hpp"
 
 ov::TensorSymbol get_shape_symbols(const ov::PartialShape& p_shape) {
     ov::TensorSymbol symbols;

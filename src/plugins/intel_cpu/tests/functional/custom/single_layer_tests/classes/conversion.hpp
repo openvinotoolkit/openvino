@@ -25,10 +25,15 @@ public:
     static bool isInOutPrecisionSupported(ov::element::Type inPrc, ov::element::Type outPrc);
 protected:
     void SetUp() override;
-    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
+    virtual void validate_out_prc() const;
 
-private:
     ov::element::Type inPrc, outPrc;
+};
+
+class ConvertToBooleanCPULayerTest : public ConvertCPULayerTest {
+protected:
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
+    void validate_out_prc() const override;
 };
 
 namespace Conversion {
