@@ -38,12 +38,6 @@ struct Config {
         Disable,
     };
 
-    enum class LatencyThreadingMode {
-        PER_NUMA_NODE,
-        PER_SOCKET,
-        PER_PLATFORM,
-    };
-
     enum class ModelType {
         CNN,
         Unknown
@@ -79,7 +73,6 @@ struct Config {
     std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy = {};
     bool enableHyperThreading = true;
     bool changedHyperThreading = false;
-    Config::LatencyThreadingMode latencyThreadingMode = Config::LatencyThreadingMode::PER_SOCKET;
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
 #else
