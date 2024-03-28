@@ -8,22 +8,23 @@ namespace {
 
 using ov::test::InverseLayerTest;
 
-const auto shapes = testing::Values(ov::Shape{10, 10}, ov::Shape{5, 7, 7}, ov::Shape{5, 4, 3, 3}, ov::Shape{100, 2, 2});
+const std::vector<std::vector<ov::test::InputShape>> input_shapes = {
+    {{{5, 4, 4}, {{5, 4, 4}}}},
+    {{{20, 3, 3}, {{20, 3, 3}}}},
+    {{{ov::Dimension{1, 70}, -1}, {{3, 3}, {5, 5}, {4, 4}}}},
+    {{{-1, ov::Dimension{1, 70}, -1}, {{3, 3, 3}, {4, 4, 4}, {5, 5, 5}}}}};
+
+const auto shapes = testing::ValuesIn(input_shapes);
 
 const auto dtypes = testing::Values(ov::element::f32, ov::element::f16, ov::element::bf16);
 
 const auto adjoint = testing::Values(false, true);
 
-const auto test_static = testing::Values(true);
-const auto test_dynamic = testing::Values(false);
-
-const auto seed = testing::Values(0u, 1u, 3u);
+const auto seed = testing::Values(1, 2, 3);
 
 const auto device_cpu = testing::Values(ov::test::utils::DEVICE_CPU);
 
-const auto params_static = ::testing::Combine(shapes, dtypes, adjoint, test_static, seed, device_cpu);
-const auto params_dynamic = ::testing::Combine(shapes, dtypes, adjoint, test_dynamic, seed, device_cpu);
+const auto params = ::testing::Combine(shapes, dtypes, adjoint, seed, device_cpu);
 
-INSTANTIATE_TEST_SUITE_P(smoke_InverseStatic, InverseLayerTest, params_static, InverseLayerTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_InverseDynamic, InverseLayerTest, params_dynamic, InverseLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_InverseStatic, InverseLayerTest, params, InverseLayerTest::getTestCaseName);
 }  // namespace
