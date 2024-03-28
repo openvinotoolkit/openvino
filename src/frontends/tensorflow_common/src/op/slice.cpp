@@ -3,7 +3,6 @@
 //
 
 #include "openvino/op/slice.hpp"
-
 #include "common_op_table.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -11,7 +10,10 @@
 #include "openvino/op/less.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/concat.hpp"
 #include "utils.hpp"
+#include "helper_ops/complex_type_mark.hpp"
 
 using namespace std;
 using namespace ov::op;
@@ -22,12 +24,13 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_slice_op(const NodeContext& node) {
-    default_op_checks(node, 3, {"Slice"});
+    default_op_checks(node, 3, {"Slice"}, true);
     auto input = node.get_input(0);
+    auto complex_type_mark = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
     auto start = node.get_input(1);
     auto size = node.get_input(2);
 
-    // create axiliary constants
+    // create auxiliary constants
     auto const_one = create_same_type_const_scalar<int32_t>(start, 1);
     auto const_zero = create_same_type_const_scalar<int32_t>(start, 0);
 
@@ -49,6 +52,29 @@ OutputVector translate_slice_op(const NodeContext& node) {
     // broadcast step value
     auto start_shape = make_shared<v3::ShapeOf>(start);
     auto step = make_shared<v3::Broadcast>(const_one, start_shape);
+    
+    if(complex_type_mark){
+        element::Type complex_part_type = complex_type_mark->get_complex_part_type();
+        auto gather_index_real = make_shared<v0::Constant>(element::i32, Shape{}, 0);
+        auto gather_index_imag = make_shared<v0::Constant>(element::i32, Shape{}, 1);
+        auto minus_one = make_shared<v0::Constant>(element::i32, Shape{1}, -1);
+        auto real = make_shared<v8::Gather>(input, gather_index_real, minus_one)->output(0);
+        auto imag = make_shared<v8::Gather>(input, gather_index_imag, minus_one)->output(0);
+
+        auto real_part = make_shared<v8::Slice>(real,start,stop,step);
+        set_node_name(node.get_name(), real_part);
+        auto imag_part = make_shared<v8::Slice>(imag, start, stop, step);
+        set_node_name(node.get_name(), imag_part);
+
+        OutputVector concat_inputs;
+        concat_inputs.push_back(real_part);
+        concat_inputs.push_back(imag_part);
+        auto concat = make_shared<v0::Concat>(concat_inputs, 0);
+
+        auto complex_slice = make_shared<ComplexTypeMark>(concat, complex_part_type);
+        return {complex_slice->output(0)};
+    }
+
 
     auto res = make_shared<v8::Slice>(input, start, stop, step);
     set_node_name(node.get_name(), res);
