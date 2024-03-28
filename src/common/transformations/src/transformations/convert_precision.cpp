@@ -331,8 +331,13 @@ bool convert_function_precision(const std::shared_ptr<Model>& f,
                 auto result_input = result->input_value(0);
                 const auto convert = std::make_shared<ov::op::v0::Convert>(result_input, orig_result_types[i]);
 
-                convert->set_friendly_name(result_input.get_node()->get_friendly_name() + "." +
-                                           std::to_string(result_input.get_index()));
+                if (result_input.get_node()->get_output_size() > 1) {
+                    convert->set_friendly_name(result_input.get_node()->get_friendly_name() + "." +
+                                               std::to_string(result_input.get_index()));
+                } else {
+                    convert->set_friendly_name(result_input.get_node()->get_friendly_name());
+                    result_input.get_node()->set_friendly_name("");
+                }
 
                 auto& convert_output_tensor = convert->get_output_tensor(0);
                 convert_output_tensor.set_names(result_input.get_names());
