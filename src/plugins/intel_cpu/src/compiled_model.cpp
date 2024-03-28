@@ -55,11 +55,13 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     if (!core)
         OPENVINO_THROW("Unable to get API version. Core is unavailable");
 
+    ov::threading::IStreamsExecutor::Ptr stream_executor = nullptr;
     if (cfg.exclusiveAsyncRequests) {
         // special case when all InferRequests are muxed into a single queue
         m_task_executor = m_plugin->get_executor_manager()->get_executor("CPU");
     } else {
-        m_task_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(m_cfg.streamExecutorConfig);
+        stream_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(m_cfg.streamExecutorConfig);
+        m_task_executor = stream_executor;
     }
     if (0 != m_cfg.streamExecutorConfig.get_streams()) {
         m_callback_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(
@@ -101,6 +103,19 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     } else {
         CompiledModel::get_graph();
     }
+    // init sub stream threads of executor
+    if (m_cfg.streamExecutorConfig.get_sub_stream_mode() ==
+            IStreamsExecutor::Config::SubStreamsMode::SUB_STREAMS_FOR_SOCKET &&
+        stream_executor != nullptr) {
+        std::atomic<int> nodes_remain(m_cfg.streamExecutorConfig.get_sub_streams());
+        stream_executor->run_sub_stream(
+            [&]() {
+                nodes_remain--;
+            },
+            0);
+        while (nodes_remain.load() > 0) {
+        }
+    }
 }
 
 CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
@@ -125,7 +140,7 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
                         (m_cfg.lpTransformsMode == Config::On) &&
                         ov::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);
 
-                    ctx = std::make_shared<GraphContext>(m_cfg, weightsCache, isQuantizedFlag);
+                    ctx = std::make_shared<GraphContext>(m_cfg, weightsCache, isQuantizedFlag, streamsExecutor);
                 }
                 const std::shared_ptr<const ov::Model> model = m_model;
                 graphLock._graph.CreateGraph(model, ctx);
