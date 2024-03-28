@@ -75,7 +75,7 @@ TEST_P(ReferenceMultiplyLayerTest, MultiplyWithHardcodedRefs) {
 }
 
 template <element::Type_t IN_ET>
-std::vector<MultiplyParams> generateParamsForMultiplyNoOverflow() {
+std::vector<MultiplyParams> generateParamsForMultiply() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<MultiplyParams> params{MultiplyParams(ov::PartialShape{2, 2},
@@ -107,7 +107,7 @@ std::vector<MultiplyParams> generateParamsForMultiplyFloat() {
 }
 
 template <element::Type_t IN_ET>
-std::vector<MultiplyParams> generateParamsForMultiply() {
+std::vector<MultiplyParams> generateParamsForMultiplyWithBroadcast() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<MultiplyParams> params{MultiplyParams(
@@ -123,7 +123,7 @@ std::vector<MultiplyParams> generateParamsForMultiply() {
 }
 
 template <>
-std::vector<MultiplyParams> generateParamsForMultiply<element::Type_t::i8>() {
+std::vector<MultiplyParams> generateParamsForMultiplyWithBroadcast<element::Type_t::i8>() {
     constexpr auto IN_ET = element::Type_t::i8;
     using T = typename element_type_traits<IN_ET>::value_type;
 
@@ -131,16 +131,16 @@ std::vector<MultiplyParams> generateParamsForMultiply<element::Type_t::i8>() {
         ov::PartialShape{3, 2, 1},
         ov::PartialShape{1, 6},
         IN_ET,
-        std::vector<T>{12, 24, 36, 48, 60, 72},
+        std::vector<T>{-12, -6, 4, 14, 18, 20},
         std::vector<T>{1, 2, 3, 4, 6, 1},
-        std::vector<T>{12, 24, 36,   48,  72, 12, 24, 48,  72,  96,  -112, 24, 36, 72,   108, -112, -40, 36,
-                       48, 96, -112, -64, 32, 48, 60, 120, -76, -16, 104,  60, 72, -112, -40, 32,   -80, 72})};
+        std::vector<T>{-12, -24, -36, -48, -72, -12, -6, -12, -18, -24, -36, -6, 4,  8,  12, 16, 24,  4,
+                       14,  28,  42,  56,  84,  14,  18, 36,  54,  72,  108, 18, 20, 40, 60, 80, 120, 20})};
 
     return params;
 }
 
 template <>
-std::vector<MultiplyParams> generateParamsForMultiply<element::Type_t::u8>() {
+std::vector<MultiplyParams> generateParamsForMultiplyWithBroadcast<element::Type_t::u8>() {
     constexpr auto IN_ET = element::Type_t::u8;
     using T = typename element_type_traits<IN_ET>::value_type;
 
@@ -148,16 +148,26 @@ std::vector<MultiplyParams> generateParamsForMultiply<element::Type_t::u8>() {
         ov::PartialShape{3, 2, 1},
         ov::PartialShape{1, 6},
         IN_ET,
-        std::vector<T>{12, 24, 36, 48, 60, 72},
+        std::vector<T>{12, 24, 36, 38, 40, 42},
         std::vector<T>{1, 2, 3, 4, 6, 1},
-        std::vector<T>{12, 24, 36,  48,  72, 12, 24, 48,  72,  96,  144, 24, 36, 72,  108, 144, 216, 36,
-                       48, 96, 144, 192, 32, 48, 60, 120, 180, 240, 104, 60, 72, 144, 216, 32,  176, 72})};
+        std::vector<T>{12, 24, 36,  48,  72,  12, 24, 48, 72,  96,  144, 24, 36, 72, 108, 144, 216, 36,
+                       38, 76, 114, 152, 228, 38, 40, 80, 120, 160, 240, 40, 42, 84, 126, 168, 252, 42})};
 
     return params;
 }
 
 std::vector<MultiplyParams> generateCombinedParamsForMultiply() {
     const std::vector<std::vector<MultiplyParams>> allTypeParams{
+        generateParamsForMultiplyWithBroadcast<element::Type_t::i8>(),
+        generateParamsForMultiplyWithBroadcast<element::Type_t::u8>(),
+        generateParamsForMultiplyWithBroadcast<element::Type_t::f32>(),
+        generateParamsForMultiplyWithBroadcast<element::Type_t::f64>(),
+        generateParamsForMultiplyWithBroadcast<element::Type_t::f16>(),
+        generateParamsForMultiplyWithBroadcast<element::Type_t::bf16>(),
+        generateParamsForMultiplyWithBroadcast<element::Type_t::i64>(),
+        generateParamsForMultiplyWithBroadcast<element::Type_t::i32>(),
+        generateParamsForMultiplyWithBroadcast<element::Type_t::u64>(),
+        generateParamsForMultiplyWithBroadcast<element::Type_t::u32>(),
         generateParamsForMultiply<element::Type_t::i8>(),
         generateParamsForMultiply<element::Type_t::u8>(),
         generateParamsForMultiply<element::Type_t::f32>(),
@@ -168,16 +178,6 @@ std::vector<MultiplyParams> generateCombinedParamsForMultiply() {
         generateParamsForMultiply<element::Type_t::i32>(),
         generateParamsForMultiply<element::Type_t::u64>(),
         generateParamsForMultiply<element::Type_t::u32>(),
-        generateParamsForMultiplyNoOverflow<element::Type_t::i8>(),
-        generateParamsForMultiplyNoOverflow<element::Type_t::u8>(),
-        generateParamsForMultiplyNoOverflow<element::Type_t::f32>(),
-        generateParamsForMultiplyNoOverflow<element::Type_t::f64>(),
-        generateParamsForMultiplyNoOverflow<element::Type_t::f16>(),
-        generateParamsForMultiplyNoOverflow<element::Type_t::bf16>(),
-        generateParamsForMultiplyNoOverflow<element::Type_t::i64>(),
-        generateParamsForMultiplyNoOverflow<element::Type_t::i32>(),
-        generateParamsForMultiplyNoOverflow<element::Type_t::u64>(),
-        generateParamsForMultiplyNoOverflow<element::Type_t::u32>(),
     };
 
     std::vector<MultiplyParams> combinedParams;
