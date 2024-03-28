@@ -364,7 +364,7 @@ void IStreamsExecutor::run_sub_stream_and_wait(const std::vector<Task>& tasks) {
             [&packagedTasks, i] {
                 packagedTasks[i]();
             },
-            i);
+            static_cast<int>(i));
     }
     // std::future::get will rethrow exception from task.
     // We should wait all tasks before any exception is thrown.
