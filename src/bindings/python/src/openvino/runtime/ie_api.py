@@ -223,9 +223,10 @@ class CompiledModel(CompiledModelBase):
     multiple optimization transformations, then mapping to compute kernels.
     """
 
-    def __init__(self, other: CompiledModelBase) -> None:
+    def __init__(self, other: CompiledModelBase, weights: Optional[bytes] = None) -> None:
         # Private memeber to store already created InferRequest
         self._infer_request: Optional[InferRequest] = None
+        self._weights = weights
         super().__init__(other)
 
     def get_runtime_model(self) -> Model:
@@ -483,11 +484,14 @@ class Core(CoreBase):
         model: Union[Model, str, Path],
         device_name: Optional[str] = None,
         config: Optional[dict] = None,
+        *,
+        weights: Optional[bytes] = None
     ) -> CompiledModel:
         """Creates a compiled model.
 
         Creates a compiled model from a source Model object or
-        reads model and creates a compiled model from IR / ONNX / PDPD / TF and TFLite file.
+        reads model and creates a compiled model from IR / ONNX / PDPD / TF and TFLite file or
+        creates a compiled model from a IR xml and weights in memory.
         This can be more efficient than using read_model + compile_model(model_in_memory_object) flow,
         especially for cases when caching is enabled and cached model is available.
         If device_name is not specified, the default OpenVINO device will be selected by AUTO plugin.
@@ -503,17 +507,29 @@ class Core(CoreBase):
         :param config: Optional dict of pairs:
                        (property name, property value) relevant only for this load operation.
         :type config: dict, optional
+        :param weights: Optional. Weights of model in memory to be loaded to the model.
+        :type weights: bytes, optional, keyword-only
         :return: A compiled model.
         :rtype: openvino.runtime.CompiledModel
         """
-        if device_name is None:
+        if weights is None:
+            if device_name is None:
+                return CompiledModel(
+                    super().compile_model(model, {} if config is None else config),
+                )
             return CompiledModel(
-                super().compile_model(model, {} if config is None else config),
+                super().compile_model(model, device_name, {} if config is None else config),
             )
-
-        return CompiledModel(
-            super().compile_model(model, device_name, {} if config is None else config),
-        )
+        else:
+            if device_name is None:
+                return CompiledModel(
+                    super().compile_model(model, weights, {} if config is None else config),
+                    weights=weights,
+                )
+            return CompiledModel(
+                super().compile_model(model, weights, device_name, {} if config is None else config),
+                weights=weights,
+            )
 
     def import_model(
         self,
