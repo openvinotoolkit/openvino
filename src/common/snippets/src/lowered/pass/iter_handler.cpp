@@ -100,7 +100,8 @@ bool TransformInnerSplitLoop::run(LinearIR& linear_ir, LinearIR::constExprIt beg
         const auto inner_loop_end = ov::as_type_ptr<op::LoopEndStatic>(expr->get_node());
         if (!inner_loop_end)
             continue;
-        const auto inner_loop_info = loop_manager->get_loop_info(inner_loop_end->get_id());
+        // There is already ExpandedLoopInfo
+        const auto inner_loop_info = loop_manager->get_loop_info<ExpandedLoopInfo>(inner_loop_end->get_id());
         const auto inner_dim_idx = inner_loop_info->get_dim_idx();
         if (inner_dim_idx != current_dim_idx)
             continue;
@@ -119,7 +120,7 @@ bool TransformInnerSplitLoop::run(LinearIR& linear_ir, LinearIR::constExprIt beg
         const auto inner_loop_begin_it = std::find(begin, it, linear_ir.get_expr_by_node(inner_loop_begin));
         const auto inner_loop_end_it = std::next(it);
         OPENVINO_ASSERT(inner_loop_begin_it != it, "LoopBegin has not been found!");
-        const auto& last_iter_handlers = inner_loop_info->get_handlers().get_last_iter_handlers();
+        const auto& last_iter_handlers = inner_loop_info->get_unified_loop_info()->get_handlers().get_last_iter_handlers();
         last_iter_handlers.run(linear_ir, std::next(inner_loop_begin_it), inner_loop_end_it);
         modified = true;
     }

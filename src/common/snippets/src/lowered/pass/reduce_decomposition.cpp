@@ -51,8 +51,6 @@ std::shared_ptr<ov::Node> get_horizon_node(const ov::Output<ov::Node>& input, co
 }
 }  // namespace
 
-using HandlerType = SpecificIterationHandlers::HandlerType;
-
 ReduceDecomposition::ReduceDecomposition(size_t vector_size) : RangedPass(), m_vector_size{vector_size} {}
 
 bool ReduceDecomposition::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) {
@@ -100,7 +98,8 @@ bool ReduceDecomposition::run(LinearIR& linear_ir, LinearIR::constExprIt begin, 
             std::vector<ExpressionPort>{(*accumulation.first)->get_output_port(0)});
         const auto tail_size = utils::is_dynamic_value(work_amount) ? 1lu : work_amount % increment;
         if (tail_size != 0) {
-            loop_manager->get_loop_info(reduce_loop_id)->register_handler<HandlerType::LAST_ITER, SetFillOffset>(tail_size);
+            const auto loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(reduce_loop_id);
+            loop_info->register_handler<SpecificLoopIterType::LAST_ITER, SetFillOffset>(tail_size);
         }
         const auto horizon = push_node(get_horizon_node(accumulation.second, reduce_type_info));
 

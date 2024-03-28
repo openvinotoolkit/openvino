@@ -47,10 +47,10 @@ static void init_linear_ir(const std::vector<ov::PartialShape>& in_shapes, Linea
     loop_manager->mark_loop(expr_it, std::next(expr_it), inner_wa, inner_inc, 0, loop_entry_points, loop_exit_points);
     loop_manager->mark_loop(expr_it, std::next(expr_it), blocked_wa, blocked_inc, 1, loop_entry_points, loop_exit_points);
     const auto loop_id = loop_manager->mark_loop(expr_it, std::next(expr_it), outer_wa, outer_inc, 1, loop_entry_points, loop_exit_points);
-    const auto& outer_loop_info = loop_manager->get_loop_info(loop_id);
+    const auto& outer_loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_id);
     const auto outer_tail_size = outer_wa % outer_inc;
     if (outer_tail_size != 0) {
-        outer_loop_info->register_handler<SpecificIterationHandlers::HandlerType::LAST_ITER, pass::TransformInnerSplitLoop>(outer_tail_size);
+        outer_loop_info->register_handler<SpecificLoopIterType::LAST_ITER, pass::TransformInnerSplitLoop>(outer_tail_size);
     }
 }
 

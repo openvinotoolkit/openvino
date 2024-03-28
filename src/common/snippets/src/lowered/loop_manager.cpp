@@ -36,14 +36,8 @@ void LoopManager::remove_loop_info(size_t index) {
     m_map.erase(index);
 }
 
-const std::map<size_t, LoopInfoPtr> &LoopManager::get_map() const {
+const std::map<size_t, LoopInfoPtr>& LoopManager::get_map() const {
     return m_map;
-}
-
-LoopInfoPtr LoopManager::get_loop_info(size_t index) const {
-    const auto it = m_map.find(index);
-    OPENVINO_ASSERT(it != m_map.end(), "LoopInformation hasn't been found!");
-    return it->second;
 }
 
 std::vector<size_t> LoopManager::get_outer_expr_loops(const ExpressionPtr& expr, size_t loop_id) {
@@ -233,32 +227,31 @@ void LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
     }
 }
 
-size_t LoopManager::replace_with_new_loop(const LinearIR& linear_ir,
-                                          LinearIR::constExprIt loop_begin_pos,
-                                          LinearIR::constExprIt loop_end_pos,
-                                          size_t work_amount,
-                                          size_t increment,
-                                          const std::vector<LoopPort>& entries,
-                                          const std::vector<LoopPort>& exits,
-                                          const size_t old_id) {
+size_t LoopManager::replace_with_new_loop(const LinearIR& linear_ir, LinearIR::constExprIt loop_begin_pos, LinearIR::constExprIt loop_end_pos,
+                                          const LoopInfoPtr& loop_info, const size_t old_id) {
     const auto is_bound_explicit_loop_begin = ov::is_type<op::LoopBegin>(loop_begin_pos->get()->get_node());
     const auto is_bound_explicit_loop_end = ov::is_type<op::LoopEnd>(std::prev(loop_end_pos)->get()->get_node());
     OPENVINO_ASSERT((is_bound_explicit_loop_begin && is_bound_explicit_loop_end) || (!is_bound_explicit_loop_begin && !is_bound_explicit_loop_end),
                     "Incorrect LoopBounds!");
     const auto explicit_loop_bounds = is_bound_explicit_loop_begin && is_bound_explicit_loop_end;
+    OPENVINO_ASSERT(std::all_of(m_map.cbegin(), m_map.cend(),
+                    [&loop_info](const std::pair<size_t, LoopInfoPtr>& p) { return loop_info != p.second; }),
+                    "Failed to replace with new Loop: this Loop is already existed!");
 
-    const auto loop_id = this->add_loop_info(std::make_shared<LoopInfo>(work_amount, increment, entries, exits));
+    // [137819] Should be before loop id replacing!!!
+    // Check that other expression in LinearIR doesn't have the old loop ID - otherwise completely removed from loop manager
+    const auto old_loop_bounds = get_loop_bounds(linear_ir, old_id);
+
+    const auto loop_id = this->add_loop_info(loop_info);
     const auto begin = explicit_loop_bounds ? std::next(loop_begin_pos) : loop_begin_pos;
     const auto end = explicit_loop_bounds ? std::prev(loop_end_pos) : loop_end_pos;
     for (auto expr_it = begin; expr_it != end; ++expr_it) {
         replace_loop_id(*expr_it, old_id, loop_id);
     }
 
-    // Check that other expression in LinearIR doesn't have the old loop ID - otherwise completely removed from loop manager
-    const auto old_loop_bounds = get_loop_bounds(linear_ir, old_id);
     // If new bounds are equal to old loop bounds, this means that old Loop is removed totally from LIR
     // In this case old loop info must be completely removed from loop manager
-    if (loop_begin_pos == old_loop_bounds.first && loop_end_pos == old_loop_bounds.second) {
+    if (loop_begin_pos == old_loop_bounds.first && end == old_loop_bounds.second) {
         this->remove_loop_info(old_id);
     }
     return loop_id;

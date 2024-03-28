@@ -5,6 +5,7 @@
 #pragma once
 
 #include "snippets/lowered/pass/pass.hpp"
+#include "snippets/lowered/specific_loop_iter_types.hpp"
 
 
 namespace ov {
@@ -13,7 +14,6 @@ namespace lowered {
 
 class SpecificIterationHandlers {
 public:
-    enum class HandlerType { FIRST_ITER, MAIN_BODY, LAST_ITER };
     SpecificIterationHandlers() = default;
     SpecificIterationHandlers(size_t loop_work_amount, size_t loop_increment);
     SpecificIterationHandlers(pass::PassPipeline first_iter_handlers,
@@ -23,28 +23,30 @@ public:
     const pass::PassPipeline& get_first_iter_handlers() const;
     const pass::PassPipeline& get_main_iter_handlers() const;
     const pass::PassPipeline& get_last_iter_handlers() const;
+    const pass::PassPipeline& get_handlers_by_type(SpecificLoopIterType Type) const;
+
     static SpecificIterationHandlers merge_handlers(const SpecificIterationHandlers& lhs, const SpecificIterationHandlers& rhs);
 
-    template <HandlerType Type,
+    template <SpecificLoopIterType Type,
               typename T,
               class... Args,
-              typename std::enable_if<Type == HandlerType::FIRST_ITER, bool>::type = true>
+              typename std::enable_if<Type == SpecificLoopIterType::FIRST_ITER, bool>::type = true>
     void register_handler(Args&&... args) {
         m_first_iter_handlers.register_pass<T>(args...);
     }
 
-    template <HandlerType Type,
+    template <SpecificLoopIterType Type,
               typename T,
               class... Args,
-              typename std::enable_if<Type == HandlerType::MAIN_BODY, bool>::type = true>
+              typename std::enable_if<Type == SpecificLoopIterType::MAIN_BODY, bool>::type = true>
     void register_handler(Args&&... args) {
         m_main_body_handlers.register_pass<T>(args...);
     }
 
-    template <HandlerType Type,
+    template <SpecificLoopIterType Type,
               typename T,
               class... Args,
-              typename std::enable_if<Type == HandlerType::LAST_ITER, bool>::type = true>
+              typename std::enable_if<Type == SpecificLoopIterType::LAST_ITER, bool>::type = true>
     void register_handler(Args&&... args) {
         m_last_iter_handlers.register_pass<T>(args...);
     }
