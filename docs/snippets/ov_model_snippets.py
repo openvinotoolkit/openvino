@@ -76,10 +76,14 @@ def visualize_example(m : ov.Model):
 
 def model_inputs_outputs(model : ov.Model):
     #! [all_inputs_ouputs]
-    inputs = model.inputs
-    outputs = model.outputs
+    ov_model_input = model.input(index)
+    ov_model_output = model.output(index)
     #! [all_inputs_ouputs]
 
+def get_element_type_example():
+    #! [get_element_type]
+    ov_input.get_element_type()
+    #! [get_element_type]
 
 def main():
     ov_api_examples()
