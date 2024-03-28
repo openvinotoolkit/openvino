@@ -619,8 +619,11 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
     if (d_scale == 0.0f)
         d_scale = 1.0f / sqrt(S);
     auto nthr = parallel_get_max_threads();
-    // max kv len
-    auto kv_len = beams.size(1);
+    size_t kv_len;
+    if (is_pagedattn)
+        kv_len = beams.size(1);
+    else
+        kv_len = present_key.size(2);
 
     // use per-token kernel, for each k,v token
     //  attn mask is a matrix of q_len(kv_len)
