@@ -24,23 +24,16 @@ void InsertLoops::insertion(LinearIR& linear_ir, const LoopManagerPtr& loop_mana
 
     const auto loop_bounds = loop_manager->get_loop_bounds(linear_ir, loop_id);
 
-    const auto in_out_num = loop_entries.size() + loop_exits.size();
-    std::vector<bool> is_incremented;
-    std::vector<int64_t> io_data_sizes;
     std::vector<PortConnectorPtr> loop_end_inputs;
-    is_incremented.reserve(in_out_num);
-    io_data_sizes.reserve(in_out_num);
-    loop_end_inputs.reserve(in_out_num);
-
-    auto init_common_params = [&](const std::vector<LoopPort>& ports) {
-        for (const auto& port : ports) {
-            is_incremented.push_back(port.is_incremented);
-            io_data_sizes.push_back(port.data_size);
-            loop_end_inputs.push_back(port.expr_port->get_port_connector_ptr());
-        }
+    loop_end_inputs.reserve(loop_entries.size() + loop_exits.size());
+    auto init_inputs = [&loop_end_inputs](const LoopPort& port) {
+        loop_end_inputs.push_back(port.expr_port->get_port_connector_ptr());
     };
-    init_common_params(loop_entries);
-    init_common_params(loop_exits);
+    loop_info->init_using_entry_points(init_inputs);
+    loop_info->init_using_exit_points(init_inputs);
+
+    const auto is_incremented = loop_info->get_is_incremented();
+    const auto io_data_sizes = loop_info->get_data_sizes();
 
     // Should be inited by LoopInfo
     const auto is_dynamic_loop = is_loop_dynamic(loop_info);
@@ -53,18 +46,8 @@ void InsertLoops::insertion(LinearIR& linear_ir, const LoopManagerPtr& loop_mana
                                                         loop_entries.size(), loop_exits.size(), loop_id);
 
     } else {
-        std::vector<int64_t> ptr_increments, finalization_offsets;
-        ptr_increments.reserve(in_out_num);
-        finalization_offsets.reserve(in_out_num);
-
-        auto init_data_ptr_shifts = [&](const std::vector<LoopPort>& ports) {
-            for (const auto& port : ports) {
-                ptr_increments.push_back(port.ptr_increment);
-                finalization_offsets.push_back(port.finalization_offset);
-            }
-        };
-        init_data_ptr_shifts(loop_entries);
-        init_data_ptr_shifts(loop_exits);
+        const auto ptr_increments = loop_info->get_ptr_increments();
+        const auto finalization_offsets = loop_info->get_finalization_offsets();
 
         loop_begin = std::make_shared<op::LoopBeginStatic>();
         loop_end = std::make_shared<op::LoopEndStatic>(loop_begin, work_amount, work_amount_increment, is_incremented, ptr_increments,

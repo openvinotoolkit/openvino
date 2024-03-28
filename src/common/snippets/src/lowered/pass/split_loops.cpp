@@ -43,7 +43,7 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
         // Splitting could also be done in a more general case, but the splitted loop and its parent must always
         // be in the same set of outer loops. Otherwise they won't be fused.
         const auto& loop_id = loop_ids.front();
-        const auto loop = loop_manager->get_loop_info(loop_id);
+        const auto loop = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_id);
         for (const auto& entry_point : loop->get_entry_points()) {
             const auto& parent_port = entry_point.expr_port->get_port_connector_ptr()->get_source();
             const auto& parent_expr = parent_port.get_expr();
@@ -52,11 +52,11 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
                 continue;
 
             const auto& parent_loop_id = parent_loop_ids.front();
-            const auto parent_loop = loop_manager->get_loop_info(parent_loop_id);
+            const auto parent_loop = loop_manager->get_loop_info<UnifiedLoopInfo>(parent_loop_id);
 
             const bool split_parent = parent_loop->get_increment() < loop->get_increment();
-            const auto upper_loop = std::make_shared<LoopInfo>(*parent_loop);
-            const auto lower_loop = std::make_shared<LoopInfo>(*loop);
+            const auto upper_loop = std::make_shared<UnifiedLoopInfo>(*parent_loop);
+            const auto lower_loop = std::make_shared<UnifiedLoopInfo>(*loop);
             if (split_parent)
                 upper_loop->set_increment(loop->get_increment());
             else
@@ -86,7 +86,7 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
                 const auto tail_size = work_amount % increment;
                 auto new_handlers = loop_to_split->get_handlers();
                 if (tail_size != 0) {
-                    new_handlers.register_handler<SpecificIterationHandlers::HandlerType::LAST_ITER, TransformInnerSplitLoop>(tail_size);
+                    new_handlers.register_handler<SpecificLoopIterType::LAST_ITER, TransformInnerSplitLoop>(tail_size);
                 }
                 new_loop_info->set_handlers(new_handlers);
                 break;

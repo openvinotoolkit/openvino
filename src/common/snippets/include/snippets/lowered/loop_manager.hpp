@@ -31,7 +31,15 @@ public:
      * @param index loop ID
      * @return the LoopInfo shared ptr
      */
-    LoopInfoPtr get_loop_info(size_t index) const;
+    template<typename T = LoopInfo>
+    std::shared_ptr<T> get_loop_info(size_t index) const {
+        static_assert(std::is_base_of<LoopInfo, T>::value, "LoopInfo not derived from lowered::LoopInfo");
+        const auto it = m_map.find(index);
+        OPENVINO_ASSERT(it != m_map.end(), "LoopInfo hasn't been found!");
+        const auto loop_info = std::dynamic_pointer_cast<T>(it->second);
+        OPENVINO_ASSERT(loop_info, "LoopInfo of specific type hasn't been found!");
+        return loop_info;
+    }
     /**
      * @brief Get count of loops
      * @return count of loops in the map
@@ -96,7 +104,7 @@ public:
         const auto handlers = set_default_handlers
                                   ? SpecificIterationHandlers(work_amount, normalized_increment)
                                   : SpecificIterationHandlers();
-        const auto loop_info = std::make_shared<LoopInfo>(work_amount, normalized_increment, entries, exits, handlers);
+        const auto loop_info = std::make_shared<UnifiedLoopInfo>(work_amount, normalized_increment, entries, exits, handlers);
         const auto loop_id = this->add_loop_info(loop_info);
         for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
             insert_loop_id(*expr_it, loop_id);
@@ -137,21 +145,12 @@ public:
      *                       If there is explicit LoopBegin expressions in IR, loop_begin_pos must be the iterator of the LoopBegin
      * @param loop_end_pos the next iterator after last expression iterator. Must be the iterator of the `linear_ir`.
      *                     If there is explicit LoopEnd expressions in IR, loop_end_pos must be the next iterator of the LoopEnd
-     * @param work_amount work amount of the loop
-     * @param work_amount_increment increment of the loop
-     * @param entries input loop ports
-     * @param exits output loop ports
+     * @param loop_info information about new Loop
      * @param old_id loop ID of the previos loop
      * @return new loop ID
      */
-    size_t replace_with_new_loop(const LinearIR& linear_ir,
-                                 LinearIR::constExprIt loop_begin_pos,
-                                 LinearIR::constExprIt loop_end_pos,
-                                 size_t work_amount,
-                                 size_t increment,
-                                 const std::vector<LoopPort>& entries,
-                                 const std::vector<LoopPort>& exits,
-                                 const size_t old_id);
+    size_t replace_with_new_loop(const LinearIR& linear_ir, LinearIR::constExprIt loop_begin_pos, LinearIR::constExprIt loop_end_pos,
+                                 const LoopInfoPtr& loop_info, const size_t old_id);
     /**
      * @brief Fuse two LoopInfos: fuse their informations to the one
      * @param linear_ir linear IR
@@ -230,6 +229,8 @@ public:
      */
     void expression_replacement(LinearIR::constExprIt new_expr_begin, LinearIR::constExprIt new_expr_end, const ExpressionPtr& decomposed_expr,
                                 size_t loop_id, const std::vector<ExpressionPort>& new_entries, const std::vector<ExpressionPort>& exits);
+
+    using LoopBounds = std::pair<LinearIR::constExprIt, LinearIR::constExprIt>;
     /**
      * @brief Find bounds of Loop:
      *        - If the explicit Loop exprs with the target `loop_id` have been inserted,
@@ -241,7 +242,7 @@ public:
      * @param loop_id target Loop ID
      * @return the pair of loop_begin_pos and loop_end_pos iterators
      */
-    std::pair<LinearIR::constExprIt, LinearIR::constExprIt> get_loop_bounds(const LinearIR& linear_ir, size_t loop_id) const;
+    LoopBounds get_loop_bounds(const LinearIR& linear_ir, size_t loop_id) const;
     /**
      * @brief Find bounds of Loop:
      *        - If the explicit Loop exprs with the target `loop_id` have been inserted,
@@ -255,8 +256,7 @@ public:
      * @param exits output loop ports
      * @return the pair of loop_begin_pos and loop_end_pos iterators
      */
-    static std::pair<LinearIR::constExprIt, LinearIR::constExprIt> get_loop_bounds(const LinearIR& linear_ir, size_t loop_id,
-                                                                                   const std::vector<LoopPort>& entries, const std::vector<LoopPort>& exits);
+    static LoopBounds get_loop_bounds(const LinearIR& linear_ir, size_t loop_id, const std::vector<LoopPort>& entries, const std::vector<LoopPort>& exits);
 
     /**
      * @brief Get LoopPort by ExpressionPort
@@ -265,6 +265,14 @@ public:
      * @return loop port
      */
     LoopPort get_loop_port_by_expr_port(const ExpressionPort& expr_port, const size_t loop_id);
+
+    /**
+     * @brief Blend loop map using `loop_id_map` and update LoopIDs of expressions and LoopEnd
+     * @param linear_ir linear IR
+     * @param loop_id_map [ current Loop ID -> new target Loop ID ]
+     * @return True if loops have been mixed up. Otherwise returns False
+     */
+    bool blend(const LinearIR& linear_ir, const std::map<size_t, size_t>& loop_id_map);
 
 private:
     /**

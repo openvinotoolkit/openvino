@@ -14,7 +14,9 @@
 #include "snippets/lowered/pass/insert_specific_iterations.hpp"
 #include "snippets/lowered/pass/iter_handler.hpp"
 #include "snippets/lowered/pass/optimize_loop_single_evaluation.hpp"
-#include "snippets/lowered/pass/validate_loops.hpp"
+#include "snippets/lowered/pass/validate_unified_loops.hpp"
+#include "snippets/lowered/pass/validate_expanded_loops.hpp"
+#include "snippets/lowered/pass/normalize_loop_ids.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 #include "subgraph_simple.hpp"
 
@@ -47,22 +49,29 @@ static void init_linear_ir(const std::vector<ov::PartialShape>& in_shapes, Linea
     loop_manager->mark_loop(expr_it, std::next(expr_it), inner_wa, inner_inc, 0, loop_entry_points, loop_exit_points);
     loop_manager->mark_loop(expr_it, std::next(expr_it), blocked_wa, blocked_inc, 1, loop_entry_points, loop_exit_points);
     const auto loop_id = loop_manager->mark_loop(expr_it, std::next(expr_it), outer_wa, outer_inc, 1, loop_entry_points, loop_exit_points);
-    const auto& outer_loop_info = loop_manager->get_loop_info(loop_id);
+    const auto& outer_loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_id);
     const auto outer_tail_size = outer_wa % outer_inc;
     if (outer_tail_size != 0) {
-        outer_loop_info->register_handler<SpecificIterationHandlers::HandlerType::LAST_ITER, pass::TransformInnerSplitLoop>(outer_tail_size);
+        outer_loop_info->register_handler<SpecificLoopIterType::LAST_ITER, pass::TransformInnerSplitLoop>(outer_tail_size);
     }
 }
 
 static void apply_transformations(LinearIR& linear_ir, const std::shared_ptr<pass::PassConfig>& config) {
+    const auto is_loop_decomp_disabled = config->is_disabled<pass::InsertSpecificIterations>();
+    if (is_loop_decomp_disabled) {
+        config->disable<pass::ValidateExpandedLoops>();
+    }
+
     pass::PassPipeline pipeline(config);
     pipeline.register_pass<pass::InsertLoadStore>(vector_size);
-    pipeline.register_pass<pass::ValidateLoops>();
+    pipeline.register_pass<pass::ValidateUnifiedLoops>();
     pipeline.register_pass<pass::InitLoops>();
     pipeline.register_pass<pass::InsertLoops>();
     pipeline.register_pass<pass::InsertSpecificIterations>();
+    pipeline.register_pass<pass::NormalizeLoopIDs>(!is_loop_decomp_disabled);
     pipeline.register_pass<pass::CleanupLoopOffsets>();
     pipeline.register_pass<pass::OptimizeLoopSingleEvaluation>();
+    pipeline.register_pass<pass::ValidateExpandedLoops>();
     pipeline.run(linear_ir);
 }
 

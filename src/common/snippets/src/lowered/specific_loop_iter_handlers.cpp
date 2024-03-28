@@ -40,6 +40,19 @@ const pass::PassPipeline& SpecificIterationHandlers::get_last_iter_handlers() co
     return m_last_iter_handlers;
 }
 
+const pass::PassPipeline& SpecificIterationHandlers::get_handlers_by_type(SpecificLoopIterType Type) const {
+    switch (Type) {
+        case (SpecificLoopIterType::FIRST_ITER):
+            return get_first_iter_handlers();
+        case (SpecificLoopIterType::MAIN_BODY):
+            return get_main_iter_handlers();
+        case (SpecificLoopIterType::LAST_ITER):
+            return get_last_iter_handlers();
+        default:
+            OPENVINO_THROW("Unknown SpecificLoopIterType type!");
+    }
+}
+
 SpecificIterationHandlers SpecificIterationHandlers::merge_handlers(
     const SpecificIterationHandlers& lhs,
     const SpecificIterationHandlers& rhs) {

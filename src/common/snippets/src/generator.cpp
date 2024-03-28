@@ -11,6 +11,8 @@
 #include "snippets/lowered/pass/cleanup_loop_offsets.hpp"
 #include "snippets/lowered/pass/insert_specific_iterations.hpp"
 #include "snippets/lowered/pass/optimize_loop_single_evaluation.hpp"
+#include "snippets/lowered/pass/normalize_loop_ids.hpp"
+#include "snippets/lowered/pass/validate_expanded_loops.hpp"
 #include "snippets/lowered/pass/pass.hpp"
 #include "snippets/op/kernel.hpp"
 #include "snippets/op/memory_access.hpp"
@@ -37,8 +39,10 @@ void Generator::generate(lowered::LinearIR& linear_ir, LoweringResult& result, c
     //       since CleanupLoopOffsets can't handle loops with evaluate_once = true
     lowered_pipeline.register_pass<lowered::pass::AssignRegisters>(reg_type_mapper);
     lowered_pipeline.register_pass<lowered::pass::InsertSpecificIterations>();
+    lowered_pipeline.register_pass<lowered::pass::NormalizeLoopIDs>();
     lowered_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
     lowered_pipeline.register_pass<lowered::pass::OptimizeLoopSingleEvaluation>();
+    lowered_pipeline.register_pass<lowered::pass::ValidateExpandedLoops>();
     lowered_pipeline.run(linear_ir);
     linear_ir.init_emitters(target);
 

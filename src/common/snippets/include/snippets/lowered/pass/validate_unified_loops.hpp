@@ -12,8 +12,8 @@ namespace lowered {
 namespace pass {
 
 /**
- * @interface ValidateLoops
- * @brief The pass validates LoopInfo that describes Loops:
+ * @interface ValidateUnifiedLoops
+ * @brief The pass validates UnifiedLoopInfo that describes entire Loops:
  *          - Verifies the correctness of nested Loops.
  *            The loops with the same dimension index (splitted dimension) should be successively nested
  *          - dim_idx are sorted in accordance with loop nesting
@@ -22,10 +22,10 @@ namespace pass {
  *          - TODO [112196] : probably, it's a temporary design. Need to investigate it and remove these limitations
  * @ingroup snippets
  */
-class ValidateLoops : public Pass {
+class ValidateUnifiedLoops : public Pass {
 public:
-    OPENVINO_RTTI("ValidateLoops", "Pass")
-    ValidateLoops();
+    OPENVINO_RTTI("ValidateUnifiedLoops", "Pass")
+    ValidateUnifiedLoops() = default;
     bool run(LinearIR& linear_ir) override;
 };
 
