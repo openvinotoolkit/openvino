@@ -54,6 +54,17 @@ std::tuple<V, V, V> get_xyz(const T data, V def) {
     }
 }
 
+template <typename T, typename DT, typename = typename std::enable_if<std::is_convertible<DT, T>::value>::type>
+int find_index_from_vec(const std::vector<T>& vec, const DT value) {
+    int idx = 0;
+    for (auto v : vec) {
+        if (v != static_cast<T>(value))
+            break;
+        idx += 1;
+    }
+    return idx;
+}
+
 inline cldnn::layout make_layout(const ov::element::Type type, const ov::Shape& shape) {
     return cldnn::layout{ov::PartialShape{shape},
                          cldnn::element_type_to_data_type(type),
