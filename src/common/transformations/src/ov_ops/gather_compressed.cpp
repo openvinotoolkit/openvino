@@ -18,8 +18,7 @@ GatherCompressed::GatherCompressed(const ov::Output<Node>& data,
                                    const ov::Output<Node>& decompression_zero_point,
                                    const ov::element::Type output_type)
     : ov::op::v8::Gather({data, indices, axis, batch_dims}),
-      m_output_type(output_type),
-      m_batch_dims(batch_dims) {
+      m_output_type(output_type) {
     set_argument(3, decompression_scale);
     set_argument(4, decompression_zero_point);
     validate_and_infer_types();
@@ -32,8 +31,7 @@ GatherCompressed::GatherCompressed(const ov::Output<Node>& data,
                                    const ov::Output<Node>& decompression_scale,
                                    const ov::element::Type output_type)
     : ov::op::v8::Gather({data, indices, axis, batch_dims}),
-      m_output_type(output_type),
-      m_batch_dims(batch_dims) {
+      m_output_type(output_type) {
     set_argument(3, decompression_scale);
     validate_and_infer_types();
 }

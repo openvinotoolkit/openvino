@@ -43,13 +43,8 @@ public:
         return m_output_type;
     }
 
-    int64_t get_batch_dims() const {
-        return m_batch_dims;
-    }
-
 protected:
     ov::element::Type m_output_type;
-    int64_t m_batch_dims = 1;
 };
 
 }  // namespace internal
