@@ -3,6 +3,7 @@
 //
 
 #include "zero_memory.h"
+
 #include "zero_utils.h"
 
 namespace vpux {
