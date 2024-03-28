@@ -144,6 +144,49 @@ Output<Node> quantize(const NodeContext& context,
                       const Output<Node>& zero_point,
                       const Output<Node>& quantized_node);
 
+/**
+ * Quantizes input node with the given parameters. Returns a shared pointer to the new QuantizedPtNode.
+ */
+Output<Node> quantize_fx(const NodeContext& context,
+                         const Output<Node>& input,
+                         const Output<Node>& scale,
+                         const Output<Node>& zero_point,
+                         int64_t out_low_i64,
+                         int64_t out_high_i64,
+                         element::Type dtype,
+                         QuantizedPtNodeType quantization_type);
+Output<Node> quantize_fx(const NodeContext& context,
+                         const Output<Node>& input,
+                         const Output<Node>& scale,
+                         const Output<Node>& zero_point,
+                         const Output<Node>& axis,
+                         int64_t out_low_i64,
+                         int64_t out_high_i64,
+                         element::Type dtype,
+                         QuantizedPtNodeType quantization_type);
+
+/**
+ * Quantizes input node like the quantized node. Returns a shared pointer to the new QuantizedPtNode.
+ */
+Output<Node> quantize_fx(const NodeContext& context,
+                         Output<Node> input,
+                         int64_t out_low_i64,
+                         int64_t out_high_i64,
+                         Output<Node> quantized_node);
+
+/**
+ * Quantizes input node like the quantized node, with new scale and zero_point parameters. Returns a shared pointer to
+ * the new QuantizedPtNode.
+ */
+Output<Node> quantize_fx(const NodeContext& context,
+                         const Output<Node>& input,
+                         const Output<Node>& scale,
+                         const Output<Node>& zero_point,
+                         int64_t out_low_i64,
+                         int64_t out_high_i64,
+                         const Output<Node>& quantized_node);
+
+
 std::shared_ptr<QuantizedPtNode> cast_quantized_fw_node(std::shared_ptr<Node> node);
 
 namespace op {
