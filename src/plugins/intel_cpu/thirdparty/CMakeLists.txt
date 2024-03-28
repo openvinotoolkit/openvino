@@ -110,12 +110,6 @@ function(ov_add_onednn)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
     endif()
 
-    # if(CMAKE_CROSSCOMPILING AND CMAKE_COMPILE_WARNING_AS_ERROR)
-    #     string(REPLACE " -Werror " "  " CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-    #     string(REPLACE " -Werror " "  " CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
-    #     set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
-    # endif()
-
     # to find our FindACL.cmake
     if(DNNL_USE_ACL)
         list(APPEND CMAKE_MODULE_PATH "${intel_cpu_thirdparty_SOURCE_DIR}")
@@ -142,15 +136,7 @@ function(ov_add_onednn)
 endfunction()
 
 if(ENABLE_MLAS_FOR_CPU)
-    # set(_OLD_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-    # set(_OLD_COMPILE_WARNING_AS_ERROR ${CMAKE_COMPILE_WARNING_AS_ERROR})
-    # if(CMAKE_CROSSCOMPILING AND CMAKE_COMPILE_WARNING_AS_ERROR)
-    #     string(REPLACE " -Werror " "  " CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-    #     set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
-    # endif()
     add_subdirectory(mlas)
-    # set(CMAKE_CXX_FLAGS "${_OLD_CXX_FLAGS}")
-    # set(CMAKE_COMPILE_WARNING_AS_ERROR ${_OLD_COMPILE_WARNING_AS_ERROR})
     ov_install_static_lib(mlas ${OV_CPACK_COMP_CORE})
 endif()
 
