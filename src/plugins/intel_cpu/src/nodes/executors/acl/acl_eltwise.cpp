@@ -11,11 +11,6 @@ namespace intel_cpu {
 
 using namespace arm_compute;
 
-static std::mutex & get_mtx_ifunc() {
-    static std::mutex mtx_ifunc;
-    return mtx_ifunc;
-}
-
 inline VectorDims reshape_sizes(VectorDims dims) {
     const size_t MAX_NUM_SHAPE = arm_compute::MAX_DIMS;
     VectorDims result_dims(MAX_NUM_SHAPE - 1);
@@ -524,11 +519,7 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs, const std::vecto
                            static_cast<int>(aclEltwiseAttrs.algorithm));
     }
 
-    // We get a problem (seg. faults, data race etc) for eltwise operations when we use several configure(...) functions in parallel.
-    // We created issue about this problem here: https://github.com/ARM-software/ComputeLibrary/issues/1073
-    // TODO: change it when we will get an answer to our question in issue
-    std::lock_guard<std::mutex> _lock {get_mtx_ifunc()};
-    ifunc = exec_func();
+    configureThreadSafe([&] { ifunc = exec_func(); });
     return true;
 }
 
