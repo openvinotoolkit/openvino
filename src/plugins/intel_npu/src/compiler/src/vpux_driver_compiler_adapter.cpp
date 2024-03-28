@@ -3,6 +3,7 @@
 //
 
 #include "vpux_driver_compiler_adapter.h"
+
 #include "graph_transformations.h"
 #include "npu/utils/zero/zero_result.hpp"
 #include "vpux/al/config/common.hpp"

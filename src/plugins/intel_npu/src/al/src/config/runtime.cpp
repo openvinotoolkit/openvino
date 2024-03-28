@@ -3,6 +3,7 @@
 //
 
 #include "vpux/al/config/runtime.hpp"
+
 #include "vpux/al/config/common.hpp"
 
 using namespace vpux;

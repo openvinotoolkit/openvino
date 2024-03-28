@@ -5,6 +5,7 @@
 #pragma once
 
 #include <limits.h>
+
 #include "npu/utils/logger/logger.hpp"
 #include "npu/utils/zero/zero_result.hpp"
 #include "vpux/al/config/runtime.hpp"
