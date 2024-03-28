@@ -166,6 +166,9 @@
 'category: transformations':
 - 'src/common/transformations/**/*'
 - 'src/common/offline_transformations/**/*'
+- 'src/core/pattern/**/*'
+- 'src/core/pass/**/*'
+- 'src/core/include/openvino/pass/**/*'
 
 'category: licensing':
 - 'licensing/**/*'
