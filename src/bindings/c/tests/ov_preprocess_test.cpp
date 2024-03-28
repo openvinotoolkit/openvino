@@ -132,6 +132,20 @@ TEST_F(ov_preprocess_test, ov_preprocess_preprocess_steps_scale) {
     OV_EXPECT_OK(ov_preprocess_preprocess_steps_scale(input_process, 2.0f));
 }
 
+TEST_F(ov_preprocess_test, ov_preprocess_preprocess_steps_scale_multi_channels) {
+    OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
+    EXPECT_NE(nullptr, preprocess);
+
+    OV_EXPECT_OK(ov_preprocess_prepostprocessor_get_input_info_by_index(preprocess, 0, &input_info));
+    EXPECT_NE(nullptr, input_info);
+
+    OV_EXPECT_OK(ov_preprocess_input_info_get_preprocess_steps(input_info, &input_process));
+    EXPECT_NE(nullptr, input_process);
+
+    float values[4] = {2.0f, 2.0f, 2.0f, 2.0f};
+    OV_EXPECT_OK(ov_preprocess_preprocess_steps_scale_multi_channels(input_process, values, 4));
+}
+
 TEST_F(ov_preprocess_test, ov_preprocess_preprocess_steps_mean) {
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     EXPECT_NE(nullptr, preprocess);
@@ -143,6 +157,20 @@ TEST_F(ov_preprocess_test, ov_preprocess_preprocess_steps_mean) {
     EXPECT_NE(nullptr, input_process);
 
     OV_EXPECT_OK(ov_preprocess_preprocess_steps_mean(input_process, 2.0f));
+}
+
+TEST_F(ov_preprocess_test, ov_preprocess_preprocess_steps_mean_multi_channels) {
+    OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
+    EXPECT_NE(nullptr, preprocess);
+
+    OV_EXPECT_OK(ov_preprocess_prepostprocessor_get_input_info_by_index(preprocess, 0, &input_info));
+    EXPECT_NE(nullptr, input_info);
+
+    OV_EXPECT_OK(ov_preprocess_input_info_get_preprocess_steps(input_info, &input_process));
+    EXPECT_NE(nullptr, input_process);
+
+    float values[4] = {2.0f, 2.0f, 2.0f, 2.0f};
+    OV_EXPECT_OK(ov_preprocess_preprocess_steps_mean_multi_channels(input_process, values, 4));
 }
 
 TEST_F(ov_preprocess_test, ov_preprocess_preprocess_steps_crop) {
