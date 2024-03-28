@@ -16,7 +16,9 @@ using CompareMap = std::map<ov::NodeTypeInfo, std::function<void(
         const ov::Tensor &expected,
         const ov::Tensor &actual,
         double absThreshold,
-        double relThreshold)>>;
+        double relThreshold,
+        double topk_threshold,
+        double mvn_threshold)>>;
 
 CompareMap getCompareMap();
 

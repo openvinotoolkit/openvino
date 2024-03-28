@@ -21,9 +21,11 @@ void compare(const std::shared_ptr<ov::Node> &node,
              const ov::element::Type& inference_precision,
              const ov::Tensor &expected,
              const ov::Tensor &actual,
-             double absThreshold,
-             double relThreshold) {
-    ov::test::utils::compare(expected, actual, absThreshold, relThreshold, inference_precision);
+             double abs_threshold,
+             double rel_threshold,
+             double topk_threshold,
+             double mvn_threshold) {
+    ov::test::utils::compare(expected, actual, inference_precision, abs_threshold, rel_threshold, topk_threshold, mvn_threshold);
 }
 
 void compare(const std::shared_ptr<ov::op::v0::DetectionOutput> &node,
@@ -31,8 +33,10 @@ void compare(const std::shared_ptr<ov::op::v0::DetectionOutput> &node,
              const ov::element::Type& inference_precision,
              const ov::Tensor &expected,
              const ov::Tensor &actual,
-             double absThreshold,
-             double relThreshold) {
+             double abs_threshold,
+             double rel_threshold,
+             double topk_threshold,
+             double mvn_threshold) {
         ASSERT_EQ(expected.get_size(), actual.get_size());
 
         size_t expSize = 0;
@@ -54,7 +58,7 @@ void compare(const std::shared_ptr<ov::op::v0::DetectionOutput> &node,
             actSize += 7;
         }
         ASSERT_EQ(expSize, actSize);
-        ov::test::utils::compare(expected, actual, 1e-2f, relThreshold, inference_precision);
+        ov::test::utils::compare(expected, actual, inference_precision, 1e-2f, rel_threshold, topk_threshold, mvn_threshold);
 }
 
 namespace color_conversion {
@@ -108,9 +112,11 @@ void compare(const std::shared_ptr<ov::op::v8::I420toRGB> &node,
              const ov::element::Type& inference_precision,
              const ov::Tensor &expected,
              const ov::Tensor &actual,
-             double absThreshold,
-             double relThreshold) {
-    ov::test::utils::compare(expected, actual, absThreshold, relThreshold, inference_precision);
+             double abs_threshold,
+             double rel_threshold,
+             double topk_threshold,
+             double mvn_threshold) {
+    ov::test::utils::compare(expected, actual, inference_precision, abs_threshold, rel_threshold, topk_threshold, mvn_threshold);
 
     // Allow less than 2% of deviations with 1 color step. 2% is experimental value
     // For different calculation methods - 1.4% deviation is observed
@@ -122,9 +128,11 @@ void compare(const std::shared_ptr<ov::op::v8::I420toBGR> &node,
              const ov::element::Type& inference_precision,
              const ov::Tensor &expected,
              const ov::Tensor &actual,
-             double absThreshold,
-             double relThreshold) {
-    ov::test::utils::compare(expected, actual, absThreshold, relThreshold, inference_precision);
+             double abs_threshold,
+             double rel_threshold,
+             double topk_threshold,
+             double mvn_threshold) {
+    ov::test::utils::compare(expected, actual, inference_precision, abs_threshold, rel_threshold, topk_threshold, mvn_threshold);
 
     // Allow less than 2% of deviations with 1 color step. 2% is experimental value
     // For different calculation methods - 1.4% deviation is observed
@@ -136,9 +144,11 @@ void compare(const std::shared_ptr<ov::op::v8::NV12toRGB> &node,
              const ov::element::Type& inference_precision,
              const ov::Tensor &expected,
              const ov::Tensor &actual,
-             double absThreshold,
-             double relThreshold) {
-    ov::test::utils::compare(expected, actual, absThreshold, relThreshold, inference_precision);
+             double abs_threshold,
+             double rel_threshold,
+             double topk_threshold,
+             double mvn_threshold) {
+    ov::test::utils::compare(expected, actual, inference_precision, abs_threshold, rel_threshold, topk_threshold, mvn_threshold);
 
     // Allow less than 2% of deviations with 1 color step. 2% is experimental value
     // For different calculation methods - 1.4% deviation is observed
@@ -150,9 +160,11 @@ void compare(const std::shared_ptr<ov::op::v8::NV12toBGR> &node,
              const ov::element::Type& inference_precision,
              const ov::Tensor &expected,
              const ov::Tensor &actual,
-             double absThreshold,
-             double relThreshold) {
-    ov::test::utils::compare(expected, actual, absThreshold, relThreshold, inference_precision);
+             double abs_threshold,
+             double rel_threshold,
+             double topk_threshold,
+             double mvn_threshold) {
+    ov::test::utils::compare(expected, actual, inference_precision, abs_threshold, rel_threshold, topk_threshold, mvn_threshold);
 
     // Allow less than 2% of deviations with 1 color step. 2% is experimental value
     // For different calculation methods - 1.4% deviation is observed
@@ -165,9 +177,11 @@ void compareResults(const std::shared_ptr<ov::Node> &node,
                     const ov::element::Type& inference_precision,
                     const ov::Tensor &expected,
                     const ov::Tensor &actual,
-                    double absThreshold,
-                    double relThreshold) {
-    return compare(ov::as_type_ptr<T>(node), port, inference_precision, expected, actual, absThreshold, relThreshold);
+                    double abs_threshold,
+                    double rel_threshold,
+             double topk_threshold,
+             double mvn_threshold) {
+    return compare(ov::as_type_ptr<T>(node), port, inference_precision, expected, actual, abs_threshold, rel_threshold, topk_threshold, mvn_threshold);
 }
 
 } // namespace

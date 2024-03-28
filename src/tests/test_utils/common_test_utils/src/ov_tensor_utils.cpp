@@ -308,32 +308,43 @@ ov::Tensor create_and_fill_tensor_consistently(const ov::element::Type element_t
     return tensor;
 }
 
+namespace tensor_comparation {
 constexpr double eps = std::numeric_limits<double>::epsilon();
 
-template <typename aT, typename bT>
-inline double less(aT a, bT b) {
+inline double less(double a, double b) {
+    if (std::isnan(a) || std::isnan(b)) {
+        return false;
+    } else if (std::isinf(b) && std::isinf(b)) {
+        return true;
+    } else if (std::isinf(b) && b > 0) {
+        // b is greater than any number or eq the +Inf
+        return true;
+    } else if (std::isinf(a) && a > 0) {
+        return false;
+    }
     return std::fabs(a - b) > eps && a < b;
 }
 
-inline double less_or_equal(double a, double b) {
-    bool res = true;
+inline double equal(double a, double b) {
     if (std::isnan(a) || std::isnan(b)) {
-        res = false;
+        return false;
     } else if (std::isinf(b) && std::isinf(b)) {
-        res = true;
+        return true;
     } else if (std::isinf(b) && b > 0) {
         // b is greater than any number or eq the +Inf
-        res = true;
+        return true;
     } else if (std::isinf(a) && a > 0) {
-        res = false;
-    } else {
-        res = std::fabs(b - a) <= eps || a <= b;
+        return false;
     }
-    return res;
+    return std::fabs(b - a) <= eps;
+}
+
+inline double less_or_equal(double a, double b) {
+    return less(a, b) || equal(a, b);
 }
 
 template <typename T1, typename T2>
-inline bool check_values_suitable_for_comparison(double value1, double value2) {
+inline bool is_value_suitable_for_comparation(double value1, double value2) {
     bool res = true;
     auto max_val1 = std::numeric_limits<T1>::max();
     auto min_val1 = std::numeric_limits<T1>::lowest();
@@ -346,7 +357,6 @@ inline bool check_values_suitable_for_comparison(double value1, double value2) {
     } else if ((std::isinf(value1) || value1 <= min_val1) && std::isinf(value2) || value2 <= min_val2) {
         res = false;
     }
-
     return res;
 }
 
@@ -364,33 +374,43 @@ protected:
     };
 
     std::vector<IncorrectValue> incorrect_values_abs;
-    double abs_threshold, rel_threshold;
-    int tensor_size;
+    double abs_threshold, rel_threshold, mvn_threshold, topk_threshold, mvn_results, topk_results;
+    size_t tensor_size;
 
     void emplace_back(double in_actual_value, double in_expected_value, double in_threshold, size_t in_coordinate) {
         incorrect_values_abs.push_back(IncorrectValue(in_actual_value, in_expected_value, in_threshold, in_coordinate));
     }
 
 public:
-    Error(const double in_abs_threshold, const double in_rel_threshold, int in_tensor_size = 0)
+    Error(const double in_abs_threshold,
+          const double in_rel_threshold,
+          const double in_topk_threshold,
+          const double in_mvn_threshold,
+          int in_tensor_size)
         : abs_threshold(in_abs_threshold),
           rel_threshold(in_rel_threshold),
-          tensor_size(in_tensor_size) {}
+          mvn_threshold(in_mvn_threshold),
+          topk_threshold(in_topk_threshold),
+          tensor_size(in_tensor_size),
+          mvn_results(0.f),
+          topk_results(0.f) {}
 
     bool update(double actual, double expected, size_t coordinate) {
         const auto diff = std::fabs(expected - actual);
-
-        const auto calculated_abs_threshold = std::abs(abs_threshold) + std::abs(rel_threshold * expected);
-        if (less_or_equal(diff, calculated_abs_threshold)) {
+        const auto calculated_threshold = std::abs(abs_threshold) + std::abs(rel_threshold * expected);
+        mvn_results += (diff / calculated_threshold);
+        if (less_or_equal(diff, calculated_threshold)) {
             return true;
         }
-        emplace_back(actual, expected, calculated_abs_threshold, coordinate);
-
+        emplace_back(actual, expected, calculated_threshold, coordinate);
         return false;
     }
 
     void check_results() {
-        if (!incorrect_values_abs.empty()) {
+        topk_results = static_cast<double>(incorrect_values_abs.size()) / tensor_size;
+        mvn_results /= tensor_size;
+        if (!incorrect_values_abs.empty() && equal(1.f, topk_threshold) ||
+            incorrect_values_abs.size() > static_cast<int>(std::floor(topk_threshold * tensor_size))) {
 #ifdef NDEBUG
             std::string msg = "[ COMPARATION ] COMPARATION IS FAILED!";
             msg += "  Use DEBUG mode to print `incorrect_values_abs` and get detailed information!";
@@ -407,6 +427,12 @@ public:
                           << " rel_threshold: " << rel_threshold << "\n";
             }
 #endif
+            throw std::runtime_error(msg);
+        } else if (!less_or_equal(mvn_results, mvn_threshold)) {
+            std::string msg = "[ COMPARATION ] COMPARATION IS FAILED due to MVN THRESHOLD: ";
+            msg += std::to_string(mvn_threshold);
+            msg += ". Actual MVN value is ";
+            msg += std::to_string(mvn_results);
             throw std::runtime_error(msg);
         }
     }
@@ -457,8 +483,17 @@ inline double calculate_default_rel_threshold(const ov::element::Type& expected_
     return threshold;
 }
 
+}  // namespace tensor_comparation
+
 template <typename ExpectedT, typename ActualT>
-void compare(const ov::Tensor& expected, const ov::Tensor& actual, double abs_threshold, double rel_threshold, const ov::element::Type& inference_precision) {
+void compare(const ov::Tensor& expected,
+             const ov::Tensor& actual,
+             const ov::element::Type& inference_precision,
+             double abs_threshold,
+             double rel_threshold,
+             double topk_threshold,
+             double mvn_threshold) {
+    // check shapes
     auto expected_shape = expected.get_shape();
     auto actual_shape = actual.get_shape();
     if (expected_shape != actual_shape) {
@@ -469,29 +504,41 @@ void compare(const ov::Tensor& expected, const ov::Tensor& actual, double abs_th
         return;
     }
 
+    // Set default values in case threshold values are incorrect
     if (abs_threshold < 0) {
-        abs_threshold = calculate_default_abs_threshold<ActualT, ExpectedT>(inference_precision);
+        abs_threshold =
+            tensor_comparation::calculate_default_abs_threshold<ActualT, ExpectedT>(inference_precision);
     }
-
     if (rel_threshold < 0) {
-        rel_threshold = calculate_default_rel_threshold(expected.get_element_type(), actual.get_element_type(), inference_precision);
+        const auto expected_type = expected.get_element_type();
+        const auto actual_type = actual.get_element_type();
+        rel_threshold =
+            tensor_comparation::calculate_default_rel_threshold(expected_type, actual_type, inference_precision);
     }
-
+    if (topk_threshold < 0.f || topk_threshold > 1.f) {
+        topk_threshold = 1.f;
+        std::cout << "[ WARNING ] Incorrect value: " << topk_threshold << " for Topk_threshold. It should be [0.f, 1.f]. Reset default value is 1.f" << std::endl;
+    }
+    if (mvn_threshold < 0.f || mvn_threshold > 1.f) {
+        mvn_threshold = 1.f;
+        std::cout << "[ WARNING ] Incorrect value: " << mvn_threshold << " for MVN_threshold. It should be [0.f, 1.f]. Reset default value is 1.f" << std::endl;
+    }
+    
+    // error is a place with whole data related to incorrect element in tensor
     size_t shape_size_cnt = shape_size(expected_shape);
-    Error error(abs_threshold, rel_threshold, shape_size_cnt);
+    tensor_comparation::Error error(abs_threshold, rel_threshold, topk_threshold, mvn_threshold, shape_size_cnt);
     const auto expected_data = expected.data<ExpectedT>();
     const auto actual_data = actual.data<ActualT>();
     for (size_t i = 0; i < shape_size_cnt; ++i) {
         double expected_value = expected_data[i];
         double actual_value = actual_data[i];
-
-        if (!check_values_suitable_for_comparison<ExpectedT, ActualT>(expected_value, actual_value)) {
+        if (!tensor_comparation::is_value_suitable_for_comparation<ExpectedT, ActualT>(expected_value, actual_value)) {
             continue;
         }
 
         bool status = error.update(actual_value, expected_value, i);
 #ifdef NDEBUG
-        if (!status) {
+        if (!status && equal(topk_threshold, 1.f)) {
             break;
         }
 #endif
@@ -511,16 +558,20 @@ void compare_str(const ov::Tensor& expected, const ov::Tensor& actual) {
 
 void compare(const ov::Tensor& expected,
              const ov::Tensor& actual,
+             const ov::element::Type& inference_precision,
              const double abs_threshold,
              const double rel_threshold,
-             const ov::element::Type& inference_precision) {
-#define CASE0(X, Y)                                                                                     \
-    case Y:                                                                                             \
-        compare<element_type_traits<X>::value_type, element_type_traits<Y>::value_type>(expected,       \
-                                                                                        actual,         \
-                                                                                        abs_threshold,  \
-                                                                                        rel_threshold,  \
-                                                                                        inference_precision); \
+             const double topk_threshold,
+             const double mvn_threshold) {
+#define CASE0(X, Y)                                                                                          \
+    case Y:                                                                                                  \
+        compare<element_type_traits<X>::value_type, element_type_traits<Y>::value_type>(expected,            \
+                                                                                        actual,              \
+                                                                                        inference_precision, \
+                                                                                        abs_threshold,       \
+                                                                                        rel_threshold,       \
+                                                                                        topk_threshold,      \
+                                                                                        mvn_threshold);     \
         break;
 
 #define CASE(X)                                          \
