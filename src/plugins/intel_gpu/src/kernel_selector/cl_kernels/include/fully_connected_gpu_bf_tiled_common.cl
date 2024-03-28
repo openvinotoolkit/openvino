@@ -43,7 +43,14 @@ inline void (FUNC_NAME)(
     INPUT_VEC_TYPE       in_0[FORCED_TILE_B] = { };
 
     FILTER_VEC_TYPE wei = 0;
+#if OUTPUT_3D
+    uint out_b0 = out_b / OUTPUT_FEATURE_NUM;
+    uint out_b1 = out_b % OUTPUT_FEATURE_NUM;
+    uint input_offset = out_b0 * INPUT0_BATCH_PITCH + out_b1 * INPUT0_FEATURE_PITCH + INPUT0_OFFSET;
+#else
     uint input_offset = out_b * TILE_IN_B_PITCH + INPUT0_OFFSET;
+#endif
+
 #if COMPRESSED_WEIGHTS_INT4
     uint weights_offset = out_f * (INPUT_ELEMENTS_COUNT / 2);
 #else
