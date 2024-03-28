@@ -91,7 +91,7 @@ The following package distributions are available for installation:
               pip install --pre openvino --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
 
         .. tab-item:: Release
-           :sync:
+           :sync: release
 
            * This command includes **Release Candidates**.
            * To use ``extra-index-url``, you need to pass a link containing ``simple``.
