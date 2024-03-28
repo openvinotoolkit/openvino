@@ -8,7 +8,7 @@ OpenVINO Release Notes
    :hidden:
 
    release-notes-openvino/system-requirements
-   Long-Term Support (LTS) Policy <release-notes-openvino/release-and-lts-policy>
+   release-notes-openvino/release-policy
 
 
 2024.0 - 06 March 2024
