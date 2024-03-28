@@ -325,7 +325,6 @@ void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
     std::shared_ptr<opset8::Result> result;
     auto node = m_output_node;
     auto start_out_node_names = node.get_tensor().get_names();
-    node.get_tensor().set_names({});
     result = std::dynamic_pointer_cast<opset8::Result>(node.get_node_shared_ptr());
     // Set result layout from 'model' information
     if (get_model_data()->is_layout_set()) {
@@ -369,14 +368,11 @@ void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
     // Restore tensor names
     node.get_tensor().set_names(start_out_node_names);
     auto orig_parent = result->get_input_source_output(0).get_node_shared_ptr();
-    bool reset_orig_friendly_name = false;
     if (!post_processing_applied) {
         return;
     }
-    if (orig_parent->get_output_size() == 1) {
-        node.get_node_shared_ptr()->set_friendly_name(orig_parent->get_friendly_name());
-        reset_orig_friendly_name = true;
-    } else if (node.get_node_shared_ptr() != orig_parent) {
+
+    if (node.get_node_shared_ptr() != orig_parent) {
         // Result node is changed - add ".<idx>" suffix
         node.get_node_shared_ptr()->set_friendly_name(orig_parent->get_friendly_name() + "." +
                                                       std::to_string(result->get_input_source_output(0).get_index()));
@@ -388,14 +384,6 @@ void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
         ov::descriptor::set_ov_tensor_legacy_name(node.get_tensor(), tensor_name);
     }
     OPENVINO_SUPPRESS_DEPRECATED_END
-
-    // Reset friendly name of input node to avoid names collision
-    // when there is at a new node inserted by post-processing steps
-    // If no new nodes are inserted by post-processing, then we need to preserve friendly name of input
-    // as it's required for old API correct work
-    if (reset_orig_friendly_name) {
-        result->get_input_source_output(0).get_node_shared_ptr()->set_friendly_name("");
-    }
 
     // Create result
     auto new_result = std::make_shared<opset8::Result>(node);
