@@ -8,6 +8,7 @@
 #include "arm_compute/runtime/NEON/NEFunctions.h"
 #include "utils/debug_capabilities.h"
 #include "acl_utils.hpp"
+#include "src/cpu/CpuTypes.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -41,15 +42,13 @@ public:
 
 private:
     DeconvAttrs deconvAttrs;
-    impl_desc_type implType = impl_desc_type::acl;
+    impl_desc_type implType = impl_desc_type::gemm_acl;
 
     arm_compute::Tensor srcTensor;
     arm_compute::Tensor weiTensor;
     arm_compute::Tensor biasTensor;
     arm_compute::Tensor dstTensor;
     std::unique_ptr<arm_compute::NEDeconvolutionLayer> deconv = nullptr;
-
-    std::vector<float> weiBuffer;
 };
 
 class AclDeconvExecutorBuilder : public DeconvExecutorBuilder {
@@ -67,11 +66,6 @@ public:
     DeconvExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
         return std::make_shared<AclDeconvExecutor>(context);
     }
-
-private:
-    static bool validate_deconvolution_output_dimensions(unsigned int in_width, unsigned int in_height,
-                                                         unsigned int kernel_width, unsigned int kernel_height,
-                                                         const arm_compute::PadStrideInfo &pad_stride_info);
 };
 
 }   // namespace intel_cpu
