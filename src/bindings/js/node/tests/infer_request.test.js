@@ -115,9 +115,9 @@ describe('InferRequest', () => {
     assert.deepStrictEqual(tensor.data[0], t1.data[0]);
   });
 
-  it('Test setInputTensor throws when passed object is not a Tensor.', () => {
+  it('Test setInputTensor(object) throws when passed object is not a Tensor.', () => {
     assert.throws(
-      () => inferRequest.setInputTensor([{}]),
+      () => inferRequest.setInputTensor({}),
       {message: /Argument #[0-9]+ must be a Tensor./}
     );
   });
@@ -128,7 +128,14 @@ describe('InferRequest', () => {
     assert.deepStrictEqual(tensor.data[0], t1.data[0]);
   });
 
-  it('Test setInputTensor() - pass two tensors', () => {
+  it('Test setInputTensor(idx, object) throws when passed object is not a Tensor.', () => {
+    assert.throws(
+      () => inferRequest.setInputTensor(0, {}),
+      {message: /Argument #[0-9]+ must be a Tensor./}
+    );
+  });
+
+  it('Test setInputTensor(tensor, tensor) throws', () => {
     assert.throws(
       () => inferRequest.setInputTensor(resTensor, tensor),
       {message: 'InferRequest.setInputTensor() invalid argument.'});
@@ -140,10 +147,10 @@ describe('InferRequest', () => {
     assert.deepStrictEqual(resTensor.data[0], res2.data[0]);
   });
 
-  it('Test setOutputTensor throws when passed object is not a Tensor.', () => {
+  it('Test setOutputTensor(object) throws when passed object is not a Tensor.', () => {
     assert.throws(
-      () => inferRequest.setOutputTensor([{}]),
-      {message: /Invalid argument/}
+      () => inferRequest.setOutputTensor({}),
+      {message: /Argument #[0-9]+ must be a Tensor./}
     );
   });
 
@@ -151,6 +158,13 @@ describe('InferRequest', () => {
     inferRequest.setOutputTensor(0, resTensor);
     const res2 = inferRequest.getOutputTensor();
     assert.deepStrictEqual(resTensor.data[0], res2.data[0]);
+  });
+
+  it('Test setOutputTensor(idx, tensor) throws when passed object is not a Tensor.', () => {
+    assert.throws(
+      () => inferRequest.setOutputTensor(0, {}),
+      {message: /Argument #[0-9]+ must be a Tensor./}
+    );
   });
 
   it('Test setOutputTensor() - pass two tensors', () => {
@@ -169,7 +183,7 @@ describe('InferRequest', () => {
   it('Test setTensor(string, object) - throws', () => {
     assert.throws(
       () => inferRequest.setTensor('fc_out', {}),
-      {message: /Invalid argument/});
+      {message: /Argument #[0-9]+ must be a Tensor./});
   });
 
   it('Test setTensor(string, tensor) - pass one arg', () => {
