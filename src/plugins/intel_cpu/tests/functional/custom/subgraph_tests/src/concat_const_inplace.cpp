@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/runtime/system_conf.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
@@ -78,10 +79,12 @@ public:
 namespace {
 TEST_P(ConcatConstantInPlaceTest, smoke_ConcatConstantInPlaceTest_CPU) {
     run();
-    if (this->GetParam() == ov::element::bf16)
+    if (this->GetParam() == ov::element::bf16 ||
+           (this->GetParam() == ov::element::f16 && ov::with_cpu_x86_avx512_core_fp16())) {
         CheckNumberOfNodesWithType(compiledModel, "Reorder", 3);
-    else
+    } else {
         CheckNumberOfNodesWithType(compiledModel, "Reorder", 2);
+    }
 }
 
 

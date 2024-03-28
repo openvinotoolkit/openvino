@@ -166,6 +166,22 @@ TEST_P(ConvSumInPlaceTest, CompareWithRefs) {
     CheckPluginRelatedResults(compiledModel, "Convolution");
 }
 
+class ConvSumInPlaceTest_FP16 : public ConvSumInPlaceTest {
+public:
+    bool primTypeCheck(std::string primType) const override {
+        auto isaType = getISA(!ov::with_cpu_x86_avx512_core_amx_fp16());
+        if (isaType == "")
+            return primType == "ref";
+        else
+            return  primType == makeSelectedTypeStr(std::string("brgconv_") + isaType, ov::element::f16);
+    }
+};
+
+TEST_P(ConvSumInPlaceTest_FP16, CompareWithRefs) {
+    run();
+    CheckPluginRelatedResults(compiledModel, "Convolution");
+}
+
 class ConvSumInPlaceStrided : public ConvSumInPlaceTest {
 public:
     ConvSumInPlaceStrided() {
@@ -470,7 +486,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_BF16,
                          ConvSumInPlaceTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_FP16,
-                         ConvSumInPlaceTest,
+                         ConvSumInPlaceTest_FP16,
                          ::testing::Combine(
                                  ::testing::Values(convInpShape),
                                  ::testing::ValuesIn(secondInp),
