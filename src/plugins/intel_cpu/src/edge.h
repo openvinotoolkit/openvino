@@ -87,7 +87,9 @@ private:
     std::weak_ptr<Node> parent;
     std::weak_ptr<Node> child;
     int parent_port;
-    int child_port;
+    // Changed to handle full range of size_t, matching the value being assigned
+    // to it
+    size_t child_port;
 
     bool useExternalMemory = false;
     EdgeWeakPtr memoryFromEdge;

@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <ie_api.h>
 #include <common/utils.hpp>
 #include <oneapi/dnnl/dnnl.hpp>
 #include "cpu_memory.h"
@@ -340,8 +341,9 @@ public:
         return fusingPort;
     }
 
-    void setFusingPort(int fusingPort) {
-        this->fusingPort = fusingPort;
+    // size_t to accomdate values and address compiler.
+    void setFusingPort(size_t fusingPort) {
+        this->fusingPort = static_cast<int>(fusingPort);
     }
 
     const std::string &getName() const {
