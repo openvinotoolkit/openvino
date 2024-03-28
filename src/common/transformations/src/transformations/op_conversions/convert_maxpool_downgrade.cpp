@@ -11,10 +11,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace std;
-using namespace ov;
-
-pass::ConvertMaxPool8ToMaxPool1::ConvertMaxPool8ToMaxPool1() {
+ov::pass::ConvertMaxPool8ToMaxPool1::ConvertMaxPool8ToMaxPool1() {
     MATCHER_SCOPE(ConvertMaxPool8ToMaxPool1);
 
     auto maxpool_v8_pattern = pattern::wrap_type<ov::op::v8::MaxPool>();
@@ -29,13 +26,13 @@ pass::ConvertMaxPool8ToMaxPool1::ConvertMaxPool8ToMaxPool1() {
             if (dilation != 1)
                 return false;
 
-        auto maxpool_v1_node = make_shared<ov::op::v1::MaxPool>(maxpool_v8_node->input_value(0),
-                                                                maxpool_v8_node->get_strides(),
-                                                                maxpool_v8_node->get_pads_begin(),
-                                                                maxpool_v8_node->get_pads_end(),
-                                                                maxpool_v8_node->get_kernel(),
-                                                                maxpool_v8_node->get_rounding_type(),
-                                                                maxpool_v8_node->get_auto_pad());
+        auto maxpool_v1_node = std::make_shared<ov::op::v1::MaxPool>(maxpool_v8_node->input_value(0),
+                                                                     maxpool_v8_node->get_strides(),
+                                                                     maxpool_v8_node->get_pads_begin(),
+                                                                     maxpool_v8_node->get_pads_end(),
+                                                                     maxpool_v8_node->get_kernel(),
+                                                                     maxpool_v8_node->get_rounding_type(),
+                                                                     maxpool_v8_node->get_auto_pad());
 
         OPENVINO_SUPPRESS_DEPRECATED_START
         auto out_name = ov::op::util::create_ie_output_name(maxpool_v8_node->output(0));
@@ -53,6 +50,43 @@ pass::ConvertMaxPool8ToMaxPool1::ConvertMaxPool8ToMaxPool1() {
         return true;
     };
 
-    auto m = make_shared<pattern::Matcher>(maxpool_v8_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(maxpool_v8_pattern, matcher_name);
+    register_matcher(m, callback);
+}
+
+ov::pass::ConvertMaxPool14ToMaxPool8::ConvertMaxPool14ToMaxPool8() {
+    MATCHER_SCOPE(ConvertMaxPool14ToMaxPool8);
+
+    const auto max_pool_v14_pattern = pattern::wrap_type<ov::op::v14::MaxPool>();
+
+    const matcher_pass_callback callback = [](pattern::Matcher& m) {
+        const auto max_pool_v14 = std::dynamic_pointer_cast<ov::op::v14::MaxPool>(m.get_match_root());
+        if (!max_pool_v14) {
+            return false;
+        }
+
+        const auto rounding_type_v14 = max_pool_v14->get_rounding_type();
+        const auto rounding_type_v8 =
+            rounding_type_v14 == ov::op::RoundingType::CEIL_TORCH ? ov::op::RoundingType::CEIL : rounding_type_v14;
+
+        const auto max_pool_v8 = std::make_shared<ov::op::v8::MaxPool>(max_pool_v14->input_value(0),
+                                                                       max_pool_v14->get_strides(),
+                                                                       max_pool_v14->get_dilations(),
+                                                                       max_pool_v14->get_pads_begin(),
+                                                                       max_pool_v14->get_pads_end(),
+                                                                       max_pool_v14->get_kernel(),
+                                                                       rounding_type_v8,
+                                                                       max_pool_v14->get_auto_pad(),
+                                                                       max_pool_v14->get_index_element_type(),
+                                                                       max_pool_v14->get_axis());
+
+        max_pool_v8->set_friendly_name(max_pool_v14->get_friendly_name());
+        copy_runtime_info(max_pool_v14, max_pool_v8);
+        replace_node(max_pool_v14, max_pool_v8);
+
+        return true;
+    };
+
+    auto m = std::make_shared<pattern::Matcher>(max_pool_v14_pattern, matcher_name);
     register_matcher(m, callback);
 }
