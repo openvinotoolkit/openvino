@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/runtime/system_conf.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
@@ -37,8 +38,13 @@ public:
 
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        if (ov::element::bf16 == (inType = outType = this->GetParam()))
-            configuration.insert({ov::hint::inference_precision.name(), ov::element::bf16});
+        if (ov::element::bf16 == (inType = outType = this->GetParam())) {
+            configuration.insert({ov::hint::inference_precision(ov::element::bf16)});
+        } else if (ov::element::f16 == (inType = outType = this->GetParam())) {
+            configuration.insert({ov::hint::inference_precision(ov::element::f16)});
+        } else {
+            configuration.insert({ov::hint::inference_precision(ov::element::f32)});
+        }
 
         const ov::Shape inputShape = {1, 3, 3, 11};
         ov::ParameterVector inputParams{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputShape)};
@@ -73,17 +79,19 @@ public:
 namespace {
 TEST_P(ConcatConstantInPlaceTest, smoke_ConcatConstantInPlaceTest_CPU) {
     run();
-    if (this->GetParam() == ov::element::bf16)
+    if (this->GetParam() == ov::element::bf16 ||
+           (this->GetParam() == ov::element::f16 && ov::with_cpu_x86_avx512_core_fp16())) {
         CheckNumberOfNodesWithType(compiledModel, "Reorder", 3);
-    else
+    } else {
         CheckNumberOfNodesWithType(compiledModel, "Reorder", 2);
+    }
 }
+
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatConstantInPlaceTest_CPU,
                          ConcatConstantInPlaceTest,
-                         testing::Values(ov::element::f32, ov::element::bf16),
+                         testing::Values(ov::element::f32, ov::element::bf16, ov::element::f16),
                          ConcatConstantInPlaceTest::getTestCaseName);
-
 }  // namespace
 }  // namespace test
 }  // namespace ov

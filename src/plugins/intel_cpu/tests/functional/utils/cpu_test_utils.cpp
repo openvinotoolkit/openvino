@@ -8,6 +8,7 @@
 #include "cpu_test_utils.hpp"
 
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 #include "utils/general_utils.h"
 #include "utils/rt_info/memory_formats_attribute.hpp"
@@ -468,5 +469,44 @@ void CheckNumberOfNodesWithType(const ov::CompiledModel& compiledModel,
                                 const std::string& nodeType,
                                 size_t expectedCount) {
     CheckNumberOfNodesWithTypes(compiledModel, {nodeType}, expectedCount);
+}
+
+
+ov::element::Type
+CPUTestsBase::get_default_imp_precision_type(const ov::element::Type& in_type,
+                                             const ov::AnyMap& configuration) {
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    return in_type;
+#endif
+#if defined(OPENVINO_ARCH_RISCV64)
+    return in_type;
+#endif
+#if defined(OPENVINO_ARCH_X86_64)
+    const std::string key = ov::hint::inference_precision.name();
+    // if is not float
+    if (!in_type.is_real()) {
+        return in_type;
+    }
+
+    ov::element::Type type = in_type;
+    // ngraph tranform stage
+    if (type == ov::element::bf16) {
+        type = ov::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
+    } else {
+        type = ov::element::f32;
+    }
+
+    // configure stage
+    if (type == ov::element::f32) {
+        const auto& it = configuration.find(key);
+        if (it != configuration.end() && it->second.as<ov::element::Type>() == ov::element::bf16) {
+            type = ov::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
+        } else if (it != configuration.end() && it->second.as<ov::element::Type>() == ov::element::f16) {
+            type = ov::with_cpu_x86_avx512_core_fp16() ? ov::element::f16 : ov::element::f32;
+        }
+    }
+
+    return type;
+#endif
 }
 }  // namespace CPUTestUtils

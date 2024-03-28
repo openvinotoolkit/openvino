@@ -166,6 +166,22 @@ TEST_P(ConvSumInPlaceTest, CompareWithRefs) {
     CheckPluginRelatedResults(compiledModel, "Convolution");
 }
 
+class ConvSumInPlaceTest_FP16 : public ConvSumInPlaceTest {
+public:
+    bool primTypeCheck(std::string primType) const override {
+        auto isaType = getISA(!ov::with_cpu_x86_avx512_core_amx_fp16());
+        if (isaType == "")
+            return primType == "ref";
+        else
+            return  primType == makeSelectedTypeStr(std::string("brgconv_") + isaType, ov::element::f16);
+    }
+};
+
+TEST_P(ConvSumInPlaceTest_FP16, CompareWithRefs) {
+    run();
+    CheckPluginRelatedResults(compiledModel, "Convolution");
+}
+
 class ConvSumInPlaceStrided : public ConvSumInPlaceTest {
 public:
     ConvSumInPlaceStrided() {
@@ -415,6 +431,8 @@ const std::vector<fusingSpecificParams> fusingParamsSetBF16{
         fusingReluScaleShift
 };
 
+const std::vector<fusingSpecificParams> fusingParamsSetFP16 = fusingParamsSetBF16;
+
 InputShape convInpShape = {
         //dynamic shapes
         {-1, 32, -1, -1},
@@ -464,6 +482,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_BF16,
                                             ::testing::ValuesIn(fusingParamsSetBF16),
                                             ::testing::Values(cpu_bf16_plugin_config)),
                          ConvSumInPlaceTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_FP16,
+                         ConvSumInPlaceTest_FP16,
+                         ::testing::Combine(
+                                 ::testing::Values(convInpShape),
+                                 ::testing::ValuesIn(secondInp),
+                                 ::testing::Values(true, false),
+                                 ::testing::ValuesIn(fusingParamsSetFP16),
+                                 ::testing::Values(cpu_f16_plugin_config)),
+                         ConvSumInPlaceTest_FP16::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_INT8, ConvSumInPlaceTestInt8,
                          ::testing::Combine(
