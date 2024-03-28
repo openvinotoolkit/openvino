@@ -33212,11 +33212,11 @@ async function getSortedCacheFiles(cachePath, key = '') {
     return []
   }
 
-  const cache_pattern = new RegExp(`^((${key}).*[.]cache)$`)
+  const cachePattern = new RegExp(`^((${key}).*[.]cache)$`)
 
   const files = await fs.promises.readdir(cachePath)
   const filesSorded = files
-    .filter(fileName => cache_pattern.test(fileName))
+    .filter(fileName => cachePattern.test(fileName))
     .map(fileName => ({
       name: fileName,
       time: fs.statSync(path.join(cachePath, fileName)).atime.getTime()
@@ -33258,25 +33258,6 @@ async function calculateTotalSize(dir, files) {
     }
   }
   return totalSize
-}
-
-// Function to lock a file
-async function lockFile(filePath) {
-  return new Promise((resolve, reject) => {
-    fs.open(filePath, 'wx', (err, fd) => {
-      if (err) {
-        if (err.code === 'EEXIST') {
-          // Lock file already exists, another process is holding the lock
-          return resolve(false)
-        }
-        return reject(err)
-      }
-      fs.close(fd, closeErr => {
-        if (closeErr) return reject(closeErr)
-        resolve(true)
-      })
-    })
-  })
 }
 
 module.exports = {

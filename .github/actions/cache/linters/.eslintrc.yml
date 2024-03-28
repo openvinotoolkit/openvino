@@ -46,5 +46,5 @@ rules:
     'no-console': 'off',
     'no-unused-vars': 'warn',
     'prettier/prettier': 'error',
-    'semi': 'off'
+    'semi': 'error'
   }
