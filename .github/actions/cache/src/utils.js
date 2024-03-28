@@ -10,23 +10,23 @@ async function getSortedCacheFiles(cachePath, key = '') {
 
   const cachePattern = new RegExp(`^((${key}).*[.]cache)$`);
 
-  const files = await fs.promises.readdir(cachePath);
-  const filesSorded = files
+  const filesSorted = await fs.promises
+    .readdir(cachePath)
     .filter(fileName => cachePattern.test(fileName))
     .map(fileName => ({
       name: fileName,
-      time: fs.statSync(path.join(cachePath, fileName)).atime.getTime()
+      time: fs.statSync(path.join(cachePath, fileName)).atimeMs
     }))
     .sort((a, b) => b.time - a.time)
     .map(file => file.name);
 
   core.debug(
-    filesSorded.map(fileName => ({
+    filesSorted.map(fileName => ({
       name: fileName,
-      time: fs.statSync(path.join(cachePath, fileName)).atime.getTime()
+      time: fs.statSync(path.join(cachePath, fileName)).atimeMs
     }))
   );
-  return filesSorded;
+  return filesSorted;
 }
 
 function humanReadableFileSize(sizeInBytes) {

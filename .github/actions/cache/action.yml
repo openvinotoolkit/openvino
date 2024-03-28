@@ -22,19 +22,19 @@ inputs:
   save-always:
     description:
       'Run the post step to save the cache even if another step before fails'
-    default: 'false'
+    default: false
     required: false
   cleanup-always:
     description:
       'Run the post cleanup step to remove old cache files even if another step
       before fails'
-    default: 'false'
+    default: false
     required: false
   max-cache-size:
     description:
       'Maximum cache storage size in Gb. Least recently used caches will be
       automatically evicted to limit the total cache storage'
-    default: '10'
+    default: 10
     required: false
 
 outputs:

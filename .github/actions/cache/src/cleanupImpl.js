@@ -41,8 +41,7 @@ async function cleanUp() {
       core.info(
         `The cache storage size ${humanReadableFileSize(totalSize)} exceeds allowed size ${humanReadableFileSize(maxCacheSizeInBytes)}`
       );
-      for (let i = files.length - 1; i >= 0; i--) {
-        const file = files[i];
+      for (const file of files) {
         const filePath = path.join(cacheRemotePath, file);
         const fileStats = fs.statSync(filePath);
 
