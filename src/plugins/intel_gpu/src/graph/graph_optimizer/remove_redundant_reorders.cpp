@@ -696,6 +696,52 @@ void remove_redundant_reorders::run(program& p) {
         p.remove_if_dangling(*node);
     }
 
+    // Remove reorder for data type convert
+    // Target pattern: F32/16 -> I32 -> F16 reorder
+    // F32 -> I32 -> F32 reorder should be done before here
+    itr = p.get_processing_order().begin();
+    while (itr != p.get_processing_order().end()) {
+        auto& node = *itr++;
+        if (!node->is_type<reorder>())
+            continue;
+
+        auto& dep = node->get_dependency(0);
+
+        if (dep.is_type<reorder>())
+            continue;
+
+        bool allowed_dep_input_type = true;
+        auto dep_input_layouts = dep.get_input_layouts();
+        for (auto& l : dep_input_layouts) {
+            if (!(l.data_type == data_types::f16 || l.data_type == data_types::f32)) {
+                allowed_dep_input_type = false;
+                continue;
+            }
+        }
+
+        auto dep_output_layout = dep.get_output_layout();
+        auto node_output_layout = node->get_output_layout();
+        if (!(allowed_dep_input_type &&
+              dep_output_layout.data_type == data_types::i32 &&
+              node_output_layout.data_type == data_types::f16))
+            continue;
+
+        // allow only daya_type conversion
+        auto validate_layout = node_output_layout;
+        validate_layout.data_type = dep_output_layout.data_type;
+        if (validate_layout != dep_output_layout)
+            continue;
+
+        dep_output_layout.data_type = node_output_layout.data_type;
+        dep.set_output_layout(dep_output_layout);
+
+        LOG_NODE_REMOVAL(node->id());
+        p.replace_all_usages(*node, dep);
+        p.add_optimized_primitive_info(node->id());
+        p.remove_all_connections(*node);
+        p.remove_if_dangling(*node);
+    }
+
     for (auto n : p.get_processing_order()) {
         if (n->is_in_data_flow() && n->is_type<reorder>()) {
             auto preferred_impl = lo.get_preferred_impl_type(*n, n->get_input_layout(0).format);

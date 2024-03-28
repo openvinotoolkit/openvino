@@ -292,6 +292,43 @@ TEST(fully_connected_gpu, no_biases_int8) {
     ASSERT_EQ(-52.0f, output_ptr[3]);
 }
 
+TEST(fully_connected_gpu, no_biases_fc_i32_reorder_f16) {
+    const int32_t input_f = 2, input_b = 1,    // size of the whole input buffer
+                  weight_b = 1, weight_f = 2;  // size of the whole weights buffer
+
+    auto& engine = get_test_engine();
+
+    auto input_prim = engine.allocate_memory({ data_types::i32, format::bfyx, { input_b, input_f, 1, 1 } });
+    auto weights_prim = engine.allocate_memory({ data_types::i32, format::bfyx, { weight_b, weight_f, 1, 1 } });
+
+    set_values<int32_t>(input_prim, { 1, 1 });
+    set_values<int32_t>(weights_prim, { 1, 1 });
+
+    cldnn::topology topology{
+        input_layout("input", input_prim->get_layout()),
+        data("weights", weights_prim),
+        fully_connected("fc_prim", input_info("input"), "weights"),
+        reorder("reorder_to_f16", input_info("fc_prim"), { data_types::f16, format::bfyx, { input_b, weight_b, 1, 1 } }),
+        activation("output", input_info("reorder_to_f16"), activation_func::floor)
+    };
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    cldnn::network network(engine, topology, config);
+
+    network.set_input_data("input", input_prim);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "output");
+
+    auto output_prim = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<ov::float16> output_ptr (output_prim, get_test_stream());
+    ASSERT_EQ(2, output_ptr[0]);
+}
+
 TEST(fully_connected_gpu, xb_f32_batch_1) {
     //  Input  : 3x1
     //  Output : 4x1
