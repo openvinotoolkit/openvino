@@ -34,5 +34,7 @@ class TestSetItem(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() in ('x64', 'x86_64'),
                        reason='Ticket - 132747')
+    # skip for random Aborted issue on macOS
+    @pytest.mark.skipif(platform.system() == 'Darwin', reason="Ticket - 122182")
     def test_set_item_list(self, idx, ie_device, precision, ir_version):
         self._test(*self.create_model(idx), ie_device, precision, ir_version)

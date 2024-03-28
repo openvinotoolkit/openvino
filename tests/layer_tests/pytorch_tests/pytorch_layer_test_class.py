@@ -5,6 +5,7 @@ import itertools
 import warnings
 from copy import deepcopy
 import os
+import platform
 
 import numpy as np
 from common.constants import test_device, test_precision
@@ -166,7 +167,28 @@ class PytorchLayerTest:
                 assert ov_tensor_format.shape == fw_tensor.shape, f"Shapes are not equal: ov={ov_tensor_format.shape} vs fw={fw_tensor.shape}"
 
             # Compare Ie results with Framework results
-            fw_eps = custom_eps if precision == 'FP32' else 5e-2
+            # CNN model on CPU arm platforms default execution precision is FP16
+            arm_platform = False
+            arm_cnn_model = False
+            if platform.machine() in [
+                "arm", "armv7l", "aarch64", "arm64", "ARM64"]:
+                arm_platform = True
+                arm_cnn_types = ["Convolution", "ConvolutionBackpropData"]
+                for op in converted_model.get_ops():
+                    op_type = op.get_type_info().name
+                    if op_type in arm_cnn_types:
+                        arm_cnn_model = True
+                        break
+            if precision == 'FP32':
+                if not arm_platform:
+                    fw_eps = custom_eps
+                elif arm_cnn_model:
+                    fw_eps = custom_eps
+                else:
+                    fw_eps = 5e-2
+            else:
+                fw_eps = 5e-2
+
             is_ok = True
             quantized_ops = False
             if 'quantized_ops' in kwargs and kwargs['quantized_ops'] is not None:

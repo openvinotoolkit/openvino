@@ -99,3 +99,13 @@ class InferAPI(BaseInfer):
                 inputs_info[item.get_any_name()] = item.partial_shape.to_shape()
 
         return inputs_info
+
+    def cnn_model_type_check(self):
+        core = Core()
+        net = core.read_model(self.model, self.weights)
+        arm_cnn_types = ["Convolution", "ConvolutionBackpropData"]
+        for op in net.get_ops():
+            op_type = op.get_type_info().name
+            if op_type in arm_cnn_types:
+                return True
+        return False
