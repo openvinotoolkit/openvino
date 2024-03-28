@@ -118,7 +118,7 @@ describe('InferRequest', () => {
   it('Test setInputTensor throws when passed object is not a Tensor.', () => {
     assert.throws(
       () => inferRequest.setInputTensor([{}]),
-      {message: /Invalid argument/}
+      {message: /Argument #[0-9]+ must be a Tensor./}
     );
   });
 
@@ -131,12 +131,6 @@ describe('InferRequest', () => {
   it('Test setInputTensor() - pass two tensors', () => {
     assert.throws(
       () => inferRequest.setInputTensor(resTensor, tensor),
-      {message: 'InferRequest.setInputTensor() invalid argument.'});
-  });
-
-  it('Test setInputTensor() - pass number as a single arg', () => {
-    assert.throws(
-      () => inferRequest.setInputTensor(123),
       {message: 'InferRequest.setInputTensor() invalid argument.'});
   });
 

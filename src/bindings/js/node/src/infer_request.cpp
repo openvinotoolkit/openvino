@@ -11,6 +11,7 @@
 #include "node/include/helper.hpp"
 #include "node/include/node_output.hpp"
 #include "node/include/tensor.hpp"
+#include "node/include/validation.hpp"
 
 namespace {
 std::mutex infer_mutex;
@@ -63,9 +64,8 @@ void InferRequestWrap::set_tensor(const Napi::CallbackInfo& info) {
 }
 
 void InferRequestWrap::set_input_tensor(const Napi::CallbackInfo& info) {
-    if (info.Length() == 1 && info[0].IsObject()) {
-        auto tensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[0].ToObject());
-        _infer_request.set_input_tensor(tensorWrap->get_tensor());
+    if (info.Length() == 1 && check_object(info, 0)) {
+        _infer_request.set_input_tensor(cast_to_tensor(info, 0));
     } else if (info.Length() == 2 && info[0].IsNumber() && info[1].IsObject()) {
         auto idx = info[0].ToNumber().Int32Value();
         auto tensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[1].ToObject());
