@@ -239,23 +239,28 @@ static constexpr ov::Property<std::string> platform{"NPU_PLATFORM"};
 /**
  * @brief
  * Type: integer, default is -1
- * Subdevice ID or stepping number of the device
+ * Device stepping ID. If unset, it will be automatically obtained from driver
  */
 static constexpr ov::Property<int64_t> stepping{"NPU_STEPPING"};
 
 /**
  * @brief [Only for NPU Plugin]
- * Type: string, default is MLIR for DEVELOPER_BUILD, DRIVER otherwise.
- * Type of NPU compiler to be used for compilation of a network
+ * Type: string, default is DRIVER.
+ * Selects the type of NPU compiler to be used for compilation of a network.
+ * 'DRIVER' is the default value.
  */
 static constexpr ov::Property<CompilerType> compiler_type{"NPU_COMPILER_TYPE"};
 
+/**
+ * @brief
+ * Selects different compilation pipelines.
+ */
 static constexpr ov::Property<std::string> compilation_mode{"NPU_COMPILATION_MODE"};
 
 /**
  * @brief [Only for NPU compiler]
  * Type: std::string, default is empty.
- * Config for HW-mode's pipeline
+ * Sets various parameters supported by the NPU compiler.
  * Available values: low-precision=true/low-precision=false
  */
 static constexpr ov::Property<std::string> compilation_mode_params{"NPU_COMPILATION_MODE_PARAMS"};
@@ -269,22 +274,22 @@ static constexpr ov::Property<int64_t> dpu_groups{"NPU_DPU_GROUPS"};
 
 /**
  * @brief [Only for NPU Compiler]
- * Type: integer, default is None
- * Number of tiles to compile for
+ * Type: integer, default is -1
+ * Sets the number of npu tiles that will be used to execute the model. (Replaces NPU_DPU_GROUPS)
  */
 static constexpr ov::Property<int64_t> tiles{"NPU_TILES"};
 
 /**
  * @brief
  * Type: integer, default is -1
- * Number of max tiles supported by device
+ * Maximum number of tiles supported by the device. If unset, it will be automatically obtained from driver
  */
 static constexpr ov::Property<int64_t> max_tiles{"NPU_MAX_TILES"};
 
 /**
  * @brief [Only for NPU Plugin]
- * Type: integer, default is None
- * Number of DMA engines
+ * Type: integer, default is -1
+ * Sets the number of DMA engines that will be used to execute the model.
  */
 static constexpr ov::Property<int64_t> dma_engines{"NPU_DMA_ENGINES"};
 
@@ -311,7 +316,7 @@ static constexpr ov::Property<ProfilingType> profiling_type{"NPU_PROFILING_TYPE"
 /**
  * @brief
  * Type: String. Default is "AUTO".
- * This option is added for enabling ELF backend.
+ * Sets the format in which the compiled model is stored.
  * Possible values: "AUTO", "YES", "NO".
  */
 static constexpr ov::Property<ElfCompilerBackend> use_elf_compiler_backend{"NPU_USE_ELF_COMPILER_BACKEND"};
