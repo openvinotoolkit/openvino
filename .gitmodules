@@ -71,3 +71,7 @@
 [submodule "src/plugins/intel_cpu/thirdparty/mlas"]
 	path = src/plugins/intel_cpu/thirdparty/mlas
 	url = https://github.com/openvinotoolkit/mlas.git
+[submodule "src/plugins/intel_cpu/thirdparty/libxsmm"]
+	path = src/plugins/intel_cpu/thirdparty/libxsmm
+	url = https://github.com/IvanNovoselov/libxsmm.git
+	branch = sns_libxsmm_integration

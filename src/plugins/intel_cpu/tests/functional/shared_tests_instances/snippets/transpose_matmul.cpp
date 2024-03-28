@@ -17,6 +17,8 @@ static inline std::vector<std::vector<element::Type>> precisions(bool only_fp32 
     std::vector<std::vector<element::Type>> prc = {
             {element::f32, element::f32},
     };
+// Note: low precisions are not supported by TPP yet (ticker: 130010)
+#ifndef SNIPPETS_LIBXSMM_TPP
     if (!only_fp32) {
         // In Snippets MatMul INT8 is supported only on VNNI/AMX platforms
         if (ov::with_cpu_x86_avx512_core_vnni() || ov::with_cpu_x86_avx512_core_amx_int8()) {
@@ -28,6 +30,7 @@ static inline std::vector<std::vector<element::Type>> precisions(bool only_fp32 
             prc.emplace_back(std::vector<element::Type>{element::bf16, element::bf16});
         }
     }
+#endif
     return prc;
 }
 namespace transpose_zero_input {

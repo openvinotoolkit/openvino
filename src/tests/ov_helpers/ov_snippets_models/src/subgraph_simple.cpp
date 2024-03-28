@@ -27,6 +27,18 @@ std::shared_ptr<ov::Model> AddFunction::initReference() const {
                                                                       ParameterVector{indata0, indata1}));
     return std::make_shared<ov::Model>(NodeVector{add}, ParameterVector{data0, data1});
 }
+std::shared_ptr<ov::Model> ExpFunction::initOriginal() const {
+    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
+    auto exp = std::make_shared<op::v0::Exp>(data0);
+    return std::make_shared<ov::Model>(NodeVector{exp}, ParameterVector{data0});
+}
+std::shared_ptr<ov::Model> ExpReciprocalFunction::initOriginal() const {
+    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
+    auto factor = std::make_shared<op::v0::Constant>(precision, ov::Shape{1}, std::vector<float>{-1.f});
+    auto exp = std::make_shared<op::v0::Exp>(data0);
+    auto reciprocal = std::make_shared<op::v1::Power>(exp, factor);
+    return std::make_shared<ov::Model>(NodeVector{reciprocal}, ParameterVector{data0});
+}
 std::shared_ptr<ov::Model> AddConstFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     const std::vector<float> const_values = ov::test::utils::generate_float_numbers(shape_size(m_const_shape.get_shape()), -10., 10.);

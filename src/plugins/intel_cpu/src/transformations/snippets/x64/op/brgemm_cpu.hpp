@@ -51,15 +51,6 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     Type get_type() const { return m_type; }
-    size_t get_m_block_size() const { return m_M_blk; }
-    size_t get_k_block_size() const { return m_K_blk; }
-    size_t get_n_block_size() const { return m_N_blk; }
-    float get_beta() const { return m_beta; }
-
-    void set_m_block_size(size_t block_size) { m_M_blk = block_size; }
-    void set_k_block_size(size_t block_size) { m_K_blk = block_size; }
-    void set_n_block_size(size_t block_size) { m_N_blk = block_size; }
-    void set_beta(float beta) { m_beta = beta; }
 
     bool is_with_compensations() const { return m_type == Type::WithCompensations; }
     bool is_with_data_repacking() const { return m_type != Type::Floating; }
@@ -75,15 +66,10 @@ public:
 
 private:
     void custom_constructor_validate_and_infer_types(std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c);
-    void compute_block_size_values(const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n);
     void validate_with_scratchpad(const ov::Shape& shape_b) const;
     void validate_inputs() const;
 
     Type m_type = Type::Floating;
-    size_t m_M_blk = 0;
-    size_t m_K_blk = 0;
-    size_t m_N_blk = 0;
-    float m_beta = 1.f;
 };
 
 } // namespace intel_cpu

@@ -13,6 +13,7 @@
 #include "snippets/lowered/pass/optimize_loop_single_evaluation.hpp"
 #include "snippets/lowered/pass/pass.hpp"
 #include "snippets/op/kernel.hpp"
+#include "snippets/op/memory_access.hpp"
 
 namespace ov {
 namespace snippets {
@@ -72,6 +73,9 @@ std::shared_ptr<const TargetMachine> Generator::get_target_machine() const {
 }
 
 RegType Generator::get_op_out_reg_type(const ov::Output<Node>& out) const {
+    auto reg_type = get_specific_op_out_reg_type(out);
+    if (reg_type != RegType::undefined)
+        return reg_type;
     const auto op = out.get_node_shared_ptr();
     if (std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) ||
         std::dynamic_pointer_cast<ov::op::v0::Result>(op) ||
@@ -106,7 +110,8 @@ RegType Generator::get_op_out_reg_type(const ov::Output<Node>& out) const {
              std::dynamic_pointer_cast<op::Fill>(op))
         return RegType::vec;
     else
-        return get_specific_op_out_reg_type(op);
+        OPENVINO_THROW("Register type of the operation " + std::string(op->get_type_name()) + " isn't determined!");
+    return reg_type;
 }
 
 RegType Generator::get_specific_op_out_reg_type(const ov::Output<Node>& out) const {
