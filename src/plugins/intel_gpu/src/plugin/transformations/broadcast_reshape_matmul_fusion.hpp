@@ -9,7 +9,7 @@
 namespace ov {
 namespace intel_gpu {
 
-class BroadcastReshapeMatmulFusion : public ov::pass::MatcherPass {
+class BroadcastReshapeMatmulFusion : public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("BroadcastReshapeMatmulFusion", "0");
     BroadcastReshapeMatmulFusion();
