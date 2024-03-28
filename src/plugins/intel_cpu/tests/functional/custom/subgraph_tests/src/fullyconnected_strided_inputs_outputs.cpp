@@ -104,7 +104,7 @@ TEST_P(FullyConnectedStridedInputsOutputsTest, CompareWithRefs) {
 
 using FullyConnectedStridedInputsOutputsTest_FP16 = FullyConnectedStridedInputsOutputsTest;
 TEST_P(FullyConnectedStridedInputsOutputsTest_FP16, CompareWithRefs) {
-    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
+    if (!(ov::with_cpu_x86_avx512_core_fp16())) {
         GTEST_SKIP() << "Skipping test, platform don't support precision f16";
     }
     configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});

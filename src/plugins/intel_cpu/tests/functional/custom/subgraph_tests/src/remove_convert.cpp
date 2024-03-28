@@ -12,7 +12,7 @@ using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
-using RemoveConvertCPUTestParams = std::tuple<ElementType, InputShape>;
+using RemoveConvertCPUTestParams = std::tuple<ElementType, InputShape, ov::AnyMap>;
 
 class RemoveUselessBF16ConvertCPUTest : public testing::WithParamInterface<RemoveConvertCPUTestParams>,
                                         virtual public SubgraphBaseTest,
@@ -21,17 +21,26 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<RemoveConvertCPUTestParams>& obj) {
         ElementType inType;
         InputShape inputShape;
-        std::tie(inType, inputShape) = obj.param;
+        ov::AnyMap additionalConfig;
+        std::tie(inType, inputShape, additionalConfig) = obj.param;
         std::ostringstream result;
         result << "IS=" << inputShape << "_";
         result << "Prc=" << inType;
+        if (!additionalConfig.empty()) {
+            result << "_PluginConf";
+            for (auto& item : additionalConfig) {
+                result << "_" << item.first << "=" << item.second.as<std::string>();
+            }
+        }
         return result.str();
     }
 
     void SetUp() override {
         ElementType inType;
         InputShape inputShape;
-        std::tie(inType, inputShape) = this->GetParam();
+        ov::AnyMap additionalConfig;
+        std::tie(inType, inputShape, additionalConfig) = this->GetParam();
+        configuration.insert(additionalConfig.begin(), additionalConfig.end());
         targetDevice = ov::test::utils::DEVICE_CPU;
         std::tie(inFmts, outFmts, priority, selectedType) =
             CPUSpecificParams{{}, {}, {}, makeSelectedTypeStr("ref", inType)};
@@ -62,17 +71,25 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<RemoveConvertCPUTestParams>& obj) {
         ElementType inType;
         InputShape inputShape;
-        std::tie(inType, inputShape) = obj.param;
+        ov::AnyMap additionalConfig;
+        std::tie(inType, inputShape, additionalConfig) = obj.param;
         std::ostringstream result;
         result << "IS=" << inputShape << "_";
         result << "Prc=" << inType;
+        if (!additionalConfig.empty()) {
+            result << "_PluginConf";
+            for (auto& item : additionalConfig) {
+                result << "_" << item.first << "=" << item.second.as<std::string>();
+            }
+        }
         return result.str();
     }
 
     void SetUp() override {
         ElementType inType;
         InputShape inputShape;
-        std::tie(inType, inputShape) = this->GetParam();
+        ov::AnyMap additionalConfig;
+        std::tie(inType, inputShape, additionalConfig) = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
 
         init_input_shapes({inputShape});
@@ -98,7 +115,6 @@ public:
 };
 
 TEST_P(RemoveUselessBF16ConvertCPUTest, CompareWithRefs) {
-    configuration.insert({ov::hint::inference_precision.name(), ov::element::bf16});
     run();
     CheckNumberOfNodesWithTypes(compiledModel, {"Convert", "Subgraph"}, 0);
     CheckPluginRelatedResults(compiledModel, "StridedSlice");
@@ -111,10 +127,6 @@ TEST_P(RemoveUselessConvertCPUTest, CompareWithRefs) {
 
 using RemoveUselessFP16ConvertCPUTest = RemoveUselessBF16ConvertCPUTest;
 TEST_P(RemoveUselessFP16ConvertCPUTest, CompareWithRefs) {
-    if (!(ov::with_cpu_x86_avx512_core_fp16())) {
-        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
-    }
-    configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
     auto implType = get_default_imp_precision_type(ov::element::f16, configuration);
     selectedType = makeSelectedTypeStr("ref", implType);
     run();
@@ -133,17 +145,20 @@ const std::vector<InputShape> inputShapes = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_RemoveConvert,
                          RemoveUselessBF16ConvertCPUTest,
-                         ::testing::Combine(::testing::Values(ElementType::bf16), ::testing::ValuesIn(inputShapes)),
+                         ::testing::Combine(::testing::Values(ElementType::bf16), ::testing::ValuesIn(inputShapes),
+                             ::testing::Values(cpu_bf16_plugin_config)),
                          RemoveUselessBF16ConvertCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_RemoveConvert,
                          RemoveUselessFP16ConvertCPUTest,
-                         ::testing::Combine(::testing::Values(ElementType::f16), ::testing::ValuesIn(inputShapes)),
+                         ::testing::Combine(::testing::Values(ElementType::f16), ::testing::ValuesIn(inputShapes),
+                             ::testing::Values(cpu_f16_plugin_config)),
                          RemoveUselessFP16ConvertCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_RemoveConvert,
                          RemoveUselessConvertCPUTest,
-                         ::testing::Combine(::testing::Values(ElementType::f32), ::testing::Values(inputShapes[0])),
+                         ::testing::Combine(::testing::Values(ElementType::f32), ::testing::Values(inputShapes[0]),
+                             ::testing::Values(empty_plugin_config)),
                          RemoveUselessConvertCPUTest::getTestCaseName);
 }  // namespace
 }  // namespace test
