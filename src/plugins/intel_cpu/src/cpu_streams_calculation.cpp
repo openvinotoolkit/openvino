@@ -534,7 +534,6 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                             config.changedHyperThreading,
                                             ov::util::to_string(config.hintPerfMode),
                                             proc_type_table);
-
     if (-1 == preferred_nthreads_per_stream) {
         model_prefer_threads = get_model_prefer_threads(streams, proc_type_table, model, config);
     }
@@ -549,19 +548,16 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                      config.latencyThreadingMode,
                                                      proc_type_table);
 
-    auto cpu_reservation =
+    auto cpu_pinning =
         get_cpu_pinning(config.enableCpuPinning, config.changedCpuPinning, proc_type_table, streams_info_table);
 
     config.streamExecutorConfig = IStreamsExecutor::Config{"CPUStreamsExecutor",
                                                            config.streams,
                                                            config.threadsPerStream,
-                                                           config.threadBindingType,
-                                                           1,
-                                                           0,
-                                                           config.threads,
-                                                           IStreamsExecutor::Config::PreferredCoreType::ANY,
-                                                           streams_info_table,
-                                                           cpu_reservation};
+                                                           ov::hint::SchedulingCoreType::ANY_CORE,
+                                                           false,
+                                                           cpu_pinning,
+                                                           streams_info_table};
 
     return proc_type_table;
 }
