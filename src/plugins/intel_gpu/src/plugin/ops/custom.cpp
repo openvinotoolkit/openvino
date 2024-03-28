@@ -10,6 +10,7 @@
 #include "intel_gpu/plugin/simple_math.hpp"
 #include "intel_gpu/primitives/custom_gpu_primitive.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/primitives/paged_attention.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -99,6 +100,40 @@ public:
 protected:
     std::map<std::string, std::string> m_values;
 };
+
+void CreatePagedAttention(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op) {
+    validate_inputs_count(op, {13});
+    auto inputs = p.GetInputInfo(op);
+    auto prim = cldnn::paged_attention(layer_type_name_ID(op), inputs);
+
+    // These parameters should be obtained from PA inputs, but currently inputs have fully dynamic shapes
+    // query_shape = [batch_size, seq_len, heads_num * head_size]
+    // const auto query_shape = query_layout.get_shape();
+    // key_cache_shape = [num_blocks, kv_heads_num, head_size / x_size, block_size, x_size]
+    // const auto key_cache_shape = key_cache_layout.get_shape();
+    // value_cache_shape = [num_blocks, kv_heads_num, head_size, block_size]
+    // const auto value_cache_shape = value_cache_layout.get_shape();
+    // const size_t hidden_size = query_shape[2];
+    // const size_t kv_heads_num = value_cache_shape[1];
+    // const size_t head_size = value_cache_shape[2];
+    // const size_t heads_num = hidden_size / head_size;
+    // const size_t block_size = value_cache_shape[3];
+    // const size_t x_size = key_cache_shape[4];
+
+    prim.head_size = 128;
+    prim.heads_num = 32;
+    prim.kv_heads_num = 32;
+    prim.block_size = 16;
+    prim.x_block_size = 8;
+
+    prim.num_outputs = op->get_output_size();
+    prim.output_data_types = get_output_data_types(op);
+    prim.output_paddings = get_output_paddings(op);
+
+    OPENVINO_ASSERT(prim.num_outputs == 1, "[GPU] Unexpected outputs number");
+
+    p.add_primitive(*op, prim);
+}
 
 void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, CustomLayerPtr customLayer) {
     auto inputs = p.GetInputInfo(op);

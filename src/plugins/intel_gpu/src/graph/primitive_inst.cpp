@@ -28,6 +28,7 @@
 #include "read_value_inst.h"
 #include "kv_cache_inst.h"
 #include "condition_inst.h"
+#include "paged_attention_inst.h"
 #include "gather_inst.h"
 #include "broadcast_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
@@ -378,6 +379,11 @@ void primitive_inst::update_shape() {
 
         auto dep_mem = _network.get_output_memory(dep_id);
         memory_deps.insert({i, dep_mem});
+
+        // Ignore shape_infer dependency for input_layout dependency type for paged attention
+        if (get_node().is_type<paged_attention>() && dep.is_type<input_layout>())
+            continue;
+
         if (!get_node().is_type<shape_of>() && !dep.is_in_shape_of_subgraph()) {
             has_runtime_deps = true;
 

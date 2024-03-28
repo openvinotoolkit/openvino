@@ -231,7 +231,12 @@ void ProgramBuilder::CreateSingleLayerPrimitive(cldnn::topology& topology, const
             is_created = true;
             break;
         }
-        op_type_info = op_type_info->parent;
+
+        const std::string paged_attention_type = "PagedAttentionExtension";
+        if (op->get_type_name() == paged_attention_type) {
+            CreatePagedAttention(*this, op);
+            return;
+        }
     }
 
     if (!is_created) {
