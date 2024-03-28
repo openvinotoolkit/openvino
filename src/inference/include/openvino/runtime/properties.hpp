@@ -806,13 +806,6 @@ static constexpr Property<bool, PropertyMutability::RW> force_tbb_terminate{"FOR
 static constexpr Property<bool, PropertyMutability::RW> enable_mmap{"ENABLE_MMAP"};
 
 /**
- * @brief Read-write property to set the percentage of the estimated model size which is used to determine the query
- * model results for further processing
- * @ingroup ov_runtime_cpp_prop_api
- */
-static constexpr Property<float, PropertyMutability::RW> query_model_ratio{"QUERY_MODEL_RATIO"};
-
-/**
  * @brief Namespace with device properties
  */
 namespace device {

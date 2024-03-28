@@ -138,10 +138,10 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
                              const std::shared_ptr<const ov::Model>& model,
                              std::string device_name,
                              bool fallback_device) {
-        auto supported_properties = get_core()->get_property(device_name, ov::supported_properties);
-        if (ov::util::contains(supported_properties, ov::query_model_ratio)) {
+        auto internal_supported_properties = get_core()->get_property(device_name, ov::internal::supported_properties);
+        if (ov::util::contains(internal_supported_properties, ov::internal::query_model_ratio)) {
             if (fallback_device) {
-                device_config[ov::query_model_ratio.name()] = 1.0f;
+                device_config[ov::internal::query_model_ratio.name()] = 1.0f;
             } else if (available_device_mem_map.count(device_name)) {
                 size_t total_ops_size = 0;
                 size_t available_discrete_device_memory = 0;
@@ -158,7 +158,7 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
                 // 1. Check if current device that can take the entire model
                 // 2. Check if all left devices can take the entire model
                 if (available_device_mem_map[device_name] >= 1.2 * total_ops_size || device_name.find("CPU") == 0) {
-                    device_config[ov::query_model_ratio.name()] = 1.0f;
+                    device_config[ov::internal::query_model_ratio.name()] = 1.0f;
                 } else if (available_discrete_device_memory >= 1.2 * total_ops_size ||
                            available_device_mem_map.count("CPU")) {
                     float model_ratio =
@@ -166,11 +166,11 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
                     if (total_ops_size < available_device_mem_map[device_name]) {
                         model_ratio = 1.0f;
                     }
-                    device_config[ov::query_model_ratio.name()] = model_ratio;
+                    device_config[ov::internal::query_model_ratio.name()] = model_ratio;
                 } else {
                     float model_ratio = static_cast<float>(available_device_mem_map[device_name] * 1.0 /
                                                            available_discrete_device_memory);
-                    device_config[ov::query_model_ratio.name()] = model_ratio;
+                    device_config[ov::internal::query_model_ratio.name()] = model_ratio;
                 }
                 // Remove the current device
                 available_device_mem_map.erase(device_name);

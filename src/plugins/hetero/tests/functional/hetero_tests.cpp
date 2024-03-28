@@ -570,8 +570,8 @@ public:
         auto device_id = properties.count(ov::device::id.name())
                              ? properties.at(ov::device::id.name()).as<std::string>()
                              : m_default_device_id;
-        float query_model_ratio = properties.count(ov::query_model_ratio.name())
-                                      ? properties.at(ov::query_model_ratio.name()).as<float>()
+        float query_model_ratio = properties.count(ov::internal::query_model_ratio.name())
+                                      ? properties.at(ov::internal::query_model_ratio.name()).as<float>()
                                       : 1.0f;
         auto supported = ov::get_supported_nodes(
             model,
@@ -809,8 +809,7 @@ public:
                                                          RW_property(ov::enable_profiling.name()),
                                                          RW_property(ov::compilation_num_threads.name()),
                                                          RW_property(ov::hint::performance_mode.name()),
-                                                         RW_property(ov::hint::num_requests.name()),
-                                                         RW_property(ov::query_model_ratio.name())};
+                                                         RW_property(ov::hint::num_requests.name())};
         std::string device_id;
         if (arguments.find(ov::device::id.name()) != arguments.end()) {
             device_id = arguments.find(ov::device::id.name())->second.as<std::string>();
@@ -825,7 +824,8 @@ public:
         } else if (name == ov::internal::supported_properties) {
             return decltype(ov::internal::supported_properties)::value_type(
                 {ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
-                 ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW}});
+                 ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
+                 ov::PropertyName{ov::internal::query_model_ratio.name(), ov::PropertyMutability::RW}});
         } else if (name == ov::internal::exclusive_async_requests) {
             return decltype(ov::internal::exclusive_async_requests)::value_type{exclusive_async_requests};
         } else if (name == ov::device::uuid) {

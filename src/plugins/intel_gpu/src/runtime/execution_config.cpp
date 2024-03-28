@@ -46,7 +46,6 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::hint::execution_mode, ov::hint::ExecutionMode::PERFORMANCE),
         std::make_tuple(ov::hint::num_requests, 0),
         std::make_tuple(ov::hint::enable_cpu_pinning, false),
-        std::make_tuple(ov::query_model_ratio, 1.0f),
 
         std::make_tuple(ov::intel_gpu::hint::host_task_priority, ov::hint::Priority::MEDIUM),
         std::make_tuple(ov::intel_gpu::hint::queue_throttle, ov::intel_gpu::hint::ThrottleLevel::MEDIUM),
@@ -54,6 +53,7 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::intel_gpu::enable_loop_unrolling, true),
         std::make_tuple(ov::intel_gpu::disable_winograd_convolution, false),
         std::make_tuple(ov::internal::exclusive_async_requests, false),
+        std::make_tuple(ov::internal::query_model_ratio, 1.0f),
         std::make_tuple(ov::cache_mode, ov::CacheMode::OPTIMIZE_SPEED),
 
         // Legacy API properties
