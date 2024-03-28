@@ -47,8 +47,8 @@ endif()
 
 target_link_libraries(${TARGET_NAME}
     PRIVATE
-        openvino_npu_al
-        openvino_npu_logger_utils
+        ov_npu_al
+        ov_npu_logger_utils
         openvino::runtime
         openvino::runtime::dev
 )

@@ -23,7 +23,7 @@ target_include_directories(${TARGET_NAME}
 
 target_link_libraries(${TARGET_NAME}
     PUBLIC
-        openvino_npu_al
+        ov_npu_al
         ze_loader
     PRIVATE
         npu_zero_result_parser

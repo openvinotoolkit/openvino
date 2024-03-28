@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME openvino_npu_logger_utils)
+set(TARGET_NAME ov_npu_logger_utils)
 
 file(GLOB_RECURSE SOURCES *.cpp)
 
@@ -27,6 +27,6 @@ target_link_libraries(${TARGET_NAME}
 #
 ov_install_static_lib(${TARGET_NAME} ${NPU_PLUGIN_COMPONENT})
 
-ov_developer_package_export_targets(TARGET openvino_npu_logger_utils
+ov_developer_package_export_targets(TARGET ov_npu_logger_utils
                                     INSTALL_INCLUDE_DIRECTORIES
                                         $<BUILD_INTERFACE:${NPU_UTILS_SOURCE_DIR}/include>)
