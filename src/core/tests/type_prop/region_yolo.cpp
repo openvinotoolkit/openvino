@@ -79,7 +79,7 @@ TEST_F(TypePropRegionYoloV0Test, data_input_static_rank_do_softmax) {
     const std::vector<int64_t> mask{0, 1, 2};
 
     auto data_shape = PartialShape::dynamic(4);
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
 
     const auto data = std::make_shared<op::v0::Parameter>(element::f64, data_shape);
     const auto op = make_op(data, coords, classes, num, true, mask, axis, end_axis);
@@ -87,7 +87,7 @@ TEST_F(TypePropRegionYoloV0Test, data_input_static_rank_do_softmax) {
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_output_element_type(0), element::f64);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic(2));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 0));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), ElementsAre(symbols[0], nullptr));
 }
 
 TEST_F(TypePropRegionYoloV0Test, do_softmax_end_axis_is_negative) {
@@ -96,7 +96,7 @@ TEST_F(TypePropRegionYoloV0Test, do_softmax_end_axis_is_negative) {
     const std::vector<int64_t> mask{0, 1, 2};
 
     auto data_shape = PartialShape::dynamic(4);
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
 
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
     const auto op = make_op(data, coords, classes, num, true, mask, axis, end_axis);
@@ -104,7 +104,7 @@ TEST_F(TypePropRegionYoloV0Test, do_softmax_end_axis_is_negative) {
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic(2));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 0));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), ElementsAre(symbols[0], nullptr));
 }
 
 TEST_F(TypePropRegionYoloV0Test, do_softmax_axis_eq_end_axis) {
@@ -113,7 +113,7 @@ TEST_F(TypePropRegionYoloV0Test, do_softmax_axis_eq_end_axis) {
     const std::vector<int64_t> mask{0, 1, 2};
 
     auto data_shape = PartialShape{5, 4, 10, 11};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
 
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
     const auto op = make_op(data, coords, classes, num, true, mask, axis, end_axis);
@@ -121,7 +121,7 @@ TEST_F(TypePropRegionYoloV0Test, do_softmax_axis_eq_end_axis) {
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({5, 4, 10, 11}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 11, 12, 13));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), symbols);
 }
 
 TEST_F(TypePropRegionYoloV0Test, do_softmax_axis_gt_end_axis) {
@@ -130,7 +130,7 @@ TEST_F(TypePropRegionYoloV0Test, do_softmax_axis_gt_end_axis) {
     const std::vector<int64_t> mask{0, 1, 2};
 
     auto data_shape = PartialShape{5, 4, 10, 11};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
 
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
     const auto op = make_op(data, coords, classes, num, true, mask, axis, end_axis);
@@ -138,7 +138,7 @@ TEST_F(TypePropRegionYoloV0Test, do_softmax_axis_gt_end_axis) {
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({5, 4, 10, 11}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 11, 12, 13));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), symbols);
 }
 
 TEST_F(TypePropRegionYoloV0Test, do_softmax_axis_end_axis_on_last_dim) {
@@ -147,7 +147,7 @@ TEST_F(TypePropRegionYoloV0Test, do_softmax_axis_end_axis_on_last_dim) {
     const std::vector<int64_t> mask{0, 1, 2};
 
     auto data_shape = PartialShape{5, 4, 10, 11};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
 
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
     const auto op = make_op(data, coords, classes, num, true, mask, axis, end_axis);
@@ -155,16 +155,16 @@ TEST_F(TypePropRegionYoloV0Test, do_softmax_axis_end_axis_on_last_dim) {
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({5, 4, 10, 11}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 11, 12, 13));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), symbols);
 }
 
-TEST_F(TypePropRegionYoloV0Test, data_input_interval_shape_with_labels_do_softmax) {
+TEST_F(TypePropRegionYoloV0Test, data_input_interval_shape_with_symbols_do_softmax) {
     constexpr size_t num = 5, coords = 4, classes = 20;
     constexpr int axis = 2, end_axis = 3;
     const std::vector<int64_t> mask{0, 1, 2};
 
     auto data_shape = PartialShape{{2, 4}, {5, 8}, -1, {0, 10}};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
 
     const auto data = std::make_shared<op::v0::Parameter>(element::f16, data_shape);
     const auto op = make_op(data, coords, classes, num, true, mask, axis, end_axis);
@@ -172,7 +172,7 @@ TEST_F(TypePropRegionYoloV0Test, data_input_interval_shape_with_labels_do_softma
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_output_element_type(0), element::f16);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({{2, 4}, {5, 8}, -1}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 11, 0));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), ElementsAre(symbols[0], symbols[1], nullptr));
 }
 
 TEST_F(TypePropRegionYoloV0Test, do_softmax_start_axis_negative) {
@@ -181,7 +181,7 @@ TEST_F(TypePropRegionYoloV0Test, do_softmax_start_axis_negative) {
     const std::vector<int64_t> mask{0, 1, 2};
 
     auto data_shape = PartialShape{{2, 4}, {5, 8}, -1, {0, 10}};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
 
     const auto data = std::make_shared<op::v0::Parameter>(element::f16, data_shape);
     const auto op = make_op(data, coords, classes, num, true, mask, axis, end_axis);
@@ -189,16 +189,16 @@ TEST_F(TypePropRegionYoloV0Test, do_softmax_start_axis_negative) {
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_output_element_type(0), element::f16);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({{2, 4}, {5, 8}, -1}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 11, 0));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), ElementsAre(symbols[0], symbols[1], nullptr));
 }
 
-TEST_F(TypePropRegionYoloV0Test, data_input_interval_shape_with_labels_no_softmax) {
+TEST_F(TypePropRegionYoloV0Test, data_input_interval_shape_with_symbols_no_softmax) {
     constexpr size_t num = 5, coords = 4, classes = 20;
     constexpr int axis = 2, end_axis = 3;
     const std::vector<int64_t> mask{0, 1, 2};
 
     auto data_shape = PartialShape{{2, 4}, {5, 8}, -1, {0, 10}};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
 
     const auto data = std::make_shared<op::v0::Parameter>(element::f16, data_shape);
     const auto op = make_op(data, coords, classes, num, false, mask, axis, end_axis);
@@ -206,7 +206,8 @@ TEST_F(TypePropRegionYoloV0Test, data_input_interval_shape_with_labels_no_softma
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_output_element_type(0), element::f16);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({{2, 4}, 75, -1, {0, 10}}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 0, 12, 13));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(symbols[0], nullptr, symbols[2], symbols[3]));
 }
 
 TEST_F(TypePropRegionYoloV0Test, data_input_not_4d) {
