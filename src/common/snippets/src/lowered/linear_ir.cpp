@@ -12,6 +12,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/type.hpp"
 #include "snippets/utils.hpp"
+#include "snippets/op/subgraph.hpp"
 
 namespace ov {
 namespace snippets {
@@ -365,10 +366,15 @@ VectorDims LinearIR::get_master_shape() const {
     }
     // Note: Snippets would benefit from a more generic master_shape calculation approach.
     //  It will be implemented in the scope of ROI propagation activity (ticket 120505)
-    const auto& source = out_exprs[0]->get_input_port_connector(0)->get_source();
-    if (!m_config.m_enable_domain_optimization && out_exprs.size() == 1 &&
-        ov::is_type<snippets::op::Brgemm>(source.get_expr()->get_node())) {
-        master_shape = utils::get_preordered_vdims(source);
+    if (out_exprs.size() == 1) {
+        const auto& source = out_exprs[0]->get_input_port_connector(0)->get_source();
+        if (!m_config.m_enable_domain_optimization && ov::is_type<snippets::op::Brgemm>(source.get_expr()->get_node())) {
+            master_shape = utils::get_preordered_vdims(source);
+        } else {
+            const auto& shape_infer_seq = utils::get_first_parent_shape_infer_expr_seq(out_exprs[0]);
+            const auto& expr = shape_infer_seq.empty() ? out_exprs[0] : shape_infer_seq.back();
+            master_shape = utils::get_preordered_vdims(expr->get_input_port_connector(0)->get_source());
+        }
     } else {
         for (const auto& oe : out_exprs) {
             const auto& port_desc = oe->get_input_port_descriptor(0);
