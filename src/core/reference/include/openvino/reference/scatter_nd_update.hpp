@@ -8,10 +8,59 @@
 #include <numeric>
 
 #include "openvino/core/shape.hpp"
+#include "openvino/op/scatter_nd_update.hpp"
 #include "utils/span.hpp"
 
 namespace ov {
 namespace reference {
+using Reduction = ov::op::v14::ScatterNDUpdate::Reduction;
+namespace func {
+template <typename T>
+std::function<T(const T, const T)> reduction_functor_for(const Reduction reduction_type) {
+    switch (reduction_type) {
+    case Reduction::MAX:
+        return [](const T a, const T b) {
+            return a > b ? a : b;
+        };
+    case Reduction::MIN:
+        return [](const T a, const T b) {
+            return a < b ? a : b;
+        };
+    case Reduction::PROD:
+        return std::multiplies<T>{};
+    case Reduction::SUM:
+        return std::plus<T>{};
+    case Reduction::SUB:
+        return std::minus<T>{};
+    default:
+        OPENVINO_THROW("No functor available for this type of reduction");
+    }
+}
+
+template <>
+std::function<char(const char, const char)> reduction_functor_for<char>(const Reduction reduction_type) {
+    switch (reduction_type) {
+    case Reduction::MIN:
+    case Reduction::PROD:
+        return [](const char a, const char b) {
+            return static_cast<bool>(a) && static_cast<bool>(b);
+        };
+    case Reduction::SUM:
+    case Reduction::MAX:
+        return [](const char a, const char b) {
+            return static_cast<bool>(a) || static_cast<bool>(b);
+        };
+    case Reduction::SUB:
+        return [](const char a, const char b) {
+            return static_cast<bool>(a) != static_cast<bool>(b);
+        };
+    default:
+        OPENVINO_THROW("No functor available for this type of reduction");
+    }
+}
+
+}  // namespace func
+
 template <typename dataType, typename indicesType>
 void scatterNdUpdate(const dataType* const inputData,
                      const indicesType* const indices,
@@ -19,7 +68,8 @@ void scatterNdUpdate(const dataType* const inputData,
                      dataType* const outBuf,
                      const Shape& dataShape,
                      const Shape& indicesShape,
-                     const Shape& updatesShape) {
+                     const Shape& updatesShape,
+                     const Reduction reduction_type = Reduction::NONE) {
     const auto update_chunk_shape = span(dataShape).drop_front(indicesShape.back());
     const auto update_el_number = shape_size(update_chunk_shape);
 
@@ -55,7 +105,16 @@ void scatterNdUpdate(const dataType* const inputData,
         const auto update_mem_size = update_el_number * sizeof(dataType);
         OPENVINO_ASSERT(out_index >= 0 && out_index + update_el_number <= shape_size(dataShape),
                         "Index is out of bounds");
-        std::memcpy(outBuf + out_index, update_data, update_mem_size);
+        if (reduction_type == Reduction::NONE) {
+            std::memcpy(outBuf + out_index, update_data, update_mem_size);
+        } else {
+            const auto reduce = func::reduction_functor_for<dataType>(reduction_type);
+            std::transform(outBuf + out_index,
+                           outBuf + update_el_number + out_index,
+                           update_data,
+                           outBuf + out_index,
+                           reduce);
+        }
     }
 }
 }  // namespace reference
