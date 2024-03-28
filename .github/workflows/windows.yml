@@ -42,22 +42,27 @@ jobs:
           skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
 
   Build:
+    strategy:
+      matrix:
+        it: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+            11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+            21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+            31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
+            41, 42, 43, 44, 45, 46, 47, 48, 49, 50]
     needs: Smart_CI
     timeout-minutes: 180
     defaults:
       run:
         shell: pwsh
-    runs-on: aks-win-16-cores-32gb
+    runs-on: aks-win-16-cores-32gb-test
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja Multi-Config'
-      CMAKE_CXX_COMPILER_LAUNCHER: sccache
-      CMAKE_C_COMPILER_LAUNCHER: sccache
-      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
-      SCCACHE_SERVER_PORT: 35555
-      SCCACHE_IDLE_TIMEOUT: 0
-      SCCACHE_ERROR_LOG: "${{ github.workspace }}\\openvino\\sccache_log.txt"
-      SCCACHE_LOG: warn
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
+      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CCACHE_REMOTE_DIR: C:\\mount\\caches\\ccache
+      CCACHE_DIR: ${{ github.workspace }}\\ccache
+      CCACHE_MAXSIZE: 5G
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       OPENVINO_CONTRIB_REPO: "${{ github.workspace }}\\openvino_contrib"
       INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
@@ -65,7 +70,6 @@ jobs:
       INSTALL_TEST_DIR: "${{ github.workspace }}\\tests_install"
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
       # TODO: specify version of compiler here
-      SCCACHE_AZURE_KEY_PREFIX: windows2022_x86_64_Release
     if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
 
     steps:
@@ -123,10 +127,12 @@ jobs:
           # For getting rid of SSL issues during model downloading for unit tests
           python3 -m pip install certifi
 
-      - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.4
-        with:
-          version: "v0.7.5"
+      - name: Download and install ccache
+        run: |
+          Invoke-WebRequest -Uri 'https://github.com/ccache/ccache/releases/download/v4.9.1/ccache-4.9.1-windows-x86_64.zip' -OutFile 'ccache.zip'
+          Expand-Archive -Path 'ccache.zip' -DestinationPath 'C:\temp\ccache'
+          Move-Item -Path 'C:\temp\ccache\*' -Destination 'C:\ccache'
+          Add-Content -Path $env:GITHUB_PATH -Value "C:\ccache"
 
       - name: Install build dependencies
         run: |
@@ -138,6 +144,19 @@ jobs:
       #
       # Build
       #
+      - name: Setup ccache
+        id: ccache_restore
+        uses: ./openvino/.github/actions/cache
+        with:
+          save-always: true
+          cleanup-always: true
+          max-cache-size: 5
+          cache-path: ${{ env.CCACHE_REMOTE_DIR }}
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}-${{ matrix.it }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-ccache
+
 
       - name: Configure Developer Command Prompt for Microsoft Visual C++
         uses: ilammy/msvc-dev-cmd@v1
@@ -160,27 +179,22 @@ jobs:
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
-      - name: Clean sccache stats
-        run: '& "$Env:SCCACHE_PATH" --zero-stats'
+      - name: Clean ccache stats
+        run: '& ccache --zero-stats'
 
         # to get more information on the issue
         # described in the next step
       - name: Show which network ports are used
         run: netstat -ban
 
-        # the case is the following:
-        # sccache: error: An attempt was made to access a socket in a way forbidden by its access permissions. (os error 10013)
-        # This looks like the attempt to use
-        # a port below 1024 or a port
-        # which is occupied by another app
-      - name: Stop sccache server just in case
-        run: '& "$Env:SCCACHE_PATH" --stop-server'
-
       - name: Cmake build - OpenVINO
         run: cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --verbose
 
-      - name: Show sccache stats
-        run: '& "$Env:SCCACHE_PATH" --show-stats'
+      - name: Show ccache stats
+        run: '& ccache --show-stats'
+
+      - name: Cleanup ccache
+        run: '& ccache --cleanup'
 
       - name: Cmake install - OpenVINO
         run: |
@@ -216,35 +230,28 @@ jobs:
       #
       # Upload build artifacts and logs
       #
-      - name: Upload build logs
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: build_logs
-          path: ${{ env.SCCACHE_ERROR_LOG }}
-          if-no-files-found: 'ignore'
 
-      - name: Upload openvino package
-        uses: actions/upload-artifact@v4
-        with:
-          name: openvino_package
-          path: ${{ env.BUILD_DIR }}/openvino_package.zip
-          if-no-files-found: 'error'
+      # - name: Upload openvino package
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: openvino_package
+      #     path: ${{ env.BUILD_DIR }}/openvino_package.zip
+      #     if-no-files-found: 'error'
 
-      - name: Upload openvino tests package
-        uses: actions/upload-artifact@v4
-        with:
-          name: openvino_tests
-          path: ${{ env.BUILD_DIR }}/openvino_tests.zip
-          if-no-files-found: 'error'
+      # - name: Upload openvino tests package
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: openvino_tests
+      #     path: ${{ env.BUILD_DIR }}/openvino_tests.zip
+      #     if-no-files-found: 'error'
 
-      - name: Upload openvino js package
-        if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
-        uses: actions/upload-artifact@v4
-        with:
-          name: openvino_js_package
-          path: ${{ env.INSTALL_DIR_JS }}
-          if-no-files-found: 'error'
+      # - name: Upload openvino js package
+      #   if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: openvino_js_package
+      #     path: ${{ env.INSTALL_DIR_JS }}
+      #     if-no-files-found: 'error'
 
   Samples:
     needs: [ Build, Smart_CI ]

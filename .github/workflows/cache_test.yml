@@ -1,0 +1,76 @@
+name: Test Cache WF
+on:
+  workflow_dispatch:
+  pull_request:
+  merge_group:
+  push:
+    branches:
+      - master
+
+concurrency:
+  # github.ref is not unique in post-commit
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-cache-test
+  cancel-in-progress: true
+
+jobs:
+  Build:
+    # defaults:
+    #   run:
+    #     shell: bash
+    # runs-on: aks-linux-4-cores-16gb
+    # container:
+    #   image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+    #   volumes:
+    #     - /mount:/mount
+    defaults:
+      run:
+        shell: pwsh
+    runs-on: aks-win-16-cores-32gb-test
+    env:
+      OPENVINO_REPO: "${{ github.workspace }}\\openvino"
+      CACHE_REMOTE: "C:\\mount\\caches\\ccache\\test-cache"
+      CACHE_LOCAL: "C:\\temp\\cache"
+      CACHE_TMP: "C:\\temp\\cache_tmp"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.OPENVINO_REPO }}
+
+      # - name: Test preconditions(lin)
+      #   run: |
+      #     mkdir -p ${CACHE_TMP}
+      #     echo test > ${CACHE_TMP}/file.txt
+      #     mkdir -p ${CACHE_REMOTE}
+      #     pushd ${CACHE_TMP}
+      #       tar -czvf ${CACHE_REMOTE}/test_cache_$(date '+%Y%m%d%S').cache *
+      #     popd
+      #     ls -la ${CACHE_REMOTE}
+
+
+      - name: Test preconditions(win)
+        run: |
+          mkdir -p ${env:CACHE_LOCAL} -force
+          echo test  > ${env:CACHE_LOCAL}/file.txt
+          echo test2 > ${env:CACHE_LOCAL}/file2.txt
+          echo test3 > ${env:CACHE_LOCAL}/file3.txt
+
+      - name: Test Local Action
+        id: test-action
+        uses: ./openvino/.github/actions/cache
+        with:
+          save-always: true
+          cleanup-always: true
+          cache-path: ${{ env.CACHE_REMOTE }}
+          path: ${{ env.CACHE_LOCAL }}
+          key: ${{ runner.os }}-${{ runner.arch }}-test-cache-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-test-cache
+            test_cache
+            ${{ runner.os }}-${{ runner.arch }}-test-cache
+
+      - name: Print Output
+        run: |
+          ls -l ${env:CACHE_LOCAL}
+          echo "${{ steps.test-action.outputs.cache-file }}"
