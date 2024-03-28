@@ -100,7 +100,7 @@ bool evaluate_symbol(const Node* shape_of_node, TensorSymbolVector& output_symbo
     symbols.reserve(shape.size());
 
     for (const auto& d : shape) {
-        const auto symbol = d.get_symbol();
+        auto symbol = d.has_symbol() ? ov::symbol::ancestor_of(d.get_symbol()) : nullptr;
         symbols.emplace_back(symbol);
         at_least_one_symbol_set |= (symbol != nullptr);
     }
