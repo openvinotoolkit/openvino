@@ -59,6 +59,7 @@ interface Model {
   output(nameOrId?: string | number): Output;
   input(nameOrId?: string | number): Output;
   getName(): string;
+  isDynamic(): boolean;
 }
 
 interface CompiledModel {
