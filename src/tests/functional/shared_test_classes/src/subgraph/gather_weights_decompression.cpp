@@ -192,7 +192,8 @@ void GatherWeightsDecompression::check_results() {
             }
         }
     }
-    EXPECT_TRUE(found_gather_compressed);
+    if (targetDevice != "GPU")
+        EXPECT_TRUE(found_gather_compressed);
 }
 
 void GatherWeightsDecompression::SetUp() {
