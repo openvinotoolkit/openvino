@@ -92,10 +92,10 @@ Intel® Neural Processing Unit
 
    .. tab-item:: Additional considerations
 
-      * These Accelerators require :doc:`drivers <../get-started/configurations/configurations-intel-npu>`
+      * These Accelerators require :doc:`drivers <../../get-started/configurations/configurations-intel-npu>`
         that are not included in the Intel® Distribution of OpenVINO™ toolkit package.
       * Users can access the NPU plugin through the OpenVINO archives on
-        the :doc:`download page <../get-started/install-openvino>`.
+        the :doc:`download page <../../get-started/install-openvino>`.
 
 
 Operating systems and developer environment
@@ -206,10 +206,5 @@ For more complete information about compiler optimizations, see our Optimization
 
 Performance varies by use, configuration and other factors. Learn more at
 `www.Intel.com/PerformanceIndex <www.Intel.com/PerformanceIndex>`__.
-
-
-
-
-
 
 
