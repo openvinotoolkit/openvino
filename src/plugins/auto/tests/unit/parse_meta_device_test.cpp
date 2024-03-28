@@ -159,6 +159,8 @@ const std::vector<ConfigParams> testConfigs = {
 
     ConfigParams{"CPU(-1),GPU,OTHER", {}, true, 0},
     ConfigParams{"CPU(NA),GPU,OTHER", {}, true, 0},
+    ConfigParams{"CPU(4)a", {}, true, 0},
+    ConfigParams{"CPU(4)a,GPU,OTHER", {}, true, 0},
     ConfigParams{"INVALID_DEVICE", {}, false, 0},
     ConfigParams{"INVALID_DEVICE,CPU", {{"CPU", {}, -1, "", "CPU_", 1}}, false, 2},
 

@@ -189,6 +189,9 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
         auto opening_bracket = d.find_first_of('(');
         auto closing_bracket = d.find_first_of(')', opening_bracket);
         auto device_name = d.substr(0, opening_bracket);
+        if (closing_bracket != std::string::npos && closing_bracket < d.length() - 1) {
+            OPENVINO_THROW("Device list with \"", d, "\" name is illegal in the AUTO plugin.");
+        }
 
         int num_requests = -1;
         if (closing_bracket != std::string::npos && opening_bracket < closing_bracket) {

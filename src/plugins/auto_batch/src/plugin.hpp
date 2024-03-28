@@ -64,6 +64,8 @@ protected:
 
     static DeviceInformation parse_batch_device(const std::string& device_with_batch);
 
+    static uint32_t parse_batch_size(const std::string& device_name, const ov::AnyMap& properties);
+
 private:
     mutable ov::AnyMap m_plugin_config;
 };
