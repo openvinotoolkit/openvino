@@ -90,7 +90,7 @@ def test_optional_full_match():
     model_input = ops.parameter(PartialShape.dynamic())
     model_abs = ops.abs(model_input)
     model_relu = ops.relu(model_abs.output(0))
-    
+
     pattern_abs = Optional(["opset13.Abs"])
     pattern_relu = ops.relu(pattern_abs.output(0))
 
