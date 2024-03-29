@@ -281,9 +281,9 @@ public:
             auto decompression_zp_idx = has_bias ? 3 : 4;
             auto & zp_node = impl_params->get_program().get_node(impl_params->desc->id).get_dependency(decompression_zp_idx).as<data>();
             _zp_mem = zp_node.get_attached_memory_ptr();
-            if (!is_four_bit_weight)
+            if (!is_four_bit_weight) {
                 _attrs->set_zero_points(DNNL_ARG_WEIGHTS, 1 << 1, dnnl::memory::dims{}, _dzp_data_type);
-            else {
+            } else {
                 // ZP broadcasting should be implemented and tested
                 OPENVINO_ASSERT(false, "[GPU:UNIMPLEMENTED] OneDNN int4 with zp");
             }
@@ -368,7 +368,8 @@ public:
                         memset(zp_new_data.data(), static_cast<uint8_t>(zp_old_data.data()[0] & 0xf), zp_new_data.size());
                     }
 
-                    OPENVINO_ASSERT(broadcasted_layout.get_linear_size() == zp_mem->get_layout().get_linear_size(), "[GPU] Size mismatch between zp and scale for compressed FC\n");
+                    OPENVINO_ASSERT(broadcasted_layout.get_linear_size() == zp_mem->get_layout().get_linear_size(),
+                                    "[GPU] Size mismatch between zp and scale for compressed FC\n");
 
                     attr->set_zero_points(DNNL_ARG_WEIGHTS, (1 << 1) + (1 << 0), {group_size, 1}, dzp_data_type);
                 }
