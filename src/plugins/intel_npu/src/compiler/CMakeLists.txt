@@ -35,5 +35,10 @@ target_link_libraries(${TARGET_NAME}
 # targets install
 #
 ov_install_static_lib(${TARGET_NAME} ${NPU_PLUGIN_COMPONENT})
-# Need to install ze_loader to support static build
-ov_install_static_lib(ze_loader ${NPU_PLUGIN_COMPONENT})
+
+if(TARGET ze_loader)
+    install(TARGETS ze_loader EXPORT OpenVINOTargets
+            RUNTIME DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${NPU_PLUGIN_COMPONENT}
+            ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${NPU_PLUGIN_COMPONENT}
+            LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT ${NPU_PLUGIN_COMPONENT})
+endif()
