@@ -121,7 +121,6 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                 _attrs->get_fpmath_mode(_fmath_mode, _apply_to_int);
                 ob << make_data(&_fmath_mode, sizeof(dnnl::fpmath_mode));
                 ob << _apply_to_int;
-
             }
             {
                 const dnnl::post_ops _post_ops = _attrs->get_post_ops();
