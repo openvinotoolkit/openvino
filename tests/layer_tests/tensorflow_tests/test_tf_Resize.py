@@ -8,11 +8,11 @@ import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
 
-
 OPS = {
     'tf.raw_ops.ResizeBilinear': tf.raw_ops.ResizeBilinear,
     'tf.raw_ops.ResizeNearestNeighbor': tf.raw_ops.ResizeNearestNeighbor,
 }
+
 
 class TestResize(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
@@ -50,16 +50,21 @@ class TestResize(CommonTFLayerTest):
         [[2, 100, 100, 3], tf.float32, [40, 40], True, False, 'tf.raw_ops.ResizeNearestNeighbor'],
         [[2, 10, 10, 3], tf.float32, [40, 40], False, True, 'tf.raw_ops.ResizeNearestNeighbor'],
         [[2, 40, 40, 3], tf.uint8, [10, 10], False, False, 'tf.raw_ops.ResizeNearestNeighbor'],
-        [[1, 40, 40, 3], tf.int32, [10, 10], False,True, 'tf.raw_ops.ResizeNearestNeighbor'],
+        [[1, 40, 40, 3], tf.int32, [10, 10], False, True, 'tf.raw_ops.ResizeNearestNeighbor'],
     ]
 
-    @pytest.mark.parametrize("images_shape, images_type, size_value, align_corners, half_pixel_centers, resize_op", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.parametrize("images_shape, images_type, size_value, align_corners, half_pixel_centers, resize_op",
+                             test_data_basic)
+    @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122716')
-    def test_resize_basic(self, images_shape, images_type, size_value, align_corners, half_pixel_centers, resize_op, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
-        params = dict(images_shape=images_shape, images_type=images_type, size_value=size_value, align_corners=align_corners, half_pixel_centers=half_pixel_centers, resize_op=OPS[resize_op])
+    def test_resize_basic(self, images_shape, images_type, size_value, align_corners, half_pixel_centers, resize_op,
+                          ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+        if ie_device == 'GPU' and images_type == tf.int32 and resize_op == 'tf.raw_ops.ResizeNearestNeighbor':
+            pytest.skip("Couldn't find a suitable kernel for interpolate:Interpolate_8438725 issue on GPU")
+        params = dict(images_shape=images_shape, images_type=images_type, size_value=size_value,
+                      align_corners=align_corners, half_pixel_centers=half_pixel_centers, resize_op=OPS[resize_op])
         self._test(*self.create_resize_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
