@@ -47,7 +47,7 @@ void regclass_graph_Shape(py::module m) {
         return v[key];
     });
 
-    shape.def("__getitem__", [](const ov::Shape& v, py::slice slice) {
+    shape.def("__getitem__", [](const ov::Shape& v, py::slice& slice) {
         size_t start, stop, step, slicelength;
         if (!slice.compute(v.size(), &start, &stop, &step, &slicelength))
             throw py::error_already_set();
