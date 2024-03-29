@@ -188,7 +188,6 @@ OP_CONVERTER(translate_rnn);
 OP_CONVERTER(translate_roi_align);
 OP_CONVERTER(translate_roll);
 OP_CONVERTER(translate_round);
-OP_CONVERTER(translate_rrelu);
 OP_CONVERTER(translate_rsqrt);
 OP_CONVERTER(translate_rsub);
 OP_CONVERTER(translate_scaled_dot_product_attention);
