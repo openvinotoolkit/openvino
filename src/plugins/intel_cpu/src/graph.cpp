@@ -1395,25 +1395,30 @@ void Graph::ParalleMtNuma(size_t num_nodes,
                                    num_nodes,
                                    " Nodes, which shouldn't invoke multi nodes parallel.");
     std::atomic<int> nodes_remain(num_nodes);
+    int cur_numa_id = executor->get_numa_node_id();
     // enqueue (nsockets-1) sub stream tasks
-    for (size_t socket_id = 1; socket_id < num_nodes; socket_id++) {
-        size_t i0{0}, i1{0};
-        splitter(num_nodes, num_nodes, socket_id, i0, i1);
-        executor->run_sub_stream(
-            [socket_id, i0, i1, &func, &nodes_remain]() {
-                for (size_t i = i0; i < i1; i++) {
-                    func(socket_id, i);
-                    nodes_remain--;
-                }
-            },
-            socket_id - 1);
+    int sub_stream_id = 0;
+    for (size_t socket_id = 0; socket_id < num_nodes; socket_id++) {
+        if (socket_id != static_cast<size_t>(cur_numa_id)) {
+            size_t i0{0}, i1{0};
+            splitter(num_nodes, num_nodes, socket_id, i0, i1);
+            executor->run_sub_stream(
+                [socket_id, i0, i1, &func, &nodes_remain]() {
+                    for (size_t i = i0; i < i1; i++) {
+                        func(socket_id, i);
+                        nodes_remain--;
+                    }
+                },
+                sub_stream_id);
+            sub_stream_id++;
+        }
     }
     // run in main stream (current socket)
     {
         size_t i0{0}, i1{0};
-        splitter(num_nodes, num_nodes, static_cast<size_t>(0), i0, i1);
+        splitter(num_nodes, num_nodes, static_cast<size_t>(cur_numa_id), i0, i1);
         for (size_t i = i0; i < i1; i++) {
-            func(0, i);
+            func(cur_numa_id, i);
             nodes_remain--;
         }
     }
