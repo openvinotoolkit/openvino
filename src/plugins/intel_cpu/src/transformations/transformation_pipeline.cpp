@@ -138,6 +138,7 @@
 #include "nodes/scaled_attn.h"
 #include "dnnl.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
+#include "openvino/core/validation_util.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -217,35 +218,36 @@ bool Transformations::fuse_type_to_convert(const std::shared_ptr<ov::Node>& node
     const auto& to = it->second;
 
     // For Convert node, converting precision from floating point to boolean will lead to mathematical
-    // error, because here the output precision boolean is replaced by u8. E.g. floating point value 0.01
-    // is converted to be 1 for boolean, but 0 for u8. Thus an Abs and Ceil node should be added before the
-    // Convert node for this scenario.
+    // error, because here the output precision boolean is replaced by u8:
+    //  - floating point value 0.01 is converted to be 1 for boolean, but 0 for u8 - need to insert Ceil.
+    //  - floating point value 256 is converted to be 1 for boolean, but 0 for u8 - need to insert Min(x, UINT8_MAX)
+    //  - floating point value -256 is converted to be 1 for boolean, but 0 for u8 - need to insert Abs before Min.
+    // Thus an Abs, Ceil and Min nodes should be added before the Convert node for this scenario.
     if (convert->input(0).get_element_type().is_real() &&
         convert->get_convert_element_type() == ov::element::boolean && to.is_integral_number()) {
-        const auto& in_prec = node->get_input_element_type(0);
+        ov::pass::NodeRegistry reg;
+        const auto& in_prec = convert->get_input_element_type(0);
+        auto data = convert->input_value(0).get_node_shared_ptr();
         auto item = precisions.find(in_prec);
         if (item != precisions.end()) {
             // Add convert node for unsupported precision, such as FP64
-            auto pre_convert =
-                std::make_shared<ov::opset10::Convert>(convert->input_value(0).get_node_shared_ptr(), item->second);
-            auto abs = std::make_shared<ov::opset10::Abs>(pre_convert);
-            auto ceil = std::make_shared<ov::opset10::Ceiling>(abs);
-            auto new_convert = std::make_shared<ov::opset10::Convert>(ceil, to);
-            new_convert->set_friendly_name(convert->get_friendly_name());
-            ov::copy_runtime_info(convert, {pre_convert, abs, ceil, new_convert});
-            ov::replace_node(convert, new_convert);
-        } else {
-            auto abs = std::make_shared<ov::opset10::Abs>(convert->input_value(0).get_node_shared_ptr());
-            auto ceil = std::make_shared<ov::opset10::Ceiling>(abs);
-            auto new_convert = std::make_shared<ov::opset10::Convert>(ceil, to);
-            new_convert->set_friendly_name(convert->get_friendly_name());
-            ov::copy_runtime_info(convert, {abs, ceil, new_convert});
-            ov::replace_node(convert, new_convert);
+            data = reg.make<ov::opset10::Convert>(data, item->second);
         }
+        const auto abs = reg.make<ov::opset10::Abs>(data);
+        const auto to_max_value = reg.make<ov::opset10::Constant>(ov::util::make_tensor_of_max_value(to));
+        const auto to_max_convert = reg.make<ov::opset10::Convert>(to_max_value, abs->get_output_element_type(0));
+        const auto min = reg.make<ov::opset10::Minimum>(abs, to_max_convert);
+        const auto ceil = reg.make<ov::opset10::Ceiling>(min);
+        const auto new_convert = reg.make<ov::opset10::Convert>(ceil, to);
+        new_convert->set_friendly_name(convert->get_friendly_name());
+        ov::copy_runtime_info(convert, reg.get());
+        ov::replace_node(convert, new_convert);
+        return true;
     } else {
         convert->set_convert_element_type(to);
+        return true;
     }
-    return true;
+    return false;
 }
 
 void Transformations::UpToLpt() {

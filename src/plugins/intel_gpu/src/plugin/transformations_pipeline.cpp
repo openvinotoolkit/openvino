@@ -134,7 +134,6 @@
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
-#include "transformations/common_optimizations/nop_elimination.hpp"
 
 namespace {
 template<typename T>
@@ -560,8 +559,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::ConvertGather8ToGather7>();
         pass_config->disable<ov::pass::ConvertGather7ToGather1>();
         pass_config->disable<ov::pass::ConvertTopK11ToTopK3>();
-        pass_config->disable<ov::pass::NopStridedSlice>();
-        pass_config->disable<ov::pass::NopStridedSliceByShape>();
 
         pass_config->enable<ov::pass::ConvertInterpolate1ToInterpolate4>();
 
@@ -727,7 +724,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         if (!device_info.supports_immad)
             manager.register_pass<ov::intel_gpu::BroadcastReshapeMatmulFusion>();
 
-        const size_t zp_pad_size = 32;
+        const size_t zp_pad_size = device_info.supports_immad ? 16 : 32;
         manager.register_pass<ov::intel_gpu::BroadcastAndPadZeroPointBuffers>(zp_pad_size);
 
         // This is supposed to be the last pass to ensure that we don't have name collisions until
