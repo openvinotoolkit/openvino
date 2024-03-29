@@ -75,7 +75,6 @@ from tests import (
     xfail_issue_125491,
     xfail_issue_125492,
     xfail_issue_125493,
-    xfail_issue_125495,
     xfail_issue_122775,
     xfail_issue_122776,
     skip_misalignment,
