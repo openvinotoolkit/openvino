@@ -40,9 +40,10 @@ void regclass_graph_Shape(py::module m) {
     shape.def("__setitem__", [](ov::Shape& self, size_t key, ov::Dimension d) {
         self[key] = d.get_length();
     });
-    shape.def("__getitem__", [](const ov::Shape& v, int key) {
-        if (key < 0)
+    shape.def("__getitem__", [](const ov::Shape& v, int64_t key) {
+        if (key < 0) {
             key += v.size();
+        }
         return v[key];
     });
 
