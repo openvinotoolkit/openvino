@@ -25,9 +25,9 @@ class TestAtan2(PytorchLayerTest):
             }
     
         class aten_atan2_out(torch.nn.Module):
-            def __init__(self, out) -> None:
+            def __init__(self, dtype) -> None:
                 super().__init__()
-                self.out = torch.empty(25, dtype=out)
+                self.out = torch.empty(25, dtype=dtype)
     
             def forward(self, y, x):
                 return torch.atan2(input = y, other = x, out=self.out)
@@ -61,7 +61,7 @@ class TestAtan2(PytorchLayerTest):
     @pytest.mark.parametrize("use_out", [False, True])
     def test_atan2_with_out(self, dtype1, dtype2, use_out, y, x, ie_device, precision, ir_version):
         self._test(
-            *self.create_model(dtype=dtype, use_out=use_out),
+            *self.create_model(dtype=dtype1, use_out=use_out),
             ie_device,
             precision,
             ir_version,
