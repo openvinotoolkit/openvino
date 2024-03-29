@@ -297,6 +297,10 @@ size_t intel_cpu::CPUTargetMachine::get_lanes() const {
     }
 }
 
+size_t intel_cpu::CPUTargetMachine::get_reg_count() const {
+    return 16;
+}
+
 dnnl::impl::cpu::x64::cpu_isa_t intel_cpu::CPUTargetMachine::get_isa() const {
     return isa;
 }

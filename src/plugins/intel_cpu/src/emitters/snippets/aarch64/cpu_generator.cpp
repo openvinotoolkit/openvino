@@ -127,6 +127,10 @@ size_t CPUTargetMachine::get_lanes() const {
     }
 }
 
+size_t CPUTargetMachine::get_reg_count() const {
+    return 32;
+}
+
 dnnl::impl::cpu::aarch64::cpu_isa_t CPUTargetMachine::get_isa() const {
     return isa;
 }

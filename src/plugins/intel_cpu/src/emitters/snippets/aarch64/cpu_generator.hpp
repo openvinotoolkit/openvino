@@ -31,6 +31,7 @@ public:
     bool is_supported() const override;
     snippets::CompiledSnippetPtr get_snippet() override;
     size_t get_lanes() const override;
+    size_t get_reg_count() const override;
     dnnl::impl::cpu::aarch64::cpu_isa_t get_isa() const;
 
 private:
