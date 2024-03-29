@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include "bound_evaluate.hpp"
 #include "concat_shape_inference.hpp"
 #include "itt.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/dimension.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/reference/concat.hpp"
 
@@ -52,43 +52,35 @@ std::shared_ptr<Node> Concat::clone_with_new_inputs(const OutputVector& new_args
     return std::make_shared<Concat>(new_args, m_axis);
 }
 
-template <typename T>
-void evaluate_concat(const Concat* node, TensorVector& outputs, const TensorVector& inputs) {
-    const auto inputs_count = inputs.size();
-    std::vector<Shape> arg_shapes;
-    std::vector<PartialShape> input_shapes;
-    arg_shapes.reserve(inputs_count);
-    input_shapes.reserve(inputs_count);
-
-    std::vector<const T*> arg_bufs(inputs_count);
-    auto arg_buf = arg_bufs.begin();
-    for (auto& input : inputs) {
-        *arg_buf = static_cast<const T*>(input.data());
-        ++arg_buf;
-        const auto& input_shape = input.get_shape();
-        arg_shapes.emplace_back(input_shape);
-        input_shapes.emplace_back(input_shape);
-    }
-
-    const auto& out_shape = shape_infer(node, input_shapes).front().to_shape();
-    outputs.front().set_shape(out_shape);
-    reference::concat(arg_bufs,
-                      static_cast<T*>(outputs.front().data()),
-                      arg_shapes,
-                      out_shape,
-                      ov::util::normalize(node->get_axis(), out_shape.size()),
-                      outputs.front().get_element_type().size());
-}
-
 bool Concat::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v0_Concat_evaluate);
     OPENVINO_ASSERT(outputs.size() == 1);
 
-    if (outputs.front().get_element_type() == ov::element::string) {
-        evaluate_concat<std::string>(this, outputs, inputs);
-    } else {
-        evaluate_concat<char>(this, outputs, inputs);
+    const auto inputs_count = inputs.size();
+    std::vector<Shape> arg_shapes;
+    std::vector<PartialShape> input_shapes;
+    std::vector<const char*> arg_bufs;
+    arg_shapes.reserve(inputs_count);
+    input_shapes.reserve(inputs_count);
+    arg_bufs.reserve(inputs_count);
+
+    for (auto& input : inputs) {
+        const auto& input_shape = input.get_shape();
+        arg_shapes.emplace_back(input_shape);
+        input_shapes.emplace_back(input_shape);
+        arg_bufs.emplace_back(static_cast<const char*>(input.data()));
     }
+
+    const auto& out_shape = shape_infer(this, input_shapes).front().to_shape();
+    outputs.front().set_shape(out_shape);
+    const auto elem_type = outputs.front().get_element_type();
+    reference::concat(arg_bufs,
+                      static_cast<char*>(outputs.front().data()),
+                      arg_shapes,
+                      out_shape,
+                      ov::util::normalize(this->get_axis(), out_shape.size()),
+                      elem_type.size(),
+                      elem_type);
 
     return true;
 }
@@ -106,38 +98,8 @@ bool Concat::evaluate_upper(TensorVector& output_values) const {
     return default_upper_bound_evaluator(this, output_values);
 }
 
-bool Concat::evaluate_label(TensorLabelVector& output_labels) const {
-    const auto& inputs = input_values();
-    if (std::all_of(inputs.cbegin(), inputs.cend(), [](const Output<Node>& out) {
-            const auto& labels = out.get_tensor().get_value_label();
-            return ov::util::has_no_labels(labels);
-        })) {
-        return false;
-    }
-
-    TensorVector idx_inputs;
-    idx_inputs.reserve(inputs.size());
-    for (const auto& input : inputs) {
-        auto input_label = input.get_tensor().get_value_label();
-        if (input_label.empty()) {
-            const auto& shape = input.get_partial_shape();
-            // sanity check. at this point value propagation was successful
-            OPENVINO_ASSERT(shape.is_static());
-            const auto& num_elements = shape_size(shape.to_shape());
-            input_label.resize(num_elements, no_label);
-        }
-        idx_inputs.emplace_back(element::from<label_t>(), input.get_shape());
-        std::copy_n(input_label.begin(), idx_inputs.back().get_size(), idx_inputs.back().data<ov::label_t>());
-    }
-
-    auto outputs = TensorVector{{element::from<label_t>(), get_output_shape(0)}};
-    if (evaluate(outputs, idx_inputs)) {
-        output_labels.front() =
-            TensorLabel(outputs.front().data<label_t>(), outputs.front().data<label_t>() + outputs.front().get_size());
-        return true;
-    } else {
-        return false;
-    }
+bool Concat::evaluate_symbol(TensorSymbolVector& output_symbols) const {
+    return default_symbol_evaluator(this, {}, output_symbols);
 }
 }  // namespace v0
 }  // namespace op

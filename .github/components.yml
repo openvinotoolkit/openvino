@@ -27,13 +27,13 @@ CPU:
   revalidate:
     - C_API
     - Python_API
-    - JS_API
     - samples
     - ONNX_RT
     - PyTorch_FE
     - TF_FE
     - ONNX_FE
   build:
+    - AUTO
     - HETERO
     - AUTO_BATCH
     - TEMPLATE
@@ -41,6 +41,7 @@ CPU:
 
 GPU:
   build:
+    - AUTO
     - HETERO
     - AUTO_BATCH
     - TEMPLATE
@@ -104,7 +105,6 @@ IR_FE:
   revalidate:
     - C_API
     - Python_API
-    - JS_API
     - samples
   build:
     - CPU
@@ -149,6 +149,7 @@ PyTorch_FE:
 C_API:
   build:
     - CPU
+    - GPU
     - HETERO
     - AUTO_BATCH
     - AUTO
@@ -173,8 +174,6 @@ Python_API:
     - PyTorch_FE
 
 JS_API:
-  revalidate:
-    - samples
   build:
     - CPU
     - IR_FE

@@ -11,14 +11,14 @@ Convert to OpenVINO IR
    :maxdepth: 1
    :hidden:
 
-   Convert from PyTorch <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_PyTorch>
-   Convert from TensorFlow <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensorFlow>
-   Convert from ONNX <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_ONNX>
-   Convert from TensorFlow Lite <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite>
-   Convert from PaddlePaddle <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_Paddle>
+   Convert from PyTorch <convert-model-pytorch>
+   Convert from TensorFlow <convert-model-tensorflow>
+   Convert from ONNX <convert-model-onnx>
+   Convert from TensorFlow Lite <convert-model-tensorflow-lite>
+   Convert from PaddlePaddle <convert-model-paddle>
 
 
-:doc:`IR (Intermediate Representation) <openvino_ir>` is OpenVINO own format consisting of  ``.xml`` and ``.bin`` files.
+:doc:`IR (Intermediate Representation) <../../documentation/openvino-ir-format>` is OpenVINO own format consisting of  ``.xml`` and ``.bin`` files.
 Convert the model into OpenVINO IR for `better performance <#ir-conversion-benefits>`__.
 
 Convert Models
@@ -51,13 +51,16 @@ Here are code examples of how to use these methods with different model formats:
               .. code-block:: py
                  :force:
 
+                 import torchvision
+                 import openvino as ov
+
                  model = torchvision.models.resnet50(weights='DEFAULT')
-                 ov_model = convert_model(model)
-                 compiled_model = core.compile_model(ov_model, "AUTO")
+                 ov_model = ov.convert_model(model)
+                 compiled_model = ov.compile_model(ov_model, "AUTO")
 
               For more details on conversion, refer to the
-              :doc:`guide <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch>`
-              and an example `tutorial <https://docs.openvino.ai/nightly/notebooks/102-pytorch-onnx-to-openvino-with-output.html>`__
+              :doc:`guide <convert-model-pytorch>`
+              and an example `tutorial <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/102-pytorch-to-openvino/102-pytorch-onnx-to-openvino.ipynb>`__
               on this topic.
 
    .. tab-item:: TensorFlow
@@ -94,12 +97,14 @@ Here are code examples of how to use these methods with different model formats:
               .. code-block:: py
                  :force:
 
-                 ov_model = convert_model("saved_model.pb")
-                 compiled_model = core.compile_model(ov_model, "AUTO")
+                 import openvino as ov
+
+                 ov_model = ov.convert_model("saved_model.pb")
+                 compiled_model = ov.compile_model(ov_model, "AUTO")
 
               For more details on conversion, refer to the
-              :doc:`guide <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>`
-              and an example `tutorial <https://docs.openvino.ai/nightly/notebooks/101-tensorflow-to-openvino-with-output.html>`__
+              :doc:`guide <convert-model-tensorflow>`
+              and an example `tutorial <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/101-tensorflow-classification-to-openvino>`__
               on this topic.
 
             * The ``read_model()`` and ``compile_model()`` methods:
@@ -115,11 +120,14 @@ Here are code examples of how to use these methods with different model formats:
               .. code-block:: py
                  :force:
 
-                 ov_model = read_model("saved_model.pb")
-                 compiled_model = core.compile_model(ov_model, "AUTO")
+                 import openvino as ov
+
+                 core = ov.Core()
+                 ov_model = core.read_model("saved_model.pb")
+                 compiled_model = ov.compile_model(ov_model, "AUTO")
 
               For a guide on how to run inference, see how to
-              :doc:`Integrate OpenVINO™ with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`.
+              :doc:`Integrate OpenVINO™ with Your Application <../running-inference/integrate-openvino-with-your-application>`.
 
          .. tab-item:: C++
             :sync: cpp
@@ -139,7 +147,7 @@ Here are code examples of how to use these methods with different model formats:
                  ov::CompiledModel compiled_model = core.compile_model("saved_model.pb", "AUTO");
 
               For a guide on how to run inference, see how to
-              :doc:`Integrate OpenVINO™ with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`.
+              :doc:`Integrate OpenVINO™ with Your Application <../running-inference/integrate-openvino-with-your-application>`.
 
          .. tab-item:: C
             :sync: c
@@ -160,7 +168,7 @@ Here are code examples of how to use these methods with different model formats:
                  ov_core_compile_model_from_file(core, "saved_model.pb", "AUTO", 0, &compiled_model);
 
               For a guide on how to run inference, see how to
-              :doc:`Integrate OpenVINO™ with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`.
+              :doc:`Integrate OpenVINO™ with Your Application <../running-inference/integrate-openvino-with-your-application>`.
 
          .. tab-item:: CLI
             :sync: cli
@@ -172,7 +180,7 @@ Here are code examples of how to use these methods with different model formats:
                ovc <INPUT_MODEL>.pb
 
             For details on the conversion, refer to the
-            :doc:`article <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>`.
+            :doc:`article <../model-preparation>`.
 
    .. tab-item:: TensorFlow Lite
       :sync: tflite
@@ -195,12 +203,14 @@ Here are code examples of how to use these methods with different model formats:
               .. code-block:: py
                  :force:
 
-                 ov_model = convert_model("<INPUT_MODEL>.tflite")
-                 compiled_model = core.compile_model(ov_model, "AUTO")
+                 import openvino as ov
+
+                 ov_model = ov.convert_model("<INPUT_MODEL>.tflite")
+                 compiled_model = ov.compile_model(ov_model, "AUTO")
 
               For more details on conversion, refer to the
-              :doc:`guide <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>`
-              and an example `tutorial <https://docs.openvino.ai/nightly/notebooks/119-tflite-to-openvino-with-output.html>`__
+              :doc:`guide <convert-model-tensorflow-lite>`
+              and an example `tutorial <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/119-tflite-to-openvino/119-tflite-to-openvino.ipynb>`__
               on this topic.
 
 
@@ -215,8 +225,11 @@ Here are code examples of how to use these methods with different model formats:
               .. code-block:: py
                  :force:
 
-                 ov_model = read_model("<INPUT_MODEL>.tflite")
-                 compiled_model = core.compile_model(ov_model, "AUTO")
+                 import openvino as ov
+
+                 core = ov.Core()
+                 ov_model = core.read_model("<INPUT_MODEL>.tflite")
+                 compiled_model = ov.compile_model(ov_model, "AUTO")
 
             * The ``compile_model()`` method:
 
@@ -229,10 +242,12 @@ Here are code examples of how to use these methods with different model formats:
               .. code-block:: py
                  :force:
 
-                 compiled_model = core.compile_model("<INPUT_MODEL>.tflite", "AUTO")
+                 import openvino as ov
+
+                 compiled_model = ov.compile_model("<INPUT_MODEL>.tflite", "AUTO")
 
               For a guide on how to run inference, see how to
-              :doc:`Integrate OpenVINO™ with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`.
+              :doc:`Integrate OpenVINO™ with Your Application <../running-inference/integrate-openvino-with-your-application>`.
 
 
          .. tab-item:: C++
@@ -251,7 +266,7 @@ Here are code examples of how to use these methods with different model formats:
                  ov::CompiledModel compiled_model = core.compile_model("<INPUT_MODEL>.tflite", "AUTO");
 
               For a guide on how to run inference, see how to
-              :doc:`Integrate OpenVINO™ with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`.
+              :doc:`Integrate OpenVINO™ with Your Application <../running-inference/integrate-openvino-with-your-application>`.
 
          .. tab-item:: C
             :sync: c
@@ -270,7 +285,7 @@ Here are code examples of how to use these methods with different model formats:
                  ov_core_compile_model_from_file(core, "<INPUT_MODEL>.tflite", "AUTO", 0, &compiled_model);
 
               For a guide on how to run inference, see how to
-              :doc:`Integrate OpenVINO™ with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`.
+              :doc:`Integrate OpenVINO™ with Your Application <../running-inference/integrate-openvino-with-your-application>`.
 
          .. tab-item:: CLI
             :sync: cli
@@ -290,7 +305,7 @@ Here are code examples of how to use these methods with different model formats:
                  ovc <INPUT_MODEL>.tflite
 
               For details on the conversion, refer to the
-              :doc:`article <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite>`.
+              :doc:`article <convert-model-tensorflow-lite>`.
 
    .. tab-item:: ONNX
       :sync: onnx
@@ -313,12 +328,14 @@ Here are code examples of how to use these methods with different model formats:
               .. code-block:: py
                  :force:
 
-                 ov_model = convert_model("<INPUT_MODEL>.onnx")
-                 compiled_model = core.compile_model(ov_model, "AUTO")
+                 import openvino as ov
+
+                 ov_model = ov.convert_model("<INPUT_MODEL>.onnx")
+                 compiled_model = ov.compile_model(ov_model, "AUTO")
 
               For more details on conversion, refer to the
-              :doc:`guide <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX>`
-              and an example `tutorial <https://docs.openvino.ai/nightly/notebooks/102-pytorch-onnx-to-openvino-with-output.html>`__
+              :doc:`guide <convert-model-onnx>`
+              and an example `tutorial <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/102-pytorch-to-openvino/102-pytorch-onnx-to-openvino.ipynb>`__
               on this topic.
 
 
@@ -333,8 +350,11 @@ Here are code examples of how to use these methods with different model formats:
               .. code-block:: py
                  :force:
 
-                 ov_model = read_model("<INPUT_MODEL>.onnx")
-                 compiled_model = core.compile_model(ov_model, "AUTO")
+                 import openvino as ov
+              
+                 core = ov.Core()
+                 ov_model = core.read_model("<INPUT_MODEL>.onnx")
+                 compiled_model = ov.compile_model(ov_model, "AUTO")
 
             * The ``compile_model()`` method:
 
@@ -347,9 +367,11 @@ Here are code examples of how to use these methods with different model formats:
               .. code-block:: py
                  :force:
 
-                 compiled_model = core.compile_model("<INPUT_MODEL>.onnx", "AUTO")
+                 import openvino as ov
 
-              For a guide on how to run inference, see how to :doc:`Integrate OpenVINO™ with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`.
+                 compiled_model = ov.compile_model("<INPUT_MODEL>.onnx", "AUTO")
+
+              For a guide on how to run inference, see how to :doc:`Integrate OpenVINO™ with Your Application <../running-inference/integrate-openvino-with-your-application>`.
 
 
          .. tab-item:: C++
@@ -367,7 +389,7 @@ Here are code examples of how to use these methods with different model formats:
 
                  ov::CompiledModel compiled_model = core.compile_model("<INPUT_MODEL>.onnx", "AUTO");
 
-              For a guide on how to run inference, see how to :doc:`Integrate OpenVINO™ with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`.
+              For a guide on how to run inference, see how to :doc:`Integrate OpenVINO™ with Your Application <../running-inference/integrate-openvino-with-your-application>`.
 
          .. tab-item:: C
             :sync: c
@@ -385,7 +407,7 @@ Here are code examples of how to use these methods with different model formats:
                  ov_compiled_model_t* compiled_model = NULL;
                  ov_core_compile_model_from_file(core, "<INPUT_MODEL>.onnx", "AUTO", 0, &compiled_model);
 
-              For details on the conversion, refer to the :doc:`article <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX>`
+              For details on the conversion, refer to the :doc:`article <convert-model-onnx>`
 
          .. tab-item:: CLI
             :sync: cli
@@ -405,7 +427,7 @@ Here are code examples of how to use these methods with different model formats:
                  ovc <INPUT_MODEL>.onnx
 
               For details on the conversion, refer to the
-              :doc:`article <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX>`
+              :doc:`article <convert-model-onnx>`
 
    .. tab-item:: PaddlePaddle
       :sync: pdpd
@@ -434,12 +456,14 @@ Here are code examples of how to use these methods with different model formats:
               .. code-block:: py
                  :force:
 
-                 ov_model = convert_model("<INPUT_MODEL>.pdmodel")
-                 compiled_model = core.compile_model(ov_model, "AUTO")
+                 import openvino as ov
+
+                 ov_model = ov.convert_model("<INPUT_MODEL>.pdmodel")
+                 compiled_model = ov.compile_model(ov_model, "AUTO")
 
               For more details on conversion, refer to the
-              :doc:`guide <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle>`
-              and an example `tutorial <https://docs.openvino.ai/nightly/notebooks/103-paddle-to-openvino-classification-with-output.html>`__
+              :doc:`guide <convert-model-paddle>`
+              and an example `tutorial <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/103-paddle-to-openvino/103-paddle-to-openvino-classification.ipynb>`__
               on this topic.
 
             * The ``read_model()`` method:
@@ -453,8 +477,11 @@ Here are code examples of how to use these methods with different model formats:
               .. code-block:: py
                  :force:
 
-                 ov_model = read_model("<INPUT_MODEL>.pdmodel")
-                 compiled_model = core.compile_model(ov_model, "AUTO")
+                 import openvino as ov
+                 
+                 core = ov.Core()
+                 ov_model = core.read_model("<INPUT_MODEL>.pdmodel")
+                 compiled_model = ov.compile_model(ov_model, "AUTO")
 
             * The ``compile_model()`` method:
 
@@ -467,10 +494,12 @@ Here are code examples of how to use these methods with different model formats:
               .. code-block:: py
                  :force:
 
-                 compiled_model = core.compile_model("<INPUT_MODEL>.pdmodel", "AUTO")
+                 import openvino as ov
+
+                 compiled_model = ov.compile_model("<INPUT_MODEL>.pdmodel", "AUTO")
 
               For a guide on how to run inference, see how to
-              :doc:`Integrate OpenVINO™ with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`.
+              :doc:`Integrate OpenVINO™ with Your Application <../running-inference/integrate-openvino-with-your-application>`.
 
          .. tab-item:: C++
             :sync: cpp
@@ -488,7 +517,7 @@ Here are code examples of how to use these methods with different model formats:
                  ov::CompiledModel compiled_model = core.compile_model("<INPUT_MODEL>.pdmodel", "AUTO");
 
               For a guide on how to run inference, see how to
-              :doc:`Integrate OpenVINO™ with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`.
+              :doc:`Integrate OpenVINO™ with Your Application <../running-inference/integrate-openvino-with-your-application>`.
 
          .. tab-item:: C
             :sync: c
@@ -507,7 +536,7 @@ Here are code examples of how to use these methods with different model formats:
                  ov_core_compile_model_from_file(core, "<INPUT_MODEL>.pdmodel", "AUTO", 0, &compiled_model);
 
               For a guide on how to run inference, see how to
-              :doc:`Integrate OpenVINO™ with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`.
+              :doc:`Integrate OpenVINO™ with Your Application <../running-inference/integrate-openvino-with-your-application>`.
 
          .. tab-item:: CLI
             :sync: cli
@@ -527,18 +556,18 @@ Here are code examples of how to use these methods with different model formats:
                  ovc <INPUT_MODEL>.pdmodel
 
               For details on the conversion, refer to the
-              :doc:`article <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle>`.
+              :doc:`article <convert-model-paddle>`.
 
 
-* :doc:`How to convert PyTorch <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_PyTorch>`
-* :doc:`How to convert ONNX <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_ONNX>`
-* :doc:`How to convert TensorFlow <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensorFlow>`
-* :doc:`How to convert TensorFlow Lite <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite>`
-* :doc:`How to convert PaddlePaddle <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_Paddle>`
+* :doc:`How to convert PyTorch <convert-model-pytorch>`
+* :doc:`How to convert ONNX <convert-model-onnx>`
+* :doc:`How to convert TensorFlow <convert-model-tensorflow>`
+* :doc:`How to convert TensorFlow Lite <convert-model-tensorflow-lite>`
+* :doc:`How to convert PaddlePaddle <convert-model-paddle>`
 
-To choose the best workflow for your application, read the :doc:`Model Preparation section <openvino_docs_model_processing_introduction>`.
+To choose the best workflow for your application, read the :doc:`Model Preparation section <../model-preparation>`.
 
-Refer to the list of all supported conversion options in :doc:`Conversion Parameters <openvino_docs_OV_Converter_UG_Conversion_Options>`.
+Refer to the list of all supported conversion options in :doc:`Conversion Parameters <conversion-parameters>`.
 
 IR Conversion Benefits
 ################################################
@@ -580,10 +609,10 @@ An example showing how to take advantage of OpenVINO IR, saving a model in OpenV
    ov_model = core.read_model("model.xml")
 
    # 4. Compile model from memory
-   compiled_model = core.compile_model(ov_model)
+   compiled_model = ov.compile_model(ov_model)
 
 Additional Resources
 ####################
 
-* :doc:`Transition guide from the legacy to new conversion API <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>`
+* :doc:`Transition guide from the legacy to new conversion API <../../documentation/legacy-features/transition-legacy-conversion-api>`
 

@@ -36,6 +36,7 @@
 #include "op/cast.hpp"
 #include "op/cast_like.hpp"
 #include "op/ceil.hpp"
+#include "op/celu.hpp"
 #include "op/clip.hpp"
 #include "op/com.microsoft/attention.hpp"
 #include "op/com.microsoft/bias_gelu.hpp"
@@ -368,6 +369,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("Cast", 1, cast);
     REGISTER_OPERATOR("CastLike", 1, cast_like);
     REGISTER_OPERATOR("Ceil", 1, ceil);
+    REGISTER_OPERATOR("Celu", 1, celu);
     REGISTER_OPERATOR("Clip", 1, clip);
     REGISTER_OPERATOR("Clip", 11, clip);
     REGISTER_OPERATOR("Concat", 1, concat);
@@ -478,10 +480,15 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("RandomUniformLike", 1, random_uniform_like);
     REGISTER_OPERATOR("Reciprocal", 1, reciprocal);
     REGISTER_OPERATOR("ReduceLogSum", 1, reduce_log_sum);
+    register_operator("ReduceLogSum", VersionRange{1, 17}, op::set_1::reduce_log_sum);
+    register_operator("ReduceLogSum", VersionRange::since(18), op::set_18::reduce_log_sum);
     REGISTER_OPERATOR("ReduceLogSumExp", 1, reduce_log_sum_exp);
     REGISTER_OPERATOR("ReduceL1", 1, reduce_l1);
     REGISTER_OPERATOR("ReduceL2", 1, reduce_l2);
     REGISTER_OPERATOR("ReduceMax", 1, reduce_max);
+    REGISTER_OPERATOR("ReduceMax", 13, reduce_max);
+    REGISTER_OPERATOR("ReduceMax", 18, reduce_max);
+    REGISTER_OPERATOR("ReduceMax", 20, reduce_max);
     REGISTER_OPERATOR("ReduceMean", 1, reduce_mean);
     REGISTER_OPERATOR("ReduceMin", 1, reduce_min);
     REGISTER_OPERATOR("ReduceProd", 1, reduce_prod);
@@ -503,6 +510,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("ScatterND", 1, scatter_nd);
     REGISTER_OPERATOR("Selu", 1, selu);
     REGISTER_OPERATOR("Shape", 1, shape);
+    REGISTER_OPERATOR("Shape", 15, shape)
     REGISTER_OPERATOR("Shrink", 1, shrink);
     REGISTER_OPERATOR("Sigmoid", 1, sigmoid);
     REGISTER_OPERATOR("Sign", 1, sign);

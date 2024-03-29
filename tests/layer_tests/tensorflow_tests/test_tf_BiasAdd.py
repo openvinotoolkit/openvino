@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -108,8 +108,8 @@ class TestBiasAdd(CommonTFLayerTest):
 
     test_data_4D = [
         dict(shape=[1, 1, 100, 224]),
-        pytest.param(dict(shape=[1, 3, 100, 224]), marks=pytest.mark.precommit_tf_fe),
-        pytest.param(dict(shape=[1, 3, 100, 224], output_type=tf.float16), marks=pytest.mark.precommit_tf_fe)
+        pytest.param(dict(shape=[1, 3, 100, 224]), marks=pytest.mark.precommit),
+        pytest.param(dict(shape=[1, 3, 100, 224], output_type=tf.float16), marks=pytest.mark.precommit)
     ]
 
     @pytest.mark.parametrize("params", test_data_4D)

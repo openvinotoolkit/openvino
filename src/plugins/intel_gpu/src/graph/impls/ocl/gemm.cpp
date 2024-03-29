@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,6 +31,12 @@ struct gemm_impl : multi_stage_primitive<gemm> {
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<gemm_impl>(*this);
+    }
+
+    gemm_impl() = default;
+
+    gemm_impl(const std::vector<kernel_selector::kernel_data>& kd) : parent(kd) {
+        this->can_reuse_memory = true;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -167,9 +173,13 @@ public:
         params.beta = primitive->beta;
         params.transpose_input0 = primitive->transpose_input0;
         params.transpose_input1 = primitive->transpose_input1;
-        params.input0_order = primitive->input0_order;
-        params.input1_order = primitive->input1_order;
-        params.output_order = primitive->output_order;
+        params.input0_target_shape = primitive->input0_broadcast_target_shape;
+        params.input1_target_shape = primitive->input1_broadcast_target_shape;
+        params.input0_output_pattern = primitive->input0_reshape_pattern;
+        params.input1_output_pattern = primitive->input0_reshape_pattern;
+        params.input0_order = primitive->input0_transpose_order;
+        params.input1_order = primitive->input1_transpose_order;
+        params.output_order = primitive->output_transpose_order;
 
         params.indirect_input0 = primitive->indirect_a && indirect;
         params.indirect_input1 = primitive->indirect_b && indirect;

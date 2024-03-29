@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,7 +65,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include "sequnce_generator.hpp"
+#include "sequence_generator.hpp"
 #include "utils/eval_utils.hpp"
 
 using namespace std;

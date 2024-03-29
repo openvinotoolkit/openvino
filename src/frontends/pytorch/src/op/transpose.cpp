@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,12 +6,17 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/if.hpp"
+#include "openvino/op/non_zero.hpp"
+#include "openvino/op/not_equal.hpp"
 #include "openvino/op/range.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
@@ -26,8 +31,8 @@ OutputVector translate_transpose(const NodeContext& context) {
     num_inputs_check(context, 3, 3);
     Output<Node> rank;
     std::tie(std::ignore, rank) = get_shape_rank(context, context.get_input(0), true);
-    auto dim0_node = context.get_input(1);
-    auto dim1_node = context.get_input(2);
+    auto dim0_node = get_input_as_i32(context, 1);
+    auto dim1_node = get_input_as_i32(context, 2);
     dim0_node = normalize_axis(context, dim0_node, rank);
     dim1_node = normalize_axis(context, dim1_node, rank);
     auto start = v0::Constant::create(element::i32, {}, {0});
@@ -81,7 +86,47 @@ OutputVector translate_t(const NodeContext& context) {
         if_node->set_input(input, param_then, param_else);
         return {if_node->set_output(result_then, result_else)};
     }
-}
+};
+
+OutputVector translate_movedim(const NodeContext& context) {
+    // aten::movedim.int(Tensor(a) self, int source, int destination) -> Tensor(a)
+    // aten::movedim.intlist(Tensor(a) self, int[] source, int[] destination) -> Tensor(a)
+    // based on https://github.com/pytorch/pytorch/blob/main/aten/src/ATen/native/TensorShape.cpp#L3816
+    num_inputs_check(context, 3, 3);
+    auto x = context.get_input(0);
+    auto src_dims = get_input_as_i32(context, 1);
+    auto dst_dims = get_input_as_i32(context, 2);
+    Output<Node> rank;
+    std::tie(std::ignore, rank) = get_shape_rank(context, context.get_input(0), true);
+    src_dims = normalize_axis(context, src_dims, rank);
+    dst_dims = normalize_axis(context, dst_dims, rank);
+    auto const_0 = context.mark_node(v0::Constant::create(element::i32, {}, {0}));
+    auto const_1 = context.mark_node(v0::Constant::create(element::i32, {}, {1}));
+    auto range = context.mark_node(std::make_shared<v4::Range>(const_0, rank, const_1, element::i32));
+    auto dims_1d_shape = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
+    // operation accepts 0d and 1d source and destination, make them always 1d
+    src_dims = context.mark_node(std::make_shared<v1::Reshape>(src_dims, dims_1d_shape, false));
+    dst_dims = context.mark_node(std::make_shared<v1::Reshape>(dst_dims, dims_1d_shape, false));
+    auto dims_shape = context.mark_node(std::make_shared<v3::ShapeOf>(src_dims, element::i32));
+    auto minus_one_replaces = context.mark_node(std::make_shared<v1::Broadcast>(dims_1d_shape, dims_shape));
+    // update position for the dim provided by user and mark used dims for source and destination as -1
+    auto perm_dims = context.mark_node(std::make_shared<v3::ScatterElementsUpdate>(range, dst_dims, src_dims, const_0));
+    auto src_perm_dims =
+        context.mark_node(std::make_shared<v3::ScatterElementsUpdate>(range, src_dims, minus_one_replaces, const_0));
+    auto dst_perm_dims =
+        context.mark_node(std::make_shared<v3::ScatterElementsUpdate>(range, dst_dims, minus_one_replaces, const_0));
+    // Remove the dims whose position we already know, the ones marked with -1 in previous step
+    auto not_changed_src = context.mark_node(std::make_shared<v1::NotEqual>(src_perm_dims, dims_1d_shape));
+    auto not_changed_dst = context.mark_node(std::make_shared<v1::NotEqual>(dst_perm_dims, dims_1d_shape));
+    auto indices = context.mark_node(std::make_shared<v3::NonZero>(not_changed_dst, element::i32));
+    auto updates = context.mark_node(std::make_shared<v3::NonZero>(not_changed_src, element::i32));
+    // Update the position of the remaining dimensions. indices now contains the original position
+    // updates contains the new position it will shifted to after considering the user inputs.
+    indices = context.mark_node(std::make_shared<v1::Reshape>(indices, dims_1d_shape, false));
+    updates = context.mark_node(std::make_shared<v1::Reshape>(updates, dims_1d_shape, false));
+    auto scatter = std::make_shared<v3::ScatterElementsUpdate>(perm_dims, indices, updates, const_0);
+    return {context.mark_node(std::make_shared<v1::Transpose>(x, scatter))};
+};
 
 }  // namespace op
 }  // namespace pytorch

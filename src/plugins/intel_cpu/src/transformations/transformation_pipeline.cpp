@@ -118,6 +118,7 @@
 #include "transformations/cpu_opset/common/pass/permute_slice_n_interpolation.hpp"
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
 #include "transformations/cpu_opset/common/pass/rope_fusion.hpp"
+#include "transformations/cpu_opset/common/pass/causal_mask_preprocess_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/stateful_sdpa_fusion.hpp"
 
 // Snippets
@@ -137,6 +138,7 @@
 #include "nodes/scaled_attn.h"
 #include "dnnl.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
+#include "openvino/core/validation_util.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -216,35 +218,36 @@ bool Transformations::fuse_type_to_convert(const std::shared_ptr<ov::Node>& node
     const auto& to = it->second;
 
     // For Convert node, converting precision from floating point to boolean will lead to mathematical
-    // error, because here the output precision boolean is replaced by u8. E.g. floating point value 0.01
-    // is converted to be 1 for boolean, but 0 for u8. Thus an Abs and Ceil node should be added before the
-    // Convert node for this scenario.
+    // error, because here the output precision boolean is replaced by u8:
+    //  - floating point value 0.01 is converted to be 1 for boolean, but 0 for u8 - need to insert Ceil.
+    //  - floating point value 256 is converted to be 1 for boolean, but 0 for u8 - need to insert Min(x, UINT8_MAX)
+    //  - floating point value -256 is converted to be 1 for boolean, but 0 for u8 - need to insert Abs before Min.
+    // Thus an Abs, Ceil and Min nodes should be added before the Convert node for this scenario.
     if (convert->input(0).get_element_type().is_real() &&
         convert->get_convert_element_type() == ov::element::boolean && to.is_integral_number()) {
-        const auto& in_prec = node->get_input_element_type(0);
+        ov::pass::NodeRegistry reg;
+        const auto& in_prec = convert->get_input_element_type(0);
+        auto data = convert->input_value(0).get_node_shared_ptr();
         auto item = precisions.find(in_prec);
         if (item != precisions.end()) {
             // Add convert node for unsupported precision, such as FP64
-            auto pre_convert =
-                std::make_shared<ov::opset10::Convert>(convert->input_value(0).get_node_shared_ptr(), item->second);
-            auto abs = std::make_shared<ov::opset10::Abs>(pre_convert);
-            auto ceil = std::make_shared<ov::opset10::Ceiling>(abs);
-            auto new_convert = std::make_shared<ov::opset10::Convert>(ceil, to);
-            new_convert->set_friendly_name(convert->get_friendly_name());
-            ov::copy_runtime_info(convert, {pre_convert, abs, ceil, new_convert});
-            ov::replace_node(convert, new_convert);
-        } else {
-            auto abs = std::make_shared<ov::opset10::Abs>(convert->input_value(0).get_node_shared_ptr());
-            auto ceil = std::make_shared<ov::opset10::Ceiling>(abs);
-            auto new_convert = std::make_shared<ov::opset10::Convert>(ceil, to);
-            new_convert->set_friendly_name(convert->get_friendly_name());
-            ov::copy_runtime_info(convert, {abs, ceil, new_convert});
-            ov::replace_node(convert, new_convert);
+            data = reg.make<ov::opset10::Convert>(data, item->second);
         }
+        const auto abs = reg.make<ov::opset10::Abs>(data);
+        const auto to_max_value = reg.make<ov::opset10::Constant>(ov::util::make_tensor_of_max_value(to));
+        const auto to_max_convert = reg.make<ov::opset10::Convert>(to_max_value, abs->get_output_element_type(0));
+        const auto min = reg.make<ov::opset10::Minimum>(abs, to_max_convert);
+        const auto ceil = reg.make<ov::opset10::Ceiling>(min);
+        const auto new_convert = reg.make<ov::opset10::Convert>(ceil, to);
+        new_convert->set_friendly_name(convert->get_friendly_name());
+        ov::copy_runtime_info(convert, reg.get());
+        ov::replace_node(convert, new_convert);
+        return true;
     } else {
         convert->set_convert_element_type(to);
+        return true;
     }
-    return true;
+    return false;
 }
 
 void Transformations::UpToLpt() {
@@ -318,9 +321,10 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         // @todo should we always convert to f32 regardless of hardware support, as it is done for f16?
         if (!hasHardwareSupport(ov::element::bf16))
             map.insert({ov::element::bf16, ov::element::f32});
-#if defined(OV_CPU_ARM_ENABLE_FP16)
-        if (inferencePrecision != ov::element::f16)
-            map.insert({ov::element::f16, ov::element::f32});
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+        if (inferencePrecision != ov::element::f16) {
+                map.insert({ov::element::f16, ov::element::f32});
+        }
 #else
         map.insert({ov::element::f16, ov::element::f32});
 #endif
@@ -329,11 +333,12 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 
     type_to_fuse_map type_to_fuse = {{ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert}};
 
-#if defined(OV_CPU_ARM_ENABLE_FP16)
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     // It cannot be static data, because it may be difference for different inferencePrecision
     const auto precisions = get_convert_precisions();
     if (inferencePrecision == ov::element::f16) {
         precisions_map fp_convert_precision_map = {{ov::element::f32, ov::element::f16}};
+        //keep fq nodes in f32 prec to avoid performance degradation
         type_to_fuse_map f16_fuse_map = {{ov::opset1::FakeQuantize::get_type_info_static(), fuse_type_to_fq}};
         const bool keep_precision_sensitive_in_fp32 = true;
         CPU_REGISTER_PASS_COMMON(manager,
@@ -708,6 +713,7 @@ void Transformations::PostLpt() {
 
     CPU_REGISTER_PASS_X64(postLPTPassManager, EliminateStridedSlice);
     CPU_REGISTER_PASS_X64(postLPTPassManager, RoPEFusion);
+    CPU_REGISTER_PASS_X64(postLPTPassManager, CausalMaskPreprocessFusion);
 
     CPU_REGISTER_PASS_X64(postLPTPassManager, StatefulSDPAFusion);
 
@@ -770,13 +776,6 @@ void Transformations::MainSnippets(void) {
         // The current solution with ExtractExplicitMatMulTranspose pass is slower for non-f32 cases than using of brgemm_copy_b kernel
         if (matmul->get_transpose_a() || matmul->get_transpose_b())
             return false;
-        // [115165] At the moment Quantized and BF16 Brgemm doesn't support blocking by K and N.
-        // Big shapes may lead to perf degradation
-        const auto K = *(matmul->get_input_partial_shape(0).rbegin());
-        const auto N = *(matmul->get_input_partial_shape(1).rbegin());
-        if ((K.is_static() && K.get_length() > 512) || // heuristic values
-            (N.is_static() && N.get_length() > 256))
-            return false;
         if (in_type0 == ov::element::i8)
             return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni);
         if ((in_type0 == ov::element::bf16 && in_type1 == ov::element::bf16) ||
@@ -785,6 +784,8 @@ void Transformations::MainSnippets(void) {
             // Vector madd BF16 instruction on SPR has reduced performance on HW level, which results in overall perf degradation
             size_t bf16Factor = 2;
             if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
+                const auto K = *(matmul->get_input_partial_shape(0).rbegin());
+                const auto N = *(matmul->get_input_partial_shape(1).rbegin());
                 return K.is_static() && (K.get_length() % bf16Factor == 0) &&
                        N.is_static() && (N.get_length() % bf16Factor == 0);
             }
@@ -837,7 +838,9 @@ void Transformations::MainSnippets(void) {
                                                        ov::is_type<const ov::op::v0::MatMul>(n) ||
                                                        ov::is_type<const ov::op::v1::Transpose>(n) ||
                                                        ov::is_type<const ov::op::v1::Broadcast>(n) ||
-                                                       ov::is_type<const ov::op::v3::Broadcast>(n));
+                                                       ov::is_type<const ov::op::v3::Broadcast>(n) ||
+                                                       ov::is_type<const ov::op::v1::ReduceMax>(n) ||
+                                                       ov::is_type<const ov::op::v1::ReduceSum>(n));
                 if (is_disabled_tokenization)
                     return true;
                 const auto& inputs = n->inputs();

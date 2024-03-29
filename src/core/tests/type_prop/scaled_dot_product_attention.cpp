@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -196,13 +196,13 @@ TEST(type_prop, scaled_dot_product_attention_dynamic_4d) {
 
 TEST(type_prop, scaled_dot_product_attention_mixed_shape_infer_5_inputs) {
     PartialShape query_shape{{2, 4}, 3, {2, 5}, 4};
-    set_shape_labels(query_shape, 10);
+    auto symbols = set_shape_symbols(query_shape);
     PartialShape key_shape{{4, 8}, {2, 4}, 5, 4};
-    set_shape_labels(key_shape, 20);
+    set_shape_symbols(key_shape);
     PartialShape value_shape{{2, 4}, 3, 5, {3, 7}};
-    set_shape_labels(value_shape, 40);
+    auto val_symbols = set_shape_symbols(value_shape);
     PartialShape attention_mask_shape{{2, 7}, 3, {4, 7}, 5};
-    set_shape_labels(attention_mask_shape, 50);
+    set_shape_symbols(attention_mask_shape);
     const auto query = std::make_shared<opset13::Parameter>(element::dynamic, query_shape);
     const auto key = std::make_shared<opset13::Parameter>(element::f64, key_shape);
     const auto value = std::make_shared<opset13::Parameter>(element::dynamic, value_shape);
@@ -214,7 +214,8 @@ TEST(type_prop, scaled_dot_product_attention_mixed_shape_infer_5_inputs) {
         std::make_shared<opset13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal);
     EXPECT_EQ(op->get_output_element_type(0), element::f64);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{4, 3, {4, 5}, {3, 7}}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), testing::ElementsAre(50, 51, 52, 43));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                testing::ElementsAre(symbols[0], symbols[1], symbols[2], val_symbols[3]));
 }
 
 TEST(type_prop, scaled_dot_product_attention_mixed_shape_infer_5_inputs_ignore_attention) {

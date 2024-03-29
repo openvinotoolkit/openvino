@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -90,7 +90,7 @@ class TestFakeQuantize(CommonTFLayerTest):
     test_data = [
         # with8BitsNoScalingNoNudging
         pytest.param(dict(il=0.0, ih=255.0, num_bits=8, narrow_range=False, nudged_il=0.0, nudged_ih=255.0,
-                          expected_step=1.0), marks=pytest.mark.precommit_tf_fe),
+                          expected_step=1.0), marks=pytest.mark.precommit),
         # with8BitsScalingAndNudgingDown
         dict(il=0.5, ih=128.0, num_bits=8, narrow_range=False, nudged_il=0.0, nudged_ih=127.5,
              expected_step=0.5),
