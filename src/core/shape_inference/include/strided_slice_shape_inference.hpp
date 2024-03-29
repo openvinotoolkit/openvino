@@ -184,7 +184,7 @@ std::vector<TRShape> shape_infer(const StridedSlice* op,
                 if (std::is_same<DimType, ov::Dimension>::value &&
                     ((sliced_dim == input_dim && sliced_dim != Dimension::dynamic()) ||
                      (start == default_start && stop == default_stop && stride == 1))) {
-                    // for equal ov::Dimension do merge to get input label (always success)
+                    // for equal ov::Dimension do merge to get input symbol (always success)
                     DimType::merge(sliced_dim, sliced_dim, input_dim);
                 }
                 out.push_back(std::move(sliced_dim));

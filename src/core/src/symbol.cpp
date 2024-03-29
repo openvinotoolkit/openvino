@@ -22,7 +22,7 @@ bool ov::symbol::are_equal(const std::shared_ptr<Symbol>& lhs, const std::shared
 void ov::symbol::set_equal(const std::shared_ptr<Symbol>& lhs, const std::shared_ptr<Symbol>& rhs) {
     if (lhs == nullptr || rhs == nullptr)
         return;
-    std::shared_ptr<ov::Symbol> lhs_root = ov::symbol::ancestor_of(lhs), rhs_root = ov::symbol::ancestor_of(rhs);
+    auto lhs_root = ov::symbol::ancestor_of(lhs), rhs_root = ov::symbol::ancestor_of(rhs);
     if (lhs_root.get() == rhs_root.get())
         return;  // already are equal
     lhs_root->m_parent = rhs_root;
