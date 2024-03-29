@@ -12,9 +12,12 @@ bool ov::symbol::util::get_symbols(const ov::PartialShape& shape, ov::TensorSymb
         return false;
     symbols.clear();
     symbols.reserve(shape.size());
-    for (const auto& d : shape)
+    bool has_symbols = false;
+    for (const auto& d : shape) {
+        has_symbols |= d.is_dynamic() && d.has_symbol();
         symbols.push_back((d.is_dynamic() ? d.get_symbol() : nullptr));
-    return true;
+    }
+    return has_symbols;
 }
 
 bool ov::symbol::util::get_symbols(const ov::Output<ov::Node>& output, ov::TensorSymbol& symbols) {
@@ -36,4 +39,13 @@ bool ov::symbol::util::dims_are_equal(const ov::Dimension& lhs, const ov::Dimens
     if (lhs.is_static() && lhs == rhs)
         return true;
     return symbol::are_equal(lhs.get_symbol(), rhs.get_symbol());
+}
+
+bool ov::symbol::util::shapes_are_equal(const ov::PartialShape& lhs, const ov::PartialShape& rhs) {
+    if (lhs.rank().is_dynamic() || rhs.rank().is_dynamic() || lhs.size() != rhs.size())
+        return false;
+    for (size_t i = 0; i < lhs.size(); ++i)
+        if (!ov::symbol::util::dims_are_equal(lhs[i], rhs[i]))
+            return false;
+    return true;
 }

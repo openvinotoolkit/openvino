@@ -47,6 +47,14 @@ TRANSFORMATIONS_API bool are_unique_and_equal_symbols(const ov::TensorSymbol& lh
 /// \return true if static dimensions are equal and dynamic dimensions have equal symbols else false
 TRANSFORMATIONS_API bool dims_are_equal(const ov::Dimension& lhs, const ov::Dimension& rhs);
 
+/// \brief Compares respective dimensions for shapes using dims_are_equal function
+///
+/// \param lhs   PartialShape object to compare
+/// \param rhs   PartialShape object to compare
+///
+/// \return true if respective dimensions are equal using equality rule from dims_are_equal function else false
+TRANSFORMATIONS_API bool shapes_are_equal(const ov::PartialShape& lhs, const ov::PartialShape& rhs);
+
 }  // namespace util
 }  // namespace symbol
 }  // namespace ov

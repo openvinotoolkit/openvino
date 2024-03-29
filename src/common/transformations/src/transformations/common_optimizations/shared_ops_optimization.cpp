@@ -3,6 +3,7 @@
 //
 
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
+#include "transformations/symbolic_transformations/utils.hpp"
 
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -162,6 +163,26 @@ bool shape_of_upgrade(const shared_ptr<Model>& model) {
             v3_shape_of->set_friendly_name(v1_shape_of->get_friendly_name());
             ov::replace_output_update_name(v1_shape_of, v3_shape_of);
             rewritten = true;
+        }
+    }
+
+    std::vector<std::pair<ov::PartialShape, Output<Node>>> shape_to_source;
+    ov::TensorSymbol symbols;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (!ov::as_type_ptr<v3::ShapeOf>(op))
+            continue;
+        auto shape = op->get_input_partial_shape(0);
+        bool replaced = false;
+        if (ov::symbol::util::get_symbols(shape, symbols)) {
+            for (const auto& item : shape_to_source)
+                if (ov::symbol::util::shapes_are_equal(item.first, shape)) {
+                    op->input(0).replace_source_output(item.second);
+                    replaced = true;
+                    break;
+                }
+            if (!replaced)
+                shape_to_source.emplace_back(shape, op->input_value(0));
+            rewritten |= replaced;
         }
     }
     return rewritten;
