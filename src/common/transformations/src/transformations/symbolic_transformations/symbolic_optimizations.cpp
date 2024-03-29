@@ -96,8 +96,7 @@ void transfer_symbols(const ov::PartialShape& from, const ov::PartialShape& to) 
 
 void special_case_read_value_symbol_propagation(const std::shared_ptr<ov::Node>& op,
                                                 std::unordered_set<std::shared_ptr<ov::op::v6::ReadValue>>& cache) {
-    /// Read Value nodes which are described with the same input and variable shape are getting same symbols on the
-    /// output shape
+    /// Output shapes of Read Value nodes with equal input shapes and equal variable shapes are getting same symbols
     const auto& rv = ov::as_type_ptr<ov::op::v6::ReadValue>(op);
     if (!rv)
         return;
