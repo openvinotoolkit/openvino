@@ -199,7 +199,7 @@ void regclass_graph_PartialShape(py::module m) {
         return self[key];
     });
 
-    shape.def("__getitem__", [](const ov::PartialShape& self, py::slice slice) {
+    shape.def("__getitem__", [](const ov::PartialShape& self, py::slice& slice) {
         size_t start, stop, step, slicelength;
         if (!slice.compute(self.size(), &start, &stop, &step, &slicelength)) {
             throw py::error_already_set();
