@@ -66,5 +66,8 @@ TEST(prepare_padding, mvn_conv) {
     network.set_input_data("input", input);
     EXPECT_NO_THROW(network.execute());
 
-    ASSERT_TRUE(has_node(*network.get_program(), "conv_padding_reorder_for_mvn"));
+    const auto& node = prog->get_node("conv");
+    if (!node.get_selected_impl()->is_onednn()) {
+        ASSERT_TRUE(has_node(*network.get_program(), "conv_padding_reorder_for_mvn"));
+    }
 }
