@@ -361,7 +361,7 @@ public:
         }
     }
 
-    void test_dynamic_padding(bool is_caching_test) {
+    void test_dynamic_padding(bool is_caching_test, bool n_dim_only) {
         tests::random_generator rg;
         rg.set_seed(GET_SUITE_NAME);
 
@@ -414,10 +414,19 @@ public:
         ov::Shape in2_shape_aligned = { aligned_batch1_size, aligned_batch2_size, aligned_k_size, aligned_n_size };
 
         // Use dynamic padding for all BFYX dimensions
-        tensor dyn_pad_dims_input({1, 1, 1, 1}, 0);
+        tensor dyn_pad_dims_input1({0, 0, 0, 0}, 0);
+        tensor dyn_pad_dims_input2({0, 0, 0, 0}, 0);
 
-        auto in1_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx, padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims_input)};
-        auto in2_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx, padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims_input)};
+        if (n_dim_only) {
+            dyn_pad_dims_input1 = tensor({0, 0, 0, 0}, 0);
+            dyn_pad_dims_input2 = tensor({0, 0, 1, 0}, 0);
+        } else {
+            dyn_pad_dims_input1 = tensor({1, 1, 1, 1}, 0);
+            dyn_pad_dims_input2 = tensor({1, 1, 1, 1}, 0);
+        }
+
+        auto in1_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx, padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims_input1)};
+        auto in2_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx, padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims_input2)};
 
         auto aligned_input1_mem = engine.allocate_memory({ov::PartialShape(in1_shape_aligned), data_types::f16, format::bfyx});
         auto aligned_input2_mem = engine.allocate_memory({ov::PartialShape(in2_shape_aligned), data_types::f16, format::bfyx});
@@ -425,14 +434,14 @@ public:
         auto input1_mem = engine.reinterpret_buffer(*aligned_input1_mem, layout{ov::PartialShape(in1_shape),
                                                                                 data_types::f16,
                                                                                 format::bfyx,
-                                                                                padding({padding_size_batch1, 0, 0, 0},
-                                                                                        {0, padding_size_batch2, padding_size_k, padding_size_m}, 0.0f, dyn_pad_dims_input)});
+                                                                                n_dim_only ? padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims_input1) :
+                                                                                             padding({padding_size_batch1, 0, 0, 0}, {0, padding_size_batch2, padding_size_k, padding_size_m}, 0.0f, dyn_pad_dims_input1)});
 
         auto input2_mem = engine.reinterpret_buffer(*aligned_input2_mem, layout{ov::PartialShape(in2_shape),
                                                                                 data_types::f16,
                                                                                 format::bfyx,
-                                                                                padding({0, padding_size_batch2, 0, 0},
-                                                                                        {padding_size_batch1, 0, padding_size_n, padding_size_k}, 0.0f, dyn_pad_dims_input)});
+                                                                                n_dim_only ? padding({0, 0, 0, 0}, {0, 0, padding_size_n, 0}, 0.0f, dyn_pad_dims_input2) :
+                                                                                            padding({0, padding_size_batch2, 0, 0}, {padding_size_batch1, 0, padding_size_n, padding_size_k}, 0.0f, dyn_pad_dims_input2)});
 
         auto input_1_data = rg.generate_random_1d<ov::float16>(ov::shape_size(in1_shape), -2, 2);
         auto input_2_data = rg.generate_random_1d<ov::float16>(ov::shape_size(in2_shape), -2, 2);
@@ -1574,9 +1583,14 @@ TEST_F(gemm_gpu_tests, dynamic) {
     this->test_dynamic(false);
 }
 
-TEST_F(gemm_gpu_tests, dynamic_padding) {
-    this->test_dynamic_padding(false);
+TEST_F(gemm_gpu_tests, dynamic_padding_all_dim) {
+    this->test_dynamic_padding(false, false);
 }
+
+TEST_F(gemm_gpu_tests, dynamic_padding_n_dim_only) {
+    this->test_dynamic_padding(false, true);
+}
+
 
 TEST_F(gemm_gpu_tests, dynamic_multi_inference_same_shape) {
     this->test_dynamic_multi_inference_same_shape(false);
