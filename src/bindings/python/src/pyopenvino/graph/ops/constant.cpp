@@ -197,10 +197,24 @@ void regclass_graph_op_Constant(py::module m) {
         R"(
             Access to Constant's data - creates a copy of data.
 
+            If `dtype` parameter is applied, function is casting data to
+            desired dtype.
+            If `dtype` is not specified, it's inherited from Constant itself.
+            If `copy` is enabled, `dtype` and Constant's element type must
+            match to create a view.
+            If `copy` is disabled and `dtype` and Constant's element type
+            do not match -- copy is forced by default.
+
             Returns numpy array with corresponding shape and dtype.
             For Constants with openvino specific element type, such as u1,
             it returns linear array, with uint8 / int8 numpy dtype.
 
+            Note: can be used to upcast BF16 data type to float32 or float64. 
+
+            :param dtype: Targeted data type.
+            :type dtype: numpy.dtype, optional, keyword-only
+            :param copy: Enable or disable copy of data.
+            :type copy: numpy.dtype, optional, keyword-only
             :rtype: numpy.array
         )");
 
