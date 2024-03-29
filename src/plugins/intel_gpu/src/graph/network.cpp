@@ -224,8 +224,7 @@ void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream, bool dump
     file_stream << buffer.str();
 }
 
-void unpack(cldnn::data_types type, uint8_t input, int8_t &v0, int8_t &v1)
-{
+void unpack(cldnn::data_types type, uint8_t input, int8_t &v0, int8_t &v1) {
     if (type == cldnn::data_types::i4) {
         char s_bit = (input & 0x08);
         char mask = s_bit > 0 ? 0xF0 : 0x00;
@@ -276,8 +275,8 @@ void dump_i4u4(cldnn::data_types type, memory::ptr mem, stream& stream, std::ofs
         for (size_t i = 0; i < lock.size(); ++i) {
             int8_t v0, v1;
             unpack(type, mem_ptr[i], v0, v1);
-            buffer << std::fixed << std::setprecision(6) << (int)v0 << std::endl;
-            buffer << std::fixed << std::setprecision(6) << (int)v1 << std::endl;
+            buffer << std::fixed << std::setprecision(6) << static_cast<int>(v0) << std::endl;
+            buffer << std::fixed << std::setprecision(6) << static_cast<int>(v1) << std::endl;
         }
     } else {
         std::cout << __func__ << " supports raw dump only" << std::endl;
