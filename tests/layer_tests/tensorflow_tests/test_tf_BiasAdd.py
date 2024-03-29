@@ -204,7 +204,7 @@ class TestComplexBiasAdd(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_2D)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     def test_complex_bias_add(self, params, ie_device, precision, ir_version, temp_dir,
                               use_legacy_frontend):
         self._test(*self.create_complex_bias_add_net(**params, ir_version=ir_version,
