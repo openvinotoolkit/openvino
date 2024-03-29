@@ -28,12 +28,8 @@ public:
 
     Gemm(const ov::Output<Node>& A,
          const ov::Output<Node>& B,
-         const std::vector<int64_t>& axes_a,
-         const std::vector<int64_t>& axes_b,
-         const std::vector<int32_t>& target_shape_a,
-         const std::vector<int32_t>& target_shape_b,
-         const std::vector<int64_t>& output_pattern_a,
-         const std::vector<int64_t>& output_pattern_b,
+         const std::vector<int64_t>& pattern_a,
+         const std::vector<int64_t>& pattern_b,
          const std::vector<int64_t>& order_a,
          const std::vector<int64_t>& order_b,
          const std::vector<int64_t>& order_c,
@@ -45,12 +41,8 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 
-    std::vector<int64_t> get_input0_unsqueeze_axes() const { return m_axes_a; }
-    std::vector<int64_t> get_input1_unsqueeze_axes() const { return m_axes_b; }
-    std::vector<int32_t> get_input0_broadcast_target_shape() const { return m_target_shape_a; }
-    std::vector<int32_t> get_input1_broadcast_target_shape() const { return m_target_shape_b; }
-    std::vector<int64_t> get_input0_reshape_pattern() const { return m_output_pattern_a; }
-    std::vector<int64_t> get_input1_reshape_pattern() const { return m_output_pattern_b; }
+    std::vector<int64_t> get_input0_reshape_pattern() const { return m_pattern_a; }
+    std::vector<int64_t> get_input1_reshape_pattern() const { return m_pattern_b; }
     std::vector<int64_t> get_input0_transpose_order() const { return m_order_a; }
     std::vector<int64_t> get_input1_transpose_order() const { return m_order_b; }
     std::vector<int64_t> get_output_transpose_order() const { return m_order_c; }
@@ -63,12 +55,8 @@ public:
     }
 
 protected:
-    std::vector<int64_t> m_axes_a;
-    std::vector<int64_t> m_axes_b;
-    std::vector<int32_t> m_target_shape_a;
-    std::vector<int32_t> m_target_shape_b;
-    std::vector<int64_t> m_output_pattern_a;
-    std::vector<int64_t> m_output_pattern_b;
+    std::vector<int64_t> m_pattern_a;
+    std::vector<int64_t> m_pattern_b;
     std::vector<int64_t> m_order_a;
     std::vector<int64_t> m_order_b;
     std::vector<int64_t> m_order_c;
@@ -77,12 +65,8 @@ protected:
 
 std::vector<ov::PartialShape> shape_infer(const Gemm* op,
                                           std::vector<ov::PartialShape> input_shapes,
-                                          const std::vector<int64_t>& axes_a,
-                                          const std::vector<int64_t>& axes_b,
-                                          const std::vector<int32_t>& target_shape_a,
-                                          const std::vector<int32_t>& target_shape_b,
-                                          const std::vector<int64_t>& output_pattern_a,
-                                          const std::vector<int64_t>& output_pattern_b,
+                                          const std::vector<int64_t>& pattern_a,
+                                          const std::vector<int64_t>& pattern_b,
                                           const std::vector<int64_t>& order_a,
                                           const std::vector<int64_t>& order_b,
                                           const std::vector<int64_t>& order_c);

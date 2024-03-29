@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "multi_stage_primitive.hpp"
 
@@ -173,10 +174,28 @@ public:
         params.beta = primitive->beta;
         params.transpose_input0 = primitive->transpose_input0;
         params.transpose_input1 = primitive->transpose_input1;
-        params.input0_target_shape = primitive->input0_broadcast_target_shape;
-        params.input1_target_shape = primitive->input1_broadcast_target_shape;
-        params.input0_output_pattern = primitive->input0_reshape_pattern;
-        params.input1_output_pattern = primitive->input0_reshape_pattern;
+        if (!primitive->input0_reshape_pattern.empty()) {
+            const auto reshape_pattern = primitive->input0_reshape_pattern;
+            auto input_pshape = impl_param.input_layouts[0].get_partial_shape();
+            auto reshape_axes = ov::intel_gpu::find_non_val_pos(reshape_pattern, 0);
+            if (reshape_axes != reshape_pattern.size()) {
+                params.input0_reshape_axes = static_cast<int32_t>(reshape_axes);
+                if (input_pshape[reshape_axes].is_static()) {
+                    params.input0_broadcast_val = reshape_pattern[reshape_axes] / input_pshape[reshape_axes].get_length();
+                }
+            }
+        }
+        if (!primitive->input1_reshape_pattern.empty()) {
+            const auto reshape_pattern = primitive->input1_reshape_pattern;
+            auto input_pshape = impl_param.input_layouts[1].get_partial_shape();
+            auto reshape_axes = ov::intel_gpu::find_non_val_pos(reshape_pattern, 0);
+            if (reshape_axes != reshape_pattern.size()) {
+                params.input1_reshape_axes = static_cast<int32_t>(reshape_axes);
+                if (input_pshape[reshape_axes].is_static()) {
+                    params.input1_broadcast_val = reshape_pattern[reshape_axes] / input_pshape[reshape_axes].get_length();
+                }
+            }
+        }
         params.input0_order = primitive->input0_transpose_order;
         params.input1_order = primitive->input1_transpose_order;
         params.output_order = primitive->output_transpose_order;

@@ -9,10 +9,10 @@
 namespace ov {
 namespace intel_gpu {
 
-class BroadcastReshapeMatmulFusion : public ov::pass::GraphRewrite {
+class UnsqueezeBroadcastReshapeMatmulFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("BroadcastReshapeMatmulFusion", "0");
-    BroadcastReshapeMatmulFusion();
+    OPENVINO_RTTI("UnsqueezeBroadcastReshapeMatmulFusion", "0");
+    UnsqueezeBroadcastReshapeMatmulFusion();
 };
 
 }   // namespace intel_gpu
