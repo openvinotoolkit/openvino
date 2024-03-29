@@ -5,12 +5,12 @@
 #pragma once
 
 #include <limits.h>
+#include <ze_api.h>
+#include <ze_graph_ext.h>
 
 #include "npu/utils/logger/logger.hpp"
 #include "npu/utils/zero/zero_result.hpp"
 #include "vpux/al/config/runtime.hpp"
-#include "ze_api.h"
-#include "ze_graph_ext.h"
 
 using intel_npu::Logger;
 

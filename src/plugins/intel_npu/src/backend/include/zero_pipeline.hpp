@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include "zero_executor.h"
-#include "zero_memory.h"
-#include "zero_profiling.h"
-#include "zero_utils.h"
-#include "zero_wrappers.h"
+#include "zero_executor.hpp"
+#include "zero_memory.hpp"
+#include "zero_profiling.hpp"
+#include "zero_utils.hpp"
+#include "zero_wrappers.hpp"
 
 namespace vpux {
 struct Pipeline {

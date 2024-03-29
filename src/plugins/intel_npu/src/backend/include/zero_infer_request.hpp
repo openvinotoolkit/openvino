@@ -11,11 +11,11 @@
 
 #include "npu/utils/logger/logger.hpp"
 #include "vpux.hpp"
-#include "zero_executor.h"
-#include "zero_pipeline.h"
-#include "zero_profiling.h"
-#include "zero_utils.h"
-#include "zero_wrappers.h"
+#include "zero_executor.hpp"
+#include "zero_pipeline.hpp"
+#include "zero_profiling.hpp"
+#include "zero_utils.hpp"
+#include "zero_wrappers.hpp"
 
 namespace vpux {
 

@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "openvino/pass/manager.hpp"
-#include "vpux_driver_compiler_adapter.h"
+#include "vpux_driver_compiler_adapter.hpp"
 
 /**
  * @brief Contain all required transformation on OpenVINO model in case for external compiler usage and

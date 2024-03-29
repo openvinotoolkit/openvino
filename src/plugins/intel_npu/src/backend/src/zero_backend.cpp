@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "zero_backend.h"
+#include "zero_backend.hpp"
 
 #include <vector>
 
 #include "vpux/al/config/common.hpp"
-#include "zero_device.h"
+#include "zero_device.hpp"
 
 namespace vpux {
 

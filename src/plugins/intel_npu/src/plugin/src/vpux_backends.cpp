@@ -11,7 +11,7 @@
 #include "vpux/al/config/common.hpp"
 
 #if defined(ENABLE_ZEROAPI_BACKEND)
-#    include <zero_backend.h>
+#    include "zero_backend.hpp"
 #endif
 
 #if !defined(OPENVINO_STATIC_LIBRARY) && defined(ENABLE_IMD_BACKEND)

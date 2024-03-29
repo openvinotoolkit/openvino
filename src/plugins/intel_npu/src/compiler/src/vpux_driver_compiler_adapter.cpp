@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "vpux_driver_compiler_adapter.h"
+#include "vpux_driver_compiler_adapter.hpp"
 
-#include "graph_transformations.h"
+#include "graph_transformations.hpp"
 #include "npu/utils/zero/zero_result.hpp"
 #include "vpux/al/config/common.hpp"
 #include "ze_intel_vpu_uuid.h"
-#include "zero_compiler_in_driver.h"
+#include "zero_compiler_in_driver.hpp"
 
 using intel_npu::Logger;
 

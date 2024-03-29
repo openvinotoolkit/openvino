@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "zero_profiling.h"
+#include "zero_profiling.hpp"
+
+#include <ze_api.h>
+#include <ze_graph_profiling_ext.h>
 
 #include "vpux/al/config/compiler.hpp"
 #include "vpux/al/profiling.hpp"
-#include "ze_api.h"
-#include "ze_graph_profiling_ext.h"
-#include "zero_profiling.h"
-#include "zero_utils.h"
+#include "zero_profiling.hpp"
+#include "zero_utils.hpp"
 
 namespace vpux {
 namespace zeroProfiling {

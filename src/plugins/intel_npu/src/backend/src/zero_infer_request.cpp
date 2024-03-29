@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "zero_infer_request.h"
+#include "zero_infer_request.hpp"
 
 #include "vpux/al/config/common.hpp"
 #include "vpux/al/config/compiler.hpp"
 #include "vpux/al/config/runtime.hpp"
 #include "vpux/al/itt.hpp"
 #include "vpux/al/prefix.hpp"
-#include "zero_memory.h"
+#include "zero_memory.hpp"
 
 using namespace vpux;
 using intel_npu::isStateInputName;

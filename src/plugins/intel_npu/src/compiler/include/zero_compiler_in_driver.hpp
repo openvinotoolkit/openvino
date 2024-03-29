@@ -7,7 +7,7 @@
 
 #include <type_traits>
 
-#include "iexternal_compiler.h"
+#include "iexternal_compiler.hpp"
 #include "npu/utils/logger/logger.hpp"
 
 using intel_npu::Config;

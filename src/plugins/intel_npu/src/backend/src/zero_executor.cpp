@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "zero_executor.h"
+#include "zero_executor.hpp"
+
+#include <ze_api.h>
 
 #include <functional>
 #include <iostream>
@@ -11,9 +13,8 @@
 
 #include "vpux/al/config/common.hpp"
 #include "vpux/al/itt.hpp"
-#include "ze_api.h"
-#include "zero_device.h"
-#include "zero_utils.h"
+#include "zero_device.hpp"
+#include "zero_utils.hpp"
 
 using namespace vpux;
 

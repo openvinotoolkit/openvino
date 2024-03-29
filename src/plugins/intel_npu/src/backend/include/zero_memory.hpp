@@ -4,13 +4,14 @@
 
 #pragma once
 
+#include <ze_api.h>
+#include <ze_graph_ext.h>
+
 #include <map>
 #include <string>
 
 #include "npu/utils/logger/logger.hpp"
-#include "ze_api.h"
-#include "ze_graph_ext.h"
-#include "zero_init.h"
+#include "zero_init.hpp"
 
 using intel_npu::Logger;
 

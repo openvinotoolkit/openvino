@@ -11,7 +11,7 @@
 
 #include "npu/utils/logger/logger.hpp"
 #include "ze_intel_vpu_uuid.h"
-#include "zero_types.h"
+#include "zero_types.hpp"
 
 using intel_npu::Logger;
 

@@ -9,8 +9,8 @@
 
 #include "npu/utils/logger/logger.hpp"
 #include "vpux.hpp"
-#include "zero_init.h"
-#include "zero_wrappers.h"
+#include "zero_init.hpp"
+#include "zero_wrappers.hpp"
 
 using intel_npu::Logger;
 

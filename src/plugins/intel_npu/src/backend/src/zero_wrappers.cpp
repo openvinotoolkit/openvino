@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "zero_wrappers.h"
+#include "zero_wrappers.hpp"
 
 #include "vpux/al/config/common.hpp"
 

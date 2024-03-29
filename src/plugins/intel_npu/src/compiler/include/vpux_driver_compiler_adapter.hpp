@@ -6,7 +6,7 @@
 
 #include <ze_graph_ext.h>
 
-#include "iexternal_compiler.h"
+#include "iexternal_compiler.hpp"
 #include "npu/utils/logger/logger.hpp"
 #include "vpux/al/icompiler.hpp"
 

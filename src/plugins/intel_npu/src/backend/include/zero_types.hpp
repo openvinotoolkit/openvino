@@ -4,9 +4,10 @@
 
 #pragma once
 
+#include <ze_api.h>
+#include <ze_graph_ext.h>
+
 #include "vpux/al/config/runtime.hpp"
-#include "ze_api.h"
-#include "ze_graph_ext.h"
 
 /**
  * @brief Last version of Table of Graph Extension functions used within plugin

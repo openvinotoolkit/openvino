@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "zero_init.h"
+#include "zero_init.hpp"
 
 #include "vpux/al/itt.hpp"
-#include "zero_utils.h"
+#include "zero_utils.hpp"
 
 namespace vpux {
 

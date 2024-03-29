@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <string>
+#include <ze_api.h>
 
-#include "ze_api.h"
+#include <string>
 
 namespace vpux {
 

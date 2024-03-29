@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "zero_memory.h"
+#include "zero_memory.hpp"
 
-#include "zero_utils.h"
+#include "zero_utils.hpp"
 
 namespace vpux {
 namespace zeroMemory {

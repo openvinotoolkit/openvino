@@ -10,7 +10,7 @@
 #include "vpux/al/itt.hpp"
 
 #ifdef ENABLE_DRIVER_COMPILER_ADAPTER
-#    include "vpux_driver_compiler_adapter.h"
+#    include "vpux_driver_compiler_adapter.hpp"
 #endif
 
 #include <memory>

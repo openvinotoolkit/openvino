@@ -8,7 +8,7 @@
 #include <memory>
 
 #include "vpux.hpp"
-#include "zero_init.h"
+#include "zero_init.hpp"
 
 namespace vpux {
 class ZeroEngineBackend final : public vpux::IEngineBackend {

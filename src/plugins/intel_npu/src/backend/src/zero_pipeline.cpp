@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "zero_pipeline.h"
+#include "zero_pipeline.hpp"
 
 #include <ze_api.h>
 #include <ze_graph_ext.h>

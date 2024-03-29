@@ -4,9 +4,9 @@
 
 #include "npu/utils/zero/zero_result.hpp"
 
-#include <string>
+#include <ze_api.h>
 
-#include "ze_api.h"
+#include <string>
 
 namespace vpux {
 

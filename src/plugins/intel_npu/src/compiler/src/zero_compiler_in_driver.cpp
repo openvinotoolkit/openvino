@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "zero_compiler_in_driver.h"
+#include "zero_compiler_in_driver.hpp"
 
 #include <regex>
 #include <string_view>

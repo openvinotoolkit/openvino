@@ -8,8 +8,8 @@
 #include <ze_graph_ext.h>
 
 #include "npu/utils/logger/logger.hpp"
-#include "zero_types.h"
-#include "zero_utils.h"
+#include "zero_types.hpp"
+#include "zero_utils.hpp"
 
 using intel_npu::Logger;
 
