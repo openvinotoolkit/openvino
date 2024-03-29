@@ -12,10 +12,10 @@
 #include "openvino/core/shape_util.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/variable_context.hpp"
 #include "perf_counter.hpp"
-#include "openvino/op/util/multi_subgraph_base.hpp"
 
 class TemporaryOverrideOutputs {
     std::shared_ptr<ov::Model> model;
@@ -57,7 +57,7 @@ void ov::runtime::interpreter::INTExecutable::cancel() {
 void collect_variables(const ov::NodeVector& nodes, ov::op::util::VariableContext& variable_context) {
     for (const auto& op : nodes) {
         if (auto multi_subgraph_op = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(op)) {
-            for (const auto &sub_graph: multi_subgraph_op->get_functions()) {
+            for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
                 collect_variables(sub_graph->get_ordered_ops(), variable_context);
             }
         }

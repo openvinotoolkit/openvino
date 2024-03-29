@@ -331,7 +331,9 @@ Output<Node> Loop::get_concatenated_slices(const Output<Node>& value,
     return SubGraphOp::get_concatenated_slices(value, start, stride, part_size, end, axis);
 }
 
-bool Loop::evaluate(TensorVector& outputs, const TensorVector& inputs, const EvaluationContext& evaluation_context) const {
+bool Loop::evaluate(TensorVector& outputs,
+                    const TensorVector& inputs,
+                    const EvaluationContext& evaluation_context) const {
     OV_OP_SCOPE(v5_Loop_evaluate);
     reference::loop(m_bodies[0],
                     m_output_descriptions[0],
