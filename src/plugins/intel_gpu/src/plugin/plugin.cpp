@@ -256,6 +256,8 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
     ProgramBuilder prog(ctx->get_engine(), config);
 
+    float query_model_ratio = config.get_property(ov::internal::query_model_ratio.name()).as<float>();
+
     auto supported = ov::get_supported_nodes(model,
         [&config,this](std::shared_ptr<ov::Model>& model) {
             std::map<std::string, ov::PartialShape> shapes;
@@ -264,7 +266,8 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
         },
         [&prog](std::shared_ptr<ov::Node> node) {
             return prog.is_op_supported(node);
-        });
+        },
+        query_model_ratio);
 
     for (auto&& op_name : supported) {
         res.emplace(op_name, ctx->get_device_name());
@@ -562,7 +565,8 @@ std::vector<ov::PropertyName> Plugin::get_supported_internal_properties() const 
             ov::PropertyName{ov::internal::config_device_id.name(), ov::PropertyMutability::WO},
             ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
             ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(), ov::PropertyMutability::RO}};
+            ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::query_model_ratio.name(), PropertyMutability::RW}};
     return supported_internal_properties;
 }
 

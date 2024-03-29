@@ -69,5 +69,12 @@ static constexpr Property<std::string, PropertyMutability::RO> compiled_model_ru
 static constexpr Property<bool, PropertyMutability::RO> compiled_model_runtime_properties_supported{
     "COMPILED_MODEL_RUNTIME_PROPERTIES_SUPPORTED"};
 
+/**
+ * @brief Read-write property to set the percentage of the estimated model size which is used to determine the query
+ * model results for further processing
+ * @ingroup ov_dev_api_plugin_api
+ */
+static constexpr Property<float, PropertyMutability::RW> query_model_ratio{"QUERY_MODEL_RATIO"};
+
 }  // namespace internal
 }  // namespace ov
