@@ -429,6 +429,30 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
             {{}, {}, {{ 0.0006f }, ov::element::f32, {}}}
         }
     },
+    // mixed precision: f16 dequantization constants, f32 dequantization precision
+    {
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+        // ActualValues
+        {
+            ov::element::u8,
+            {{ov::element::f16}, {}, {0.02f}},
+            {{ov::element::f16}, {}, {0.03f}},
+            {std::vector<float>{ 2.f }, ov::element::i8},
+            {},
+            ov::element::f16,
+            {}
+        },
+        // ExpectedValues
+        {
+            ov::element::u8,
+            {{}, {}, {}},
+            {{}, {}, {}},
+            {std::vector<float>{ 2.f }, ov::element::i8},
+            {},
+            ov::element::f32,
+            {{}, {}, {{ 0.0006f }, ov::element::f16, {}, false, 1, ov::element::f32}}
+        }
+    },
     // incorrect zero point on activations [not transformed]
     {
         LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),

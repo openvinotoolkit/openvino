@@ -373,6 +373,26 @@ const std::vector<ConvolutionBackpropDataTransformationTestValues> testValues = 
             true
         }
     },
+    // mixed precision: f16 dequantization constants, f32 dequantization precision
+    {
+        LayerTransformation::createParamsU8I8(),
+        // ActualValues
+        {
+            ov::element::u8,
+            {{ov::element::f16}, {}, { 0.02f }},
+            {{ov::element::f16}, {}, { 0.03f }},
+            op::v0::Constant::create(ov::element::i8, ov::Shape{}, std::vector<float>{ 2.f })
+        },
+        // ExpectedValues
+        {
+            ov::element::u8,
+            {},
+            {},
+            {{}, {}, {{ 0.0006f }, ov::element::f16, {}, false, 1, ov::element::f32}},
+            op::v0::Constant::create(ov::element::i8, ov::Shape{}, std::vector<float>{ 2.f }),
+            true
+        }
+    },
     // per-channel dequantization with the same values
     {
         LayerTransformation::createParamsU8I8(),
