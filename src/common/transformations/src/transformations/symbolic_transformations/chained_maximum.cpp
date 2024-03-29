@@ -5,7 +5,7 @@
 #include "transformations/symbolic_transformations/chained_maximum.hpp"
 
 #include "itt.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/dimension.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/symbolic_transformations/utils.hpp"
@@ -26,18 +26,18 @@ ov::pass::ChainedMaximumOptimization::ChainedMaximumOptimization() {
         auto A = vm.at(A_input), B = vm.at(B_input), C = vm.at(C_input);
         auto output_to_replace = vm.at(first_maximum);
 
-        ov::TensorLabel A_labels, B_labels, C_labels;
-        bool A_read = get_labels(A, A_labels);
-        bool B_read = get_labels(B, B_labels);
-        bool C_read = get_labels(C, C_labels);
+        ov::TensorSymbol A_symbols, B_symbols, C_symbols;
+        bool A_read = get_symbols(A, A_symbols);
+        bool B_read = get_symbols(B, B_symbols);
+        bool C_read = get_symbols(C, C_symbols);
 
         if (!A_read && !B_read && !C_read)
             return false;
 
-        if (are_unique_and_equal_labels(A_labels, C_labels)) {
+        if (are_unique_and_equal_symbols(A_symbols, C_symbols)) {
             // Matched Maximum(Maximum(A, B), C) with A == C -> Maximum(B, C)
             return ov::replace_output_update_name(output_to_replace, B);
-        } else if (are_unique_and_equal_labels(B_labels, C_labels)) {
+        } else if (are_unique_and_equal_symbols(B_symbols, C_symbols)) {
             // Matched Maximum(Maximum(A, B), C) with B == C -> Maximum(A, C)
             return ov::replace_output_update_name(output_to_replace, A);
         }
