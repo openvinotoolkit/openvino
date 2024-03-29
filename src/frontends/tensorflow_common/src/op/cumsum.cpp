@@ -31,7 +31,7 @@ OutputVector translate_cumsum_op(const NodeContext& node) {
         auto less_than_zero = make_shared<v1::Less>(axis, zero);
         auto const_one = make_shared<v0::Constant>(element::i32, Shape{}, 1);
 
-        auto axis_update = make_shared<v1::Select>(less_than_zero, const_one, zero); 
+        auto axis_update = make_shared<v1::Select>(less_than_zero, const_one, zero);
         auto new_axis = make_shared<v1::Subtract>(axis, axis_update);    
     }
 
