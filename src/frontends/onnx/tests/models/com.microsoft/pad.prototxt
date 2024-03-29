@@ -1,55 +1,55 @@
-ir_version: 3
-producer_name: "nGraph ONNX Importer"
+ir_version: 6
+producer_name: "OV ONNX Frontend"
 graph {
   node {
-    input: "X"
-    input: "Y"
-    output: "out"
-    name: "Gelu_AddBias_1"
-    op_type: "BiasGelu"
+    input: "x"
+    input: "pads"
+    output: "y"
+    op_type: "Pad"
     domain: "com.microsoft"
-  }
-  name: "test_graph"
-  input {
-    name: "X"
-    type {
-      tensor_type {
-        elem_type: 1
-        shape {
-          dim {
-            dim_value: 2
-          }
-          dim {
-            dim_value: 5
-          }
-        }
-      }
+    attribute {
+      name: "mode"
+      s: "constant"
+      type: STRING
     }
   }
+  name: "test_constant_pad_microsoft"
+    initializer {
+    dims: 4
+    data_type: 7
+    int64_data: 0
+    int64_data: 2
+    int64_data: 0
+    int64_data: 0
+    name: "pads"
+  }
   input {
-    name: "Y"
+    name: "x"
     type {
       tensor_type {
         elem_type: 1
         shape {
           dim {
-            dim_value: 5
+            dim_value: 3
+          }
+          dim {
+            dim_value: 2
           }
         }
       }
     }
   }
   output {
-    name: "out"
+    name: "y"
     type {
       tensor_type {
         elem_type: 1
         shape {
           dim {
-            dim_value: 2
+            dim_value: 3
           }
           dim {
-            dim_value: 5
+            dim_value: 4
           }
         }
       }
@@ -57,5 +57,6 @@ graph {
   }
 }
 opset_import {
-  version: 13
+  domain: "com.microsoft"
+  version: 1
 }
