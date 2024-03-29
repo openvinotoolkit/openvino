@@ -2,12 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME ov_npu_al)
+set(TARGET_NAME openvino_npu_al)
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})
+add_library(openvino::npu_al ALIAS ${TARGET_NAME})
+set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME npu_al)
 
 target_include_directories(${TARGET_NAME}
     PUBLIC
@@ -20,7 +22,7 @@ endif()
 
 target_link_libraries(${TARGET_NAME}
     PUBLIC
-        ov_npu_logger_utils
+        openvino::npu_logger_utils
         openvino::runtime::dev
 )
 
@@ -32,6 +34,6 @@ ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 #
 ov_install_static_lib(${TARGET_NAME} ${NPU_PLUGIN_COMPONENT})
 
-ov_developer_package_export_targets(TARGET ${TARGET_NAME}
+ov_developer_package_export_targets(TARGET openvino::npu_al
                                     INSTALL_INCLUDE_DIRECTORIES
                                         ${CMAKE_CURRENT_SOURCE_DIR}/include)
