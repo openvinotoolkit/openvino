@@ -9,13 +9,11 @@
 
 #include <memory>
 
-#include "npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/logger/logger.hpp"
 #include "ze_intel_vpu_uuid.h"
 #include "zero_types.hpp"
 
-using intel_npu::Logger;
-
-namespace vpux {
+namespace intel_npu {
 /**
  * Holder for the level zero structures which must be initialized via call to the driver once zero backend is loaded,
  * and de-initialized after their last use is over.
@@ -56,4 +54,4 @@ private:
     ze_graph_profiling_dditable_ext_t* _graph_profiling_ddi_table_ext = nullptr;
 };
 
-}  // namespace vpux
+}  // namespace intel_npu

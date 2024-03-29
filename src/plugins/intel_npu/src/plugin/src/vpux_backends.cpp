@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "vpux_backends.hpp"
-
 #include <fstream>
 #include <memory>
 
 #include "device_helpers.hpp"
-#include "vpux/al/config/common.hpp"
+#include "intel_npu/al/config/common.hpp"
+#include "npu_backends.hpp"
 
 #if defined(ENABLE_ZEROAPI_BACKEND)
 #    include "zero_backend.hpp"
@@ -19,7 +18,7 @@
 #    include "openvino/util/shared_object.hpp"
 #endif
 
-using namespace vpux;
+using namespace intel_npu;
 
 namespace {
 
@@ -43,8 +42,8 @@ std::shared_ptr<void> loadBackendLibrary(const std::string& libpath) {
 #    endif
 }
 
-std::shared_ptr<IEngineBackend> getBackend(std::shared_ptr<void> so, const vpux::Config& config) {
-    static constexpr auto CreateFuncName = "CreateVPUXEngineBackend";
+std::shared_ptr<IEngineBackend> getBackend(std::shared_ptr<void> so, const Config& config) {
+    static constexpr auto CreateFuncName = "CreateNPUEngineBackend";
     auto symbol = ov::util::get_symbol(so, CreateFuncName);
 
     using CreateFuncT = void (*)(std::shared_ptr<IEngineBackend>&, const Config&);
@@ -55,7 +54,7 @@ std::shared_ptr<IEngineBackend> getBackend(std::shared_ptr<void> so, const vpux:
     return backendPtr;
 }
 
-ov::SoPtr<IEngineBackend> loadBackend(const std::string& libpath, const vpux::Config& config) {
+ov::SoPtr<IEngineBackend> loadBackend(const std::string& libpath, const Config& config) {
     auto backendSO = loadBackendLibrary(libpath);
     auto backend = getBackend(backendSO, config);
 
@@ -65,11 +64,11 @@ ov::SoPtr<IEngineBackend> loadBackend(const std::string& libpath, const vpux::Co
 
 }  // namespace
 
-namespace vpux {
+namespace intel_npu {
 
 // TODO Config will be useless here, since only default values will be used
-VPUXBackends::VPUXBackends(const std::vector<AvailableBackends>& backendRegistry, [[maybe_unused]] const Config& config)
-    : _logger("NPUBackends", intel_npu::Logger::global().level()) {
+NPUBackends::NPUBackends(const std::vector<AvailableBackends>& backendRegistry, [[maybe_unused]] const Config& config)
+    : _logger("NPUBackends", Logger::global().level()) {
     std::vector<ov::SoPtr<IEngineBackend>> registeredBackends;
     [[maybe_unused]] const auto registerBackend = [&](ov::SoPtr<IEngineBackend> backend, const std::string& name) {
         const auto backendDevices = backend->getDeviceNames();
@@ -89,7 +88,7 @@ VPUXBackends::VPUXBackends(const std::vector<AvailableBackends>& backendRegistry
 
         try {
 #if !defined(OPENVINO_STATIC_LIBRARY) && defined(ENABLE_IMD_BACKEND)
-            if (name == vpux::AvailableBackends::IMD) {
+            if (name == AvailableBackends::IMD) {
                 const auto path =
                     ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), backendName + OV_BUILD_POSTFIX);
                 const auto exists = std::ifstream(path).good();
@@ -103,7 +102,7 @@ VPUXBackends::VPUXBackends(const std::vector<AvailableBackends>& backendRegistry
 #endif
 
 #if defined(ENABLE_ZEROAPI_BACKEND)
-            if (name == vpux::AvailableBackends::LEVEL_ZERO) {
+            if (name == AvailableBackends::LEVEL_ZERO) {
                 const auto backend = ov::SoPtr<IEngineBackend>(std::make_shared<ZeroEngineBackend>(config));
                 registerBackend(backend, backendName);
             }
@@ -131,7 +130,7 @@ VPUXBackends::VPUXBackends(const std::vector<AvailableBackends>& backendRegistry
     }
 }
 
-std::string VPUXBackends::getBackendName() const {
+std::string NPUBackends::getBackendName() const {
     if (_backend != nullptr) {
         return _backend->getName();
     }
@@ -139,7 +138,7 @@ std::string VPUXBackends::getBackendName() const {
     return "";
 }
 
-std::shared_ptr<IDevice> VPUXBackends::getDevice(const std::string& specificName) const {
+std::shared_ptr<IDevice> NPUBackends::getDevice(const std::string& specificName) const {
     _logger.debug("Searching for device %s to use started...", specificName.c_str());
     // TODO iterate over all available backends
     std::shared_ptr<IDevice> deviceToUse;
@@ -160,26 +159,26 @@ std::shared_ptr<IDevice> VPUXBackends::getDevice(const std::string& specificName
     return deviceToUse;
 }
 
-std::shared_ptr<IDevice> VPUXBackends::getDevice(const ov::AnyMap& paramMap) const {
+std::shared_ptr<IDevice> NPUBackends::getDevice(const ov::AnyMap& paramMap) const {
     return _backend->getDevice(paramMap);
 }
 
-std::vector<std::string> VPUXBackends::getAvailableDevicesNames() const {
+std::vector<std::string> NPUBackends::getAvailableDevicesNames() const {
     return _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames();
 }
 
-void VPUXBackends::registerOptions(OptionsDesc& options) const {
+void NPUBackends::registerOptions(OptionsDesc& options) const {
     if (_backend != nullptr) {
         _backend->registerOptions(options);
     }
 }
 
 // TODO config should be also specified to backends, to allow use logging in devices and all levels below
-void VPUXBackends::setup(const Config& config) {
+void NPUBackends::setup(const Config& config) {
     _logger.setLevel(config.get<LOG_LEVEL>());
 }
 
-std::string VPUXBackends::getCompilationPlatform(const std::string_view platform, const std::string& deviceId) const {
+std::string NPUBackends::getCompilationPlatform(const std::string_view platform, const std::string& deviceId) const {
     // Platform parameter has a higher priority than deviceID
     if (platform != ov::intel_npu::Platform::AUTO_DETECT) {
         return std::string(platform);
@@ -200,4 +199,4 @@ std::string VPUXBackends::getCompilationPlatform(const std::string_view platform
     return utils::getPlatformByDeviceName(devNames.at(0));
 }
 
-}  // namespace vpux
+}  // namespace intel_npu

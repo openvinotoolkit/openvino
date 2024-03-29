@@ -7,14 +7,12 @@
 #include <ze_api.h>
 #include <ze_graph_ext.h>
 
-#include "npu/utils/logger/logger.hpp"
-#include "vpux.hpp"
+#include "intel_npu/utils/logger/logger.hpp"
+#include "npu.hpp"
 #include "zero_init.hpp"
 #include "zero_wrappers.hpp"
 
-using intel_npu::Logger;
-
-namespace vpux {
+namespace intel_npu {
 
 class ZeroExecutor final : public IExecutor {
 public:
@@ -75,4 +73,4 @@ private:
     std::array<std::shared_ptr<CommandQueue>, stage::COUNT> _command_queues;
 };
 
-}  // namespace vpux
+}  // namespace intel_npu

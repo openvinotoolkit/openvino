@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "npu/utils/zero/zero_result.hpp"
+#include "intel_npu/utils/zero/zero_result.hpp"
 
 #include <ze_api.h>
 
 #include <string>
 
-namespace vpux {
+namespace intel_npu {
 
 const std::string ze_result_to_string(const ze_result_t result) {
     std::string as_string = {};
@@ -325,4 +325,4 @@ const std::string ze_result_to_description(const ze_result_t result) {
     return as_string;
 }
 
-}  // namespace vpux
+}  // namespace intel_npu

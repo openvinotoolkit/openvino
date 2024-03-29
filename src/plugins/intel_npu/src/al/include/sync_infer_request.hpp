@@ -4,13 +4,13 @@
 
 #pragma once
 
+#include "intel_npu/al/icompiled_model.hpp"
+#include "intel_npu/al/icompiler.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "variable_state.hpp"
-#include "vpux/al/icompiled_model.hpp"
-#include "vpux/al/icompiler.hpp"
 
-namespace vpux {
+namespace intel_npu {
 
 /**
  * @brief Acts as an interface for the inference request structures implemented by all backends.
@@ -170,7 +170,7 @@ protected:
 
     std::unordered_map<std::string, std::shared_ptr<VariableState>> _variableStates;
 
-    // This is vpux::ICompiledModel pointer, but need to use OV base class because
+    // This is intel_npu::ICompiledModel pointer, but need to use OV base class because
     // ov::IInferRequest::get_compiled_model returns a refernce to shared_ptr!
     std::shared_ptr<const ov::ICompiledModel> _compiledModel;
 
@@ -183,4 +183,4 @@ protected:
     std::unordered_map<std::string, std::string> _nodeNameToLegacyName;
 };
 
-}  // namespace vpux
+}  // namespace intel_npu

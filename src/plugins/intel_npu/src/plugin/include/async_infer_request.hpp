@@ -7,7 +7,7 @@
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "sync_infer_request.hpp"
 
-namespace vpux {
+namespace intel_npu {
 
 class AsyncInferRequest final : public ov::IAsyncInferRequest {
 public:
@@ -31,4 +31,4 @@ private:
     std::shared_ptr<ov::threading::ITaskExecutor> _getResultExecutor;
 };
 
-}  // namespace vpux
+}  // namespace intel_npu

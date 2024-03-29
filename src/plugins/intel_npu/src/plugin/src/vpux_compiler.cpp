@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "vpux_compiler.hpp"
-
-#include "npu/utils/logger/logger.hpp"
+#include "intel_npu/al/config/compiler.hpp"
+#include "intel_npu/al/itt.hpp"
+#include "intel_npu/utils/logger/logger.hpp"
+#include "npu_compiler.hpp"
 #include "npu_private_properties.hpp"  // AL
-#include "vpux/al/config/compiler.hpp"
-#include "vpux/al/itt.hpp"
 
 #ifdef ENABLE_DRIVER_COMPILER_ADAPTER
-#    include "vpux_driver_compiler_adapter.hpp"
+#    include "npu_driver_compiler_adapter.hpp"
 #endif
 
 #include <memory>
@@ -19,7 +18,7 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 
-using namespace vpux;
+using namespace intel_npu;
 
 namespace {
 
@@ -32,7 +31,7 @@ std::shared_ptr<void> loadLibrary(const std::string& libpath) {
 }
 
 std::shared_ptr<ICompiler> getCompiler(std::shared_ptr<void> so) {
-    static constexpr auto CreateFuncName = "CreateVPUXCompiler";
+    static constexpr auto CreateFuncName = "CreateNPUCompiler";
     auto symbol = ov::util::get_symbol(so, CreateFuncName);
 
     using CreateFuncT = void (*)(std::shared_ptr<ICompiler>&);
@@ -50,7 +49,7 @@ ov::SoPtr<ICompiler> loadCompiler(const std::string& libpath) {
     return ov::SoPtr<ICompiler>(compiler, compilerSO);
 }
 
-ov::SoPtr<ICompiler> createCompilerAdapter(const intel_npu::Logger& log) {
+ov::SoPtr<ICompiler> createCompilerAdapter(const Logger& log) {
     log.info("Driver compiler will be used.");
 #ifdef ENABLE_DRIVER_COMPILER_ADAPTER
     const auto compilerInterface = std::make_shared<driverCompilerAdapter::LevelZeroCompilerAdapter>();
@@ -60,17 +59,17 @@ ov::SoPtr<ICompiler> createCompilerAdapter(const intel_npu::Logger& log) {
 #endif
 }
 
-ov::SoPtr<ICompiler> createVPUXCompiler(const intel_npu::Logger& log) {
+ov::SoPtr<ICompiler> createNPUCompiler(const Logger& log) {
     log.info("MLIR compiler will be used.");
     std::string baseName = "npu_mlir_compiler";
     auto libPath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName + OV_BUILD_POSTFIX);
     return loadCompiler(libPath);
 }
 
-ov::SoPtr<ICompiler> createCompilerImpl(ov::intel_npu::CompilerType compilerType, const intel_npu::Logger& log) {
+ov::SoPtr<ICompiler> createCompilerImpl(ov::intel_npu::CompilerType compilerType, const Logger& log) {
     switch (compilerType) {
     case ov::intel_npu::CompilerType::MLIR:
-        return createVPUXCompiler(log);
+        return createNPUCompiler(log);
     case ov::intel_npu::CompilerType::DRIVER:
         return createCompilerAdapter(log);
     default:
@@ -80,8 +79,8 @@ ov::SoPtr<ICompiler> createCompilerImpl(ov::intel_npu::CompilerType compilerType
 
 }  // namespace
 
-ov::SoPtr<ICompiler> vpux::createCompiler(ov::intel_npu::CompilerType compilerType, const intel_npu::Logger& log) {
-    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "vpux::createCompiler");
+ov::SoPtr<ICompiler> intel_npu::createCompiler(ov::intel_npu::CompilerType compilerType, const Logger& log) {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "intel_npu::createCompiler");
     auto logger = log.clone("createCompiler");
     try {
         return createCompilerImpl(compilerType, logger);

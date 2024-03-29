@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/logger/logger.hpp"
 
 #include <cassert>
 #include <chrono>

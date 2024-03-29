@@ -4,18 +4,18 @@
 
 file(GLOB SOURCES "src/*.cpp" "include/*.hpp")
 
-set(VPUX_PLUGIN_TARGET "openvino_intel_npu_plugin")
-set(VPUX_PLUGIN_ENGINE_SOURCE_FILE "src/plugin.cpp")
-set(TARGET_NAME ${VPUX_PLUGIN_TARGET})
+set(NPU_PLUGIN_TARGET "openvino_intel_npu_plugin")
+set(NPU_PLUGIN_ENGINE_SOURCE_FILE "src/plugin.cpp")
+set(TARGET_NAME ${NPU_PLUGIN_TARGET})
 
 #
 # Plugin library
 #
 
-ov_add_plugin(NAME ${VPUX_PLUGIN_TARGET}
+ov_add_plugin(NAME ${NPU_PLUGIN_TARGET}
     DEVICE_NAME ${NPU_DEVICE_NAME}
     SOURCES ${SOURCES}
-    VERSION_DEFINES_FOR ${VPUX_PLUGIN_ENGINE_SOURCE_FILE}
+    VERSION_DEFINES_FOR ${NPU_PLUGIN_ENGINE_SOURCE_FILE}
 )
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
@@ -63,4 +63,4 @@ target_include_directories(${TARGET_NAME}
         ${NPU_PLUGIN_SOURCE_DIR}/thirdparty/level-zero-ext
 )
 
-ov_add_api_validator_post_build_step(TARGET ${VPUX_PLUGIN_TARGET})
+ov_add_api_validator_post_build_step(TARGET ${NPU_PLUGIN_TARGET})

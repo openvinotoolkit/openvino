@@ -3,11 +3,9 @@
 //
 
 #pragma once
-#include "vpux/al/icompiler.hpp"
+#include "intel_npu/al/icompiler.hpp"
 
-using intel_npu::Config;
-
-namespace vpux {
+namespace intel_npu {
 namespace driverCompilerAdapter {
 
 struct IR {
@@ -31,7 +29,7 @@ public:
     /**
      * @brief Get query result for current network
      */
-    virtual std::unordered_set<std::string> getQueryResult(IR& irModel, const vpux::Config& config) const = 0;
+    virtual std::unordered_set<std::string> getQueryResult(IR& irModel, const Config& config) const = 0;
 
     /**
      * @brief Sends the serialized model and its I/O metadata to the driver for compilation.
@@ -39,8 +37,8 @@ public:
      */
     virtual NetworkDescription compileIR(const std::shared_ptr<const ov::Model>& model,
                                          IR& irModel,
-                                         const vpux::Config& config) const = 0;
-    virtual NetworkMetadata parseBlob(const std::vector<uint8_t>& blob, const vpux::Config& config) const = 0;
+                                         const Config& config) const = 0;
+    virtual NetworkMetadata parseBlob(const std::vector<uint8_t>& blob, const Config& config) const = 0;
 };
 }  // namespace driverCompilerAdapter
-}  // namespace vpux
+}  // namespace intel_npu

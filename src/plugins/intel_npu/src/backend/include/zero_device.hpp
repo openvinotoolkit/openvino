@@ -7,16 +7,13 @@
 #include <ze_api.h>
 #include <ze_graph_ext.h>
 
-#include "npu/utils/logger/logger.hpp"
-#include "vpux.hpp"
-#include "vpux/al/icompiled_model.hpp"
+#include "intel_npu/al/icompiled_model.hpp"
+#include "intel_npu/utils/logger/logger.hpp"
+#include "npu.hpp"
 #include "zero_init.hpp"
 #include "zero_types.hpp"
 #include "zero_utils.hpp"
-
-using intel_npu::Logger;
-
-namespace vpux {
+namespace intel_npu {
 
 class ZeroDevice : public IDevice {
 public:
@@ -34,10 +31,9 @@ public:
     uint64_t getTotalMemSize() const override;
     uint32_t getDriverVersion() const override;
 
-    std::shared_ptr<SyncInferRequest> createInferRequest(
-        const std::shared_ptr<const vpux::ICompiledModel>& compiledModel,
-        const std::shared_ptr<IExecutor>& executor,
-        const Config& config) override;
+    std::shared_ptr<SyncInferRequest> createInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel,
+                                                         const std::shared_ptr<IExecutor>& executor,
+                                                         const Config& config) override;
 
     ZeroDevice& operator=(const ZeroDevice&) = delete;
     ZeroDevice(const ZeroDevice&) = delete;
@@ -54,4 +50,4 @@ private:
 
     Logger log;
 };
-}  // namespace vpux
+}  // namespace intel_npu

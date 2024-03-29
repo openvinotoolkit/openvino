@@ -8,21 +8,23 @@
 
 #include "compiled_model.hpp"
 #include "device_helpers.hpp"
+#include "intel_npu/al/config/common.hpp"
+#include "intel_npu/al/config/compiler.hpp"
+#include "intel_npu/al/config/runtime.hpp"
+#include "intel_npu/al/itt.hpp"
+#include "npu_compiler.hpp"
+#include "npu_metrics.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
-#include "vpux/al/config/common.hpp"
-#include "vpux/al/config/compiler.hpp"
-#include "vpux/al/config/runtime.hpp"
-#include "vpux/al/itt.hpp"
-#include "vpux_compiler.hpp"
-#include "vpux_metrics.hpp"
+
+using namespace intel_npu;
 
 namespace {
 
 const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
 
-const char* VPUX_PLUGIN_LIB_NAME = "openvino_intel_npu_plugin";
+const char* NPU_PLUGIN_LIB_NAME = "openvino_intel_npu_plugin";
 
 /**
  * @brief Creates an "ov::Model" object which contains only the given "parameter" and "result" nodes.
@@ -37,15 +39,15 @@ const char* VPUX_PLUGIN_LIB_NAME = "openvino_intel_npu_plugin";
  * @param inputNames The names of the inputs registered in the order given by the model.
  * @param outputNames The names of the outputs registered in the order given by the model.
  */
-std::shared_ptr<ov::Model> create_dummy_model(const vpux::IONodeDescriptorMap& parameterDescriptors,
-                                              const vpux::IONodeDescriptorMap& resultDescriptors,
+std::shared_ptr<ov::Model> create_dummy_model(const IONodeDescriptorMap& parameterDescriptors,
+                                              const IONodeDescriptorMap& resultDescriptors,
                                               const std::vector<std::string>& inputNames,
                                               const std::vector<std::string>& outputNames) {
     ov::ParameterVector parameters;
     ov::NodeVector results;
 
     for (const std::string& inputName : inputNames) {
-        const vpux::IONodeDescriptor& parameterDescriptor = parameterDescriptors.at(inputName);
+        const IONodeDescriptor& parameterDescriptor = parameterDescriptors.at(inputName);
         std::shared_ptr<ov::op::v0::Parameter> parameter =
             std::make_shared<ov::op::v0::Parameter>(parameterDescriptor.precision, parameterDescriptor.transposedShape);
         parameter->set_friendly_name(parameterDescriptor.currentNodeName);
@@ -59,7 +61,7 @@ std::shared_ptr<ov::Model> create_dummy_model(const vpux::IONodeDescriptorMap& p
     // constant can't have dynamic shape). The dummy tensor was also brought in order to register the correct,
     // potentially dynamic, output shape.
     for (const std::string& outputName : outputNames) {
-        const vpux::IONodeDescriptor& resultDescriptor = resultDescriptors.at(outputName);
+        const IONodeDescriptor& resultDescriptor = resultDescriptors.at(outputName);
         std::shared_ptr<ov::Node> constantDummy =
             std::make_shared<ov::op::v0::Constant>(resultDescriptor.precision, CONSTANT_NODE_DUMMY_SHAPE);
         constantDummy->set_friendly_name(resultDescriptor.legacyName);
@@ -96,9 +98,7 @@ size_t getFileSize(std::istream& stream) {
 
 }  // namespace
 
-namespace vpux {
-
-using intel_npu::envVarStrToBool;
+namespace intel_npu {
 
 static Config merge_configs(const Config& globalConfig,
                             const std::map<std::string, std::string>& rawConfig,
@@ -123,8 +123,8 @@ static Config add_platform_to_the_config(Config config, const std::string_view p
 Plugin::Plugin()
     : _options(std::make_shared<OptionsDesc>()),
       _globalConfig(_options),
-      _logger("NPUPlugin", intel_npu::Logger::global().level()) {
-    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "Plugin::Plugin");
+      _logger("NPUPlugin", Logger::global().level()) {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::Plugin");
     set_device_name("NPU");
 
     registerCommonOptions(*_options);
@@ -133,29 +133,29 @@ Plugin::Plugin()
 
     // parse env_variables to get LOG_LEVEL if needed
     _globalConfig.parseEnvVars();
-    intel_npu::Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
+    Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
 
     // TODO: generation of available backends list can be done during execution of CMake scripts
     std::vector<AvailableBackends> backendRegistry;
 
 #if defined(OPENVINO_STATIC_LIBRARY)
-    backendRegistry.push_back(vpux::AvailableBackends::LEVEL_ZERO);
+    backendRegistry.push_back(AvailableBackends::LEVEL_ZERO);
 #else
 #    if defined(ENABLE_IMD_BACKEND)
     if (const auto* envVar = std::getenv("IE_NPU_USE_IMD_BACKEND")) {
         if (envVarStrToBool("IE_NPU_USE_IMD_BACKEND", envVar)) {
-            backendRegistry.push_back(vpux::AvailableBackends::IMD);
+            backendRegistry.push_back(AvailableBackends::IMD);
         }
     }
 #    endif
 
 #    if defined(_WIN32) || defined(_WIN64) || (defined(__linux__) && defined(__x86_64__))
-    backendRegistry.push_back(vpux::AvailableBackends::LEVEL_ZERO);
+    backendRegistry.push_back(AvailableBackends::LEVEL_ZERO);
 #    endif
 #endif
 
-    OV_ITT_TASK_CHAIN(PLUGIN, itt::domains::VPUXPlugin, "Plugin::Plugin", "NPUBackends");
-    _backends = std::make_shared<VPUXBackends>(backendRegistry, _globalConfig);
+    OV_ITT_TASK_CHAIN(PLUGIN, itt::domains::NPUPlugin, "Plugin::Plugin", "NPUBackends");
+    _backends = std::make_shared<NPUBackends>(backendRegistry, _globalConfig);
     OV_ITT_TASK_NEXT(PLUGIN, "registerOptions");
     _backends->registerOptions(*_options);
 
@@ -440,7 +440,7 @@ void Plugin::set_property(const ov::AnyMap& properties) {
     }
 
     _globalConfig.update(config);
-    intel_npu::Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
+    Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
     if (_backends != nullptr) {
         _backends->setup(_globalConfig);
     }
@@ -464,8 +464,8 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                           const ov::AnyMap& properties) const {
-    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "Plugin::compile_model");
-    OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::VPUXPlugin, "Plugin::compile_model", "merge_configs");
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::compile_model");
+    OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "merge_configs");
     auto localConfig = merge_configs(_globalConfig, any_copy(properties));
 
     const auto set_cache_dir = localConfig.get<CACHE_DIR>();
@@ -553,15 +553,15 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& /*re
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, const ov::AnyMap& properties) const {
-    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "Plugin::import_model");
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
 
-    OV_ITT_TASK_CHAIN(PLUGIN_IMPORT_MODEL, itt::domains::VPUXPlugin, "Plugin::import_model", "merge_configs");
+    OV_ITT_TASK_CHAIN(PLUGIN_IMPORT_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "merge_configs");
     auto localConfig = merge_configs(_globalConfig, any_copy(properties), OptionMode::RunTime);
     const auto platform = _backends->getCompilationPlatform(localConfig.get<PLATFORM>(), localConfig.get<DEVICE_ID>());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
     auto device = _backends->getDevice(localConfig.get<DEVICE_ID>());
 
-    intel_npu::Logger logger("NPUPlugin", localConfig.get<LOG_LEVEL>());
+    Logger logger("NPUPlugin", localConfig.get<LOG_LEVEL>());
 
     const auto loadedFromCache = localConfig.get<LOADED_FROM_CACHE>();
     if (!loadedFromCache) {
@@ -617,7 +617,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& /*stream*
 
 ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
                                         const ov::AnyMap& properties) const {
-    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "Plugin::query_model");
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::query_model");
 
     auto localConfig = merge_configs(_globalConfig, any_copy(properties), OptionMode::CompileTime);
     const auto platform = _backends->getCompilationPlatform(localConfig.get<PLATFORM>(), localConfig.get<DEVICE_ID>());
@@ -636,14 +636,14 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return supportedOpsMap;
 }
 
-ov::SoPtr<ICompiler> Plugin::getCompiler(const vpux::Config& config) const {
+ov::SoPtr<ICompiler> Plugin::getCompiler(const Config& config) const {
     auto compilerType = config.get<COMPILER_TYPE>();
-    return vpux::createCompiler(compilerType, _logger);
+    return createCompiler(compilerType, _logger);
 }
 
 std::atomic<int> Plugin::_compiledModelLoadCounter{1};
 
-static const ov::Version version = {CI_BUILD_NUMBER, VPUX_PLUGIN_LIB_NAME};
+static const ov::Version version = {CI_BUILD_NUMBER, NPU_PLUGIN_LIB_NAME};
 OV_DEFINE_PLUGIN_CREATE_FUNCTION(Plugin, version)
 
-}  // namespace vpux
+}  // namespace intel_npu

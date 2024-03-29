@@ -6,14 +6,14 @@
 
 #include <optional>
 
-#include "npu/utils/logger/logger.hpp"
+#include "intel_npu/al/icompiled_model.hpp"
+#include "intel_npu/utils/logger/logger.hpp"
+#include "npu.hpp"
 #include "openvino/runtime/so_ptr.hpp"
-#include "vpux.hpp"
-#include "vpux/al/icompiled_model.hpp"
 
-namespace vpux {
+namespace intel_npu {
 
-class CompiledModel final : public vpux::ICompiledModel {
+class CompiledModel final : public ICompiledModel {
 public:
     explicit CompiledModel(const std::shared_ptr<const ov::Model>& model,
                            const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -52,7 +52,7 @@ private:
     std::shared_ptr<const NetworkDescription> _networkPtr;
     const std::shared_ptr<const ov::Model> _model;
     const Config _config;
-    intel_npu::Logger _logger;
+    Logger _logger;
     const std::shared_ptr<IDevice> _device;
     mutable std::shared_ptr<IExecutor> _executorPtr;
     std::shared_ptr<ov::threading::ITaskExecutor> _resultExecutor;
@@ -64,4 +64,4 @@ private:
     std::optional<ov::SoPtr<ICompiler>> _compiler;
 };
 
-}  //  namespace vpux
+}  //  namespace intel_npu

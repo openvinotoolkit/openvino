@@ -8,11 +8,9 @@
 #include <type_traits>
 
 #include "iexternal_compiler.hpp"
-#include "npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/logger/logger.hpp"
 
-using intel_npu::Config;
-
-namespace vpux {
+namespace intel_npu {
 namespace driverCompilerAdapter {
 
 #define NotSupportLogHandle(T)                                                                                 \
@@ -188,14 +186,14 @@ private:
     ze_context_handle_t _context = nullptr;
 
     TableExtension* _graphDdiTableExt = nullptr;
-    mutable intel_npu::Logger _logger;
+    mutable Logger _logger;
 };
 
 template <typename TableExtension>
 LevelZeroCompilerInDriver<TableExtension>::LevelZeroCompilerInDriver(const char* extName,
                                                                      ze_driver_handle_t driverHandle)
     : _driverHandle(driverHandle),
-      _logger("LevelZeroCompilerInDriver", intel_npu::Logger::global().level()) {
+      _logger("LevelZeroCompilerInDriver", Logger::global().level()) {
     // Load our graph extension
     auto result =
         zeDriverGetExtensionFunctionAddress(_driverHandle, extName, reinterpret_cast<void**>(&_graphDdiTableExt));
@@ -219,4 +217,4 @@ LevelZeroCompilerInDriver<TableExtension>::LevelZeroCompilerInDriver(const char*
 }
 
 }  // namespace driverCompilerAdapter
-}  // namespace vpux
+}  // namespace intel_npu

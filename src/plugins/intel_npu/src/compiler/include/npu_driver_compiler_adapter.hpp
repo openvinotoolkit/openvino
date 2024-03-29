@@ -7,13 +7,10 @@
 #include <ze_graph_ext.h>
 
 #include "iexternal_compiler.hpp"
-#include "npu/utils/logger/logger.hpp"
-#include "vpux/al/icompiler.hpp"
+#include "intel_npu/al/icompiler.hpp"
+#include "intel_npu/utils/logger/logger.hpp"
 
-using intel_npu::Config;
-using intel_npu::Logger;
-
-namespace vpux {
+namespace intel_npu {
 namespace driverCompilerAdapter {
 
 /**
@@ -46,4 +43,4 @@ private:
 };
 
 }  // namespace driverCompilerAdapter
-}  // namespace vpux
+}  // namespace intel_npu

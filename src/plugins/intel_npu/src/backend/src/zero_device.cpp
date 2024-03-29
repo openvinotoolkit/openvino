@@ -6,11 +6,11 @@
 
 #include <ze_api.h>
 
-#include "vpux/al/itt.hpp"
+#include "intel_npu/al/itt.hpp"
 #include "zero_executor.hpp"
 #include "zero_infer_request.hpp"
 
-using namespace vpux;
+using namespace intel_npu;
 
 ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs)
     : _initStructs(initStructs),
@@ -55,17 +55,17 @@ std::shared_ptr<IExecutor> ZeroDevice::createExecutor(
 
 std::string ZeroDevice::getName() const {
 //    KMD is setting usDeviceID from VpuFamilyID.h
-#define VPU_3700_DEVICE_ID   0x6240
-#define VPU_3720_P_DEVICE_ID 0x7D1D
-#define VPU_3720_S_DEVICE_ID 0xAD1D
+#define NPU_3700_DEVICE_ID   0x6240
+#define NPU_3720_P_DEVICE_ID 0x7D1D
+#define NPU_3720_S_DEVICE_ID 0xAD1D
 
     std::string name;
     switch (device_properties.deviceId) {
-    case VPU_3700_DEVICE_ID:
+    case NPU_3700_DEVICE_ID:
         name = "3700";
         break;
-    case VPU_3720_P_DEVICE_ID:
-    case VPU_3720_S_DEVICE_ID:
+    case NPU_3720_P_DEVICE_ID:
+    case NPU_3720_S_DEVICE_ID:
         name = ov::intel_npu::Platform::NPU3720;
         break;
     default:
@@ -82,7 +82,7 @@ std::string ZeroDevice::getFullDeviceName() const {
 IDevice::Uuid ZeroDevice::getUuid() const {
     Uuid uuid{};
     static_assert(sizeof(device_properties.uuid.id) == uuid.uuid.size(),
-                  "ze_device_uuid_t::id size doesn't match vpux::Uuid::uuid size");
+                  "ze_device_uuid_t::id size doesn't match intel_npu::Uuid::uuid size");
 
     std::copy(std::begin(device_properties.uuid.id), std::end(device_properties.uuid.id), std::begin(uuid.uuid));
 
@@ -118,7 +118,7 @@ uint64_t ZeroDevice::getTotalMemSize() const {
 }
 
 std::shared_ptr<SyncInferRequest> ZeroDevice::createInferRequest(
-    const std::shared_ptr<const vpux::ICompiledModel>& compiledModel,
+    const std::shared_ptr<const ICompiledModel>& compiledModel,
     const std::shared_ptr<IExecutor>& executor,
     const Config& config) {
     return std::make_shared<ZeroInferRequest>(_initStructs, compiledModel, executor, config);

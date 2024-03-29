@@ -7,7 +7,7 @@
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
 
-namespace vpux {
+namespace intel_npu {
 
 class VariableState final : public ov::IVariableState {
 public:
@@ -31,4 +31,4 @@ public:
     ~VariableState() override = default;
 };
 
-}  // namespace vpux
+}  // namespace intel_npu

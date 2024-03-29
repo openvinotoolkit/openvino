@@ -9,20 +9,20 @@
 
 #include <mutex>
 
-#include "npu/utils/logger/logger.hpp"
-#include "vpux.hpp"
+#include "intel_npu/utils/logger/logger.hpp"
+#include "npu.hpp"
 #include "zero_executor.hpp"
 #include "zero_pipeline.hpp"
 #include "zero_profiling.hpp"
 #include "zero_utils.hpp"
 #include "zero_wrappers.hpp"
 
-namespace vpux {
+namespace intel_npu {
 
 class ZeroInferRequest final : public SyncInferRequest {
 public:
     explicit ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& backendPtr,
-                              const std::shared_ptr<const vpux::ICompiledModel>& compiledModel,
+                              const std::shared_ptr<const ICompiledModel>& compiledModel,
                               const std::shared_ptr<const IExecutor>& executor,
                               const Config& config);
 
@@ -42,10 +42,10 @@ private:
     const Config _config;
     Logger _logger;
 
-    vpux::zeroProfiling::ProfilingPool _profiling_pool;
-    vpux::zeroProfiling::ProfilingQuery _profiling_query;
-    std::shared_ptr<vpux::zeroProfiling::VpuInferProfiling> _vpu_profiling;
+    zeroProfiling::ProfilingPool _profiling_pool;
+    zeroProfiling::ProfilingQuery _profiling_query;
+    std::shared_ptr<zeroProfiling::NpuInferProfiling> _npu_profiling;
     std::unique_ptr<Pipeline> _pipeline;
 };
 
-}  //  namespace vpux
+}  //  namespace intel_npu

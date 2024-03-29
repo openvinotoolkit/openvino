@@ -5,18 +5,18 @@
 #pragma once
 #include <vector>
 
+#include "npu_driver_compiler_adapter.hpp"
 #include "openvino/pass/manager.hpp"
-#include "vpux_driver_compiler_adapter.hpp"
 
 /**
  * @brief Contain all required transformation on OpenVINO model in case for external compiler usage and
  *  providing forward compatibility (OV model with opset N+M, external compiler with opset N)
  */
-namespace vpux::driverCompilerAdapter {
+namespace intel_npu::driverCompilerAdapter {
 
 /**
  * @brief Serialize OpenVINO model to IR
  */
 IR serializeToIR(const std::shared_ptr<const ov::Model>& model, uint32_t supportedVersionByCompiler = 7);
 
-}  // namespace vpux::driverCompilerAdapter
+}  // namespace intel_npu::driverCompilerAdapter

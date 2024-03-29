@@ -4,7 +4,7 @@
 
 #include "async_infer_request.hpp"
 
-namespace vpux {
+namespace intel_npu {
 
 // clang-format off
 AsyncInferRequest::AsyncInferRequest(const std::shared_ptr<SyncInferRequest>& syncInferRequest,
@@ -24,4 +24,4 @@ AsyncInferRequest::~AsyncInferRequest() {
     stop_and_wait();
 }
 
-}  // namespace vpux
+}  // namespace intel_npu

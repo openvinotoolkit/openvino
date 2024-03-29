@@ -4,10 +4,10 @@
 
 #include "zero_init.hpp"
 
-#include "vpux/al/itt.hpp"
+#include "intel_npu/al/itt.hpp"
 #include "zero_utils.hpp"
 
-namespace vpux {
+namespace intel_npu {
 
 const ze_driver_uuid_t ZeroInitStructsHolder::uuid = ze_intel_vpu_driver_uuid;
 
@@ -45,7 +45,7 @@ static std::tuple<uint32_t, std::string> queryDriverExtensionVersion(ze_driver_h
     }
 
     if (graphExtName == nullptr) {
-        OPENVINO_THROW("queryDriverExtensionVersion: Failed to find Graph extension in VPU Driver");
+        OPENVINO_THROW("queryDriverExtensionVersion: Failed to find Graph extension in NPU Driver");
     }
 
     const uint16_t supportedDriverExtMajorVersion = 1;
@@ -82,7 +82,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
         }
     }
     if (driver_handle == nullptr) {
-        OPENVINO_THROW("zeDriverGet failed to return VPU driver");
+        OPENVINO_THROW("zeDriverGet failed to return NPU driver");
     }
 
     // Check L0 API version
@@ -90,7 +90,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
     zeroUtils::throwOnFail("zeDriverGetApiVersion", zeDriverGetApiVersion(driver_handle, &ze_drv_api_version));
 
     if (ZE_MAJOR_VERSION(ZE_API_VERSION_CURRENT) != ZE_MAJOR_VERSION(ze_drv_api_version)) {
-        OPENVINO_THROW("Incompatibility between VPU plugin and driver! ",
+        OPENVINO_THROW("Incompatibility between NPU plugin and driver! ",
                        "Plugin L0 API major version = ",
                        ZE_MAJOR_VERSION(ZE_API_VERSION_CURRENT),
                        ", ",
@@ -149,4 +149,4 @@ ZeroInitStructsHolder::~ZeroInitStructsHolder() {
     }
 }
 
-}  // namespace vpux
+}  // namespace intel_npu

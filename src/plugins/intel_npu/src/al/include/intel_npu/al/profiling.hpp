@@ -8,7 +8,7 @@
 
 #include "openvino/runtime/profiling_info.hpp"
 
-namespace vpux::profiling {
+namespace intel_npu::profiling {
 
 using LayerStatistics = std::vector<ov::ProfilingInfo>;
 
@@ -37,4 +37,4 @@ LayerStatistics convertLayersToIeProfilingInfo(const std::vector<LayerInfo>& lay
     return perfCounts;
 }
 
-}  // namespace vpux::profiling
+}  // namespace intel_npu::profiling

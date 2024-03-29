@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "vpux/al/config/runtime.hpp"
+#include "intel_npu/al/config/runtime.hpp"
 
-#include "vpux/al/config/common.hpp"
+#include "intel_npu/al/config/common.hpp"
 
-using namespace vpux;
+using namespace intel_npu;
 using namespace ov::intel_npu;
 
 //
 // register
 //
 
-void vpux::registerRunTimeOptions(OptionsDesc& desc) {
+void intel_npu::registerRunTimeOptions(OptionsDesc& desc) {
     desc.add<EXCLUSIVE_ASYNC_REQUESTS>();
     desc.add<PROFILING_TYPE>();
     desc.add<MODEL_PRIORITY>();
@@ -25,7 +25,7 @@ void vpux::registerRunTimeOptions(OptionsDesc& desc) {
 // Heuristically obtained number. Varies depending on the values of PLATFORM and PERFORMANCE_HINT
 // Note: this is the value provided by the plugin, application should query and consider it, but may supply its own
 // preference for number of parallel requests via dedicated configuration
-int64_t vpux::getOptimalNumberOfInferRequestsInParallel(const Config& config) {
+int64_t intel_npu::getOptimalNumberOfInferRequestsInParallel(const Config& config) {
     const std::string platform = ov::intel_npu::Platform::standardize(config.get<PLATFORM>());
 
     if (platform == ov::intel_npu::Platform::NPU3720) {
@@ -58,7 +58,7 @@ std::string_view ov::intel_npu::stringifyEnum(ov::intel_npu::ProfilingType val) 
     }
 }
 
-ov::intel_npu::ProfilingType vpux::PROFILING_TYPE::parse(std::string_view val) {
+ov::intel_npu::ProfilingType intel_npu::PROFILING_TYPE::parse(std::string_view val) {
     const auto extractProfilingString = [](ov::intel_npu::ProfilingType prof) -> std::string {
         return profiling_type(prof).second.as<std::string>();
     };
@@ -72,7 +72,7 @@ ov::intel_npu::ProfilingType vpux::PROFILING_TYPE::parse(std::string_view val) {
     OPENVINO_THROW("Value '", val, "' is not a valid PROFILING_TYPE option");
 }
 
-std::string vpux::PROFILING_TYPE::toString(const ov::intel_npu::ProfilingType& val) {
+std::string intel_npu::PROFILING_TYPE::toString(const ov::intel_npu::ProfilingType& val) {
     std::stringstream strStream;
     if (val == ov::intel_npu::ProfilingType::MODEL) {
         strStream << "MODEL";
@@ -89,7 +89,7 @@ std::string vpux::PROFILING_TYPE::toString(const ov::intel_npu::ProfilingType& v
 // MODEL_PRIORITY
 //
 
-ov::hint::Priority vpux::MODEL_PRIORITY::parse(std::string_view val) {
+ov::hint::Priority intel_npu::MODEL_PRIORITY::parse(std::string_view val) {
     std::istringstream stringStream = std::istringstream(std::string(val));
     ov::hint::Priority priority;
 
@@ -98,7 +98,7 @@ ov::hint::Priority vpux::MODEL_PRIORITY::parse(std::string_view val) {
     return priority;
 }
 
-std::string vpux::MODEL_PRIORITY::toString(const ov::hint::Priority& val) {
+std::string intel_npu::MODEL_PRIORITY::toString(const ov::hint::Priority& val) {
     std::ostringstream stringStream;
 
     stringStream << val;
@@ -110,9 +110,9 @@ std::string vpux::MODEL_PRIORITY::toString(const ov::hint::Priority& val) {
 // NUM_STREAMS
 //
 
-const ov::streams::Num vpux::NUM_STREAMS::defVal = ov::streams::Num(1);
+const ov::streams::Num intel_npu::NUM_STREAMS::defVal = ov::streams::Num(1);
 
-ov::streams::Num vpux::NUM_STREAMS::parse(std::string_view val) {
+ov::streams::Num intel_npu::NUM_STREAMS::parse(std::string_view val) {
     std::istringstream stringStream = std::istringstream(std::string(val));
     ov::streams::Num numberOfStreams;
 
@@ -121,7 +121,7 @@ ov::streams::Num vpux::NUM_STREAMS::parse(std::string_view val) {
     return numberOfStreams;
 }
 
-std::string vpux::NUM_STREAMS::toString(const ov::streams::Num& val) {
+std::string intel_npu::NUM_STREAMS::toString(const ov::streams::Num& val) {
     std::ostringstream stringStream;
 
     stringStream << val;

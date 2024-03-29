@@ -7,13 +7,11 @@
 #include <ze_api.h>
 #include <ze_graph_ext.h>
 
-#include "npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/logger/logger.hpp"
 #include "zero_types.hpp"
 #include "zero_utils.hpp"
 
-using intel_npu::Logger;
-
-namespace vpux {
+namespace intel_npu {
 class CommandList;
 class CommandQueue;
 
@@ -88,7 +86,7 @@ public:
     void appendGraphInitialize(const ze_graph_handle_t& graph_handle) const;
     void appendGraphExecute(const ze_graph_handle_t& graph_handle,
                             const ze_graph_profiling_query_handle_t& profiling_query_handle) const;
-    void appendVpuTimestamp(uint64_t* timestamp_buff) const;
+    void appendNpuTimestamp(uint64_t* timestamp_buff) const;
     void appendBarrier() const;
     void close() const;
     ~CommandList();
@@ -154,4 +152,4 @@ private:
     Logger _log;
 };
 
-}  // namespace vpux
+}  // namespace intel_npu

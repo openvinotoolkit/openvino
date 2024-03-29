@@ -8,18 +8,18 @@
 #include <string_view>
 
 #include "async_infer_request.hpp"
+#include "intel_npu/al/config/common.hpp"
+#include "intel_npu/al/config/compiler.hpp"
+#include "intel_npu/al/config/config.hpp"
+#include "intel_npu/al/config/runtime.hpp"
+#include "intel_npu/al/icompiler.hpp"
+#include "intel_npu/al/itt.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
-#include "vpux/al/config/common.hpp"
-#include "vpux/al/config/compiler.hpp"
-#include "vpux/al/config/config.hpp"
-#include "vpux/al/config/runtime.hpp"
-#include "vpux/al/icompiler.hpp"
-#include "vpux/al/itt.hpp"
 
 namespace {
 
@@ -36,7 +36,7 @@ std::uint32_t hash(const std::vector<uint8_t>& data) {
 
 }  // namespace
 
-namespace vpux {
+namespace intel_npu {
 
 using intel_npu::envVarStrToBool;
 
@@ -46,23 +46,20 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<IDevice>& device,
                              const std::optional<ov::SoPtr<ICompiler>>& compiler,
                              const Config& config)
-    : vpux::ICompiledModel(model, plugin),
+    : ICompiledModel(model, plugin),
       _networkPtr(networkDescription),
       _model(model),
       _config(config),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
       _device(device),
       _compiler(compiler) {
-    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "CompiledModel::CompiledModel");
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
 
     if (_networkPtr == nullptr) {
         OPENVINO_THROW("Network is null!");
     }
 
-    OV_ITT_TASK_CHAIN(COMPILED_MODEL,
-                      itt::domains::VPUXPlugin,
-                      "CompiledModel::CompiledModel",
-                      "initialize_properties");
+    OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
     initialize_properties();
     configure_stream_executors();
 
@@ -88,7 +85,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
 }
 
 std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() const {
-    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "CompiledModel::create_infer_request");
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::create_infer_request");
 
     if (_executorPtr == nullptr && _device != nullptr) {
         _executorPtr = _device->createExecutor(_networkPtr, _config);
@@ -330,4 +327,4 @@ void CompiledModel::initialize_properties() {
     }
 }
 
-}  // namespace vpux
+}  // namespace intel_npu

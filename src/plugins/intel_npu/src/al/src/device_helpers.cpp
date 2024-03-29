@@ -6,7 +6,7 @@
 
 #include "openvino/core/except.hpp"
 
-bool utils::isVPUDevice(const uint32_t deviceId) {
+bool utils::isNPUDevice(const uint32_t deviceId) {
     // bits 26-24 define interface type
     // 000 - IPC
     // 001 - PCIe

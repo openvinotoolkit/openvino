@@ -10,10 +10,8 @@
 #include <map>
 #include <string>
 
-#include "npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/logger/logger.hpp"
 #include "zero_init.hpp"
-
-using intel_npu::Logger;
 
 namespace {
 
@@ -21,7 +19,7 @@ constexpr std::size_t STANDARD_PAGE_SIZE = 4096;
 
 }  // namespace
 
-namespace vpux {
+namespace intel_npu {
 namespace zeroMemory {
 struct DeviceMem {
     DeviceMem() = delete;
@@ -120,4 +118,4 @@ private:
 };
 
 }  // namespace zeroMemory
-}  // namespace vpux
+}  // namespace intel_npu

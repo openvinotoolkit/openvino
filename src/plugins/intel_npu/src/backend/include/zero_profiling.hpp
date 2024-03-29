@@ -10,13 +10,11 @@
 #include <climits>
 #include <map>
 
-#include "npu/utils/logger/logger.hpp"
+#include "intel_npu/al/config/compiler.hpp"
+#include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/runtime/profiling_info.hpp"
-#include "vpux/al/config/compiler.hpp"
 
-using intel_npu::Logger;
-
-namespace vpux {
+namespace intel_npu {
 namespace zeroProfiling {
 
 using LayerStatistics = std::vector<ov::ProfilingInfo>;
@@ -73,23 +71,23 @@ private:
 
 extern template std::vector<uint8_t> ProfilingQuery::getData<uint8_t>() const;
 
-using VpuInferStatistics = std::vector<ov::ProfilingInfo>;
+using NpuInferStatistics = std::vector<ov::ProfilingInfo>;
 
-struct VpuInferProfiling final {
-    explicit VpuInferProfiling(ze_context_handle_t context, ze_device_handle_t device_handle, ov::log::Level loglevel);
-    VpuInferProfiling(const VpuInferProfiling&) = delete;
-    VpuInferProfiling& operator=(const VpuInferProfiling&) = delete;
-    VpuInferProfiling(VpuInferProfiling&&) = delete;
-    VpuInferProfiling& operator=(VpuInferProfiling&&) = delete;
+struct NpuInferProfiling final {
+    explicit NpuInferProfiling(ze_context_handle_t context, ze_device_handle_t device_handle, ov::log::Level loglevel);
+    NpuInferProfiling(const NpuInferProfiling&) = delete;
+    NpuInferProfiling& operator=(const NpuInferProfiling&) = delete;
+    NpuInferProfiling(NpuInferProfiling&&) = delete;
+    NpuInferProfiling& operator=(NpuInferProfiling&&) = delete;
 
-    void sampleVpuTimestamps();
-    VpuInferStatistics getVpuInferStatistics() const;
+    void sampleNpuTimestamps();
+    NpuInferStatistics getNpuInferStatistics() const;
 
-    ~VpuInferProfiling();
+    ~NpuInferProfiling();
 
     /// Buffers allocated by ZE driver
-    void* vpu_ts_infer_start = 0;
-    void* vpu_ts_infer_end = 0;
+    void* npu_ts_infer_start = 0;
+    void* npu_ts_infer_end = 0;
 
 private:
     ze_context_handle_t _context = nullptr;
@@ -97,18 +95,18 @@ private:
     ov::log::Level _loglevel;
     Logger _logger;
     ze_device_properties_t _dev_properties;
-    int64_t _vpu_infer_stats_min_cc = LLONG_MAX;
-    int64_t _vpu_infer_stats_max_cc = 0;
-    int64_t _vpu_infer_stats_accu_cc = 0;
-    uint32_t _vpu_infer_stats_cnt = 0;
-    uint32_t _vpu_infer_logidx = 0;
-    static const uint32_t _vpu_infer_log_maxsize = 1024;
-    /// rolling buffer to store duration of last <_vpu_infer_log_maxsize number> infers
-    int64_t _vpu_infer_duration_log[_vpu_infer_log_maxsize];
+    int64_t _npu_infer_stats_min_cc = LLONG_MAX;
+    int64_t _npu_infer_stats_max_cc = 0;
+    int64_t _npu_infer_stats_accu_cc = 0;
+    uint32_t _npu_infer_stats_cnt = 0;
+    uint32_t _npu_infer_logidx = 0;
+    static const uint32_t _npu_infer_log_maxsize = 1024;
+    /// rolling buffer to store duration of last <_npu_infer_log_maxsize number> infers
+    int64_t _npu_infer_duration_log[_npu_infer_log_maxsize];
 
-    /// Helper function to convert vpu clockcycles to usec
+    /// Helper function to convert npu clockcycles to usec
     int64_t convertCCtoUS(int64_t val_cc) const;
 };
 
 }  // namespace zeroProfiling
-}  // namespace vpux
+}  // namespace intel_npu

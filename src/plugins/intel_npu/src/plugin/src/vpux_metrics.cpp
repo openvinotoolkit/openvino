@@ -3,15 +3,14 @@
 //
 
 // Plugin
-#include "vpux_metrics.hpp"
-
 #include "device_helpers.hpp"
+#include "npu_metrics.hpp"
 #include "npu_private_properties.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 
-namespace vpux {
+namespace intel_npu {
 
-Metrics::Metrics(const std::shared_ptr<const VPUXBackends>& backends) : _backends(backends) {
+Metrics::Metrics(const std::shared_ptr<const NPUBackends>& backends) : _backends(backends) {
     _supportedMetrics = {ov::supported_properties.name(),
                          ov::available_devices.name(),
                          ov::device::full_name.name(),
@@ -148,4 +147,4 @@ std::string Metrics::getDeviceName(const std::string& specifiedDeviceName) const
     return specifiedDeviceName;
 }
 
-}  // namespace vpux
+}  // namespace intel_npu

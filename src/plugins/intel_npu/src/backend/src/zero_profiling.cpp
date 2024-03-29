@@ -7,12 +7,12 @@
 #include <ze_api.h>
 #include <ze_graph_profiling_ext.h>
 
-#include "vpux/al/config/compiler.hpp"
-#include "vpux/al/profiling.hpp"
+#include "intel_npu/al/config/compiler.hpp"
+#include "intel_npu/al/profiling.hpp"
 #include "zero_profiling.hpp"
 #include "zero_utils.hpp"
 
-namespace vpux {
+namespace intel_npu {
 namespace zeroProfiling {
 
 /// @brief Type trait mapping from ZE data type to enum value
@@ -53,7 +53,7 @@ void ProfilingQuery::create(const ze_graph_profiling_pool_handle_t& profiling_po
 LayerStatistics ProfilingQuery::getLayerStatistics() const {
     verifyProfilingProperties();
     auto layerData = getData<ze_profiling_layer_info>();
-    return vpux::profiling::convertLayersToIeProfilingInfo(layerData);
+    return profiling::convertLayersToIeProfilingInfo(layerData);
 }
 
 ProfilingQuery::~ProfilingQuery() {
@@ -111,7 +111,7 @@ void ProfilingQuery::verifyProfilingProperties() const {
     const auto currentProfilingVersion = ze_profiling_data_ext_version_t::ZE_PROFILING_DATA_EXT_VERSION_CURRENT;
 
     if (ZE_MAJOR_VERSION(profProp.extensionVersion) != ZE_MAJOR_VERSION(currentProfilingVersion)) {
-        OPENVINO_THROW("Unsupported VPU driver.",
+        OPENVINO_THROW("Unsupported NPU driver.",
                        "Profiling API version: plugin: ",
                        stringifyVersion(currentProfilingVersion),
                        ", driver: ",
@@ -119,66 +119,66 @@ void ProfilingQuery::verifyProfilingProperties() const {
     }
     if (currentProfilingVersion > profProp.extensionVersion) {
         auto log = Logger::global().clone("ZeroProfilingQuery");
-        log.warning("Outdated VPU driver detected. Some features might not be available! "
+        log.warning("Outdated NPU driver detected. Some features might not be available! "
                     "Profiling API version: plugin: %s, driver: %s",
                     stringifyVersion(currentProfilingVersion).c_str(),
                     stringifyVersion(profProp.extensionVersion).c_str());
     }
 }
 
-VpuInferStatistics VpuInferProfiling::getVpuInferStatistics() const {
-    VpuInferStatistics vpuPerfCounts;
+NpuInferStatistics NpuInferProfiling::getNpuInferStatistics() const {
+    NpuInferStatistics npuPerfCounts;
 
     /// if the log isn't full/rolled over yet = skip reporting empty logs
-    uint32_t stat_cnt = (_vpu_infer_stats_cnt < _vpu_infer_log_maxsize) ? _vpu_infer_stats_cnt : _vpu_infer_log_maxsize;
+    uint32_t stat_cnt = (_npu_infer_stats_cnt < _npu_infer_log_maxsize) ? _npu_infer_stats_cnt : _npu_infer_log_maxsize;
     if (stat_cnt != 0 && _loglevel >= ov::log::Level::WARNING) {
-        /// Populate vpuinferstatistics vector
+        /// Populate npuinferstatistics vector
         for (unsigned i = 0; i < stat_cnt; i++) {
             ov::ProfilingInfo info;
 
             info.status = ov::ProfilingInfo::Status::EXECUTED;
-            info.real_time = std::chrono::microseconds(convertCCtoUS(_vpu_infer_duration_log[i]));
-            info.cpu_time = std::chrono::microseconds(convertCCtoUS(_vpu_infer_duration_log[i]));
+            info.real_time = std::chrono::microseconds(convertCCtoUS(_npu_infer_duration_log[i]));
+            info.cpu_time = std::chrono::microseconds(convertCCtoUS(_npu_infer_duration_log[i]));
             info.node_name = std::to_string(i);
             info.exec_type = "INFER_REQ";
             info.node_type = "INFER_REQ";
 
-            vpuPerfCounts.push_back(info);
+            npuPerfCounts.push_back(info);
         }
     }
 
     /// sanity check to avoid division by 0
-    if (_vpu_infer_stats_cnt == 0) {
+    if (_npu_infer_stats_cnt == 0) {
         return {};
     }
 
     /// Add final statistics
     ov::ProfilingInfo info_avg = {
         ov::ProfilingInfo::Status::EXECUTED,
-        std::chrono::microseconds(convertCCtoUS(_vpu_infer_stats_accu_cc / _vpu_infer_stats_cnt)),
-        std::chrono::microseconds(convertCCtoUS(_vpu_infer_stats_accu_cc / _vpu_infer_stats_cnt)),
+        std::chrono::microseconds(convertCCtoUS(_npu_infer_stats_accu_cc / _npu_infer_stats_cnt)),
+        std::chrono::microseconds(convertCCtoUS(_npu_infer_stats_accu_cc / _npu_infer_stats_cnt)),
         "AVG",
         "AVG",
         "AVG"};
-    vpuPerfCounts.push_back(info_avg);
+    npuPerfCounts.push_back(info_avg);
     ov::ProfilingInfo info_min = {ov::ProfilingInfo::Status::EXECUTED,
-                                  std::chrono::microseconds(convertCCtoUS(_vpu_infer_stats_min_cc)),
-                                  std::chrono::microseconds(convertCCtoUS(_vpu_infer_stats_min_cc)),
+                                  std::chrono::microseconds(convertCCtoUS(_npu_infer_stats_min_cc)),
+                                  std::chrono::microseconds(convertCCtoUS(_npu_infer_stats_min_cc)),
                                   "MIN",
                                   "MIN",
                                   "MIN"};
-    vpuPerfCounts.push_back(info_min);
+    npuPerfCounts.push_back(info_min);
     ov::ProfilingInfo info_max = {ov::ProfilingInfo::Status::EXECUTED,
-                                  std::chrono::microseconds(convertCCtoUS(_vpu_infer_stats_max_cc)),
-                                  std::chrono::microseconds(convertCCtoUS(_vpu_infer_stats_max_cc)),
+                                  std::chrono::microseconds(convertCCtoUS(_npu_infer_stats_max_cc)),
+                                  std::chrono::microseconds(convertCCtoUS(_npu_infer_stats_max_cc)),
                                   "MAX",
                                   "MAX",
                                   "MAX"};
-    vpuPerfCounts.push_back(info_max);
-    return vpuPerfCounts;
+    npuPerfCounts.push_back(info_max);
+    return npuPerfCounts;
 }
 
-VpuInferProfiling::VpuInferProfiling(ze_context_handle_t context,
+NpuInferProfiling::NpuInferProfiling(ze_context_handle_t context,
                                      ze_device_handle_t device_handle,
                                      ov::log::Level loglevel)
     : _context(context),
@@ -197,53 +197,53 @@ VpuInferProfiling::VpuInferProfiling(ze_context_handle_t context,
                                           &desc,
                                           sizeof(uint64_t),
                                           64,
-                                          &vpu_ts_infer_start));  // align to 64 bytes to match npu l2 cache line size
+                                          &npu_ts_infer_start));  // align to 64 bytes to match npu l2 cache line size
     zeroUtils::throwOnFail("zeMemAllocHost",
                            zeMemAllocHost(_context,
                                           &desc,
                                           sizeof(uint64_t),
                                           64,
-                                          &vpu_ts_infer_end));  // alight to 64 bytes to match npu l2 cache line size
+                                          &npu_ts_infer_end));  // alight to 64 bytes to match npu l2 cache line size
 }
 
-void VpuInferProfiling::sampleVpuTimestamps() {
-    int64_t infer_duration_cc = static_cast<int64_t>(*(reinterpret_cast<uint64_t*>(vpu_ts_infer_end)) -
-                                                     *(reinterpret_cast<uint64_t*>(vpu_ts_infer_start)));
+void NpuInferProfiling::sampleNpuTimestamps() {
+    int64_t infer_duration_cc = static_cast<int64_t>(*(reinterpret_cast<uint64_t*>(npu_ts_infer_end)) -
+                                                     *(reinterpret_cast<uint64_t*>(npu_ts_infer_start)));
 
     /// Update extremas
-    if (infer_duration_cc < _vpu_infer_stats_min_cc)
-        _vpu_infer_stats_min_cc = infer_duration_cc;
-    if (infer_duration_cc > _vpu_infer_stats_max_cc)
-        _vpu_infer_stats_max_cc = infer_duration_cc;
-    _vpu_infer_stats_accu_cc += infer_duration_cc;
-    _vpu_infer_stats_cnt++;
+    if (infer_duration_cc < _npu_infer_stats_min_cc)
+        _npu_infer_stats_min_cc = infer_duration_cc;
+    if (infer_duration_cc > _npu_infer_stats_max_cc)
+        _npu_infer_stats_max_cc = infer_duration_cc;
+    _npu_infer_stats_accu_cc += infer_duration_cc;
+    _npu_infer_stats_cnt++;
     /// only log individual infer durations if requested
     if (_loglevel >= ov::log::Level::WARNING) {
-        _vpu_infer_duration_log[_vpu_infer_logidx++] = infer_duration_cc;
-        if (_vpu_infer_logidx >= _vpu_infer_log_maxsize)
-            _vpu_infer_logidx = 0;
+        _npu_infer_duration_log[_npu_infer_logidx++] = infer_duration_cc;
+        if (_npu_infer_logidx >= _npu_infer_log_maxsize)
+            _npu_infer_logidx = 0;
     }
 }
 
-int64_t VpuInferProfiling::convertCCtoUS(int64_t val_cc) const {
+int64_t NpuInferProfiling::convertCCtoUS(int64_t val_cc) const {
     return (int64_t)(val_cc * 1000 * 1000 / _dev_properties.timerResolution);
 }
 
-VpuInferProfiling::~VpuInferProfiling() {
-    /// deallocate vpu_ts_infer_start and vpu_ts_infer_end, allocated externally by ze driver
-    if (vpu_ts_infer_start != nullptr) {
-        auto ze_ret = zeMemFree(_context, vpu_ts_infer_start);
+NpuInferProfiling::~NpuInferProfiling() {
+    /// deallocate npu_ts_infer_start and npu_ts_infer_end, allocated externally by ze driver
+    if (npu_ts_infer_start != nullptr) {
+        auto ze_ret = zeMemFree(_context, npu_ts_infer_start);
         if (ZE_RESULT_SUCCESS != ze_ret) {
-            _logger.error("zeMemFree on vpu_ts_infer_start failed %#X", uint64_t(ze_ret));
+            _logger.error("zeMemFree on npu_ts_infer_start failed %#X", uint64_t(ze_ret));
         }
     }
-    if (vpu_ts_infer_end != nullptr) {
-        auto ze_ret = zeMemFree(_context, vpu_ts_infer_end);
+    if (npu_ts_infer_end != nullptr) {
+        auto ze_ret = zeMemFree(_context, npu_ts_infer_end);
         if (ZE_RESULT_SUCCESS != ze_ret) {
-            _logger.error("zeMemFree on vpu_ts_infer_end failed %#X", uint64_t(ze_ret));
+            _logger.error("zeMemFree on npu_ts_infer_end failed %#X", uint64_t(ze_ret));
         }
     }
 }
 
 }  // namespace zeroProfiling
-}  // namespace vpux
+}  // namespace intel_npu

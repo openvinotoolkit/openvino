@@ -19,7 +19,7 @@
 #include <utility>
 #include <vector>
 
-#include "npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/properties.hpp"
 

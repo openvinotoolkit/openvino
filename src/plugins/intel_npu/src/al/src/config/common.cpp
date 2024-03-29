@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "vpux/al/config/common.hpp"
+#include "intel_npu/al/config/common.hpp"
 
-using namespace vpux;
+using namespace intel_npu;
 using namespace ov::intel_npu;
 
 //
 // register
 //
 
-void vpux::registerCommonOptions(OptionsDesc& desc) {
+void intel_npu::registerCommonOptions(OptionsDesc& desc) {
     desc.add<PERFORMANCE_HINT>();
     desc.add<PERFORMANCE_HINT_NUM_REQUESTS>();
     desc.add<INFERENCE_PRECISION_HINT>();
@@ -40,7 +40,7 @@ std::string_view ov::hint::stringifyEnum(PerformanceMode val) {
     }
 }
 
-ov::hint::PerformanceMode vpux::PERFORMANCE_HINT::parse(std::string_view val) {
+ov::hint::PerformanceMode intel_npu::PERFORMANCE_HINT::parse(std::string_view val) {
     if (val.empty()) {
         return ov::hint::PerformanceMode::LATENCY;
     } else if (val == "LATENCY") {

@@ -11,12 +11,12 @@
 #include <sstream>
 #include <string>
 
-#include "vpux/al/config/common.hpp"
-#include "vpux/al/itt.hpp"
+#include "intel_npu/al/config/common.hpp"
+#include "intel_npu/al/itt.hpp"
 #include "zero_device.hpp"
 #include "zero_utils.hpp"
 
-using namespace vpux;
+using namespace intel_npu;
 
 ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& initStructs,
                            const std::shared_ptr<const NetworkDescription>& networkDescription,

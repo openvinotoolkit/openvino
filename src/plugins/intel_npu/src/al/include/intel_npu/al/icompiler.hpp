@@ -13,15 +13,13 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "intel_npu/al/config/config.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/profiling_info.hpp"
-#include "vpux/al/config/config.hpp"
 
-namespace vpux {
-
-using intel_npu::Config;
+namespace intel_npu {
 
 /**
  * @brief A helper structure used for storing the metadata found within the I/O nodes.
@@ -90,7 +88,7 @@ struct NetworkDescription final {
 /**
  * @interface ICompiler
  * @brief An interface to be implemented by a concrete compiler to provide
- * methods for preparing a network for execution on a VPU device
+ * methods for preparing a network for execution on a NPU device
  */
 class ICompiler : public std::enable_shared_from_this<ICompiler> {
 public:
@@ -102,9 +100,9 @@ public:
 
     /**
      * @brief Transforms a network from the OpenVINO model representation to a format executable
-     * by a VPU device
+     * by a NPU device
      * @param model a shared pointer to the OpenVINO model to be compiled
-     * @param config a reference to VPUXConfig containing plugin config options
+     * @param config a reference to NPUConfig containing plugin config options
      *        including config options related to compilation
      * @return a shared pointer on an object implementing NetworkDescription interface
      */
@@ -113,7 +111,7 @@ public:
     /**
      * @brief Returns information about supported layers of the network passed
      * @param model The model to be queried
-     * @param config A reference to VPUXConfig containing plugin config options
+     * @param config A reference to NPUConfig containing plugin config options
      *        including config options related to compilation
      * @returns SupportedOpsMap structure with information about supported layers
      */
@@ -123,7 +121,7 @@ public:
      * @brief Parses already compiled network to extract meta information:
      *        inputs and outputs descriptions
      * @param network compiled network represented as a vector of char
-     * @param config a reference to VPUXConfig containing plugin config options
+     * @param config a reference to NPUConfig containing plugin config options
      *        Note: compilation options will be ignored,
      *        since the network is already compiled
      * @param netName a reference to the string describing network name
@@ -140,4 +138,4 @@ protected:
     virtual ~ICompiler() = default;
 };
 
-}  // namespace vpux
+}  // namespace intel_npu

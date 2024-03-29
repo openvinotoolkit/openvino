@@ -7,12 +7,12 @@
 #include <regex>
 #include <string_view>
 
-#include "npu/utils/zero/zero_result.hpp"
+#include "intel_npu/al/config/common.hpp"
+#include "intel_npu/al/config/runtime.hpp"
+#include "intel_npu/al/itt.hpp"
+#include "intel_npu/al/prefix.hpp"
+#include "intel_npu/utils/zero/zero_result.hpp"
 #include "openvino/core/model.hpp"
-#include "vpux/al/config/common.hpp"
-#include "vpux/al/config/runtime.hpp"
-#include "vpux/al/itt.hpp"
-#include "vpux/al/prefix.hpp"
 
 namespace {
 
@@ -272,12 +272,8 @@ std::vector<size_t> reshapeByLayout(const std::vector<size_t>& originalDimension
 
 }  // namespace
 
-namespace vpux {
+namespace intel_npu {
 namespace driverCompilerAdapter {
-
-using intel_npu::Config;
-using intel_npu::isStateInputName;
-using intel_npu::isStateOutputName;
 
 template <typename TableExtension>
 LevelZeroCompilerInDriver<TableExtension>::~LevelZeroCompilerInDriver() {
@@ -804,7 +800,7 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compileIR(const st
 template <typename TableExtension>
 NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::parseBlob(const std::vector<uint8_t>& blob,
                                                                      const Config& config) const {
-    OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::VPUXPlugin, "LevelZeroCompilerInDriver::parseBlob", "desc");
+    OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "LevelZeroCompilerInDriver::parseBlob", "desc");
     _logger.setLevel(config.get<LOG_LEVEL>());
     _logger.debug("getNetworkMeta");
     ze_graph_handle_t graphHandle;
@@ -1182,4 +1178,4 @@ template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_4_t>;
 template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_5_t>;
 
 }  // namespace driverCompilerAdapter
-}  // namespace vpux
+}  // namespace intel_npu

@@ -7,7 +7,7 @@
 #include <ze_api.h>
 #include <ze_graph_ext.h>
 
-#include "vpux/al/config/runtime.hpp"
+#include "intel_npu/al/config/runtime.hpp"
 
 /**
  * @brief Last version of Table of Graph Extension functions used within plugin

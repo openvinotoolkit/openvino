@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "vpux.hpp"
+#include "npu.hpp"
 
+#include "intel_npu/al/itt.hpp"
 #include "openvino/util/shared_object.hpp"
-#include "vpux/al/itt.hpp"
 
-namespace vpux {
+namespace intel_npu {
 
 const std::shared_ptr<IDevice> IEngineBackend::getDevice() const {
     OPENVINO_THROW("Default getDevice() not implemented");
@@ -45,7 +45,7 @@ uint64_t IDevice::getTotalMemSize() const {
 }
 
 uint32_t IDevice::getDriverVersion() const {
-    OPENVINO_THROW("Get VPU driver version is not supported with this backend");
+    OPENVINO_THROW("Get NPU driver version is not supported with this backend");
 }
 
-}  // namespace vpux
+}  // namespace intel_npu

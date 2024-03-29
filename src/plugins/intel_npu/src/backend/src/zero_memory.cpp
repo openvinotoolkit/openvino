@@ -6,7 +6,7 @@
 
 #include "zero_utils.hpp"
 
-namespace vpux {
+namespace intel_npu {
 namespace zeroMemory {
 DeviceMem::DeviceMem(const ze_device_handle_t device_handle, ze_context_handle_t context, const std::size_t size)
     : _size(size),
@@ -105,4 +105,4 @@ void* MemoryManagementUnit::getDevicePtr(const std::string& name) {
     return _offsets.at(name) + from;
 }
 }  // namespace zeroMemory
-}  // namespace vpux
+}  // namespace intel_npu

@@ -4,16 +4,14 @@
 
 #include "zero_infer_request.hpp"
 
-#include "vpux/al/config/common.hpp"
-#include "vpux/al/config/compiler.hpp"
-#include "vpux/al/config/runtime.hpp"
-#include "vpux/al/itt.hpp"
-#include "vpux/al/prefix.hpp"
+#include "intel_npu/al/config/common.hpp"
+#include "intel_npu/al/config/compiler.hpp"
+#include "intel_npu/al/config/runtime.hpp"
+#include "intel_npu/al/itt.hpp"
+#include "intel_npu/al/prefix.hpp"
 #include "zero_memory.hpp"
 
-using namespace vpux;
-using intel_npu::isStateInputName;
-using intel_npu::isStateOutputName;
+using namespace intel_npu;
 
 namespace {
 
@@ -61,7 +59,7 @@ void check_level_zero_attributes_match(const IONodeDescriptor& nodeDescriptor,
 
 //------------------------------------------------------------------------------
 ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& backendPtr,
-                                   const std::shared_ptr<const vpux::ICompiledModel>& compiledModel,
+                                   const std::shared_ptr<const ICompiledModel>& compiledModel,
                                    const std::shared_ptr<const IExecutor>& executor,
                                    const Config& config)
     : SyncInferRequest(compiledModel),
@@ -82,10 +80,9 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
     auto proftype = config.get<PROFILING_TYPE>();
     if (proftype == ov::intel_npu::ProfilingType::INFER) {
-        _vpu_profiling =
-            std::make_shared<vpux::zeroProfiling::VpuInferProfiling>(_executor->getInitStructs()->getContext(),
-                                                                     _executor->getInitStructs()->getDevice(),
-                                                                     _config.get<LOG_LEVEL>());
+        _npu_profiling = std::make_shared<zeroProfiling::NpuInferProfiling>(_executor->getInitStructs()->getContext(),
+                                                                            _executor->getInitStructs()->getDevice(),
+                                                                            _config.get<LOG_LEVEL>());
     }
 
     ze_device_properties_t properties = {};
@@ -152,7 +149,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
     }
 
     /// Construct pipepline
-    _pipeline = makePipeline(_executorPtr, _config, _profiling_pool, _profiling_query, _vpu_profiling, _copyAllTensors);
+    _pipeline = makePipeline(_executorPtr, _config, _profiling_pool, _profiling_query, _npu_profiling, _copyAllTensors);
 }
 
 void ZeroInferRequest::infer() {
@@ -237,7 +234,7 @@ void ZeroInferRequest::check_network_precision(const ov::element::Type_t precisi
 }
 
 std::vector<ov::ProfilingInfo> ZeroInferRequest::get_profiling_info() const {
-    const auto& compiledModel = *std::dynamic_pointer_cast<const vpux::ICompiledModel>(_compiledModel);
+    const auto& compiledModel = *std::dynamic_pointer_cast<const ICompiledModel>(_compiledModel);
     const auto& compilerConfig = compiledModel.get_config();
     if (!compilerConfig.get<PERF_COUNT>() || !_config.get<PERF_COUNT>()) {
         return {};
@@ -255,7 +252,7 @@ std::vector<ov::ProfilingInfo> ZeroInferRequest::get_profiling_info() const {
     } else {
         auto proftype = _config.get<PROFILING_TYPE>();
         if (proftype == ov::intel_npu::ProfilingType::INFER) {
-            return _vpu_profiling->getVpuInferStatistics();
+            return _npu_profiling->getNpuInferStatistics();
         } else {  /// proftype = MODEL or undefined = fallback to model profiling
             return _profiling_query.getLayerStatistics();
         }

@@ -12,18 +12,18 @@
 #include "openvino/runtime/so_ptr.hpp"
 
 // Plugin
-#include "npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/logger/logger.hpp"
+#include "npu.hpp"
 #include "npu_private_properties.hpp"
-#include "vpux.hpp"
 
-namespace vpux {
+namespace intel_npu {
 
 enum class AvailableBackends { LEVEL_ZERO, IMD };
 
 /** @brief Represent container for all backends and hide all related searching logic */
-class VPUXBackends final {
+class NPUBackends final {
 public:
-    explicit VPUXBackends(const std::vector<AvailableBackends>& backendRegistry, const Config& config);
+    explicit NPUBackends(const std::vector<AvailableBackends>& backendRegistry, const Config& config);
 
     std::shared_ptr<IDevice> getDevice(const std::string& specificName = "") const;
     std::shared_ptr<IDevice> getDevice(const ov::AnyMap& paramMap) const;
@@ -35,8 +35,8 @@ public:
     void setup(const Config& config);
 
 private:
-    intel_npu::Logger _logger;
+    Logger _logger;
     ov::SoPtr<IEngineBackend> _backend;
 };
 
-}  // namespace vpux
+}  // namespace intel_npu

@@ -6,10 +6,10 @@
 
 #include <vector>
 
-#include "vpux/al/config/common.hpp"
+#include "intel_npu/al/config/common.hpp"
 #include "zero_device.hpp"
 
-namespace vpux {
+namespace intel_npu {
 
 ZeroEngineBackend::ZeroEngineBackend(const Config& config) {
     Logger::global().setLevel(config.get<LOG_LEVEL>());
@@ -43,4 +43,4 @@ const std::vector<std::string> ZeroEngineBackend::getDeviceNames() const {
     return devicesNames;
 }
 
-}  // namespace vpux
+}  // namespace intel_npu

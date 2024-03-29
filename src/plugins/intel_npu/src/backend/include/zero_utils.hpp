@@ -8,13 +8,11 @@
 #include <ze_api.h>
 #include <ze_graph_ext.h>
 
-#include "npu/utils/logger/logger.hpp"
-#include "npu/utils/zero/zero_result.hpp"
-#include "vpux/al/config/runtime.hpp"
+#include "intel_npu/al/config/runtime.hpp"
+#include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/zero/zero_result.hpp"
 
-using intel_npu::Logger;
-
-namespace vpux {
+namespace intel_npu {
 
 namespace zeroUtils {
 
@@ -218,4 +216,4 @@ static inline uint32_t findGroupOrdinal(
 }
 
 }  // namespace zeroUtils
-}  // namespace vpux
+}  // namespace intel_npu

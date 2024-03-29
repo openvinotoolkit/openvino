@@ -10,7 +10,7 @@
 #include "openvino/pass/serialize.hpp"
 #include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
 
-namespace vpux::driverCompilerAdapter {
+namespace intel_npu::driverCompilerAdapter {
 
 IR serializeToIR(const std::shared_ptr<const ov::Model>& origModel, uint32_t supportedOpset) {
     // There is no const variant of run_passes so use const_cast here
@@ -53,4 +53,4 @@ IR serializeToIR(const std::shared_ptr<const ov::Model>& origModel, uint32_t sup
     return {std::move(xmlStream), std::move(weightsStream)};
 }
 
-}  // namespace vpux::driverCompilerAdapter
+}  // namespace intel_npu::driverCompilerAdapter

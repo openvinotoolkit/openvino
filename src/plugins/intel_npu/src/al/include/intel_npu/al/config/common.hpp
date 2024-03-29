@@ -4,16 +4,12 @@
 
 #pragma once
 
+#include "intel_npu/al/config/config.hpp"
 #include "npu_private_properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "vpux/al/config/config.hpp"
 
-namespace vpux {
-
-using intel_npu::OptionBase;
-using intel_npu::OptionMode;
-using intel_npu::OptionsDesc;
+namespace intel_npu {
 
 //
 // register
@@ -242,7 +238,7 @@ struct INTERNAL_SUPPORTED_PROPERTIES final : OptionBase<INTERNAL_SUPPORTED_PROPE
     }
 };
 
-}  // namespace vpux
+}  // namespace intel_npu
 
 namespace ov {
 namespace hint {

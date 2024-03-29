@@ -308,7 +308,7 @@ static constexpr ov::Property<std::string> dynamic_shape_to_static{"NPU_DYNAMIC_
  * @brief [Only for NPU Plugin]
  * Type: string, default is empty.
  * MODEL - model layer profiling is done
- * INFER - vpu inference performance numbers are measured
+ * INFER - npu inference performance numbers are measured
  * Model layers profiling are used if this string is empty
  */
 static constexpr ov::Property<ProfilingType> profiling_type{"NPU_PROFILING_TYPE"};

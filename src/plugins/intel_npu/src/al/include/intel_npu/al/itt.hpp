@@ -10,7 +10,7 @@ namespace intel_npu {
 namespace itt {
 namespace domains {
 
-OV_ITT_DOMAIN(VPUXPlugin);
+OV_ITT_DOMAIN(NPUPlugin);
 OV_ITT_DOMAIN(LevelZeroBackend);
 
 }  // namespace domains

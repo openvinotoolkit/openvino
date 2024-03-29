@@ -7,14 +7,11 @@
 #include <ze_api.h>
 #include <ze_graph_ext.h>
 
-#include "npu/utils/logger/logger.hpp"
-#include "vpux/al/itt.hpp"
-#include "vpux/al/prefix.hpp"
+#include "intel_npu/al/itt.hpp"
+#include "intel_npu/al/prefix.hpp"
+#include "intel_npu/utils/logger/logger.hpp"
 
-namespace vpux {
-
-using intel_npu::isStateInputName;
-using intel_npu::isStateOutputName;
+namespace intel_npu {
 
 struct DiscretePipeline final : public Pipeline {
 public:
@@ -149,7 +146,7 @@ public:
                        ze_graph_dditable_ext_curr_t* graph_ddi_table_ext,
                        const std::shared_ptr<const IExecutor>& executorPtr,
                        ze_graph_profiling_query_handle_t profiling_handle,
-                       std::shared_ptr<vpux::zeroProfiling::VpuInferProfiling> vpu_profiling,
+                       std::shared_ptr<zeroProfiling::NpuInferProfiling> npu_profiling,
                        CommandQueue& command_queue,
                        const uint32_t& group_ordinal,
                        std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& tensors)
@@ -159,7 +156,7 @@ public:
           _fence{_command_queue, _config},
           _event_pool{device_handle, context, 1, _config},
           _event{_event_pool.handle(), 0, _config},
-          _vpu_profiling(vpu_profiling) {
+          _npu_profiling(npu_profiling) {
         const ZeroExecutor* executor = static_cast<const ZeroExecutor*>(executorPtr.get());
 
         OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend,
@@ -176,17 +173,17 @@ public:
         }
 
         /// append timestamp command if feature was activated
-        if (_vpu_profiling != nullptr) {
+        if (_npu_profiling != nullptr) {
             _command_list.appendBarrier();
-            _command_list.appendVpuTimestamp(reinterpret_cast<uint64_t*>(_vpu_profiling->vpu_ts_infer_start));
+            _command_list.appendNpuTimestamp(reinterpret_cast<uint64_t*>(_npu_profiling->npu_ts_infer_start));
         }
 
         _command_list.appendGraphExecute(executor->graph(), profiling_handle);
 
         /// append timestamp command if feature was activated
-        if (_vpu_profiling != nullptr) {
+        if (_npu_profiling != nullptr) {
             _command_list.appendBarrier();
-            _command_list.appendVpuTimestamp(reinterpret_cast<uint64_t*>(_vpu_profiling->vpu_ts_infer_end));
+            _command_list.appendNpuTimestamp(reinterpret_cast<uint64_t*>(_npu_profiling->npu_ts_infer_end));
         }
 
         // appendBarrier used in L0 as well
@@ -217,9 +214,9 @@ public:
         } else {
             _event.hostSynchronize();
         }
-        /// sample vpu timestamps if feature was activated
-        if (_vpu_profiling != nullptr) {
-            _vpu_profiling->sampleVpuTimestamps();
+        /// sample npu timestamps if feature was activated
+        if (_npu_profiling != nullptr) {
+            _npu_profiling->sampleNpuTimestamps();
         }
     };
 
@@ -239,14 +236,14 @@ private:
     EventPool _event_pool;
     Event _event;
     bool sync_output_with_fences_ = true;
-    std::shared_ptr<zeroProfiling::VpuInferProfiling> _vpu_profiling;
+    std::shared_ptr<zeroProfiling::NpuInferProfiling> _npu_profiling;
 };
 
 std::unique_ptr<Pipeline> makePipeline(const std::shared_ptr<const IExecutor>& executorPtr,
                                        const Config& config,
-                                       vpux::zeroProfiling::ProfilingPool& profiling_pool,
-                                       vpux::zeroProfiling::ProfilingQuery& profiling_query,
-                                       std::shared_ptr<vpux::zeroProfiling::VpuInferProfiling> vpu_profiling,
+                                       zeroProfiling::ProfilingPool& profiling_pool,
+                                       zeroProfiling::ProfilingQuery& profiling_query,
+                                       std::shared_ptr<zeroProfiling::NpuInferProfiling> npu_profiling,
                                        std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& tensors) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Infer_request::makePipeline");
     if (profiling_pool.create())
@@ -271,7 +268,7 @@ std::unique_ptr<Pipeline> makePipeline(const std::shared_ptr<const IExecutor>& e
                                                     graph_ddi_table_ext,
                                                     executorPtr,
                                                     profiling_query.getHandle(),
-                                                    vpu_profiling,
+                                                    npu_profiling,
                                                     *command_queues[stage::EXECUTE],
                                                     group_ordinal,
                                                     tensors);
@@ -288,4 +285,4 @@ std::unique_ptr<Pipeline> makePipeline(const std::shared_ptr<const IExecutor>& e
                                               tensors);
 }
 
-}  // namespace vpux
+}  // namespace intel_npu

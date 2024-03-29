@@ -8,10 +8,10 @@
 
 #include <string>
 
-namespace vpux {
+namespace intel_npu {
 
 const std::string ze_result_to_string(const ze_result_t result);
 
 const std::string ze_result_to_description(const ze_result_t result);
 
-}  // namespace vpux
+}  // namespace intel_npu

@@ -6,15 +6,13 @@
 
 #include <cstdint>
 
+#include "intel_npu/al/config/config.hpp"
+#include "intel_npu/al/icompiled_model.hpp"
+#include "intel_npu/al/icompiler.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "sync_infer_request.hpp"
-#include "vpux/al/config/config.hpp"
-#include "vpux/al/icompiled_model.hpp"
-#include "vpux/al/icompiler.hpp"
 
-namespace vpux {
-
-using intel_npu::OptionsDesc;
+namespace intel_npu {
 
 //------------------------------------------------------------------------------
 class IDevice;
@@ -65,7 +63,7 @@ public:
     virtual uint32_t getDriverVersion() const;
 
     virtual std::shared_ptr<SyncInferRequest> createInferRequest(
-        const std::shared_ptr<const vpux::ICompiledModel>& compiledModel,
+        const std::shared_ptr<const ICompiledModel>& compiledModel,
         const std::shared_ptr<IExecutor>& executor,
         const Config& config) = 0;
 
@@ -73,4 +71,4 @@ protected:
     virtual ~IDevice() = default;
 };
 
-}  // namespace vpux
+}  // namespace intel_npu

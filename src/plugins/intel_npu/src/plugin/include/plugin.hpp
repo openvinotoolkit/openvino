@@ -8,18 +8,16 @@
 #include <memory>
 #include <string>
 
-#include "npu/utils/logger/logger.hpp"
+#include "intel_npu/al/config/config.hpp"
+#include "intel_npu/al/icompiler.hpp"
+#include "intel_npu/utils/logger/logger.hpp"
+#include "npu.hpp"
+#include "npu_backends.hpp"
+#include "npu_metrics.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/so_ptr.hpp"
-#include "vpux.hpp"
-#include "vpux/al/config/config.hpp"
-#include "vpux/al/icompiler.hpp"
-#include "vpux_backends.hpp"
-#include "vpux_metrics.hpp"
 
-using intel_npu::Logger;
-
-namespace vpux {
+namespace intel_npu {
 
 class Plugin : public ov::IPlugin {
 public:
@@ -56,9 +54,9 @@ public:
                                     const ov::AnyMap& properties) const override;
 
 private:
-    ov::SoPtr<ICompiler> getCompiler(const vpux::Config& config) const;
+    ov::SoPtr<ICompiler> getCompiler(const Config& config) const;
 
-    std::shared_ptr<VPUXBackends> _backends;
+    std::shared_ptr<NPUBackends> _backends;
 
     std::map<std::string, std::string> _config;
     std::shared_ptr<OptionsDesc> _options;
@@ -73,4 +71,4 @@ private:
     static std::atomic<int> _compiledModelLoadCounter;
 };
 
-}  // namespace vpux
+}  // namespace intel_npu

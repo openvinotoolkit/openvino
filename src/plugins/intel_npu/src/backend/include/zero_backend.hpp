@@ -7,11 +7,11 @@
 #include <map>
 #include <memory>
 
-#include "vpux.hpp"
+#include "npu.hpp"
 #include "zero_init.hpp"
 
-namespace vpux {
-class ZeroEngineBackend final : public vpux::IEngineBackend {
+namespace intel_npu {
+class ZeroEngineBackend final : public IEngineBackend {
 public:
     ZeroEngineBackend(const Config& config);
     virtual ~ZeroEngineBackend();
@@ -28,4 +28,4 @@ private:
     std::map<std::string, std::shared_ptr<IDevice>> _devices{};
 };
 
-}  // namespace vpux
+}  // namespace intel_npu

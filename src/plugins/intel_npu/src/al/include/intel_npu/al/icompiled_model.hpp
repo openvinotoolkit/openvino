@@ -7,11 +7,11 @@
 #include <memory>
 #include <vector>
 
+#include "intel_npu/al/config/common.hpp"
+#include "intel_npu/al/icompiler.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
-#include "vpux/al/config/common.hpp"
-#include "vpux/al/icompiler.hpp"
 
-namespace vpux {
+namespace intel_npu {
 
 class ICompiledModel : public ov::ICompiledModel {
 public:
@@ -34,4 +34,4 @@ protected:
     }
 };
 
-}  // namespace vpux
+}  // namespace intel_npu

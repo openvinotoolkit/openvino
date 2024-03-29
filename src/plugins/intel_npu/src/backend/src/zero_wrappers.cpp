@@ -4,9 +4,9 @@
 
 #include "zero_wrappers.hpp"
 
-#include "vpux/al/config/common.hpp"
+#include "intel_npu/al/config/common.hpp"
 
-namespace vpux {
+namespace intel_npu {
 
 EventPool::EventPool(ze_device_handle_t device_handle,
                      const ze_context_handle_t& context,
@@ -86,7 +86,7 @@ void CommandList::appendGraphExecute(const ze_graph_handle_t& graph_handle,
         _graph_ddi_table_ext
             ->pfnAppendGraphExecute(_handle, graph_handle, profiling_query_handle, nullptr, 0, nullptr));
 }
-void CommandList::appendVpuTimestamp(uint64_t* timestamp_buff) const {
+void CommandList::appendNpuTimestamp(uint64_t* timestamp_buff) const {
     zeroUtils::throwOnFail("zeCommandListAppendWriteGlobalTimestamp",
                            zeCommandListAppendWriteGlobalTimestamp(_handle, timestamp_buff, nullptr, 0, nullptr));
 }
@@ -147,4 +147,4 @@ Fence::~Fence() {
     }
 }
 
-}  // namespace vpux
+}  // namespace intel_npu

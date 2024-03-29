@@ -4,12 +4,12 @@
 
 #include "sync_infer_request.hpp"
 
+#include "intel_npu/al/prefix.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/plugin_itt.hpp"
 #include "transformations/utils/utils.hpp"
-#include "vpux/al/prefix.hpp"
 
-namespace vpux {
+namespace intel_npu {
 
 SyncInferRequest::SyncInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel)
     : _compiledModel(compiledModel),
@@ -183,4 +183,4 @@ void SyncInferRequest::allocate_tensor(std::string tensorName,
         _allTensors[ASSIGN_PREFIX + tensorName] = _copyAllTensors[READVALUE_PREFIX + tensorName];
     }
 }
-}  // namespace vpux
+}  // namespace intel_npu

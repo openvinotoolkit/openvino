@@ -2,17 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "vpux_driver_compiler_adapter.hpp"
+#include "npu_driver_compiler_adapter.hpp"
 
 #include "graph_transformations.hpp"
-#include "npu/utils/zero/zero_result.hpp"
-#include "vpux/al/config/common.hpp"
+#include "intel_npu/al/config/common.hpp"
+#include "intel_npu/utils/zero/zero_result.hpp"
 #include "ze_intel_vpu_uuid.h"
 #include "zero_compiler_in_driver.hpp"
 
-using intel_npu::Logger;
-
-namespace vpux {
+namespace intel_npu {
 namespace driverCompilerAdapter {
 
 LevelZeroCompilerAdapter::LevelZeroCompilerAdapter() : _logger("LevelZeroCompilerAdapter", Logger::global().level()) {
@@ -119,7 +117,7 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter() : _logger("LevelZeroCompile
     }
 
     if (graphExtName == nullptr) {
-        OPENVINO_THROW("LevelZeroCompilerAdapter: Failed to find Graph extension in VPU Driver");
+        OPENVINO_THROW("LevelZeroCompilerAdapter: Failed to find Graph extension in NPU Driver");
     }
 
     const uint16_t adapterMajorVersion = 1;
@@ -219,7 +217,7 @@ ov::SupportedOpsMap LevelZeroCompilerAdapter::query(const std::shared_ptr<const 
     return result;
 }
 
-vpux::NetworkMetadata LevelZeroCompilerAdapter::parse(const std::vector<uint8_t>& blob, const Config& config) const {
+NetworkMetadata LevelZeroCompilerAdapter::parse(const std::vector<uint8_t>& blob, const Config& config) const {
     _logger.setLevel(config.get<LOG_LEVEL>());
     _logger.debug("parseBlob");
     return apiAdapter->parseBlob(blob, config);
@@ -232,4 +230,4 @@ std::vector<ov::ProfilingInfo> LevelZeroCompilerAdapter::process_profiling_outpu
 }
 
 }  // namespace driverCompilerAdapter
-}  // namespace vpux
+}  // namespace intel_npu

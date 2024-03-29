@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "vpux/al/config/compiler.hpp"
+#include "intel_npu/al/config/compiler.hpp"
 
-using namespace vpux;
+using namespace intel_npu;
 using namespace ov::intel_npu;
 
 //
 // register
 //
 
-void vpux::registerCompilerOptions(OptionsDesc& desc) {
+void intel_npu::registerCompilerOptions(OptionsDesc& desc) {
     desc.add<COMPILER_TYPE>();
     desc.add<COMPILATION_MODE>();
     desc.add<COMPILATION_MODE_PARAMS>();
@@ -41,7 +41,7 @@ std::string_view ov::intel_npu::stringifyEnum(ov::intel_npu::CompilerType val) {
     }
 }
 
-std::string_view vpux::COMPILER_TYPE::envVar() {
+std::string_view intel_npu::COMPILER_TYPE::envVar() {
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
     return "IE_NPU_COMPILER_TYPE";
 #else
@@ -49,11 +49,11 @@ std::string_view vpux::COMPILER_TYPE::envVar() {
 #endif
 }
 
-ov::intel_npu::CompilerType vpux::COMPILER_TYPE::defaultValue() {
+ov::intel_npu::CompilerType intel_npu::COMPILER_TYPE::defaultValue() {
     return ov::intel_npu::CompilerType::DRIVER;
 }
 
-ov::intel_npu::CompilerType vpux::COMPILER_TYPE::parse(std::string_view val) {
+ov::intel_npu::CompilerType intel_npu::COMPILER_TYPE::parse(std::string_view val) {
     if (val == stringifyEnum(ov::intel_npu::CompilerType::MLIR)) {
         return ov::intel_npu::CompilerType::MLIR;
     } else if (val == stringifyEnum(ov::intel_npu::CompilerType::DRIVER)) {
@@ -63,7 +63,7 @@ ov::intel_npu::CompilerType vpux::COMPILER_TYPE::parse(std::string_view val) {
     OPENVINO_THROW("Value '", val, "' is not a valid COMPILER_TYPE option");
 }
 
-std::string vpux::COMPILER_TYPE::toString(const ov::intel_npu::CompilerType& val) {
+std::string intel_npu::COMPILER_TYPE::toString(const ov::intel_npu::CompilerType& val) {
     std::stringstream strStream;
     if (val == ov::intel_npu::CompilerType::MLIR) {
         strStream << "MLIR";
@@ -93,7 +93,7 @@ std::string_view ov::intel_npu::stringifyEnum(ov::intel_npu::ElfCompilerBackend 
     }
 }
 
-ov::intel_npu::ElfCompilerBackend vpux::USE_ELF_COMPILER_BACKEND::parse(std::string_view val) {
+ov::intel_npu::ElfCompilerBackend intel_npu::USE_ELF_COMPILER_BACKEND::parse(std::string_view val) {
     if (val == stringifyEnum(ov::intel_npu::ElfCompilerBackend::AUTO)) {
         return ov::intel_npu::ElfCompilerBackend::AUTO;
     } else if (val == stringifyEnum(ov::intel_npu::ElfCompilerBackend::NO)) {
@@ -105,7 +105,7 @@ ov::intel_npu::ElfCompilerBackend vpux::USE_ELF_COMPILER_BACKEND::parse(std::str
     OPENVINO_THROW("Value '", val, "' is not a valid USE_ELF_COMPILER_BACKEND option");
 }
 
-std::string vpux::USE_ELF_COMPILER_BACKEND::toString(const ov::intel_npu::ElfCompilerBackend& val) {
+std::string intel_npu::USE_ELF_COMPILER_BACKEND::toString(const ov::intel_npu::ElfCompilerBackend& val) {
     std::stringstream strStream;
     if (val == ov::intel_npu::ElfCompilerBackend::AUTO) {
         strStream << "AUTO";
