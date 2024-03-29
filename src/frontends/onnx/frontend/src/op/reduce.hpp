@@ -28,9 +28,16 @@ ov::OutputVector reduce_l1(const ov::frontend::onnx::Node& node);
 namespace set_1 {
 ov::OutputVector reduce_l2(const ov::frontend::onnx::Node& node);
 }  // namespace set_1
-namespace set_11 {
-ov::OutputVector reduce_l2(const ov::frontend::onnx::Node& node);
-}  // namespace set_11
+
+/*
+    Opset 11 is skipped because there are no significant difference between opset1 and opset 11.
+    Found difference is:
+    1. Operations (except ReduceMin and ReduceMax) are lost mention of zero-rank input behavior
+       from their description. We assume it shouldn't be worse than opset 1.
+    2. Opset 11 introduced requirement for axes values to be in a range [-r, r-1] where r = rank(data)
+       Same time Reduce* operations in OpenVINO has same requirement from first version
+*/
+
 namespace set_13 {
 ov::OutputVector reduce_l2(const ov::frontend::onnx::Node& node);
 }  // namespace set_13
