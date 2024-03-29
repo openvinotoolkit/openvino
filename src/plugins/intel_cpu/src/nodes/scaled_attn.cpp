@@ -64,6 +64,141 @@ bool ScaledDotProductAttentionKey::operator==(const ScaledDotProductAttentionKey
     return retVal;
 }
 
+#ifdef OPENVINO_ARCH_X86_64
+
+// w = query * Key
+//
+// query: [1,      head_size]
+// Key  : [block_size, head_size]
+// w    : [1, block_size]
+//
+// head_size is known at compile time
+struct TileConfig {
+    uint8_t palette_id;
+    uint8_t startRow;
+    uint8_t reserved[14];
+    uint16_t cols[16];
+    uint8_t rows[16];
+    void reset(int palette, int _startRow, const std::vector<std::pair<int, int>>& _rows_columnsBytes) {
+        palette_id = palette;
+        startRow = _startRow;
+        unsigned long i;
+        for (i = 0; i < 14; i++) {
+            reserved[i] = 0;
+        }
+        for (i = 0; i < _rows_columnsBytes.size(); i++) {
+            rows[i] = _rows_columnsBytes[i].first;
+            cols[i] = _rows_columnsBytes[i].second;
+        }
+        for (; i < 16; i++) {
+            cols[i] = 0;
+            rows[i] = 0;
+        }
+    }
+};
+
+class TileConfiger : public jit_generator {
+public:
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(TileConfiger)
+    TileConfiger() : jit_generator(jit_name()) {
+        create_kernel();
+    }
+    void generate() override {
+        Xbyak::Label release;
+        test(abi_param1, abi_param1);
+        jz(release);
+        ldtilecfg(ptr[abi_param1]);
+        ret();
+        L(release);
+        tilerelease();
+        ret();
+    }
+};
+
+class JitMatMulVecAMX : public jit_generator {
+    void operator=(const JitMatMulVecAMX&);
+
+public:
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(JitMatMulVecAMX)
+    int m_head_size;
+    int m_block_size;
+    TileConfiger m_tile_configer;
+    TileConfig m_tile_cfg;
+    JitMatMulVecAMX(int head_size, int block_size) : jit_generator(jit_name()), m_head_size(head_size), m_block_size(block_size) {
+        create_kernel();
+        m_tile_cfg.reset(1,
+                         0,
+                         {
+                             {16, 4},   // C:0   M x 1     (4b)
+                             {16, 64},  // A:1   M x 32/64 (64b)
+                             {16, 4},   // B:2   32/64 x 1 (4b)
+                             {16, 4},   // B:3
+                             {16, 4},   // B:4
+                             {16, 4},   // B:5
+                             {16, 4},   // B:6
+                             {16, 4},   // B:7
+                         });
+    }
+
+    void tile_config() {
+        m_tile_configer(&m_tile_cfg);
+    }
+    void tile_release() {
+        m_tile_configer(nullptr);
+    }
+
+    // to save push/pop: do not use `abi_save_gpr_regs`
+    Xbyak::Reg64 reg_q_addr = abi_param1;
+    Xbyak::Reg64 reg_k_addr = abi_param2;
+    Xbyak::Reg64 reg_dst_addr = abi_param3;
+    Xbyak::Reg64 reg_stride_A = rax;
+    Xbyak::Reg64 reg_stride_BC = r9;
+
+    Xbyak::Tmm tmmC = tmm0;
+    Xbyak::Tmm tmmA = tmm1;
+    Xbyak::Tmm tmmB0 = tmm2;
+    Xbyak::Tmm tmmB1 = tmm3;
+    Xbyak::Tmm tmmB2 = tmm4;
+    Xbyak::Tmm tmmB3 = tmm5;
+    Xbyak::Tmm tmmB4 = tmm6;
+    Xbyak::Tmm tmmB5 = tmm7;
+
+    void generate() override {
+        mov(reg_stride_A, m_head_size * 2);
+        mov(reg_stride_BC, 4);
+        const int kStep = 32;
+        if ((m_head_size % 32) != 0)
+            throw std::runtime_error("head size is not multiple of 32");
+        if ((m_block_size % 16) != 0)
+            throw std::runtime_error("block size is not multiple of 16");
+        auto num_B_tiles = m_head_size / kStep;
+        if (num_B_tiles > 6)
+            throw std::runtime_error("number of B tiles is bigger than 6");
+
+        /*
+                                    B(query)    head_size x 1
+        A(key) matrix : block_size x head_size  C(dst) block_size x 1
+        */
+        // load query into B tiles
+        for (int i = 0; i < num_B_tiles; i++) {
+            tileloadd(Xbyak::Tmm(tmmB0.getIdx() + i), ptr[reg_q_addr + reg_stride_BC + i * 64]);
+        }
+
+        for (int m = 0; m < m_block_size; m += 16) {
+            tilezero(tmmC);
+            for (int i = 0; i < num_B_tiles; i++) {
+                tileloadd(tmmA, ptr[reg_k_addr + reg_stride_A + i * 64]);
+                tdpbf16ps(tmmC, tmmA, Xbyak::Tmm(tmmB0.getIdx() + i));
+            }
+            tilestored(ptr[reg_dst_addr + reg_stride_BC + m * sizeof(float)], tmmC);
+            add(reg_k_addr, m_head_size * 2 * 16);
+        }
+        ret();
+    }
+};
+
+#endif
+
 // default implementation: reference
 template <ScaledDotProductAttention::KernelTypes KType, typename T>
 struct MHAKernel {
@@ -734,7 +869,9 @@ struct MHASingleToken {
     PlainTensor m_attn_w;
     PlainTensor m_temp;
     PlainTensor m_head_sum;
-
+#ifdef OPENVINO_ARCH_X86_64
+    std::shared_ptr<JitMatMulVecAMX> m_gemv;
+#endif
     MHASingleToken() {}
 
     // Q, K, V is ready, do attention
@@ -758,8 +895,61 @@ struct MHASingleToken {
                     float d_scale,
                     const PlainTensor& k_scale_zp,
                     const PlainTensor& v_scale_zp) {
-        mha_single_token(query, present_key, present_value, alibi_mask, attention_mask, beams, max_context_len, context_lens, output_emb,
-            m_attn_w, m_temp, has_out_transpose, auto_causal, d_scale, k_scale_zp, v_scale_zp, m_head_sum);
+        auto B = query.size(0);
+        auto H = query.size(1);
+        auto q_len = query.size(2);
+        auto S = query.size(3);
+        bool is_pagedattn = context_lens;
+        size_t kv_len;
+        if (is_pagedattn) {
+            kv_len = max_context_len;
+        } else {
+            kv_len = present_key.size(2);
+        }
+
+        bool fastpath_valid = false;
+#ifdef OPENVINO_ARCH_X86_64
+        if (is_pagedattn) {
+            size_t block_size = present_value.size(2);
+            fastpath_valid = mayiuse(amx_bf16) && (S % 32 == 0) && (block_size % 16 == 0) && (S <= 32 * 6);
+            m_attn_w.resize<float>({B, H, q_len, (kv_len + block_size - 1) / block_size * block_size});
+            if (fastpath_valid) {
+                PROFILE(_attn, "t1_qk_fast");
+                if (!m_gemv)
+                    m_gemv = std::make_shared<JitMatMulVecAMX>(static_cast<int>(S), static_cast<int>(block_size));
+                auto h_group_num = present_value.size(1);
+                size_t h_each_group_len = 1;
+                if (h_group_num != H) {
+                    h_each_group_len = H / h_group_num;
+                }
+                auto kv_len_in_blocks = beams.m_dims[1];
+
+                parallel_for3d_dynamic(B, h_group_num, kv_len_in_blocks, [&](size_t b, size_t h_group, size_t pk_in_blocks) {
+                    auto context_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
+                    // kv_len must be valid
+                    auto pk = pk_in_blocks * block_size;
+                    if (pk < context_len) {
+                        m_gemv->tile_config();
+                        auto block_number = beams.ptr<int32_t>(b)[pk_in_blocks];
+
+                        for (size_t pq = 0; pq < q_len; pq++) {
+                            for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
+                                (*m_gemv)(query.ptr<ov::bfloat16>(b, h, pq), present_key.ptr<ov::bfloat16>(block_number, h_group),
+                                    m_attn_w.ptr<float>(b, h, pq) + pk);
+                            }
+                        }
+                        m_gemv->tile_release();
+                    }
+                });
+            }
+        } else {
+            m_attn_w.resize<float>({B, H, q_len, kv_len});
+        }
+#else
+        m_attn_w.resize<float>({B, H, q_len, kv_len});
+#endif
+        mha_single_token(query, fastpath_valid ? PlainTensor() : present_key, present_value, alibi_mask, attention_mask, beams, max_context_len,
+            context_lens, output_emb, m_attn_w, m_temp, has_out_transpose, auto_causal, d_scale, k_scale_zp, v_scale_zp, m_head_sum);
     }
 };
 
