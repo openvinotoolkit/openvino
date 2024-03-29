@@ -72,10 +72,6 @@ public:
         return isGraphQuantizedFlag;
     }
 
-    ov::threading::IStreamsExecutor::Ptr getStreamExecutor() const {
-        return streamExecutor;
-    }
-
     ov::threading::CPUStreamsExecutor::Ptr getCPUStreamExecutor() const {
         return cpuStreamExecutor;
     }

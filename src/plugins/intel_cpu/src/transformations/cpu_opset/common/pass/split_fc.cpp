@@ -32,12 +32,18 @@ ov::intel_cpu::SplitFC::SplitFC(int sub_stream_num) {
             return false;
         }
 
-        auto src_item = fc_node->get_input_node_shared_ptr(0);
-        auto fc_weight_node = fc_node->get_input_node_shared_ptr(1);
+        const auto src_item = fc_node->get_input_node_shared_ptr(0);
+        const auto fc_weight_node = fc_node->get_input_node_shared_ptr(1);
 
         // split happens on the first dimension.
         constexpr size_t split_dim = 0;
         auto split_dim_node = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, split_dim);
+
+        // needn't to split fc when the dim is 0.
+        const auto& wgt_shape = fc_weight_node->get_shape();
+        if (wgt_shape[split_dim] <= 1 || ov::shape_size(wgt_shape) < 6600000) {
+            return false;
+        }
 
         // parts will be splited according the sub stream num.
         int split_num = sub_stream_num + 1;
@@ -92,12 +98,6 @@ ov::intel_cpu::SplitFC::SplitFC(int sub_stream_num) {
             bool need_to_split_convert = ov::shape_size(convert_node1_shape) > 1 &&
                                          split_dim < convert_node1_shape.size() &&
                                          convert_node1_shape[split_dim] == split_dim_range;
-            const auto& wgt_shape = wgt_item->get_shape();
-
-            // needn't to split fc when the dim is 0.
-            if (split_dim_range <= 1 || ov::shape_size(wgt_shape) < 6600000) {
-                return false;
-            }
 
             // We should use VariadicSplit to split the input for FC.
             std::vector<std::vector<int32_t>> split_reshape_pattern_vec(split_num);
@@ -112,7 +112,7 @@ ov::intel_cpu::SplitFC::SplitFC(int sub_stream_num) {
                     return split->outputs();
                 }
 
-                auto convert = std::make_shared<ov::op::v0::Convert>(constant, ov::element::f32);
+                auto convert = std::make_shared<ov::op::v0::Convert>(constant, ov::element::i8);
                 auto split = std::make_shared<ov::op::v1::VariadicSplit>(convert, split_dim_node, split_length);
                 ov::OutputVector res(split->get_output_size());
                 for (size_t i = 0; i < split->get_output_size(); ++i) {
@@ -166,12 +166,6 @@ ov::intel_cpu::SplitFC::SplitFC(int sub_stream_num) {
 
             // split weight
             auto split_dim_range = wgt_item->get_shape()[split_dim];
-            const auto& wgt_shape = wgt_item->get_shape();
-
-            // needn't to split fc when the dim is 0.
-            if (split_dim_range <= 1 || ov::shape_size(wgt_shape) < 6600000) {
-                return false;
-            }
 
             // We should use VariadicSplit to split input for FC.
             auto fc_dim_vec = split_parts(split_dim_range, split_num);
@@ -180,16 +174,14 @@ ov::intel_cpu::SplitFC::SplitFC(int sub_stream_num) {
                                                                           split_dim_node,
                                                                           split_length);
 
-            for (int i = 0; i < split_num; ++i) {
-                wgt_node_vec[i] = split_wgts->output(i);
-            }
+            wgt_node_vec = split_wgts->outputs();
         }
 
         // create fc Nodes according to the splited weight or splited pattern.
         std::vector<std::shared_ptr<Node>> fc_node_vec(split_num);
         for (int i = 0; i < split_num; ++i) {
             fc_node_vec[i] = fc_node->clone_with_new_inputs(ov::OutputVector{src_item, wgt_node_vec[i]});
-            fc_node_vec[i]->get_rt_info()["parallelDomain"] = fc_node->get_friendly_name();
+            fc_node_vec[i]->get_rt_info()["parallelDomain"] = fc_node->get_name();
         }
 
         // concat all small fc for result.
