@@ -119,6 +119,11 @@ struct PlainTensor {
         return m_strides[i];
     }
 
+    size_t stride_bytes(int i) const {
+        assert(i >= 0 && static_cast<typename std::make_unsigned<decltype(i)>::type>(i) < m_rank);
+        return m_strides[i] * m_element_size;
+    }
+
     template<typename T>
     std::vector<T> get_strides() const {
         std::vector<T> strides(m_rank);
@@ -386,6 +391,11 @@ struct PlainTensor {
     template <typename... Is>
     void* ptr_v(Is... indices) const {
         return reinterpret_cast<void*>(m_ptr.get() + offset<0>(indices...) * m_element_size);
+    }
+
+    template <typename DT>
+    DT* data() const {
+        return reinterpret_cast<DT*>(m_ptr.get() + m_offset * m_element_size);
     }
 
     // when allow_broadcast is true, index to size-1 dim will always access 0.
