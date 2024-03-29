@@ -2986,7 +2986,7 @@ TEST_F(fully_connected_gpu_tests, compressed_int8_scale_b1_bias_zp_3d) {
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_cache) {
-    this->test_compressed_int8_scale(true, false, 1, true, true);
+    this->test_compressed_int8_scale(true, false, 1, true, false);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_zp_b1) {
