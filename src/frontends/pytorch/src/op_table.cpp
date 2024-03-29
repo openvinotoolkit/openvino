@@ -180,7 +180,6 @@ OP_CONVERTER(translate_rand_like);
 OP_CONVERTER(translate_randn_like);
 OP_CONVERTER(translate_reciprocal);
 OP_CONVERTER(translate_relu6);
-OP_CONVERTER(translate_rrelu);
 OP_CONVERTER(translate_remainder);
 OP_CONVERTER(translate_repeat_interleave);
 OP_CONVERTER(translate_reshape);
@@ -189,6 +188,7 @@ OP_CONVERTER(translate_rnn);
 OP_CONVERTER(translate_roi_align);
 OP_CONVERTER(translate_roll);
 OP_CONVERTER(translate_round);
+OP_CONVERTER(translate_rrelu);
 OP_CONVERTER(translate_rsqrt);
 OP_CONVERTER(translate_rsub);
 OP_CONVERTER(translate_scaled_dot_product_attention);
@@ -282,6 +282,7 @@ OP_CONVERTER(translate_new_zeros_fx);
 OP_CONVERTER(translate_ones_fx);
 OP_CONVERTER(translate_ones_like_fx);
 OP_CONVERTER(translate_reflection_pad_nd_fx);
+OP_CONVERTER(translate_rrelu_fx);
 OP_CONVERTER(translate_rsub_fx);
 OP_CONVERTER(translate_scalar_tensor_fx);
 OP_CONVERTER(translate_scaled_dot_product_attention_fx);
@@ -605,6 +606,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::rnn_tanh", op::translate_rnn},
         {"aten::roll", op::translate_roll},
         {"aten::round", op::translate_round},
+        {"aten::rrelu", op::translate_1to1_match_2_inputs<opset10::PRelu>},
+        {"aten::rrelu_", op::inplace_op<op::translate_1to1_match_2_inputs<opset10::PRelu>>},
         {"aten::rsqrt", op::optional_out<op::translate_rsqrt, 1>},
         {"aten::rsub", op::translate_rsub},
         {"aten::ScalarImplicit", op::skip_node},
