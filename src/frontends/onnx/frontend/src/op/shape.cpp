@@ -25,17 +25,17 @@ ov::OutputVector shape(const ov::frontend::onnx::Node& node) {
     using ov::op::util::is_null;
 
     const auto data = node.get_ov_inputs().at(0);
-    auto input_shape = std::make_shared<v3::ShapeOf>(data);
+    const auto input_shape = std::make_shared<v3::ShapeOf>(data);
 
-    auto start_val = node.get_attribute_value<int64_t>("start", 0);
-    auto end_val = node.get_attribute_value<int64_t>("end", INT64_MAX);
+    const auto start_val = node.get_attribute_value<int64_t>("start", 0);
+    const auto end_val = node.get_attribute_value<int64_t>("end", std::numeric_limits<int64_t>::max());
 
     if (start_val == 0 && end_val == INT64_MAX) {
         return {input_shape};
     }
 
-    auto start = v0::Constant::create(element::i64, ov::Shape{1}, {start_val});
-    auto end = v0::Constant::create(element::i64, ov::Shape{1}, {end_val});
+    const auto start = v0::Constant::create(element::i64, ov::Shape{1}, {start_val});
+    const auto end = v0::Constant::create(element::i64, ov::Shape{1}, {end_val});
     const auto default_step = v0::Constant::create(element::i64, {1}, {1});
 
     return {std::make_shared<v8::Slice>(input_shape, start, end, default_step)};
