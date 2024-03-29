@@ -11,7 +11,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/util/attr_types.hpp"
-#include "sequnce_generator.hpp"
+#include "sequence_generator.hpp"
 
 using namespace std;
 using namespace ov;
