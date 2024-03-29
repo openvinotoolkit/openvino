@@ -155,6 +155,10 @@ extern template bool evaluate_node<ov::op::v1::DeformablePSROIPooling>(std::shar
                                                                        ov::TensorVector& outputs,
                                                                        const ov::TensorVector& inputs);
 
+extern template bool evaluate_node<ov::op::v1::Divide>(std::shared_ptr<ov::Node> node,
+                                                       ov::TensorVector& outputs,
+                                                       const ov::TensorVector& inputs);
+
 extern template bool evaluate_node<ov::op::v1::Equal>(std::shared_ptr<ov::Node> node,
                                                       ov::TensorVector& outputs,
                                                       const ov::TensorVector& inputs);
