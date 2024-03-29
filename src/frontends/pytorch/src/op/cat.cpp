@@ -107,6 +107,8 @@ OutputVector translate_stack_fx(const NodeContext& context) {
     std::deque<Output<Node>> list_elems;
     auto num_elements = context.get_input_size();
     for (size_t i = 0; i < num_elements - 1; i++) {
+        if (context.get_input(i).get_partial_shape().rank() == 1)
+            dim = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
         auto stack_input =
             context.mark_node(std::make_shared<v0::Unsqueeze>(context.get_input(static_cast<int>(i)), dim));
         list_elems.push_back(stack_input);

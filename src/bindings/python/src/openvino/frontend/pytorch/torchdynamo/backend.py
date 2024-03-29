@@ -20,7 +20,7 @@ from openvino.frontend import FrontEndManager
 from openvino.runtime import Core, Type, PartialShape
 from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 from openvino.frontend.pytorch.torchdynamo import decompositions
-from openvino.frontend.pytorch.torchdynamo.decompositions import get_aot_decomposition_list
+from openvino.frontend.pytorch.torchdynamo.decompositions import get_aot_decomposition_list, get_inf_decomposition_list
 from openvino.frontend.pytorch.torchdynamo.partition import Partitioner
 from openvino.frontend.pytorch.torchdynamo.execute import execute, execute_cached
 from openvino.frontend.pytorch.torchdynamo.compile import cached_model_name, openvino_compile_cached_model
@@ -146,7 +146,7 @@ def fx_openvino(subgraph, example_inputs, options=None):
             example_inputs.reverse()
 
         from torch._subclasses.fake_tensor import FakeTensorMode
-        decompositions = _get_decompositions(options)
+        decompositions = _get_decompositions(options) + get_inf_decomposition_list()
         if (_get_aot_autograd(options)):
             decompositions = decompositions + get_aot_decomposition_list()
         with FakeTensorMode(allow_non_fake_inputs=True):
