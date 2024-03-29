@@ -476,7 +476,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     if (priorities!= full_property.end() && !priorities->second.empty()) {
         auto meta_devices = parse_meta_devices(priorities->second.as<std::string>(), full_property);
         if (meta_devices.empty()) {
-            OPENVINO_THROW("Cannot parse device id");
+            OPENVINO_THROW(get_device_name(), ": cannot parse valid device from ", priorities->second.as<std::string>());
         }
         std::unordered_set<std::string> supported_layers;
         for (auto&& value : meta_devices) {
