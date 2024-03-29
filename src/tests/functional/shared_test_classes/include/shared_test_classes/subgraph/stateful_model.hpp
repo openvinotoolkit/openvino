@@ -705,6 +705,17 @@ protected:
     }
 
     void run_test() {
+        bool isCurrentTestDisabled = ov::test::utils::current_test_is_disabled();
+
+        ov::test::utils::PassRate::Statuses status = isCurrentTestDisabled ?
+                                                     ov::test::utils::PassRate::Statuses::SKIPPED :
+                                                     ov::test::utils::PassRate::Statuses::CRASHED;
+        summary.setDeviceName(targetDevice);
+        summary.updateOPsStats(function, status, rel_influence_coef);
+
+        if (isCurrentTestDisabled)
+            GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+
         initialize_state_values();
 
         auto model_states = inferRequest.query_state();
