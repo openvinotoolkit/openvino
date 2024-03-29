@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ ov::OutputVector pad(const Node& node) {
     // node.get_ng_inputs()[1] = std::make_shared<v0::Squeeze>(node.get_ng_inputs()[1]);
     // auto result = set_11::pad(node).at(0);
     auto node_1 = node;
-    node_1.get_ng_inputs()[1] = std::make_shared<v0::Squeeze>(node.get_ng_inputs()[1]);
+    node_1.get_ng_inputs()[1] = std::make_shared<v0::Squeeze>(node_1.get_ng_inputs()[1]);
     auto result = set_11::pad(node_1).at(0);
 
     return {result};

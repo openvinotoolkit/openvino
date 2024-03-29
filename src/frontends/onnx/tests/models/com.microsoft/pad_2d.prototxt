@@ -6,23 +6,14 @@ graph {
     input: "pads"
     output: "y"
     op_type: "Pad"
-    domain: "com.microsoft"
     attribute {
       name: "mode"
       s: "constant"
       type: STRING
     }
+    domain: "com.microsoft"
   }
-  name: "test_constant_pad_microsoft"
-    initializer {
-    dims: 4
-    data_type: 7
-    int64_data: 0
-    int64_data: 2
-    int64_data: 0
-    int64_data: 0
-    name: "pads"
-  }
+  name: "test_pad_2d_microsoft"
   input {
     name: "x"
     type {
@@ -34,6 +25,22 @@ graph {
           }
           dim {
             dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "pads"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 4
           }
         }
       }
