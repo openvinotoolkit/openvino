@@ -6,7 +6,7 @@
 #include "node/include/errors.hpp"
 #include "node/include/preprocess/output_tensor_info.hpp"
 
-OutputInfo::OutputInfo(const Napi::CallbackInfo& info) : Napi::ObjectWrap<OutputInfo>(info){};
+OutputInfo::OutputInfo(const Napi::CallbackInfo& info) : Napi::ObjectWrap<OutputInfo>(info), _output_info(nullptr){};
 
 Napi::Function OutputInfo::get_class_constructor(Napi::Env env) {
     return DefineClass(env, "OutputInfo", {InstanceMethod("tensor", &OutputInfo::tensor)});

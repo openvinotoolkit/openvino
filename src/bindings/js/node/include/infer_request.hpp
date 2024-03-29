@@ -9,7 +9,7 @@
 #include "openvino/runtime/infer_request.hpp"
 
 struct TsfnContext {
-    TsfnContext(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)){};
+    TsfnContext(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)), _ir(nullptr){};
 
     std::thread native_thread;
 

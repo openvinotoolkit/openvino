@@ -3,7 +3,9 @@
 
 #include "node/include/preprocess/preprocess_steps.hpp"
 
-PreProcessSteps::PreProcessSteps(const Napi::CallbackInfo& info) : Napi::ObjectWrap<PreProcessSteps>(info){};
+PreProcessSteps::PreProcessSteps(const Napi::CallbackInfo& info)
+    : Napi::ObjectWrap<PreProcessSteps>(info),
+      _preprocess_info(nullptr){};
 
 Napi::Function PreProcessSteps::get_class_constructor(Napi::Env env) {
     return DefineClass(env, "PreProcessSteps", {InstanceMethod("resize", &PreProcessSteps::resize)});

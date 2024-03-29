@@ -8,7 +8,7 @@
 #include "node/include/preprocess/input_tensor_info.hpp"
 #include "node/include/preprocess/preprocess_steps.hpp"
 
-InputInfo::InputInfo(const Napi::CallbackInfo& info) : Napi::ObjectWrap<InputInfo>(info){};
+InputInfo::InputInfo(const Napi::CallbackInfo& info) : Napi::ObjectWrap<InputInfo>(info), _input_info(nullptr){};
 
 Napi::Function InputInfo::get_class_constructor(Napi::Env env) {
     return DefineClass(env,
