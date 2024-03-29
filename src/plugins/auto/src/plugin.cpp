@@ -470,8 +470,14 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     queryconfig.apply_user_properties();
     auto full_property = queryconfig.get_full_properties();
     auto priorities = full_property.find(ov::device::priorities.name());
+    if (priorities == full_property.end() || priorities->second.empty()) {
+        OPENVINO_THROW("Cannot parse device id");
+    }
     if (priorities!= full_property.end() && !priorities->second.empty()) {
         auto meta_devices = parse_meta_devices(priorities->second.as<std::string>(), full_property);
+        if (meta_devices.empty()) {
+            OPENVINO_THROW("Cannot parse device id");
+        }
         std::unordered_set<std::string> supported_layers;
         for (auto&& value : meta_devices) {
             auto device_qm = get_core()->query_model(model, value.device_name, value.config);
