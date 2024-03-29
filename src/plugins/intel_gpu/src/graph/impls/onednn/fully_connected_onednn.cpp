@@ -278,10 +278,15 @@ public:
         ib >> has_decompression_zp;
         if (has_decompression_zp) {
             ib >> make_data(&_dzp_data_type, sizeof(dnnl::memory::data_type));
-            if (!is_four_bit_weight) {
+            auto decompression_zp_idx = has_bias ? 3 : 4;
+            auto & zp_node = impl_params->get_program().get_node(impl_params->desc->id).get_dependency(decompression_zp_idx).as<data>();
+            _zp_mem = zp_node.get_attached_memory_ptr();
+            if (!is_four_bit_weight)
                 _attrs->set_zero_points(DNNL_ARG_WEIGHTS, 1 << 1, dnnl::memory::dims{}, _dzp_data_type);
-            } else
-                OPENVINO_ASSERT(false, "UNIMPLEMENTED: zp serialization for int4");
+            else {
+                // ZP broadcasting should be implemented and tested
+                OPENVINO_ASSERT(false, "[GPU:UNIMPLEMENTED] OneDNN int4 with zp");
+            }
         }
 
         if (is_compressed) {
