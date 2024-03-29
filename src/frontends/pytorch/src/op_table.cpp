@@ -297,6 +297,8 @@ OP_CONVERTER(translate_std_fx);
 OP_CONVERTER(translate_topk_fx);
 OP_CONVERTER(translate_to_fx);
 OP_CONVERTER(translate_transpose_fx);
+OP_CONVERTER(translate_quantize_per_channel_fx);
+OP_CONVERTER(translate_quantize_per_tensor_fx);
 OP_CONVERTER(translate_var_fx);
 OP_CONVERTER(translate_var_mean_fx);
 OP_CONVERTER(translate_unbind_int_fx);
@@ -760,6 +762,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.argmax.default", op::translate_argmax},
         {"aten.argmin.default", op::translate_argmin},
         {"aten.as_strided.default", op::translate_as_strided},
+        {"aten.as_strided_.default", op::translate_as_strided}, 
         {"aten.asin.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Asin>},
         {"aten.asinh.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Asinh>},
         {"aten.atan.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Atan>},
@@ -953,6 +956,10 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"get_attr", op::translate_constant},
         {"torchvision.deform_conv2d.default", op::translate_deform_conv},
         {"torchvision.roi_align.default", op::translate_roi_align},
+        {"quantized_decomposed.quantize_per_tensor.default", op::translate_quantize_per_tensor_fx},
+        {"quantized_decomposed.quantize_per_channel.default", op::translate_quantize_per_channel_fx},
+        {"quantized_decomposed.dequantize_per_tensor.default", op::skip_node},
+        {"quantized_decomposed.dequantize_per_channel.default", op::skip_node},
     };
 };
 

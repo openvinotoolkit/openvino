@@ -69,6 +69,7 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.argmax.default": None,
             "torch.ops.aten.argmin.default": None,
             "torch.ops.aten.as_strided.default": None,
+            "torch.ops.aten.as_strided_.default": None,
             "torch.ops.aten.asin.default": None,
             "torch.ops.aten.asinh.default": None,
             "torch.ops.aten.asinh.default": None,
@@ -246,6 +247,11 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.zeros_like.default": None,
             "torch.ops.torchvision.deform_conv2d.default": None,
             "torch.ops.torchvision.roi_align.default": None,
+            "torch.ops.quantized_decomposed.quantize_per_tensor.default": None,
+            "torch.ops.quantized_decomposed.quantize_per_channel.default": None,
+            "torch.ops.quantized_decomposed.dequantize_per_tensor.default": None,
+            "torch.ops.quantized_decomposed.dequantize_per_channel.default": None
+
         }
 
         for op in _get_disabled_ops(options):
