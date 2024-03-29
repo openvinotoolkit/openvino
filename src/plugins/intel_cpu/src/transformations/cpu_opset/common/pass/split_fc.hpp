@@ -11,10 +11,10 @@ namespace intel_cpu {
 
 /*
  * Description:
- *      SplitFC detects FC CPU operation with and without compressed weighted.
- *      And then split the FC into serveral small FCs according to sub stream number.
- *      The goal is that the executor can dispatch the splited FCs to different numa node in the system.
- *      As a result, the splited FCs can be executed at the parallel level.
+ *      SplitFC detects FC CPU operation with and without compressed weights.
+ *      And then splits the FC into several small FCs by output channel according to sub stream number.
+ *      The goal is that the executor can dispatch the split FCs to different numa nodes in the system.
+ *      As a result, the split FCs can be executed at the parallel level.
  *
  * Before:
  *

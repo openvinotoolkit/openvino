@@ -23,7 +23,6 @@ using namespace testing;
 using namespace ov::intel_cpu;
 
 TEST_F(TransformationTestsF, SplitFCTest) {
-    disable_result_friendly_names_check();
     disable_rt_info_check();
     {
         auto src = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{ 3, 4096, 1 });
@@ -58,7 +57,6 @@ TEST_F(TransformationTestsF, SplitFCTest) {
 }
 
 TEST_F(TransformationTestsF, SplitFCTest_int8_weight) {
-    disable_result_friendly_names_check();
     disable_rt_info_check();
     {
         auto src = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{3, 4096, 1});
@@ -121,7 +119,6 @@ TEST_F(TransformationTestsF, SplitFCTest_int8_weight) {
 }
 
 TEST_F(TransformationTestsF, SplitFCTest_int4_weight) {
-    disable_result_friendly_names_check();
     disable_rt_info_check();
     {
         auto src = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{3, 4096, 1});
@@ -149,20 +146,20 @@ TEST_F(TransformationTestsF, SplitFCTest_int4_weight) {
         auto transpose_src = std::make_shared<ov::opset1::Transpose>(src, transpose_constant_src);
 
         auto wgt = ov::opset1::Constant::create(ov::element::u4, ov::Shape{2048, 4096}, {12});
-        auto cvt_wgt_f32 = std::make_shared<ov::opset1::Convert>(wgt, ov::element::f32);
+        auto cvt_wgt_i8 = std::make_shared<ov::opset1::Convert>(wgt, ov::element::i8);
 
         auto split_dim_node = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
         auto split_length = ov::opset1::Constant::create<int32_t>(ov::element::i32, ov::Shape{2}, {1024, 1024});
 
-        auto split_wgts = std::make_shared<ov::opset1::VariadicSplit>(cvt_wgt_f32, split_dim_node, split_length);
+        auto split_wgts = std::make_shared<ov::opset1::VariadicSplit>(cvt_wgt_i8, split_dim_node, split_length);
         auto cvt_wgt0_u4 = std::make_shared<ov::opset1::Convert>(split_wgts->output(0), ov::element::u4);
         auto cvt_wgt1_u4 = std::make_shared<ov::opset1::Convert>(split_wgts->output(1), ov::element::u4);
         auto cvt_wgt0_f32 = std::make_shared<ov::opset1::Convert>(cvt_wgt0_u4, ov::element::f32);
         auto cvt_wgt1_f32 = std::make_shared<ov::opset1::Convert>(cvt_wgt1_u4, ov::element::f32);
 
         auto zp = ov::opset1::Constant::create(ov::element::u4, ov::Shape{2048, 1}, {1});
-        auto cvt_zp_f32 = std::make_shared<ov::opset1::Convert>(zp, ov::element::f32);
-        auto split_zp = std::make_shared<ov::opset1::VariadicSplit>(cvt_zp_f32, split_dim_node, split_length);
+        auto cvt_zp_i8 = std::make_shared<ov::opset1::Convert>(zp, ov::element::i8);
+        auto split_zp = std::make_shared<ov::opset1::VariadicSplit>(cvt_zp_i8, split_dim_node, split_length);
 
         auto cvt_zp0_u4 = std::make_shared<ov::opset1::Convert>(split_zp->output(0), ov::element::u4);
         auto cvt_zp1_u4 = std::make_shared<ov::opset1::Convert>(split_zp->output(1), ov::element::u4);
@@ -189,7 +186,6 @@ TEST_F(TransformationTestsF, SplitFCTest_int4_weight) {
 }
 
 TEST_F(TransformationTestsF, SplitFCTest_int4_weight_reshape) {
-    disable_result_friendly_names_check();
     disable_rt_info_check();
     {
         auto src = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{ 3, 2048, 1 });
@@ -220,12 +216,12 @@ TEST_F(TransformationTestsF, SplitFCTest_int4_weight_reshape) {
         auto transpose_src = std::make_shared<ov::opset1::Transpose>(src, transpose_constant_src);
 
         auto wgt = ov::opset1::Constant::create(ov::element::u4, ov::Shape{ 4096, 2, 1024 }, { 12 });
-        auto cvt_wgt_f32 = std::make_shared<ov::opset1::Convert>(wgt, ov::element::f32);
+        auto cvt_wgt_i8 = std::make_shared<ov::opset1::Convert>(wgt, ov::element::i8);
 
         auto split_dim_node = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
         auto split_length = ov::opset1::Constant::create<int32_t>(ov::element::i32, ov::Shape{2}, {2048, 2048});
 
-        auto split_wgts = std::make_shared<ov::opset1::VariadicSplit>(cvt_wgt_f32, split_dim_node, split_length);
+        auto split_wgts = std::make_shared<ov::opset1::VariadicSplit>(cvt_wgt_i8, split_dim_node, split_length);
         auto cvt_wgt0_u4 = std::make_shared<ov::opset1::Convert>(split_wgts->output(0), ov::element::u4);
         auto cvt_wgt1_u4 = std::make_shared<ov::opset1::Convert>(split_wgts->output(1), ov::element::u4);
         auto cvt_wgt0_f32 = std::make_shared<ov::opset1::Convert>(cvt_wgt0_u4, ov::element::f32);
