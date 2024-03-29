@@ -25,7 +25,7 @@ if(ENABLE_DRIVER_COMPILER_ADAPTER)
     target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_DRIVER_COMPILER_ADAPTER)
     target_link_libraries(${TARGET_NAME}
         PRIVATE
-            npu_driver_compiler_adapter
+            openvino_npu_driver_compiler_adapter
     )
 endif()
 
@@ -33,7 +33,7 @@ if(ENABLE_ZEROAPI_BACKEND)
     target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_ZEROAPI_BACKEND)
     target_link_libraries(${TARGET_NAME}
         PRIVATE
-            npu_level_zero_backend
+            openvino_npu_level_zero_backend
     )
 endif()
 
@@ -54,7 +54,7 @@ target_link_libraries(${TARGET_NAME}
 )
 
 target_include_directories(${TARGET_NAME}
-    PUBLIC
+    PRIVATE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
 target_include_directories(${TARGET_NAME}
@@ -63,6 +63,4 @@ target_include_directories(${TARGET_NAME}
         ${NPU_PLUGIN_SOURCE_DIR}/thirdparty/level-zero-ext
 )
 
-if(WIN32 AND BUILD_SHARED_LIBS)
-    ov_add_api_validator_post_build_step(TARGET ${VPUX_PLUGIN_TARGET})
-endif()
+ov_add_api_validator_post_build_step(TARGET ${VPUX_PLUGIN_TARGET})

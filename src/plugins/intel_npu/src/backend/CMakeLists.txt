@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "npu_level_zero_backend")
+set(TARGET_NAME "openvino_npu_level_zero_backend")
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
@@ -24,7 +24,7 @@ target_include_directories(${TARGET_NAME}
 target_link_libraries(${TARGET_NAME}
     PRIVATE
         ov_npu_al
-        npu_zero_result_parser
+        openvino_npu_zero_result_parser
         ze_loader
 )
 

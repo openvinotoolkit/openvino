@@ -11,13 +11,9 @@ set(BUILD_SHARED_LIBS OFF)
 if(ENABLE_ZEROAPI_BACKEND)
     # We have to avoid linking against loader with debug postfix due it's a part of driver
     # and the name will be the same for release and debug configurations
-    set(OLD_CMAKE_DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX})
     set(CMAKE_DEBUG_POSTFIX "")
 
     # Skip warnings as errors for thirdparty
-    set(OLD_CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-    set(OLD_CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
-    set(OLD_CMAKE_COMPILE_WARNING_AS_ERROR ${CMAKE_COMPILE_WARNING_AS_ERROR})
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         string(REPLACE "/WX" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
         string(REPLACE "/WX" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
@@ -35,8 +31,4 @@ if(ENABLE_ZEROAPI_BACKEND)
     endif()
     set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
     add_subdirectory(level-zero EXCLUDE_FROM_ALL)
-    set(CMAKE_CXX_FLAGS ${OLD_CMAKE_CXX_FLAGS})
-    set(CMAKE_C_FLAGS ${OLD_CMAKE_C_FLAGS})
-    set(CMAKE_COMPILE_WARNING_AS_ERROR ${OLD_CMAKE_COMPILE_WARNING_AS_ERROR})
-    set(CMAKE_DEBUG_POSTFIX ${OLD_CMAKE_DEBUG_POSTFIX})
 endif()

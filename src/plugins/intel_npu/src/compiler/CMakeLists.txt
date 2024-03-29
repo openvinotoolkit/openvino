@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "npu_driver_compiler_adapter")
+set(TARGET_NAME "openvino_npu_driver_compiler_adapter")
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
@@ -26,7 +26,7 @@ target_link_libraries(${TARGET_NAME}
         ov_npu_al
         ze_loader
     PRIVATE
-        npu_zero_result_parser
+        openvino_npu_zero_result_parser
         openvino::runtime
         openvino::runtime::dev
 )
