@@ -172,6 +172,7 @@ protected:
 const auto emptyCPUSpec = CPUSpecificParams{{}, {}, {}, {}};
 const ov::AnyMap empty_plugin_config{};
 const ov::AnyMap cpu_bf16_plugin_config = {{ov::hint::inference_precision(ov::element::bf16)}};
+const ov::AnyMap cpu_f16_plugin_config = {{ov::hint::inference_precision(ov::element::f16)}};
 
 // utility functions
 std::vector<CPUSpecificParams> filterCPUSpecificParams(const std::vector<CPUSpecificParams>& paramsVector);
