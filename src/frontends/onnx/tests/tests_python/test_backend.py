@@ -37,7 +37,6 @@ from tests import (
     xfail_issue_63036,
     xfail_issue_63043,
     xfail_issue_63137,
-    xfail_issue_63138,
     xfail_issue_69444,
     xfail_issue_81976,
     skip_segfault,
@@ -330,15 +329,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_optional_has_element_cpu",
         "OnnxBackendNodeModelTest.test_optional_has_element_empty_cpu",
         "OnnxBackendNodeModelTest.test_loop16_seq_none_cpu",  # OptionalHasElement, SequenceInsert
-    ),
-    (
-        xfail_issue_63138,
-        "OnnxBackendNodeModelTest.test_shape_end_1_cpu",
-        "OnnxBackendNodeModelTest.test_shape_end_negative_1_cpu",
-        "OnnxBackendNodeModelTest.test_shape_start_1_cpu",
-        "OnnxBackendNodeModelTest.test_shape_start_1_end_2_cpu",
-        "OnnxBackendNodeModelTest.test_shape_start_1_end_negative_1_cpu",
-        "OnnxBackendNodeModelTest.test_shape_start_negative_1_cpu",
     ),
     (
         xfail_issue_69444,

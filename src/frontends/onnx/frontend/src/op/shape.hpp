@@ -10,6 +10,12 @@ namespace ov {
 namespace frontend {
 namespace onnx {
 namespace op {
+namespace set_15 {
+
+ov::OutputVector shape(const ov::frontend::onnx::Node& node);
+
+}  // namespace set_15
+
 namespace set_1 {
 
 ov::OutputVector shape(const ov::frontend::onnx::Node& node);

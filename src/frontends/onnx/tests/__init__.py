@@ -131,7 +131,6 @@ xfail_issue_63043 = xfail_test(reason="Recurrent node expects constants as W, R,
 
 skip_rng_tests = pytest.mark.skip(reason="Tests use random number generator with no seed.")
 xfail_issue_63137 = xfail_test(reason="Unsupported operations: OptionalHasElement, OptionalGetElement")
-xfail_issue_63138 = xfail_test(reason="Missing ONNX Shape-15 support")
 xfail_issue_68212 = xfail_test(reason="Unsupported reading model with bytes streams")
 
 xfail_issue_78843 = xfail_test(reason="Missing reference output files for ssd mobilenet models")
