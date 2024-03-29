@@ -175,6 +175,7 @@ def test_optional_with_input_node_and_predicate():
     assert not Matcher(Optional(["opset13.Relu"], model_add, lambda x: False), "TestInputNodePredicate").match(model_relu)
     assert not Matcher(Optional(["opset13.Cos"], model_add, lambda x: True), "TestInputNodePredicate").match(model_relu)
 
+
 def test_optional_with_multi_input_node():
     model_input_0 = ops.parameter(PartialShape.dynamic())
     model_relu = ops.relu(model_input_0.output(0))
