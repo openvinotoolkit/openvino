@@ -1613,3 +1613,20 @@ TEST_F(TransformationTestsF, SqueezeBinaryReshape) {
         model_ref = std::make_shared<ov::Model>(OutputVector{relu}, ParameterVector{data});
     }
 }
+
+TEST_F(TransformationTestsF, EliminateAbs) {
+    {
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(4));
+        auto shape_of = std::make_shared<op::v3::ShapeOf>(data);
+        auto abs = std::make_shared<op::v0::Abs>(shape_of);
+        auto broadcast = std::make_shared<op::v3::Broadcast>(data, abs);
+        model = std::make_shared<ov::Model>(OutputVector{broadcast}, ParameterVector{data});
+        manager.register_pass<ov::pass::NopElimination>();
+    }
+    {
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(4));
+        auto shape_of = std::make_shared<op::v3::ShapeOf>(data);
+        auto broadcast = std::make_shared<op::v3::Broadcast>(data, shape_of);
+        model_ref = std::make_shared<ov::Model>(OutputVector{broadcast}, ParameterVector{data});
+    }
+}

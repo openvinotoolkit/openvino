@@ -486,6 +486,8 @@ bool ov::interval_bound_evaluator(const Node* node,
 }
 
 bool ov::tensor_is_non_negative(const Tensor& bound) {
+    if (!bound)
+        return false;
     const auto bound_constant =
         std::make_shared<op::v0::Constant>(bound.get_element_type(), bound.get_shape(), bound.data());
     const auto zero_constant = op::v0::Constant::create(bound.get_element_type(), {1}, {0});

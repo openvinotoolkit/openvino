@@ -809,6 +809,28 @@ ov::pass::EliminateNopBroadcast::EliminateNopBroadcast() {
     register_matcher(m, matcher_pass_callback);
 }
 
+ov::pass::EliminateAbs::EliminateAbs() {
+    MATCHER_SCOPE(EliminateAbs);
+    auto root = pattern::wrap_type<op::v0::Abs>([](const Output<Node>& value) -> bool {
+        const auto& t = value.get_tensor().get_lower_value();
+        const auto& s = value.get_partial_shape();
+        if (!t || !value.get_element_type().is_integral_number() || s.is_dynamic() || shape_size(s.to_shape()) > 10)
+            return false;
+        const auto& value_as_vector = op::v0::Constant(t).cast_vector<int64_t>();
+        return std::all_of(value_as_vector.begin(), value_as_vector.end(), [](const int64_t& i) {
+            return i >= 0;
+        });
+    });
+
+    ov::matcher_pass_callback matcher_pass_callback = [](pattern::Matcher& m) {
+        const auto& op = m.get_match_root();
+        return replace_output_update_name(op->output(0), op->input_value(0));
+    };
+
+    auto m = std::make_shared<pattern::Matcher>(root, matcher_name);
+    register_matcher(m, matcher_pass_callback);
+}
+
 ov::pass::NopSliceBeforeGatherElements::NopSliceBeforeGatherElements() {
     MATCHER_SCOPE(NopSliceBeforeGatherElements);
     auto slice = pattern::wrap_type<op::v8::Slice>();
@@ -1007,6 +1029,7 @@ ov::pass::PrepareShapeOpsForEliminationAroundBE::PrepareShapeOpsForEliminationAr
 
 ov::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
     // shape-agnostic transformations
+    ADD_MATCHER_FOR_THIS(EliminateAbs)
     ADD_MATCHER_FOR_THIS(EliminatePad)
     ADD_MATCHER_FOR_THIS(EliminateConvert)
     ADD_MATCHER_FOR_THIS(EliminateConvertNonZero)

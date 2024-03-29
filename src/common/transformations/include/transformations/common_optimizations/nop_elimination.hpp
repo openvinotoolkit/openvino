@@ -10,6 +10,7 @@
 namespace ov {
 namespace pass {
 
+class TRANSFORMATIONS_API EliminateAbs;
 class TRANSFORMATIONS_API EliminateConcat;
 class TRANSFORMATIONS_API EliminateConvert;
 class TRANSFORMATIONS_API EliminateConvertNonZero;
@@ -29,6 +30,16 @@ class TRANSFORMATIONS_API PrepareShapeOpsForEliminationAroundBE;
 
 }  // namespace pass
 }  // namespace ov
+
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief EliminateAbs eliminates abs that does nothing
+ */
+class ov::pass::EliminateAbs : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("EliminateAbs", "0");
+    EliminateAbs();
+};
 
 /**
  * @ingroup ov_transformation_common_api
