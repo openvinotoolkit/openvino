@@ -3,46 +3,32 @@
 #
 
 set(TARGET_NAME "npu_level_zero_backend")
-set(OBJ_TARGET_NAME "${TARGET_NAME}_obj")
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
-if(BUILD_SHARED_LIBS)
-    add_library(${OBJ_TARGET_NAME} OBJECT ${SOURCES})
-else()
-    add_library(${OBJ_TARGET_NAME} STATIC ${SOURCES})
-endif()
+add_library(${TARGET_NAME} STATIC ${SOURCES})
 
-set_target_properties(${OBJ_TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
-ov_add_clang_format_target(${OBJ_TARGET_NAME}_clang FOR_TARGETS ${OBJ_TARGET_NAME})
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
-target_compile_definitions(${OBJ_TARGET_NAME}
+target_compile_definitions(${TARGET_NAME}
     PRIVATE
         IMPLEMENT_OPENVINO_RUNTIME_PLUGIN)
 
-target_include_directories(${OBJ_TARGET_NAME}
+target_include_directories(${TARGET_NAME}
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
 
-target_link_libraries(${OBJ_TARGET_NAME}
+target_link_libraries(${TARGET_NAME}
     PRIVATE
         ov_npu_al
         npu_zero_result_parser
         ze_loader
 )
 
-if(BUILD_SHARED_LIBS)
-    add_library(${TARGET_NAME} STATIC)
-    target_link_libraries(${TARGET_NAME} PRIVATE ${OBJ_TARGET_NAME})
-else()
-    add_library(${TARGET_NAME} ALIAS ${OBJ_TARGET_NAME})
-endif()
-
-set(NPU_LEVEL_ZERO_BACKEND_OBJ_TARGET "${OBJ_TARGET_NAME}" PARENT_SCOPE)
-
 #
 # targets install
 #
-ov_install_static_lib(${OBJ_TARGET_NAME} ${NPU_PLUGIN_COMPONENT})
+ov_install_static_lib(${TARGET_NAME} ${NPU_PLUGIN_COMPONENT})

@@ -27,6 +27,6 @@ target_link_libraries(${TARGET_NAME}
 #
 ov_install_static_lib(${TARGET_NAME} ${NPU_PLUGIN_COMPONENT})
 
-ov_developer_package_export_targets(TARGET ov_npu_logger_utils
+ov_developer_package_export_targets(TARGET ${TARGET_NAME}
                                     INSTALL_INCLUDE_DIRECTORIES
                                         $<BUILD_INTERFACE:${NPU_UTILS_SOURCE_DIR}/include>)

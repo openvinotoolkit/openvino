@@ -33,7 +33,7 @@ if(ENABLE_ZEROAPI_BACKEND)
     target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_ZEROAPI_BACKEND)
     target_link_libraries(${TARGET_NAME}
         PRIVATE
-            ${NPU_LEVEL_ZERO_BACKEND_OBJ_TARGET}
+            npu_level_zero_backend
     )
 endif()
 
