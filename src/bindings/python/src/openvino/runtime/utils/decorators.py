@@ -16,7 +16,7 @@ def _get_name(**kwargs: Any) -> Node:
     return None
 
 
-def _set_node_friendly_name(node: Node, *, name: str = None) -> Node:
+def _set_node_friendly_name(node: Node, *, name: Optional[str] = None) -> Node:
     if name is not None:
         node.friendly_name = name
     return node
