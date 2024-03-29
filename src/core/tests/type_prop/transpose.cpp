@@ -5,14 +5,13 @@
 #include "openvino/op/transpose.hpp"
 
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "sequnce_generator.hpp"
+#include "sequence_generator.hpp"
 
 using namespace std;
 using namespace ov;
@@ -55,7 +54,7 @@ TEST(type_prop, transpose_arg_static_input_order_constant_invalid_perm) {
 }
 
 TEST(type_prop, transpose_with_not_unique_order) {
-    const auto order = ov::TensorLabel{1, 0, 1};
+    const auto order = std::vector<size_t>{1, 0, 1};
     auto arg = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 4, 300});
     auto input_order = make_shared<ov::op::v0::Constant>(element::i64, Shape{order.size()}, order);
 
@@ -265,7 +264,7 @@ TEST(type_prop, transpose_input_order_et_wrong) {
 
 TEST(type_prop, transpose_with_empty_order) {
     auto arg = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 300});
-    auto input_order = make_shared<ov::op::v0::Constant>(element::i64, Shape({0}), ov::TensorLabel());
+    auto input_order = make_shared<ov::op::v0::Constant>(element::i64, Shape({0}), std::vector<size_t>());
 
     auto r = make_shared<op::v1::Transpose>(arg, input_order);
 
@@ -351,19 +350,18 @@ protected:
         std::tie(transpose_order, input_p_shape, exp_p_shape) = GetParam();
     }
 
-    ov::TensorLabel make_seq_labels(const ov::label_t first, const size_t count) {
-        ov::TensorLabel labels;
-
-        generate_n(std::back_inserter(labels), count, ov::SeqGen<ov::label_t>(first));
-        return labels;
+    ov::TensorSymbol make_seq_symbols(const size_t count) {
+        ov::TensorSymbol symbols;
+        for (size_t i = 0; i < count; ++i)
+            symbols.push_back(std::make_shared<ov::Symbol>());
+        return symbols;
     }
 
-    ov::TensorLabel make_seq_labels_by_order(const ov::label_t first, const vector<int64_t> order) {
-        ov::TensorLabel labels;
-        transform(order.cbegin(), order.cend(), back_inserter(labels), [&first](const int64_t& dim) -> ov::label_t {
-            return static_cast<ov::label_t>(dim + first);
-        });
-        return labels;
+    ov::TensorSymbol make_seq_symbols_by_order(ov::TensorSymbol symbols, const vector<int64_t> order) {
+        ov::TensorSymbol new_symbols;
+        for (const auto& i : order)
+            new_symbols.push_back(symbols[i]);
+        return new_symbols;
     }
 };
 
@@ -413,21 +411,19 @@ TEST_P(TransposeTest, propagate_interval_shape) {
 }
 
 /**
- * \brief Check labels propagation for all dimensions.
+ * \brief Check symbols propagation for all dimensions.
  *
- * The labels should be moved accordingly to transpose order.
+ * The symbols should be moved accordingly to transpose order.
  */
-TEST_P(TransposeTest, propagate_labels) {
-    constexpr ov::label_t first_label = 33;
+TEST_P(TransposeTest, propagate_symbols) {
+    const auto symbols = make_seq_symbols(transpose_order.size());
+    const auto exp_symbols = make_seq_symbols_by_order(symbols, transpose_order);
 
-    const auto labels = make_seq_labels(first_label, transpose_order.size());
-    const auto exp_labels = make_seq_labels_by_order(first_label, transpose_order);
-
-    set_shape_labels(input_p_shape, labels);
+    set_shape_symbols(input_p_shape, symbols);
 
     const auto input = make_shared<ov::op::v0::Parameter>(exp_type, input_p_shape);
     const auto order = ov::op::v0::Constant::create(element::i64, Shape{transpose_order.size()}, transpose_order);
     const auto output = make_shared<op::v1::Transpose>(input, order);
 
-    EXPECT_EQ(get_shape_labels(output->get_output_partial_shape(op::v1::Transpose::ARG_T)), exp_labels);
+    EXPECT_EQ(get_shape_symbols(output->get_output_partial_shape(op::v1::Transpose::ARG_T)), exp_symbols);
 }

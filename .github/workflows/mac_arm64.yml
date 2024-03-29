@@ -114,7 +114,6 @@ jobs:
         run: |
           # For Python API
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/requirements.txt
 
           # For running ONNX frontend unit tests
           python3 -m pip install --force-reinstall -r ${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests/requirements.txt
@@ -180,10 +179,8 @@ jobs:
       - name: Cmake & Build - OpenVINO Contrib
         run: |
           cmake \
-            -DBUILD_nvidia_plugin=OFF \
-            -DBUILD_java_api=OFF \
             -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" \
-            -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_CONTRIB_REPO }}/modules \
+            -DOPENVINO_EXTRA_MODULES=${{ OPENVINO_CONTRIB_REPO }}/modules/custom_operations \
             -S ${{ env.OPENVINO_REPO }} \
             -B ${{ env.BUILD_DIR }}
           cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}

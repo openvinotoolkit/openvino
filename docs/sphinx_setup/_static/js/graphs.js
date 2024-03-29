@@ -225,7 +225,7 @@ class Modal {
         }
     }
     static getCoreTypesLabels() {
-        return ['CPU', 'iGPU', 'CPU+iGPU'];
+        return ['CPU', 'iGPU\\NPU', 'CPU+iGPU'];
     }
     static getKpisLabels(version) {
         if (version == 'ovms')
@@ -242,7 +242,7 @@ class Modal {
             switch (label) {
                 case 'CPU':
                     return 'core';
-                case 'iGPU':
+                case 'iGPU\\NPU':
                     return 'core-iGPU';
                 case 'CPU+iGPU':
                     return 'core-CPU+iGPU';
@@ -450,14 +450,14 @@ $(document).ready(function () {
         renderData(graph, networkModels, ietype, platforms, kpis, precisions);
         $('.modal-footer').show();
         $('#modal-display-graphs').show();
-        $('.edit-settings-btn').on('click', (event) => {
+        $('.edit-settings-btn').off('click').on('click', (event) => {
             $('#modal-configure-graphs').show();
             $('#modal-display-graphs').hide();
             $('.modal-footer').hide();
             $('.chart-placeholder').empty();
         });
 
-        $('.graph-chart-title-header').on('click', (event) => {
+        $('.graph-chart-title-header').off('click').on('click', (event) => {
             var parent = event.target.parentElement;
 
             if ($(parent).children('.chart-wrap,.empty-chart-container').is(":visible")) {
@@ -953,7 +953,8 @@ $(document).ready(function () {
                 precisions.forEach((prec, index) => {
                     config.datasets[index].data = kpiData.map(tData => tData[prec]);
                 });
-                return removeEmptyLabel(config);
+                return config;
+                // return removeEmptyLabel(config);
             }
             var config = Graph.getGraphConfig(kpi, groupUnit);
             config.datasets[0].data = Graph.getDatabyKPI(model, kpi);

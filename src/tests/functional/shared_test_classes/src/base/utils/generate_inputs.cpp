@@ -24,24 +24,6 @@ namespace ov {
 namespace test {
 namespace utils {
 
-namespace {
-struct {
-    double max = 0;
-    double min = 0;
-    bool is_defined = false;
-} const_range;
-}  // namespace
-
-void set_const_ranges(double _min, double _max) {
-    const_range.max = _max;
-    const_range.min = _min;
-    const_range.is_defined = true;
-}
-
-void reset_const_ranges() {
-    const_range.is_defined = false;
-}
-
 std::vector<uint8_t> color_test_image(size_t height, size_t width, int b_step, ov::preprocess::ColorFormat format) {
     // Test all possible r/g/b values within dimensions
     int b_dim = 255 / b_step + 1;
@@ -112,16 +94,6 @@ ov::Tensor generate(const std::shared_ptr<ov::Node>& node,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
     InputGenerateData inGenData;
-
-    if (const_range.is_defined) {
-        auto min_orig = inGenData.start_from;
-        auto max_orig = inGenData.start_from + inGenData.range * inGenData.resolution;
-        auto min_ref = const_range.min;
-        auto max_ref = const_range.max;
-        if (min_orig < min_ref || min_orig == 0)
-            inGenData.start_from = min_ref;
-        inGenData.range = (max_orig > max_ref || max_orig == 10 ? max_ref : max_orig - inGenData.start_from) - inGenData.start_from;
-    }
 
     if (elemType.is_real()) {
         set_real_number_generation_data(inGenData);
@@ -292,15 +264,15 @@ ov::Tensor generate(const std::shared_ptr<ov::op::v0::FakeQuantize>& node,
     int seed = 1;
     size_t constDataSize = ov::shape_size(targetShape);
     std::vector<float> inputLowData, inputHighData, outputLowData, outputHighData;
-    inputLowData = NGraphFunctions::Utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
+    inputLowData = ov::test::utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
     if (node->get_levels() != 2) {
-        inputHighData = NGraphFunctions::Utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
-        outputLowData = NGraphFunctions::Utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
-        outputHighData = NGraphFunctions::Utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
+        inputHighData = ov::test::utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
+        outputLowData = ov::test::utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
+        outputHighData = ov::test::utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
     } else {
         inputHighData = inputLowData;
-        outputLowData = NGraphFunctions::Utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
-        outputHighData = NGraphFunctions::Utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
+        outputLowData = ov::test::utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
+        outputHighData = ov::test::utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
 
         for (int i = 0; i < constDataSize; i++) {
             if (outputLowData[i] > outputHighData[i]) {

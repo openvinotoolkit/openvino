@@ -10,6 +10,7 @@ import shutil
 from os import path
 from test_data import TestData
 from test_data import TestError
+from utils.helpers import formatJSON
 
 sys.path.append('../')
 from utils.helpers import getMeaningfullCommitTail
@@ -55,7 +56,6 @@ def makeRepoContent(td: TestData):
 
     td.repoStructure['files'] = formatJSON(
         td.repoStructure['files'],
-        td,
         lambda content: content.format(
             repoName=td.repoName,
             mainFile=td.mainFile)
@@ -91,22 +91,6 @@ def runCmd(cmd, cwd, verbose=False):
     proc.wait()
     proc.communicate()
     return output
-
-
-def formatJSON(content, td: TestData, formatLambda):
-    if isinstance(content, dict):
-        for k, value in content.items():
-            content[k] = formatJSON(value, td, formatLambda)
-    elif isinstance(content, list):
-        for id, item in enumerate(content):
-            content[id] = formatJSON(item, td, formatLambda)
-    elif isinstance(content, str):
-        content = formatLambda(content)
-    else:
-        # bool or digit object
-        pass
-    return content
-
 
 def createRepo(td: TestData):
     repoName = td.repoName
@@ -169,7 +153,7 @@ def getActualCommit(td: TestData):
         raise TestError("Running actual commit before expected.")
 
     # prepare config
-    cfg = formatJSON(td.testCfg, td, td.formatConfig)
+    cfg = formatJSON(td.testCfg, td.formatConfig)
     testCfg = "test_cfg.json"
 
     with open(testCfg, "w+") as customCfg:
