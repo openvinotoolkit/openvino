@@ -6,12 +6,12 @@
 
 #include <algorithm>
 
+#include "openvino/core/node.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/reference/concat.hpp"
 #include "openvino/reference/function.hpp"
 #include "openvino/reference/split.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace reference {
