@@ -17,7 +17,7 @@
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/util/common_util.hpp"
-#include "sequnce_generator.hpp"
+#include "sequence_generator.hpp"
 
 namespace {
 const auto normalize_axis_to = [](const int64_t& tensor_rank) {

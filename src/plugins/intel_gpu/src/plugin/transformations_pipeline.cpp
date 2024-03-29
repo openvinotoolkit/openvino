@@ -724,7 +724,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         if (!device_info.supports_immad)
             manager.register_pass<ov::intel_gpu::BroadcastReshapeMatmulFusion>();
 
-        const size_t zp_pad_size = 32;
+        const size_t zp_pad_size = device_info.supports_immad ? 16 : 32;
         manager.register_pass<ov::intel_gpu::BroadcastAndPadZeroPointBuffers>(zp_pad_size);
 
         // This is supposed to be the last pass to ensure that we don't have name collisions until
