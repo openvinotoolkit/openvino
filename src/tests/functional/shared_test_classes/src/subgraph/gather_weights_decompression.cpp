@@ -180,11 +180,18 @@ void GatherWeightsDecompression::generate_inputs(const std::vector<ov::Shape>& t
 void GatherWeightsDecompression::check_results() {
     const auto& test_param = GetParam();
     ov::element::Type weights_precision = std::get<2>(test_param);
+    size_t num_exec_ops = 0;
+
     for (const auto& n : compiledModel.get_runtime_model()->get_ordered_ops()) {
         if (n->get_friendly_name() == "Compressed_weights") {
             ASSERT_EQ(n->get_output_element_type(0), weights_precision);
         }
+        if (n->get_input_size() > 0) {
+            num_exec_ops += 1;
+        }
     }
+
+    EXPECT_LE(num_exec_ops, 3u);
 }
 
 void GatherWeightsDecompression::SetUp() {

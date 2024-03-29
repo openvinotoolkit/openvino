@@ -14,17 +14,6 @@ TEST_P(GatherWeightsDecompression, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     check_results();
-
-    bool found_gather_compressed = false;
-    for (const auto& n : compiledModel.get_runtime_model()->get_ordered_ops()) {
-        if (n->get_friendly_name() == "gather_node") {
-            // Input 4/5 means pattern matched.
-            if (n->get_input_size() == 4u || n->get_input_size() == 5u) {
-                found_gather_compressed = true;
-            }
-        }
-    }
-    EXPECT_TRUE(found_gather_compressed);
 }
 
 const std::vector<ov::element::Type> output_precisions = {ov::element::f32, ov::element::f16};
