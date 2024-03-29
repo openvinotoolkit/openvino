@@ -533,3 +533,127 @@ def test_float_to_f8e4m3_convert(ov_type, numpy_dtype):
     target = np.array(target, dtype=numpy_dtype)
 
     assert np.allclose(result, target, equal_nan=True)
+
+
+@pytest.mark.parametrize(
+    ("src_dtype"),
+    [
+        (np.float16),
+        (np.float32),
+        (np.float64),
+        (np.int8),
+        (np.uint8),
+        (np.int16),
+        (np.uint16),
+        (np.int32),
+        (np.uint32),
+        (np.int64),
+        (np.bool_),
+    ],
+)
+@pytest.mark.parametrize(
+    ("dst_dtype"),
+    [
+        (None),
+        (np.float16),
+        (np.float32),
+        (np.float64),
+        (np.int8),
+        (np.uint8),
+        (np.int16),
+        (np.uint16),
+        (np.int32),
+        (np.uint32),
+        (np.int64),
+        (np.bool_),
+    ],
+)
+@pytest.mark.parametrize(
+    ("copy_flag"),
+    [
+        (True),
+        (False),
+    ],
+)
+def test_get_data_casting(src_dtype, dst_dtype, copy_flag):
+    data = np.random.rand(2, 4, 16) + 0.01  # do not allow 0s -- extra edge-case for bool type
+    data = data.astype(src_dtype)
+
+    ov_const = ops.constant(data, dtype=src_dtype)
+    arr = ov_const.get_data(dtype=dst_dtype, copy=copy_flag)
+
+    if (src_dtype == dst_dtype or dst_dtype is None) and copy_flag is False:
+        assert arr.flags["OWNDATA"] is False
+        assert np.array_equal(arr, data)
+    else:
+        assert arr.flags["OWNDATA"] is True
+        assert np.array_equal(arr, data.astype(dst_dtype))
+
+
+@pytest.mark.parametrize(
+    ("src_dtype"),
+    [
+        (np.float16),
+        (np.float32),
+        (np.float64),
+        (np.int8),
+        (np.uint8),
+        (np.int16),
+        (np.uint16),
+        (np.int32),
+        (np.uint32),
+        (np.int64),
+        (np.bool_),
+    ],
+)
+@pytest.mark.parametrize(
+    ("copy_flag"),
+    [
+        (True),
+        (False),
+    ],
+)
+def test_get_data_casting_bool(src_dtype, copy_flag):
+    data = np.array([1.0, 0.0, 2.0, 0.5, 0.3, 0.1, 3.0]).astype(src_dtype)
+
+    ov_const = ops.constant(data, dtype=src_dtype)
+    arr = ov_const.get_data(dtype=np.bool_, copy=copy_flag)
+
+    if src_dtype == np.bool_ and copy_flag is False:
+        assert arr.flags["OWNDATA"] is False
+        assert np.array_equal(arr, data)
+    else:
+        assert arr.flags["OWNDATA"] is True
+        assert np.array_equal(arr, data.astype(np.bool_))
+
+
+@pytest.mark.parametrize(
+    ("src_dtype"),
+    [
+        (np.float16),
+        (np.float32),
+        (np.float64),
+    ],
+)
+@pytest.mark.parametrize(
+    ("dst_dtype"),
+    [
+        (np.float32),
+        (np.float64),
+    ],
+)
+@pytest.mark.parametrize(
+    ("copy_flag"),
+    [
+        (True),
+        (False),
+    ],
+)
+def test_get_data_casting_bf16(src_dtype, dst_dtype, copy_flag):
+    data = np.array([1.0, 0.0, 1012.5, 0.5, 2.0]).astype(src_dtype)
+    ov_const = ops.constant(data, dtype=Type.bf16)
+
+    arr = ov_const.get_data(dtype=dst_dtype, copy=copy_flag)
+
+    assert arr.flags["OWNDATA"] is True
+    assert np.array_equal(arr, np.array([1.0, 0.0, 1012.0, 0.5, 2.0]))

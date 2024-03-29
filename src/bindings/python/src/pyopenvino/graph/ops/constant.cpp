@@ -156,16 +156,15 @@ void regclass_graph_op_Constant(py::module m) {
     constant.def(
         "get_data",
         [](ov::op::v0::Constant& self, py::object& dtype, bool copy) {
-            // auto ov_type = self.get_element_type();
-            // auto dtype = Common::type_helpers::get_dtype(ov_type);
-            // if (ov_type.bitwidth() < Common::values::min_bitwidth) {
-            //     return py::array(dtype, self.get_byte_size(), self.get_data_ptr());
-            // }
-            // return py::array(dtype, self.get_shape(), _get_strides(self), self.get_data_ptr());
-
             // Destination type was set:
             if (!dtype.is(py::none())) {
-                auto dst_dtype = dtype.cast<py::dtype>();
+                py::dtype dst_dtype;
+                if (dtype.is(py::dtype())) {
+                    dst_dtype = dtype.cast<py::dtype>();
+                }
+                else {
+                    dst_dtype = py::dtype::from_args(dtype);
+                }
                 const auto& ov_type = self.get_element_type();
                 const auto dtype = Common::type_helpers::get_dtype(ov_type);
                 // If dtype is the same as Constant type

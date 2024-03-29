@@ -328,7 +328,17 @@ py::array array_from_constant_copy(ov::op::v0::Constant&& c, py::dtype& dst_dtyp
     }
     // other
     else if (dst_dtype == py::dtype("bool")) {
-        return array_helpers::array_from_constant_cast<ov::fundamental_type_for<ov::element::boolean>>(std::forward<ov::op::v0::Constant>(c), dst_dtype);
+        const auto& ov_type = c.get_element_type();
+        switch (ov_type) {
+        case ov::element::f32:
+            return array_helpers::array_from_constant_cast_bool<float>(std::forward<ov::op::v0::Constant>(c), dst_dtype);
+        case ov::element::f64:
+            return array_helpers::array_from_constant_cast_bool<double>(std::forward<ov::op::v0::Constant>(c), dst_dtype);
+        case ov::element::f16:
+            return array_helpers::array_from_constant_cast_bool<ov::float16>(std::forward<ov::op::v0::Constant>(c), dst_dtype);
+        default:
+            return array_helpers::array_from_constant_cast<ov::fundamental_type_for<ov::element::boolean>>(std::forward<ov::op::v0::Constant>(c), dst_dtype);
+        }
     }
     else {
         OPENVINO_THROW("Constant cannot be casted to specified dtype!");
