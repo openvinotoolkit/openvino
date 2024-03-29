@@ -123,13 +123,7 @@ def parse_arguments():
         default=1
     )
 
-    # WA: windows has less useable memory to support parallel workers
-    # CVS-137180/CVS-137183
-    args = parser.parse_args()
-    if args.workers == os.cpu_count() and constants.IS_WIN and "ov_cpu_func_tests.exe" in args.exec_file:
-        args.workers = args.workers//2
-
-    return args
+    return parser.parse_args()
 
 
 def get_test_command_line_args():
