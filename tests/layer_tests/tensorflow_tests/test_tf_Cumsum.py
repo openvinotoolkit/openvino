@@ -111,7 +111,6 @@ class TestComplexCumsum(CommonTFLayerTest):
     @pytest.mark.parametrize("exclusive", [False, True, None])
     @pytest.mark.parametrize("reverse", [False, True, None])
     @pytest.mark.precommit
-    @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_cumsum_basic(self, params, exclusive, reverse, ie_device, precision, ir_version, temp_dir,
                           use_legacy_frontend):
