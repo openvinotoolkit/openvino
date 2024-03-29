@@ -42,6 +42,7 @@
 #include "op/com.microsoft/embed_layer_normalization.hpp"
 #include "op/com.microsoft/fused_conv.hpp"
 #include "op/com.microsoft/fusedgemm.hpp"
+#include "op/com.microsoft/pad.hpp"
 #include "op/com.microsoft/skip_layer_normalization.hpp"
 #include "op/compress.hpp"
 #include "op/concat.hpp"
@@ -585,7 +586,6 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "FusedConv", 1, fused_conv);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "FusedGemm", 1, fusedgemm);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "EmbedLayerNormalization", 1, embed_layer_normalization);
-    REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "Pad", 1, pad);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "SkipLayerNormalization", 1, skip_layer_normalization);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "Trilu", 1, trilu);
 
@@ -594,6 +594,7 @@ OperatorsBridge::OperatorsBridge() {
                                        op::set_13::dequantize_linear,
                                        "com.microsoft");
     register_operator_in_custom_domain("Gelu", VersionRange::since(1), op::set_1::gelu, "com.microsoft");
+    register_operator_in_custom_domain("Pad", VersionRange::since(1), op::custom::set_1::pad, "com.microsoft");
     register_operator_in_custom_domain("QuantizeLinear",
                                        VersionRange::since(1),
                                        op::set_13::quantize_linear,

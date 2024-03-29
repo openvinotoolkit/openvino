@@ -12,9 +12,11 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
+namespace custom {
 namespace set_1 {
-OutputVector pad(const Node& node);
+ov::OutputVector pad(const Node& node);
 }  // namespace set_1
+}  // namespace custom
 }  // namespace op
 }  // namespace onnx_import
 }  // namespace ngraph

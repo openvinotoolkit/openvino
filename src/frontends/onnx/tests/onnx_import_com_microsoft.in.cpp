@@ -1262,3 +1262,14 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_trilu_lower) {
 
     // clang-format on
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_pad) {
+    const auto model = convert_model("com.microsoft/pad_test.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>({1.f, 1.2f, 2.3f, 3.4f, 4.5f, 5.7f});
+    test_case.add_expected_output<float>(Shape{3, 4},
+                                         {0.f, 0.f, 1.f, 1.2f, 0.f, 0.f, 2.3f, 3.4f, 0.f, 0.f, 4.5f, 5.7f});
+
+    test_case.run();
+}
