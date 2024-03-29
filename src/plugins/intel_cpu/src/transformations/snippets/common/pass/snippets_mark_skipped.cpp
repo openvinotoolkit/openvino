@@ -354,6 +354,9 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, con
     return false;
 }
 bool isSuitableParentForFusingSumActivation(const std::shared_ptr<const Node> &node) {
+#if defined(OPENVINO_ARCH_ARM64)
+    return false;
+#else
     if (!ov::is_type<ov::op::v1::Add>(node))
         return false;
     auto isFusedBiasNode = [](std::shared_ptr<Node> n){
@@ -402,6 +405,7 @@ bool isSuitableParentForFusingSumActivation(const std::shared_ptr<const Node> &n
                              GetNodeFusingType(n) == NodeFusingType::FusedWithBinaryConvolution);
     }
     return getNumNonConstInputs(node) == 2 && num_conv_parents >=1;
+#endif
 }
 bool isSuitableChildForFusingSumActivation(const std::shared_ptr<const Node> &node) {
     return SupportsFusingWithConvolution_SumActivation(node);
