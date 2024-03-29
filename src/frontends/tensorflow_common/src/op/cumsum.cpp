@@ -3,11 +3,11 @@
 //
 
 #include "common_op_table.hpp"
-#include "openvino/op/cum_sum.hpp"
 #include "helper_ops/complex_type_mark.hpp"
+#include "openvino/op/cum_sum.hpp"
+#include "openvino/op/less.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/subtract.hpp"
-#include "openvino/op/less.hpp"
 
 using namespace std;
 using namespace ov::op;
