@@ -66,8 +66,10 @@ TEST(prepare_padding, mvn_conv) {
     network.set_input_data("input", input);
     EXPECT_NO_THROW(network.execute());
 
-    const auto& node = prog->get_node("conv");
-    if (!node.get_selected_impl()->is_onednn()) {
-        ASSERT_TRUE(has_node(*network.get_program(), "conv_padding_reorder_for_mvn"));
+    for (auto& item : network.get_executed_primitives()) {
+        auto prim = network.get_primitive(item.first);
+        if (prim->get_node().is_type<convolution>() && !prim->get_impl()->is_onednn()) {
+            ASSERT_TRUE(has_node(*network.get_program(), "conv_padding_reorder_for_mvn"));
+        }
     }
 }
