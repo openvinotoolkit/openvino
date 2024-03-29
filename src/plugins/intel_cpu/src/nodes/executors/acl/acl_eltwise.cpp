@@ -11,11 +11,6 @@ namespace intel_cpu {
 
 using namespace arm_compute;
 
-static std::mutex & get_mtx_ifunc() {
-    static std::mutex mtx_ifunc;
-    return mtx_ifunc;
-}
-
 inline VectorDims reshape_sizes(VectorDims dims) {
     const size_t MAX_NUM_SHAPE = arm_compute::MAX_DIMS;
     VectorDims result_dims(MAX_NUM_SHAPE - 1);
@@ -224,20 +219,12 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs, const std::vecto
     if (srcDescs.size() == 2 &&
         srcDescs[0]->hasLayoutType(LayoutType::nspc) && srcDescs[1]->hasLayoutType(LayoutType::nspc) &&
         srcDescs[0]->getShape().getDims() != srcDescs[1]->getShape().getDims()) {
-        auto dim_size = srcDescs[0]->getShape().getDims().size();
-        auto mover = [&dim_size](TensorShape &_shape) {
-            if (dim_size > 4) { std::swap(_shape[2], _shape[3]); }
-            if (dim_size > 3) { std::swap(_shape[1], _shape[2]); }
-            if (dim_size > 2) { std::swap(_shape[0], _shape[1]); }
-        };
-        if (dim_size < 5) {
+        if (srcVecDims[0].num_dimensions() < 5) {
             srcDataLayout[0] = srcDataLayout[1] = dstDataLayout[0] = DataLayout::NCHW;
         } else {
             srcDataLayout[0] = srcDataLayout[1] = dstDataLayout[0] = DataLayout::NCDHW;
         }
-        mover(srcVecDims[0]);
-        mover(srcVecDims[1]);
-        mover(dstVecDims[0]);
+        changeLayoutToNH_C({&(srcVecDims[0]), &(srcVecDims[1]), &(dstVecDims[0])});
     }
 
     for (size_t i = 0; i < srcVecDims.size(); i++) {
@@ -524,11 +511,7 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs, const std::vecto
                            static_cast<int>(aclEltwiseAttrs.algorithm));
     }
 
-    // We get a problem (seg. faults, data race etc) for eltwise operations when we use several configure(...) functions in parallel.
-    // We created issue about this problem here: https://github.com/ARM-software/ComputeLibrary/issues/1073
-    // TODO: change it when we will get an answer to our question in issue
-    std::lock_guard<std::mutex> _lock {get_mtx_ifunc()};
-    ifunc = exec_func();
+    configureThreadSafe([&] { ifunc = exec_func(); });
     return true;
 }
 

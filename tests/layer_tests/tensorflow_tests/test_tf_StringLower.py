@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
+from common.utils.tf_utils import run_in_jenkins
 
 rng = np.random.default_rng()
 
@@ -42,7 +43,7 @@ class TestStringLower(CommonTFLayerTest):
                              [['UPPER CASE SENTENCE', 'lower case sentence', ' UppEr LoweR CAse SENtence', ' '],
                               ['Первое Предложение', 'второе    предложение', ' ', ' ТРЕТЬЕ ПРЕДЛОЖЕНИЕ '],
                               ['第一句話在這裡', '第二句話在這裡', '第三句話在這裡']])
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['arm', 'armv7l',
                                                                                                      'aarch64',
@@ -50,6 +51,8 @@ class TestStringLower(CommonTFLayerTest):
                        reason='Ticket - 126314, 132699')
     def test_string_lower(self, input_shape, encoding, strings_dictionary, ie_device, precision, ir_version, temp_dir,
                           use_legacy_frontend):
+        if ie_device == 'GPU' or run_in_jenkins():
+            pytest.skip("operation extension is not supported on GPU")
         self._test(*self.create_string_lower_net(input_shape=input_shape, encoding=encoding,
                                                  strings_dictionary=strings_dictionary),
                    ie_device, precision, ir_version, temp_dir=temp_dir,

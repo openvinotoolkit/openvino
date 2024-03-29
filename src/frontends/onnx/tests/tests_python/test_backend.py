@@ -37,7 +37,6 @@ from tests import (
     xfail_issue_63036,
     xfail_issue_63043,
     xfail_issue_63137,
-    xfail_issue_63138,
     xfail_issue_69444,
     xfail_issue_81976,
     skip_segfault,
@@ -332,15 +331,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_loop16_seq_none_cpu",  # OptionalHasElement, SequenceInsert
     ),
     (
-        xfail_issue_63138,
-        "OnnxBackendNodeModelTest.test_shape_end_1_cpu",
-        "OnnxBackendNodeModelTest.test_shape_end_negative_1_cpu",
-        "OnnxBackendNodeModelTest.test_shape_start_1_cpu",
-        "OnnxBackendNodeModelTest.test_shape_start_1_end_2_cpu",
-        "OnnxBackendNodeModelTest.test_shape_start_1_end_negative_1_cpu",
-        "OnnxBackendNodeModelTest.test_shape_start_negative_1_cpu",
-    ),
-    (
         xfail_issue_69444,
         "OnnxBackendNodeModelTest.test_resize_downsample_scales_linear_align_corners_cpu",
         "OnnxBackendNodeModelTest.test_resize_downsample_scales_cubic_align_corners_cpu",
@@ -486,7 +476,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_keepdims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_negative_axes_keepdims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_keepdims_random_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_log_sum_negative_axes_cpu",
         "OnnxBackendNodeModelTest.test_reduce_mean_do_not_keepdims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_negative_axes_keepdims_random_cpu",
         "OnnxBackendNodeModelTest.test_reduce_mean_do_not_keepdims_random_cpu",
@@ -701,7 +690,7 @@ tests_expected_to_fail = [
     (
         xfail_issue_125493,
         "OnnxBackendNodeModelTest.test_reduce_l1_empty_set_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_log_sum_empty_set_cpu",
+        "OnnxBackendNodeModelTest.test_reduce_l2_empty_set_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_empty_set_cpu",
         "OnnxBackendNodeModelTest.test_reduce_min_empty_set_cpu",
         "OnnxBackendNodeModelTest.test_reduce_prod_empty_set_cpu",
@@ -714,7 +703,6 @@ tests_expected_to_fail = [
     (
         skip_misalignment,
         "OnnxBackendNodeModelTest.test_gelu_default_2_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_log_sum_empty_set_expanded_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_empty_set_expanded_cpu",
     ),
     (
