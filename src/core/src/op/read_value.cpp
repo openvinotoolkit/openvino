@@ -163,7 +163,7 @@ bool ReadValue::evaluate(TensorVector& outputs,
             const auto& shape = var_info.data_shape.get_shape();
             const auto& type = var_info.data_type;
             input = ov::Tensor(type, shape);
-            memset(input.data(), 0, type.size() * shape_size(shape));
+            memset(input.data(), 0, input.get_byte_size());
         }
     }
     output.set_shape(input.get_shape());

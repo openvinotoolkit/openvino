@@ -62,6 +62,7 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override;
     bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs, const EvaluationContext& evaluation_context) const override;
     bool has_evaluate() const override;
 
