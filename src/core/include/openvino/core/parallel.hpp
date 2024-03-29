@@ -485,6 +485,24 @@ void parallel_for2d(const T0& D0, const T1& D1, const F& func) {
 #endif
 }
 
+template <typename T0, typename T1, typename F>
+void parallel_for2d_dynamic(const T0& D0, const T1& D1, const F& func) {
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+    tbb::parallel_for(tbb::blocked_range2d<T0, T1>(0, D0, 0, D1),
+    [=](const tbb::blocked_range2d<T0, T1>& r) {
+        for (T0 d0 = r.rows().begin(); d0 < r.rows().end(); d0++) {
+            for (T1 d1 = r.cols().begin(); d1 < r.cols().end(); d1++) {
+                func(d0, d1);
+            }
+        }
+    });
+#else
+    parallel_for2d(D0, D1, [&](size_t d0, size_t d1) {
+        func(d0, d1);
+    });
+#endif
+}
+
 template <typename T0, typename T1, typename T2, typename F>
 void for_3d(const int& ithr, const int& nthr, const T0& D0, const T1& D1, const T2& D2, const F& func) {
     const size_t work_amount = (size_t)D0 * D1 * D2;

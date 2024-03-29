@@ -41,6 +41,25 @@ using namespace ov;
 
 #endif
 
+template<typename TA, typename TB>
+void cvt_copy(TA* dst, TB* src, size_t n) {
+    size_t i = 0;
+#if defined(HAVE_AVX512F)
+    for (; i + vec_len_f32_avx512 <= n; i += vec_len_f32_avx512) {
+        auto vb = mm512_uni_loadu_ps(src + i);
+        mm512_uni_storeu_ps(dst + i, vb);
+    }
+#elif defined(HAVE_AVX2)
+    for (; i + vec_len_f32_avx2 <= n; i += vec_len_f32_avx2) {
+        auto vb = mm256_uni_loadu_ps(src + i);
+        mm256_uni_storeu_ps(dst + i, vb);
+    }
+#endif
+    for (; i < n; i++) {
+        dst[i] = src[i];
+    }
+}
+
 template<typename T>
 static void attn_acc_value_block(float* out, float* weight, T* v, size_t S, size_t block_size) {
 #if defined(HAVE_AVX512F)
@@ -921,6 +940,34 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
 
     if (is_pagedattn) {
         // attn_w * V
+        // there are enough works for each thread
+        if (B >= static_cast<size_t>(nthr)) {
+            buf_attn_score.resize<float>({static_cast<size_t>(nthr), q_len, h_each_group_len, S});
+            parallel_for2d_dynamic(B, h_group_num, [&](size_t b, size_t h_group) {
+                auto ithr = parallel_get_thread_num();
+                auto context_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
+                memset(buf_attn_score.ptr<float>(ithr), 0, q_len * h_each_group_len * S * sizeof(float));
+                for (size_t pv = 0; pv < context_len; pv += block_size) {
+                    size_t pv_in_blocks = pv / block_size;
+                    auto block_number = beams.ptr<int32_t>(b)[pv_in_blocks];
+                    auto* v = present_value.ptr<T2>(block_number, h_group);
+                    for (size_t pq = 0; pq < q_len; pq++) {
+                        for (size_t h = h_group * h_each_group_len, group_idx = 0; h < (h_group + 1) * h_each_group_len; h++, group_idx++) {
+                            attn_acc_value_block(buf_attn_score.ptr<float>(ithr, pq, group_idx),
+                                                 buf_attn_w.ptr<float>(b, h, pq) + pv,
+                                                 v,
+                                                 S,
+                                                 std::min(block_size, context_len - pv));
+                        }
+                    }
+                }
+                // convert to dst
+                for (size_t pq = 0; pq < q_len; pq++)
+                    for (size_t h = h_group * h_each_group_len, group_idx = 0; h < (h_group + 1) * h_each_group_len; h++, group_idx++)
+                        cvt_copy(output_emb.ptr<T>(b, pq, h * S), buf_attn_score.ptr<float>(ithr, pq, group_idx), S);
+            });
+            return;
+        }
         buf_attn_score.resize<float>({static_cast<size_t>(nthr), B, q_len, H, S});
         // buf_attn_w {B, H, q_len, kv_len}
         parallel_nt_static(nthr, [&](const size_t ithr, const size_t nthr) {

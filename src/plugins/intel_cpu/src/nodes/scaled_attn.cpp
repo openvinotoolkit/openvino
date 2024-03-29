@@ -911,10 +911,10 @@ struct MHASingleToken {
 #ifdef OPENVINO_ARCH_X86_64
         if (is_pagedattn) {
             size_t block_size = present_value.size(2);
-            fastpath_valid = mayiuse(amx_bf16) && (S % 32 == 0) && (block_size % 16 == 0) && (S <= 32 * 6);
-            m_attn_w.resize<float>({B, H, q_len, (kv_len + block_size - 1) / block_size * block_size});
+            fastpath_valid = mayiuse(amx_bf16) && (S % 32 == 0) && (block_size % 16 == 0) && (S <= 32 * 6) && present_key.get_precision() == ov::element::bf16;
             if (fastpath_valid) {
                 PROFILE(_attn, "t1_qk_fast");
+                m_attn_w.resize<float>({B, H, q_len, (kv_len + block_size - 1) / block_size * block_size});
                 if (!m_gemv)
                     m_gemv = std::make_shared<JitMatMulVecAMX>(static_cast<int>(S), static_cast<int>(block_size));
                 auto h_group_num = present_value.size(1);
@@ -923,31 +923,54 @@ struct MHASingleToken {
                     h_each_group_len = H / h_group_num;
                 }
                 auto kv_len_in_blocks = beams.m_dims[1];
-
-                parallel_for3d_dynamic(B, h_group_num, kv_len_in_blocks, [&](size_t b, size_t h_group, size_t pk_in_blocks) {
-                    auto context_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
-                    // kv_len must be valid
-                    auto pk = pk_in_blocks * block_size;
-                    if (pk < context_len) {
-                        m_gemv->tile_config();
-                        auto block_number = beams.ptr<int32_t>(b)[pk_in_blocks];
-
-                        for (size_t pq = 0; pq < q_len; pq++) {
-                            for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
-                                (*m_gemv)(query.ptr<ov::bfloat16>(b, h, pq), present_key.ptr<ov::bfloat16>(block_number, h_group),
-                                    m_attn_w.ptr<float>(b, h, pq) + pk);
+                auto nthr = static_cast<size_t>(parallel_get_max_threads());
+                size_t real_len = 0;
+                for (size_t b = 0; b < B; b++)
+                    real_len += static_cast<size_t>(context_lens.ptr<int32_t>()[b]) / block_size;
+                if (real_len > nthr) {
+                    parallel_for2d_dynamic(B, kv_len_in_blocks, [&](size_t b, size_t pk_in_blocks) {
+                        auto context_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
+                        // kv_len must be valid
+                        auto pk = pk_in_blocks * block_size;
+                        if (pk < context_len) {
+                            m_gemv->tile_config();
+                            auto block_number = beams.ptr<int32_t>(b)[pk_in_blocks];
+                            for (size_t h_group = 0; h_group < h_group_num; h_group++) {
+                                for (size_t pq = 0; pq < q_len; pq++) {
+                                    for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
+                                        (*m_gemv)(query.ptr<ov::bfloat16>(b, h, pq), present_key.ptr<ov::bfloat16>(block_number, h_group),
+                                            m_attn_w.ptr<float>(b, h, pq) + pk);
+                                    }
+                                }
                             }
+                            m_gemv->tile_release();
                         }
-                        m_gemv->tile_release();
-                    }
-                });
+                    });
+                } else {
+                    parallel_for3d_dynamic(B, kv_len_in_blocks, h_group_num, [&](size_t b, size_t pk_in_blocks, size_t h_group) {
+                        auto context_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
+                        // kv_len must be valid
+                        auto pk = pk_in_blocks * block_size;
+                        if (pk < context_len) {
+                            m_gemv->tile_config();
+                            auto block_number = beams.ptr<int32_t>(b)[pk_in_blocks];
+
+                            for (size_t pq = 0; pq < q_len; pq++) {
+                                for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
+                                    (*m_gemv)(query.ptr<ov::bfloat16>(b, h, pq), present_key.ptr<ov::bfloat16>(block_number, h_group),
+                                        m_attn_w.ptr<float>(b, h, pq) + pk);
+                                }
+                            }
+                            m_gemv->tile_release();
+                        }
+                    });
+                }
             }
-        } else {
+        }
+#endif
+        if (!fastpath_valid) {
             m_attn_w.resize<float>({B, H, q_len, kv_len});
         }
-#else
-        m_attn_w.resize<float>({B, H, q_len, kv_len});
-#endif
         mha_single_token(query, fastpath_valid ? PlainTensor() : present_key, present_value, alibi_mask, attention_mask, beams, max_context_len,
             context_lens, output_emb, m_attn_w, m_temp, has_out_transpose, auto_causal, d_scale, k_scale_zp, v_scale_zp, m_head_sum);
     }
