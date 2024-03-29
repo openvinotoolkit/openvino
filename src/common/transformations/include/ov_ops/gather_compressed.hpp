@@ -39,6 +39,10 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override {
+        return false;
+    }
+
     ov::element::Type get_output_type() const {
         return m_output_type;
     }
