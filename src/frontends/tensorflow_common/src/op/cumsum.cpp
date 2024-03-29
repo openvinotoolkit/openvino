@@ -37,7 +37,7 @@ OutputVector translate_cumsum_op(const NodeContext& node) {
 
     auto cum_sum = make_shared<v0::CumSum>(x, axis, exclusive, reverse);
     set_node_name(node.get_name(), cum_sum);
-    if (complex_type_mark){
+    if (complex_type_mark) {
         auto cum_sum_complex = make_shared<ComplexTypeMark>(cum_sum, complex_type_mark->get_complex_part_type());
         return {cum_sum_complex};
     }
