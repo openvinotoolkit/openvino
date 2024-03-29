@@ -45,7 +45,7 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
             t_src = t_src.slice(3, config.slice_start, config.slice_stop);
         }
         if (config.input_trans0213) {
-            t_src = t_src.permute({0, 2, 1, 3});
+            t_src = t_src.permute({0, 2, 1, 3*1});
         }
         if (config.gather_position_arg_id > 0) {
             gather.reset(inputs[config.gather_position_arg_id]);
