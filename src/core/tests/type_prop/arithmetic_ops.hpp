@@ -256,7 +256,7 @@ TYPED_TEST_P(ArithmeticOperator, unsupported_element_type) {
         auto A = std::make_shared<ov::op::v0::Parameter>(element::boolean, Shape{2, 2, 3, 3});
         auto B = std::make_shared<ov::op::v0::Parameter>(element::boolean, Shape{2, 2, 3, 3});
 
-        OV_EXPECT_THROW(auto op = std::make_shared<TypeParam>(A, B),
+        OV_EXPECT_THROW(std::ignore = std::make_shared<TypeParam>(A, B),
                         NodeValidationFailure,
                         HasSubstr("This operation does not support inputs with element type: boolean"));
     }
@@ -264,7 +264,7 @@ TYPED_TEST_P(ArithmeticOperator, unsupported_element_type) {
         auto A = std::make_shared<ov::op::v0::Parameter>(element::string, Shape{2});
         auto B = std::make_shared<ov::op::v0::Parameter>(element::string, Shape{2});
 
-        OV_EXPECT_THROW(auto op = std::make_shared<TypeParam>(A, B),
+        OV_EXPECT_THROW(std::ignore = std::make_shared<TypeParam>(A, B),
                         NodeValidationFailure,
                         HasSubstr("This operation does not support inputs with element type: string"));
     }

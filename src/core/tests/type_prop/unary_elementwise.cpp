@@ -12,14 +12,14 @@ using namespace testing;
 
 TEST(type_prop, unary_arithmetic_unsupported_input_element_types) {
     {
-        auto tv0_2_4_param = make_shared<ov::op::v0::Parameter>(element::boolean, Shape{2, 4});
-        OV_EXPECT_THROW(auto bc = make_shared<op::v0::Negative>(tv0_2_4_param),
+        const auto param = make_shared<ov::op::v0::Parameter>(element::boolean, Shape{2, 4});
+        OV_EXPECT_THROW(std::ignore = make_shared<op::v0::Negative>(param),
                         ov::NodeValidationFailure,
                         HasSubstr("This operation does not support input with element type: boolean"));
     }
     {
-        auto tv0_2_4_param = make_shared<ov::op::v0::Parameter>(element::string, Shape{2, 4});
-        OV_EXPECT_THROW(auto bc = make_shared<op::v0::Negative>(tv0_2_4_param),
+        const auto param = make_shared<ov::op::v0::Parameter>(element::string, Shape{2, 4});
+        OV_EXPECT_THROW(std::ignore = make_shared<op::v0::Negative>(param),
                         ov::NodeValidationFailure,
                         HasSubstr("This operation does not support input with element type: string"));
     }
