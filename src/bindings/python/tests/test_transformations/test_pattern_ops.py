@@ -175,6 +175,20 @@ def test_optional_with_input_node_and_predicate():
     assert not Matcher(Optional(["opset13.Relu"], model_add, lambda x: False), "TestInputNodePredicate").match(model_relu)
     assert not Matcher(Optional(["opset13.Cos"], model_add, lambda x: True), "TestInputNodePredicate").match(model_relu)
 
+def test_optional_with_multi_input_node():
+    model_input_0 = ops.parameter(PartialShape.dynamic())
+    model_relu = ops.relu(model_input_0.output(0))
+    model_input_1 = ops.parameter(PartialShape.dynamic())
+    model_add = ops.add(model_relu, model_input_1)
+
+    assert Matcher(Optional(["opset13.Add"], [model_relu, model_input_1]), "MultiInNode").match(model_add)
+    assert Matcher(Optional(["opset13.Add"], [model_relu, model_input_1]), "MultiInNode").match(model_relu)
+    assert not Matcher(Optional(["opset13.Add"], [model_relu, model_input_1]), "MultiInNode").match(model_input_1)
+    assert not Matcher(Optional(["opset13.Add"], [model_relu, model_input_1]), "MultiInNode").match(model_input_0)
+
+    assert not Matcher(Optional(["opset13.Add"], [model_relu, model_input_1], lambda x: False), "MultiInNodePredicate").match(model_add)
+    assert Matcher(Optional(["opset13.Add"], [model_relu, model_input_1], lambda x: True), "MultiInNodePredicate").match(model_add)
+
 
 def test_all_predicates():
     static_param = ops.parameter(PartialShape([1, 3, 22, 22]), np.float32)

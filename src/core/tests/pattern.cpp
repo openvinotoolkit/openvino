@@ -669,7 +669,7 @@ TEST(pattern, optional_match_cumulative_node_with_multi_input) {
         auto pattern = ov::pass::pattern::optional<op::v1::Add>({pattern_input_0, pattern_input_1});
         ASSERT_FALSE(matcher.match(pattern, model_input_0));
         ASSERT_TRUE(matcher.match(pattern, model_relu));
-        ASSERT_TRUE(matcher.match(pattern, model_input_1));
+        ASSERT_FALSE(matcher.match(pattern, model_input_1));
         ASSERT_TRUE(matcher.match(pattern, model_add));
         ASSERT_FALSE(matcher.match(pattern, model_equal));
         auto pattern_negative = ov::pass::pattern::optional<op::v1::Equal>({pattern_input_0, pattern_input_1});
@@ -681,7 +681,7 @@ TEST(pattern, optional_match_cumulative_node_with_multi_input) {
         auto pattern = ov::pass::pattern::optional<op::v1::Add, op::v1::Equal>({pattern_input_0, pattern_input_1});
         ASSERT_FALSE(matcher.match(pattern, model_input_0));
         ASSERT_TRUE(matcher.match(pattern, model_relu));
-        ASSERT_TRUE(matcher.match(pattern, model_input_1));
+        ASSERT_FALSE(matcher.match(pattern, model_input_1));
         ASSERT_TRUE(matcher.match(pattern, model_add));
         ASSERT_TRUE(matcher.match(pattern, model_equal));
         // negative
@@ -694,7 +694,7 @@ TEST(pattern, optional_match_cumulative_node_with_multi_input) {
                                                                                arithmetic_pattern);
         ASSERT_FALSE(matcher.match(pattern, model_input_0));
         ASSERT_TRUE(matcher.match(pattern, model_relu));
-        ASSERT_TRUE(matcher.match(pattern, model_input_1));
+        ASSERT_FALSE(matcher.match(pattern, model_input_1));
         ASSERT_TRUE(matcher.match(pattern, model_add));
         ASSERT_FALSE(matcher.match(pattern, model_equal));
     }
@@ -703,7 +703,7 @@ TEST(pattern, optional_match_cumulative_node_with_multi_input) {
     {
         auto pattern = ov::pass::pattern::optional<op::v1::Add, op::v1::Equal>({pattern_input_1, pattern_input_0});
         ASSERT_FALSE(matcher.match(pattern, model_input_0));
-        ASSERT_TRUE(matcher.match(pattern, model_relu));
+        ASSERT_FALSE(matcher.match(pattern, model_relu));
         ASSERT_TRUE(matcher.match(pattern, model_input_1));
         ASSERT_TRUE(matcher.match(pattern, model_add));
         ASSERT_TRUE(matcher.match(pattern, model_equal));
@@ -714,7 +714,7 @@ TEST(pattern, optional_match_cumulative_node_with_multi_input) {
         auto pattern = ov::pass::pattern::optional<op::v1::Add, op::v1::Equal>({pattern_input_1, pattern_input_0},
                                                                                arithmetic_pattern);
         ASSERT_FALSE(matcher.match(pattern, model_input_0));
-        ASSERT_TRUE(matcher.match(pattern, model_relu));
+        ASSERT_FALSE(matcher.match(pattern, model_relu));
         ASSERT_TRUE(matcher.match(pattern, model_input_1));
         ASSERT_TRUE(matcher.match(pattern, model_add));
         ASSERT_FALSE(matcher.match(pattern, model_equal));
@@ -747,7 +747,7 @@ TEST(pattern, optional_match_node_with_multi_input_order_is_cruical) {
         auto pattern = ov::pass::pattern::optional<op::v1::Subtract>({pattern_input_0, pattern_input_1});
         ASSERT_FALSE(matcher.match(pattern, model_input_0));
         ASSERT_TRUE(matcher.match(pattern, model_relu));
-        ASSERT_TRUE(matcher.match(pattern, model_input_1));
+        ASSERT_FALSE(matcher.match(pattern, model_input_1));
         ASSERT_TRUE(matcher.match(pattern, model_subtract));
         ASSERT_FALSE(matcher.match(pattern, model_greater));
         auto pattern_negative = ov::pass::pattern::optional<op::v1::Greater>({pattern_input_0, pattern_input_1});
@@ -760,7 +760,7 @@ TEST(pattern, optional_match_node_with_multi_input_order_is_cruical) {
             ov::pass::pattern::optional<op::v1::Subtract, op::v1::Greater>({pattern_input_0, pattern_input_1});
         ASSERT_FALSE(matcher.match(pattern, model_input_0));
         ASSERT_TRUE(matcher.match(pattern, model_relu));
-        ASSERT_TRUE(matcher.match(pattern, model_input_1));
+        ASSERT_FALSE(matcher.match(pattern, model_input_1));
         ASSERT_TRUE(matcher.match(pattern, model_greater));
         ASSERT_TRUE(matcher.match(pattern, model_subtract));
         // negative
@@ -774,7 +774,7 @@ TEST(pattern, optional_match_node_with_multi_input_order_is_cruical) {
                                                                            arithmetic_pattern);
         ASSERT_FALSE(matcher.match(pattern, model_input_0));
         ASSERT_TRUE(matcher.match(pattern, model_relu));
-        ASSERT_TRUE(matcher.match(pattern, model_input_1));
+        ASSERT_FALSE(matcher.match(pattern, model_input_1));
         ASSERT_TRUE(matcher.match(pattern, model_subtract));
         ASSERT_FALSE(matcher.match(pattern, model_greater));
     }
@@ -784,7 +784,7 @@ TEST(pattern, optional_match_node_with_multi_input_order_is_cruical) {
         auto pattern =
             ov::pass::pattern::optional<op::v1::Subtract, op::v1::Greater>({pattern_input_1, pattern_input_0});
         ASSERT_FALSE(matcher.match(pattern, model_input_0));
-        ASSERT_TRUE(matcher.match(pattern, model_relu));
+        ASSERT_FALSE(matcher.match(pattern, model_relu));
         ASSERT_TRUE(matcher.match(pattern, model_input_1));
         ASSERT_FALSE(matcher.match(pattern, model_subtract));
         ASSERT_FALSE(matcher.match(pattern, model_greater));
@@ -796,7 +796,7 @@ TEST(pattern, optional_match_node_with_multi_input_order_is_cruical) {
             ov::pass::pattern::optional<op::v1::Subtract, op::v1::Greater>({pattern_input_1, pattern_input_0},
                                                                            arithmetic_pattern);
         ASSERT_FALSE(matcher.match(pattern, model_input_0));
-        ASSERT_TRUE(matcher.match(pattern, model_relu));
+        ASSERT_FALSE(matcher.match(pattern, model_relu));
         ASSERT_TRUE(matcher.match(pattern, model_input_1));
         ASSERT_FALSE(matcher.match(pattern, model_subtract));
         ASSERT_FALSE(matcher.match(pattern, model_greater));
@@ -835,7 +835,9 @@ TEST(pattern, optional_full_match) {
     auto pattern_relu = ov::pass::pattern::optional<op::v0::Relu>();
     auto pattern_relu1 = std::make_shared<op::v0::Relu>(pattern_relu->output(0));
 
-    ASSERT_TRUE(TestMatcher().match(pattern_relu1, model_relu1));
+    TestMatcher tm;
+
+    ASSERT_TRUE(tm.match(pattern_relu1, model_relu1));
 }
 
 TEST(pattern, optional_half_match) {
@@ -845,9 +847,11 @@ TEST(pattern, optional_half_match) {
     auto model_relu1 = std::make_shared<op::v0::Relu>(model_relu->output(0));
 
     auto pattern_abs = ov::pass::pattern::optional<op::v0::Abs>();
-    auto pattern_relu1 = std::make_shared<op::v0::Relu>(pattern_abs->output(0));
+    auto pattern_relu = std::make_shared<op::v0::Relu>(pattern_abs->output(0));
 
-    ASSERT_FALSE(TestMatcher().match(pattern_relu1, model_relu1));
+    TestMatcher tm;
+
+    ASSERT_FALSE(tm.match(pattern_relu, model_relu1));
 }
 
 TEST(pattern, mean) {
