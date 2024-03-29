@@ -42,6 +42,155 @@ using namespace ov;
 #endif
 
 template<typename T>
+static void attn_acc_value_block(float* out, float* weight, T* v, size_t S, size_t block_size) {
+#if defined(HAVE_AVX512F)
+    size_t j = 0;
+    for (; j < block_size; j += 4) {
+        auto attn_w_vec0 = _mm512_set1_ps(weight[0]);
+        auto attn_w_vec1 = _mm512_set1_ps(weight[1]);
+        auto attn_w_vec2 = _mm512_set1_ps(weight[2]);
+        auto attn_w_vec3 = _mm512_set1_ps(weight[3]);
+        size_t i = 0;
+        for (; i + vec_len_f32_avx512 <= S; i += vec_len_f32_avx512) {
+            auto v_out = mm512_uni_loadu_ps(out + i);
+            v_out = _mm512_fmadd_ps(attn_w_vec0, mm512_uni_loadu_ps(v + i), v_out);
+            v_out = _mm512_fmadd_ps(attn_w_vec1, mm512_uni_loadu_ps(v + i + S), v_out);
+            v_out = _mm512_fmadd_ps(attn_w_vec2, mm512_uni_loadu_ps(v + i + S * 2), v_out);
+            v_out = _mm512_fmadd_ps(attn_w_vec3, mm512_uni_loadu_ps(v + i + S * 3), v_out);
+
+            _mm512_storeu_ps(out + i, v_out);
+        }
+        for (; i < S; i++) {
+            out[i] += weight[0] * v[i];
+            out[i] += weight[1] * v[i + S];
+            out[i] += weight[2] * v[i + S * 2];
+            out[i] += weight[3] * v[i + S * 3];
+        }
+        v += 4 * S;
+        weight += 4;
+    }
+    if (j + 2 <= block_size) {
+        auto attn_w_vec0 = _mm512_set1_ps(weight[0]);
+        auto attn_w_vec1 = _mm512_set1_ps(weight[1]);
+        size_t i = 0;
+        for (; i + vec_len_f32_avx512 <= S; i += vec_len_f32_avx512) {
+            auto v_out = mm512_uni_loadu_ps(out + i);
+            v_out = _mm512_fmadd_ps(attn_w_vec0, mm512_uni_loadu_ps(v + i), v_out);
+            v_out = _mm512_fmadd_ps(attn_w_vec1, mm512_uni_loadu_ps(v + i + S), v_out);
+
+            _mm512_storeu_ps(out + i, v_out);
+        }
+        for (; i < S; i++) {
+            out[i] += weight[0] * v[i];
+            out[i] += weight[1] * v[i + S];
+        }
+        v += 2 * S;
+        weight += 2;
+        j += 2;
+    }
+    if (j < block_size) {
+        auto attn_w_vec0 = _mm512_set1_ps(weight[0]);
+        size_t i = 0;
+        for (; i + vec_len_f32_avx512 <= S; i += vec_len_f32_avx512) {
+            auto v_out = mm512_uni_loadu_ps(out + i);
+            v_out = _mm512_fmadd_ps(attn_w_vec0, mm512_uni_loadu_ps(v + i), v_out);
+
+            _mm512_storeu_ps(out + i, v_out);
+        }
+        for (; i < S; i++) {
+            out[i] += weight[0] * v[i];
+        }
+    }
+    return;
+#elif defined(HAVE_AVX2)
+    // auto attn_w_vec_fp32 = _mm256_set1_ps(weight);
+    // for (; i + vec_len_f32_avx2 <= S; i += vec_len_f32_avx2) {
+    //     auto v_value = mm256_uni_loadu_ps(v + i);
+    //     auto v_out = mm256_uni_loadu_ps(out + i);
+    //     v_out = _mm256_fmadd_ps(attn_w_vec_fp32, v_value, v_out);
+    //     mm256_uni_storeu_ps(out + i, v_out);
+    // }
+#endif
+    // for (; i < S; i++) {
+    //     out[i] += weight * v[i];
+    // }
+}
+
+static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S, size_t block_size) {
+#if defined(HAVE_AVX512F)
+    // size_t j = 0;
+    // for (; j < block_size; j += 4) {
+    //     auto attn_w_vec0 = _mm512_set1_ps(weight[0]);
+    //     auto attn_w_vec1 = _mm512_set1_ps(weight[1]);
+    //     auto attn_w_vec2 = _mm512_set1_ps(weight[2]);
+    //     auto attn_w_vec3 = _mm512_set1_ps(weight[3]);
+    //     size_t i = 0;
+    //     for (; i + vec_len_f32_avx512 <= S; i += vec_len_f32_avx512) {
+    //         auto v_out = mm512_uni_loadu_ps(out + i);
+    //         v_out = _mm512_fmadd_ps(attn_w_vec0, mm512_uni_loadu_ps(v + i), v_out);
+    //         v_out = _mm512_fmadd_ps(attn_w_vec1, mm512_uni_loadu_ps(v + i + S), v_out);
+    //         v_out = _mm512_fmadd_ps(attn_w_vec2, mm512_uni_loadu_ps(v + i + S * 2), v_out);
+    //         v_out = _mm512_fmadd_ps(attn_w_vec3, mm512_uni_loadu_ps(v + i + S * 3), v_out);
+
+    //         _mm512_storeu_ps(out + i, v_out);
+    //     }
+    //     for (; i < S; i++) {
+    //         out[i] += weight[0] * v[i];
+    //         out[i] += weight[1] * v[i + S];
+    //         out[i] += weight[2] * v[i + S * 2];
+    //         out[i] += weight[3] * v[i + S * 3];
+    //     }
+    //     v += 4 * S;
+    //     weight += 4;
+    // }
+    // if (j + 2 <= block_size) {
+    //     auto attn_w_vec0 = _mm512_set1_ps(weight[0]);
+    //     auto attn_w_vec1 = _mm512_set1_ps(weight[1]);
+    //     size_t i = 0;
+    //     for (; i + vec_len_f32_avx512 <= S; i += vec_len_f32_avx512) {
+    //         auto v_out = mm512_uni_loadu_ps(out + i);
+    //         v_out = _mm512_fmadd_ps(attn_w_vec0, mm512_uni_loadu_ps(v + i), v_out);
+    //         v_out = _mm512_fmadd_ps(attn_w_vec1, mm512_uni_loadu_ps(v + i + S), v_out);
+
+    //         _mm512_storeu_ps(out + i, v_out);
+    //     }
+    //     for (; i < S; i++) {
+    //         out[i] += weight[0] * v[i];
+    //         out[i] += weight[1] * v[i + S];
+    //     }
+    //     v += 2 * S;
+    //     weight += 2;
+    //     j += 2;
+    // }
+    // if (j < block_size) {
+    //     auto attn_w_vec0 = _mm512_set1_ps(weight[0]);
+    //     size_t i = 0;
+    //     for (; i + vec_len_f32_avx512 <= S; i += vec_len_f32_avx512) {
+    //         auto v_out = mm512_uni_loadu_ps(out + i);
+    //         v_out = _mm512_fmadd_ps(attn_w_vec0, mm512_uni_loadu_ps(v + i), v_out);
+
+    //         _mm512_storeu_ps(out + i, v_out);
+    //     }
+    //     for (; i < S; i++) {
+    //         out[i] += weight[0] * v[i];
+    //     }
+    // }
+    return;
+#elif defined(HAVE_AVX2)
+    // auto attn_w_vec_fp32 = _mm256_set1_ps(weight);
+    // for (; i + vec_len_f32_avx2 <= S; i += vec_len_f32_avx2) {
+    //     auto v_value = mm256_uni_loadu_ps(v + i);
+    //     auto v_out = mm256_uni_loadu_ps(out + i);
+    //     v_out = _mm256_fmadd_ps(attn_w_vec_fp32, v_value, v_out);
+    //     mm256_uni_storeu_ps(out + i, v_out);
+    // }
+#endif
+    // for (; i < S; i++) {
+    //     out[i] += weight * v[i];
+    // }
+}
+
+template<typename T>
 static void attn_acc_value(float* out, float weight, T* v, size_t S, float* scale, float* zp) {
     size_t i = 0;
 #if defined(HAVE_AVX512F)
@@ -769,36 +918,40 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
     }
 
     _attn = ov::intel_cpu::profilerManagerInstance.startProfile("t1_kv");
-    // attn_w * V
-    buf_attn_score.resize<float>({static_cast<size_t>(nthr), B, q_len, H, S});
-    // buf_attn_w {B, H, q_len, kv_len}
 
     if (is_pagedattn) {
+        // attn_w * V
+        buf_attn_score.resize<float>({static_cast<size_t>(nthr), B, q_len, H, S});
+        // buf_attn_w {B, H, q_len, kv_len}
         parallel_nt_static(nthr, [&](const size_t ithr, const size_t nthr) {
             memset(buf_attn_score.ptr<float>(ithr, 0, 0, 0, 0), 0, buf_attn_score.stride(0) * sizeof(float));
         });
 
-        parallel_for3d_dynamic(B, h_group_num, kv_len, [&](size_t b, size_t h_group, size_t pv) {
+        auto kv_len_in_blocks = beams.m_dims[1];
+        _attn = ov::intel_cpu::profilerManagerInstance.startProfile("t1_kv_core");
+        parallel_for3d_dynamic(B, kv_len_in_blocks, h_group_num, [&](size_t b, size_t pv_in_blocks, size_t h_group) {
             auto ithr = parallel_get_thread_num();
             auto context_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
+            auto pv = pv_in_blocks * block_size;
             // kv_len must be valid
             if (pv < context_len) {
-                auto block_number = beams.ptr<int32_t>(b)[pv / block_size];
-                auto block_offset = pv % block_size;
-                auto* v = present_value.ptr<T2>(block_number, h_group, block_offset);
+                auto block_number = beams.ptr<int32_t>(b)[pv_in_blocks];
+                auto* v = present_value.ptr<T2>(block_number, h_group);
                 for (size_t pq = 0; pq < q_len; pq++) {
                     for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
-                        attn_acc_value(buf_attn_score.ptr<float>(ithr, b, pq, h),
-                                    buf_attn_w.ptr<float>(b, h, pq)[pv],
-                                    v,
-                                    S,
-                                    nullptr,
-                                    nullptr);
+                        attn_acc_value_block(buf_attn_score.ptr<float>(ithr, b, pq, h),
+                                             buf_attn_w.ptr<float>(b, h, pq) + pv,
+                                             v,
+                                             S,
+                                             std::min(block_size, context_len - pv));
                     }
                 }
             }
         });
     } else {
+        // attn_w * V
+        buf_attn_score.resize<float>({static_cast<size_t>(nthr), B, q_len, H, S});
+        // buf_attn_w {B, H, q_len, kv_len}
         parallel_nt_static(nthr, [&](const size_t ithr, const size_t nthr) {
             size_t start{0}, end{0};
             splitter(B * h_group_num * kv_len, nthr, ithr, start, end);
