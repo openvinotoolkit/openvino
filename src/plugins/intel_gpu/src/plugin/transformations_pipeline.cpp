@@ -536,7 +536,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         pass_config->enable<ov::pass::SoftmaxDecomposition>();
         pass_config->set_callback<ov::pass::SoftmaxDecomposition>(
-            [](const_node_ptr &node) -> bool {
+            [&](const_node_ptr &node) -> bool {
+                OPENVINO_ASSERT(node->input_value(0).get_partial_shape().rank().is_static(),
+                    node->get_friendly_name() + " has dynamic rank!");
                 return node->input_value(0).get_partial_shape().rank().get_length() <= 5;
             });
 
@@ -724,7 +726,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         if (!device_info.supports_immad)
             manager.register_pass<ov::intel_gpu::BroadcastReshapeMatmulFusion>();
 
-        const size_t zp_pad_size = 32;
+        const size_t zp_pad_size = device_info.supports_immad ? 16 : 32;
         manager.register_pass<ov::intel_gpu::BroadcastAndPadZeroPointBuffers>(zp_pad_size);
 
         // This is supposed to be the last pass to ensure that we don't have name collisions until
