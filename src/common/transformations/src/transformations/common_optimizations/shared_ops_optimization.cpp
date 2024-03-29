@@ -67,7 +67,7 @@ bool inputs_from_same_source_or_equal_constants(const std::shared_ptr<Node>& lhs
         if (lhs_constant->get_element_type() != rhs_constant->get_element_type())
             return false;
         const auto& lhs_shape = lhs_constant->get_shape();
-        if (lhs_shape != rhs_constant->get_shape() || shape_size(lhs_shape) > 10)
+        if (lhs_shape != rhs_constant->get_shape())
             return false;
         if (memcmp(lhs_constant->get_data_ptr(), rhs_constant->get_data_ptr(), lhs_constant->get_byte_size()) != 0)
             return false;

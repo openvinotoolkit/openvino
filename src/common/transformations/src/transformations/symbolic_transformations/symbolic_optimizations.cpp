@@ -86,11 +86,53 @@ void special_case_range_symbol_propagation(const std::shared_ptr<ov::Node>& node
         output_shape[0].set_symbol(add_in0_symbol);
     node->set_output_type(0, node->get_output_element_type(0), output_shape);
 }
+
+void transfer_symbols(const ov::PartialShape& from, const ov::PartialShape& to) {
+    if (from.rank().is_dynamic() || to.rank().is_dynamic() || from.size() != to.size())
+        return;
+    for (size_t i = 0; i < from.size(); ++i)
+        ov::symbol::set_equal(from[i].get_symbol(), to[i].get_symbol());
+}
+
+void special_case_read_value_symbol_propagation(const std::shared_ptr<ov::Node>& op,
+                                                std::unordered_set<std::shared_ptr<ov::op::v6::ReadValue>>& cache) {
+    /// Read Value nodes which are described with the same input and variable shape are getting same symbols on the
+    /// output shape
+    const auto& rv = ov::as_type_ptr<ov::op::v6::ReadValue>(op);
+    if (!rv)
+        return;
+
+    bool has_init_input = rv->get_input_size() == 1;
+    const auto& var_shape = rv->get_variable()->get_info().data_shape;
+    const auto& inp_shape = has_init_input ? rv->get_input_partial_shape(0) : ov::PartialShape::dynamic();
+    bool matched = false;
+    for (const auto& cached : cache) {
+        if ((cached->get_input_size() == 1) != has_init_input)
+            continue;
+        const auto& cached_var_shape = cached->get_variable()->get_info().data_shape;
+        const auto& cached_inp_shape = has_init_input ? rv->get_input_partial_shape(0) : ov::PartialShape::dynamic();
+        if (ov::symbol::util::shapes_are_equal(var_shape, cached_var_shape) &&
+            (!has_init_input || ov::symbol::util::shapes_are_equal(inp_shape, cached_inp_shape))) {
+            matched = true;
+            auto shape = rv->get_output_partial_shape(0);
+            transfer_symbols(cached->get_output_partial_shape(0), shape);
+            ov::descriptor::set_tensor_type(rv->get_output_tensor(0), rv->get_output_element_type(0), shape);
+            break;
+        }
+    }
+    if (!matched) {
+        auto shape = rv->output(0).get_partial_shape();
+        symbolic_set_up_for_shape(shape);
+        ov::descriptor::set_tensor_type(rv->get_output_tensor(0), rv->get_output_element_type(0), shape);
+        cache.insert(rv);
+    }
+}
 }  // namespace
 
 bool ov::pass::SymbolicPropagation::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_MODEL_SCOPE(SymbolicPropagation);
 
+    std::unordered_set<std::shared_ptr<ov::op::v6::ReadValue>> cache;
     for (const auto& op : m->get_ordered_ops()) {
         // since we disable invalidation with the following two lines, we have to invalidate manually here
         op->invalidate_values();
@@ -102,6 +144,7 @@ bool ov::pass::SymbolicPropagation::run_on_model(const std::shared_ptr<ov::Model
 
         // additional symbol propagation rules must be triggered here
         special_case_range_symbol_propagation(op);
+        special_case_read_value_symbol_propagation(op, cache);
         // additional symbol propagation rules must be triggered here
 
         for (auto& output : op->outputs()) {
