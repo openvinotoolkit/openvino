@@ -360,6 +360,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("AveragePool", 1, average_pool);
     REGISTER_OPERATOR("BatchNormalization", 1, batch_norm);
     REGISTER_OPERATOR("BatchNormalization", 7, batch_norm);
+    REGISTER_OPERATOR("BatchNormalization", 14, batch_norm);
     REGISTER_OPERATOR("BitShift", 1, bitshift);
     REGISTER_OPERATOR("BitwiseAnd", 1, bitwise_and);
     REGISTER_OPERATOR("BitwiseNot", 1, bitwise_not);
