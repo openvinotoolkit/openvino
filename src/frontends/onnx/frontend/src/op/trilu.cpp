@@ -16,6 +16,7 @@
 #include "openvino/op/range.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/unsqueeze.hpp"
 
 using namespace ov::op;
@@ -42,11 +43,10 @@ ov::OutputVector trilu(const ov::frontend::onnx::Node& node) {
     bool is_k_available = num_inputs == 2 && !ov::op::util::is_null(inputs[1]);
     if (is_k_available) {
         k = inputs[1];
-        auto axes =
-            std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, std::vector<int64_t>{0});
+        auto axes = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
         // Check if k is a tensor with a single value
         if (k.get_shape().size() == 1 && k.get_shape()[0] == 1) {
-            k = std::make_shared<ov::op::v0::Squeeze>(k, axes);
+            k = std::make_shared<v0::Squeeze>(k, axes);
         }
         CHECK_VALID_NODE(node, k.get_partial_shape().compatible({}), "Trilu second input must be a scalar");
     }
@@ -92,8 +92,7 @@ ov::OutputVector trilu(const ov::frontend::onnx::Node& node) {
     // create 2D tensor with shape [N, 1] and values [[k], [k + 1], ..., [N + k - 1]]
     std::shared_ptr<ov::Node> vertical_range;
     if (is_k_available) {
-        vertical_range =
-            std::make_shared<v4::Range>(inputs[1], std::make_shared<v1::Add>(N, inputs[1]), one, ov::element::i64);
+        vertical_range = std::make_shared<v4::Range>(k, std::make_shared<v1::Add>(N, k), one, ov::element::i64);
     } else {
         vertical_range = std::make_shared<v4::Range>(zero, N, one, ov::element::i64);
     }
