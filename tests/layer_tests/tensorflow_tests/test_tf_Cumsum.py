@@ -82,16 +82,13 @@ class TestComplexCumsum(CommonTFLayerTest):
         with tf.compat.v1.Session() as sess:
             x_real = tf.compat.v1.placeholder(tf.float32, input_shape, 'x_real')
             x_imag = tf.compat.v1.placeholder(tf.float32, input_shape, 'x_imag')
-
             complex_input = tf.complex(x_real, x_imag)
-
             tf_axis = tf.constant(axis, dtype=tf.int32)
             result = tf.raw_ops.Cumsum(x=complex_input, axis=tf_axis, exclusive=exclusive, reverse=reverse)
-
-            tf.compat.v1.global_variables_initializer()
             real = tf.raw_ops.Real(input=result)
             img = tf.raw_ops.Imag(input=result)
 
+            tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
         ref_net = None
