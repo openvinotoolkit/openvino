@@ -3,6 +3,7 @@
 //
 
 #include "common_op_table.hpp"
+#include "helper_ops/complex_type_mark.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -16,9 +17,19 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_bias_add_op(const NodeContext& node) {
-    default_op_checks(node, 2, {"BiasAdd"});
+    default_op_checks(node, 2, {"BiasAdd"}, true);
     auto value = node.get_input(0);
     auto bias = node.get_input(1);
+
+    auto complex_type_mark_value = as_type_ptr<ComplexTypeMark>(value.get_node_shared_ptr());
+    auto complex_type_mark_bias = as_type_ptr<ComplexTypeMark>(bias.get_node_shared_ptr());
+    auto complex_type_inputs = (complex_type_mark_value || complex_type_mark_bias) ? true : false;
+    // validations prior to processing
+    if (complex_type_inputs) {
+        // extractions for complex processing
+        bias = complex_type_mark_bias->input_value(0);
+        value = complex_type_mark_value->input_value(0);
+    }
 
     // retrieve optional attributes
     std::string data_format = node.get_attribute<std::string>("data_format", "NHWC");
@@ -36,7 +47,7 @@ OutputVector translate_bias_add_op(const NodeContext& node) {
         TENSORFLOW_OP_VALIDATION(node,
                                  value_shape.rank().is_static(),
                                  "Value of dynamic rank for BiasAdd in NCHW layout is not supported.");
-        auto value_rank = value_shape.rank().get_length();
+        auto value_rank = complex_type_inputs ? value_shape.rank().get_length() - 1 : value_shape.rank().get_length();
 
         std::vector<int64_t> axes_unsqueeze;
         for (int64_t dim_ind = 0; dim_ind < value_rank; ++dim_ind) {
@@ -51,6 +62,11 @@ OutputVector translate_bias_add_op(const NodeContext& node) {
 
     auto res = make_shared<v1::Add>(value, bias_reshaped);
     set_node_name(node.get_name(), res);
+
+    if (complex_type_inputs) {
+        auto complex_reshape = make_shared<ComplexTypeMark>(res, complex_type_mark_value->get_complex_part_type());
+        return {complex_reshape->output(0)};
+    }
     return res->outputs();
 }
 }  // namespace op
