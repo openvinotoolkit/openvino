@@ -197,10 +197,10 @@ class TestComplexBiasAdd(CommonTFLayerTest):
         return tf_net, None
 
     test_data_2D = [
-        dict(shape=[1, 1], bias_shape=[1], data_format="NHWC"),
-        dict(shape=[3, 2, 7], bias_shape=[7], data_format="NHWC"),
-        dict(shape=[3, 2, 7, 10], bias_shape=[2], data_format="NCHW"),
-        dict(shape=[7, 6, 4, 5], bias_shape=[6], data_format="NCHW"),
+        dict(input_shape=[1, 1], bias_shape=[1], data_format="NHWC"),
+        dict(input_shape=[3, 2, 7], bias_shape=[7], data_format="NHWC"),
+        dict(input_shape=[3, 2, 7, 10], bias_shape=[2], data_format="NCHW"),
+        dict(input_shape=[7, 6, 4, 5], bias_shape=[6], data_format="NCHW"),
     ]
 
     @pytest.mark.parametrize("params", test_data_2D)
