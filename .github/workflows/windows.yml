@@ -80,7 +80,8 @@ jobs:
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: 'openvino_contrib'
-          ref: 'master'
+          # ref: 'master'
+          ref: 3eeb2326e0d974f61a83f8e67d37e918ccfa1edd
 
       #
       # Print system info
@@ -149,6 +150,7 @@ jobs:
         run: |
           cmake -G "${{ env.CMAKE_GENERATOR }}" `
             -DENABLE_CPPLINT=OFF `
+            -DBUILD_nvidia_plugin=OFF `
             -DBUILD_SHARED_LIBS=ON `
             -DENABLE_TESTS=ON `
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON `
@@ -156,7 +158,7 @@ jobs:
             -DENABLE_PYTHON=ON `
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
             -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" `
-            -DOPENVINO_EXTRA_MODULES="${{ env.OPENVINO_CONTRIB_REPO }}/modules/custom_operations;${{ env.OPENVINO_CONTRIB_REPO }}/modules/java_api" `
+            -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_CONTRIB_REPO }}/modules `
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
@@ -206,11 +208,24 @@ jobs:
           }
           Compress-Archive @compress
 
+      - name: Cmake & Build - OpenVINO Contrib
+        if: ${{ 'false' }} # Ticket: 122441
+        run: |
+          cmake `
+            -DBUILD_nvidia_plugin=OFF `
+            -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" `
+            -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_CONTRIB_REPO }}/modules `
+            -S ${{ env.OPENVINO_REPO }} `
+            -B ${{ env.BUILD_DIR }}
+          cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --verbose
+
       - name: CMake configure, build and install - OpenVINO JS API
         if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
         run:
           cmake -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -UTBB* -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }}
+
           cmake --build ${{ env.BUILD_DIR }} --parallel
+
           cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR_JS }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
 
       #
