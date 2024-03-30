@@ -922,11 +922,6 @@ static bool is_node_for_onednn(fully_connected_node const& node) {
 
     if (fc_prim->compressed_weights) {
         auto weights_dt = node.weights().get_output_layout().data_type;
-        if (fc_prim->decompression_zero_point_scalar.has_value()) {
-            GPU_DEBUG_TRACE << node.id() << ": OneDNN does not support scalar zp" << std::endl;
-            return false;
-        }
-
         if (!fc_prim->decompression_zero_point.empty()) {
             auto decompression_zp_idx = fc_prim->bias.empty() ? 3 : 4;
             auto decompression_zp_dt = node.get_input_layout(decompression_zp_idx).data_type;

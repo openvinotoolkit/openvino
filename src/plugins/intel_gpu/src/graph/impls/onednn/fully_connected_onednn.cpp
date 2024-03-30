@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <cmath>
 namespace cldnn {
 namespace onednn {
 
@@ -68,7 +69,7 @@ protected:
                 args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem->get_onednn_memory(desc)});
             }
 
-            if (!prim->decompression_zero_point.empty()) {
+            if (!prim->decompression_zero_point.empty() || prim->decompression_zero_point_scalar.has_value()) {
                 dnnl::memory::desc desc = onednn::layout_to_memory_desc(_zp_mem->get_layout(), dnnl::memory::format_tag::a, true);
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, _zp_mem->get_onednn_memory(desc)});
             }
@@ -237,7 +238,7 @@ public:
             ob << make_data(&_ds_data_type, sizeof(dnnl::memory::data_type));
         }
 
-        bool has_decompression_zp = !prim->decompression_zero_point.empty();
+        bool has_decompression_zp = !prim->decompression_zero_point.empty() || prim->decompression_zero_point_scalar;
         ob << has_decompression_zp;
         if (has_decompression_zp)
             ob << make_data(&_dzp_data_type, sizeof(dnnl::memory::data_type));
@@ -339,8 +340,27 @@ public:
                 }
             }
 
+            auto mem_fill = [](stream &stream, memory::ptr mem, uint8_t val) {
+                mem_lock<uint8_t, mem_lock_type::write> data(mem, stream);
+                memset(data.data(), val, data.size());
+            };
+
+            auto get_broadcasted_layout_zp = [](const fully_connected_node& arg) {
+                auto decompression_scale_idx = !arg.bias_term() ? 2 : 3;  // it assumes we have decompress_scale
+                auto &scale_node = arg.get_dependency(decompression_scale_idx);
+                auto broadcasted_layout = scale_node.get_output_layout();
+                broadcasted_layout.data_type = data_types::u8;
+                return broadcasted_layout;
+            };
+
             if (prim->decompression_zero_point_scalar.has_value()) {
-                OPENVINO_ASSERT(!prim->decompression_zero_point_scalar.has_value(), "[GPU] UNIMPLEMENTED: scalar zp support\n");
+                // TODO: we may improve this logic by using common weight instead of broadcasted one
+                auto& stream = engine.get_service_stream();
+                auto broadcasted_layout_zp = get_broadcasted_layout_zp(arg);
+                dzp_data_type = convert_data_type(broadcasted_layout_zp.data_type);
+                zp_mem = engine.allocate_memory(broadcasted_layout_zp, false);
+                mem_fill(stream, zp_mem, static_cast<uint8_t>(std::round(prim->decompression_zero_point_scalar.value())));
+                attr->set_zero_points(DNNL_ARG_WEIGHTS, (1 << 1) + (1 << 0), {group_size, 1}, dzp_data_type);
             } else if (!prim->decompression_zero_point.empty()) {
                 auto decompression_zp_idx = !arg.bias_term() ? 3 : 4;
                 auto &zp_node = arg.get_dependency(decompression_zp_idx).as<data>();
@@ -354,21 +374,17 @@ public:
                     attr->set_zero_points(DNNL_ARG_WEIGHTS, 1 << 1, dnnl::memory::dims{}, dzp_data_type);
                 } else {
                     // OneDNN does not support scalar zero-point for s4 and u8 type. Need to broadcast it.
-                    auto decompression_scale_idx = !arg.bias_term() ? 2 : 3;  // it assumes we have decompress_scale
-                    auto &scale_node = arg.get_dependency(decompression_scale_idx).as<data>();
-                    auto broadcasted_layout = scale_node.get_output_layout();
-                    broadcasted_layout.data_type = data_types::u8;
-                    dzp_data_type = convert_data_type(broadcasted_layout.data_type);
+                    auto broadcasted_layout_zp = get_broadcasted_layout_zp(arg);
+                    dzp_data_type = convert_data_type(broadcasted_layout_zp.data_type);
 
                     if (zp_node.get_output_layout().get_linear_size() == 1) {
-                        zp_mem = engine.allocate_memory(broadcasted_layout, false);
+                        zp_mem = engine.allocate_memory(broadcasted_layout_zp, false);
                         auto& stream = engine.get_service_stream();
-                        mem_lock<uint8_t, mem_lock_type::write> zp_new_data(zp_mem, stream);
                         mem_lock<uint8_t, mem_lock_type::read> zp_old_data(zp_old_mem, stream);
-                        memset(zp_new_data.data(), static_cast<uint8_t>(zp_old_data.data()[0] & 0xf), zp_new_data.size());
+                        mem_fill(stream, zp_mem, static_cast<uint8_t>(zp_old_data.data()[0] & 0xf));
                     }
 
-                    OPENVINO_ASSERT(broadcasted_layout.get_linear_size() == zp_mem->get_layout().get_linear_size(),
+                    OPENVINO_ASSERT(broadcasted_layout_zp.get_linear_size() == zp_mem->get_layout().get_linear_size(),
                                     "[GPU] Size mismatch between zp and scale for compressed FC\n");
 
                     attr->set_zero_points(DNNL_ARG_WEIGHTS, (1 << 1) + (1 << 0), {group_size, 1}, dzp_data_type);
