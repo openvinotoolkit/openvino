@@ -394,12 +394,12 @@ public:
             auto prim_desc = get_matmul_primitive_descriptor(impl_params, impl_params.prog->get_engine(),
                                                              prim->input_size, !prim->bias.empty(), *attr);
 
-            auto prim = cldnn::make_unique<fully_connected_onednn>(engine, config, attr, *prim_desc);
-            prim->_zp_mem = zp_mem;
-            prim->_ds_group_size = group_size;
-            prim->_ds_data_type = ds_data_type;
-            prim->_dzp_data_type = dzp_data_type;
-            return prim;
+            auto prim_onednn = cldnn::make_unique<fully_connected_onednn>(engine, config, attr, *prim_desc);
+            prim_onednn->_zp_mem = zp_mem;
+            prim_onednn->_ds_group_size = group_size;
+            prim_onednn->_ds_data_type = ds_data_type;
+            prim_onednn->_dzp_data_type = dzp_data_type;
+            return prim_onednn;
         } else {
             auto prim_desc = get_inner_product_primitive_descriptor(impl_params, impl_params.prog->get_engine(),
                                                                     prim->input_size, !prim->bias.empty(), *attr);
