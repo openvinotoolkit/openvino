@@ -29,7 +29,7 @@ OutputVector translate_cumsum_op(const NodeContext& node) {
         x = complex_type_mark->input_value(0);
         auto zero = create_same_type_const_scalar<int32_t>(axis, 0);
         auto less_than_zero = make_shared<v1::Less>(axis, zero);
-        auto const_one = make_shared<v0::Constant>(element::i32, Shape{}, 1);
+        auto const_one = create_same_type_const_scalar<int32_t>(axis, 1);
 
         auto axis_update = make_shared<v1::Select>(less_than_zero, const_one, zero);
         auto new_axis = make_shared<v1::Subtract>(axis, axis_update);
