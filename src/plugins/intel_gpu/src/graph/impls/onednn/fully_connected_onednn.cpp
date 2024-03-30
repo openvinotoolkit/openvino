@@ -232,16 +232,15 @@ public:
         ob << is_compressed;
 
         bool has_decompression_scale = !prim->decompression_scale.empty();
-        ob << has_decompression_scale;
         if (has_decompression_scale) {
             ob << _ds_group_size;
             ob << make_data(&_ds_data_type, sizeof(dnnl::memory::data_type));
         }
 
-        bool has_decompression_zp = !prim->decompression_zero_point.empty() || prim->decompression_zero_point_scalar;
-        ob << has_decompression_zp;
-        if (has_decompression_zp)
+        bool has_decompression_zp = !prim->decompression_zero_point.empty() || prim->decompression_zero_point_scalar.has_value();
+        if (has_decompression_zp) {
             ob << make_data(&_dzp_data_type, sizeof(dnnl::memory::data_type));
+        }
 
         std::vector<uint8_t> prim_cache;
         prim_cache = _prim.get_cache_blob();
@@ -261,11 +260,11 @@ public:
         ib >> is_compressed;
 
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
+        auto prim = impl_params->typed_desc<fully_connected>();
         auto weights_layout = impl_params->get_input_layout(1);
         bool is_four_bit_weight = weights_layout.data_type == data_types::u4 || weights_layout.data_type == data_types::i4;
 
-        bool has_decompression_scale = false;
-        ib >> has_decompression_scale;
+        bool has_decompression_scale = !prim->decompression_scale.empty();
         if (has_decompression_scale) {
             ib >> _ds_group_size;
             ib >> make_data(&_ds_data_type, sizeof(dnnl::memory::data_type));
@@ -275,19 +274,16 @@ public:
                 _attrs->set_scales(DNNL_ARG_WEIGHTS, (1 << 1) + (1 << 0), {_ds_group_size, 1}, _ds_data_type);
         }
 
-        bool has_decompression_zp = false;
-        ib >> has_decompression_zp;
+        bool has_decompression_zp = !prim->decompression_zero_point.empty() || prim->decompression_zero_point_scalar.has_value();
+
         if (has_decompression_zp) {
             ib >> make_data(&_dzp_data_type, sizeof(dnnl::memory::data_type));
-            auto decompression_zp_idx = has_bias ? 3 : 4;
-            auto & zp_node = impl_params->get_program().get_node(impl_params->desc->id).get_dependency(decompression_zp_idx).as<data>();
-            _zp_mem = zp_node.get_attached_memory_ptr();
-            if (!is_four_bit_weight) {
-                _attrs->set_zero_points(DNNL_ARG_WEIGHTS, 1 << 1, dnnl::memory::dims{}, _dzp_data_type);
-            } else {
-                // ZP broadcasting should be implemented and tested
-                OPENVINO_ASSERT(false, "[GPU:UNIMPLEMENTED] OneDNN int4 with zp");
-            }
+            _zp_mem = prepare_zp_mem(impl_params->get_program().get_node(impl_params->desc->id),
+                                     *impl_params,
+                                     is_four_bit_weight,
+                                     _ds_group_size,
+                                     _dzp_data_type,
+                                     _attrs);
         }
 
         if (is_compressed) {
@@ -307,6 +303,65 @@ public:
 #endif
     }
 
+    static memory::ptr prepare_zp_mem(const fully_connected_node& arg, const kernel_impl_params& impl_params,
+                                      bool is_four_bit_weight, int group_size, dnnl::memory::data_type &dzp_data_type,
+                                      std::shared_ptr<dnnl::primitive_attr> attr) {
+        auto& engine = impl_params.prog->get_engine();
+        auto prim = impl_params.typed_desc<fully_connected>();
+        memory::ptr zp_mem(nullptr);
+
+        auto mem_fill = [](stream &stream, memory::ptr mem, uint8_t val) {
+            mem_lock<uint8_t, mem_lock_type::write> data(mem, stream);
+            memset(data.data(), val, data.size());
+        };
+
+        auto get_broadcasted_layout_zp = [](const fully_connected_node& arg) {
+            auto decompression_scale_idx = !arg.bias_term() ? 2 : 3;  // it assumes we have decompress_scale
+            auto &scale_node = arg.get_dependency(decompression_scale_idx);
+            auto broadcasted_layout = scale_node.get_output_layout();
+            broadcasted_layout.data_type = data_types::u8;
+            return broadcasted_layout;
+        };
+
+        if (prim->decompression_zero_point_scalar.has_value()) {
+            // TODO: we may improve this logic by using common weight instead of broadcasted one
+            auto& stream = engine.get_service_stream();
+            auto broadcasted_layout_zp = get_broadcasted_layout_zp(arg);
+            dzp_data_type = convert_data_type(broadcasted_layout_zp.data_type);
+            zp_mem = engine.allocate_memory(broadcasted_layout_zp, false);
+            mem_fill(stream, zp_mem, static_cast<uint8_t>(std::round(prim->decompression_zero_point_scalar.value())));
+            attr->set_zero_points(DNNL_ARG_WEIGHTS, (1 << 1) + (1 << 0), {group_size, 1}, dzp_data_type);
+        } else if (!prim->decompression_zero_point.empty()) {
+            auto decompression_zp_idx = !arg.bias_term() ? 3 : 4;
+            auto &zp_node = arg.get_dependency(decompression_zp_idx).as<data>();
+            memory::ptr zp_old_mem = zp_node.get_attached_memory_ptr();
+            zp_mem = zp_old_mem;
+
+            if (!is_four_bit_weight) {
+                // 8-bit quantized weight
+                auto decompression_zp_idx = !arg.bias_term() ? 3 : 4;
+                dzp_data_type = convert_data_type(arg.get_dependency(decompression_zp_idx).get_output_layout().data_type);
+                attr->set_zero_points(DNNL_ARG_WEIGHTS, 1 << 1, dnnl::memory::dims{}, dzp_data_type);
+            } else {
+                // OneDNN does not support scalar zero-point for s4 and u8 type. Need to broadcast it.
+                auto broadcasted_layout_zp = get_broadcasted_layout_zp(arg);
+                dzp_data_type = convert_data_type(broadcasted_layout_zp.data_type);
+
+                if (zp_node.get_output_layout().get_linear_size() == 1) {
+                    zp_mem = engine.allocate_memory(broadcasted_layout_zp, false);
+                    auto& stream = engine.get_service_stream();
+                    mem_lock<uint8_t, mem_lock_type::read> zp_old_data(zp_old_mem, stream);
+                    mem_fill(stream, zp_mem, static_cast<uint8_t>(zp_old_data.data()[0] & 0xf));
+                }
+
+                OPENVINO_ASSERT(broadcasted_layout_zp.get_linear_size() == zp_mem->get_layout().get_linear_size(),
+                                "[GPU] Size mismatch between zp and scale for compressed FC\n");
+
+                attr->set_zero_points(DNNL_ARG_WEIGHTS, (1 << 1) + (1 << 0), {group_size, 1}, dzp_data_type);
+            }
+        }
+        return zp_mem;
+    }
 
     static std::unique_ptr<primitive_impl> create(const fully_connected_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
@@ -340,55 +395,8 @@ public:
                 }
             }
 
-            auto mem_fill = [](stream &stream, memory::ptr mem, uint8_t val) {
-                mem_lock<uint8_t, mem_lock_type::write> data(mem, stream);
-                memset(data.data(), val, data.size());
-            };
-
-            auto get_broadcasted_layout_zp = [](const fully_connected_node& arg) {
-                auto decompression_scale_idx = !arg.bias_term() ? 2 : 3;  // it assumes we have decompress_scale
-                auto &scale_node = arg.get_dependency(decompression_scale_idx);
-                auto broadcasted_layout = scale_node.get_output_layout();
-                broadcasted_layout.data_type = data_types::u8;
-                return broadcasted_layout;
-            };
-
-            if (prim->decompression_zero_point_scalar.has_value()) {
-                // TODO: we may improve this logic by using common weight instead of broadcasted one
-                auto& stream = engine.get_service_stream();
-                auto broadcasted_layout_zp = get_broadcasted_layout_zp(arg);
-                dzp_data_type = convert_data_type(broadcasted_layout_zp.data_type);
-                zp_mem = engine.allocate_memory(broadcasted_layout_zp, false);
-                mem_fill(stream, zp_mem, static_cast<uint8_t>(std::round(prim->decompression_zero_point_scalar.value())));
-                attr->set_zero_points(DNNL_ARG_WEIGHTS, (1 << 1) + (1 << 0), {group_size, 1}, dzp_data_type);
-            } else if (!prim->decompression_zero_point.empty()) {
-                auto decompression_zp_idx = !arg.bias_term() ? 3 : 4;
-                auto &zp_node = arg.get_dependency(decompression_zp_idx).as<data>();
-                memory::ptr zp_old_mem = zp_node.get_attached_memory_ptr();
-                zp_mem = zp_old_mem;
-
-                if (!is_four_bit_weight) {
-                    // 8-bit quantized weight
-                    auto decompression_zp_idx = !arg.bias_term() ? 3 : 4;
-                    dzp_data_type = convert_data_type(arg.get_dependency(decompression_zp_idx).get_output_layout().data_type);
-                    attr->set_zero_points(DNNL_ARG_WEIGHTS, 1 << 1, dnnl::memory::dims{}, dzp_data_type);
-                } else {
-                    // OneDNN does not support scalar zero-point for s4 and u8 type. Need to broadcast it.
-                    auto broadcasted_layout_zp = get_broadcasted_layout_zp(arg);
-                    dzp_data_type = convert_data_type(broadcasted_layout_zp.data_type);
-
-                    if (zp_node.get_output_layout().get_linear_size() == 1) {
-                        zp_mem = engine.allocate_memory(broadcasted_layout_zp, false);
-                        auto& stream = engine.get_service_stream();
-                        mem_lock<uint8_t, mem_lock_type::read> zp_old_data(zp_old_mem, stream);
-                        mem_fill(stream, zp_mem, static_cast<uint8_t>(zp_old_data.data()[0] & 0xf));
-                    }
-
-                    OPENVINO_ASSERT(broadcasted_layout_zp.get_linear_size() == zp_mem->get_layout().get_linear_size(),
-                                    "[GPU] Size mismatch between zp and scale for compressed FC\n");
-
-                    attr->set_zero_points(DNNL_ARG_WEIGHTS, (1 << 1) + (1 << 0), {group_size, 1}, dzp_data_type);
-                }
+            if (prim->decompression_zero_point_scalar.has_value() || !prim->decompression_zero_point.empty()) {
+                zp_mem = prepare_zp_mem(arg, impl_params, is_four_bit_weight, group_size, dzp_data_type, attr);
             }
 
             auto prim_desc = get_matmul_primitive_descriptor(impl_params, impl_params.prog->get_engine(),

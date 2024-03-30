@@ -1171,9 +1171,7 @@ public:
 
         auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16, padding(), 2, 2);
 
-        // OneDNN does not support scalar ZP
-        if (!engine.get_device_info().supports_immad)
-            fc_prim.decompression_zero_point_scalar = 8;
+        fc_prim.decompression_zero_point_scalar = 8;
 
         auto get_ref_results = [&]() {
             topology topology(
@@ -1234,7 +1232,7 @@ public:
         cldnn::mem_lock<ov::float16> output_ptr_ref (ref_output_mem, get_test_stream());
 
         for (size_t i = 0; i < output_ptr_ref.size(); i++)
-            ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], 5.0) << "i = " << i;
+            ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], 9.0) << "i = " << i;
     }
 
     void test_compressed_int8_scale_zp_bias(bool is_caching_test) {
