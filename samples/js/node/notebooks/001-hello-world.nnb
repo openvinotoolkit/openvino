@@ -17,7 +17,7 @@
         {
             "language": "javascript",
             "source": [
-                "const { cv } = require('opencv-wasm');\nconst { display } = require('node-kernel');\nconst { getImageData, displayImage, downloadFile } = require('../helpers.js');\n\nconst { addon: ov } = require('openvinojs-node');\n"
+                "const { cv } = require('opencv-wasm');\nconst { display } = require('node-kernel');\nconst { getImageData, displayImage, downloadFile } = require('../helpers.js');\n\nconst { addon: ov } = require('openvino-node');\n"
             ],
             "outputs": []
         },
@@ -39,8 +39,6 @@
                         {
                             "mime": "application/vnd.code.notebook.stdout",
                             "value": [
-                                "Proxy agent configured using: 'http://proxy-mu.intel.com:911'",
-                                "Proxy agent configured using: 'http://proxy-mu.intel.com:911'",
                                 "File successfully stored at '/home/nvishnya/Code/wasm-openvino/samples/js/assets/models/v3-small_224_1.0_float.bin'",
                                 ""
                             ]
@@ -67,8 +65,6 @@
                         {
                             "mime": "application/vnd.code.notebook.stdout",
                             "value": [
-                                "Proxy agent configured using: 'http://proxy-mu.intel.com:911'",
-                                "Proxy agent configured using: 'http://proxy-mu.intel.com:911'",
                                 "File successfully stored at '/home/nvishnya/Code/wasm-openvino/samples/js/assets/datasets/imagenet_class_index.json'",
                                 ""
                             ]

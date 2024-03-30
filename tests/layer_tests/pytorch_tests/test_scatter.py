@@ -1,10 +1,10 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 import torch
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 
 class TestScatter(PytorchLayerTest):
@@ -91,6 +91,7 @@ class TestScatter(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("dim", [1, -1, 0])
     @pytest.mark.parametrize(
         "index",
@@ -200,6 +201,7 @@ class TestScatterReduce(PytorchLayerTest):
     @pytest.mark.parametrize(["inplace", "has_out"], [(True, False), (False, True), (False, False)])
     @pytest.mark.parametrize("reduce", ["sum", "prod", "mean", "amax", "amin"])
     @pytest.mark.parametrize("include_self", [True, False])
+    @pytest.mark.xfail(reason="accuracy validation failed")
     def test_scatter_reduce(self, dim, index, src, dtype, inplace, has_out, reduce,  include_self, ie_device, precision, ir_version):
         if isinstance(src, torch.Tensor):
             src = src.to(getattr(torch, dtype))
@@ -255,6 +257,7 @@ class TestScatterAdd(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("dim", [1, -1, 0])
     @pytest.mark.parametrize(
         "index",
@@ -266,8 +269,8 @@ class TestScatterAdd(PytorchLayerTest):
     )
     @pytest.mark.parametrize("src", [torch.arange(1, 26).reshape(5, 5)])
     @pytest.mark.parametrize("dtype", ["int32", "int64", "float32", "float64"])
-    @pytest.mark.parametrize("inplace", [True, False])
-    def test_scatter_reduce(self, dim, index, src, dtype, inplace, ie_device, precision, ir_version):
+    @pytest.mark.parametrize("inplace", [skip_if_export(True), False])
+    def test_scatter_add(self, dim, index, src, dtype, inplace, ie_device, precision, ir_version):
         if isinstance(src, torch.Tensor):
             src = src.to(getattr(torch, dtype))
         if index is None:

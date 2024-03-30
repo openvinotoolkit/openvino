@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -115,12 +115,12 @@ using namespace testing;
 class TypePropScatterUpdateNDV3Test : public TypePropOpTest<op::v3::ScatterNDUpdate> {
 protected:
     void SetUp() override {
-        set_shape_labels(data_3d_dynamic, 10);
+        set_shape_symbols(data_3d_dynamic);
     }
     PartialShape data_3d_dynamic{{2, 5}, 2, {4, 10}};
 };
 
-TEST_F(TypePropScatterUpdateNDV3Test, data_input_partial_shape_and_labels_propagation) {
+TEST_F(TypePropScatterUpdateNDV3Test, data_input_partial_shape_and_symbols_propagation) {
     const auto d = std::make_shared<Parameter>(element::f32, data_3d_dynamic);
     const auto i = std::make_shared<Parameter>(element::i32, PartialShape{3, 2});
     const auto u = std::make_shared<Parameter>(element::f32, PartialShape{3, 5});
@@ -131,7 +131,7 @@ TEST_F(TypePropScatterUpdateNDV3Test, data_input_partial_shape_and_labels_propag
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), data_3d_dynamic);
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 11, 12));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), get_shape_symbols(data_3d_dynamic));
 }
 
 TEST_F(TypePropScatterUpdateNDV3Test, indicies_input_is_dynamic) {
@@ -143,7 +143,7 @@ TEST_F(TypePropScatterUpdateNDV3Test, indicies_input_is_dynamic) {
 
     EXPECT_EQ(op->get_output_element_type(0), element::f64);
     EXPECT_EQ(op->get_output_partial_shape(0), data_3d_dynamic);
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 11, 12));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), get_shape_symbols(data_3d_dynamic));
 }
 
 TEST_F(TypePropScatterUpdateNDV3Test, updates_input_is_dynamic) {
@@ -155,7 +155,7 @@ TEST_F(TypePropScatterUpdateNDV3Test, updates_input_is_dynamic) {
 
     EXPECT_EQ(op->get_output_element_type(0), element::f64);
     EXPECT_EQ(op->get_output_partial_shape(0), data_3d_dynamic);
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 11, 12));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), get_shape_symbols(data_3d_dynamic));
 }
 
 TEST_F(TypePropScatterUpdateNDV3Test, indicies_input_has_interval_dimensions) {
@@ -167,7 +167,7 @@ TEST_F(TypePropScatterUpdateNDV3Test, indicies_input_has_interval_dimensions) {
 
     EXPECT_EQ(op->get_output_element_type(0), element::i64);
     EXPECT_EQ(op->get_output_partial_shape(0), data_3d_dynamic);
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 11, 12));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), get_shape_symbols(data_3d_dynamic));
 }
 
 TEST_F(TypePropScatterUpdateNDV3Test, updates_input_is_scalar) {
@@ -192,14 +192,14 @@ TEST_F(TypePropScatterUpdateNDV3Test, default_ctor) {
 
     EXPECT_EQ(op->get_output_element_type(0), element::i64);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({2, 3, 5, 1}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(ov::no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
 }
 
-TEST_F(TypePropScatterUpdateNDV3Test, preserve_partial_values_and_labels_via_evaluates_bounds) {
+TEST_F(TypePropScatterUpdateNDV3Test, preserve_partial_values_and_symbols_via_evaluates_bounds) {
     const auto d = Constant::create(element::i64, Shape{4}, {2, 3, 15, 4});
     const auto i = Constant::create(element::i64, Shape{2, 1}, {2, 0});
     auto u_shape = PartialShape{{10, 20}, {3, 4}};
-    set_shape_labels(u_shape, 20);
+    auto symbols = set_shape_symbols(u_shape);
 
     const auto shape_of_u = std::make_shared<op::v0::ShapeOf>(std::make_shared<Parameter>(element::i64, u_shape));
     const auto op = make_op(d, i, shape_of_u);
@@ -208,7 +208,8 @@ TEST_F(TypePropScatterUpdateNDV3Test, preserve_partial_values_and_labels_via_eva
     auto bc = std::make_shared<op::v3::Broadcast>(param, op, op::BroadcastType::BIDIRECTIONAL);
 
     EXPECT_EQ(bc->get_output_partial_shape(0), PartialShape({{3, 4}, 3, {10, 20}, 4}));
-    EXPECT_THAT(get_shape_labels(bc->get_output_partial_shape(0)), ElementsAre(21, ov::no_label, 20, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(bc->get_output_partial_shape(0)),
+                ElementsAre(symbols[1], nullptr, symbols[0], nullptr));
 }
 
 TEST_F(TypePropScatterUpdateNDV3Test, indices_dynamic_type) {

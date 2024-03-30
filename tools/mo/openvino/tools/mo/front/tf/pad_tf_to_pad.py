@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.ops.ConvertLike import ConvertLike
@@ -14,7 +14,7 @@ from openvino.tools.mo.ops.squeeze import Squeeze
 
 class PadTFToPad(FrontReplacementPattern):
     """
-    This transformation converts TFPad operation (TensorFlow semantic) to Pad operation (Inference Engine semantic).
+    This transformation converts TFPad operation (TensorFlow semantic) to Pad operation (OpenVINO semantic).
     Refer to the Op implementation for the operations semantics description.
     """
     enabled = True

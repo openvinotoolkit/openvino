@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "cpu_memory.h"
+#include <common/memory_desc_wrapper.hpp>
 #include "nodes/reorder.h"
 
 namespace ov {

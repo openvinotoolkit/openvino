@@ -1,18 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
 
 #include <napi.h>
 
-#include "element_type.hpp"
-#include "errors.hpp"
-#include "helper.hpp"
-#include "model_wrap.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
-#include "openvino/openvino.hpp"
-#include "preprocess/input_info.hpp"
-#include "preprocess/output_info.hpp"
 
 class PrePostProcessorWrap : public Napi::ObjectWrap<PrePostProcessorWrap> {
 public:

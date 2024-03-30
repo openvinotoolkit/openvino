@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -99,8 +99,9 @@ enum class Type {
     ExperimentalDetectronROIFeatureExtractor,
     ExperimentalDetectronPriorGridGenerator,
     ExperimentalDetectronGenerateProposalsSingleImage,
-    GenerateProposals,
     ExtractImagePatches,
+    GenerateProposals,
+    Inverse,
     NonMaxSuppression,
     MatrixNms,
     MulticlassNms,
@@ -115,6 +116,7 @@ enum class Type {
     Ngram,
     ScaledDotProductAttention,
     RoPE,
+    CausalMaskPreprocess,
 };
 
 enum class Algorithm {

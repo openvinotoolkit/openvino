@@ -5,7 +5,7 @@ A very basic introduction to using object detection models with
 OpenVINO™.
 
 The
-`horizontal-text-detection-0001 <https://docs.openvino.ai/2023.0/omz_models_model_horizontal_text_detection_0001.html>`__
+`horizontal-text-detection-0001 <https://docs.openvino.ai/2024/omz_models_model_horizontal_text_detection_0001.html>`__
 model from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used. It
 detects horizontal text in images and returns a blob of data in the
@@ -138,7 +138,7 @@ Load the Model
     core = ov.Core()
     
     model = core.read_model(model=model_xml_path)
-    compiled_model = core.compile_model(model=model, device_name="CPU")
+    compiled_model = core.compile_model(model=model, device_name=device.value)
     
     input_layer_ir = compiled_model.input(0)
     output_layer_ir = compiled_model.output("boxes")

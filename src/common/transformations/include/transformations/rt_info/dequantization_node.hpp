@@ -15,7 +15,7 @@ TRANSFORMATIONS_API void mark_as_dequantization_node(const std::shared_ptr<Node>
 TRANSFORMATIONS_API bool is_dequantization_node(const std::shared_ptr<Node>& node);
 
 /**
- * @ingroup ie_runtime_attr_api
+ * @ingroup ov_runtime_attr_api
  * @brief DequantizationNode class represents runtime info attribute that marks operation
  * that are part of dequantization subgraph.
  */

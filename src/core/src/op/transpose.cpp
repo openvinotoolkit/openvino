@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,9 @@
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/reference/transpose.hpp"
 #include "transpose_shape_inference.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -77,8 +77,8 @@ bool Transpose::evaluate_upper(ov::TensorVector& output_values) const {
     return get_input_tensor(ORDER).has_and_set_bound() && default_upper_bound_evaluator(this, output_values);
 }
 
-bool Transpose::evaluate_label(TensorLabelVector& output_labels) const {
-    return get_input_tensor(ORDER).has_and_set_bound() && ov::util::default_label_evaluator(this, output_labels);
+bool Transpose::evaluate_symbol(TensorSymbolVector& output_symbols) const {
+    return get_input_tensor(ORDER).has_and_set_bound() && ov::util::default_symbol_evaluator(this, output_symbols);
 }
 }  // namespace v1
 }  // namespace op

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,10 +8,10 @@
 #include <iostream>
 #include <vector>
 
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/dimension.hpp"
 #include "openvino/core/shape_util.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/util/common_util.hpp"
-#include "validation_util.hpp"
 
 ov::PartialShape::PartialShape() : PartialShape(std::initializer_list<Dimension>{}) {}
 
@@ -158,8 +158,6 @@ std::ostream& ov::operator<<(std::ostream& str, const PartialShape& shape) {
             if (!first) {
                 str << ",";
             }
-            if (const auto& l = ov::DimensionTracker::get_label(d))
-                str << "<" << l << ">";
             str << d;
             first = false;
         }

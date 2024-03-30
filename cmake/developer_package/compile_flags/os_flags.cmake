@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -75,6 +75,17 @@ macro(ov_dev_package_no_errors)
         endif()
     endif()
 
+    if (CMAKE_COMPILE_WARNING_AS_ERROR AND WIN32)
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+            if(CMAKE_VERSION VERSION_LESS 3.24)
+                string(REPLACE "/WX" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+                string(REPLACE "/WX" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+            endif()
+            string(REPLACE "/WX" "" CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
+        endif()
+        set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
+    endif()
+
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${ov_c_cxx_dev_no_errors} ${ov_cxx_dev_no_errors}")
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${ov_c_cxx_dev_no_errors}")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ov_c_cxx_dev_no_errors} ${ov_cxx_dev_no_errors}")
@@ -142,7 +153,7 @@ macro(ov_avx512_optimization_flags flags)
             set(${flags} -xCOMMON-AVX512)
         endif()
     elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX)
-        set(${flags} -mavx512f -mfma -mf16c)
+        set(${flags} -mavx512f -mavx512bw -mavx512vl -mfma -mf16c)
     else()
         message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
     endif()

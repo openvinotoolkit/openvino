@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,8 @@
 namespace ov {
 namespace test {
 namespace utils {
+
+extern bool is_print_rel_influence_coef;
 
 struct PassRate {
     enum Statuses { PASSED, FAILED, SKIPPED, CRASHED, HANGED };

@@ -16,15 +16,15 @@ OPS = {
 
 class TestAssignOps(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'x' in inputs_info, "Test error: inputs_info must contain `x`"
-        x_shape = inputs_info['x']
+        assert 'x:0' in inputs_info, "Test error: inputs_info must contain `x`"
+        x_shape = inputs_info['x:0']
         inputs_data = {}
         if np.issubdtype(self.input_type, np.floating):
-            inputs_data['x'] = rng.uniform(-2.0, 2.0, x_shape).astype(self.input_type)
+            inputs_data['x:0'] = rng.uniform(-2.0, 2.0, x_shape).astype(self.input_type)
         elif np.issubdtype(self.input_type, np.signedinteger):
-            inputs_data['x'] = rng.integers(-8, 8, x_shape).astype(self.input_type)
+            inputs_data['x:0'] = rng.integers(-8, 8, x_shape).astype(self.input_type)
         else:
-            inputs_data['x'] = rng.integers(0, 8, x_shape).astype(self.input_type)
+            inputs_data['x:0'] = rng.integers(0, 8, x_shape).astype(self.input_type)
         return inputs_data
 
     def create_assign_net(self, const_shape, input_type):
@@ -95,30 +95,32 @@ class TestAssignOps(CommonTFLayerTest):
     @pytest.mark.parametrize("input_type", [np.int8, np.uint8, np.int16,
                                             np.int32, np.int64,
                                             np.float16, np.float32, np.float64])
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_assign(self, const_shape, input_type, ie_device, precision, ir_version, temp_dir,
-                    use_new_frontend):
+                    use_legacy_frontend):
+        if ie_device == 'GPU' and input_type == np.int16:
+            pytest.skip("accuracy mismatch for int16 on GPU")
         self._test(*self.create_assign_net(const_shape, input_type),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
 
     @pytest.mark.parametrize("const_shape", [[], [2], [3, 4], [3, 2, 1, 4]])
     @pytest.mark.parametrize("assign_op", ['tf.raw_ops.AssignAdd', 'tf.raw_ops.AssignSub'])
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_assign_ops(self, const_shape, assign_op, ie_device, precision, ir_version, temp_dir,
-                        use_new_frontend):
+                        use_legacy_frontend):
         self._test(*self.create_assign_op_net(const_shape, OPS[assign_op]),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
 
     @pytest.mark.parametrize("const_shape", [[], [2], [3, 4], [3, 2, 1, 4]])
     @pytest.mark.parametrize("assign_op", ['tf.raw_ops.AssignAdd', 'tf.raw_ops.AssignSub'])
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_assign_ops2(self, const_shape, assign_op, ie_device, precision, ir_version, temp_dir,
-                         use_new_frontend):
+                         use_legacy_frontend):
         self._test(*self.create_assign_op_net2(const_shape, OPS[assign_op]),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

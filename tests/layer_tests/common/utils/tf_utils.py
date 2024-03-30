@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -7,10 +7,13 @@ import re
 import numpy as np
 import tensorflow as tf
 
-from openvino.tools.mo.ops.op import PermuteAttrs
-
-
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
+
+def run_in_jenkins():
+    if "JENKINS_URL" in os.environ and len(os.environ["JENKINS_URL"]):
+        return True
+    return False
 
 
 def mix_array_with_value(input_array, value):
@@ -98,7 +101,8 @@ def summarize_graph(model_path, output_nodes_for_freeze=None, reshape_net=None):
     variables = list()
     outputs = list()
     graph = load_graph(model_path, output_nodes_for_freeze)
-    unlikely_output_types = ['Const', 'Assign', 'NoOp', 'Placeholder', 'Assert', 'switch_t', 'switch_f', 'TensorArrayCloseV3']
+    unlikely_output_types = ['Const', 'Assign', 'NoOp', 'Placeholder', 'Assert', 'switch_t', 'switch_f',
+                             'TensorArrayCloseV3']
     control_dependents_map = collect_control_dependencies(graph)
     for node in graph.as_graph_def().node:
         if node.op == 'Placeholder':
@@ -130,27 +134,11 @@ def summarize_graph(model_path, output_nodes_for_freeze=None, reshape_net=None):
     return result
 
 
-def permute_nhwc_to_nchw(shape, use_new_frontend=False):
-    if use_new_frontend:
-        return shape
-    perm = PermuteAttrs.get_nhwc_to_nchw_permutation(len(shape)).perm
-    new_shape = np.array(shape)[perm]
-    return new_shape
-
-
-def permute_nchw_to_nhwc(shape, use_new_frontend=False):
-    if use_new_frontend:
-        return shape
-    perm = PermuteAttrs.get_nchw_to_nhwc_permutation(len(shape)).perm
-    new_shape = np.array(shape)[perm]
-    return new_shape
-
-
 def permute_axis(axis, permutation_inv):
     return permutation_inv[axis]
 
 
-def save_to_pb(tf_model, path_to_saved_tf_model, model_name = 'model.pb'):
+def save_to_pb(tf_model, path_to_saved_tf_model, model_name='model.pb'):
     tf.io.write_graph(tf_model, path_to_saved_tf_model, model_name, False)
     assert os.path.isfile(os.path.join(path_to_saved_tf_model, model_name)), "model.pb haven't been saved " \
                                                                              "here: {}".format(path_to_saved_tf_model)

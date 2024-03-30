@@ -1516,7 +1516,7 @@ def lstm_cell(
     default_p = make_constant_node(peepholes_array, dtype=data_dtype)
     node_inputs.append(default_p)
 
-    weights_format = "fico"  # IE LSTMWeightsFormat, no such attribute in the OV spec
+    weights_format = "fico"  # OV LSTMWeightsFormat, no such attribute in the OV spec
     input_forget = False  # nGraph default, no such attribute in the OV spec
 
     attributes = {
@@ -1602,7 +1602,7 @@ def lstm_sequence(
     default_p = make_constant_node(peepholes_array, dtype=data_dtype)
     node_inputs.append(default_p)
 
-    weights_format = "fico"  # IE LSTMWeightsFormat, no such attribute in the OV spec
+    weights_format = "fico"  # OV LSTMWeightsFormat, no such attribute in the OV spec
     input_forget = False  # nGraph default, no such attribute in the OV spec
 
     attributes = {

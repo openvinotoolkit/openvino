@@ -1,12 +1,15 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <gtest/gtest.h>
 
 #include "dummy_node.hpp"
+#include "graph.h"
 #include "nodes/input.h"
 #include "nodes/concat.h"
-
+#include "openvino/op/concat.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 
 using namespace ov::intel_cpu;
 

@@ -1,5 +1,5 @@
 {
-    "p": "OpenVINO 2022.1 has introduced OpenVINO API 2.0. For more information on transition steps from the previous API, see the <a href=\"https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html\">transition guide</a>",
+    "p": "",
     "version": "1",
-    "style": "info"
+    "style": "warning"
 }

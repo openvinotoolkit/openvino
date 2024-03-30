@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -882,8 +882,8 @@ void NormalizeL2::setPostOps(dnnl::primitive_attr& kernel_attrs, const VectorDim
 }
 
 void NormalizeL2::createPrimitive() {
-    auto dstMemPtr = getChildEdgeAt(DATA)->getMemoryPtr();
-    auto srcMemPtr = getParentEdgeAt(DATA)->getMemoryPtr();
+    auto dstMemPtr = getDstMemoryAtPort(DATA);
+    auto srcMemPtr = getSrcMemoryAtPort(DATA);
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         THROW_ERROR("can't get destination memory");
     if (!srcMemPtr || !srcMemPtr->isAllocated())
@@ -917,7 +917,7 @@ bool NormalizeL2::isExecutable() const {
 }
 
 void NormalizeL2::prepareParams() {
-    const auto& dims = getParentEdgeAt(DATA)->getMemoryPtr()->getStaticDims();
+    const auto& dims = getSrcMemoryAtPort(DATA)->getStaticDims();
 
     setPostOps(kernel_attrs, dims, true);
 
@@ -945,8 +945,8 @@ void NormalizeL2::execute(dnnl::stream strm) {
     if (!execPtr)
         THROW_ERROR("doesn't have a compiled executor.");
 
-    const uint8_t *src_ptr = reinterpret_cast<const uint8_t *>(getParentEdgeAt(DATA)->getMemoryPtr()->getData());
-    uint8_t *dst_ptr = reinterpret_cast<uint8_t *>(getChildEdgeAt(DATA)->getMemoryPtr()->getData());
+    const uint8_t *src_ptr = getSrcDataAtPortAs<const uint8_t>(DATA);
+    uint8_t *dst_ptr = getDstDataAtPortAs<uint8_t>(DATA);
     execPtr->exec(src_ptr, dst_ptr, postOpsDataPtrs.data());
 }
 
@@ -1492,7 +1492,7 @@ std::shared_ptr<NormalizeL2::NormalizeL2Executor> NormalizeL2::NormalizeL2Execut
               OV_CASE2(ov::element::i8, ov::element::f32, int8_t, float),
               OV_CASE2(ov::element::f32, ov::element::f32, float, float),
               OV_CASE2(ov::element::bf16, ov::element::bf16, bfloat16_t, bfloat16_t),
-              OV_CASE2(ov::element::f16, ov::element::f16, float16_t, float16_t));
+              OV_CASE2(ov::element::f16, ov::element::f16, dnnl::impl::float16_t, dnnl::impl::float16_t));
 
     return ctx.executor;
 }

@@ -1,13 +1,13 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
+#include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 #include "openvino/op/fake_quantize.hpp"
-#include "ov_models/utils/data_utils.hpp"
 
 namespace ov {
 namespace test {
@@ -41,15 +41,15 @@ std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& in,
                                              const int32_t seed) {
     size_t constDataSize = ov::shape_size(constShapes);
     std::vector<float> inputLowData, inputHighData, outputLowData, outputHighData;
-    inputLowData = NGraphFunctions::Utils::generateVector<ov::element::Type_t::f32>(constDataSize, 10, 1, seed);
+    inputLowData = ov::test::utils::generateVector<ov::element::Type_t::f32>(constDataSize, 10, 1, seed);
     if (levels != 2) {
-        inputHighData = NGraphFunctions::Utils::generateVector<ov::element::Type_t::f32>(constDataSize, 10, 1, seed);
-        outputLowData = NGraphFunctions::Utils::generateVector<ov::element::Type_t::f32>(constDataSize, 10, 1, seed);
-        outputHighData = NGraphFunctions::Utils::generateVector<ov::element::Type_t::f32>(constDataSize, 10, 1, seed);
+        inputHighData = ov::test::utils::generateVector<ov::element::Type_t::f32>(constDataSize, 10, 1, seed);
+        outputLowData = ov::test::utils::generateVector<ov::element::Type_t::f32>(constDataSize, 10, 1, seed);
+        outputHighData = ov::test::utils::generateVector<ov::element::Type_t::f32>(constDataSize, 10, 1, seed);
     } else {
         inputHighData = inputLowData;
-        outputLowData = NGraphFunctions::Utils::generateVector<ov::element::Type_t::f32>(constDataSize, 10, 1, seed);
-        outputHighData = NGraphFunctions::Utils::generateVector<ov::element::Type_t::f32>(constDataSize, 10, 1, seed);
+        outputLowData = ov::test::utils::generateVector<ov::element::Type_t::f32>(constDataSize, 10, 1, seed);
+        outputHighData = ov::test::utils::generateVector<ov::element::Type_t::f32>(constDataSize, 10, 1, seed);
 
         for (int i = 0; i < constDataSize; i++) {
             if (outputLowData[i] > outputHighData[i]) {

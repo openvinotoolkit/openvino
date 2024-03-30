@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,9 +8,9 @@
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/reference/split.hpp"
 #include "split_shape_inference.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -117,10 +117,10 @@ bool Split::evaluate_upper(ov::TensorVector& output_values) const {
     return get_input_tensor(1).has_and_set_bound() && default_upper_bound_evaluator(this, output_values);
 }
 
-bool Split::evaluate_label(TensorLabelVector& output_labels) const {
-    OPENVINO_ASSERT(output_labels.size() == get_num_splits());
+bool Split::evaluate_symbol(TensorSymbolVector& output_symbols) const {
+    OPENVINO_ASSERT(output_symbols.size() == get_num_splits());
 
-    return get_input_tensor(1).has_and_set_bound() && ov::util::default_label_evaluator(this, output_labels);
+    return get_input_tensor(1).has_and_set_bound() && ov::util::default_symbol_evaluator(this, output_symbols);
 }
 }  // namespace v1
 }  // namespace op

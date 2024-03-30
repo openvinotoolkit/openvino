@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -302,6 +302,26 @@ TEST_F(TransformationTestsF, ReduceMergeConcatAxes) {
         auto axes = std::make_shared<opset9::Concat>(OutputVector{axis1, axis2}, 0);
         auto reduce = std::make_shared<opset9::ReduceL1>(data, axes, true);
         model_ref = std::make_shared<Model>(OutputVector{reduce}, ParameterVector{data, axis1, axis2});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+TEST_F(TransformationTestsF, ReduceMergeDifferentShapesAndTypes) {
+    {
+        auto data = std::make_shared<op::v0::Parameter>(element::i64, Shape{3, 2});
+        auto reduce1_axes = op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto reduce1 = std::make_shared<opset9::ReduceMean>(data, reduce1_axes, true);
+        auto reduce2_axis = op::v0::Constant::create(element::i32, Shape{1}, {0});
+        model = std::make_shared<Model>(OutputVector{std::make_shared<opset9::ReduceMean>(reduce1, reduce2_axis, true)},
+                                        ParameterVector{data});
+        manager.register_pass<ov::pass::ReduceMerge>();
+    }
+    {
+        auto data = std::make_shared<op::v0::Parameter>(element::i64, Shape{3, 2});
+        auto axes = op::v0::Constant::create(element::i64, Shape{2}, {0, 0});
+        auto reduce = std::make_shared<opset9::ReduceMean>(data, axes, true);
+        model_ref = std::make_shared<Model>(OutputVector{reduce}, ParameterVector{data});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);

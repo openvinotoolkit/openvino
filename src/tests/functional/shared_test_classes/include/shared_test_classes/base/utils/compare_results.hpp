@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "ie_core.hpp"
 
 namespace ov {
 namespace test {
@@ -13,8 +12,8 @@ namespace utils {
 using CompareMap = std::map<ov::NodeTypeInfo, std::function<void(
         const std::shared_ptr<ov::Node> &node,
         size_t port,
-        const ov::runtime::Tensor &expected,
-        const ov::runtime::Tensor &actual,
+        const ov::Tensor &expected,
+        const ov::Tensor &actual,
         double absThreshold,
         double relThreshold)>>;
 

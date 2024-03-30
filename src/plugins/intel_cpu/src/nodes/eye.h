@@ -42,34 +42,34 @@ private:
     template<typename T>
     struct EyeExecute;
     inline const size_t getRowNum() const {
-        auto rowMem = getParentEdgeAt(ROWS_NUM)->getMemoryPtr();
+        auto rowMem = getSrcMemoryAtPort(ROWS_NUM);
         if (rowMem == nullptr)
             OPENVINO_THROW(errorPrefix, " doesn't contain row_count data");
-        const int *rowPtr = reinterpret_cast<const int *>(rowMem->getData());
+        const int *rowPtr = rowMem->getDataAs<const int>();
 
         return rowPtr[0];
     }
     inline const size_t getColNum() const {
-        auto colMem = getParentEdgeAt(COLS_NUM)->getMemoryPtr();
+        auto colMem = getSrcMemoryAtPort(COLS_NUM);
         if (colMem == nullptr)
             OPENVINO_THROW(errorPrefix, " doesn't contain col_count data");
-        const int *colPtr =  reinterpret_cast<const int *>(colMem->getData());
+        const int *colPtr =  colMem->getDataAs<const int>();
 
         return colPtr[0];
     }
     inline const int getDiagIndex() const {
-        auto diagIndMem = getParentEdgeAt(DIAGONAL_INDEX)->getMemoryPtr();
+        auto diagIndMem = getSrcMemoryAtPort(DIAGONAL_INDEX);
         if (diagIndMem == nullptr)
             OPENVINO_THROW(errorPrefix, " doesn't contain diag_index data");
-        const int *diagIndexPtr = reinterpret_cast<const int *>(diagIndMem->getData());
+        const int *diagIndexPtr = diagIndMem->getDataAs<const int>();
 
         return diagIndexPtr[0];
     }
     inline const std::vector<int> getBatchShape() const {
         if (withBatchShape) {
-            const int batchShapeSize = static_cast<const int>(getParentEdgeAt(BATCH_SHAPE)->getMemoryPtr()->getShape().getElementsCount());
+            const int batchShapeSize = static_cast<const int>(getSrcMemoryAtPort(BATCH_SHAPE)->getShape().getElementsCount());
             std::vector<int> batchShape(batchShapeSize);
-            const int *batchShapePtr = reinterpret_cast<const int *>(getParentEdgeAt(BATCH_SHAPE)->getMemoryPtr()->getData());
+            const int *batchShapePtr = getSrcDataAtPortAs<const int>(BATCH_SHAPE);
             batchShape.assign(batchShapePtr, batchShapePtr + batchShapeSize);
             return batchShape;
         } else {

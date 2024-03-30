@@ -40,9 +40,6 @@ MATCHER_P(ComparePerfHint, perfHint, "Check if perf hint expects.") {
     return perfHint == arg_perfHint.as<std::string>();
 }
 
-#define IE_SET_METRIC(key, name, ...) \
-    typename ::InferenceEngine::Metrics::MetricType<::InferenceEngine::Metrics::key>::type name = __VA_ARGS__;
-
 #define RETURN_MOCK_VALUE(value)  \
     InvokeWithoutArgs([value]() { \
         return ov::Any(value);    \
@@ -101,4 +98,8 @@ public:
 };
 }  // namespace tests
 }  // namespace mock_auto_plugin
+
+ACTION_P(Throw, what) {
+    OPENVINO_THROW(what);
+}
 }  // namespace ov

@@ -178,7 +178,7 @@ std::vector<ov::test::InputShape> input_shapesDynamic = {
     }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_TopK_constant_dynamic, TopKLayerGPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_TopK_constant_dynamic, TopKLayerGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn(k),
         ::testing::ValuesIn(axes),
@@ -192,7 +192,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TopK_constant_dynamic, TopKLayerGPUTest,
         ::testing::Values(ov::test::utils::InputLayerType::CONSTANT)),
     TopKLayerGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_TopK_parameter_dynamic, TopKLayerGPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_TopK_parameter_dynamic, TopKLayerGPUTest,
     ::testing::Combine(
         ::testing::Values(1),
         ::testing::ValuesIn(axes),

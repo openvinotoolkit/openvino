@@ -15,7 +15,7 @@ experimental_detectron_generate_proposals_single_image_kernel_selector& experime
     return instance_;
 }
 
-KernelsData experimental_detectron_generate_proposals_single_image_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::EXPERIMENTAL_DETECTRON_GENERATE_PROPOSALS_SINGLE_IMAGE);
+KernelsData experimental_detectron_generate_proposals_single_image_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::EXPERIMENTAL_DETECTRON_GENERATE_PROPOSALS_SINGLE_IMAGE);
 }
 }  // namespace kernel_selector

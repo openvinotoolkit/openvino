@@ -43,7 +43,14 @@ inline void (FUNC_NAME)(
     INPUT_VEC_TYPE       in_0[FORCED_TILE_B] = { };
 
     FILTER_VEC_TYPE wei = 0;
+#if OUTPUT_3D
+    uint out_b0 = out_b / OUTPUT_FEATURE_NUM;
+    uint out_b1 = out_b % OUTPUT_FEATURE_NUM;
+    uint input_offset = out_b0 * INPUT0_BATCH_PITCH + out_b1 * INPUT0_FEATURE_PITCH + INPUT0_OFFSET;
+#else
     uint input_offset = out_b * TILE_IN_B_PITCH + INPUT0_OFFSET;
+#endif
+
 #if COMPRESSED_WEIGHTS_INT4
     uint weights_offset = out_f * (INPUT_ELEMENTS_COUNT / 2);
 #else
@@ -52,7 +59,7 @@ inline void (FUNC_NAME)(
 
 #if COMPRESSED_WEIGHTS && DECOMPRESSION_SCALE_GROUPS_NUM == 1
     #if DECOMPRESSION_SCALE_LENGTH > 1 && DECOMPRESSION_SCALE_LENGTH % (TILE_OFM * SIMD) == 0
-        ACCUMULATOR_VEC_TYPE d_scale = BLOCK_READN(ACCUMULATOR_TYPE, TILE_OFM, decompression_scale, out_f);
+        ACCUMULATOR_VEC_TYPE d_scale = TO_ACCUMULATOR_VEC_TYPE(BLOCK_READN(DECOMPRESSION_SCALE_TYPE, TILE_OFM, decompression_scale, out_f));
     #elif DECOMPRESSION_SCALE_LENGTH > 1 && DECOMPRESSION_SCALE_LENGTH % (TILE_OFM * SIMD) != 0
         ACCUMULATOR_VEC_TYPE d_scale = 0;
         unroll_for(uint of = 0; of < TILE_OFM; ++of) {
@@ -69,7 +76,7 @@ inline void (FUNC_NAME)(
 
 #if COMPRESSED_WEIGHTS && DECOMPRESSION_ZP_TERM && DECOMPRESSION_ZP_GROUPS_NUM == 1 && !DECOMPRESSION_ZP_SCALAR
     #if DECOMPRESSION_ZP_LENGTH > 1 && DECOMPRESSION_ZP_LENGTH % (TILE_OFM * SIMD) == 0
-        ACCUMULATOR_VEC_TYPE d_zp = BLOCK_READN(ACCUMULATOR_TYPE, TILE_OFM, decompression_zp, out_f);
+        ACCUMULATOR_VEC_TYPE d_zp = TO_ACCUMULATOR_VEC_TYPE(BLOCK_READN(DECOMPRESSION_ZP_TYPE, TILE_OFM, decompression_zp, out_f));
     #elif DECOMPRESSION_ZP_LENGTH > 1 && DECOMPRESSION_ZP_LENGTH % (TILE_OFM * SIMD) != 0
         ACCUMULATOR_VEC_TYPE d_zp = 0;
         unroll_for(uint of = 0; of < TILE_OFM; ++of) {

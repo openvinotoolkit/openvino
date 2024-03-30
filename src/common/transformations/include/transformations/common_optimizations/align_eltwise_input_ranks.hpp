@@ -8,7 +8,7 @@
 #include "transformations_visibility.hpp"
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief transformation aligns elementwise constant inputs ranks with its output rank
  */
 

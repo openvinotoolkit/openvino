@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "base/behavior_test_utils.hpp"
+#include "base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 
 namespace ov {

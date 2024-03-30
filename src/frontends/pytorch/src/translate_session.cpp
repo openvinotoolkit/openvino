@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include "input_model.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
 #include "place.hpp"
 #include "pt_framework_node.hpp"
@@ -74,10 +75,6 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
     std::shared_ptr<TorchDecoder> pytorch_model,
     const TensorMap& external_tensor_map,
     const std::shared_ptr<pytorch::InputModel>& input_model) {
-    // FIXME: don't use global variable to count inlined inputs, no we should use global counter because ID should be
-    // unique for all new inlined inputs
-    static size_t inlined_nodes_counter = 100000000;  // Suppose there are not graph with more than 10M nodes
-
     std::shared_ptr<Model> resulting_model;  // define here to make a conversion in a nested scope
     {
         auto parameters = std::make_shared<ParameterVector>();
@@ -128,18 +125,6 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
             // But this value can be found in the outer scope, for this purpose we create new input for the model to
             // link with external scope on a higher level.
 
-            auto inlined_inputs = node->inlined_inputs(inlined_nodes_counter);
-            for (size_t i = 0; i < inlined_inputs.size(); ++i) {
-                size_t fw_tensor_id = inlined_nodes_counter;
-                ++inlined_nodes_counter;  // TODO: Make sure that Decoder side use the same increment for producing ids
-                if (tensor_map->find(fw_tensor_id) != tensor_map->end()) {
-                    throw std::runtime_error("Duplicated producer for PT value with unique ID: " +
-                                             std::to_string(fw_tensor_id) + " produced by inlined_inputs");
-                }
-
-                (*tensor_map)[fw_tensor_id] = inlined_inputs[i];
-            }
-
             auto raw_inputs = node->inputs();
             for (size_t i = 0; i < raw_inputs.size(); ++i) {
                 auto input = raw_inputs.at(i);
@@ -170,7 +155,11 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
             FRONT_END_OP_CONVERSION_CHECK(fw_outputs.size() <= converted_outputs.size(),
                                           "Number of ",
                                           context.get_op_type(),
-                                          " outputs greater then number of converted outputs.");
+                                          " outputs greater than number of converted outputs, which are",
+                                          fw_outputs.size(),
+                                          " and ",
+                                          converted_outputs.size(),
+                                          " respectively.");
 
             for (size_t i = 0; i < fw_outputs.size(); ++i) {
                 size_t fw_tensor_id = node->output(i);
@@ -286,11 +275,19 @@ OutputVector TranslateSession::convert_node(const NodeContext& context) {
         if (it != m_translator_map.end()) {
             return it->second(context);
         }
+        OPENVINO_DEBUG << "No translator found for: " << context.get_op_type() << "\n";
     } catch (std::exception& e) {
         exception = e.what();
+        if (m_telemetry) {
+            auto cropped_message = ov::util::filter_lines_by_prefix(exception, get_pytorch_prefix());
+            if (cropped_message.size()) {
+                m_telemetry->send_event("error_info", cropped_message);
+            }
+        }
     } catch (...) {
         exception = "Unknown exception type.";
     }
+    OPENVINO_DEBUG << exception << "\n";
     try {
         // Create PtFrameworkNode for everything that wasn't able to be converted normally
         return make_framework_node(context, exception);
@@ -299,6 +296,7 @@ OutputVector TranslateSession::convert_node(const NodeContext& context) {
     } catch (...) {
         exception += " Unknown exception happened while creating FrameworkNode with subgraphs";
     }
+    OPENVINO_DEBUG << exception << "\n";
     return make_framework_node_ignore_bodies(context, exception);
 }
 
@@ -329,10 +327,24 @@ void TranslateSession::encode_tensor_name(Output<Node> output,
     }
 }
 
+namespace {
+bool is_number(const std::string& s) {
+    std::string::const_iterator it = s.begin();
+    while (it != s.end() && std::isdigit(*it))
+        ++it;
+    return !s.empty() && it == s.end();
+}
+}  // namespace
+
 size_t TranslateSession::decode_tensor_name(const Output<Node>& output) {
     // any_name should always return numerical value even if there is a word value exist in names
-    const auto& name = output.get_any_name();
+    auto name = output.get_any_name();
+    auto pos = name.find("_");
+    if (pos != std::string::npos) {
+        name = name.substr(0, pos);
+    }
     // numbers after "_" will be ignored by stoll function
+    FRONT_END_GENERAL_CHECK(is_number(name), "Tensor name is not a number: ", name);
     return static_cast<size_t>(std::stoll(name));
 }
 

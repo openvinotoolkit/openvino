@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,9 +29,9 @@ InputTypePred element_type_is(const ov::element::Type et) {
     };
 }
 
-std::shared_ptr<op::v0::Parameter> find_input(const ParameterVector& inputs, const std::string& name) {
+std::shared_ptr<op::v0::Parameter> find_input(const ov::ParameterVector& inputs, const std::string& name) {
     const auto input_pos =
-        std::find_if(std::begin(inputs), std::end(inputs), [&name](const ParameterVector::value_type i) {
+        std::find_if(std::begin(inputs), std::end(inputs), [&name](const ov::ParameterVector::value_type i) {
             return i->get_friendly_name() == name;
         });
 

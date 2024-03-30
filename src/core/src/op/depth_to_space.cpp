@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,6 @@
 #include "depth_to_space_shape_inference.hpp"
 #include "itt.hpp"
 #include "openvino/core/shape.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/reference/depth_to_space.hpp"
 
 namespace ov {

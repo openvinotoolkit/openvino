@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "behavior/ov_plugin/auto_batching_tests.hpp"
+
 #include "behavior/compiled_model/properties.hpp"
 
 using namespace ov::test::behavior;

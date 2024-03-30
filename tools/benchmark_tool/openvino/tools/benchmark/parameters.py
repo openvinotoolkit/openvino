@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import sys, argparse
@@ -143,7 +143,7 @@ def parse_args():
 
     devp = parser.add_argument_group('Device-specific performance options')
     devp.add_argument('-nthreads', '--number_threads', type=int, required=False, default=None,
-                      help='Number of threads to use for inference on the CPU, GNA '
+                      help='Number of threads to use for inference on the CPU '
                            '(including HETERO and MULTI cases).')
     devp.add_argument('-pin', '--infer_threads_pinning', type=str, required=False,  choices=['YES', 'NO', 'NUMA', 'HYBRID_AWARE'],
                       help='Optional. Enable  threads->cores (\'YES\' which is OpenVINO runtime\'s default for conventional CPUs), '

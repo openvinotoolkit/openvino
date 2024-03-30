@@ -11,6 +11,13 @@
 #include <intel_gpu/primitives/gather.hpp>
 #include <intel_gpu/primitives/permute.hpp>
 
+namespace cldnn {
+// For gtest NE compare, class defines only `==` operator. Required when building using C++20
+inline bool operator!=(const range& lhs, const fully_connected& rhs) {
+    return !(lhs.operator==(rhs));
+}
+}  // namespace cldnn
+
 using namespace cldnn;
 using namespace ::tests;
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,6 @@
 
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/core_visibility.hpp"
-#include "openvino/core/deprecated.hpp"
 #include "openvino/core/descriptor/input.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
@@ -206,7 +205,7 @@ public:
                           const ov::EvaluationContext& evaluationContext) const;
     virtual bool evaluate_lower(ov::TensorVector& output_values) const;
     virtual bool evaluate_upper(ov::TensorVector& output_values) const;
-    virtual bool evaluate_label(TensorLabelVector& output_labels) const;
+    virtual bool evaluate_symbol(TensorSymbolVector& output_symbols) const;
 
     virtual bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values);
     /// \brief Decomposes the FusedOp into a sub-graph consisting of core openvino ops
@@ -434,7 +433,6 @@ private:
     std::vector<std::shared_ptr<Node>> m_control_dependencies;
     size_t m_instance_id{m_next_instance_id.fetch_add(1)};
     std::string m_friendly_name;
-    mutable std::string m_auto_generated_friendly_name;
     mutable std::string m_unique_name;
     mutable std::atomic_bool m_name_changing{false};
     static std::atomic<size_t> m_next_instance_id;

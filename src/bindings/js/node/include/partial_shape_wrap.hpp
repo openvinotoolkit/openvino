@@ -1,12 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
 
 #include <napi.h>
 
-#include "errors.hpp"
-#include "helper.hpp"
 #include "openvino/core/partial_shape.hpp"
 
 class PartialShapeWrap : public Napi::ObjectWrap<PartialShapeWrap> {

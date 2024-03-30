@@ -1,9 +1,8 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "behavior/compiled_model/compiled_model_base.hpp"
-#include "ie_plugin_config.hpp"
 
 using namespace ov::test::behavior;
 namespace {
