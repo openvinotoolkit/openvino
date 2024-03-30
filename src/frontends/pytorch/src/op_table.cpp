@@ -253,6 +253,7 @@ OP_CONVERTER(translate_batch_norm_legit_no_training_fx);
 OP_CONVERTER(translate_batch_norm_legit_no_stats_fx);
 OP_CONVERTER(translate_cat_fx);
 OP_CONVERTER(translate_constant_pad_nd_fx);
+OP_CONVERTER(translate_copy_fx);
 OP_CONVERTER(translate_cumsum_fx);
 OP_CONVERTER(translate_chunk_fx);
 OP_CONVERTER(translate_div_fx);
@@ -298,6 +299,7 @@ OP_CONVERTER(translate_transpose_fx);
 OP_CONVERTER(translate_var_fx);
 OP_CONVERTER(translate_var_mean_fx);
 OP_CONVERTER(translate_unbind_int_fx);
+OP_CONVERTER(translate_unique2);
 OP_CONVERTER(translate_zeros_fx);
 OP_CONVERTER(translate_zeros_like_fx);
 
@@ -320,6 +322,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::_pad_packed_sequence", op::translate_pad_packed_sequence},
         {"aten::_set_item", op::translate_set_item},
         {"aten::_shape_as_tensor", op::translate_shape_as_tensor},
+        {"aten::_unique2", op::translate_unique2},
         {"aten::_upsample_bicubic2d_aa", op::translate_upsample_bicubic2d_aa},
         {"aten::_upsample_bilinear2d_aa", op::translate_upsample_bilinear2d_aa},
         {"aten::_weight_norm", op::translate_weight_norm},
@@ -779,7 +782,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.clone.default", op::skip_node},  // ignore clone operators that are inserted by PyTorch autograd
         {"aten.constant_pad_nd.default", op::translate_constant_pad_nd_fx},
         {"aten.convolution.default", op::translate_convolution},
-        {"aten.copy.default", op::skip_node},
+        {"aten.copy.default", op::translate_copy_fx},
         {"aten.copy_.default", op::translate_copy_},
         {"aten.cos.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Cos>},
         {"aten.cosh.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Cosh>},
@@ -829,6 +832,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.hardtanh.default", op::translate_hardtanh},
         {"aten.hardtanh_.default", op::inplace_op<op::translate_hardtanh>},
         {"aten.index.Tensor", op::translate_index_fx},
+        // aten.index_put.default - Supported in limited set of patterns
         {"aten.index_select.default", op::translate_index_select},
         {"aten.isfinite.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::IsFinite>>},
         {"aten.isinf.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::IsInf>>},
@@ -844,6 +848,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.log10.default", op::translate_log10},
         {"aten.log1p.default", op::translate_log1p},
         {"aten.log2.default", op::translate_log2},
+        {"aten.logical_and.default", op::translate_and},
         {"aten.logsumexp.default", op::translate_logsumexp},
         {"aten.lt.Scalar", op::translate_1to1_match_2_inputs_align_types<opset10::Less>},
         {"aten.lt.Tensor", op::translate_1to1_match_2_inputs_align_types<opset10::Less>},
@@ -884,6 +889,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.pow.Tensor_Tensor", op::translate_pow},
         {"aten.pixel_shuffle.default", op::translate_pixel_shuffle},
         {"aten.pixel_unshuffle.default", op::translate_pixel_unshuffle},
+        {"aten.rand.default", op::translate_rand},
         {"aten.reciprocal.default", op::translate_reciprocal},
         {"aten.reflection_pad1d.default", op::translate_reflection_pad_nd_fx},
         {"aten.reflection_pad2d.default", op::translate_reflection_pad_nd_fx},
@@ -898,6 +904,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.scalar_tensor.default", op::translate_scalar_tensor_fx},
         {"aten.scatter.src", op::translate_scatter},
         {"aten.scatter.value", op::translate_scatter},
+        {"aten.scatter_add.default", op::translate_scatter_add},
         {"aten.select.int", op::translate_select},
         {"aten.select_scatter.default", op::translate_select_scatter_fx},
         {"aten.sigmoid.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sigmoid>},
