@@ -49,13 +49,11 @@ void regclass_graph_Shape(py::module m) {
 
     shape.def("__getitem__", [](const ov::Shape& v, py::slice& slice) {
         size_t start, stop, step, slicelength;
-        if (!slice.compute(v.size(), &start, &stop, &step, &slicelength))
+        if (!slice.compute(v.size(), &start, &stop, &step, &slicelength)) {
             throw py::error_already_set();
-        ov::Shape result(slicelength);
-        for (size_t i = 0; i < slicelength; ++i) {
-            result[i] = v[start];
-            start += step;
         }
+        ov::Shape result(slicelength);
+        Common::shape_helpers::get_slice(v, start, step, slicelength, result);
         return result;
     });
 

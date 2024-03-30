@@ -84,6 +84,19 @@ py::array array_from_tensor(ov::Tensor&& t, bool is_shared);
 
 }; // namespace array_helpers
 
+// Helpers for shapes
+namespace shape_helpers {
+
+template <typename T>
+void get_slice(const T& shape, size_t& start, size_t& step, size_t& slicelength, T& result) {
+    for (size_t i = 0; i < slicelength; ++i) {
+        result[i] = shape[start];
+        start += step;
+    }
+}
+
+}; // namespace shape_helpers
+
 template <typename T>
 T create_copied(py::array& array);
 
