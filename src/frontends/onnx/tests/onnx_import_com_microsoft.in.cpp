@@ -1275,6 +1275,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_nd) {
     test_case.add_input<int>(Shape{2, 2}, indices);
     test_case.add_expected_output<int>(Shape{2}, output);
     test_case.run_with_tolerance_as_fp();
+}
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_pad_2d) {
     const auto model = convert_model("com.microsoft/pad_2d.onnx");
