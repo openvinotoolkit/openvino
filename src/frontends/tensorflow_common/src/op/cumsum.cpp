@@ -32,7 +32,7 @@ OutputVector translate_cumsum_op(const NodeContext& node) {
         auto const_one = create_same_type_const_scalar<int32_t>(axis, 1);
 
         auto axis_update = make_shared<v1::Select>(less_than_zero, const_one, zero);
-        auto new_axis = make_shared<v1::Subtract>(axis, axis_update);
+        axis = make_shared<v1::Subtract>(axis, axis_update)->output(0);
     }
 
     auto cum_sum = make_shared<v0::CumSum>(x, axis, exclusive, reverse);
