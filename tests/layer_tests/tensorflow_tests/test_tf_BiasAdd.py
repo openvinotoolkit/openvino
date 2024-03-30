@@ -175,7 +175,7 @@ class TestComplexBiasAdd(CommonTFLayerTest):
 
         return inputs_data
 
-    def create_complex_bias_add_net(self, input_shape, bias_shape, data_format, ir_version, use_legacy_frontend, output_type=tf.float64):
+    def create_complex_bias_add_net(self, input_shape, bias_shape, data_format, ir_version, use_legacy_frontend, output_type=tf.float32):
         tf.compat.v1.reset_default_graph()
 
         with tf.compat.v1.Session() as sess:
