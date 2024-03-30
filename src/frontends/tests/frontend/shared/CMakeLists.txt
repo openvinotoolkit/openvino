@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -23,7 +23,7 @@ target_link_libraries(${TARGET_NAME}
                 openvino::util
                 openvino::runtime
         PRIVATE
-                cnpy)
+                openvino::cnpy)
 
 add_dependencies(${TARGET_NAME} test_builtin_extensions)
 

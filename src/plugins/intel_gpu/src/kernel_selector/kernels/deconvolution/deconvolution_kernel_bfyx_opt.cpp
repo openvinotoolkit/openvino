@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,7 +45,7 @@ CommonDispatchData DeconvolutionKernel_bfyx_opt::SetDefault(const deconvolution_
     return dispatchData;
 }
 
-KernelsPriority DeconvolutionKernel_bfyx_opt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority DeconvolutionKernel_bfyx_opt::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_6;
 }
 

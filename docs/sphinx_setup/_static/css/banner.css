@@ -1,6 +1,6 @@
 /* Transition banner */
 /* =================================================== */
-.transition-banner {
+#info-banner.transition-banner {
     top: 0px;
     position: inline-flex;
     text-align: center;
@@ -16,7 +16,7 @@
     margin-left: auto;
 }
 
-.critical {
+#info-banner.critical {
     background: #FF848A;
 
     p>a {
@@ -24,7 +24,7 @@
     }
 }
 
-.info {
+#info-banner.info {
     background: #D5EEA5;
 
     p>a {
@@ -32,7 +32,7 @@
     }
 }
 
-.warning {
+#info-banner.warning {
     background: #F9DE82;
 
     p>a {
@@ -41,11 +41,11 @@
 }
 
 
-.transition-banner>p {
+#info-banner.transition-banner>p {
     margin-bottom: 0;
 }
 
-.transition-banner .close-banner {
+#info-banner.transition-banner .close-banner {
     position: absolute;
     top: 60px;
     right: 0;
@@ -63,7 +63,7 @@
     text-align: right;
 }
 
-.hidden-banner {
+#info-banner.hidden-banner {
     display: none !important;
 }
 

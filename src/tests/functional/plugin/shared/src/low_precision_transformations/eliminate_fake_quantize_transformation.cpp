@@ -37,7 +37,7 @@ void EliminateFakeQuantizeTransformation::SetUp() {
     // Convolution is used in a model as operation with specific precision requirements on data branch
     // to test the transformation place in LPT pipeline:
     // markup transformations and FakeQuantize operation decomposition transformation have to handle FakeQuantize as usual
-    function = ngraph::builder::subgraph::FuseFakeQuantizeFunction::get(
+    function = ov::builder::subgraph::FuseFakeQuantizeFunction::get(
         testValues.inputShape,
         testValues.actual.precisionBefore,
         testValues.actual.fakeQuantizeOnData1,
@@ -49,7 +49,6 @@ void EliminateFakeQuantizeTransformation::SetUp() {
 
 TEST_P(EliminateFakeQuantizeTransformation, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    abs_threshold = 2.3;
     run();
 
     EliminateFakeQuantizeTransformationTestValues testValues;

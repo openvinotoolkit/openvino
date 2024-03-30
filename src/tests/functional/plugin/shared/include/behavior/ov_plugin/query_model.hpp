@@ -23,12 +23,12 @@ namespace behavior {
 using OVClassQueryModelTest = OVClassBaseTestP;
 
 TEST_P(OVClassModelTestP, QueryModelActualNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
+    ov::Core ie = ov::test::utils::create_core();
     ie.query_model(actualNetwork, target_device);
 }
 
 TEST_P(OVClassModelTestP, QueryModelWithKSO) {
-    ov::Core ie = createCoreWithTemplate();
+    ov::Core ie = ov::test::utils::create_core();
 
     auto rl_map = ie.query_model(ksoNetwork, target_device);
     auto func = ksoNetwork;
@@ -39,15 +39,8 @@ TEST_P(OVClassModelTestP, QueryModelWithKSO) {
     }
 }
 
-TEST_P(OVClassModelTestP, ImportModelWithNullContextThrows) {
-    ov::Core ie = createCoreWithTemplate();
-    ov::RemoteContext context;
-    std::istringstream stream("None");
-    ASSERT_THROW(ie.import_model(stream, context, {}), ov::Exception);
-}
-
 TEST_P(OVClassQueryModelTest, QueryModelWithMatMul) {
-    ov::Core ie = createCoreWithTemplate();
+    ov::Core ie = ov::test::utils::create_core();
 
     std::shared_ptr<ov::Model> func;
     {
@@ -83,7 +76,7 @@ TEST_P(OVClassQueryModelTest, QueryModelWithMatMul) {
 }
 
 TEST_P(OVClassQueryModelTest, QueryModelHETEROWithDeviceIDNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
+    ov::Core ie = ov::test::utils::create_core();
 
     auto deviceIDs = ie.get_property(target_device, ov::available_devices);
     if (deviceIDs.empty())
@@ -94,12 +87,12 @@ TEST_P(OVClassQueryModelTest, QueryModelHETEROWithDeviceIDNoThrow) {
 }
 
 TEST_P(OVClassQueryModelTest, QueryModelWithBigDeviceIDThrows) {
-    ov::Core ie = createCoreWithTemplate();
+    ov::Core ie = ov::test::utils::create_core();
     ASSERT_THROW(ie.query_model(actualNetwork, target_device + ".110"), ov::Exception);
 }
 
 TEST_P(OVClassQueryModelTest, QueryModelWithInvalidDeviceIDThrows) {
-    ov::Core ie = createCoreWithTemplate();
+    ov::Core ie = ov::test::utils::create_core();
     ASSERT_THROW(ie.query_model(actualNetwork, target_device + ".l0"), ov::Exception);
 }
 

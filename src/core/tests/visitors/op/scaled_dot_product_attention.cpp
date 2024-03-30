@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, scaled_dot_product_attention) {
-    NodeBuilder::get_ops().register_factory<ov::op::v13::ScaledDotProductAttention>();
+    NodeBuilder::opset().insert<ov::op::v13::ScaledDotProductAttention>();
     const auto query = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 32, 32});
     const auto key = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 32, 32});
     const auto value = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 32, 32});

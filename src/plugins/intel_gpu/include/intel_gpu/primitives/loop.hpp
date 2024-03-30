@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -274,15 +274,15 @@ struct loop : public primitive_base<loop> {
     }
 
 protected:
-    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
-        std::vector<std::reference_wrapper<const primitive_id>> ret;
+    std::vector<input_info> get_dependencies() const override {
+        std::vector<input_info> ret;
         // add external_id in dependencies if not exist
         for (const auto& mapping : input_primitive_maps) {
             auto target = std::find_if(input.begin(), input.end(),
                                     [&](const input_info& info) {
                                         return info.pid == mapping.external_id.pid;});
             if (target == input.end()) {
-                ret.push_back(std::ref(mapping.external_id.pid));
+                ret.push_back(mapping.external_id.pid);
             }
         }
         return ret;

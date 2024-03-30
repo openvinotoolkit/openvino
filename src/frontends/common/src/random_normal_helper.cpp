@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 
 #include <math.h>
 
-#include "ngraph/output_vector.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/graph_rewrite.hpp"

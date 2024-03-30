@@ -40,7 +40,6 @@ jobs:
 
           python3 -m pip install --upgrade pip
           python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/wheel/requirements-dev.txt
-          python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/requirements.txt
           # For running Paddle frontend unit tests
           python3 -m pip install -r ${{ github.workspace }}/src/frontends/paddle/tests/requirements.txt
           # For running ONNX frontend unit tests
@@ -54,10 +53,6 @@ jobs:
           python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements_onnx.txt
           python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements_tf2.txt
           python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements_dev.txt
-
-      - name: Get number of CPU cores
-        uses: SimenB/github-actions-cpu-cores@v2
-        id: cpu-cores
 
       - name: Build OpenVINO with CMake
         uses: ashutoshvarma/action-cmake-build@master
@@ -82,7 +77,6 @@ jobs:
             -DCMAKE_CXX_LINKER_LAUNCHER=ccache
             -DENABLE_SYSTEM_SNAPPY=ON
           build-type: Release
-          parallel: ${{ steps.cpu-cores.outputs.count }}
 
       - name: Install wheel packages
         run: cmake -DCOMPONENT=python_wheels -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/install_pkg -P '${{ github.workspace }}/build/cmake_install.cmake'
@@ -130,7 +124,6 @@ jobs:
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
             -DCMAKE_C_LINKER_LAUNCHER=ccache
             -DCMAKE_CXX_LINKER_LAUNCHER=ccache
-          parallel: ${{ steps.cpu-cores.outputs.count }}
 
 
       - name: Print info

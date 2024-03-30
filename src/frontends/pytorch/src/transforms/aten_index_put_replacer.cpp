@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,7 +49,10 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         auto index_op = cast_fw_node(m.get_match_root(), "aten::index_put_");
         if (!index_op) {
-            return false;
+            index_op = cast_fw_node(m.get_match_root(), "aten.index_put.default");
+            if (!index_op) {
+                return false;
+            }
         }
         NodeVector rt_copy_from;
         ov::pass::NodeRegistry rg;
@@ -129,6 +132,13 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
             auto index_dtype = index.get_element_type();
             // Do we need to also check u8?
             if (index_dtype == element::boolean) {
+                auto value_pshape_rank = values.get_partial_shape().rank();
+                if (value_pshape_rank.is_static() && value_pshape_rank.get_length() == 0) {
+                    auto res = masked_fill(rg, input, index, values);
+                    copy_runtime_info_and_name(index_op, rg.get(), rt_copy_from);
+                    index_op->output(0).replace(res);
+                    return true;
+                }
                 values = rg.make<v1::ConvertLike>(values, input);
                 // then apply masked scatter
                 auto input_shape = rg.make<v3::ShapeOf>(input, element::i32);

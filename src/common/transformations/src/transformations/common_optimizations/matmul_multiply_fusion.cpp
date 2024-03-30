@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/common_optimizations/matmul_multiply_fusion.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
@@ -12,7 +13,6 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
-#include "validation_util.hpp"
 
 using namespace ov;
 
@@ -154,7 +154,7 @@ pass::MatMulMultiplyFusion::MatMulMultiplyFusion() {
     auto matmul_pattern = pattern::wrap_type<ov::op::v0::MatMul>({input_pattern, weights_pattern});
     auto mul_pattern = pattern::wrap_type<ov::op::v1::Multiply>({matmul_pattern, mul_const_pattern});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& weights = pattern_map.at(weights_pattern);
         auto mul = pattern_map.at(mul_pattern).get_node_shared_ptr();

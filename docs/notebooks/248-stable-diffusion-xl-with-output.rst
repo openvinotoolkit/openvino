@@ -65,8 +65,8 @@ The tutorial consists of the following steps:
    **Note**: Some demonstrated models can require at least 64GB RAM for
    conversion and running.
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Install prerequisites <#install-prerequisites>`__
 -  `SDXL Base model <#sdxl-base-model>`__
@@ -74,23 +74,23 @@ The tutorial consists of the following steps:
    -  `Select inference device SDXL Base
       model <#select-inference-device-sdxl-base-model>`__
    -  `Run Text2Image generation
-      pipeline <#run-textimage-generation-pipeline>`__
+      pipeline <#run-text2image-generation-pipeline>`__
    -  `Text2image Generation Interactive
-      Demo <#textimage-generation-interactive-demo>`__
+      Demo <#text2image-generation-interactive-demo>`__
    -  `Run Image2Image generation
-      pipeline <#run-imageimage-generation-pipeline>`__
+      pipeline <#run-image2image-generation-pipeline>`__
 
       -  `Select inference device SDXL Refiner
          model <#select-inference-device-sdxl-refiner-model>`__
 
    -  `Image2Image Generation Interactive
-      Demo <#imageimage-generation-interactive-demo>`__
+      Demo <#image2image-generation-interactive-demo>`__
 
 -  `SDXL Refiner model <#sdxl-refiner-model>`__
 
    -  `Select inference device <#select-inference-device>`__
    -  `Run Text2Image generation with
-      Refinement <#run-textimage-generation-with-refinement>`__
+      Refinement <#run-text2image-generation-with-refinement>`__
 
 Install prerequisites
 ---------------------
@@ -301,9 +301,16 @@ Text2image Generation Interactive Demo
 
 
 
-.. .. raw:: html
 
-..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
+
+
+
+
+
+
+    
 
 
 
@@ -457,9 +464,17 @@ Image2Image Generation Interactive Demo
 
 
 
-.. .. raw:: html
 
-..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
+
+
+
+
+
+
+    
+
 
 
 .. code:: ipython3

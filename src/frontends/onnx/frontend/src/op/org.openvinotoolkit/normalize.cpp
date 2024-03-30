@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,13 +13,15 @@
 #include "utils/common.hpp"
 
 using namespace ov::op;
+using ov::Shape;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-OutputVector normalize(const Node& node) {
-    auto inputs = node.get_ng_inputs();
+ov::OutputVector normalize(const ov::frontend::onnx::Node& node) {
+    auto inputs = node.get_ov_inputs();
     FRONT_END_GENERAL_CHECK(inputs.size() == 2, "Invalid number of inputs");
 
     auto data = inputs[0];
@@ -46,13 +48,14 @@ OutputVector normalize(const Node& node) {
         for (int64_t i = 2; i < data_shape.rank().get_length(); ++i) {
             weights_shape.push_back(1);
         }
-        auto new_shape = std::make_shared<v0::Constant>(element::i64, Shape{weights_shape.size()}, weights_shape);
+        auto new_shape =
+            std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{weights_shape.size()}, weights_shape);
         weights = std::make_shared<v1::Reshape>(inputs[1], new_shape, true);
     }
 
     std::shared_ptr<ov::Node> axes;
     if (!across_spatial) {
-        axes = std::make_shared<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
+        axes = std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1});
     } else {
         axes = common::get_monotonic_range_along_node_rank(data, 1);
     }
@@ -62,9 +65,7 @@ OutputVector normalize(const Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

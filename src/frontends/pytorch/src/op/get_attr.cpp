@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,10 +13,14 @@ namespace op {
 
 OutputVector translate_get_attr(const NodeContext& context) {
     auto res = context.get_decoder()->try_decode_get_attr();
-    FRONT_END_OP_CONVERSION_CHECK(res.size() > 0,
-                                  "Failed to obtain data from GetAttr with output tensor name: ",
-                                  context.get_decoder()->get_output_debug_name(0));
+    PYTORCH_OP_CONVERSION_CHECK(res.size() > 0,
+                                "Failed to obtain data from GetAttr with output tensor name: ",
+                                context.get_decoder()->get_output_debug_name(0));
     if (res.size() == 1) {
+        auto node = res[0].get_node();
+        if (node->get_friendly_name() != node->get_name()) {
+            res[0].add_names({node->get_friendly_name()});
+        }
         return res;
     } else {
         // Packed params case

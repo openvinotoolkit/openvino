@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -23,6 +23,4 @@ add_subdirectory(bindings)
 if(ENABLE_TESTS)
     add_subdirectory(core/tests)
     add_subdirectory(tests)
-else()
-  add_subdirectory(tests/ov_helpers/ov_models/ov_builders)
 endif()

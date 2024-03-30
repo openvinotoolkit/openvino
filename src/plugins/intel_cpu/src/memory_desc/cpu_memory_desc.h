@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,7 @@ class MemoryDesc;
 
 using MemoryDescPtr = std::shared_ptr<MemoryDesc>;
 using MemoryDescCPtr = std::shared_ptr<const MemoryDesc>;
+using VecMemoryDescs = std::vector<MemoryDescPtr>;
 
 enum MemoryDescType {
     Undef = 0,

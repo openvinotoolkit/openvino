@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -142,6 +142,10 @@ namespace {
     };
     INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_CPU,
                              CompileModelLoadFromMemoryTestBase,
+                             ::testing::Combine(::testing::ValuesIn(TestCpuTargets), ::testing::ValuesIn(CpuConfigs)),
+                             CompileModelLoadFromMemoryTestBase::getTestCaseName);
+    INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_CPU,
+                             CompileModelLoadFromFileTestBase,
                              ::testing::Combine(::testing::ValuesIn(TestCpuTargets), ::testing::ValuesIn(CpuConfigs)),
                              CompileModelLoadFromMemoryTestBase::getTestCaseName);
     INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_CPU,

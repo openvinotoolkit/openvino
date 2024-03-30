@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,11 +16,11 @@ namespace LayerTestsDefinitions {
 class ConcatTransformationTestValues {
 public:
     std::shared_ptr<ov::op::v0::Constant> input_constant1;
-    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData1;
-    ngraph::builder::subgraph::DequantizationOperations dequantization1;
+    ov::builder::subgraph::FakeQuantizeOnData fqOnData1;
+    ov::builder::subgraph::DequantizationOperations dequantization1;
     std::shared_ptr<ov::op::v0::Constant> input_constant2;
-    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData2;
-    ngraph::builder::subgraph::DequantizationOperations dequantization2;
+    ov::builder::subgraph::FakeQuantizeOnData fqOnData2;
+    ov::builder::subgraph::DequantizationOperations dequantization2;
 };
 
 typedef std::tuple<

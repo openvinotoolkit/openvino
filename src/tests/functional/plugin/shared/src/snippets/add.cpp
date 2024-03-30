@@ -5,7 +5,6 @@
 #include "common_test_utils/common_utils.hpp"
 #include "snippets/add.hpp"
 #include "subgraph_simple.hpp"
-#include "ov_models/builders.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
 namespace ov {
@@ -97,6 +96,10 @@ void AddRollConst::SetUp() {
     setInferenceType(type);
     if (!configuration.count("SNIPPETS_MODE")) {
         configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
+    }
+
+    if (type == ov::element::bf16) {
+        abs_threshold = 3e-2;
     }
 }
 

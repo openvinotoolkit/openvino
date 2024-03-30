@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,6 +33,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
+#include "openvino/op/convert_promote_types.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/cosh.hpp"
@@ -87,6 +88,7 @@
 #include "openvino/op/idft.hpp"
 #include "openvino/op/if.hpp"
 #include "openvino/op/interpolate.hpp"
+#include "openvino/op/inverse.hpp"
 #include "openvino/op/irdft.hpp"
 #include "openvino/op/is_finite.hpp"
 #include "openvino/op/is_inf.hpp"

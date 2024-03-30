@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -222,7 +222,9 @@ std::vector<DivideRoundingParams> generateParamsForDivideCppRoundingInt32() {
 }
 
 std::vector<DivideParams> generateCombinedParamsForDivide() {
-    const std::vector<std::vector<DivideParams>> allTypeParams{generateParamsForDivide<element::Type_t::f32>(),
+    const std::vector<std::vector<DivideParams>> allTypeParams{generateParamsForDivide<element::Type_t::i8>(),
+                                                               generateParamsForDivide<element::Type_t::u8>(),
+                                                               generateParamsForDivide<element::Type_t::f32>(),
                                                                generateParamsForDivide<element::Type_t::f16>(),
                                                                generateParamsForDivide<element::Type_t::bf16>(),
                                                                generateParamsForDivide<element::Type_t::i64>(),

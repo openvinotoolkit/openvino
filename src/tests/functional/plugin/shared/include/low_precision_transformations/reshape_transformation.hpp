@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,9 +16,10 @@ class ReshapeTransformationParam {
 public:
     ov::PartialShape inputShape;
     std::vector<int> reshapeConstValues;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::string layerType;
     std::string expectedKernelType;
+    std::vector<std::string> executionOrder;
 };
 
 typedef std::tuple<

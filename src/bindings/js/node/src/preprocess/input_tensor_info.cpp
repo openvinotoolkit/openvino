@@ -1,12 +1,14 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "preprocess/input_tensor_info.hpp"
+#include "node/include/preprocess/input_tensor_info.hpp"
 
-#include "errors.hpp"
-#include "helper.hpp"
+#include "node/include/errors.hpp"
+#include "node/include/helper.hpp"
 
-InputTensorInfo::InputTensorInfo(const Napi::CallbackInfo& info) : Napi::ObjectWrap<InputTensorInfo>(info){};
+InputTensorInfo::InputTensorInfo(const Napi::CallbackInfo& info)
+    : Napi::ObjectWrap<InputTensorInfo>(info),
+      _tensor_info(nullptr){};
 
 Napi::Function InputTensorInfo::get_class_constructor(Napi::Env env) {
     return DefineClass(env,

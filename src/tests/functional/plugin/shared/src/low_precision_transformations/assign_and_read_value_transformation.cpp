@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,7 +36,7 @@ void AssignAndReadValueTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ngraph::builder::subgraph::AssignAndReadValueFunction::getOriginal(
+    function = ov::builder::subgraph::AssignAndReadValueFunction::getOriginal(
         netPrecision,
         inputShape,
         param.fakeQuantize,

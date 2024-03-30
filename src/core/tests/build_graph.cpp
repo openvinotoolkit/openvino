@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,9 +7,9 @@
 #include <memory>
 
 #include "common_test_utils/graph_comparator.hpp"
+#include "common_test_utils/node_builders/broadcast.hpp"
 #include "common_test_utils/test_tools.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "ngraph/graph_util.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/acos.hpp"
@@ -25,7 +25,6 @@
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/util/variable.hpp"
-#include "ov_models/ov_builders/broadcast.hpp"
 
 using namespace std;
 using namespace ov;
@@ -36,8 +35,8 @@ TEST(build_graph, build_simple) {
     auto arg1 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3});
     auto arg2 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{32, 7});
     auto arg3 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{32, 7});
-    auto broadcast_1 = ov::op::util::make_broadcast(arg3, Shape{10, 32, 7}, AxisSet{0});
-    auto b1 = ov::op::util::make_broadcast(arg3, Shape{10, 32, 7}, AxisSet{0});
+    auto broadcast_1 = ov::test::utils::make_broadcast(arg3, Shape{10, 32, 7}, AxisSet{0});
+    auto b1 = ov::test::utils::make_broadcast(arg3, Shape{10, 32, 7}, AxisSet{0});
     auto dot = make_shared<op::v0::MatMul>(arg2, arg0);
     ASSERT_EQ(dot->input_value(0).get_node_shared_ptr(), arg2);
     ASSERT_EQ(dot->input_value(1).get_node_shared_ptr(), arg0);
@@ -92,8 +91,8 @@ TEST(build_graph, function_undeclared_parameters) {
     auto arg1 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3});
     auto arg2 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{32, 7});
     auto arg3 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{32, 7});
-    auto broadcast_1 = ov::op::util::make_broadcast(arg3, Shape{10, 32, 7}, AxisSet{0});
-    auto b1 = ov::op::util::make_broadcast(arg3, Shape{10, 32, 7}, AxisSet{0});
+    auto broadcast_1 = ov::test::utils::make_broadcast(arg3, Shape{10, 32, 7}, AxisSet{0});
+    auto b1 = ov::test::utils::make_broadcast(arg3, Shape{10, 32, 7}, AxisSet{0});
     auto dot = make_shared<op::v0::MatMul>(arg2, arg0);
     ASSERT_EQ(dot->input_values()[0].get_node_shared_ptr(), arg2);
     ASSERT_EQ(dot->input_values()[1].get_node_shared_ptr(), arg0);
@@ -128,9 +127,8 @@ TEST(build_graph, no_arg_construction) {
     add1->set_argument(0, acos0);
     add1->set_argument(1, abs0);
     NodeVector ops{arg0, arg1, add0, abs0, acos0, add1};
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    ngraph::validate_nodes_and_infer_types(ops);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    for (const auto& op : ov::topological_sort(ops))
+        op->revalidate_and_infer_types();
     ASSERT_EQ(add1->get_output_shape(0), Shape{7});
 }
 
@@ -438,8 +436,8 @@ TEST(build_graph, build_graph_parameters_autodetection) {
     auto arg1 = make_shared<op::v0::Parameter>(element::f32, Shape{3});
     auto arg2 = make_shared<op::v0::Parameter>(element::f32, Shape{32, 7});
     auto arg3 = make_shared<op::v0::Parameter>(element::f32, Shape{32, 7});
-    auto broadcast_1 = ov::op::util::make_broadcast(arg3, Shape{10, 32, 7}, AxisSet{0});
-    auto b1 = ov::op::util::make_broadcast(arg3, Shape{10, 32, 7}, AxisSet{0});
+    auto broadcast_1 = ov::test::utils::make_broadcast(arg3, Shape{10, 32, 7}, AxisSet{0});
+    auto b1 = ov::test::utils::make_broadcast(arg3, Shape{10, 32, 7}, AxisSet{0});
     auto dot = make_shared<op::v0::MatMul>(arg2, arg0);
 
     auto f = make_shared<Model>(OutputVector{dot});

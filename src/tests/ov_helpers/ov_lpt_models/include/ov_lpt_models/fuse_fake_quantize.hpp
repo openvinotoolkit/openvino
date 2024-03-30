@@ -11,7 +11,7 @@
 #include "common/fake_quantize_on_data.hpp"
 #include "common/dequantization_operations.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -20,7 +20,7 @@ public:
     class Branch {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
         ov::element::Type precisionAfterDequantization;
     };
 
@@ -60,4 +60,4 @@ public:
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@
 namespace LayerTestsDefinitions {
 class FakeQuantizeTransformationParam {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakequantize;
+    ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakequantize;
 
     std::string layerName;
     std::string expectedKernelType;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasform
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
-const std::vector<ngraph::builder::subgraph::FakeQuantizeOnData> fakeQuantizes = {
+const std::vector<ov::builder::subgraph::FakeQuantizeOnData> fakeQuantizes = {
     { 256ul, {}, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
 };
 

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -77,7 +77,7 @@ def get_available_transformations():
         return {}
 
 
-# net should be openvino.inference_engine.IENetwork type, but IE Engine is still optional dependency
+# net should be openvino.runtime.Model type, but OV is still optional dependency
 def apply_user_transformations(func: object, transforms: list):
     available_transformations = get_available_transformations()
 

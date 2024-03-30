@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,9 +66,6 @@ public:
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
                                                              const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties) const override;
-
-protected:
-    ov::AnyMap pre_process_config(const ov::AnyMap& orig_config) const;
 
 private:
     std::shared_ptr<ov::ICompiledModel> compile_model_impl(const std::string& model_path,

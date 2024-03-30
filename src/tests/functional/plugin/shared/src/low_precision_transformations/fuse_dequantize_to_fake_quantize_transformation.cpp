@@ -33,14 +33,12 @@ std::string FuseDequantizeToFakeQuantizeTransformation::getTestCaseName(const te
 }
 
 void FuseDequantizeToFakeQuantizeTransformation::SetUp() {
-    abs_threshold = 0.1;
-
     FuseDequantizeToFakeQuantizeTransformationTestValues testValues;
     std::tie(targetDevice, testValues) = this->GetParam();
 
     init_input_shapes(testValues.inputShape);
 
-    function = ngraph::builder::subgraph::FuseFakeQuantizeFunction::getOriginal(
+    function = ov::builder::subgraph::FuseFakeQuantizeFunction::getOriginal(
         testValues.inputShape,
         testValues.actual.precisionBeforeAdd,
         testValues.actual.add,

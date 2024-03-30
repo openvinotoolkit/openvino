@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,8 @@ namespace LayerTestsDefinitions {
 class ConcatWithDifferentChildrenTransformationParam {
 public:
     std::int64_t axis;
-    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData1;
-    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData2;
+    ov::builder::subgraph::FakeQuantizeOnData fqOnData1;
+    ov::builder::subgraph::FakeQuantizeOnData fqOnData2;
 };
 
 typedef std::tuple<

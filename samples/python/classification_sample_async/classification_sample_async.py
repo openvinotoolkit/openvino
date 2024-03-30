@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -24,7 +24,7 @@ def parse_args() -> argparse.Namespace:
     args.add_argument('-i', '--input', type=str, required=True, nargs='+',
                       help='Required. Path to an image file(s).')
     args.add_argument('-d', '--device', type=str, default='CPU',
-                      help='Optional. Specify the target device to infer on; CPU, GPU, GNA or HETERO: '
+                      help='Optional. Specify the target device to infer on; CPU, GPU or HETERO: '
                       'is acceptable. The sample will look for a suitable plugin for device specified. '
                       'Default value is CPU.')
     # fmt: on
@@ -75,18 +75,7 @@ def main() -> int:
         log.error('Sample supports only single output topologies')
         return -1
 
-# --------------------------- Step 3. Set up input --------------------------------------------------------------------
-    # Read input images
-    images = [cv2.imread(image_path) for image_path in args.input]
-
-    # Resize images to model input dims
-    _, _, h, w = model.input().shape
-    resized_images = [cv2.resize(image, (w, h)) for image in images]
-
-    # Add N dimension
-    input_tensors = [np.expand_dims(image, 0) for image in resized_images]
-
-# --------------------------- Step 4. Apply preprocessing -------------------------------------------------------------
+# --------------------------- Step 3. Apply preprocessing -------------------------------------------------------------
     ppp = ov.preprocess.PrePostProcessor(model)
 
     # 1) Set input tensor information:
@@ -97,7 +86,7 @@ def main() -> int:
         .set_element_type(ov.Type.u8) \
         .set_layout(ov.Layout('NHWC'))  # noqa: N400
 
-    # 2) Here we suppose model has 'NCHW' layout for input
+    # 2) Suppose model has 'NCHW' layout for input
     ppp.input().model().set_layout(ov.Layout('NCHW'))
 
     # 3) Set output tensor information:
@@ -106,6 +95,17 @@ def main() -> int:
 
     # 4) Apply preprocessing modifing the original 'model'
     model = ppp.build()
+
+    # --------------------------- Step 4. Set up input --------------------------------------------------------------------
+    # Read input images
+    images = (cv2.imread(image_path) for image_path in args.input)
+
+    # Resize images to model input dims
+    _, h, w, _ = model.input().shape
+    resized_images = (cv2.resize(image, (w, h)) for image in images)
+
+    # Add N dimension
+    input_tensors = (np.expand_dims(image, 0) for image in resized_images)
 
 # --------------------------- Step 5. Loading model to the device -----------------------------------------------------
     log.info('Loading the model to the plugin')

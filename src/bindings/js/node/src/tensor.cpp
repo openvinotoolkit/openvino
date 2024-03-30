@@ -1,9 +1,13 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "tensor.hpp"
+#include "node/include/tensor.hpp"
 
-#include "addon.hpp"
+#include "node/include/addon.hpp"
+#include "node/include/errors.hpp"
+#include "node/include/helper.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 TensorWrap::TensorWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<TensorWrap>(info) {
     if (info.Length() == 0) {
@@ -44,7 +48,8 @@ Napi::Function TensorWrap::get_class(Napi::Env env) {
                        {InstanceAccessor<&TensorWrap::get_data>("data"),
                         InstanceMethod("getData", &TensorWrap::get_data),
                         InstanceMethod("getShape", &TensorWrap::get_shape),
-                        InstanceMethod("getElementType", &TensorWrap::get_element_type)});
+                        InstanceMethod("getElementType", &TensorWrap::get_element_type),
+                        InstanceMethod("getSize", &TensorWrap::get_size)});
 }
 
 ov::Tensor TensorWrap::get_tensor() const {
@@ -133,4 +138,14 @@ Napi::Value TensorWrap::get_shape(const Napi::CallbackInfo& info) {
 
 Napi::Value TensorWrap::get_element_type(const Napi::CallbackInfo& info) {
     return cpp_to_js<ov::element::Type_t, Napi::String>(info, _tensor.get_element_type());
+}
+
+Napi::Value TensorWrap::get_size(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    if (info.Length() > 0) {
+        reportError(env, "getSize() does not accept any arguments.");
+        return env.Undefined();
+    }
+    const auto size = static_cast<double>(_tensor.get_size());
+    return Napi::Number::New(env, size);
 }

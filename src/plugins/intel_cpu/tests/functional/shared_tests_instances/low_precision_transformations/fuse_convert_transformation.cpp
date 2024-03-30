@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ const std::vector< ov::PartialShape > inputAndQuantizationShapes = {
         { 1, 4, 16, 16 },
 };
 
-const std::vector<ngraph::builder::subgraph::DequantizationOperations> deqOperations = {
+const std::vector<ov::builder::subgraph::DequantizationOperations> deqOperations = {
         {
                 { ov::element::f32 },
                 {1.f},

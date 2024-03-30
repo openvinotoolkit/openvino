@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@
 
 using namespace testing;
 using namespace ov;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 class FQDecompositionWithSharedConstants : public LayerTransformation, public WithParamInterface<bool> {
 public:

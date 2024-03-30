@@ -9,14 +9,13 @@
 
 using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-
-OutputVector adaptive_avg_pooling2d(const Node& node) {
-    const auto inputs = node.get_ng_inputs();
+ov::OutputVector adaptive_avg_pooling2d(const ov::frontend::onnx::Node& node) {
+    const auto inputs = node.get_ov_inputs();
     const auto num_inputs = inputs.size();
 
     CHECK_VALID_NODE(node, num_inputs == 2, "adaptive_avg_pooling2d expects 2 input tensors. Got: ", num_inputs);
@@ -26,6 +25,6 @@ OutputVector adaptive_avg_pooling2d(const Node& node) {
 
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

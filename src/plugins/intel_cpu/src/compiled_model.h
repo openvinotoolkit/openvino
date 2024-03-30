@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -73,8 +73,6 @@ private:
      *       even from main thread
      */
     GraphGuard::Lock get_graph() const;
-
-    ov::Any get_metric_legacy(const std::string& name, const GraphGuard& graph) const;
 };
 
 }   // namespace intel_cpu

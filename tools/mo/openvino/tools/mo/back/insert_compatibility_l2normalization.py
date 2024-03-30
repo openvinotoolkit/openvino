@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -21,7 +21,7 @@ class CompatibilityL2NormalizationPattern(BackReplacementPattern):
 
     def replace_pattern(self, graph: Graph, match: dict):
         """
-        Adds Normalize layer weights, which are required by Inference Engine, 
+        Adds Normalize layer weights, which are required by OpenVINO, 
         but do not always exist in MXNet model. 
         
         L2Normalization is mapped to Normalize layer

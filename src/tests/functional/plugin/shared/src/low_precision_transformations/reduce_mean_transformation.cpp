@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,7 +42,6 @@ std::string ReduceMeanTransformation::getTestCaseName(const testing::TestParamIn
 }
 
 void ReduceMeanTransformation::SetUp() {
-    abs_threshold = 4.1;
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
@@ -51,7 +50,7 @@ void ReduceMeanTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ngraph::builder::subgraph::ReduceFunction::get<ov::op::v1::ReduceMean>(
+    function = ov::builder::subgraph::ReduceFunction::get<ov::op::v1::ReduceMean>(
         netPrecision,
         inputShape,
         param.fakeQuantize,

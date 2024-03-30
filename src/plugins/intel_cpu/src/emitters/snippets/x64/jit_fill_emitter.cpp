@@ -18,7 +18,7 @@ jit_fill_emitter::jit_fill_emitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl:
     : jit_emitter(h, isa, ov::element::f32, emitter_in_out_map::vec_to_vec) {
     const auto fill = ov::as_type_ptr<snippets::op::Fill>(expr->get_node());
     if (fill->get_element_type().size() != 4) {
-        OPENVINO_THROW("Fill emitter supports only 4 Byte element types but gets: ", fill->get_element_type());
+        OV_CPU_JIT_EMITTER_THROW("supports only 4 Byte element types but gets: ", fill->get_element_type());
     }
 
     offset = fill->get_offset();
@@ -47,7 +47,7 @@ void jit_fill_emitter::emit_impl(const std::vector<size_t>& in, const std::vecto
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        OPENVINO_THROW("Fill emitter doesn't support ", host_isa_);
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -59,10 +59,19 @@ void jit_fill_emitter::emit_isa(const std::vector<size_t> &in, const std::vector
     Vmm src_vmm = Vmm(in[0]);
     Vmm dst_vmm = Vmm(out[0]);
 
-    if (is_full_reg())
+    const size_t supported_et_size = 4;
+    const auto register_capacity = (src_vmm.getBit() / 8) / supported_et_size;
+    if (offset == register_capacity) {
+        // WA: since AssignRegisters doesn't support inplace logic, Fill ops with offset = register_capacity can't be removed from the LIR
+        // TODO: when inplace is supported, remove such Fill ops from the LIR and remove this logic.
+        // Ticket: 126270
+        if (src_vmm.getIdx() != dst_vmm.getIdx())
+            h->uni_vmovups(dst_vmm, src_vmm);
+    } else if (is_full_reg()) {
         fill_full<Vmm>(dst_vmm);
-    else
+    } else {
         fill_tail<Vmm>(src_vmm, dst_vmm);
+    }
 }
 
 template <typename Vmm>

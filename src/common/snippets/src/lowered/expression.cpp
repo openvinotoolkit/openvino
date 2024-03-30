@@ -82,7 +82,7 @@ RegInfo Expression::get_reg_info() const {
     return reg_info;
 }
 
-void Expression::set_reg_info(RegInfo rinfo) {
+void Expression::set_reg_info(const RegInfo& rinfo) {
     const auto& in = rinfo.first;
     const auto& out = rinfo.second;
     OPENVINO_ASSERT(m_input_port_descriptors.size() == in.size(), "Incorrect count of input physical registers");
@@ -156,7 +156,7 @@ ExpressionPtr Expression::clone_with_new_inputs(const std::vector<PortConnectorP
     return expr;
 }
 
-ExpressionPtr Expression::clone_with_new_inputs(const ExressionMap& expr_map,
+ExpressionPtr Expression::clone_with_new_inputs(const ExpressionMap& expr_map,
                                                 const std::shared_ptr<Node>& new_node) const {
     std::vector<PortConnectorPtr> new_inputs;
     new_inputs.reserve(m_input_port_connectors.size());

@@ -10,22 +10,26 @@ from functools import partial
 from hashlib import sha256
 
 import torch
-from torch._dynamo.backends.common import fake_tensor_unsupported
+from torch._dynamo.backends.common import fake_tensor_unsupported, aot_autograd
 from torch._dynamo.backends.registry import register_backend
 from torch._inductor.compile_fx import compile_fx
 from torch.fx.experimental.proxy_tensor import make_fx
+from torch._decomp import decomposition_table, get_decompositions
 
 from openvino.frontend import FrontEndManager
 from openvino.runtime import Core, Type, PartialShape
 from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+from openvino.frontend.pytorch.torchdynamo import decompositions
+from openvino.frontend.pytorch.torchdynamo.decompositions import get_aot_decomposition_list
 from openvino.frontend.pytorch.torchdynamo.partition import Partitioner
 from openvino.frontend.pytorch.torchdynamo.execute import execute, execute_cached
 from openvino.frontend.pytorch.torchdynamo.compile import cached_model_name, openvino_compile_cached_model
-from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, _get_device, _get_model_caching
+from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, _get_device, _get_model_caching, _get_decompositions, _get_aot_autograd
 
 from openvino.runtime import Core, Type, PartialShape
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.WARNING)
 
 """
     This is a preview feature in OpenVINO. This feature
@@ -42,10 +46,15 @@ log = logging.getLogger(__name__)
     2) model = torch.compile(model, backend="openvino")
 """
 
+openvino_options = {}
 
 @register_backend
 @fake_tensor_unsupported
 def openvino(subgraph, example_inputs, options=None):
+    if (_get_aot_autograd(options)):
+        global openvino_options
+        openvino_options = options
+        return aot_autograd(fw_compiler=fx_openvino, bw_compiler=fx_openvino)(subgraph, example_inputs)
     return fx_openvino(subgraph, example_inputs, options)
 
 @register_backend
@@ -99,7 +108,7 @@ def ts_openvino(subgraph, example_inputs):
                 try:
                     res = compiled_model(ov_inputs)
                 except Exception as e:
-                    log.debug(f"Failed in OpenVINO execution: {e}")
+                    logger.debug(f"Failed in OpenVINO execution: {e}")
                     _call.execute_on_ov = False
                     return subgraph.forward(*args)
                 result = [torch.from_numpy(res[out]) for out in compiled_model.outputs]
@@ -108,12 +117,13 @@ def ts_openvino(subgraph, example_inputs):
                 return subgraph.forward(*args)
         return _call
     except Exception as e:
-        log.debug(f"Failed in compilation: {e}")
+        logger.debug(f"Failed in compilation: {e}")
         return compile_fx(subgraph, example_inputs)
 
-
-def fx_openvino(subgraph, example_inputs, options):
+def fx_openvino(subgraph, example_inputs, options=None):
     try:
+        if len(openvino_options) != 0:
+            options = openvino_options
         executor_parameters = None
         inputs_reversed = False
         openvino_model_caching = _get_model_caching(options)
@@ -134,11 +144,18 @@ def fx_openvino(subgraph, example_inputs, options):
                 return _call
         if inputs_reversed:
             example_inputs.reverse()
-        model = make_fx(subgraph)(*example_inputs)
+
+        from torch._subclasses.fake_tensor import FakeTensorMode
+        decompositions = _get_decompositions(options)
+        if (_get_aot_autograd(options)):
+            decompositions = decompositions + get_aot_decomposition_list()
+        with FakeTensorMode(allow_non_fake_inputs=True):
+            model = make_fx(subgraph, decomposition_table=get_decompositions(decompositions))(*example_inputs)
+
         with torch.no_grad():
             model.eval()
-        partitioner = Partitioner()
-        compiled_model = partitioner.make_partitions(model)
+        partitioner = Partitioner(options)
+        compiled_model = partitioner.make_partitions(model, options)
 
         if executor_parameters is not None and 'model_hash_str' in executor_parameters:
             # Check if the model is fully supported.
@@ -152,7 +169,7 @@ def fx_openvino(subgraph, example_inputs, options):
             return res
         return _call
     except Exception as e:
-        log.debug(f"Failed in OpenVINO execution: {e}")
+        logger.debug(f"Failed in OpenVINO execution: {e}")
         return compile_fx(subgraph, example_inputs)
 
 def reset():

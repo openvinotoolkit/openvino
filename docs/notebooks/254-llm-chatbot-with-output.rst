@@ -18,7 +18,7 @@ accuracy.
 
 Previously, we already discussed how to build an instruction-following
 pipeline using OpenVINO and Optimum Intel, please check out `Dolly
-example <../240-dolly-2-instruction-following>`__ for reference. In this
+example <240-dolly-2-instruction-following-with-output.html>`__ for reference. In this
 tutorial, we consider how to use the power of OpenVINO for running Large
 Language Models for chat. We will use a pre-trained model from the
 `Hugging Face
@@ -38,8 +38,8 @@ The tutorial consists of the following steps:
 -  Create a chat inference pipeline
 -  Run chat pipeline
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Prerequisites <#prerequisites>`__
 -  `Select model for inference <#select-model-for-inference>`__
@@ -67,13 +67,30 @@ Install required dependencies
 
 .. code:: ipython3
 
-    %pip uninstall -q -y openvino-dev openvino openvino-nightly
+    %pip uninstall -q -y openvino-dev openvino openvino-nightly optimum optimum-intel
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu\
     "git+https://github.com/huggingface/optimum-intel.git"\
-    "nncf>=2.7"\
+    "git+https://github.com/openvinotoolkit/nncf.git"\
+    "datasets" \
+    "accelerate"\
     "openvino-nightly"\
     "gradio"\
-    "onnx" "einops" "transformers_stream_generator" "tiktoken" "transformers>=4.34.0"
+    "onnx" "einops" "transformers_stream_generator" "tiktoken" "transformers>=4.38.1" "bitsandbytes"
+
+
+.. parsed-literal::
+
+    WARNING: Skipping openvino-dev as it is not installed.
+    WARNING: Skipping openvino as it is not installed.
+    WARNING: Skipping openvino-nightly as it is not installed.
+    WARNING: Skipping optimum as it is not installed.
+    WARNING: Skipping optimum-intel as it is not installed.
+    Note: you may need to restart the kernel to use updated packages.
+    
+    [notice] A new release of pip is available: 23.1.2 -> 24.0
+    [notice] To update, run: pip install --upgrade pip
+    Note: you may need to restart the kernel to use updated packages.
+
 
 Select model for inference
 --------------------------
@@ -88,7 +105,7 @@ from user side and at least 64GB RAM for conversion.
 The available options are:
 
 -  **tiny-llama-1b-chat** - This is the chat model finetuned on top of
-   `TinyLlama/TinyLlama-1.1B-intermediate-step-955k-2T <https://huggingface.co/TinyLlama/TinyLlama-1.1B-intermediate-step-955k-token-2T>`__.
+   `TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T <https://huggingface.co/TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T>`__.
    The TinyLlama project aims to pretrain a 1.1B Llama model on 3
    trillion tokens with the adoption of the same architecture and
    tokenizer as Llama 2. This means TinyLlama can be plugged and played
@@ -97,7 +114,44 @@ The available options are:
    cater to a multitude of applications demanding a restricted
    computation and memory footprint. More details about model can be
    found in `model
-   card <https://huggingface.co/TinyLlama/TinyLlama-1.1B-Chat-v0.6>`__
+   card <https://huggingface.co/TinyLlama/TinyLlama-1.1B-Chat-v1.0>`__
+-  **mini-cpm-2b-dpo** - MiniCPM is an End-Size LLM developed by
+   ModelBest Inc. and TsinghuaNLP, with only 2.4B parameters excluding
+   embeddings. After Direct Preference Optimization (DPO) fine-tuning,
+   MiniCPM outperforms many popular 7b, 13b and 70b models. More details
+   can be found in
+   `model_card <https://huggingface.co/openbmb/MiniCPM-2B-dpo-fp16>`__.
+-  **gemma-2b-it** - Gemma is a family of lightweight, state-of-the-art
+   open models from Google, built from the same research and technology
+   used to create the Gemini models. They are text-to-text, decoder-only
+   large language models, available in English, with open weights,
+   pre-trained variants, and instruction-tuned variants. Gemma models
+   are well-suited for a variety of text generation tasks, including
+   question answering, summarization, and reasoning. This model is
+   instruction-tuned version of 2B parameters model. More details about
+   model can be found in `model
+   card <https://huggingface.co/google/gemma-2b-it>`__. >\ **Note**: run
+   model with demo, you will need to accept license agreement. >You must
+   be a registered user in Hugging Face Hub. Please visit `HuggingFace
+   model card <https://huggingface.co/google/gemma-2b-it>`__, carefully
+   read terms of usage and click accept button. You will need to use an
+   access token for the code below to run. For more information on
+   access tokens, refer to `this section of the
+   documentation <https://huggingface.co/docs/hub/security-tokens>`__.
+   >You can login on Hugging Face Hub in notebook environment, using
+   following code:
+
+.. code:: python
+
+       ## login to huggingfacehub to get access to pretrained model 
+
+       from huggingface_hub import notebook_login, whoami
+
+       try:
+           whoami()
+           print('Authorization token already provided')
+       except OSError:
+           notebook_login()
 
 -  **red-pajama-3b-chat** - A 2.8B parameter pre-trained language model
    based on GPT-NEOX architecture. It was developed by Together Computer
@@ -105,6 +159,38 @@ The available options are:
    fine-tuned on OASST1 and Dolly2 datasets to enhance chatting ability.
    More details about model can be found in `HuggingFace model
    card <https://huggingface.co/togethercomputer/RedPajama-INCITE-Chat-3B-v1>`__.
+-  **gemma-7b-it** - Gemma is a family of lightweight, state-of-the-art
+   open models from Google, built from the same research and technology
+   used to create the Gemini models. They are text-to-text, decoder-only
+   large language models, available in English, with open weights,
+   pre-trained variants, and instruction-tuned variants. Gemma models
+   are well-suited for a variety of text generation tasks, including
+   question answering, summarization, and reasoning. This model is
+   instruction-tuned version of 7B parameters model. More details about
+   model can be found in `model
+   card <https://huggingface.co/google/gemma-7b-it>`__. >\ **Note**: run
+   model with demo, you will need to accept license agreement. >You must
+   be a registered user in Hugging Face Hub. Please visit `HuggingFace
+   model card <https://huggingface.co/google/gemma-7b-it>`__, carefully
+   read terms of usage and click accept button. You will need to use an
+   access token for the code below to run. For more information on
+   access tokens, refer to `this section of the
+   documentation <https://huggingface.co/docs/hub/security-tokens>`__.
+   >You can login on Hugging Face Hub in notebook environment, using
+   following code:
+
+.. code:: python
+
+       ## login to huggingfacehub to get access to pretrained model 
+
+       from huggingface_hub import notebook_login, whoami
+
+       try:
+           whoami()
+           print('Authorization token already provided')
+       except OSError:
+           notebook_login()
+
 -  **llama-2-7b-chat** - LLama 2 is the second generation of LLama
    models developed by Meta. Llama 2 is a collection of pre-trained and
    fine-tuned generative text models ranging in scale from 7 billion to
@@ -114,9 +200,9 @@ The available options are:
    `paper <https://ai.meta.com/research/publications/llama-2-open-foundation-and-fine-tuned-chat-models/>`__,
    `repository <https://github.com/facebookresearch/llama>`__ and
    `HuggingFace model
-   card <https://huggingface.co/meta-llama/Llama-2-7b-chat-hf>`__
+   card <https://huggingface.co/meta-llama/Llama-2-7b-chat-hf>`__.
    >\ **Note**: run model with demo, you will need to accept license
-   agreement. >You must be a registered user in 🤗 Hugging Face Hub.
+   agreement. >You must be a registered user in Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/meta-llama/Llama-2-7b-chat-hf>`__,
    carefully read terms of usage and click accept button. You will need
@@ -129,6 +215,7 @@ The available options are:
 .. code:: python
 
        ## login to huggingfacehub to get access to pretrained model 
+
        from huggingface_hub import notebook_login, whoami
 
        try:
@@ -137,6 +224,21 @@ The available options are:
        except OSError:
            notebook_login()
 
+-  **qwen1.5-0.5b-chat/qwen1.5-1.8b-chat/qwen1.5-7b-chat** - Qwen1.5 is
+   the beta version of Qwen2, a transformer-based decoder-only language
+   model pretrained on a large amount of data. Qwen1.5 is a language
+   model series including decoder language models of different model
+   sizes. It is based on the Transformer architecture with SwiGLU
+   activation, attention QKV bias, group query attention, mixture of
+   sliding window attention and full attention. You can find more
+   details about model in the `model
+   repository <https://huggingface.co/Qwen>`__.
+-  **qwen-7b-chat** - Qwen-7B is the 7B-parameter version of the large
+   language model series, Qwen (abbr. Tongyi Qianwen), proposed by
+   Alibaba Cloud. Qwen-7B is a Transformer-based large language model,
+   which is pretrained on a large volume of data, including web texts,
+   books, codes, etc. For more details about Qwen, please refer to the
+   `GitHub <https://github.com/QwenLM/Qwen>`__ code repository.
 -  **mpt-7b-chat** - MPT-7B is part of the family of
    MosaicPretrainedTransformer (MPT) models, which use a modified
    transformer architecture optimized for efficient training and
@@ -158,17 +260,16 @@ The available options are:
    `repository <https://github.com/mosaicml/llm-foundry/>`__ and
    `HuggingFace model
    card <https://huggingface.co/mosaicml/mpt-7b-chat>`__.
--  **qwen-7b-chat** - Qwen-7B is the 7B-parameter version of the large
-   language model series, Qwen (abbr. Tongyi Qianwen), proposed by
-   Alibaba Cloud. Qwen-7B is a Transformer-based large language model,
-   which is pretrained on a large volume of data, including web texts,
-   books, codes, etc. For more details about Qwen, please refer to the
-   `GitHub <https://github.com/QwenLM/Qwen>`__ code repository.
--  **chatglm2-6b** - ChatGLM2-6B is the second-generation version of the
-   open-source bilingual (Chinese-English) chat model
-   `ChatGLM-6B <https://github.com/THUDM/ChatGLM-6B>`__. It retains the
-   smooth conversation flow and low deployment threshold of the
-   first-generation model
+-  **chatglm3-6b** - ChatGLM3-6B is the latest open-source model in the
+   ChatGLM series. While retaining many excellent features such as
+   smooth dialogue and low deployment threshold from the previous two
+   generations, ChatGLM3-6B employs a more diverse training dataset,
+   more sufficient training steps, and a more reasonable training
+   strategy. ChatGLM3-6B adopts a newly designed `Prompt
+   format <https://github.com/THUDM/ChatGLM3/blob/main/PROMPT_en.md>`__,
+   in addition to the normal multi-turn dialogue. You can find more
+   details about model in the `model
+   card <https://huggingface.co/THUDM/chatglm3-6b>`__
 -  **mistral-7b** - The Mistral-7B-v0.1 Large Language Model (LLM) is a
    pretrained generative text model with 7 billion parameters. You can
    find more details about model in the `model
@@ -205,15 +306,55 @@ The available options are:
    `AlpacaEval <https://tatsu-lab.github.io/alpaca_eval/>`__. More
    details about model can be found in `model
    card <https://huggingface.co/argilla/notus-7b-v1>`__.
+-  **youri-7b-chat** - Youri-7b-chat is a Llama2 based model. `Rinna
+   Co., Ltd. <https://rinna.co.jp/>`__ conducted further pre-training
+   for the Llama2 model with a mixture of English and Japanese datasets
+   to improve Japanese task capability. The model is publicly released
+   on Hugging Face hub. You can find detailed information at the
+   `rinna/youri-7b-chat project
+   page <https://huggingface.co/rinna/youri-7b>`__.
+-  **baichuan2-7b-chat** - Baichuan 2 is the new generation of
+   large-scale open-source language models launched by `Baichuan
+   Intelligence inc <https://www.baichuan-ai.com/home>`__. It is trained
+   on a high-quality corpus with 2.6 trillion tokens and has achieved
+   the best performance in authoritative Chinese and English benchmarks
+   of the same size.
+-  **internlm2-chat-1.8b** - InternLM2 is the second generation InternLM
+   series. Compared to the previous generation model, it shows
+   significant improvements in various capabilities, including
+   reasoning, mathematics, and coding. More details about model can be
+   found in `model repository <https://huggingface.co/internlm>`__.
 
 .. code:: ipython3
 
-    from config import SUPPORTED_MODELS
+    from config import SUPPORTED_LLM_MODELS
     import ipywidgets as widgets
 
 .. code:: ipython3
 
-    model_ids = list(SUPPORTED_MODELS)
+    model_languages = list(SUPPORTED_LLM_MODELS)
+    
+    model_language = widgets.Dropdown(
+        options=model_languages,
+        value=model_languages[0],
+        description="Model Language:",
+        disabled=False,
+    )
+    
+    model_language
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Model Language:', options=('English', 'Chinese', 'Japanese'), value='English')
+
+
+
+.. code:: ipython3
+
+    model_ids = list(SUPPORTED_LLM_MODELS[model_language.value])
     
     model_id = widgets.Dropdown(
         options=model_ids,
@@ -229,19 +370,19 @@ The available options are:
 
 .. parsed-literal::
 
-    Dropdown(description='Model:', options=('tiny-llama-1b-chat', 'red-pajama-3b-chat', 'llama-2-chat-7b', 'mpt-7b…
+    Dropdown(description='Model:', options=('qwen1.5-0.5b-chat', 'qwen1.5-1.8b-chat', 'qwen1.5-7b-chat', 'qwen-7b-…
 
 
 
 .. code:: ipython3
 
-    model_configuration = SUPPORTED_MODELS[model_id.value]
+    model_configuration = SUPPORTED_LLM_MODELS[model_language.value][model_id.value]
     print(f"Selected model {model_id.value}")
 
 
 .. parsed-literal::
 
-    Selected model tiny-llama-1b-chat
+    Selected model qwen-7b-chat
 
 
 Instantiate Model using Optimum Intel
@@ -300,7 +441,6 @@ with Optimum Intel.
 .. code:: ipython3
 
     from transformers import AutoModelForCausalLM, AutoConfig
-    from optimum.intel import OVQuantizer
     from optimum.intel.openvino import OVModelForCausalLM
     import openvino as ov
     from pathlib import Path
@@ -309,17 +449,27 @@ with Optimum Intel.
     import logging
     import nncf
     import gc
-    from converter import converters
+    from converter import converters, register_configs
+    
+    register_configs()
 
 
 .. parsed-literal::
 
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, onnx, openvino
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
 
 
 .. parsed-literal::
 
-    No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
+    2024-03-07 02:52:02.115283: I tensorflow/core/util/port.cc:111] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-03-07 02:52:02.118993: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-03-07 02:52:02.161204: E tensorflow/compiler/xla/stream_executor/cuda/cuda_dnn.cc:9342] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+    2024-03-07 02:52:02.161239: E tensorflow/compiler/xla/stream_executor/cuda/cuda_fft.cc:609] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+    2024-03-07 02:52:02.161273: E tensorflow/compiler/xla/stream_executor/cuda/cuda_blas.cc:1518] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+    2024-03-07 02:52:02.169740: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-03-07 02:52:02.171079: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2024-03-07 02:52:03.108737: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Compress model weights
@@ -340,18 +490,12 @@ Weights Compression using Optimum Intel
 
 
 
-To enable weights compression via NNCF for models supported by Optimum
-Intel ``OVQuantizer`` class should be used for ``OVModelForCausalLM``
-model.
-``OVQuantizer.quantize(save_directory=save_dir, weights_only=True)``
-enables weights compression. We will consider how to do it on RedPajama,
-LLAMA and Zephyr examples.
-
-   **Note**: Weights Compression using Optimum Intel currently supports
-   only INT8 compression. We will apply INT4 compression for these model
-   using NNCF API described below.
-
-..
+Optimum Intel supports weight compression via NNCF out of the box. For
+8-bit compression we pass ``load_in_8bit=True`` to ``from_pretrained()``
+method of ``OVModelForCausalLM``. For 4 bit compression we provide
+``quantization_config=OVWeightQuantizationConfig(bits=4, ...)`` argument
+containing number of bits and other compression parameters. We will
+consider how to do it on RedPajama, LLAMA and Zephyr examples.
 
    **Note**: There may be no speedup for INT4/INT8 compressed models on
    dGPU.
@@ -418,6 +562,8 @@ We can now save floating point and compressed model variants
 
 .. code:: ipython3
 
+    from optimum.intel import OVWeightQuantizationConfig
+    
     nncf.set_log_level(logging.ERROR)
     
     pt_model_id = model_configuration["model_id"]
@@ -432,8 +578,15 @@ We can now save floating point and compressed model variants
         if (fp16_model_dir / "openvino_model.xml").exists():
             return
         if not model_configuration["remote"]:
+            remote_code = model_configuration.get("remote_code", False)
+            model_kwargs = {}
+            if remote_code:
+                model_kwargs = {
+                    "trust_remote_code": True,
+                    "config": AutoConfig.from_pretrained(pt_model_id, trust_remote_code=True)
+                }
             ov_model = OVModelForCausalLM.from_pretrained(
-                pt_model_id, export=True, compile=False
+                pt_model_id, export=True, compile=False, load_in_8bit=False, **model_kwargs
             )
             ov_model.half()
             ov_model.save_pretrained(fp16_model_dir)
@@ -458,16 +611,17 @@ We can now save floating point and compressed model variants
             return
         int8_model_dir.mkdir(parents=True, exist_ok=True)
         if not model_configuration["remote"]:
-            if fp16_model_dir.exists():
-                ov_model = OVModelForCausalLM.from_pretrained(fp16_model_dir, compile=False)
-            else:
-                ov_model = OVModelForCausalLM.from_pretrained(
-                    pt_model_id, export=True, compile=False
-                )
-                ov_model.half()
-            quantizer = OVQuantizer.from_pretrained(ov_model)
-            quantizer.quantize(save_directory=int8_model_dir, weights_only=True)
-            del quantizer
+            remote_code = model_configuration.get("remote_code", False)
+            model_kwargs = {}
+            if remote_code:
+                model_kwargs = {
+                    "trust_remote_code": True,
+                    "config": AutoConfig.from_pretrained(pt_model_id, trust_remote_code=True)
+                }
+            ov_model = OVModelForCausalLM.from_pretrained(
+                pt_model_id, export=True, compile=False, load_in_8bit=True, **model_kwargs
+            )
+            ov_model.save_pretrained(int8_model_dir)
             del ov_model
         else:
             convert_to_fp16()
@@ -488,48 +642,62 @@ We can now save floating point and compressed model variants
     def convert_to_int4():
         compression_configs = {
             "zephyr-7b-beta": {
-                "mode": nncf.CompressWeightsMode.INT4_SYM,
+                "sym": True,
                 "group_size": 64,
                 "ratio": 0.6,
             },
             "mistral-7b": {
-                "mode": nncf.CompressWeightsMode.INT4_SYM,
+                "sym": True,
+                "group_size": 64,
+                "ratio": 0.6,
+            },
+            "minicpm-2b-dpo": {
+                "sym": True,
+                "group_size": 64,
+                "ratio": 0.6,
+            },
+            "gemma-2b-it": {
+                "sym": True,
                 "group_size": 64,
                 "ratio": 0.6,
             },
             "notus-7b-v1": {
-                "mode": nncf.CompressWeightsMode.INT4_SYM,
+                "sym": True,
                 "group_size": 64,
                 "ratio": 0.6,
             },
             "neural-chat-7b-v3-1": {
-                "mode": nncf.CompressWeightsMode.INT4_SYM,
+                "sym": True,
                 "group_size": 64,
                 "ratio": 0.6,
             },
             "llama-2-chat-7b": {
-                "mode": nncf.CompressWeightsMode.INT4_SYM,
+                "sym": True,
+                "group_size": 128,
+                "ratio": 0.8,
+            },
+            "gemma-7b-it": {
+                "sym": True,
                 "group_size": 128,
                 "ratio": 0.8,
             },
             "chatglm2-6b": {
-                "mode": nncf.CompressWeightsMode.INT4_SYM,
+                "sym": True,
                 "group_size": 128,
                 "ratio": 0.72,
-                "ignored_scope": nncf.IgnoredScope(["__module.transformer/aten::index_67/Gather"])
             },
             "qwen-7b-chat": {
-                "mode": nncf.CompressWeightsMode.INT4_SYM, 
+                "sym": True,
                 "group_size": 128, 
                 "ratio": 0.6
             },
             'red-pajama-3b-chat': {
-                "mode": nncf.CompressWeightsMode.INT4_ASYM,
+                "sym": False,
                 "group_size": 128,
                 "ratio": 0.5,
             },
             "default": {
-                "mode": nncf.CompressWeightsMode.INT4_ASYM,
+                "sym": False,
                 "group_size": 128,
                 "ratio": 0.8,
             },
@@ -542,18 +710,20 @@ We can now save floating point and compressed model variants
             return
         int4_model_dir.mkdir(parents=True, exist_ok=True)
         if not model_configuration["remote"]:
-            if not fp16_model_dir.exists():
-                model = OVModelForCausalLM.from_pretrained(
-                    pt_model_id, export=True, compile=False
-                ).half()
-                model.config.save_pretrained(int4_model_dir)
-                ov_model = model.model
-                del model
-                gc.collect()
-            else:
-                ov_model = ov.Core().read_model(fp16_model_dir / "openvino_model.xml")
-                shutil.copy(fp16_model_dir / "config.json", int4_model_dir / "config.json")
-    
+            remote_code = model_configuration.get("remote_code", False)
+            model_kwargs = {}
+            if remote_code:
+                model_kwargs = {
+                    "trust_remote_code" : True,
+                    "config": AutoConfig.from_pretrained(pt_model_id, trust_remote_code=True)
+                }
+            ov_model = OVModelForCausalLM.from_pretrained(
+                pt_model_id, export=True, compile=False,
+                quantization_config=OVWeightQuantizationConfig(bits=4, **model_compression_params),
+                **model_kwargs
+            )
+            ov_model.save_pretrained(int4_model_dir)
+            del ov_model
         else:
             convert_to_fp16()
             ov_model = ov.Core().read_model(fp16_model_dir / "openvino_model.xml")
@@ -563,10 +733,13 @@ We can now save floating point and compressed model variants
                 shutil.copy(
                     configuration_file, int4_model_dir / f"configuration_{model_type}.py"
                 )
-        compressed_model = nncf.compress_weights(ov_model, **model_compression_params)
-        ov.save_model(compressed_model, int4_model_dir / "openvino_model.xml")
-        del ov_model
-        del compressed_model
+            mode = nncf.CompressWeightsMode.INT4_SYM if model_compression_params["sym"] else \
+                nncf.CompressWeightsMode.INT4_ASYM
+            del model_compression_params["sym"]
+            compressed_model = nncf.compress_weights(ov_model, mode=mode, **model_compression_params)
+            ov.save_model(compressed_model, int4_model_dir / "openvino_model.xml")
+            del ov_model
+            del compressed_model
         gc.collect()
     
     
@@ -581,111 +754,58 @@ We can now save floating point and compressed model variants
 
 .. parsed-literal::
 
-    config.json:   0%|          | 0.00/699 [00:00<?, ?B/s]
+    modeling_qwen.py:   0%|          | 0.00/55.6k [00:00<?, ?B/s]
 
 
 .. parsed-literal::
 
-    Framework not specified. Using pt to export to ONNX.
-
-
-
-.. parsed-literal::
-
-    model.safetensors:   0%|          | 0.00/2.20G [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    generation_config.json:   0%|          | 0.00/124 [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    tokenizer_config.json:   0%|          | 0.00/1.29k [00:00<?, ?B/s]
+    A new version of the following files was downloaded from https://huggingface.co/Qwen/Qwen-7B-Chat:
+    - cpp_kernels.py
+    . Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+    A new version of the following files was downloaded from https://huggingface.co/Qwen/Qwen-7B-Chat:
+    - qwen_generation_utils.py
+    . Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+    A new version of the following files was downloaded from https://huggingface.co/Qwen/Qwen-7B-Chat:
+    - modeling_qwen.py
+    - cpp_kernels.py
+    - qwen_generation_utils.py
+    . Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
 
 
 
 .. parsed-literal::
 
-    tokenizer.model:   0%|          | 0.00/500k [00:00<?, ?B/s]
+    Downloading shards:   0%|          | 0/8 [00:00<?, ?it/s]
 
 
 
 .. parsed-literal::
 
-    tokenizer.json:   0%|          | 0.00/1.84M [00:00<?, ?B/s]
+    Loading checkpoint shards:   0%|          | 0/8 [00:00<?, ?it/s]
 
 
 
 .. parsed-literal::
 
-    special_tokens_map.json:   0%|          | 0.00/551 [00:00<?, ?B/s]
+    generation_config.json:   0%|          | 0.00/273 [00:00<?, ?B/s]
 
 
 .. parsed-literal::
 
-    Using the export variant default. Available variants are:
-        - default: The default ONNX variant.
-    Using framework PyTorch: 2.1.1+cpu
-    Overriding 1 configuration item(s)
-    	- use_cache -> True
-    /home/ea/work/genai_env/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:94: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if (input_shape[-1] > 1 or self.sliding_window is not None) and self.is_causal:
-    /home/ea/work/genai_env/lib/python3.8/site-packages/optimum/exporters/onnx/model_patcher.py:392: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if past_key_values_length > 0:
-    /home/ea/work/genai_env/lib/python3.8/site-packages/transformers/models/llama/modeling_llama.py:140: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if seq_len > self.max_seq_len_cached:
-    /home/ea/work/genai_env/lib/python3.8/site-packages/transformers/models/llama/modeling_llama.py:392: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attn_weights.size() != (bsz, self.num_heads, q_len, kv_seq_len):
-    /home/ea/work/genai_env/lib/python3.8/site-packages/transformers/models/llama/modeling_llama.py:399: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attention_mask.size() != (bsz, 1, q_len, kv_seq_len):
-    /home/ea/work/genai_env/lib/python3.8/site-packages/transformers/models/llama/modeling_llama.py:409: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attn_output.size() != (bsz, self.num_heads, q_len, self.head_dim):
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-
-
-
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
-
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-
-
-
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
-
+    /home/ethan/intel/openvino_notebooks/openvino_env/lib/python3.11/site-packages/transformers/modeling_utils.py:4193: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+      warnings.warn(
+    /home/ethan/.cache/huggingface/modules/transformers_modules/Qwen/Qwen-7B-Chat/8d24619bab456ea5abe2823c1d05fc5edec19174/modeling_qwen.py:811: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if batch_size <= 0:
+    /home/ethan/.cache/huggingface/modules/transformers_modules/Qwen/Qwen-7B-Chat/8d24619bab456ea5abe2823c1d05fc5edec19174/modeling_qwen.py:835: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      elif kv_seq_len != hidden_states.size()[1]:
+    /home/ethan/.cache/huggingface/modules/transformers_modules/Qwen/Qwen-7B-Chat/8d24619bab456ea5abe2823c1d05fc5edec19174/modeling_qwen.py:1288: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if seqlen > self._seq_len_cached or ntk_alpha != self._ntk_alpha_cached:
+    /home/ethan/.cache/huggingface/modules/transformers_modules/Qwen/Qwen-7B-Chat/8d24619bab456ea5abe2823c1d05fc5edec19174/modeling_qwen.py:482: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if key_size > self.seq_length and self.use_logn_attn and not self.training:
+    /home/ethan/.cache/huggingface/modules/transformers_modules/Qwen/Qwen-7B-Chat/8d24619bab456ea5abe2823c1d05fc5edec19174/modeling_qwen.py:502: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if query.size(1) == key_size:
+    /home/ethan/intel/openvino_notebooks/openvino_env/lib/python3.11/site-packages/torch/jit/_trace.py:160: UserWarning: The .grad attribute of a Tensor that is not a leaf Tensor is being accessed. Its .grad attribute won't be populated during autograd.backward(). If you indeed want the .grad field to be populated for a non-leaf Tensor, use .retain_grad() on the non-leaf Tensor. If you access the non-leaf Tensor by mistake, make sure you access the leaf Tensor instead. See github.com/pytorch/pytorch/pull/30531 for more informations. (Triggered internally at aten/src/ATen/core/TensorBody.h:489.)
+      if a.grad is not None:
 
 
 Let’s compare model size for different compression types
@@ -711,7 +831,7 @@ Let’s compare model size for different compression types
 
 .. parsed-literal::
 
-    Size of model with INT4 compressed weights is 696.99 MB
+    Size of FP16 model is 14729.26 MB
 
 
 Select device for inference and model variant
@@ -739,16 +859,16 @@ Select device for inference and model variant
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU', 'GPU.0', 'GPU.1', 'AUTO'), value='CPU')
+    Dropdown(description='Device:', options=('CPU', 'AUTO'), value='CPU')
 
 
 
-The cell below create ``OVMPTModel``, ``OVQWENModel`` and
-``OVCHATGLM2Model`` wrapper based on ``OVModelForCausalLM`` model.
+The cell below create ``OVMPTModel`` and ``OVCHATGLM2Model`` wrapper
+based on ``OVModelForCausalLM`` model.
 
 .. code:: ipython3
 
-    from ovmodel import model_classes
+    from ov_llm_model import model_classes
 
 The cell below demonstrates how to instantiate model based on selected
 variant of model weights and inference device
@@ -777,7 +897,7 @@ variant of model weights and inference device
 
 .. parsed-literal::
 
-    Dropdown(description='Model to run:', options=('INT4',), value='INT4')
+    Dropdown(description='Model to run:', options=('FP16',), value='FP16')
 
 
 
@@ -793,10 +913,15 @@ variant of model weights and inference device
         model_dir = fp16_model_dir
     print(f"Loading model from {model_dir}")
     
-    model_name = model_configuration["model_id"]
-    class_key = model_id.value.split("-")[0]
     ov_config = {"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", "CACHE_DIR": ""}
     
+    # On a GPU device a model is executed in FP16 precision. For red-pajama-3b-chat model there known accuracy
+    # issues caused by this, which we avoid by setting precision hint to "f32".
+    if model_id.value == "red-pajama-3b-chat" and "GPU" in core.available_devices and device.value in ["GPU", "AUTO"]:
+        ov_config["INFERENCE_PRECISION_HINT"] = "f32"
+    
+    model_name = model_configuration["model_id"]
+    class_key = model_id.value.split("-")[0]
     tok = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
     
     model_class = (
@@ -815,7 +940,7 @@ variant of model weights and inference device
 
 .. parsed-literal::
 
-    Loading model from tiny-llama-1b-chat/INT4_compressed_weights
+    Loading model from qwen-7b-chat/FP16
 
 
 .. parsed-literal::
@@ -835,14 +960,7 @@ variant of model weights and inference device
 
 .. parsed-literal::
 
-    Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-    /home/ea/work/genai_env/lib/python3.8/site-packages/optimum/intel/openvino/modeling_decoder.py:388: FutureWarning: `shared_memory` is deprecated and will be removed in 2024.0. Value of `shared_memory` is going to override `share_inputs` value. Please use only `share_inputs` explicitly.
-      self.request.start_async(inputs, shared_memory=True)
-
-
-.. parsed-literal::
-
-    2 + 2 = 4
+    2 + 2 = (1
 
 
 Run Chatbot
@@ -940,9 +1058,9 @@ answers.
     
     
     model_name = model_configuration["model_id"]
-    history_template = model_configuration["history_template"]
-    current_message_template = model_configuration["current_message_template"]
     start_message = model_configuration["start_message"]
+    history_template = model_configuration.get("history_template")
+    current_message_template = model_configuration.get("current_message_template")
     stop_tokens = model_configuration.get("stop_tokens")
     tokenizer_kwargs = model_configuration.get("tokenizer_kwargs", {})
     
@@ -968,9 +1086,21 @@ answers.
         ],
     ]
     
+    japanese_examples = [
+        ["こんにちは！調子はどうですか?"],
+        ["OpenVINOとは何ですか?"],
+        ["あなたは誰ですか?"],
+        ["Pythonプログラミング言語とは何か簡単に説明してもらえますか?"],
+        ["シンデレラのあらすじを一文で説明してください。"],
+        ["コードを書くときに避けるべきよくある間違いは何ですか?"],
+        ["人工知能と「OpenVINOの利点」について100語程度のブログ記事を書いてください。"],
+    ]
+    
     examples = (
         chinese_examples
-        if ("qwen" in model_id.value or "chatglm" in model_id.value)
+        if (model_language.value == "Chinese")
+        else japanese_examples
+        if (model_language.value == "Japanese")
         else english_examples
     )
     
@@ -999,7 +1129,7 @@ answers.
     
     def default_partial_text_processor(partial_text: str, new_text: str):
         """
-        helper for updating partially generated answer, used by de
+        helper for updating partially generated answer, used by default
     
         Params:
           partial_text: text buffer for storing previosly generated text
@@ -1017,36 +1147,72 @@ answers.
     )
     
     
-    def convert_history_to_text(history: List[Tuple[str, str]]):
+    def convert_history_to_token(history: List[Tuple[str, str]]):
         """
-        function for conversion history stored as list pairs of user and assistant messages to string according to model expected conversation template
+        function for conversion history stored as list pairs of user and assistant messages to tokens according to model expected conversation template
         Params:
           history: dialogue history
         Returns:
-          history in text format
+          history in token format
         """
-        text = start_message + "".join(
-            [
-                "".join(
-                    [history_template.format(num=round, user=item[0], assistant=item[1])]
-                )
-                for round, item in enumerate(history[:-1])
-            ]
-        )
-        text += "".join(
-            [
-                "".join(
-                    [
-                        current_message_template.format(
-                            num=len(history) + 1,
-                            user=history[-1][0],
-                            assistant=history[-1][1],
-                        )
-                    ]
-                )
-            ]
-        )
-        return text
+        if pt_model_name == "baichuan2":
+            system_tokens = tok.encode(start_message)
+            history_tokens = []
+            for (old_query, response) in history[:-1]:
+                round_tokens = []
+                round_tokens.append(195)
+                round_tokens.extend(tok.encode(old_query))
+                round_tokens.append(196)
+                round_tokens.extend(tok.encode(response))
+                history_tokens = round_tokens + history_tokens
+            input_tokens = system_tokens + history_tokens
+            input_tokens.append(195)
+            input_tokens.extend(tok.encode(history[-1][0]))
+            input_tokens.append(196)
+            input_token = torch.LongTensor([input_tokens])
+        elif history_template is None:
+            messages = [{"role": "system", "content": start_message}]
+            for idx, (user_msg, model_msg) in enumerate(history):
+                if idx == len(history) - 1 and not model_msg:
+                    messages.append({"role": "user", "content": user_msg})
+                    break
+                if user_msg:
+                    messages.append({"role": "user", "content": user_msg})
+                if model_msg:
+                    messages.append({"role": "assistant", "content": model_msg})
+                    
+            input_token = tok.apply_chat_template(messages,
+                                                  add_generation_prompt=True,
+                                                  tokenize=True,
+                                                  return_tensors="pt")
+        else:
+            text = start_message + "".join(
+                [
+                    "".join(
+                        [
+                            history_template.format(
+                                num=round, user=item[0], assistant=item[1]
+                            )
+                        ]
+                    )
+                    for round, item in enumerate(history[:-1])
+                ]
+            )
+            text += "".join(
+                [
+                    "".join(
+                        [
+                            current_message_template.format(
+                                num=len(history) + 1,
+                                user=history[-1][0],
+                                assistant=history[-1][1],
+                            )
+                        ]
+                    )
+                ]
+            )
+            input_token = tok(text, return_tensors="pt", **tokenizer_kwargs).input_ids
+        return input_token
     
     
     def user(message, history):
@@ -1079,14 +1245,11 @@ answers.
         """
     
         # Construct the input message string for the model by concatenating the current system message and conversation history
-        messages = convert_history_to_text(history)
-    
         # Tokenize the messages string
-        input_ids = tok(messages, return_tensors="pt", **tokenizer_kwargs).input_ids
+        input_ids = convert_history_to_token(history)
         if input_ids.shape[1] > 2000:
             history = [history[-1]]
-            messages = convert_history_to_text(history)
-            input_ids = tok(messages, return_tensors="pt", **tokenizer_kwargs).input_ids
+            input_ids = convert_history_to_token(history)
         streamer = TextIteratorStreamer(
             tok, timeout=30.0, skip_prompt=True, skip_special_tokens=True
         )
@@ -1101,7 +1264,8 @@ answers.
             streamer=streamer,
         )
         if stop_tokens is not None:
-            generate_kwargs["stopping_criteria"] = StoppingCriteriaList(stop_tokens)
+            generate_kwargs["stopping_criteria"] = StoppingCriteriaList(
+                stop_tokens)
     
         stream_complete = Event()
     
@@ -1124,6 +1288,10 @@ answers.
             yield history
     
     
+    def request_cancel():
+        ov_model.request.cancel()
+    
+    
     def get_uuid():
         """
         universal unique identifier for thread
@@ -1136,7 +1304,8 @@ answers.
         css=".disclaimer {font-variant-caps: all-small-caps;}",
     ) as demo:
         conversation_id = gr.State(get_uuid)
-        gr.Markdown(f"""<h1><center>OpenVINO {model_id.value} Chatbot</center></h1>""")
+        gr.Markdown(
+            f"""<h1><center>OpenVINO {model_id.value} Chatbot</center></h1>""")
         chatbot = gr.Chatbot(height=500)
         with gr.Row():
             with gr.Column():
@@ -1242,7 +1411,7 @@ answers.
             queue=True,
         )
         stop.click(
-            fn=None,
+            fn=request_cancel,
             inputs=None,
             outputs=None,
             cancels=[submit_event, submit_click_event],
@@ -1250,7 +1419,6 @@ answers.
         )
         clear.click(lambda: None, None, chatbot, queue=False)
     
-    demo.queue(max_size=2)
     # if you are launching remotely, specify server_name and server_port
     #  demo.launch(server_name='your server name', server_port='server port in int')
     # if you have any issue to launch on your platform, you can pass share=True to launch method:
@@ -1258,21 +1426,13 @@ answers.
     # it creates a publicly shareable link for the interface. Read more in the docs: https://gradio.app/docs/
     demo.launch()
 
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()
+
 
 .. parsed-literal::
 
-    Running on local URL:  http://127.0.0.1:7860
-    
-    To create a public link, set `share=True` in `launch()`.
+    Closing server running on port: 5467
 
-
-
-.. .. raw:: html
-
-..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
-
-
-.. code:: ipython3
-
-    # please run this cell for stopping gradio interface
-    # demo.close()

@@ -3,7 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from functools import wraps
-from typing import Any, Callable
+from inspect import getfullargspec
+from typing import Any, Callable, List
 
 from openvino.runtime import Node, Output
 from openvino.runtime.utils.types import NodeInput, as_node, as_nodes
@@ -25,6 +26,33 @@ def nameable_op(node_factory_function: Callable) -> Callable:
         return node
 
     return wrapper
+
+
+def _apply_affix(node: Node, prefix: str = "", suffix: str = "") -> Node:
+    node.friendly_name = prefix + node.friendly_name + suffix
+    return node
+
+
+def apply_affix_on(*node_names: Any) -> Callable:
+    """Add prefix and/or suffix to all openvino names of operators defined as arguments."""
+
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Node:
+            arg_names = getfullargspec(func).args
+            arg_mapping = dict(zip(arg_names, args))
+            for node_name in node_names:
+                # Apply only on auto-generated nodes. Create such node and apply affixes.
+                # Any Node instance supplied by the user is keeping the name as-is.
+                if node_name in arg_mapping and not isinstance(arg_mapping[node_name], (Node, Output)):
+                    arg_mapping[node_name] = _apply_affix(as_node(arg_mapping[node_name]),
+                                                          prefix=kwargs.get("prefix", ""),
+                                                          suffix=kwargs.get("suffix", ""),
+                                                          )
+            results = func(**arg_mapping, **kwargs)
+            return results
+        return wrapper
+    return decorator
 
 
 def unary_op(node_factory_function: Callable) -> Callable:
