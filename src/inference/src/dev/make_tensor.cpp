@@ -7,6 +7,7 @@
 #include <memory>
 #include <mutex>
 
+#include "openvino/core/type/element_iterator.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -37,6 +38,30 @@ Shape make_roi_shape(const Shape& tensor_shape, const Coordinate& begin, const C
 
     return roi_shape;
 }
+
+/**
+ * @brief Gets size of elements count and given precision in bytes.
+ *
+ * @param num_elements  Number of elements.
+ * @param element_type  Elements precision.
+ *
+ * @return Elements size in bytes.
+ */
+size_t get_elements_byte_size(const size_t num_elements, const element::Type& element_type) {
+    auto byte_size = num_elements * element_type.bitwidth();
+    if (element::is_split_bit_type(element_type)) {
+        constexpr size_t storage_unit_size = 24;
+        byte_size += storage_unit_size - 1;
+        byte_size /= storage_unit_size;
+        byte_size *= 3;
+    } else {
+        constexpr size_t storage_unit_size = 8;
+        byte_size += storage_unit_size - 1;
+        byte_size /= storage_unit_size;
+    }
+    return byte_size;
+}
+
 }  // namespace
 
 /**
@@ -200,10 +225,10 @@ public:
     AllocatedTensor(const element::Type element_type, const Shape& shape, const Allocator& allocator)
         : ViewTensor{element_type,
                      shape,
-                     [&] {
+                     [&shape, &element_type, &allocator] {
                          OPENVINO_ASSERT(allocator, "Allocator was not initialized");
-                         auto num_elements = shape_size(shape);
-                         auto data = const_cast<Allocator&>(allocator).allocate(element_type.size() * num_elements);
+                         const auto byte_size = get_elements_byte_size(shape_size(shape), element_type);
+                         auto data = const_cast<Allocator&>(allocator).allocate(byte_size);
                          initialize_elements(data, element_type, shape);
                          return data;
                      }()},
@@ -263,7 +288,7 @@ private:
     }
 
     size_t get_bytes_capacity() const {
-        return (get_capacity() * get_element_type().bitwidth() + 8 - 1) / 8;
+        return get_elements_byte_size(get_capacity(), get_element_type());
     }
 
     Allocator m_allocator;

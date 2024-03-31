@@ -15,6 +15,7 @@
 #include "openvino/opsets/opset10.hpp"
 #include <ov_ops/augru_cell.hpp>
 #include <ov_ops/augru_sequence.hpp>
+#include <ov_ops/gather_compressed.hpp>
 
 // Common transformations
 #include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
@@ -40,6 +41,7 @@
 #include "transformations/op_conversions/convert_depth_to_space.hpp"
 #include "transformations/op_conversions/convert_gather_downgrade.hpp"
 #include "transformations/op_conversions/convert_gather_upgrade.hpp"
+#include "transformations/op_conversions/convert_gather_to_compressed.hpp"
 #include "transformations/op_conversions/convert_gelu.hpp"
 #include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
 #include "transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp"
@@ -85,9 +87,9 @@
 #include "transformations/smart_reshape/matmul_sr.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/init_node_info.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 #include "utils/ngraph_transformation.hpp"
 #include "utils/print_model.hpp"
-#include "transformations/utils.hpp"
 
 // LPT transformations
 #include "low_precision/add.hpp"
@@ -167,13 +169,8 @@ bool Transformations::is_decompression_multiply(const_node_ptr& node) const {
     }
     if (consumer != nullptr && ov::is_type<ov::opset1::Convert>(consumer)) {
         consumer = get_single_consumer(consumer);
-        if (consumer != nullptr) {
-            if (ov::is_type<ov::opset1::MatMul>(consumer)) {
-                return true;
-            }
-            if (is_gather_with_compressed_weights(consumer)) {
-                return true;
-            }
+        if (consumer != nullptr && ov::is_type<ov::opset1::MatMul>(consumer)) {
+            return true;
         }
     }
     return false;
@@ -286,6 +283,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     ov::pass::Manager decompression_handling_manager;
     decompression_handling_manager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::InitNodeInfo);
+    CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::ConvertGatherToGatherCompressed);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::MarkShapeOfSubgraphs);
     // We need to fuse Transpose to MatMul to have a simpler callback for the next transformation
     CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::TransposeMatMul);
@@ -297,6 +295,17 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_SET_CALLBACK_X64(decompression_handling_manager, [&](const_node_ptr &node) -> bool {
         return !is_decompression_multiply(node);
     }, ov::pass::MarkDequantizationSubgraph);
+
+    CPU_SET_CALLBACK_COMMON(
+        decompression_handling_manager,
+        [&](const_node_ptr& node) -> bool {
+            if (ov::is_type<ov::op::internal::GatherCompressed>(node)) {
+                // It is necessary to avoid precision conversion for constant node(compressed weights)
+                ov::enable_keep_const_precision(node->get_input_node_shared_ptr(0));
+            }
+            return false;
+        },
+        ov::pass::ConvertGatherToGatherCompressed);
     decompression_handling_manager.run_passes(model);
 
     ov::pass::Manager manager;
