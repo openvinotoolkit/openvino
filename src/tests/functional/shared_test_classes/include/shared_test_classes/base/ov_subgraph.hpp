@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,7 +39,7 @@ protected:
     virtual void compile_model();
     virtual void infer();
     virtual void validate();
-    virtual void configure_model();;
+    virtual void configure_model();
     virtual void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes);
 
     void update_ref_model();

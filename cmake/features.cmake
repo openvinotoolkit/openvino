@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -177,7 +177,7 @@ ov_dependent_option (ENABLE_SYSTEM_SNAPPY "Enables use of system version of Snap
 ov_dependent_option (ENABLE_PYTHON_PACKAGING "Enables packaging of Python API in APT / YUM" OFF
     "ENABLE_PYTHON;UNIX" OFF)
 
-ov_option(ENABLE_JS "Enables JS API building" ON)
+ov_dependent_option(ENABLE_JS "Enables JS API building" ON "NOT ANDROID;NOT EMSCRIPTEN" OFF)
 
 ov_option(ENABLE_OPENVINO_DEBUG "Enable output for OPENVINO_DEBUG statements" OFF)
 

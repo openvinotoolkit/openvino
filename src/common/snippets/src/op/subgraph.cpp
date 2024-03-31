@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,6 @@
 #include "snippets/lowered/pass/insert_broadcastmove.hpp"
 #include "snippets/lowered/pass/load_movebroadcast_to_broadcastload.hpp"
 #include "snippets/lowered/pass/allocate_buffers.hpp"
-#include "snippets/lowered/pass/propagate_layout.hpp"
 #include "snippets/lowered/pass/move_scalar_to_consumer.hpp"
 #include "snippets/lowered/pass/move_result_out_of_loop.hpp"
 #include "snippets/lowered/pass/clean_repeated_ptr_shifts.hpp"
@@ -42,6 +41,7 @@
 #include "snippets/lowered/pass/optimize_domain.hpp"
 #include "snippets/lowered/pass/insert_perf_count.hpp"
 #include "snippets/lowered/pass/validate_shapes.hpp"
+#include "snippets/lowered/pass/validate.hpp"
 #include "snippets/lowered/pass/pass_config.hpp"
 #include "snippets/lowered/pass/reduce_decomposition.hpp"
 
@@ -257,16 +257,10 @@ auto Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Node>& node) -> s
 }
 
 void Subgraph::fill_empty_output_names(const Output<Node>& target_output_node, const Output<Node>& replacement_output_node) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     auto& out_tensor = target_output_node.get_tensor();
-    const std::string new_name = ov::op::util::get_ie_output_name(replacement_output_node);
-    if (ov::descriptor::get_ov_tensor_legacy_name(out_tensor).empty()) {
-        ov::descriptor::set_ov_tensor_legacy_name(out_tensor, new_name);
-    }
     if (!replacement_output_node.get_names().empty()) {
         out_tensor.set_names(replacement_output_node.get_names());
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 auto Subgraph::constant_input_should_be_inside_body(const std::shared_ptr<ov::Node>& node) -> bool {
@@ -439,8 +433,8 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
     pipeline.register_pass<lowered::pass::InsertLoops>();
     pipeline.register_pass<lowered::pass::AllocateBuffers>(lowering_result.buffer_scratchpad_size, linear_ir.get_config().m_are_buffers_optimized);
     pipeline.register_pass<lowered::pass::CleanRepeatedDataPointerShifts>();
-    pipeline.register_pass<lowered::pass::PropagateLayout>();
     pipeline.register_positioned_passes(lowered_backend_passes);
+    pipeline.register_pass<lowered::pass::Validate>(); // must be last
     pipeline.run(linear_ir);
 }
 

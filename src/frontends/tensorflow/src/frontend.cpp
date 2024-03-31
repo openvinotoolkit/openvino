@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -229,6 +229,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 graph_iterator->get_variables_index(),
                                                 graph_iterator->get_saved_model_input_names(),
                                                 graph_iterator->get_saved_model_output_names(),
+                                                graph_iterator->get_hash_table_keys_map(),
+                                                graph_iterator->get_hash_table_values_map(),
                                                 nullptr,
                                                 true);
         } else if (GraphIteratorMeta::is_supported(model_path)) {
@@ -238,6 +240,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 graph_iterator->get_variables_index(),
                                                 graph_iterator->get_metagraph_input_names(),
                                                 graph_iterator->get_metagraph_output_names(),
+                                                graph_iterator->get_hash_table_keys_map(),
+                                                graph_iterator->get_hash_table_values_map(),
                                                 nullptr,
                                                 true);
         } else if (GraphIteratorProtoTxt::is_supported(model_path)) {
@@ -261,6 +265,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 nullptr,
                                                 nullptr,
                                                 nullptr,
+                                                HashTableKeysValuesMap{},
+                                                HashTableKeysValuesMap{},
                                                 graph_iterator->get_checkpoint_v1_reader(),
                                                 false);
         } else if (GraphIteratorProtoTxt::is_supported(model_path)) {
@@ -271,6 +277,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 nullptr,
                                                 nullptr,
                                                 nullptr,
+                                                HashTableKeysValuesMap{},
+                                                HashTableKeysValuesMap{},
                                                 graph_iterator->get_checkpoint_v1_reader(),
                                                 false);
         }
@@ -283,6 +291,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 graph_iterator->get_variables_index(),
                                                 graph_iterator->get_saved_model_input_names(),
                                                 graph_iterator->get_saved_model_output_names(),
+                                                graph_iterator->get_hash_table_keys_map(),
+                                                graph_iterator->get_hash_table_values_map(),
                                                 nullptr,
                                                 true);
         }
@@ -303,6 +313,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 graph_iterator->get_variables_index(),
                                                 graph_iterator->get_saved_model_input_names(),
                                                 graph_iterator->get_saved_model_output_names(),
+                                                graph_iterator->get_hash_table_keys_map(),
+                                                graph_iterator->get_hash_table_values_map(),
                                                 nullptr,
                                                 true);
         } else if (GraphIteratorMeta::is_supported(model_path)) {
@@ -312,6 +324,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 graph_iterator->get_variables_index(),
                                                 graph_iterator->get_metagraph_input_names(),
                                                 graph_iterator->get_metagraph_output_names(),
+                                                graph_iterator->get_hash_table_keys_map(),
+                                                graph_iterator->get_hash_table_values_map(),
                                                 nullptr,
                                                 true);
         } else if (GraphIteratorProtoTxt::is_supported(model_path)) {
@@ -335,6 +349,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 nullptr,
                                                 nullptr,
                                                 nullptr,
+                                                HashTableKeysValuesMap{},
+                                                HashTableKeysValuesMap{},
                                                 graph_iterator->get_checkpoint_v1_reader(),
                                                 false);
         } else if (GraphIteratorProtoTxt::is_supported(model_path)) {
@@ -345,6 +361,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 nullptr,
                                                 nullptr,
                                                 nullptr,
+                                                HashTableKeysValuesMap{},
+                                                HashTableKeysValuesMap{},
                                                 graph_iterator->get_checkpoint_v1_reader(),
                                                 false);
         }
@@ -357,6 +375,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 graph_iterator->get_variables_index(),
                                                 graph_iterator->get_saved_model_input_names(),
                                                 graph_iterator->get_saved_model_output_names(),
+                                                graph_iterator->get_hash_table_keys_map(),
+                                                graph_iterator->get_hash_table_values_map(),
                                                 nullptr,
                                                 true);
         }
@@ -380,6 +400,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                             nullptr,
                                             input_names_map,
                                             output_names_map,
+                                            HashTableKeysValuesMap{},
+                                            HashTableKeysValuesMap{},
                                             nullptr,
                                             false);
     }
@@ -528,7 +550,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
     manager.register_pass<ov::pass::TransposeSinkingGeneral>();
     manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
-    manager.register_pass<ov::pass::ResolveNameCollisions>();
+    manager.register_pass<ov::pass::ResolveNameCollisions>(true);
     manager.run_passes(model);
 }
 

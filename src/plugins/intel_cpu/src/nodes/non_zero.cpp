@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,7 +55,9 @@ void NonZero::initSupportedPrimitiveDescriptors() {
         return;
 
     const auto &inPrc = getOriginalInputPrecisionAtPort(0);
-    if (!one_of(inPrc, ov::element::f32, ov::element::bf16, ov::element::f32, ov::element::i32, ov::element::u32, ov::element::i8,  ov::element::u8)) {
+    if (!one_of(inPrc, ov::element::f32, ov::element::f16,
+                       ov::element::bf16, ov::element::f32, ov::element::i32,
+                       ov::element::u32, ov::element::i8,  ov::element::u8)) {
         OPENVINO_THROW("Can't create primitive descriptor for NonZero layer with name: ",
                        getName(),
                        " doesn't support ",

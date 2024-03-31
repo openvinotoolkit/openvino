@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,7 +58,7 @@ bool ConvolutionTransformation::isQuantizedStatic(const std::shared_ptr<const No
 
 size_t ConvolutionTransformation::getInputChannels(const std::shared_ptr<ov::Node> conv) const {
     const auto channels = conv->get_input_partial_shape(1)[1];
-    assert(channels.is_static());
+    OPENVINO_ASSERT(channels.is_static());
     return channels.get_length();
 }
 
@@ -193,6 +193,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ov::pa
         }
         NetworkHelper::copyInfo(convolution, relaxedNewConvolution);
 
+        newMultiplyAfterConst = foldConvert(newMultiplyAfterConst, deqPrecision);
         newMultiplyAfter = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
             std::vector<element::Type>{ deqPrecision, deqPrecision },
             std::vector<element::Type>{ dequantization.multiply->get_output_element_type(0) },
@@ -223,7 +224,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ov::pa
         dequantization = reshapeFromWeights == nullptr ?
             NetworkHelper::getDequantization(convolution, defaultPrecisions, 1ul) :
             NetworkHelper::getDequantization(reshapeFromWeights, defaultPrecisions);
-        assert(!dequantization.empty());
+        OPENVINO_ASSERT(!dequantization.empty());
         if (const auto fq = ov::as_type_ptr<ov::opset1::FakeQuantize>(dequantization.data.get_node_shared_ptr())) {
             const auto newFQ = NetworkHelper::fold_fake_quantize(fq, true);
             NetworkHelper::copyInfo(fq, newFQ);
@@ -261,14 +262,17 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ov::pa
                 return new_shape;
             }();
 
-            newMultiplyAfter = std::make_shared<ov::opset1::Multiply>(
-                newConvolution,
-                foldConvert(
-                    fold_reshape<ov::opset1::Reshape>(
-                        multiplyFromWeights->input_value(1),
-                        std::make_shared<ov::opset1::Constant>(element::i32, Shape{ newScaleShape.size() }, newScaleShape),
-                        false),
-                    convolution->get_output_element_type(0)));
+            const auto newMultiplyAfterConst = foldConvert(
+                fold_reshape<ov::opset1::Reshape>(
+                    multiplyFromWeights->input_value(1),
+                    std::make_shared<ov::opset1::Constant>(element::i32, Shape{newScaleShape.size()}, newScaleShape),
+                    false),
+                deqPrecision);
+            newMultiplyAfter = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
+                std::vector<element::Type>{deqPrecision, deqPrecision},
+                std::vector<element::Type>{dequantization.multiply->get_output_element_type(0)},
+                ov::op::TemporaryReplaceOutputType(newConvolution, deqPrecision).get(),
+                ov::op::TemporaryReplaceOutputType(newMultiplyAfterConst, deqPrecision).get());
             NetworkHelper::insertDequantizationAfter(convolution, newMultiplyAfter, newConvolution);
             convolution = newMultiplyAfter->input_value(0).get_node_shared_ptr();
         }
@@ -284,7 +288,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ov::pa
                 subtractFromWeights = ov::as_type_ptr<ov::opset1::Subtract>(optimizedSubtract);
 
                 const auto weightsPShape = subtractFromWeights->get_input_partial_shape(0);
-                assert(weightsPShape.is_static());
+                OPENVINO_ASSERT(weightsPShape.is_static());
 
                 const size_t weightsRankValue = weightsPShape.rank().get_length();
                 Shape zeroPointShape(weightsRankValue, 1ul);

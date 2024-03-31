@@ -1,19 +1,18 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#include "transformations/symbolic_transformations/label_optimization.hpp"
 
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/visualize_tree.hpp"
+#include "transformations/symbolic_transformations/symbol_optimization.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/symbolic_transformations/utils.hpp"
 
@@ -21,15 +20,7 @@ using namespace ov;
 using namespace ov::op;
 using namespace std;
 
-#define TEST_SHAPE(source, ...)                                                                 \
-    {                                                                                           \
-        auto expected_labels = ov::TensorLabel({__VA_ARGS__});                                  \
-        ov::TensorLabel labels;                                                                 \
-        EXPECT_TRUE(ov::symbol::util::get_labels(source->get_output_partial_shape(0), labels)); \
-        EXPECT_EQ(labels, expected_labels);                                                     \
-    }
-
-TEST(TransformationTests, ApplyTableOfEquivalence_Concat) {
+TEST(TransformationTests, ApplySymbolEquivalence_Concat) {
     auto input_1 = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic(4));
     auto input_2 = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic(4));
     auto concat = make_shared<v0::Concat>(OutputVector{input_1, input_2}, -1);
@@ -39,15 +30,24 @@ TEST(TransformationTests, ApplyTableOfEquivalence_Concat) {
     pass::Manager manager;
     manager.set_per_pass_validation(false);
     manager.register_pass<pass::SymbolicPropagation>();
-    manager.register_pass<pass::ApplyTableOfEquivalence>();
+    manager.register_pass<pass::ApplySymbolEquivalence>();
     manager.run_passes(model);
 
-    TEST_SHAPE(input_1, {1, 2, 3, 4});
-    TEST_SHAPE(input_2, {1, 2, 3, 8});
-    TEST_SHAPE(concat, {1, 2, 3, 9});
+    const auto& pshape_1 = input_1->get_output_partial_shape(0);
+    const auto& pshape_2 = input_2->get_output_partial_shape(0);
+    const auto& pshape_3 = concat->get_output_partial_shape(0);
+
+    for (size_t i = 0; i < 3; ++i) {
+        EXPECT_TRUE(symbol::are_equal(pshape_1[i].get_symbol(), pshape_2[i].get_symbol()));
+        EXPECT_TRUE(symbol::are_equal(pshape_2[i].get_symbol(), pshape_3[i].get_symbol()));
+        EXPECT_TRUE(symbol::are_equal(pshape_1[i].get_symbol(), pshape_3[i].get_symbol()));
+    }
+    EXPECT_FALSE(symbol::are_equal(pshape_1[3].get_symbol(), pshape_2[3].get_symbol()));
+    EXPECT_FALSE(symbol::are_equal(pshape_2[3].get_symbol(), pshape_3[3].get_symbol()));
+    EXPECT_FALSE(symbol::are_equal(pshape_1[3].get_symbol(), pshape_3[3].get_symbol()));
 }
 
-TEST_F(TransformationTestsF, ApplyTableOfEquivalence_Concat_Values) {
+TEST_F(TransformationTestsF, ApplySymbolEquivalence_Concat_Values) {
     {
         auto input_1 = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic(4));
         auto input_2 = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic(4));
@@ -67,8 +67,8 @@ TEST_F(TransformationTestsF, ApplyTableOfEquivalence_Concat_Values) {
 
         manager.set_per_pass_validation(false);
         manager.register_pass<pass::SymbolicPropagation>();
-        manager.register_pass<pass::ApplyTableOfEquivalence>();
-        manager.register_pass<pass::OptimizeLabelsUsedAsValues>();
+        manager.register_pass<pass::ApplySymbolEquivalence>();
+        manager.register_pass<pass::OptimizeSymbolsUsedAsValues>();
     }
     {
         auto input_1 = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic(4));

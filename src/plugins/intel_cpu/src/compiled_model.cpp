@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,10 @@
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include <cstring>
 #include <utility>
+
+#if defined(OV_CPU_WITH_ACL)
+#include "nodes/executors/acl/acl_ie_scheduler.hpp"
+#endif
 
 using namespace ov::threading;
 
@@ -82,6 +86,13 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         do {
             for (auto&& task : tasks) {
                 task = [this] {
+#if defined(OV_CPU_WITH_ACL)
+                    static std::once_flag flag_once;
+                    std::call_once(flag_once, [&]() {
+                        std::shared_ptr<arm_compute::IScheduler> acl_scheduler = std::make_shared<ACLScheduler>();
+                        arm_compute::Scheduler::set(std::static_pointer_cast<arm_compute::IScheduler>(acl_scheduler));
+                    });
+#endif
                     CompiledModel::get_graph();
                 };
             }
@@ -193,6 +204,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::hint::num_requests.name()),
             RO_property(ov::hint::enable_cpu_pinning.name()),
             RO_property(ov::hint::scheduling_core_type.name()),
+            RO_property(ov::hint::model_distribution_policy.name()),
             RO_property(ov::hint::enable_hyper_threading.name()),
             RO_property(ov::execution_devices.name()),
             RO_property(ov::intel_cpu::denormals_optimization.name()),
@@ -246,8 +258,11 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         const bool use_pin = config.enableCpuPinning;
         return decltype(ov::hint::enable_cpu_pinning)::value_type(use_pin);
     } else if (name == ov::hint::scheduling_core_type) {
-        const auto core_type = config.schedulingCoreType;
-        return core_type;
+        const auto stream_mode = config.schedulingCoreType;
+        return stream_mode;
+    } else if (name == ov::hint::model_distribution_policy) {
+        const auto& distribution_policy = config.modelDistributionPolicy;
+        return distribution_policy;
     } else if (name == ov::hint::enable_hyper_threading.name()) {
         const bool use_ht = config.enableHyperThreading;
         return decltype(ov::hint::enable_hyper_threading)::value_type(use_ht);

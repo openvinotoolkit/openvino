@@ -1,17 +1,35 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set(TARGET_NAME ov_cpu_func_tests)
 
-add_library(cpuSpecificRtInfo STATIC
+if(SUGGEST_OVERRIDE_SUPPORTED)
+    # xbyak compilation fails
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
+endif()
+
+add_library(cpuUtils STATIC
     $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/utils/rt_info/memory_formats_attribute.hpp
-    $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/utils/rt_info/memory_formats_attribute.cpp)
-target_link_libraries(cpuSpecificRtInfo PRIVATE openvino::runtime)
+    $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/utils/rt_info/memory_formats_attribute.cpp
+    $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/utils/precision_support.h
+    $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/utils/precision_support.cpp)
+set(CPU_UTILS_LINK_LIBRARIES openvino::runtime)
+set(CPU_UTILS_INCLUDE_PATHS)
+if(OV_CPU_WITH_ACL)
+    list(APPEND CPU_UTILS_LINK_LIBRARIES arm_compute::arm_compute)
+    list(APPEND CPU_UTILS_INCLUDE_PATHS $<TARGET_PROPERTY:arm_compute::arm_compute,SOURCE_DIR>)
+endif()
+if(OV_CPU_WITH_DNNL)
+    list(APPEND CPU_UTILS_LINK_LIBRARIES dnnl)
+    list(APPEND CPU_UTILS_INCLUDE_PATHS $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/thirdparty/onednn/src)
+endif()
+target_link_libraries(cpuUtils PRIVATE ${CPU_UTILS_LINK_LIBRARIES})
+target_include_directories(cpuUtils PUBLIC ${CPU_UTILS_INCLUDE_PATHS})
 
 set(INCLUDES ${CMAKE_CURRENT_SOURCE_DIR} $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src)
 set(DEPENDENCIES openvino_intel_cpu_plugin openvino_template_extension)
-set(LINK_LIBRARIES funcSharedTests cpuSpecificRtInfo openvino::snippets ov_snippets_models)
+set(LINK_LIBRARIES funcSharedTests cpuUtils openvino::snippets ov_snippets_models)
 
 if(ENABLE_OV_ONNX_FRONTEND)
     list(APPEND DEFINES TEST_MODELS="${TEST_MODEL_ZOO}")
@@ -37,10 +55,12 @@ else()
     file(GLOB_RECURSE TMP_LIST_OF_TEST_CLASSES          ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/classes/*.cpp)
     file(GLOB_RECURSE TMP_LIST_OF_COMMON_TEST_INSTANCES ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/common/*.cpp)
     file(GLOB_RECURSE TMP_LIST_OF_ARM_TEST_INSTANCES    ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/arm/*.cpp)
-    file(GLOB_RECURSE TMP_LIST_OF_ARM_SUBGRAPH_TESTS    ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/arm/*.cpp)
-    file(GLOB_RECURSE TMP_LIST_OF_ARM_SUBGRAPH_TESTS    ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/common/*.cpp)
+    file(GLOB_RECURSE TMP_LIST_OF_ARM_SUBGRAPH_TESTS    ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/arm/*.cpp)
+    file(GLOB_RECURSE TMP_LIST_OF_COMMON_SUBGRAPH_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/common/*.cpp)
+    file(GLOB_RECURSE TMP_LIST_OF_SUBGRAPH_TEST_CLASSES ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/classes/*.*)
+
     list(APPEND TMP_LIST_OF_EXPLICITLY_ENABLED_TESTS
-        ${TMP_LIST_OF_TEST_CLASSES} ${TMP_LIST_OF_COMMON_TEST_INSTANCES} ${TMP_LIST_OF_ARM_TEST_INSTANCES} ${TMP_LIST_OF_ARM_SUBGRAPH_TESTS})
+        ${TMP_LIST_OF_TEST_CLASSES} ${TMP_LIST_OF_COMMON_TEST_INSTANCES} ${TMP_LIST_OF_ARM_TEST_INSTANCES} ${TMP_LIST_OF_ARM_SUBGRAPH_TESTS} ${TMP_LIST_OF_COMMON_SUBGRAPH_TESTS} ${TMP_LIST_OF_SUBGRAPH_TEST_CLASSES})
     set(TMP_EXPLICITLY_ENABLED_TESTS "${TMP_LIST_OF_EXPLICITLY_ENABLED_TESTS}")
 endif()
 

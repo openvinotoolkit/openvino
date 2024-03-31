@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <float.h>
@@ -587,6 +587,26 @@ static void attn_reduce(T* dst, float* temp, size_t M, size_t S, size_t temp_str
     }
 }
 
+template <typename T0, typename T1, typename T2, typename F>
+void parallel_for3d_dynamic(const T0& D0, const T1& D1, const T2& D2, const F& func) {
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+    tbb::parallel_for(tbb::blocked_range3d<T0, T1, T2>(0, D0, 0, D1, 0, D2),
+    [=](const tbb::blocked_range3d<T0, T1, T2>& r) {
+        for (T0 d0 = r.pages().begin(); d0 < r.pages().end(); d0++) {
+            for (T1 d1 = r.rows().begin(); d1 < r.rows().end(); d1++) {
+                for (T2 d2 = r.cols().begin(); d2 < r.cols().end(); d2++) {
+                    func(d0, d1, d2);
+                }
+            }
+        }
+    });
+#else
+    parallel_for3d(D0, D1, D2, [&](size_t d0, size_t d1, size_t d2) {
+        func(d0, d1, d2);
+    });
+#endif
+}
+
 template <typename T, typename T2>
 static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                              const ov::intel_cpu::PlainTensor& present_key,
@@ -594,6 +614,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                              const ov::intel_cpu::PlainTensor& alibi_mask,
                              const ov::intel_cpu::PlainTensor& attention_mask,
                              const ov::intel_cpu::PlainTensor& beams,
+                             const ov::intel_cpu::PlainTensor& context_lens,
                              ov::intel_cpu::PlainTensor& output_emb,
                              ov::intel_cpu::PlainTensor& buf_attn_w,
                              ov::intel_cpu::PlainTensor& buf_attn_score,
@@ -609,15 +630,20 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
     auto H = query.size(1);
     auto q_len = query.size(2);
     auto S = query.size(3);
-    auto kv_len = present_key.size(2);
     auto h_group_num = present_key.size(1);
     size_t h_each_group_len = 1;
+    bool is_pagedattn = context_lens;
     if (h_group_num != H) {
         h_each_group_len = H / h_group_num;
     }
     if (d_scale == 0.0f)
         d_scale = 1.0f / sqrt(S);
     auto nthr = parallel_get_max_threads();
+    size_t kv_len;
+    if (is_pagedattn)
+        kv_len = beams.size(1);
+    else
+        kv_len = present_key.size(2);
 
     // use per-token kernel, for each k,v token
     //  attn mask is a matrix of q_len(kv_len)
@@ -635,119 +661,194 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
         });
     }
 #endif
-    parallel_nt_static(nthr, [&](const size_t ithr, const size_t nthr) {
-        size_t start{0}, end{0};
-        splitter(B * h_group_num * kv_len, nthr, ithr, start, end);
 
-        size_t b, h_group, pk;
-        if (start < end) {
-            parallel_it_init(start, b, B, h_group, h_group_num, pk, kv_len);
-            if (q_len == 1 && h_each_group_len == 1) {
-                if (B == 1) {
-                    // the memory will be continuous when b==1
-                    for (size_t iwork = start; iwork < end; ++iwork) {
-                        auto p = past_k_scale_zp.ptr<float>(0, h_group, pk);
-                        auto p_k = present_key.ptr<T2>(0, h_group, pk);
-                        prefetch_bytes(S, _MM_HINT_T0, 4096, p_k);
-                        buf_attn_w.ptr<float>(0, h_group, 0)[pk] =
-                                dot_product(query.ptr<T>(0, h_group), p_k,
-                                    S, p, p + 1, head_sum.ptr<float>(0, h_group));
-                        parallel_it_step(b, B, h_group, h_group_num, pk, kv_len);
+    if (is_pagedattn) {
+        parallel_for3d_dynamic(B, h_group_num, kv_len, [&](size_t b, size_t h_group, size_t pk) {
+            auto context_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
+            // kv_len must be valid
+            if (pk < context_len) {
+                auto block_idx = beams.ptr<int32_t>(b)[pk];
+                OPENVINO_ASSERT(block_idx >= 0, "block idx must be greater or equal than 0");
+
+                for (size_t pq = 0; pq < q_len; pq++) {
+                    for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
+                        buf_attn_w.ptr<float>(b, h, pq)[pk] =
+                                dot_product(query.ptr<T>(b, h, pq), present_key.ptr<T2>(block_idx, h_group),
+                                    S, nullptr, nullptr, nullptr);
+                    }
+                }
+            }
+        });
+    } else {
+        parallel_nt_static(nthr, [&](const size_t ithr, const size_t nthr) {
+            size_t start{0}, end{0};
+            splitter(B * h_group_num * kv_len, nthr, ithr, start, end);
+
+            size_t b, h_group, pk;
+            if (start < end) {
+                parallel_it_init(start, b, B, h_group, h_group_num, pk, kv_len);
+                if (q_len == 1 && h_each_group_len == 1) {
+                    if (B == 1) {
+                        // the memory will be continuous when b==1
+                        for (size_t iwork = start; iwork < end; ++iwork) {
+                            auto p = past_k_scale_zp.ptr<float>(0, h_group, pk);
+                            auto p_k = present_key.ptr<T2>(0, h_group, pk);
+                            prefetch_bytes(S, _MM_HINT_T0, 4096, p_k);
+                            buf_attn_w.ptr<float>(0, h_group, 0)[pk] =
+                                    dot_product(query.ptr<T>(0, h_group), p_k,
+                                        S, p, p + 1, head_sum.ptr<float>(0, h_group));
+                            parallel_it_step(b, B, h_group, h_group_num, pk, kv_len);
+                        }
+                    } else {
+                        for (size_t iwork = start; iwork < end; ++iwork) {
+                            auto b_kv = beams ? beams.ptr<int32_t>(b)[pk] : b;
+                            auto p = past_k_scale_zp.ptr<float>(b_kv, h_group, pk);
+                            auto p_k = present_key.ptr<T2>(b_kv, h_group, pk);
+                            buf_attn_w.ptr<float>(b, h_group, 0)[pk] =
+                                    dot_product(query.ptr<T>(b, h_group), p_k,
+                                        S, p, p + 1, head_sum.ptr<float>(b, h_group));
+                            parallel_it_step(b, B, h_group, h_group_num, pk, kv_len);
+                        }
                     }
                 } else {
                     for (size_t iwork = start; iwork < end; ++iwork) {
                         auto b_kv = beams ? beams.ptr<int32_t>(b)[pk] : b;
-                        auto p = past_k_scale_zp.ptr<float>(b_kv, h_group, pk);
-                        auto p_k = present_key.ptr<T2>(b_kv, h_group, pk);
-                        buf_attn_w.ptr<float>(b, h_group, 0)[pk] =
-                                dot_product(query.ptr<T>(b, h_group), p_k,
-                                    S, p, p + 1, head_sum.ptr<float>(b, h_group));
+                        for (size_t pq = 0; pq < q_len; pq++) {
+                            auto p = past_k_scale_zp.ptr<float>(b_kv, h_group, pk);
+                            for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
+                                buf_attn_w.ptr<float>(b, h, pq)[pk] =
+                                        dot_product(query.ptr<T>(b, h, pq), present_key.ptr<T2>(b_kv, h_group, pk),
+                                            S, p, p + 1, head_sum.ptr<float>(b, h, pq));
+                            }
+                        }
                         parallel_it_step(b, B, h_group, h_group_num, pk, kv_len);
                     }
                 }
-            } else {
-                for (size_t iwork = start; iwork < end; ++iwork) {
-                    auto b_kv = beams ? beams.ptr<int32_t>(b)[pk] : b;
-                    for (size_t pq = 0; pq < q_len; pq++) {
-                        auto p = past_k_scale_zp.ptr<float>(b_kv, h_group, pk);
-                        for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
-                            buf_attn_w.ptr<float>(b, h, pq)[pk] =
-                                    dot_product(query.ptr<T>(b, h, pq), present_key.ptr<T2>(b_kv, h_group, pk),
-                                        S, p, p + 1, head_sum.ptr<float>(b, h, pq));
-                        }
-                    }
-                    parallel_it_step(b, B, h_group, h_group_num, pk, kv_len);
-                }
             }
-        }
-    });
+        });
+    }
 
-    parallel_for3d(B, H, q_len, [&](size_t b, size_t h, size_t pq) {
-        // apply attention mask & sofmax
-        auto ncausal = auto_causal ? (kv_len - q_len + pq + 1) : kv_len;
-        float* alibi_ptr = alibi_mask ? &alibi_mask.at<float>({b, h, pq, 0}, true) : nullptr;
-        uint8_t* attn_mask_ptr = nullptr;
-        auto attn_mask_prec = attention_mask.get_precision();
-        attn_mask_ptr = reinterpret_cast<uint8_t*>(&attention_mask.at<T>({b, h, pq, 0}, true));
-        uint8_t* cmask_ptr = causal_mask ? &causal_mask.at<uint8_t>({b, h, pq, 0}, true) : nullptr;
-        attn_softmax_kernel(buf_attn_w.ptr<float>(b, h, pq),
-                            buf_attn_w.ptr<float>(b, h, pq),
-                            d_scale,
-                            alibi_ptr,
-                            attn_mask_ptr,
-                            cmask_ptr,
-                            select_nfltmax_at_0,
-                            ncausal,
-                            kv_len,
-                            attn_mask_prec,
-                            ov::element::f32);
-    });
+    if (is_pagedattn) {
+        parallel_for3d_dynamic(B, H, q_len, [&](size_t b, size_t h, size_t pq) {
+            auto cur_kv_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
+            auto ncausal = cur_kv_len;
+            // apply attention mask & sofmax
+            float* alibi_ptr = alibi_mask ? &alibi_mask.at<float>({b, h, pq, 0}, true) : nullptr;
+            uint8_t* attn_mask_ptr = nullptr;
+            auto attn_mask_prec = attention_mask.get_precision();
+            if (attention_mask)
+                attn_mask_ptr = reinterpret_cast<uint8_t*>(&attention_mask.at<T>({b, h, pq, 0}, true));
+            uint8_t* cmask_ptr = causal_mask ? &causal_mask.at<uint8_t>({b, h, pq, 0}, true) : nullptr;
+            attn_softmax_kernel(buf_attn_w.ptr<float>(b, h, pq),
+                                buf_attn_w.ptr<float>(b, h, pq),
+                                d_scale,
+                                alibi_ptr,
+                                attn_mask_ptr,
+                                cmask_ptr,
+                                select_nfltmax_at_0,
+                                ncausal,
+                                cur_kv_len,
+                                attn_mask_prec,
+                                ov::element::f32);
+        });
+    } else {
+        parallel_for3d(B, H, q_len, [&](size_t b, size_t h, size_t pq) {
+            auto cur_kv_len = kv_len;
+            auto ncausal = auto_causal ? (cur_kv_len - q_len + pq + 1) : cur_kv_len;
+            // apply attention mask & sofmax
+            float* alibi_ptr = alibi_mask ? &alibi_mask.at<float>({b, h, pq, 0}, true) : nullptr;
+            uint8_t* attn_mask_ptr = nullptr;
+            auto attn_mask_prec = attention_mask.get_precision();
+            if (attention_mask)
+                attn_mask_ptr = reinterpret_cast<uint8_t*>(&attention_mask.at<T>({b, h, pq, 0}, true));
+            uint8_t* cmask_ptr = causal_mask ? &causal_mask.at<uint8_t>({b, h, pq, 0}, true) : nullptr;
+            attn_softmax_kernel(buf_attn_w.ptr<float>(b, h, pq),
+                                buf_attn_w.ptr<float>(b, h, pq),
+                                d_scale,
+                                alibi_ptr,
+                                attn_mask_ptr,
+                                cmask_ptr,
+                                select_nfltmax_at_0,
+                                ncausal,
+                                cur_kv_len,
+                                attn_mask_prec,
+                                ov::element::f32);
+        });
+    }
 
     // attn_w * V
     buf_attn_score.resize<float>({static_cast<size_t>(nthr), B, q_len, H, S});
     // buf_attn_w {B, H, q_len, kv_len}
-    parallel_nt_static(nthr, [&](const size_t ithr, const size_t nthr) {
-        size_t start{0}, end{0};
-        splitter(B * h_group_num * kv_len, nthr, ithr, start, end);
 
-        memset(buf_attn_score.ptr<float>(ithr, 0, 0, 0, 0), 0, buf_attn_score.stride(0) * sizeof(float));
+    if (is_pagedattn) {
+        parallel_nt_static(nthr, [&](const size_t ithr, const size_t nthr) {
+            memset(buf_attn_score.ptr<float>(ithr, 0, 0, 0, 0), 0, buf_attn_score.stride(0) * sizeof(float));
+        });
 
-        size_t b, h_group, pv;
-        if (start < end) {
-            parallel_it_init(start, b, B, h_group, h_group_num, pv, kv_len);
-            if (q_len == 1 && h_each_group_len == 1) {
-                for (size_t iwork = start; iwork < end; ++iwork) {
-                    auto b_kv = beams ? beams.ptr<int32_t>(b)[pv] : b;
-                    auto* v = present_value.ptr<T2>(b_kv, h_group, pv);
-                    auto p = past_v_scale_zp.ptr<float>(b_kv, h_group, pv);
-                    attn_acc_value(buf_attn_score.ptr<float>(ithr, b, 0, h_group),
-                                buf_attn_w.ptr<float>(b, h_group, 0, pv)[0],
-                                v,
-                                S,
-                                p + 0,
-                                p + 1);
-                    parallel_it_step(b, B, h_group, h_group_num, pv, kv_len);
-                }
-            } else {
-                for (size_t iwork = start; iwork < end; ++iwork) {
-                    auto b_kv = beams ? beams.ptr<int32_t>(b)[pv] : b;
-                    auto* v = present_value.ptr<T2>(b_kv, h_group, pv);
-                    auto p = past_v_scale_zp.ptr<float>(b_kv, h_group, pv);
-                    for (size_t pq = 0; pq < q_len; pq++) {
-                        for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
-                            attn_acc_value(buf_attn_score.ptr<float>(ithr, b, pq, h),
-                                        buf_attn_w.ptr<float>(b, h, pq)[pv],
-                                        v,
-                                        S,
-                                        p + 0,
-                                        p + 1);
-                        }
+        parallel_for3d_dynamic(B, h_group_num, kv_len, [&](size_t b, size_t h_group, size_t pv) {
+            auto ithr = parallel_get_thread_num();
+            auto context_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
+            // kv_len must be valid
+            if (pv < context_len) {
+                auto block_idx = beams.ptr<int32_t>(b)[pv];
+                OPENVINO_ASSERT(block_idx >= 0, "block idx in vcache must be greater or equal than 0");
+                auto* v = present_value.ptr<T2>(block_idx, h_group);
+                for (size_t pq = 0; pq < q_len; pq++) {
+                    for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
+                        attn_acc_value(buf_attn_score.ptr<float>(ithr, b, pq, h),
+                                    buf_attn_w.ptr<float>(b, h, pq)[pv],
+                                    v,
+                                    S,
+                                    nullptr,
+                                    nullptr);
                     }
-                    parallel_it_step(b, B, h_group, h_group_num, pv, kv_len);
                 }
             }
-        }
-    });
+        });
+    } else {
+        parallel_nt_static(nthr, [&](const size_t ithr, const size_t nthr) {
+            size_t start{0}, end{0};
+            splitter(B * h_group_num * kv_len, nthr, ithr, start, end);
+
+            memset(buf_attn_score.ptr<float>(ithr, 0, 0, 0, 0), 0, buf_attn_score.stride(0) * sizeof(float));
+
+            size_t b, h_group, pv;
+            if (start < end) {
+                parallel_it_init(start, b, B, h_group, h_group_num, pv, kv_len);
+                if (q_len == 1 && h_each_group_len == 1) {
+                    for (size_t iwork = start; iwork < end; ++iwork) {
+                        auto b_kv = beams ? beams.ptr<int32_t>(b)[pv] : b;
+                        auto* v = present_value.ptr<T2>(b_kv, h_group, pv);
+                        auto p = past_v_scale_zp.ptr<float>(b_kv, h_group, pv);
+                        attn_acc_value(buf_attn_score.ptr<float>(ithr, b, 0, h_group),
+                                    buf_attn_w.ptr<float>(b, h_group, 0, pv)[0],
+                                    v,
+                                    S,
+                                    p + 0,
+                                    p + 1);
+                        parallel_it_step(b, B, h_group, h_group_num, pv, kv_len);
+                    }
+                } else {
+                    for (size_t iwork = start; iwork < end; ++iwork) {
+                        auto b_kv = beams ? beams.ptr<int32_t>(b)[pv] : b;
+                        auto* v = present_value.ptr<T2>(b_kv, h_group, pv);
+                        auto p = past_v_scale_zp.ptr<float>(b_kv, h_group, pv);
+                        for (size_t pq = 0; pq < q_len; pq++) {
+                            for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
+                                attn_acc_value(buf_attn_score.ptr<float>(ithr, b, pq, h),
+                                            buf_attn_w.ptr<float>(b, h, pq)[pv],
+                                            v,
+                                            S,
+                                            p + 0,
+                                            p + 1);
+                            }
+                        }
+                        parallel_it_step(b, B, h_group, h_group_num, pv, kv_len);
+                    }
+                }
+            }
+        });
+    }
 
     parallel_for3d(B, H, q_len, [&](size_t b, size_t h, size_t pq) {
         auto* temp = buf_attn_score.ptr<float>(0, b, pq, h);
@@ -763,6 +864,7 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                       const ov::intel_cpu::PlainTensor& alibi_mask,
                       const ov::intel_cpu::PlainTensor& attention_mask,
                       const ov::intel_cpu::PlainTensor& beams,
+                      const ov::intel_cpu::PlainTensor& context_lens,
                       ov::intel_cpu::PlainTensor& output_emb,
                       ov::intel_cpu::PlainTensor& buf_attn_w,
                       ov::intel_cpu::PlainTensor& buf_attn_score,
@@ -780,6 +882,7 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                            alibi_mask,
                                                            attention_mask,
                                                            beams,
+                                                           context_lens,
                                                            output_emb,
                                                            buf_attn_w,
                                                            buf_attn_score,
@@ -796,6 +899,7 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                                 alibi_mask,
                                                                 attention_mask,
                                                                 beams,
+                                                                context_lens,
                                                                 output_emb,
                                                                 buf_attn_w,
                                                                 buf_attn_score,
@@ -814,6 +918,7 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                     alibi_mask,
                                                     attention_mask,
                                                     beams,
+                                                    context_lens,
                                                     output_emb,
                                                     buf_attn_w,
                                                     buf_attn_score,
@@ -830,6 +935,7 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                         alibi_mask,
                                                         attention_mask,
                                                         beams,
+                                                        context_lens,
                                                         output_emb,
                                                         buf_attn_w,
                                                         buf_attn_score,
@@ -846,6 +952,7 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                 alibi_mask,
                                                 attention_mask,
                                                 beams,
+                                                context_lens,
                                                 output_emb,
                                                 buf_attn_w,
                                                 buf_attn_score,

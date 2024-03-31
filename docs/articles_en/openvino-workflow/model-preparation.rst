@@ -27,7 +27,7 @@ OpenVINO supports the following model formats:
 * OpenVINO IR.
 
 The easiest way to obtain a model is to download it from an online database, such as
-`TensorFlow Hub <https://tfhub.dev/>`__, `Hugging Face <https://huggingface.co/>`__, and
+`Kaggle <https://www.kaggle.com/models>`__, `Hugging Face <https://huggingface.co/>`__, and
 `Torchvision models <https://pytorch.org/hub/>`__. Now you have two options:
 
 * Skip model conversion and :doc:`run inference <running-inference/integrate-openvino-with-your-application>`
@@ -35,6 +35,9 @@ The easiest way to obtain a model is to download it from an online database, suc
   Conversion will still be performed but it will happen automatically and "under the hood".
   This option, while convenient, offers lower performance and stability, as well as fewer
   optimization options.
+
+  For PyTorch models, you can use the dedicated :doc:`torch.compile <./torch-compile>`
+  implementation.
 
 * Explicitly :doc:`convert the model to OpenVINO IR <model-preparation/convert-model-to-ir>`.
   This approach offers the best possible results and is the recommended one, especially for

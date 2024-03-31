@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -108,7 +108,7 @@ class TestMultinomial(CommonTFLayerTest):
         ],
     )
     @pytest.mark.nightly
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     def test_multinomial_basic(
         self,
         input,

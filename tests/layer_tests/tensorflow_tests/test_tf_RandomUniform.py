@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -89,7 +89,7 @@ class TestRandomUniform(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.xfail(platform.machine() in ["aarch64", "arm64", "ARM64"],
                        reason='Ticket - 122716')
     def test_random_uniform_basic(self, params, ie_device, precision, ir_version, temp_dir,

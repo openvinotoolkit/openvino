@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -44,7 +44,7 @@ class TestPack(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_pack_basic(self, params, ie_device, precision, ir_version, temp_dir,
                         use_legacy_frontend):
