@@ -31,6 +31,7 @@
 #include "openvino/op/not_equal.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/prelu.hpp"
+#include "openvino/op/reduce_logical_and.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/squared_difference.hpp"
 #include "openvino/op/subtract.hpp"
@@ -183,23 +184,15 @@ OutputVector translate_equal_op(const NodeContext& node) {
         auto tensor2 = complex_type_mark_y->input_value(0);
 
         auto equal_op = make_shared<v1::Equal>(tensor1, tensor2);
+        // Reduce along the last dimension using ReduceAnd
+        auto reduce_axes = make_shared<ov::Constant>(ov::element::i64, Shape{1}, std::vector<int64_t>{-1});
+        auto equal_reduced = make_shared<v1::ReduceLogicalAnd>(equal_op, reduce_axes);
 
         set_node_name(node.get_name(), equal_op);
 
         auto complex_equal_op =
             make_shared<ComplexTypeMark>(equal_op, complex_type_mark_x->get_complex_part_type(), element::boolean);
         return {complex_equal_op->output(0)};
-    }
-
-    // If only one input is complex, treat it as non-complex and perform regular equality comparison
-    if (complex_type_mark_x || complex_type_mark_y) {
-        auto non_complex_input = complex_type_mark_x ? y : x;
-        auto non_complex_tensor = complex_type_mark_x ? x : y;
-        auto equal_op = make_shared<v1::Equal>(non_complex_tensor, non_complex_input);
-
-        // Set the node name
-        set_node_name(node.get_name(), equal_op);
-        return {equal_op};
     }
 
     // If both inputs are non-complex, perform regular equality comparison
