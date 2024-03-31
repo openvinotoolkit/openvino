@@ -73,7 +73,7 @@ void op::internal::ConditionalBlock::validate_and_infer_types() {
 const OutputVector op::internal::ConditionalBlock::get_inputs_from_parent() const {
     OutputVector result;
     const auto& inputs = this->input_values();
-    for (size_t i = 0; i < inputs.size() - 1; i++) {  // execpt the one at last, which is "cond".
+    for (size_t i = 0; i < inputs.size() - 1; i++) {  // except the one at last, which is "cond".
         result.push_back(inputs[i]);
     }
     return result;

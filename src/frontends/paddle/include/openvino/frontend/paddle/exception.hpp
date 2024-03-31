@@ -34,7 +34,7 @@ private:
 /// \param cond Condition to check
 /// \param ... Additional error message info to be added to the error message via the `<<`
 ///            stream-insertion operator. Note that the expressions here will be evaluated lazily,
-///            i.e., only if the `cond` evalutes to `false`.
+///            i.e., only if the `cond` evaluates to `false`.
 /// \throws ::ov::OpValidationFailure if `cond` is false.
 #define PADDLE_OP_CHECK(node_context, ...) \
     OPENVINO_ASSERT_HELPER(::ov::frontend::paddle::OpValidationFailure, (node_context), __VA_ARGS__)
