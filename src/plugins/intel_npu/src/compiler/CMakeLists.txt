@@ -24,21 +24,14 @@ target_include_directories(${TARGET_NAME}
 target_link_libraries(${TARGET_NAME}
     PUBLIC
         openvino::npu_al
-        ze_loader
     PRIVATE
         openvino_npu_zero_result_parser
         openvino::runtime
         openvino::runtime::dev
+        ze_loader
 )
 
 #
 # targets install
 #
 ov_install_static_lib(${TARGET_NAME} ${NPU_PLUGIN_COMPONENT})
-
-if(TARGET ze_loader AND NOT BUILD_SHARED_LIBS)
-    install(TARGETS ze_loader EXPORT OpenVINOTargets
-        RUNTIME DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${NPU_PLUGIN_COMPONENT}
-        ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${NPU_PLUGIN_COMPONENT}
-        LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT ${NPU_PLUGIN_COMPONENT})
-endif()

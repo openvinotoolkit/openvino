@@ -406,6 +406,44 @@ macro(_ov_find_intel_gpu_dependencies)
     unset(_OV_ENABLE_ONEDNN_FOR_GPU)
 endmacro()
 
+macro(_ov_find_intel_npu_dependencies)
+    set(_OV_ENABLE_INTEL_NPU "@ENABLE_INTEL_NPU@")
+    set(_OV_ENABLE_ZEROAPI_BACKEND "@ENABLE_ZEROAPI_BACKEND@")
+
+    if(_OV_ENABLE_INTEL_NPU AND _OV_ENABLE_ZEROAPI_BACKEND AND NOT TARGET openvino::ze_loader)
+        set(_OV_ZE_LOADER_LIBRARY_NAME "ze_loader")
+        if(WIN32)
+            if(OV_GENERATOR_MULTI_CONFIG)
+                set(extra_args PATH_SUFFIXES ${CMAKE_CONFIGURATION_TYPES})
+            else()
+                set(extra_args PATH_SUFFIXES ${CMAKE_BUILD_TYPE})
+            endif()
+        endif()
+
+        find_library(_OV_ZE_LOADER_PATH NAMES ${_OV_ZE_LOADER_LIBRARY_NAME}
+                    PATHS
+                        ${OpenVINO_DIR}
+                        ${INSTALL_DIR}
+                    HINTS
+                        lib/Release
+                        runtime/lib/intel64/
+                    ${extra_args})
+
+        if(_OV_ZE_LOADER_PATH)
+            add_library(openvino::ze_loader INTERFACE IMPORTED)
+            set_target_properties(openvino::ze_loader PROPERTIES INTERFACE_LINK_LIBRARIES "${_OV_ZE_LOADER_PATH}")
+        else()
+            message(WARNING "Internal error: failed to find '${_OV_ZE_LOADER_LIBRARY_NAME}' in '${OpenVINO_DIR}' and ${INSTALL_DIR}")
+        endif()
+
+        unset(_OV_ZE_LODER_PATH)
+        unset(extra_args)
+        unset(_OV_ZE_LOADER_LIBRARY_NAME)
+    endif()
+    unset(_OV_ENABLE_ZEROAPI_BACKEND)
+    unset(_OV_ENABLE_INTEL_NPU)
+endmacro()
+
 macro(_ov_find_protobuf_frontend_dependency)
     set(_OV_ENABLE_SYSTEM_PROTOBUF "@ENABLE_SYSTEM_PROTOBUF@")
     set(_OV_PROTOBUF_PACKAGE_CONFIG "@protobuf_config@")
@@ -490,6 +528,7 @@ if(NOT _OV_ENABLE_OPENVINO_BUILD_SHARED)
     # plugin dependencies
     _ov_find_intel_cpu_dependencies()
     _ov_find_intel_gpu_dependencies()
+    _ov_find_intel_npu_dependencies()
 endif()
 
 _ov_find_dependency(Threads)
