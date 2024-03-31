@@ -6,14 +6,15 @@
 
 #include "openvino/core/node.hpp"
 #include "openvino/op/gather.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
-namespace intel_gpu {
 namespace op {
+namespace internal {
 
-class GatherCompressed : public ov::op::v8::Gather {
+class TRANSFORMATIONS_API GatherCompressed : public ov::op::v8::Gather {
 public:
-    OPENVINO_OP("GatherCompressed", "gpu_opset");
+    OPENVINO_OP("GatherCompressed", "ie_internal_opset");
 
     GatherCompressed() = default;
 
@@ -38,12 +39,18 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 
-    ov::element::Type get_output_type() const { return m_output_type; }
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override {
+        return false;
+    }
+
+    ov::element::Type get_output_type() const {
+        return m_output_type;
+    }
 
 protected:
     ov::element::Type m_output_type;
 };
 
-}   // namespace op
-}   // namespace intel_gpu
-}   // namespace ov
+}  // namespace internal
+}  // namespace op
+}  // namespace ov

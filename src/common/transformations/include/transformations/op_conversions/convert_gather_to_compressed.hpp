@@ -5,15 +5,18 @@
 #pragma once
 
 #include "openvino/pass/graph_rewrite.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
-namespace intel_gpu {
+namespace pass {
 
-class ConvertGatherToGatherCompressed: public ov::pass::MatcherPass {
+class TRANSFORMATIONS_API ConvertGatherToGatherCompressed;
+
+}  // namespace pass
+}  // namespace ov
+
+class ov::pass::ConvertGatherToGatherCompressed : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertGatherToGatherCompressed", "0");
     ConvertGatherToGatherCompressed();
 };
-
-}   // namespace intel_gpu
-}   // namespace ov
