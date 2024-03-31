@@ -74,13 +74,17 @@ OutputVector translate_gather_v2_op(const NodeContext& node) {
     if (complex_type_mark) {
         params = complex_type_mark->input_value(0);
         auto zero = create_same_type_const_scalar<float>(axis, 0);
-        if (make_shared<v1::Less>(axis, zero)) {
-            auto params_shape = make_shared<v3::ShapeOf>(params, ov::element::i32);
-            auto params_rank = make_shared<v3::ShapeOf>(params_shape, ov::element::i32);
-            axis = make_shared<v1::Subtract>(params_rank, make_shared<v0::Constant>(ov::element::i32, Shape{}, 1));
-        }
+        // Create a condition for the Select operation
+        auto condition = make_shared<v1::Less>(axis, zero);
+        // Calculate the updated value for the axis
+        auto params_shape = make_shared<v3::ShapeOf>(params, ov::element::i32);
+        auto params_rank = make_shared<v3::ShapeOf>(params_shape, ov::element::i32);
+        auto updated_axis = make_shared<v1::Subtract>(params_rank, make_shared<v0::Constant>(ov::element::i32, Shape{}, 1));
 
-        auto gather = make_shared<v8::Gather>(params, indices, axis, 0);
+        // Create Select operation to choose between original axis and updated axis
+        auto selected_axis = make_shared<v1::Select>(condition, updated_axis, axis);
+        
+        auto gather = make_shared<v8::Gather>(params, indices, selected_axis, 0);
 
         set_node_name(node.get_name(), gather);
         auto complex_reshape = make_shared<ComplexTypeMark>(gather, complex_type_mark->get_complex_part_type());
