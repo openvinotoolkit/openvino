@@ -100,7 +100,8 @@ jobs:
           repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
           submodules: 'true'
-          ref: 'master'
+          # ref: 'master'
+          ref: 3eeb2326e0d974f61a83f8e67d37e918ccfa1edd
 
       #
       # Print system info
@@ -223,8 +224,9 @@ jobs:
       - name: Cmake & Build - OpenVINO Contrib
         run: |
           cmake \
+            -DBUILD_nvidia_plugin=OFF \
             -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" \
-            -DOPENVINO_EXTRA_MODULES="${OPENVINO_CONTRIB_REPO}/modules/java_api;${OPENVINO_CONTRIB_REPO}/modules/custom_operations" \
+            -DOPENVINO_EXTRA_MODULES=${OPENVINO_CONTRIB_REPO}/modules \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
           cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
