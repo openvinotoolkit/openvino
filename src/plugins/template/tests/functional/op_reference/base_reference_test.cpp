@@ -216,6 +216,34 @@ void CommonReferenceTest::ValidateBlobs(const ov::Tensor& refBlob,
                                                           threshold,
                                                           abs_threshold);
         break;
+    case ov::element::u2:
+        ov::test::utils::compare_raw_data<int8_t, int8_t>(static_cast<const int8_t*>(refBlob.data()),
+                                                          static_cast<const int8_t*>(outBlob.data()),
+                                                          actual_comparision_size / 4,
+                                                          threshold,
+                                                          abs_threshold);
+        break;
+    case ov::element::u3:
+        ov::test::utils::compare_raw_data<int8_t, int8_t>(static_cast<const int8_t*>(refBlob.data()),
+                                                          static_cast<const int8_t*>(outBlob.data()),
+                                                          3 * (actual_comparision_size / 8),
+                                                          threshold,
+                                                          abs_threshold);
+        break;
+    case ov::element::u6:
+        ov::test::utils::compare_raw_data<int8_t, int8_t>(static_cast<const int8_t*>(refBlob.data()),
+                                                          static_cast<const int8_t*>(outBlob.data()),
+                                                          3 * (actual_comparision_size / 4),
+                                                          threshold,
+                                                          abs_threshold);
+        break;
+    case ov::element::nf4:
+        ov::test::utils::compare_raw_data<int8_t, int8_t>(static_cast<const int8_t*>(refBlob.data()),
+                                                          static_cast<const int8_t*>(outBlob.data()),
+                                                          actual_comparision_size / 2,
+                                                          threshold,
+                                                          abs_threshold);
+        break;
     case ov::element::string:
         ov::test::utils::compare_str(refBlob, outBlob);
         break;

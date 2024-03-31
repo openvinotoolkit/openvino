@@ -5,6 +5,7 @@
 #include "openvino/reference/convert.hpp"
 
 #include "evaluate_node.hpp"
+#include "openvino/core/type/element_iterator.hpp"
 
 namespace convert_like_v1 {
 template <ov::element::Type_t ti, ov::element::Type_t to>
@@ -16,13 +17,9 @@ inline void evaluate(const std::shared_ptr<ov::op::v1::ConvertLike>& op,
     outputs[0].set_shape(inputs[0].get_shape());
     size_t element_count = ov::shape_size(outputs[0].get_shape());
 
-    if (((ti == ov::element::u1) || (to == ov::element::u1)) || ((ti == ov::element::u4) || (to == ov::element::u4)) ||
-        ((ti == ov::element::i4) || (to == ov::element::i4)) ||
-        ((ti == ov::element::nf4) || (to == ov::element::nf4))) {
-        ov::reference::detail::lp_convert(inputs[0].data<T_I>(), outputs[0].data<T_O>(), element_count, ti, to);
-    } else {
-        ov::reference::convert(inputs[0].data<T_I>(), outputs[0].data<T_O>(), element_count);
-    }
+    ov::reference::convert(ov::element::iterator<ti>(inputs[0].data<const T_I>()),
+                           ov::element::iterator<to>(outputs[0].data<T_O>()),
+                           element_count);
 }
 }  // namespace convert_like_v1
 
@@ -89,9 +86,7 @@ template <>
 bool evaluate_node<ov::op::v1::ConvertLike>(std::shared_ptr<ov::Node> node,
                                             ov::TensorVector& outputs,
                                             const ov::TensorVector& inputs) {
-    auto element_type = node->get_output_element_type(0);
-    if (ov::is_type<ov::op::v1::Select>(node) || ov::is_type<ov::op::util::BinaryElementwiseComparison>(node))
-        element_type = node->get_input_element_type(1);
+    const auto& element_type = node->get_output_element_type(0);
 
     switch (element_type) {
     case ov::element::boolean:

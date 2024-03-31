@@ -15,50 +15,31 @@ namespace ov {
 namespace op {
 namespace convert {
 
-constexpr bool is_lp_type(const element::Type_t et) {
-    return (et == element::i4) || (et == element::u1) || (et == element::u4) || (et == element::nf4);
-}
-
 #define CONVERT_ET_LIST \
-    boolean, bf16, f16, f32, f64, i4, i8, i16, i32, i64, u1, u4, u8, u16, u32, u64, nf4, f8e4m3, f8e5m2
+    boolean, bf16, f16, f32, f64, i4, i8, i16, i32, i64, u1, u2, u3, u4, u6, u8, u16, u32, u64, nf4, f8e4m3, f8e5m2
 
 struct Evaluate : public element::NoAction<bool> {
     using element::NoAction<bool>::visit;
-    template <element::Type_t ET, class TI = fundamental_type_for<ET>>
+
+    template <element::Type_t ET_IN, class TI = fundamental_type_for<ET_IN>>
     static result_type visit(const Tensor& arg, Tensor& out, const size_t count) {
         using namespace ov::element;
         return IF_TYPE_OF(Convert_out,
                           CONVERT_ET_LIST,
-                          EvalByOutputType<is_lp_type(ET)>,
+                          EvalByOutputType,
                           out.get_element_type(),
-                          reinterpret_cast<const TI*>(arg.data()),
+                          iterator<ET_IN>(reinterpret_cast<const TI*>(arg.data())),
                           out,
-                          count,
-                          ET);
+                          count);
     }
 
 private:
-    template <bool IS_ARG_ET_LP>
     struct EvalByOutputType : public element::NoAction<bool> {
         using element::NoAction<bool>::visit;
 
-        template <element::Type_t ET,
-                  class T,
-                  class T_ET,
-                  class U = ov::fundamental_type_for<ET>,
-                  typename std::enable_if<is_lp_type(ET) || IS_ARG_ET_LP>::type* = nullptr>
-        static result_type visit(const T* arg, Tensor& out, const size_t count, T_ET&& arg_et) {
-            reference::detail::lp_convert(arg, reinterpret_cast<U*>(out.data()), count, arg_et, ET);
-            return true;
-        }
-
-        template <element::Type_t ET,
-                  class T,
-                  class T_ET,
-                  class U = ov::fundamental_type_for<ET>,
-                  typename std::enable_if<!is_lp_type(ET) && !IS_ARG_ET_LP>::type* = nullptr>
-        static result_type visit(const T* arg, Tensor& out, const size_t count, T_ET&&) {
-            reference::convert(arg, out.data<U>(), count);
+        template <element::Type_t ET_OUT, class InputIter, class TO = ov::fundamental_type_for<ET_OUT>>
+        static result_type visit(InputIter arg, Tensor& out, const size_t count) {
+            reference::convert(arg, element::iterator<ET_OUT>(out.data()), count);
             return true;
         }
     };
