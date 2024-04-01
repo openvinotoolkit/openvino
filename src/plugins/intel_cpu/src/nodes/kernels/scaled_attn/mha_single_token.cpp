@@ -122,91 +122,75 @@ static void attn_acc_value_block(float* out, float* weight, T* v, size_t S, size
     }
     return;
 #elif defined(HAVE_AVX2)
-    // auto attn_w_vec_fp32 = _mm256_set1_ps(weight);
-    // for (; i + vec_len_f32_avx2 <= S; i += vec_len_f32_avx2) {
-    //     auto v_value = mm256_uni_loadu_ps(v + i);
-    //     auto v_out = mm256_uni_loadu_ps(out + i);
-    //     v_out = _mm256_fmadd_ps(attn_w_vec_fp32, v_value, v_out);
-    //     mm256_uni_storeu_ps(out + i, v_out);
-    // }
+    size_t j = 0;
+    for (; j + 4 <= block_size; j += 4) {
+        auto attn_w_vec0 = _mm256_set1_ps(weight[0]);
+        auto attn_w_vec1 = _mm256_set1_ps(weight[1]);
+        auto attn_w_vec2 = _mm256_set1_ps(weight[2]);
+        auto attn_w_vec3 = _mm256_set1_ps(weight[3]);
+        size_t i = 0;
+        for (; i + vec_len_f32_avx2 <= S; i += vec_len_f32_avx2) {
+            auto v_out = mm256_uni_loadu_ps(out + i);
+            v_out = _mm256_fmadd_ps(attn_w_vec0, mm256_uni_loadu_ps(v + i), v_out);
+            v_out = _mm256_fmadd_ps(attn_w_vec1, mm256_uni_loadu_ps(v + i + S), v_out);
+            v_out = _mm256_fmadd_ps(attn_w_vec2, mm256_uni_loadu_ps(v + i + S * 2), v_out);
+            v_out = _mm256_fmadd_ps(attn_w_vec3, mm256_uni_loadu_ps(v + i + S * 3), v_out);
+
+            mm256_uni_storeu_ps(out + i, v_out);
+        }
+        for (; i < S; i++) {
+            out[i] += weight[0] * v[i];
+            out[i] += weight[1] * v[i + S];
+            out[i] += weight[2] * v[i + S * 2];
+            out[i] += weight[3] * v[i + S * 3];
+        }
+        v += 4 * S;
+        weight += 4;
+    }
+    if (j + 2 <= block_size) {
+        auto attn_w_vec0 = _mm256_set1_ps(weight[0]);
+        auto attn_w_vec1 = _mm256_set1_ps(weight[1]);
+        size_t i = 0;
+        for (; i + vec_len_f32_avx2 <= S; i += vec_len_f32_avx2) {
+            auto v_out = mm256_uni_loadu_ps(out + i);
+            v_out = _mm256_fmadd_ps(attn_w_vec0, mm256_uni_loadu_ps(v + i), v_out);
+            v_out = _mm256_fmadd_ps(attn_w_vec1, mm256_uni_loadu_ps(v + i + S), v_out);
+
+            mm256_uni_storeu_ps(out + i, v_out);
+        }
+        for (; i < S; i++) {
+            out[i] += weight[0] * v[i];
+            out[i] += weight[1] * v[i + S];
+        }
+        v += 2 * S;
+        weight += 2;
+        j += 2;
+    }
+    if (j < block_size) {
+        auto attn_w_vec0 = _mm256_set1_ps(weight[0]);
+        size_t i = 0;
+        for (; i + vec_len_f32_avx2 <= S; i += vec_len_f32_avx2) {
+            auto v_out = mm256_uni_loadu_ps(out + i);
+            v_out = _mm256_fmadd_ps(attn_w_vec0, mm256_uni_loadu_ps(v + i), v_out);
+
+            mm256_uni_storeu_ps(out + i, v_out);
+        }
+        for (; i < S; i++) {
+            out[i] += weight[0] * v[i];
+        }
+    }
+    return;
 #endif
-    // for (; i < S; i++) {
-    //     out[i] += weight * v[i];
-    // }
+    for (size_t j = 0; j < block_size; j++) {
+        for (size_t i = 0; i < S; i++) {
+            out[i] += weight[j] * v[i];
+        }
+        v += S;
+    }
 }
 
 static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S, size_t block_size) {
-#if defined(HAVE_AVX512F)
-    // size_t j = 0;
-    // for (; j < block_size; j += 4) {
-    //     auto attn_w_vec0 = _mm512_set1_ps(weight[0]);
-    //     auto attn_w_vec1 = _mm512_set1_ps(weight[1]);
-    //     auto attn_w_vec2 = _mm512_set1_ps(weight[2]);
-    //     auto attn_w_vec3 = _mm512_set1_ps(weight[3]);
-    //     size_t i = 0;
-    //     for (; i + vec_len_f32_avx512 <= S; i += vec_len_f32_avx512) {
-    //         auto v_out = mm512_uni_loadu_ps(out + i);
-    //         v_out = _mm512_fmadd_ps(attn_w_vec0, mm512_uni_loadu_ps(v + i), v_out);
-    //         v_out = _mm512_fmadd_ps(attn_w_vec1, mm512_uni_loadu_ps(v + i + S), v_out);
-    //         v_out = _mm512_fmadd_ps(attn_w_vec2, mm512_uni_loadu_ps(v + i + S * 2), v_out);
-    //         v_out = _mm512_fmadd_ps(attn_w_vec3, mm512_uni_loadu_ps(v + i + S * 3), v_out);
-
-    //         _mm512_storeu_ps(out + i, v_out);
-    //     }
-    //     for (; i < S; i++) {
-    //         out[i] += weight[0] * v[i];
-    //         out[i] += weight[1] * v[i + S];
-    //         out[i] += weight[2] * v[i + S * 2];
-    //         out[i] += weight[3] * v[i + S * 3];
-    //     }
-    //     v += 4 * S;
-    //     weight += 4;
-    // }
-    // if (j + 2 <= block_size) {
-    //     auto attn_w_vec0 = _mm512_set1_ps(weight[0]);
-    //     auto attn_w_vec1 = _mm512_set1_ps(weight[1]);
-    //     size_t i = 0;
-    //     for (; i + vec_len_f32_avx512 <= S; i += vec_len_f32_avx512) {
-    //         auto v_out = mm512_uni_loadu_ps(out + i);
-    //         v_out = _mm512_fmadd_ps(attn_w_vec0, mm512_uni_loadu_ps(v + i), v_out);
-    //         v_out = _mm512_fmadd_ps(attn_w_vec1, mm512_uni_loadu_ps(v + i + S), v_out);
-
-    //         _mm512_storeu_ps(out + i, v_out);
-    //     }
-    //     for (; i < S; i++) {
-    //         out[i] += weight[0] * v[i];
-    //         out[i] += weight[1] * v[i + S];
-    //     }
-    //     v += 2 * S;
-    //     weight += 2;
-    //     j += 2;
-    // }
-    // if (j < block_size) {
-    //     auto attn_w_vec0 = _mm512_set1_ps(weight[0]);
-    //     size_t i = 0;
-    //     for (; i + vec_len_f32_avx512 <= S; i += vec_len_f32_avx512) {
-    //         auto v_out = mm512_uni_loadu_ps(out + i);
-    //         v_out = _mm512_fmadd_ps(attn_w_vec0, mm512_uni_loadu_ps(v + i), v_out);
-
-    //         _mm512_storeu_ps(out + i, v_out);
-    //     }
-    //     for (; i < S; i++) {
-    //         out[i] += weight[0] * v[i];
-    //     }
-    // }
-    return;
-#elif defined(HAVE_AVX2)
-    // auto attn_w_vec_fp32 = _mm256_set1_ps(weight);
-    // for (; i + vec_len_f32_avx2 <= S; i += vec_len_f32_avx2) {
-    //     auto v_value = mm256_uni_loadu_ps(v + i);
-    //     auto v_out = mm256_uni_loadu_ps(out + i);
-    //     v_out = _mm256_fmadd_ps(attn_w_vec_fp32, v_value, v_out);
-    //     mm256_uni_storeu_ps(out + i, v_out);
-    // }
-#endif
-    // for (; i < S; i++) {
-    //     out[i] += weight * v[i];
-    // }
+    // TODO: int8 kvcache support
 }
 
 template<typename T>
