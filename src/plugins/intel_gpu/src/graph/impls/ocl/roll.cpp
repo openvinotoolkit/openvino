@@ -27,8 +27,43 @@ struct roll_impl : typed_primitive_impl_ocl<roll> {
         const auto& primitive = impl_param.typed_desc<roll>();
         auto params = get_default_params<kernel_selector::roll_params>(impl_param);
 
-        params.shift = convert_dim_vector(primitive->shift);
+        if ((primitive->raw_shift.empty()) && (primitive->raw_axes.empty())) {
+            // Primitive created with static shape input
+            params.shift = convert_dim_vector(primitive->shift);
+        } else {
+            // Primitive created with dynamic shape input
+            const auto input_layout = impl_param.get_input_layout(0);
+            const auto& input_shape = input_layout.get_shape();
+            const auto rank = static_cast<int>(input_layout.get_rank());
+            const auto format = cldnn::format::get_default_format(rank);
+            const auto default_rank = format.dimension();
+            auto axes_raw = primitive->raw_axes;
+            auto shift_raw = primitive->raw_shift;
 
+            // Normalize axes and sum shift
+            std::vector<int32_t> shift(default_rank);
+            for (size_t a = 0; a < axes_raw.size(); ++a) {
+                auto& axis = axes_raw[a];
+                if (axis < 0) {
+                    axis += rank;
+                }
+                if (axis < 0 || axis >= rank) {
+                    OPENVINO_THROW(" Incorrect axis value: ", axis);
+                }
+                shift[axis] += shift_raw[a];
+            }
+
+            // Normalize shift
+            for (int s = 0; s < rank; ++s) {
+                auto& sh = shift[s];
+                const auto dim = static_cast<int32_t>(input_shape[s]);
+                sh %= dim;
+                if (sh < 0) {
+                    sh += dim;
+                }
+            }
+            params.shift = convert_dim_vector({format, shift});
+        }
         return params;
     }
 };
