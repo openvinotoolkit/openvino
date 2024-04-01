@@ -467,12 +467,7 @@ bool propagate_conditional_flow(const OutputVector& ov_inputs,
 namespace {
 shared_ptr<op::v0::Parameter> get_parent_parameter(const shared_ptr<op::v0::Result>& node) {
     const auto input_values = node->input_values();
-    if (input_values.empty())
-        return {};
     return as_type_ptr<v0::Parameter>(input_values[0].get_node_shared_ptr());
-}
-bool has_parent_parameter(const shared_ptr<op::v0::Result>& node) {
-    return get_parent_parameter(node) != nullptr;
 }
 }  // namespace
 
@@ -558,7 +553,7 @@ ov::OutputVector create_loop_for_tf_while(const std::string& while_node_name,
     std::vector<size_t> invariant_input_indexes;
     // body_results may contain less nodes than body_params that means back edge exists not for all body_params
     for (size_t input_ind = 0; input_ind < body_condition_output_idx; ++input_ind) {
-        if (has_parent_parameter(body_results[input_ind])) {
+        if (get_parent_parameter(body_results[input_ind])) {
             invariant_input_indexes.push_back(input_ind);
             continue;
         }
@@ -594,7 +589,6 @@ ov::OutputVector create_loop_for_tf_while(const std::string& while_node_name,
     }
 
     loop->validate_and_infer_types();
-    set_node_name(while_node_name, loop);
     return loop_outputs;
 }
 
