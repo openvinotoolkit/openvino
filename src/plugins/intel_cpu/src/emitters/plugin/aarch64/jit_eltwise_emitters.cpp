@@ -936,21 +936,23 @@ void jit_swish_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const s
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     const TReg vmm_src(in_vec_idxs[0]);
     const TReg vmm_dst(out_vec_idxs[0]);
-    const TReg vmm_aux0(aux_vec_idxs[sigmoid_emitter->get_aux_vecs_count()]);
+    const TReg vmm_orig_src(aux_vec_idxs[sigmoid_emitter->get_aux_vecs_count()]);
+
+    h->mov(vmm_orig_src.b16, vmm_src.b16);
 
     // x*beta
-    h->ld1r(vmm_aux0.s, table_val2("beta"));
-    h->fmul(vmm_aux0.s, vmm_aux0.s, vmm_src.s);
+    h->ld1r(vmm_dst.s, table_val2("beta"));
+    h->fmul(vmm_dst.s, vmm_dst.s, vmm_src.s);
 
     // sigmoid(x*beta)
     sigmoid_emitter->emit_code(
-            { vmm_aux0.getIdx() },
+            { vmm_dst.getIdx() },
             out_vec_idxs,
             aux_vec_idxs,
             aux_gpr_idxs);
 
     // x*sigmoid(x*beta)
-    h->fmul(vmm_dst.s, vmm_dst.s, vmm_src.s);
+    h->fmul(vmm_dst.s, vmm_dst.s, vmm_orig_src.s);
 }
 
 void jit_swish_emitter::register_table_entries() {
