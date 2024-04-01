@@ -52,9 +52,9 @@ public:
 
     NetworkDescription compileIR(const std::shared_ptr<const ov::Model>& model,
                                  IR& irModel,
-                                 const Config& config) const final;
+                                 const Config& config) const override final;
 
-    NetworkMetadata parseBlob(const std::vector<uint8_t>& blob, const Config& config) const final;
+    NetworkMetadata parseBlob(const std::vector<uint8_t>& blob, const Config& config) const override final;
 
     template <typename T = TableExtension, std::enable_if_t<!NotSupportQuery(T), bool> = true>
     std::unordered_set<std::string> getQueryResultFromSupportedLayers(

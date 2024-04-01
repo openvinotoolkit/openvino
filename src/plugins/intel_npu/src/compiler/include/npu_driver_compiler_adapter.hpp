@@ -21,17 +21,17 @@ class LevelZeroCompilerAdapter final : public ICompiler {
 public:
     LevelZeroCompilerAdapter();
 
-    uint32_t getSupportedOpsetVersion() const final;
+    uint32_t getSupportedOpsetVersion() const override final;
 
-    NetworkDescription compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const final;
+    NetworkDescription compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const override final;
 
-    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const final;
+    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override final;
 
-    NetworkMetadata parse(const std::vector<uint8_t>& network, const Config& config) const final;
+    NetworkMetadata parse(const std::vector<uint8_t>& network, const Config& config) const override final;
 
     std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                             const std::vector<uint8_t>& network,
-                                                            const Config& config) const final;
+                                                            const Config& config) const override final;
 
 private:
     /**
