@@ -34,7 +34,6 @@
 #include <algorithm>
 #include <string>
 #include <vector>
-#include "utils/profiler.hpp"
 
 using namespace ov::Extensions::Cpu::XARCH;
 using namespace dnnl::impl;
@@ -513,7 +512,6 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         const size_t m_block_size = qk_gemm_ptr->get_mblk_size();
         auto m_blocks = (q_len + m_block_size - 1) / m_block_size;
         bool is_bf16 = precision_of<T>::value == ov::element::bf16;
-        PROFILE(_attn, "brgemm_pack");
         // packed k, v
         parallel_for2d(B, Hk, [&](size_t b, size_t h) {
             T* k_ptr = &present_key.at<T>({b, h, 0, 0});
@@ -523,7 +521,6 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                 wv_gemm_ptr->copy_buffer_b(v_ptr, &wv_scratch_b.at<T>({b, h, 0}));
         });
 
-        _attn = ov::intel_cpu::profilerManagerInstance.startProfile("brgemm_attn");
         // attention
         parallel_for3d(B, H, m_blocks, [&](size_t b, size_t h, size_t m_blk) {
             auto m_start = m_blk * m_block_size;
@@ -662,13 +659,11 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                     bool auto_causal,
                     float d_scale = 0.0f,
                     size_t sliding_window = 0) {
-        PROFILE(_attn, "prepare_prim");
         auto head_size = query.size(3);
         if (d_scale == 0.0f)
             d_scale = 1.0f / sqrt(head_size);
 
         prepare_brgemm_prim(strm, query, present_key, has_out_transpose);
-        _attn = ov::intel_cpu::profilerManagerInstance.startProfile("exec_qk");
         execute_brgemm(query,
                        present_key,
                        present_value,
@@ -913,7 +908,6 @@ struct MHASingleToken {
             size_t block_size = present_value.size(2);
             fastpath_valid = mayiuse(amx_bf16) && (S % 32 == 0) && (block_size % 16 == 0) && (S <= 32 * 6) && present_key.get_precision() == ov::element::bf16;
             if (fastpath_valid) {
-                PROFILE(_attn, "t1_qk_fast");
                 m_attn_w.resize<float>({B, H, q_len, (kv_len + block_size - 1) / block_size * block_size});
                 if (!m_gemv)
                     m_gemv = std::make_shared<JitMatMulVecAMX>(static_cast<int>(S), static_cast<int>(block_size));
@@ -1016,7 +1010,6 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         size_t sliding_window = 0;
         size_t max_context_len = 0;
 
-        PROFILE(_attn, "attn_execute");
         q_input.reset(inputs[0]);
         k_input.reset(inputs[1]);
         v_input.reset(inputs[2]);
@@ -1139,10 +1132,6 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         else
             use_one_token = L1 == 1 || (fuse_concat && L0 > 0);
         if (!use_one_token) {
-            char buf[256];
-            snprintf(buf, sizeof(buf), "first_BL%ld,%ld", B, L1);
-            _attn = ov::intel_cpu::profilerManagerInstance.startProfile(buf);
-
             // multi-token version
             kernel(strm, q_input, k_input, v_input, {}, use_attn_mask ? attn_mask : PlainTensor(),
                    output_emb, has_out_transpose, auto_causal, scale_input, sliding_window);
@@ -1322,7 +1311,6 @@ void ScaledDotProductAttention::createPrimitive() {
 }
 
 void ScaledDotProductAttention::execute(dnnl::stream strm) {
-    PROFILE(_attn, "pg_concat");
     auto orginSDPInputNumber = getOriginalInputsNumber() - (m_config.config.fuse_concat ? 3 : 0);
     std::vector<MemoryPtr> inputs(orginSDPInputNumber);
     auto output = getDstMemoryAtPort(0);
@@ -1353,7 +1341,6 @@ void ScaledDotProductAttention::execute(dnnl::stream strm) {
             presentv_input = inputs[2];
         }
     }
-    _attn = ov::intel_cpu::profilerManagerInstance.startProfile("pg_exec");
     m_executor->execute(strm, m_config, inputs, output, presentk_input, presentv_input, beam_input, k_scale_zp, v_scale_zp);
 }
 
