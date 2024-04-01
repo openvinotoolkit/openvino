@@ -256,15 +256,9 @@ void Deconvolution::createWeiBlobAsIO() {
                                      Shape(weiDimsDNNLDeconv),
                                      dimsForBlockedDesc,
                                      orderForBlockedDesc);
-    weightAsIOMemPtr = std::make_shared<Memory>(getEngine(), desc, blob->getData());
-}
-
-void Deconvolution::updateIOWeightBlob() {
-    auto wghMemPtr = getSrcMemoryAtPort(1);
-
-    if (wghMemPtr->getSize() != weightAsIOMemPtr->getSize())
-        OPENVINO_THROW("Different memory size. Cannot update non-const weights blob for node ", getName(), ".");
-    weightAsIOMemPtr->getMemoryMngr()->setExtBuff(wghMemPtr->getData(), wghMemPtr->getSize());
+    // Create the memory with the edge memory mgr. In the case of the weight memory changes when inference,
+    // weightAsIOMemPtr memory would be updated automatically via update inform mechanism.
+    weightAsIOMemPtr = std::make_shared<Memory>(getEngine(), desc, blob->getMemoryMngr());
 }
 
 bool Deconvolution::canBeExecutedInInt8() const {
@@ -647,11 +641,7 @@ void Deconvolution::execute(dnnl::stream strm) {
     if (!execPtr) {
         OPENVINO_THROW("Can't execute Deconvolution node with name: ", getName(), ", because executor is not compiled");
     }
-    //In case the weight memory blob is changed.
-    if (!weightIsConst) {
-        updateIOWeightBlob();
-        primArgs[DNNL_ARG_WEIGHTS] = weightAsIOMemPtr->getPrimitive();
-    }
+
     execPtr->exec(primArgs, strm);
 
     if (externOutShape) {
@@ -827,8 +817,6 @@ void Deconvolution::prepareParams() {
 
     if (!weightAsIOMemPtr)
         createWeiBlobAsIO();
-    // if (!weightIsConst)
-    //     updateIOWeightBlob();
     DnnlMemoryDescPtr wghDesc = weightAsIOMemPtr->getDescWithType<DnnlMemoryDesc>();
 
     if (withBiases) {
@@ -876,7 +864,6 @@ void Deconvolution::prepareParams() {
 
         while (static_cast<bool>(itpd)) {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-            //DEBUG_LOG(">>>>>>>>>>>>>>>>>># get", impl_type_to_string(impl_type), " , expect: ", impl_type_to_string(key.implType));
 
             if (impl_type == key.implType) {
                 auto prim_desc = deconvolution_forward::primitive_desc(itpd.get());
@@ -886,10 +873,6 @@ void Deconvolution::prepareParams() {
                                                             key.out->getDnnlDesc(),
                                                             engine,
                                                             key.constWeight);
-                // DEBUG_LOG("-------------#",
-                //             " builder ",
-                //             " deconv dnnl weight desc: \n",
-                //             *(execPtr->getWeightDesc()));
                 break;
             }
 
@@ -933,13 +916,6 @@ void Deconvolution::prepareParams() {
     if (!execPtr)
         OPENVINO_THROW("Primitive descriptor was not found for node ", getName(), ".");
 
-    // DEBUG_LOG("-------------#",
-    //             getExecIndex(),
-    //             " ",
-    //             getName(),
-    //             "  prepareParams ",
-    //             " deconv dnnl weight desc: \n",
-    //             *(execPtr->getWeightDesc()));
     primArgs[DNNL_ARG_SRC] = srcMemPtr->getPrimitive();
     primArgs[DNNL_ARG_DST]=  dstMemPtr->getPrimitive();
     if (weightIsConst) {

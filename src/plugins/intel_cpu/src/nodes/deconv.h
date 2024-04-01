@@ -108,7 +108,6 @@ private:
 
     //MemoryPtr createWeiBlobAsIO(const VectorDims& dims);
     void createWeiBlobAsIO();
-    void updateIOWeightBlob();
     bool weightIsConst = false;
 };
 
