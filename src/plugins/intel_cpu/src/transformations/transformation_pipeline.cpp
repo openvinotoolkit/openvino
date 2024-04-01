@@ -69,6 +69,7 @@
 #include "transformations/op_conversions/hswish_decomposition.hpp"
 #include "transformations/op_conversions/gru_cell_decomposition.hpp"
 #include "transformations/op_conversions/lstm_cell_decomposition.hpp"
+#include "transformations/op_conversions/group_normalization_decomposition.hpp"
 #include "transformations/op_conversions/mvn6_decomposition.hpp"
 #include "transformations/op_conversions/normalize_l2_decomposition.hpp"
 #include "transformations/op_conversions/reduce_l1_decomposition.hpp"
@@ -483,6 +484,42 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             return node::NormalizeL2::isSupportedOperation(node, errorMsg);
         },
         ov::pass::NormalizeL2Decomposition);
+
+    if (!useLpt) {
+        CPU_SET_CALLBACK_X64(manager,
+            [this](const_node_ptr &node) -> bool {
+                // This is a callback from snippets. If GroupNorm node is appropriate for snippets execution with higher perf,
+                // then it will not be decomposed to mvn+reshape+eltwises, support it with snippets instead.
+                // Callback is used here, why not call GroupNormalizationDecomposition after snippets transformation pipeline is because
+                // 1. If GN is not tokenized conditionally in snippets transformation pipeline, GroupNormalizationDecomposition will produce
+                //    "reshpae + mvn + reshape + mul + add". these simple ops will not tokenized into subgraph, lead to suboptimal perf.
+                // 2. GroupNormalizationDecomposition produce MVN, and MVN have a conditional pass MVN6Decomposition. If call MVN6Decomposition again after
+                //    snippets pipeline as well, where MVN is decomposed to simple ops, these simple ops will not tokenized into subgraph again.
+                // CVS-134277 to fully enable GN as snippets to disable this GroupNormalizationDecomposition entirly.
+                if (node->is_dynamic() || inferencePrecision != element::f32)
+                    return false;
+                const auto group_norm = ov::as_type_ptr<const ov::op::v12::GroupNormalization>(node);
+                if (!group_norm)
+                    return false;
+                const auto num_groups = static_cast<size_t>(group_norm->get_num_groups());
+                const auto shape = group_norm->get_input_partial_shape(0).to_shape();
+                size_t snippets_work_amount = shape[0] * num_groups;
+                size_t concurrency = parallel_get_max_threads();
+                if (concurrency > snippets_work_amount)
+                    return false;
+                size_t spatial_dim = 1;
+                for (size_t i = 2; i < shape.size(); ++i)
+                    spatial_dim = spatial_dim * shape[i];
+                size_t snippets_tensor_size = spatial_dim * shape[1] / num_groups * node->get_element_type().size();
+                size_t cache_size_l1 = dnnl::utils::get_cache_size(1, true);
+                if (snippets_tensor_size > cache_size_l1) {
+                    return false;
+                }
+
+                return true;
+            },
+            ov::pass::GroupNormalizationDecomposition);
+    }
 
     CPU_ENABLE_PASS_COMMON(manager, ov::pass::SoftmaxDecomposition);
     CPU_SET_CALLBACK_COMMON(manager,
