@@ -927,7 +927,7 @@ public:
         ov::Shape ref_input1_broadcasted_shape;
         ov::Shape ref_input1_shape;
         ov::Shape ref_output_shape;
-        
+
         ref_input0_shape = { BATCH_SIZE, 16, M_SIZE, K_SIZE };
         ref_input1_broadcasted_shape = { N_SIZE, BATCH_SIZE, 16, K_SIZE };
         ref_input1_shape = { BATCH_SIZE, 16, K_SIZE, N_SIZE };
@@ -1063,7 +1063,7 @@ public:
         ov::Shape ref_input1_reshaped_shape;
         ov::Shape ref_input1_shape;
         ov::Shape ref_output_shape;
-        
+
         ref_input0_shape = { BATCH_SIZE, 32, M_SIZE, K_SIZE };
         ref_input1_broadcasted_shape = { N_SIZE, BATCH_SIZE, 2, 16, K_SIZE };
         ref_input1_reshaped_shape = { N_SIZE, BATCH_SIZE, 32, K_SIZE };
@@ -1313,16 +1313,22 @@ public:
             output_shape_default = { M_SIZE, N_SIZE };
         } else if (num_dims == 3) {
             input0_shape_default = { BATCH_SIZE, M_SIZE, K_SIZE };
-            input1_shape_default = { BATCH_SIZE, K_SIZE, N_SIZE }; 
+            input1_shape_default = { BATCH_SIZE, K_SIZE, N_SIZE };
             output_shape_default = { BATCH_SIZE, M_SIZE, N_SIZE };
         } else if (num_dims == 4) {
             input0_shape_default = { BATCH_SIZE, 1, M_SIZE, K_SIZE};
-            input1_shape_default = { BATCH_SIZE, 1, K_SIZE, N_SIZE}; 
+            input1_shape_default = { BATCH_SIZE, 1, K_SIZE, N_SIZE};
             output_shape_default = { BATCH_SIZE, 1, M_SIZE, N_SIZE };
         }
     }
 
-    void test_transpose_matmul_f32(size_t num_dims, bool is_input_dynamic, bool is_caching_test, std::vector<size_t> BMKN, std::vector<int64_t> input0_order, std::vector<int64_t> input1_order) {
+    void test_transpose_matmul_f32(size_t num_dims,
+                                   bool is_input_dynamic,
+                                   bool is_caching_test,
+                                   std::vector<size_t> BMKN,
+                                   std::vector<int64_t> input0_order,
+                                   std::vector<int64_t> input1_order,
+                                   std::vector<int64_t> output_order = {}) {
         tests::random_generator rg;
         rg.set_seed(GET_SUITE_NAME);
 
@@ -1337,6 +1343,7 @@ public:
         set_default_shapes(num_dims, BMKN, input0_shape_default, input1_shape_default, output_shape_default);
         ov::Shape input0_shape(input0_shape_default.size());
         ov::Shape input1_shape(input1_shape_default.size());
+        ov::Shape output_shape(output_shape_default.size());
 
         for (size_t dim = 0; dim < input0_shape_default.size(); ++dim) {
             input0_shape[input0_order[dim]] = input0_shape_default[dim];
@@ -1344,6 +1351,12 @@ public:
 
         for (size_t dim = 0; dim < input1_shape_default.size(); ++dim) {
             input1_shape[input1_order[dim]] = input1_shape_default[dim];
+        }
+
+        if (!output_order.empty()) {
+            for (size_t dim = 0; dim < output_shape_default.size(); ++dim) {
+                output_shape[output_order[dim]] = output_shape_default[dim];
+            }
         }
 
         if (is_input_dynamic) {
@@ -1366,7 +1379,7 @@ public:
         topology topology;
         topology.add(input_layout("input0", input0_layout),
                      input_layout("input1", input1_layout),
-                     gemm("gemm", { input_info("input0"), input_info("input1") }, data_types::f32, {}, {}, {}, {}, input0_order, input1_order)
+                     gemm("gemm", { input_info("input0"), input_info("input1") }, data_types::f32, {}, {}, {}, {}, input0_order, input1_order, output_order)
         );
 
         ExecutionConfig config = get_test_default_config(engine);
@@ -1414,6 +1427,19 @@ public:
                                      output_shape_default,
                                      false,
                                      false);
+
+        if (!output_order.empty()) {
+            std::vector<float> out_data_transposed(ov::shape_size(output_shape_default));
+
+            ov::reference::transpose((const char *)(ref_out_data.data()),
+                                    (char *)(out_data_transposed.data()),
+                                    output_shape_default,
+                                    sizeof(float),
+                                    output_order,
+                                    output_shape);
+
+            ref_out_data = out_data_transposed;
+        }
 
         ASSERT_EQ(output_ptr.size(), ref_out_data.size());
 
@@ -1612,6 +1638,10 @@ TEST_F(gemm_gpu_tests, transpose_matmul_dynamic_4d_f16_unaligned_input1_ylast) {
 
 TEST_F(gemm_gpu_tests, transpose_matmul_dynamic_4d_f32) {
     this->test_transpose_matmul_f32(4, true, false, /*BMKN*/{19, 37, 23, 29}, /*input0_order*/{0, 2, 3, 1}, /*input1_order*/{1, 2, 3, 0});
+}
+
+TEST_F(gemm_gpu_tests, transpose_matmul_dynamic_4d_f32_n_tile_32_output_ylast) {
+    this->test_transpose_matmul_f32(4, true, false, /*BMKN*/{1, 128, 1, 9}, /*input0_order*/{0, 1, 2, 3}, /*input1_order*/{0, 1, 2, 3}, /*output_order*/{0, 1, 3, 2});
 }
 
 TEST_F(gemm_gpu_tests, transpose_matmul_static_4d_f16) {
