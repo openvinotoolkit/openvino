@@ -134,8 +134,8 @@ JitConstants SoftmaxKernel_bf::GetJitConstants(const softmax_params& params, Dis
         }
 
         // It can be expected that the maximum possible itemsNum will not exceed 32
-        // Therefore, in dynamic shape, stack_size including additional buffer is set to 33
-        constexpr size_t stack_size = 33; // The size of stack for my_chunk
+        // Therefore, in dynamic shape, stack_size including additional buffer is set to 34(32 + 2(aligned offset + leftovers))
+        constexpr size_t stack_size = 34; // The size of stack for my_chunk
         jit.AddConstants({
             MakeJitConstant("LWS", lws_0),
             MakeJitConstant("SLM_SIZE", dispatchData.maxSlmSize),
@@ -151,7 +151,7 @@ JitConstants SoftmaxKernel_bf::GetJitConstants(const softmax_params& params, Dis
             MakeJitConstant("DATA_SETS_COUNT", dispatchData.dataSetsCount),
             MakeJitConstant("DATA_SET_SIZE", dispatchData.dataSetSize),
             MakeJitConstant("LEFTOVERS", dispatchData.leftovers),
-            MakeJitConstant("STACK_SIZE", dispatchData.itemsNum + 1),
+            MakeJitConstant("STACK_SIZE", dispatchData.itemsNum + 2), // (aligned offset + leftovers)
         });
     }
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", subgroup_size));
