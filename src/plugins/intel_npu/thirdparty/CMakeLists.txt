@@ -20,8 +20,8 @@ if(ENABLE_ZEROAPI_BACKEND)
         # solve pdb access issue
         set(USE_Z7 ON)
     else()
-        string(REPLACE "-Werror" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-        string(REPLACE "-Werror" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+        string(REPLACE "-Werror " " " CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+        string(REPLACE "-Werror " " " CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \
             -Wno-error=undef \
             -Wno-error=unused-but-set-variable \
