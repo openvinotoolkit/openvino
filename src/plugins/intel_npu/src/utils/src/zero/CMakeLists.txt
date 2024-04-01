@@ -20,4 +20,4 @@ target_include_directories(${TARGET_NAME}
 #
 # targets install
 #
-ov_install_static_lib(${TARGET_NAME} ${NPU_PLUGIN_COMPONENT})
+ov_install_static_lib(${TARGET_NAME} ${NPU_INTERNAL_COMPONENT})

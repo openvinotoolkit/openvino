@@ -31,7 +31,7 @@ target_link_libraries(${TARGET_NAME}
 #
 # targets install
 #
-ov_install_static_lib(${TARGET_NAME} ${NPU_PLUGIN_COMPONENT})
+ov_install_static_lib(${TARGET_NAME} ${NPU_INTERNAL_COMPONENT})
 
 # Support link of static runtime
 if(TARGET ze_loader AND NOT BUILD_SHARED_LIBS)
