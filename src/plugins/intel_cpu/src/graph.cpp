@@ -9,6 +9,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <thread>
 #include <tuple>
 #include <unordered_map>
 #include <unordered_set>
@@ -66,8 +67,10 @@ template<typename NET>
 void Graph::CreateGraph(NET &net, const GraphContext::CPtr ctx) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "CreateGraph");
 
-    if (IsReady())
+    if (IsReady()) {
+        // std::cout << "Graph is already ready: " << net->get_friendly_name() << "\n";
         ForgetGraphData();
+    }
 
     context = ctx;
 

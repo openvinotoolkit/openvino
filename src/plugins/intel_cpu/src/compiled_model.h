@@ -46,12 +46,10 @@ private:
 
     const std::shared_ptr<ov::Model> m_model;
     const std::shared_ptr<const ov::IPlugin> m_plugin;
-    std::shared_ptr<ov::threading::ITaskExecutor> m_task_executor = nullptr;      //!< Holds a task executor
-    std::shared_ptr<ov::threading::ITaskExecutor> m_callback_executor = nullptr;  //!< Holds a callback executor
 
     // Generic synchronization primitive on CompiledModel level.
     // Usage example: helps to avoid data races during CPU Graph initialization in multi-streams scenario
-    std::shared_ptr<std::mutex> m_mutex;
+    // std::mutex m_mutex;
     Config m_cfg;
     mutable std::atomic_int m_numRequests = {0};
     std::string m_name;
@@ -68,6 +66,9 @@ private:
     mutable std::deque<GraphGuard> m_graphs;
     mutable SocketsWeights m_socketWeights;
 
+    void create_graph_unsafe(const ov::threading::IStreamsExecutor::Ptr& streamsExecutor);
+    void create_graph();
+    void create_graphs_async();
     /* WARNING: Use get_graph() function to get access to graph in current stream.
      * NOTE: Main thread is interpreted as master thread of external stream so use this function to get access to graphs
      *       even from main thread

@@ -11,6 +11,7 @@
 #include "nodes/memory.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
 #include "serialize.h"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "transformations/transformation_pipeline.h"
@@ -21,6 +22,9 @@
 
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include <cstring>
+#include <exception>
+#include <memory>
+#include <thread>
 #include <utility>
 
 #if defined(OV_CPU_WITH_ACL)
@@ -40,121 +44,141 @@ struct ImmediateSerialExecutor : public ov::threading::ITaskExecutor {
     std::mutex _mutex;
 };
 
+static std::shared_ptr<ov::threading::ITaskExecutor> select_task_executor(const Config& cfg,
+                                                                          const std::shared_ptr<const ov::IPlugin>& plugin) {
+    if (cfg.exclusiveAsyncRequests) {
+        // special case when all InferRequests are muxed into a single queue
+        return plugin->get_executor_manager()->get_executor("CPU");
+    }
+
+    return plugin->get_executor_manager()->get_idle_cpu_streams_executor(cfg.streamExecutorConfig);
+}
+
+static std::shared_ptr<ov::threading::ITaskExecutor> select_callback_executor(const Config& cfg,
+                                                                              const std::shared_ptr<const ov::IPlugin>& plugin) {
+    if (0 == cfg.streamExecutorConfig.get_streams()) {
+        return nullptr;
+    }
+
+    return plugin->get_executor_manager()->get_idle_cpu_streams_executor(
+        IStreamsExecutor::Config{"CPUCallbackExecutor", 1, 0, IStreamsExecutor::ThreadBindingType::NONE});
+}
+
+void CompiledModel::create_graph_unsafe(const IStreamsExecutor::Ptr& streamsExecutor) {
+    // std::cout << "Creating graph for model: " << m_model->get_friendly_name()
+    //           << " using streamId: " << streamId << " thread_id: " << std::this_thread::get_id() << "\n";
+    const int streamId = streamsExecutor ? streamsExecutor->get_stream_id() : 0;
+    const int socketId = streamsExecutor ? streamsExecutor->get_socket_id() : 0;
+
+    auto& graph = m_graphs[streamId % m_graphs.size()];
+    if (graph.IsReady())
+        return;
+
+    GraphContext::Ptr ctx;
+    // disable weights caching if graph was created only once
+    auto weightsCache = m_cfg.streamExecutorConfig.get_streams() != 1 ? m_socketWeights[socketId] : nullptr;
+    auto isQuantizedFlag = (m_cfg.lpTransformsMode == Config::On) &&
+        ov::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);
+
+    ctx = std::make_shared<GraphContext>(m_cfg, weightsCache, isQuantizedFlag, streamsExecutor);
+    const std::shared_ptr<const ov::Model> model = m_model;
+
+    graph.CreateGraph(model, ctx);
+}
+
+void CompiledModel::create_graph() {
+#if defined(OV_CPU_WITH_ACL)
+    static std::once_flag flag_once;
+    std::call_once(flag_once, [&]() {
+        std::shared_ptr<arm_compute::IScheduler> acl_scheduler = std::make_shared<ACLScheduler>();
+        arm_compute::Scheduler::set(std::static_pointer_cast<arm_compute::IScheduler>(acl_scheduler));
+    });
+#endif
+
+    auto create_graph_safe = [this](const IStreamsExecutor::Ptr& streamsExecutor, std::exception_ptr& exception) {
+        // static std::mutex mutex;
+        // std::lock_guard<std::mutex> lock{mutex};
+        try {
+            CompiledModel::create_graph_unsafe(streamsExecutor);
+        } catch (...) {
+            exception = std::current_exception();
+        }
+    };
+
+    if (auto streamsExecutor = std::dynamic_pointer_cast<IStreamsExecutor>(get_task_executor())) {
+        // create graph using stream executor
+        std::exception_ptr exception;
+        streamsExecutor->execute([&create_graph_safe, &exception, &streamsExecutor]() {
+            create_graph_safe(streamsExecutor, exception);
+        });
+        if (exception)
+            std::rethrow_exception(exception);
+        return;
+    }
+    // exclusiveAsyncRequests case, no stream executor available
+    return create_graph_unsafe(nullptr);
+}
+
+/**
+ * Create graphs in parallel using streams.
+ * Each graph must be created within its own stream.
+ * It is not guaranteed that task executor will use all the
+ * streams. Thus wait until all the streams are used, meaning
+ * all the graphs are created
+ */
+void CompiledModel::create_graphs_async() {
+    auto all_graphs_ready = [this] {
+        return std::all_of(m_graphs.begin(), m_graphs.end(), [&](Graph& graph) {
+            return graph.IsReady();
+        });
+    };
+    do {
+        std::vector<Task> tasks(m_cfg.streamExecutorConfig.get_streams(),
+                                [this]() {
+                                    CompiledModel::create_graph();
+                                });
+        get_task_executor()->run_and_wait(tasks);
+    } while (!all_graphs_ready());
+}
+
 CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              const Config& cfg,
                              const bool loaded_from_cache)
-    : ov::ICompiledModel::ICompiledModel(model, plugin),
+    : ov::ICompiledModel::ICompiledModel(model,
+                                         plugin,
+                                         select_task_executor(cfg, plugin),
+                                         select_callback_executor(cfg, plugin)),
       m_model(model),
       m_plugin(plugin),
       m_cfg{cfg},
       m_name{model->get_name()},
-      m_loaded_from_cache(loaded_from_cache) {
-    m_mutex = std::make_shared<std::mutex>();
-    const auto& core = m_plugin->get_core();
-    if (!core)
-        OPENVINO_THROW("Unable to get API version. Core is unavailable");
-
-    ov::threading::IStreamsExecutor::Ptr stream_executor = nullptr;
-    if (cfg.exclusiveAsyncRequests) {
-        // special case when all InferRequests are muxed into a single queue
-        m_task_executor = m_plugin->get_executor_manager()->get_executor("CPU");
-    } else {
-        stream_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(m_cfg.streamExecutorConfig);
-        m_task_executor = stream_executor;
-    }
-    if (0 != m_cfg.streamExecutorConfig.get_streams()) {
-        m_callback_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(
-            IStreamsExecutor::Config{"CPUCallbackExecutor", 1, 0, IStreamsExecutor::ThreadBindingType::NONE});
-    } else {
-        m_callback_executor = m_task_executor;
+      m_loaded_from_cache(loaded_from_cache),
+      // at least one graph even for 0 streams configuration
+      m_graphs(std::max(1, m_cfg.streamExecutorConfig.get_streams())) {
+    // std::cout << "CPU CompiledModel constructor. Creating number of graphs: " << m_graphs.size() << "\n";
+    if (m_cfg.streamExecutorConfig.get_streams() == 0) {
+        create_graph_unsafe(nullptr); // no streams available, just create a graph
+        return;
     }
 
-    if (m_task_executor)
-        set_task_executor(m_task_executor);
-    if (m_callback_executor)
-        set_callback_executor(m_callback_executor);
-
-    int streams = std::max(1, m_cfg.streamExecutorConfig.get_streams());
-    std::vector<Task> tasks;
-    tasks.resize(streams);
-    m_graphs.resize(streams);
-    if (m_cfg.streamExecutorConfig.get_streams() != 0) {
-        auto all_graphs_ready = [&] {
-            return std::all_of(m_graphs.begin(), m_graphs.end(), [&](Graph& graph) {
-                return graph.IsReady();
-            });
-        };
-        do {
-            for (auto&& task : tasks) {
-                task = [this] {
-#if defined(OV_CPU_WITH_ACL)
-                    static std::once_flag flag_once;
-                    std::call_once(flag_once, [&]() {
-                        std::shared_ptr<arm_compute::IScheduler> acl_scheduler = std::make_shared<ACLScheduler>();
-                        arm_compute::Scheduler::set(std::static_pointer_cast<arm_compute::IScheduler>(acl_scheduler));
-                    });
-#endif
-                    CompiledModel::get_graph();
-                };
-            }
-            m_task_executor->run_and_wait(tasks);
-        } while (!all_graphs_ready());
-    } else {
-        CompiledModel::get_graph();
-    }
+    create_graphs_async();
+    // std::cout << "Compile Model: tasks are completed!" << "\n";
     // init sub stream threads of executor
-    int sub_streams = m_cfg.streamExecutorConfig.get_sub_streams();
-    if (sub_streams > 0 && stream_executor != nullptr) {
-        std::vector<Task> tasks;
-        tasks.resize(sub_streams);
-        for (auto&& task : tasks) {
-            task = [] {};
-        }
-        stream_executor->run_sub_stream_and_wait(tasks);
+    if (auto streamsExecutor = std::dynamic_pointer_cast<IStreamsExecutor>(get_task_executor())) {
+        std::vector<Task> tasks(m_cfg.streamExecutorConfig.get_sub_streams(), [](){});
+        streamsExecutor->run_sub_stream_and_wait(tasks);
+    } else {
+        OPENVINO_THROW("!!! task executor is not a stream executor !!!");
     }
 }
 
 CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
-    int streamId = 0;
-    int socketId = 0;
-    auto streamsExecutor = std::dynamic_pointer_cast<IStreamsExecutor>(m_task_executor);
-    if (nullptr != streamsExecutor) {
-        streamId = streamsExecutor->get_stream_id();
-        socketId = streamsExecutor->get_socket_id();
-    }
-    auto graphLock = GraphGuard::Lock(m_graphs[streamId % m_graphs.size()]);
-    if (!graphLock._graph.IsReady()) {
-        std::exception_ptr exception;
-        auto makeGraph = [&] {
-            try {
-                GraphContext::Ptr ctx;
-                {
-                    std::lock_guard<std::mutex> lock{*m_mutex.get()};
-                    // disable weights caching if graph was created only once
-                    auto weightsCache = m_cfg.streamExecutorConfig.get_streams() != 1 ? m_socketWeights[socketId] : nullptr;
-                    auto isQuantizedFlag =
-                        (m_cfg.lpTransformsMode == Config::On) &&
-                        ov::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);
+    auto streamsExecutor = std::dynamic_pointer_cast<IStreamsExecutor>(get_task_executor());
+    int streamId = streamsExecutor ? streamsExecutor->get_stream_id() : 0;
+    // std::cout << "Getting graph using streamId: " << streamId << "\n";
 
-                    ctx = std::make_shared<GraphContext>(m_cfg, weightsCache, isQuantizedFlag, streamsExecutor);
-                }
-                const std::shared_ptr<const ov::Model> model = m_model;
-                graphLock._graph.CreateGraph(model, ctx);
-            } catch (...) {
-                exception = std::current_exception();
-            }
-        };
-        if (nullptr != streamsExecutor) {
-            streamsExecutor->execute(makeGraph);
-        } else {
-            makeGraph();
-        }
-        if (exception) {
-            std::rethrow_exception(exception);
-        }
-    }
-    return graphLock;
+    return GraphGuard::Lock(m_graphs[streamId % m_graphs.size()]);
 }
 
 std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request() const {

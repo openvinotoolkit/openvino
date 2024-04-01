@@ -463,7 +463,7 @@ void SyncInferRequest::set_tensors_impl(const ov::Output<const ov::Node> port, c
 void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyncInferRequest::FoundPort::Type& type) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "init_tensor");
     if (!m_graph || !m_graph->IsReady())
-        OPENVINO_THROW("Graph is not ready!");
+        OPENVINO_THROW("Graph ", m_graph->GetName(), "is not ready!");
 
     ov::SoPtr<ITensor> tensor;
     if (type == ov::ISyncInferRequest::FoundPort::Type::INPUT) {

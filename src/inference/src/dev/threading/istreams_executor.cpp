@@ -351,6 +351,9 @@ void IStreamsExecutor::Config::set_config_zero_stream() {
 }
 
 void IStreamsExecutor::run_sub_stream_and_wait(const std::vector<Task>& tasks) {
+    if (tasks.empty())
+        return;
+
     std::vector<std::packaged_task<void()>> packagedTasks;
     std::vector<std::future<void>> futures;
     for (std::size_t i = 0; i < tasks.size(); ++i) {
