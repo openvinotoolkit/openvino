@@ -94,6 +94,7 @@ void Subgraph::init_config() {
     for (const auto& op : ops) {
         update(config.m_is_quantized, ov::is_type<ov::op::v0::FakeQuantize>(op));
         update(config.m_has_domain_sensitive_ops, is_domain_sensitive_op(op));
+        update(config.m_has_broadcast_sensitive_ops, ov::is_type<ov::op::v12::GroupNormalization>(op) || ov::is_type<op::Reshape>(op));
     }
 }
 
@@ -386,12 +387,9 @@ void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::data_flow_transformations")
 
     ov::snippets::pass::Manager manager;
-    // GN subgraph has its own specific canonicalization inside GNDecomposition with reshape, which is different with common behavior.
-    // for example, scale and bias shape [c] are canonicalized to [1,c,1,1], not [1,1,1,c]. Common canonicalization is disabled in this case.
-    const auto& ops = body_ptr()->get_ordered_ops();
-    const auto& is_gn_subgraph = std::any_of(ops.cbegin(), ops.cend(),
-        [](const std::shared_ptr<Node>& op) { return ov::is_type<ov::op::v12::GroupNormalization>(op); });
-    if (!blocked_input_shapes.empty() && !is_gn_subgraph)
+    // If subgraph has its own specific canonicalization, which is different with common behavior, will skip the this common one.
+    // for example in GN, scale and bias shape [c] are canonicalized to [1,c,1,1], not [1,1,1,c]. Common canonicalization is disabled in this case.
+    if (!blocked_input_shapes.empty() && !config.m_has_broadcast_sensitive_ops)
         manager.register_pass<snippets::pass::Canonicalization>(blocked_input_shapes);
     if (!input_precisions.empty() && !output_precisions.empty())
         manager.register_pass<snippets::pass::AlignElementTypes>(input_precisions, output_precisions);

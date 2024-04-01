@@ -180,6 +180,9 @@ private:
         // True if body has operations that don't support plugin-side domain optimizations
         // (e.g. Transpose, Softmax, MatMul in general doesn't support dimensions collapsing)
         bool m_has_domain_sensitive_ops = false;
+        // True if Subgraph contains ops that are not applicable to auto broadcast rule.
+        // (e.g. GroupNormalization, reshape)
+        bool m_has_broadcast_sensitive_ops = false;
     } config;
 
     std::shared_ptr<ShapeInferSnippetsNode> m_shape_infer = nullptr;
