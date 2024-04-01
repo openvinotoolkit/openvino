@@ -64,7 +64,7 @@ template<typename T>
 static void attn_acc_value_block(float* out, float* weight, T* v, size_t S, size_t block_size) {
 #if defined(HAVE_AVX512F)
     size_t j = 0;
-    for (; j < block_size; j += 4) {
+    for (; j + 4 <= block_size; j += 4) {
         auto attn_w_vec0 = _mm512_set1_ps(weight[0]);
         auto attn_w_vec1 = _mm512_set1_ps(weight[1]);
         auto attn_w_vec2 = _mm512_set1_ps(weight[2]);
@@ -798,10 +798,18 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
     }
     char buf[256];
     size_t real_len = 0;
-    for (size_t b = 0; b < B; b++)
-        real_len += static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
-    snprintf(buf, sizeof(buf), "t1_BL%ld,%ld,MC%.2f,%.2f", B, real_len, h_group_num * real_len * S * (32 * 2 * 2.0f) / 260000000.0f,
-        H * real_len * S * 2.0f * 32 / 16 / 2 / 60 / 1800000.0f);
+    size_t aligned_len = 0;
+    for (size_t b = 0; b < B; b++) {
+        auto s = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
+        real_len += s;
+        aligned_len += (s + 15) / 16 * 16;
+    }
+    auto access_size = h_group_num * real_len * S * (32 * 2);
+    access_size += B * H * S * 2 * 32;    // query
+    access_size += aligned_len * H * 4 * 32; // buf_attn_w
+    // only consider k or v theoretical cost
+    snprintf(buf, sizeof(buf), "t1_BL%ld,%ld,MC%.2f,%.2f", B, real_len, access_size / 260000000.0f,
+        H * real_len * S * 32 / 16 * 2 / 60 / 1800000.0f);
     PROFILE(_attn, buf);
 
 #if defined(HAVE_AVX2) && !defined(HAVE_AVX512F)
