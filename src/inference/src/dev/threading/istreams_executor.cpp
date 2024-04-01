@@ -5,6 +5,7 @@
 #include "openvino/runtime/threading/istreams_executor.hpp"
 
 #include <algorithm>
+#include <future>
 #include <string>
 #include <thread>
 #include <vector>
@@ -303,10 +304,13 @@ void IStreamsExecutor::Config::update_executor_config() {
     // Recaculate _streams, _threads and _threads_per_stream by _streams_info_table
     int num_streams = 0;
     _threads = 0;
+    _sub_streams = 0;
     for (size_t i = 0; i < _streams_info_table.size(); i++) {
         if (_streams_info_table[i][NUMBER_OF_STREAMS] > 0) {
             num_streams += _streams_info_table[i][NUMBER_OF_STREAMS];
             _threads += _streams_info_table[i][NUMBER_OF_STREAMS] * _streams_info_table[i][THREADS_PER_STREAM];
+        } else if (_streams_info_table[i][NUMBER_OF_STREAMS] == -1) {
+            _sub_streams += 1;
         }
     }
     _threads_per_stream = _streams_info_table[0][THREADS_PER_STREAM];
@@ -344,6 +348,33 @@ void IStreamsExecutor::Config::set_config_zero_stream() {
     }
     _streams_info_table.push_back({1, core_type, 1, numa_id, socket_id});
     _cpu_reservation = false;
+}
+
+void IStreamsExecutor::run_sub_stream_and_wait(const std::vector<Task>& tasks) {
+    std::vector<std::packaged_task<void()>> packagedTasks;
+    std::vector<std::future<void>> futures;
+    for (std::size_t i = 0; i < tasks.size(); ++i) {
+        packagedTasks.emplace_back([&tasks, i] {
+            tasks[i]();
+        });
+        futures.emplace_back(packagedTasks.back().get_future());
+    }
+    for (std::size_t i = 0; i < tasks.size(); ++i) {
+        run_sub_stream(
+            [&packagedTasks, i] {
+                packagedTasks[i]();
+            },
+            static_cast<int>(i));
+    }
+    // std::future::get will rethrow exception from task.
+    // We should wait all tasks before any exception is thrown.
+    // So wait() and get() for each future moved to separate loops
+    for (auto&& future : futures) {
+        future.wait();
+    }
+    for (auto&& future : futures) {
+        future.get();
+    }
 }
 
 }  // namespace threading
