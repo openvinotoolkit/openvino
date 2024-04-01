@@ -76,7 +76,7 @@ static void reg_pattern_wrap_type(py::module m) {
                       return std::make_shared<ov::pass::pattern::op::WrapType>(get_type(type_name), pred);
                   }),
                   py::arg("type_name"),
-                  py::arg("predicate"),
+                  py::arg("pred"),
                   R"(
                   Create WrapType with given node type and predicate.
 

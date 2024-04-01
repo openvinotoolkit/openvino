@@ -148,11 +148,10 @@ inline bool are_arguments_mislagned(const std::vector<ov::Output<Node>>& args,
                                     const std::vector<ov::Output<Node>>& pattern_args) {
     // 'lost' operation can be defined in the end
     // try to find them
-    int start_node_id = pattern_args.size() - args.size() + 1;
-    if (start_node_id < 0) {
+    if (pattern_args.size() < args.size()) {
         return true;
     }
-    for (size_t i = start_node_id; i < pattern_args.size(); ++i) {
+    for (size_t i = args.size(); i < pattern_args.size(); ++i) {
         const auto pattern_in_node_type = pattern_args[i].get_node()->get_type_info();
         if (!pattern_in_node_type.is_castable(ov::pass::pattern::op::Optional::get_type_info_static())) {
             return true;
