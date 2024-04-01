@@ -470,9 +470,6 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     queryconfig.apply_user_properties();
     auto full_property = queryconfig.get_full_properties();
     auto priorities = full_property.find(ov::device::priorities.name());
-    if (priorities == full_property.end() || priorities->second.empty()) {
-        OPENVINO_THROW(get_device_name(), ": device priority is missing for query model");
-    }
     if (priorities!= full_property.end() && !priorities->second.empty()) {
         auto meta_devices = parse_meta_devices(priorities->second.as<std::string>(), full_property);
         if (meta_devices.empty()) {
@@ -492,6 +489,8 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
         for (auto&& iter : supported_layers) {
             res[iter] = get_device_name();
         }
+    } else {
+        OPENVINO_THROW(get_device_name(), ": device priority is missing for query model");
     }
     return res;
 }
