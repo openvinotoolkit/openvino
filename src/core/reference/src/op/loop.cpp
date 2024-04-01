@@ -139,8 +139,7 @@ void loop(const std::shared_ptr<Model>& func,
 
             // Evaluate body
             body_outputs.clear();
-            body_outputs.resize(func->get_results().size());
-            func->evaluate(body_outputs, inputs_to_body, const_cast<EvaluationContext&>(evaluation_context));
+            reference::function(func, inputs_to_body, body_outputs, evaluation_context);
 
             // Store values for later concatenation
             for (size_t i = 0; i < values_to_concat.size(); ++i) {
