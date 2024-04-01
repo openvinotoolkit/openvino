@@ -1377,9 +1377,12 @@ inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) 
         DUMP(node, getConfig().debugCaps, infer_count);
         OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, node->profiling.execute);
         DEBUG_LOG(*node);
+        // TODO: 132954 workaround for latency
+#if defined(__x86_64__) && defined(__linux__)
         if ((getGraphContext()->getCPUStreamExecutor()) && (getConfig().hintPerfMode == ov::hint::PerformanceMode::LATENCY)) {
             node->toNumaNode(getGraphContext()->getCPUStreamExecutor()->get_numa_node_id());
         }
+#endif
         if (node->isDynamicNode()) {
             node->executeDynamic(stream);
         } else {
