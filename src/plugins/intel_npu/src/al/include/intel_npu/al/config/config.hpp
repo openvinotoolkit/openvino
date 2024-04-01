@@ -259,7 +259,7 @@ public:
     OptionValueImpl(U&& val, ToStringFunc toStringImpl) : _val(std::forward<U>(val)),
                                                           _toStringImpl(toStringImpl) {}
 
-    std::string_view getTypeName() const final {
+    std::string_view getTypeName() const override final {
         if constexpr (TypePrinter<T>::hasName()) {
             return TypePrinter<T>::name();
         } else {
