@@ -140,13 +140,15 @@ double calculate_default_rel_threshold(const ov::element::Type& expected_type,
 }  // namespace tensor_comparation
 
 // function to compare tensors using different metrics:
-// `expected` : reference tensor
-// `actual` : plugin/calculated tensor
+// `expected` : reference tensor.
+// `actual` : plugin/calculated tensor.
 // `inference_precision` : real plugin calculation precision. Default abs and rel thresholds will be calculated using
-// this value `abs_threshold` : abs difference between reference and calculated value `rel_threshold` : define first
-// incorrect element rank in mantissa `topk_threshold` : percentage of incorrect values in tensor. The value is
-// [0.f, 1.f] `mvn_threshold` : avg value of `std::diff(ref_value - calculated_value) / threshold`. The value is
-// [0.f, 1.f]. Shows tensor jitter relative to treshold
+// this value.
+// `abs_threshold` : abs difference between reference and calculated value.
+// `rel_threshold` : define first incorrect element rank in mantissa.
+// `mvn_threshold` : avg value of `std::diff(ref_value - calculated_value) / threshold`.
+//  Shows tensor jitter relative to treshold. The value is [0.f, 1.f].
+// `topk_threshold` : percentage of incorrect values in tensor. The value is [0.f, 1.f].
 void compare(const ov::Tensor& expected,
              const ov::Tensor& actual,
              const ov::element::Type& inference_precision,
