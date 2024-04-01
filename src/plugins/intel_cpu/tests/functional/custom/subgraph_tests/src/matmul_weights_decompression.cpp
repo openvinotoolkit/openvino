@@ -442,6 +442,7 @@ const std::vector<ShapeParams> input_shapes_basic_dyn_quant = {
     {{{}, {{1, 7, 256}}}, {256, 128}, 32lu},
     {{{}, {{1, 1, 128}}}, {128, 32}},
     {{{}, {{1, 3, 144}}}, {144, 64}, 16lu},
+    {{{}, {{1, 1, 1728}}}, {1728, 128}, 64lu},
 };
 
 const std::vector<ov::test::ElementType> weights_precisions_dyn_quant = {ov::element::u8,
