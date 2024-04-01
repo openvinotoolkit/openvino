@@ -501,7 +501,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_reduce_prod_keepdims_random_cpu",
         "OnnxBackendNodeModelTest.test_reduce_prod_negative_axes_keepdims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_prod_negative_axes_keepdims_random_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_sum_square_do_not_keepdims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_sum_square_do_not_keepdims_random_cpu",
         "OnnxBackendNodeModelTest.test_reduce_sum_square_keepdims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_sum_square_keepdims_random_cpu",
