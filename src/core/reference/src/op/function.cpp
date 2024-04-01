@@ -19,7 +19,9 @@ void function(const std::shared_ptr<Model>& function, const ov::TensorVector& in
     function->evaluate(outputs, inputs);
 }
 
-void function(const std::shared_ptr<Model>& function, const ov::TensorVector& inputs, ov::TensorVector& outputs,
+void function(const std::shared_ptr<Model>& function,
+              const ov::TensorVector& inputs,
+              ov::TensorVector& outputs,
               const EvaluationContext& evaluation_context) {
     outputs.reserve(function->get_output_size());
     for (const auto& result : function->get_results()) {
