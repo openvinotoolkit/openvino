@@ -490,7 +490,12 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             [this](const_node_ptr &node) -> bool {
                 // This is a callback from snippets. If GroupNorm node is appropriate for snippets execution with higher perf,
                 // then it will not be decomposed to mvn+reshape+eltwises, support it with snippets instead.
-                // CVS-134277 to fully enable GN as snippets.
+                // Callback is used here, why not call GroupNormalizationDecomposition after snippets transformation pipeline is because
+                // 1. If GN is not tokenized conditionally in snippets transformation pipeline, GroupNormalizationDecomposition will produce
+                //    "reshpae + mvn + reshape + mul + add". these simple ops will not tokenized into subgraph, lead to suboptimal perf.
+                // 2. GroupNormalizationDecomposition produce MVN, and MVN have a conditional pass MVN6Decomposition. If call MVN6Decomposition again after
+                //    snippets pipeline as well, where MVN is decomposed to simple ops, these simple ops will not tokenized into subgraph again.
+                // CVS-134277 to fully enable GN as snippets to disable this GroupNormalizationDecomposition entirly.
                 if (node->is_dynamic() || inferencePrecision != element::f32)
                     return false;
                 const auto group_norm = ov::as_type_ptr<const ov::op::v12::GroupNormalization>(node);
