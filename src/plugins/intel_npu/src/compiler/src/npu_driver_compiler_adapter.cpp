@@ -52,8 +52,8 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter() : _logger("LevelZeroCompile
     props.stype = ZE_STRUCTURE_TYPE_DRIVER_PROPERTIES;
     // Get our target driver
     for (uint32_t i = 0; i < drivers; ++i) {
-        auto res = zeDriverGetProperties(allDrivers[i], &props);
-        if (ZE_RESULT_SUCCESS != res) {
+        result = zeDriverGetProperties(allDrivers[i], &props);
+        if (ZE_RESULT_SUCCESS != result) {
             OPENVINO_THROW("L0 zeDriverGetProperties",
                            " result: ",
                            ze_result_to_string(result),
