@@ -192,8 +192,7 @@ std::string NPUBackends::getCompilationPlatform(const std::string_view platform,
     // Automatic detection of compilation platform
     const auto devNames = getAvailableDevicesNames();
     if (devNames.empty()) {
-        OPENVINO_THROW("No devices found - platform must be explicitly specified for compilation. Example: -d NPU.3700 "
-                       "instead of -d NPU.");
+        OPENVINO_THROW("No NPU devices were found.");
     }
 
     return utils::getPlatformByDeviceName(devNames.at(0));
