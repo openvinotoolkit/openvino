@@ -420,13 +420,10 @@ macro(_ov_find_intel_npu_dependencies)
             endif()
         endif()
 
-        find_library(_OV_ZE_LOADER_PATH NAMES ${_OV_ZE_LOADER_LIBRARY_NAME}
-                    PATHS
-                        ${OpenVINO_DIR}
-                        ${INSTALL_DIR}
-                    HINTS
-                        lib/Release
-                        runtime/lib/intel64/
+        find_library(_OV_ZE_LOADER_PATH
+                    NAMES ${_OV_ZE_LOADER_LIBRARY_NAME}
+                    HINTS ${CMAKE_INSTALL_PREFIX} ${OpenVINO_DIR} ${INSTALL_DIR}
+                    PATH_SUFFIXES lib/Release runtime/lib/intel64/
                     ${extra_args})
 
         if(_OV_ZE_LOADER_PATH)
@@ -436,7 +433,7 @@ macro(_ov_find_intel_npu_dependencies)
             message(WARNING "Internal error: failed to find '${_OV_ZE_LOADER_LIBRARY_NAME}' in '${OpenVINO_DIR}' and ${INSTALL_DIR}")
         endif()
 
-        unset(_OV_ZE_LODER_PATH)
+        unset(_OV_ZE_LOADER_PATH)
         unset(extra_args)
         unset(_OV_ZE_LOADER_LIBRARY_NAME)
     endif()
