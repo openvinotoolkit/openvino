@@ -6,6 +6,8 @@
 #include <stdexcept>
 #include <string>
 
+#include "openvino/core/except.hpp"
+
 namespace ov {
 namespace test {
 void set_device_suffix(const std::string& suffix) {
