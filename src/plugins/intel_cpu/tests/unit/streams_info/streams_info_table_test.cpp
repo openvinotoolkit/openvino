@@ -1790,6 +1790,32 @@ StreamsCalculationTestCase _1sockets_4cores_tput_1 = {
     {{2, MAIN_CORE_PROC, 2, 0, 0}},
 };
 
+StreamsCalculationTestCase _1sockets_4cores_tput_2 = {
+    4,
+    false,
+    0,
+    0,
+    8,
+    -1,
+    "THROUGHPUT",
+    {},
+    {{4, 4, 0, 0, 0, 0}},
+    {{2, MAIN_CORE_PROC, 2, 0, 0}},
+};
+
+StreamsCalculationTestCase _1sockets_4cores_tput_3 = {
+    4,
+    true,
+    0,
+    0,
+    8,
+    -1,
+    "THROUGHPUT",
+    {},
+    {{4, 4, 0, 0, 0, 0}},
+    {{4, MAIN_CORE_PROC, 1, 0, 0}},
+};
+
 StreamsCalculationTestCase _1sockets_ecores_latency_1 = {
     1,
     false,
@@ -2748,6 +2774,8 @@ INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
                                          _1sockets_6cores_tput_4,
                                          _1sockets_4cores_latency_1,
                                          _1sockets_4cores_tput_1,
+                                         _1sockets_4cores_tput_2,
+                                         _1sockets_4cores_tput_3,
                                          _1sockets_ecores_latency_1,
                                          _1sockets_ecores_latency_2,
                                          _1sockets_ecores_latency_3,
