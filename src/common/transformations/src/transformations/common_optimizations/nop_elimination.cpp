@@ -1016,6 +1016,7 @@ ov::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
     ADD_MATCHER_FOR_THIS(EliminateEltwise)
     using namespace ov::pass;
     ADD_MATCHER_FOR_THIS(EliminateSplitConcat)
+    ADD_MATCHER_FOR_THIS(NopStridedSlice)
 
     // shape-dependent transformations
     if (use_shape_for_elimination) {
@@ -1027,6 +1028,7 @@ ov::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
         ADD_MATCHER_FOR_THIS(EliminateBroadcast)
         ADD_MATCHER_FOR_THIS(EliminateNopBroadcast)
         ADD_MATCHER_FOR_THIS(NopSliceBeforeGatherElements)
+        ADD_MATCHER_FOR_THIS(NopStridedSliceByShape)
         ADD_MATCHER_FOR_THIS(EliminateGather)
     }
 }
