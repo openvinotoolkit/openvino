@@ -8,6 +8,7 @@
 
 #include <memory>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
@@ -289,7 +290,7 @@ TEST(constant, int4_string_broadcast_negative_number) {
 
     const auto p = c.get_data_ptr<uint8_t>();
     EXPECT_EQ(0xFF, p[0]);
-    EXPECT_EQ(0xF0, p[1] & 0xF0);
+    EXPECT_EQ(0x0F, p[1] & 0x0F);
 
     EXPECT_EQ(std::vector<std::string>(3, "-1"), c.get_value_strings());
 }
@@ -305,7 +306,7 @@ TEST(constant, int4_string_broadcast_positive_number) {
 
     const auto p = c.get_data_ptr<uint8_t>();
     EXPECT_EQ(0x11, p[0]);
-    EXPECT_EQ(0x10, p[1] & 0xF0);
+    EXPECT_EQ(0x01, p[1] & 0x0F);
 
     EXPECT_EQ(std::vector<std::string>(3, "1"), c.get_value_strings());
 }
@@ -349,7 +350,7 @@ TEST(constant, int4_vector_broadcast_negative_number) {
 
     const auto p = c.get_data_ptr<uint8_t>();
     EXPECT_EQ(0xFF, p[0]);
-    EXPECT_EQ(0xF0, p[1] & 0xF0);
+    EXPECT_EQ(0x0F, p[1] & 0x0F);
 }
 
 TEST(constant, int4_vector_broadcast_positive_number) {
@@ -363,7 +364,7 @@ TEST(constant, int4_vector_broadcast_positive_number) {
 
     const auto p = c.get_data_ptr<uint8_t>();
     EXPECT_EQ(0x33, p[0]);
-    EXPECT_EQ(0x30, p[1] & 0xF0);
+    EXPECT_EQ(0x03, p[1] & 0x0F);
 }
 
 TEST(constant, int4_input_value_validation) {
@@ -740,7 +741,7 @@ TEST(constant, uint1_string) {
     EXPECT_EQ(v[3], 0);
 
     const auto p = c.get_data_ptr<uint8_t>();
-    EXPECT_EQ(p[0], 0b10100000);
+    EXPECT_EQ(p[0] & 0xF0, 0b10100000);
 
     EXPECT_EQ(input, c.get_value_strings());
 
@@ -871,9 +872,9 @@ TEST(constant, uint4_vector_broadcast) {
 
     const auto p = c.get_data_ptr<uint8_t>();
     const auto first_byte = p[0];
-    const auto second_byte = p[1] & 0xF0;
+    const auto second_byte = p[1] & 0x0F;
     EXPECT_EQ(0x11, first_byte);
-    EXPECT_EQ(0x10, second_byte);
+    EXPECT_EQ(0x01, second_byte);
 }
 
 TEST(constant, uint4_input_value_validation) {
@@ -1527,6 +1528,15 @@ TEST(constant, convert_input_ov_string) {
     vector<std::string> actual = c1->template cast_vector<std::string>();
 
     EXPECT_EQ(actual, expected);
+}
+
+TEST(constant, ov_string_broadcast_from_non_string) {
+    EXPECT_THROW(std::ignore = op::v0::Constant::create(element::string, Shape{4}, std::vector<int>{10}), Exception);
+}
+
+TEST(constant, ov_string_from_non_string_vector) {
+    EXPECT_THROW(std::ignore = op::v0::Constant::create(element::string, Shape{4}, std::vector<int>{10, 1, 3, 2}),
+                 Exception);
 }
 
 TEST(constant, convert_input) {
