@@ -8,7 +8,10 @@ import torch
 from pytorch_layer_test_class import PytorchLayerTest
 
 
-@pytest.mark.parametrize("dtype", [np.int32, np.float32])
+@pytest.mark.parametrize("dtype", [pytest.param(np.int32, marks=pytest.mark.xfail(reason="item returns scalar and for i32 it returns i64")),
+                                   np.int64,
+                                   np.float32,
+                                   pytest.param(np.float64, marks=pytest.mark.xfail(reason="item returns scalar and for f64 it returns f32"))])
 @pytest.mark.parametrize("shape", [[], [1], [1, 1, 1]])
 class TestItem(PytorchLayerTest):
     def _prepare_input(self):
@@ -29,4 +32,5 @@ class TestItem(PytorchLayerTest):
         self.dtype = dtype
         self.shape = shape
         # Dynamic shapes are not supported by Squeeze implementation
-        self._test(*self.create_model(), ie_device, precision, ir_version, dynamic_shapes=False)
+        self._test(*self.create_model(), ie_device, precision,
+                   ir_version, dynamic_shapes=False)
