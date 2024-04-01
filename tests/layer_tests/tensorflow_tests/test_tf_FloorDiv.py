@@ -61,7 +61,7 @@ class TestFloorDiv(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_1D)
     @pytest.mark.nightly
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     def test_add_placeholder_const_1D(self, params, ie_device, precision, ir_version, temp_dir,
                                       use_legacy_frontend):
         if platform.system() == 'Linux' and platform.machine() in list_arm_platforms() and np.issubdtype(params['dtype'], np.signedinteger):
@@ -120,7 +120,7 @@ class TestFloorDivStaticInput(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_inputs)
     @pytest.mark.parametrize("dtype", [np.int32, np.int64])
     @pytest.mark.nightly
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.xfail(condition=platform.system() == 'Linux' and platform.machine() in list_arm_platforms(),
                        reason='Ticket CVS-132377 - Divide inconsistent behavior on different systems')
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() in list_arm_platforms(),
