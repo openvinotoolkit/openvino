@@ -893,7 +893,6 @@ struct MHASingleToken {
         auto B = query.size(0);
         auto H = query.size(1);
         auto q_len = query.size(2);
-        auto S = query.size(3);
         bool is_pagedattn = context_lens;
         size_t kv_len;
         if (is_pagedattn) {
@@ -905,6 +904,7 @@ struct MHASingleToken {
         bool fastpath_valid = false;
 #ifdef OPENVINO_ARCH_X86_64
         if (is_pagedattn) {
+            auto S = query.size(3);
             size_t block_size = present_value.size(2);
             fastpath_valid = mayiuse(amx_bf16) && (S % 32 == 0) && (block_size % 16 == 0) && (S <= 32 * 6) && present_key.get_precision() == ov::element::bf16;
             if (fastpath_valid) {
