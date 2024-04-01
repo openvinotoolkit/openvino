@@ -264,7 +264,7 @@ private:
     }
 
     size_t get_bytes_capacity() const {
-        return element::get_byte_size(get_element_type(), get_capacity()) ;
+        return element::get_byte_size(get_element_type(), get_capacity());
     }
 
     Allocator m_allocator;
