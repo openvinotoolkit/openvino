@@ -19,17 +19,23 @@ public:
     /// \brief Constructs an RMSNorm operation without scaling.
     ///
     /// \param data Input tensor with data
+    /// \param axes Axes for reduce mean calculation
     /// \param eps Epsilon for not dividing by zero while normalizing the value
     /// \param compute_type Precision for the internal computation, same as the input type by default
-    RMSNorm(const Output<Node>& data, double epsilson, const ov::element::Type& compute_type = ov::element::undefined);
+    RMSNorm(const Output<Node>& data,
+            const Output<Node>& axes,
+            double epsilson,
+            const ov::element::Type& compute_type = ov::element::undefined);
 
     /// \brief Constructs an RMSNorm operation with scaling.
     ///
     /// \param data Input tensor with data
+    /// \param axes Axes for reduce mean calculation
     /// \param scale Scale values for weight
     /// \param eps Epsilon for not dividing by zero while normalizing the value
     /// \param compute_type Output element type
     RMSNorm(const Output<Node>& data,
+            const Output<Node>& axes,
             const Output<Node>& scale,
             double epsilson,
             const ov::element::Type& compute_type = ov::element::undefined);

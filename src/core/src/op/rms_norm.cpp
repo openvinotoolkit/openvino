@@ -4,6 +4,7 @@
 
 #include "openvino/op/rms_norm.hpp"
 
+#include "compare.hpp"
 #include "itt.hpp"
 #include "openvino/op/op.hpp"
 
@@ -12,17 +13,21 @@ namespace op {
 namespace v14 {
 
 RMSNorm::RMSNorm(const Output<Node>& data,
-                 const Output<Node>& scale,
+                 const Output<Node>& axes,
                  double epsilson,
                  const ov::element::Type& compute_type)
-    : Op({data, scale}),
+    : Op({data, axes}),
       m_epsilon(epsilson),
       m_compute_type(compute_type) {
     constructor_validate_and_infer_types();
 }
 
-RMSNorm::RMSNorm(const Output<Node>& data, double epsilson, const ov::element::Type& compute_type)
-    : Op({data}),
+RMSNorm::RMSNorm(const Output<Node>& data,
+                 const Output<Node>& axes,
+                 const Output<Node>& scale,
+                 double epsilson,
+                 const ov::element::Type& compute_type)
+    : Op({data, axes, scale}),
       m_epsilon(epsilson),
       m_compute_type(compute_type) {
     constructor_validate_and_infer_types();
@@ -41,6 +46,18 @@ void RMSNorm::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this,
                           data_element_type.is_dynamic() || data_element_type.is_real(),
                           "The element type of the input tensor must be a floating point type.");
+    const auto& data = get_input_partial_shape(0);
+    const auto& axes = get_input_partial_shape(1);
+
+    if (axes.is_static()) {
+        NODE_VALIDATION_CHECK(this, is_vector(axes.to_shape()), "Expected 1D tensor for the 'axes' input. Got: ", axes);
+
+        const auto data_rank = data.rank();
+        NODE_VALIDATION_CHECK(this,
+                              data_rank.is_dynamic() || cmp::ge(data_rank.get_length(), axes.get_shape()[0]),
+                              "Expected rank for the 'data' input to be higher than axes shape. Got: ",
+                              data);
+    }
     set_output_type(0, data_element_type, get_input_partial_shape(0));
 }
 
