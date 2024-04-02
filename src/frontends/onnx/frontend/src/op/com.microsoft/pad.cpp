@@ -38,7 +38,7 @@ namespace onnx_import {
 namespace op {
 namespace custom {
 namespace set_1 {
-ov::OutputVector pad(const Node& node) {
+ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
     const auto inputs = node.get_ng_inputs();
     const auto& data = inputs[0];
     const auto& pads_input = inputs[1];
