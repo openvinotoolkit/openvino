@@ -2598,6 +2598,18 @@ StreamsCalculationTestCase _1sockets_mock_latency_6 = {
     {{14, 6, 8, 0, 0, 0}},
     {{1, MAIN_CORE_PROC, 6, 0, 0}},
 };
+StreamsCalculationTestCase _1sockets_mock_latency_7 = {
+    1,
+    false,
+    0,
+    0,
+    0,
+    0,
+    "LATENCY",
+    {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL},
+    {{60, 60, 0, 0, 0, 0}},
+    {{1, MAIN_CORE_PROC, 30, 0, 0}, {-1, MAIN_CORE_PROC, 30, 0, 0}},
+};
 StreamsCalculationTestCase _2sockets_mock_latency_35 = {
     1,
     false,
@@ -2643,6 +2655,18 @@ StreamsCalculationTestCase _2sockets_mock_latency_37 = {
     {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL},
     {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
     {{1, MAIN_CORE_PROC, 24, 1, 1}, {-1, MAIN_CORE_PROC, 24, 0, 0}},
+};
+StreamsCalculationTestCase _2sockets_mock_tput_1 = {
+    2,
+    true,
+    0,
+    0,
+    0,
+    0,
+    "THROUGHPUT",
+    {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL},
+    {{120, 120, 0, 0, -1, -1}, {60, 60, 0, 0, 0, 0}, {60, 60, 0, 0, 1, 1}},
+    {{1, MAIN_CORE_PROC, 30, 0, 0}, {-1, MAIN_CORE_PROC, 30, 0, 0}, {1, MAIN_CORE_PROC, 30, 1, 1}, {-1, MAIN_CORE_PROC, 30, 1, 1}},
 };
 TEST_P(StreamsCalculationTests, StreamsCalculation) {}
 
@@ -2785,6 +2809,13 @@ INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
                                          _1sockets_ecores_tput_3,
                                          _1sockets_ecores_tput_4,
                                          _1sockets_ecores_tput_5,
+                                         _1sockets_mock_latency_1,
+                                         _1sockets_mock_latency_2,
+                                         _1sockets_mock_latency_3,
+                                         _1sockets_mock_latency_4,
+                                         _1sockets_mock_latency_5,
+                                         _1sockets_mock_latency_6,
+                                         _1sockets_mock_latency_7,
                                          _1sockets_mock_tput_1,
                                          _1sockets_mock_tput_2,
                                          _1sockets_mock_tput_3,
@@ -2826,11 +2857,6 @@ INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
                                          _2sockets_mock_latency_35,
                                          _2sockets_mock_latency_36,
                                          _2sockets_mock_latency_37,
-                                         _1sockets_mock_latency_1,
-                                         _1sockets_mock_latency_2,
-                                         _1sockets_mock_latency_3,
-                                         _1sockets_mock_latency_4,
-                                         _1sockets_mock_latency_5,
-                                         _1sockets_mock_latency_6));
+                                         _2sockets_mock_tput_1));
 
 }  // namespace

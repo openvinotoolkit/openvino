@@ -136,8 +136,20 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                     stream_info[NUMBER_OF_STREAMS] = n_streams;
                 }
                 if (stream_info[NUMBER_OF_STREAMS] > 0) {
-                    streams_info_table.push_back(stream_info);
-                    n_streams -= stream_info[NUMBER_OF_STREAMS];
+                    if ((stream_info[NUMBER_OF_STREAMS] == 1) && (stream_info[THREADS_PER_STREAM] > 32) &&
+                        (hint_model_distribution_policy.find(ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL) !=
+                         hint_model_distribution_policy.end())) {
+                        auto num_threads = stream_info[THREADS_PER_STREAM];
+                        stream_info[THREADS_PER_STREAM] = num_threads / 2;
+                        streams_info_table.push_back(stream_info);
+                        stream_info[NUMBER_OF_STREAMS] = -1;
+                        streams_info_table.push_back(stream_info);
+                        stream_info[THREADS_PER_STREAM] = num_threads;
+                        n_streams--;
+                    } else {
+                        streams_info_table.push_back(stream_info);
+                        n_streams -= stream_info[NUMBER_OF_STREAMS];
+                    }
                 }
             }
         }
@@ -607,6 +619,14 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                      ov::util::to_string(config.hintPerfMode),
                                                      config.modelDistributionPolicy,
                                                      proc_type_table);
+
+    std::cout << "[ threading ] streams_info_table:" << std::endl;
+    for (auto& row : streams_info_table) {
+        for (auto& m : row) {
+            std::cout << m << " ";
+        }
+        std::cout << std::endl;
+    }
 
     auto cpu_pinning =
         get_cpu_pinning(config.enableCpuPinning, config.changedCpuPinning, proc_type_table, streams_info_table);

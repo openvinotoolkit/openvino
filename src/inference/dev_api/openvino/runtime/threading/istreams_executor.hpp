@@ -89,7 +89,7 @@ public:
             ov::hint::SchedulingCoreType::ANY_CORE;  //!< PCORE_ONLY and ECORE_ONLY are valid in hybrid core machine,
                                                      //!< ANY_CORE is valid in all machines. Core type priority:
                                                      //!< physical PCore, ECore, logical PCore
-        bool _cpu_reservation = false;  //!< Whether to reserve current cores which will not be used by other plugin.
+        bool _cpu_reservation = true;  //!< Whether to reserve current cores which will not be used by other plugin.
                                         //!< If it is true, cpu_pinning defaults to true.
         bool _cpu_pinning = false;      //!< Whether to bind threads to cores.
         std::vector<std::vector<int>> _streams_info_table = {};
