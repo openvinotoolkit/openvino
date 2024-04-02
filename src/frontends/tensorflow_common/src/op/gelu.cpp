@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_op_table.hpp"
-
 #include "openvino/op/gelu.hpp"
+
+#include "common_op_table.hpp"
 
 using namespace std;
 using namespace ov;
