@@ -207,46 +207,6 @@ Output<Node> quantize_fx(const NodeContext& context,
                        quantization_type);
 }
 
-Output<Node> quantize_fx(const NodeContext& context,
-                         const Output<Node>& input,
-                         int64_t out_low_i64,
-                         int64_t out_high_i64,
-                         const Output<Node>& quantized_node) {
-    if (const auto quantized_pt_node = cast_quantized_fw_node(quantized_node.get_node_shared_ptr())) {
-        return quantize_fx(context,
-                           input,
-                           quantized_pt_node->get_scale(),
-                           quantized_pt_node->get_zero_point(),
-                           quantized_pt_node->get_axis(),
-                           out_low_i64,
-                           out_high_i64,
-                           quantized_pt_node->get_dtype(),
-                           quantized_pt_node->get_type());
-    }
-    FRONT_END_OP_CONVERSION_CHECK(false, "Failed to convert a node to QuantizedPtNode");
-}
-
-Output<Node> quantize_fx(const NodeContext& context,
-                         const Output<Node>& input,
-                         const Output<Node>& scale,
-                         const Output<Node>& zero_point,
-                         int64_t out_low_i64,
-                         int64_t out_high_i64,
-                         const Output<Node>& quantized_node) {
-    if (const auto quantized_pt_node = cast_quantized_fw_node(quantized_node.get_node_shared_ptr())) {
-        return quantize_fx(context,
-                           input,
-                           scale,
-                           zero_point,
-                           quantized_pt_node->get_axis(),
-                           out_low_i64,
-                           out_high_i64,
-                           quantized_pt_node->get_dtype(),
-                           quantized_pt_node->get_type());
-    }
-    FRONT_END_OP_CONVERSION_CHECK(false, "Failed to convert a node to QuantizedPtNode");
-}
-
 std::shared_ptr<QuantizedPtNode> cast_quantized_fw_node(std::shared_ptr<Node> node) {
     auto quant_node = std::dynamic_pointer_cast<QuantizedPtNode>(node);
     if (!quant_node) {
