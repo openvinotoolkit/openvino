@@ -16,11 +16,14 @@ bool ov::intel_cpu::ACLTransposeExecutor::init(const ov::intel_cpu::TransposePar
     }
 
     std::vector<int> vec;
-    auto srcDims = srcDescs[0]->getShape().getStaticDims();
-    auto dstDims = dstDescs[0]->getShape().getStaticDims();
     if (srcDescs[0]->hasLayoutType(LayoutType::nspc)) {
-        changeLayoutToNhwc(srcDims);
-        changeLayoutToNhwc(dstDims);
+        auto changeLayoutToNhwc = [](VectorDims shape) -> VectorDims {
+            std::swap(shape[1], shape[2]);
+            std::swap(shape[2], shape[3]);
+            return shape;
+        };
+        auto srcDims = changeLayoutToNhwc(srcDescs[0]->getShape().getStaticDims());
+        auto dstDims = changeLayoutToNhwc(dstDescs[0]->getShape().getStaticDims());
         for (int i = inputOrder.size() - 1; i >= 0 ; --i) {
             auto it = find(srcDims.rbegin(), srcDims.rend(), dstDims[i]);
             int index = it - srcDims.rbegin();
@@ -36,10 +39,17 @@ bool ov::intel_cpu::ACLTransposeExecutor::init(const ov::intel_cpu::TransposePar
     for (unsigned int i = 0; i < inputOrder.size(); ++i) {
         order.set(i, vec[i]);
     }
-    auto srcTensorInfo = arm_compute::TensorInfo(shapeCast(srcDims), 1,
+
+    auto srcDims = shapeCast(srcDescs[0]->getShape().getDims());
+    auto dstDims = shapeCast(dstDescs[0]->getShape().getDims());
+
+    if (srcDescs[0]->hasLayoutType(LayoutType::nspc) && dstDescs[0]->hasLayoutType(LayoutType::nspc)) {
+        changeLayoutToNH_C({&srcDims, &dstDims});
+    }
+    auto srcTensorInfo = arm_compute::TensorInfo(srcDims, 1,
                                                  precisionToAclDataType(srcDescs[0]->getPrecision()),
                                                  getAclDataLayoutByMemoryDesc(srcDescs[0]));
-    auto dstTensorInfo = arm_compute::TensorInfo(shapeCast(dstDims), 1,
+    auto dstTensorInfo = arm_compute::TensorInfo(dstDims, 1,
                                                  precisionToAclDataType(dstDescs[0]->getPrecision()),
                                                  getAclDataLayoutByMemoryDesc(dstDescs[0]));
     arm_compute::Status status = arm_compute::NEPermute::validate(&srcTensorInfo, &dstTensorInfo, order);
@@ -51,7 +61,7 @@ bool ov::intel_cpu::ACLTransposeExecutor::init(const ov::intel_cpu::TransposePar
     dstTensor.allocator()->init(dstTensorInfo);
 
     acl_permute = std::make_unique<arm_compute::NEPermute>();
-    acl_permute->configure(&srcTensor, &dstTensor, order);
+    configureThreadSafe([&] { acl_permute->configure(&srcTensor, &dstTensor, order); });
     return true;
 }
 

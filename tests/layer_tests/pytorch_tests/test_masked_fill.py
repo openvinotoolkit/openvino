@@ -54,6 +54,7 @@ class TestMaskedFill(PytorchLayerTest):
     @pytest.mark.parametrize("inplace", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_fx_backend
     def test_masked_fill(self, value, mask_fill, mask_dtype, input_dtype, inplace, ie_device, precision, ir_version):
         self._test(*self.create_model(value, inplace),
                    ie_device, precision, ir_version,

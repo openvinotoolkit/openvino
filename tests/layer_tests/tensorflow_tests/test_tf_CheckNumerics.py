@@ -43,7 +43,7 @@ class TestCheckNumerics(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("input_shape, input_type, op", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_check_numerics_basic(self, input_shape, input_type, op, ie_device, precision, ir_version, temp_dir,
                                   use_legacy_frontend):

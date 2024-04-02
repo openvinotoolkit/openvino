@@ -117,10 +117,10 @@ bool Split::evaluate_upper(ov::TensorVector& output_values) const {
     return get_input_tensor(1).has_and_set_bound() && default_upper_bound_evaluator(this, output_values);
 }
 
-bool Split::evaluate_label(TensorLabelVector& output_labels) const {
-    OPENVINO_ASSERT(output_labels.size() == get_num_splits());
+bool Split::evaluate_symbol(TensorSymbolVector& output_symbols) const {
+    OPENVINO_ASSERT(output_symbols.size() == get_num_splits());
 
-    return get_input_tensor(1).has_and_set_bound() && ov::util::default_label_evaluator(this, output_labels);
+    return get_input_tensor(1).has_and_set_bound() && ov::util::default_symbol_evaluator(this, output_symbols);
 }
 }  // namespace v1
 }  // namespace op
