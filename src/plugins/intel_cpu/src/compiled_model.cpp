@@ -23,6 +23,10 @@
 #include <cstring>
 #include <utility>
 
+#if defined(OV_CPU_WITH_ACL)
+#include "nodes/executors/acl/acl_ie_scheduler.hpp"
+#endif
+
 using namespace ov::threading;
 
 namespace ov {
@@ -51,11 +55,13 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     if (!core)
         OPENVINO_THROW("Unable to get API version. Core is unavailable");
 
+    ov::threading::IStreamsExecutor::Ptr stream_executor = nullptr;
     if (cfg.exclusiveAsyncRequests) {
         // special case when all InferRequests are muxed into a single queue
         m_task_executor = m_plugin->get_executor_manager()->get_executor("CPU");
     } else {
-        m_task_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(m_cfg.streamExecutorConfig);
+        stream_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(m_cfg.streamExecutorConfig);
+        m_task_executor = stream_executor;
     }
     if (0 != m_cfg.streamExecutorConfig.get_streams()) {
         m_callback_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(
@@ -82,6 +88,13 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         do {
             for (auto&& task : tasks) {
                 task = [this] {
+#if defined(OV_CPU_WITH_ACL)
+                    static std::once_flag flag_once;
+                    std::call_once(flag_once, [&]() {
+                        std::shared_ptr<arm_compute::IScheduler> acl_scheduler = std::make_shared<ACLScheduler>();
+                        arm_compute::Scheduler::set(std::static_pointer_cast<arm_compute::IScheduler>(acl_scheduler));
+                    });
+#endif
                     CompiledModel::get_graph();
                 };
             }
@@ -89,6 +102,16 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         } while (!all_graphs_ready());
     } else {
         CompiledModel::get_graph();
+    }
+    // init sub stream threads of executor
+    int sub_streams = m_cfg.streamExecutorConfig.get_sub_streams();
+    if (sub_streams > 0 && stream_executor != nullptr) {
+        std::vector<Task> tasks;
+        tasks.resize(sub_streams);
+        for (auto&& task : tasks) {
+            task = [] {};
+        }
+        stream_executor->run_sub_stream_and_wait(tasks);
     }
 }
 
@@ -114,7 +137,7 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
                         (m_cfg.lpTransformsMode == Config::On) &&
                         ov::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);
 
-                    ctx = std::make_shared<GraphContext>(m_cfg, weightsCache, isQuantizedFlag);
+                    ctx = std::make_shared<GraphContext>(m_cfg, weightsCache, isQuantizedFlag, streamsExecutor);
                 }
                 const std::shared_ptr<const ov::Model> model = m_model;
                 graphLock._graph.CreateGraph(model, ctx);
