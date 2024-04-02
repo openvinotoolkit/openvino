@@ -173,7 +173,8 @@ class KVCacheTests: public ::testing::Test {
             return results_ref;
         };
 
-        auto compare_tensors = [&model](const std::vector<ov::Tensor> expected, const std::vector<ov::Tensor>& actual) {
+        ov::element::Type inference_precision = core->get_property(ov::test::utils::DEVICE_TEMPLATE, ov::hint::inference_precision);
+        auto compare_tensors = [&model, &inference_precision](const std::vector<ov::Tensor> expected, const std::vector<ov::Tensor>& actual) {
                 ASSERT_EQ(expected.size(), actual.size());
                 ASSERT_EQ(expected.size(), model->get_results().size());
                 auto compareMap = ov::test::utils::getCompareMap();
@@ -182,15 +183,9 @@ class KVCacheTests: public ::testing::Test {
                     const auto result = results[j];
                     for (size_t i = 0; i < result->get_input_size(); ++i) {
                         std::shared_ptr<ov::Node> inputNode = result->get_input_node_shared_ptr(i);
-                        if (std::dynamic_pointer_cast<ov::op::v0::Convert>(inputNode)) {
-                            std::shared_ptr<ov::Node> nextNodePtr = inputNode->get_input_node_shared_ptr(0);
-                            if (!ov::is_type<ov::op::v0::Result>(nextNodePtr)) {
-                                inputNode = nextNodePtr;
-                            }
-                        }
                         auto it = compareMap.find(inputNode->get_type_info());
                         ASSERT_NE(it, compareMap.end());
-                        it->second(inputNode, i, expected[j], actual[j], 1e-4f, 1e-4f);
+                        it->second(inputNode, i, inference_precision, expected[j], actual[j], 1e-4f, 1e-4f, 1.f, 1.f);
                     }
                 }
         };
@@ -362,26 +357,21 @@ class KVCacheTests: public ::testing::Test {
             return ov::test::utils::infer_on_template(ref_model, inputs);
         };
 
-        auto compare_tensors = [&model](const std::vector<ov::Tensor> expected, const std::vector<ov::Tensor>& actual) {
-                ASSERT_EQ(expected.size(), actual.size());
-                ASSERT_EQ(expected.size(), model->get_results().size());
-                auto compareMap = ov::test::utils::getCompareMap();
-                const auto& results = model->get_results();
-                for (size_t j = 0; j < results.size(); j++) {
-                    const auto result = results[j];
-                    for (size_t i = 0; i < result->get_input_size(); ++i) {
-                        std::shared_ptr<ov::Node> inputNode = result->get_input_node_shared_ptr(i);
-                        if (std::dynamic_pointer_cast<ov::op::v0::Convert>(inputNode)) {
-                            std::shared_ptr<ov::Node> nextNodePtr = inputNode->get_input_node_shared_ptr(0);
-                            if (!ov::is_type<ov::op::v0::Result>(nextNodePtr)) {
-                                inputNode = nextNodePtr;
-                            }
-                        }
-                        auto it = compareMap.find(inputNode->get_type_info());
-                        ASSERT_NE(it, compareMap.end());
-                        it->second(inputNode, i, expected[j], actual[j], 1e-4f, 1e-4f);
-                    }
+        ov::element::Type inference_precision = core->get_property(ov::test::utils::DEVICE_GPU, ov::hint::inference_precision);
+        auto compare_tensors = [&model, &inference_precision](const std::vector<ov::Tensor> expected, const std::vector<ov::Tensor>& actual) {
+            ASSERT_EQ(expected.size(), actual.size());
+            ASSERT_EQ(expected.size(), model->get_results().size());
+            auto compareMap = ov::test::utils::getCompareMap();
+            const auto& results = model->get_results();
+            for (size_t j = 0; j < results.size(); j++) {
+                const auto result = results[j];
+                for (size_t i = 0; i < result->get_input_size(); ++i) {
+                    std::shared_ptr<ov::Node> inputNode = result->get_input_node_shared_ptr(i);
+                    auto it = compareMap.find(inputNode->get_type_info());
+                    ASSERT_NE(it, compareMap.end());
+                    it->second(inputNode, i, inference_precision, expected[j], actual[j], 1e-4f, 1e-4f, 1.f, 1.f);
                 }
+            }
         };
 
         auto infer_request = compiled_model.create_infer_request();
