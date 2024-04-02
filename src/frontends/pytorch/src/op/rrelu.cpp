@@ -33,16 +33,8 @@ OutputVector translate_rrelu_fx(const NodeContext& context) {
 
     average = context.mark_node(average);
 
-    return {context.mark_node(std::make_shared<v0::PRelu>(x, average))};
-    
-     
-     
-     
-     
-    
-     
+    return {context.mark_node(std::make_shared<v0::PRelu>(x, average))};     
 };
-
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend
