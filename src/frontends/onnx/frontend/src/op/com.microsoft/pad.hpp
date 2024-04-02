@@ -6,8 +6,9 @@
 
 #include "core/node.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace custom {
 namespace set_1 {
@@ -15,5 +16,6 @@ ov::OutputVector pad(const ov::frontend::onnx::Node& node);
 }  // namespace set_1
 }  // namespace custom
 }  // namespace op
-}  // namespace onnx_import
+}  // namespace onnx
+}  // namespace frontend
 }  // namespace ngraph
