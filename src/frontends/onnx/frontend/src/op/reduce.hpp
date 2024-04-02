@@ -49,6 +49,15 @@ ov::OutputVector reduce_mean(const ov::frontend::onnx::Node& node);
 namespace set_1 {
 ov::OutputVector reduce_min(const ov::frontend::onnx::Node& node);
 }  // namespace set_1
+namespace set_13 {
+ov::OutputVector reduce_min(const ov::frontend::onnx::Node& node);
+}  // namespace set_13
+namespace set_18 {
+ov::OutputVector reduce_min(const ov::frontend::onnx::Node& node);
+}  // namespace set_18
+namespace set_20 {
+ov::OutputVector reduce_min(const ov::frontend::onnx::Node& node);
+}  // namespace set_20
 
 namespace set_1 {
 ov::OutputVector reduce_prod(const ov::frontend::onnx::Node& node);
