@@ -41,7 +41,8 @@ OutputVector translate_index_copy_(const NodeContext& context) {
     auto tensor_shape = context.mark_node(std::make_shared<v3::ShapeOf>(tensor, element::i32));
     auto dim_vec = context.mark_node(std::make_shared<v1::Reshape>(positive_dim, const_1_vec, false));
     auto broadcasted_index = context.mark_node(std::make_shared<v1::Broadcast>(index, tensor_shape, dim_vec));
-    auto result = context.mark_node(std::make_shared<v12::ScatterElementsUpdate>(input, broadcasted_index, tensor, dim));
+    auto result =
+        context.mark_node(std::make_shared<v12::ScatterElementsUpdate>(input, broadcasted_index, tensor, dim));
     return {result};
 };
 
