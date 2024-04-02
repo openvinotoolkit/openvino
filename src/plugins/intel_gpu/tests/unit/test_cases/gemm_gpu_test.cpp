@@ -1244,7 +1244,7 @@ public:
         topology topology;
         topology.add(input_layout("input0", input0_layout),
                      input_layout("input1", input1_layout),
-                     gemm("gemm", { input_info("input0"), input_info("input1") }, data_types::f32, {}, {}, {}, {}, input0_order, input1_order, output_order)
+                     gemm("gemm", { input_info("input0"), input_info("input1") }, data_types::f32, input0_order, input1_order, output_order)
         );
 
         ExecutionConfig config = get_test_default_config(engine);
