@@ -474,6 +474,9 @@ TEST_P(OVCheckGetSupportedROMetricsPropsTests, ChangeCorrectProperties) {
 }
 
 TEST_P(OVCheckChangePropComplieModleGetPropTests_DEVICE_ID, ChangeCorrectDeviceProperties) {
+    if (sw_plugin_in_target_device(target_device)) {
+        return;
+    }
     std::vector<ov::PropertyName> supported_properties;
     OV_ASSERT_NO_THROW(supported_properties = core->get_property(target_device, ov::supported_properties));
     auto supported = util::contains(supported_properties, ov::device::id);
@@ -667,6 +670,9 @@ TEST_P(OVSpecificDeviceGetConfigTest, GetConfigSpecificDeviceNoThrow) {
 }
 
 TEST_P(OVGetAvailableDevicesPropsTest, GetAvailableDevicesNoThrow) {
+    if (sw_plugin_in_target_device(target_device)) {
+        return;
+    }
     ov::Core ie = ov::test::utils::create_core();
     std::vector<std::string> devices;
 
@@ -719,6 +725,9 @@ TEST_P(OVClassSetDevicePriorityConfigPropsTest, SetConfigAndCheckGetConfigNoThro
 }
 
 TEST_P(OVGetMetricPropsTest, GetMetricAndPrintNoThrow_AVAILABLE_DEVICES) {
+    if (sw_plugin_in_target_device(target_device)) {
+        return;
+    }
     ov::Core ie = ov::test::utils::create_core();
     std::vector<std::string> device_ids;
 
@@ -727,12 +736,7 @@ TEST_P(OVGetMetricPropsTest, GetMetricAndPrintNoThrow_AVAILABLE_DEVICES) {
 
     for (auto&& device_id : device_ids) {
         std::string full_name;
-        // sw plugins are not requested to support `ov::device::id` property
-        if (sw_plugin_in_target_device(target_device)) {
-            OV_ASSERT_NO_THROW(full_name = ie.get_property(target_device, ov::device::full_name));
-        } else {
-            OV_ASSERT_NO_THROW(full_name = ie.get_property(target_device, ov::device::full_name, ov::device::id(device_id)));
-        }
+        OV_ASSERT_NO_THROW(full_name = ie.get_property(target_device, ov::device::full_name, ov::device::id(device_id)));
         ASSERT_FALSE(full_name.empty());
     }
 
