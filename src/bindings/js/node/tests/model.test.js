@@ -42,7 +42,7 @@ describe('Node.js Model.getOutputSize()', () => {
     }, /^Error: getOutputSize\(\) does not accept any arguments\.$/, 'Expected getOutputSize to throw an error when called with arguments');
   });
 
-  it('returns 1 for the default model', () => {
+  it('should returns 1 for the default model', () => {
     assert.strictEqual(model.getOutputSize(), 1, 'Expected getOutputSize to return 1 for the default model');
   });
 });
