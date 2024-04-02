@@ -204,7 +204,7 @@ jobs:
       - name: Perform code tracing via ITT collector
         shell: cmd
         run: |
-          set path=%path%;${{ env.OPENVINO_REPO }}\temp\tbb\bin
+          set path=%path%;${{ env.OPENVINO_REPO }}\temp\tbb\bin;${{ env.BUILD_DIR }}\bin\Release
 
           python3 ${{ env.OPENVINO_REPO }}\thirdparty\itt_collector\runtool\sea_runtool.py ^
           --bindir ${{ env.OPENVINO_REPO }}\bin\intel64\${{ env.CMAKE_BUILD_TYPE }} ^
@@ -233,7 +233,7 @@ jobs:
           Compress-Archive @compress
 
           $compress = @{
-            Path = "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_cpu_func_tests.exe", "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ze_loader*", "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/openvino_template_extension.dll", "${{ env.OPENVINO_REPO }}/src/tests/test_utils/functional_test_utils/layer_tests_summary", "${{ env.INSTALL_DIR }}/runtime/3rdparty/tbb"
+            Path = "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_cpu_func_tests.exe", "${{ env.BUILD_DIR }}/bin/Release/ze_loader.dll", "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/openvino_template_extension.dll", "${{ env.OPENVINO_REPO }}/src/tests/test_utils/functional_test_utils/layer_tests_summary", "${{ env.INSTALL_DIR }}/runtime/3rdparty/tbb"
             CompressionLevel = "Optimal"
             DestinationPath = "${{ env.BUILD_DIR }}/openvino_tests.zip"
           }
