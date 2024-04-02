@@ -274,7 +274,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 
     // =====================================================================================================================================
     // Main computation loop
-    uint iterations = MAIN_LOOP_ELEMENTS_COUNT / (TILE_IFM * SIMD);  // TEMP : iterations = 4096 / (2 * 16);
+    uint iterations = MAIN_LOOP_ELEMENTS_COUNT / (TILE_IFM * SIMD);  // desc : iterations = 4096 / (2 * 16);
     // Packing index
     uint idx_sglid = (sglid * TILE_K) % 32;       // same index for sglid 0~7 : to tile_k direction
     uint batch_sglid = (sglid * TILE_K) / 32;     // 0 to 1 : to batch direction
@@ -284,10 +284,14 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     for (uint ni = 0; ni < iterations; ++ni) {
         // Packing : Get 4x4 integer vector (to be 4(b)x4(k) char vector -> 4x1 vector)
         uint input_offset_tmp = input_offset + idx_sglid + batch_sglid * TILE_IN_B_PITCH;
-        unroll_for (uint bi = 0; bi < TILE_B/2; ++bi) {
+        for (uint bi = 0; bi < TILE_B/2; ++bi) {
             in_0_to_int[bi] = vload4(0, &input[input_offset_tmp]);
 
             input_offset_tmp += TILE_IN_B_PITCH;
+        }
+
+        for (uint bi = 0; bi < TILE_B/2; ++bi) {
+            max[bi] = fmax(fmax(fabs(in_0_to_int[bi][0]), fabs(in_0_to_int[bi][1])), fmax(fabs(in_0_to_int[bi][2]), fabs(in_0_to_int[bi][3])));
         }
 
         // Load input.
@@ -310,7 +314,23 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
         #if DECOMPRESSION_SCALE_POST_OP
             // ACCUMULATOR_VEC_TYPE acc_tmp[TILE_B] = { };
             MAKE_VECTOR_TYPE(int, TILE_OFM) acc_tmp[TILE_B] = { };
-            
+
+        #endif
+
+        #if 1
+            barrier(CLK_LOCAL_MEM_FENCE);
+            // Quantizing for Pakcing input
+            MAKE_VECTOR_TYPE(INPUT0_TYPE, 4) de_quantize_scale = 1;
+            MAKE_VECTOR_TYPE(INPUT0_TYPE, 4) quantize_scale = 1;
+            MAKE_VECTOR_TYPE(INPUT0_TYPE, 4) dq_max_input;
+            unroll_for (uint bi = 0; bi < TILE_B/2; ++bi) {
+                dq_max_input[bi] = sub_group_reduce_max(max[bi]);
+            }
+            quantize_scale = 128 / dq_max_input;
+            unroll_for (uint bi = 0; bi < TILE_B/2; ++bi) {
+                int_dq_in_0[bi] = as_int(CAT(convert_, MAKE_VECTOR_TYPE(DQ_TYPE, 4))(in_0_to_int[bi] * quantize_scale[bi]));
+            }
+            de_quantize_scale = dq_max_input / 128;
         #endif
 
         // Handle compressed weight
@@ -326,21 +346,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 barrier(CLK_LOCAL_MEM_FENCE);
             #endif
 
-            // Quantizing for Pakcing input
-            MAKE_VECTOR_TYPE(INPUT0_TYPE, 4) de_quantize_scale = 1;
-            MAKE_VECTOR_TYPE(INPUT0_TYPE, 4) quantize_scale = 1;
-            MAKE_VECTOR_TYPE(INPUT0_TYPE, 4) dq_max_input;
-            unroll_for (uint bi = 0; bi < TILE_B/2; ++bi) {
-                max[bi] = fmax(fmax(fabs(in_0_to_int[bi][0]), fabs(in_0_to_int[bi][1])), fmax(fabs(in_0_to_int[bi][2]), fabs(in_0_to_int[bi][3])));
-                dq_max_input[bi] = sub_group_reduce_max(max[bi]);
-            }
-            quantize_scale = 128 / dq_max_input;
-            unroll_for (uint bi = 0; bi < TILE_B/2; ++bi) {
-                int_dq_in_0[bi] = as_int(CAT(convert_, MAKE_VECTOR_TYPE(DQ_TYPE, 4))(in_0_to_int[bi] * quantize_scale[bi]));
-            }
-            de_quantize_scale = dq_max_input / 128;
-
-            // // TEMP
+            // // Dump
             // {
             //     if (get_group_id(0) == 0 && get_group_id(2) == 0 && ni == 0 &&
             //         /*get_local_id(0) == 0 && */get_local_id(2) == 0) {
@@ -370,8 +376,11 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
             __local DQ_SLM_FILTER_VEC* int8_slm_wei_vec = (__local DQ_SLM_FILTER_VEC*)dq_wei_local_mem;
 
             uint weights_idx = weights_offset + local_id * SIMD * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE;
-            uint wei_local_idx = local_id * SIMD * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE + sglid;
+            // TEMP
+            // uint wei_local_idx = local_id * SIMD * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE + sglid;
+            uint wei_local_idx = local_id * SIMD * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE + sglid * 4;
 
+            #if 0
             unroll_for(uint load_iter = 0; load_iter < FILTER_LOAD_ITERS; ++load_iter) {
                 SLM_FILTER_PACKED_VEC wei_packed = BLOCK_READN(FILTER_TYPE, FILTER_LOAD_BLOCK_SIZE, weights, weights_idx);
                 #if DECOMPRESSION_SCALE_POST_OP
@@ -450,13 +459,97 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 
                 weights_idx += SIMD * FILTER_LOAD_BLOCK_SIZE;
             }
+            #endif
+
+            __attribute__((opencl_unroll_hint)) for (uint load_iter = 0; load_iter < 1; ++load_iter) {
+                uchar4 wei_packed = as_uchar4(_sub_group_block_read_uc4((const __global uchar *)(weights) + (weights_idx)));
+
+                char8 dq_wei_unpacked = unpack_mixed_to_char(*((uint4x8_t *)&wei_packed));
+                char *dq_w = (char *)(&dq_wei_unpacked);
+
+                __attribute__((opencl_unroll_hint)) for (uint fi = 0; fi < 2; ++fi) {
+                    __attribute__((opencl_unroll_hint)) for (uint kii = 0; kii < 4; ++kii) {
+                        const uint w_idx = fi * 4 + kii;
+                        // const uint offset_ofm = out_f + fi * 16 + sglid;
+                        // const uint offset_ifm = ni * 2 * 16 + local_id * 1 * 4 + load_iter * 4 + kii;
+                        half ds = 1.0h;
+
+                        half dzp = as_float(0x0);
+                        dq_w[w_idx] = (dq_w[w_idx] - convert_char_sat(dzp));
+                    }
+                }
+
+                // TEMP
+                // int8_slm_wei_vec[wei_local_idx] = dq_wei_unpacked.s01;
+                // wei_local_idx += 16;
+                // int8_slm_wei_vec[wei_local_idx] = dq_wei_unpacked.s23;
+                // wei_local_idx += 16;
+                // int8_slm_wei_vec[wei_local_idx] = dq_wei_unpacked.s45;
+                // wei_local_idx += 16;
+                // int8_slm_wei_vec[wei_local_idx] = dq_wei_unpacked.s67;
+                // wei_local_idx += 16;
+                // weights_idx += 16 * 4;
+                int8_slm_wei_vec[wei_local_idx] = dq_wei_unpacked.s01;
+                int8_slm_wei_vec[wei_local_idx+1] = dq_wei_unpacked.s23;
+                int8_slm_wei_vec[wei_local_idx+2] = dq_wei_unpacked.s45;
+                int8_slm_wei_vec[wei_local_idx+3] = dq_wei_unpacked.s67;
+                wei_local_idx += 16 * 4;
+                weights_idx += 16 * 4;
+            }
 
             wei_local_idx = sglid;
 
             barrier(CLK_LOCAL_MEM_FENCE);
         #endif  // USE_SLM : Restore compressed weight
 
+        // TEMP
+        wei_local_idx = sglid * 4;
+        for (uint ki = 0; ki < (2 * 16) / 4; ++ki) {
+            char8 wei = 0;
+            // TEMP
+            // wei.s01 = int8_slm_wei_vec[wei_local_idx];
+            // wei_local_idx += 16;
+            // wei.s23 = int8_slm_wei_vec[wei_local_idx];
+            // wei_local_idx += 16;
+            // wei.s45 = int8_slm_wei_vec[wei_local_idx];
+            // wei_local_idx += 16;
+            // wei.s67 = int8_slm_wei_vec[wei_local_idx];
+            // wei_local_idx += 16;
+            // weights_offset += 4 * 16;
+            wei.s01 = int8_slm_wei_vec[wei_local_idx];
+            wei.s23 = int8_slm_wei_vec[wei_local_idx+1];
+            wei.s45 = int8_slm_wei_vec[wei_local_idx+2];
+            wei.s67 = int8_slm_wei_vec[wei_local_idx+3];
+
+            const uint second_batch = 8;
+            __attribute__((opencl_unroll_hint)) for (uint bi = 0; bi < 8; ++bi) {
+                // TEMP
+                // ((int *)(&acc_tmp[bi]))[0] = imad_SW(((int *)(&acc_tmp[bi]))[0],
+                //                                         as_char4(_sub_group_shuffle(int_dq_in_0[bi % 4], (bi / 4) * 8 + ki)),
+                //                                         ((char4 *)(&wei))[0]);
+                // ((int *)(&acc_tmp[bi]))[1] = imad_SW(((int *)(&acc_tmp[bi]))[1],
+                //                                         as_char4(_sub_group_shuffle(int_dq_in_0[bi % 4], (bi / 4) * 8 + ki)),
+                //                                         ((char4 *)(&wei))[1]);
+                ((int *)(&acc_tmp[bi]))[0] = imad_SW(((int *)(&acc_tmp[bi]))[0],
+                                                        as_char4(_sub_group_shuffle(int_dq_in_0[bi % 4], (bi / 4) * 8 + ki)),
+                                                        ((char4 *)(&int8_slm_wei_vec[wei_local_idx]))[0]);
+                ((int *)(&acc_tmp[bi]))[1] = imad_SW(((int *)(&acc_tmp[bi]))[1],
+                                                        as_char4(_sub_group_shuffle(int_dq_in_0[bi % 4], (bi / 4) * 8 + ki)),
+                                                        ((char4 *)(&int8_slm_wei_vec[wei_local_idx+2]))[0]);
+
+                // if (get_group_id(0) == 0 && get_group_id(0) == 0 && bi == 0 && sglid == 0) {
+                //     printf(">>> %p , %p \n", &(((char4 *)(&wei))[0]), &(((char4 *)(&wei))[1]));
+                //     printf("  --- [%d %d %d %d] [%d %d %d %d]\n", (int)wei[4], (int)wei[5], (int)wei[6], (int)wei[7], (int)int8_slm_wei_vec[wei_local_idx + 2][0],
+                //             (int)int8_slm_wei_vec[wei_local_idx + 2][1], (int)int8_slm_wei_vec[wei_local_idx + 3][0], (int)int8_slm_wei_vec[wei_local_idx + 3][1]);
+                // }
+            }
+            // TEMP
+            wei_local_idx += 16 * 4;
+            weights_offset += 4 * 16;
+        }
+
         // Get accumulated value
+        #if 0
         for (uint ki = 0; ki < (TILE_IFM * SIMD) / TILE_K ; ++ki) {
             // Load compressed weight
             #if COMPRESSED_WEIGHTS_INT4
@@ -480,7 +573,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 #else
                     FILTER_PACKED_VEC_TYPE wei_packed = FILTER_BLOCK_READ(weights, weights_offset);
                     #if DECOMPRESSION_SCALE_POST_OP
-                        wei = UNPACK_INT4x2(DQ_TYPE, *((INT4_PACKED_TYPE*)&wei_packed));
+                        wei = UNPACK_MIXED_INT4x2(DQ_TYPE, *((INT4_PACKED_TYPE*)&wei_packed));
                     #else
                         wei = UNPACK_INT4x2(ACCUMULATOR_TYPE, *((INT4_PACKED_TYPE*)&wei_packed));
                     #endif
@@ -499,7 +592,8 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 
                 unroll_for(uint kii = 0; kii < TILE_K; ++kii) {
                     unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
-                        const uint w_idx = kii * TILE_OFM + fi;
+                        // const uint w_idx = kii * TILE_OFM + fi;
+                        const uint w_idx = fi * TILE_K + kii;
                         const uint offset_ofm = out_f + fi*SIMD + sglid;
                         #if !DECOMPRESSION_SCALE_POST_OP
                             // Apply scales before FMA to avoid FP16 overflow in case of INT8
@@ -538,46 +632,29 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
             #endif
             weights_offset += TILE_K_OFM_PACKED * SIMD;
 
-#if DECOMPRESSION_SCALE_POST_OP
-            #if USE_SLM
-                // Packing
-                const uint second_batch = 8;
-                unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
-                    ((int*)(&acc_tmp[bi]))[0] = IMAD(((int*)(&acc_tmp[bi]))[0],
-                                AS_DQ_TYPE_4(_sub_group_shuffle(int_dq_in_0[bi%4], (bi/4)*8 + ki)),
-                                ((MAKE_VECTOR_TYPE(DQ_TYPE, 4) *)(&wei))[0]);
+            // // Packing
+            // const uint second_batch = 8;
+            // unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
+            //     ((int*)(&acc_tmp[bi]))[0] = IMAD(((int*)(&acc_tmp[bi]))[0],
+            //                 AS_DQ_TYPE_4(_sub_group_shuffle(int_dq_in_0[bi%4], (bi/4)*8 + ki)),
+            //                 ((MAKE_VECTOR_TYPE(DQ_TYPE, 4) *)(&wei))[0]);
+            // }
+            // unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
+            //     ((int*)(&acc_tmp[bi]))[1] = IMAD(((int*)(&acc_tmp[bi]))[1],
+            //                 AS_DQ_TYPE_4(_sub_group_shuffle(int_dq_in_0[bi%4], (bi/4)*8 + ki)),
+            //                 ((MAKE_VECTOR_TYPE(DQ_TYPE, 4) *)(&wei))[1]);
+            // }
 
-                }
-                unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
-                    ((int*)(&acc_tmp[bi]))[1] = IMAD(((int*)(&acc_tmp[bi]))[1],
-                                AS_DQ_TYPE_4(_sub_group_shuffle(int_dq_in_0[bi%4], (bi/4)*8 + ki)),
-                                ((MAKE_VECTOR_TYPE(DQ_TYPE, 4) *)(&wei))[1]);
-                }
-            #else
-                unroll_for (uint kii = 0; kii < TILE_K; ++kii) {
-                    const uint total_k = ki * TILE_K + kii;
-                    unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
-                        INPUT0_TYPE in_val = _sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[total_k / SIMD], total_k % SIMD);
-                        unroll_for (uint fi = 0; fi < TILE_OFM; ++fi) {
-                            ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[fi * TILE_K + kii];
-                        }
-                    }
-                }
-            #endif
-#else
-            unroll_for (uint kii = 0; kii < TILE_K; ++kii) {
-                const uint index_k = ki * TILE_K + kii;
-                unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
-                    printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-                    INPUT0_TYPE in_val = _sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[index_k / SIMD], index_k % SIMD);
-                    unroll_for (uint fi = 0; fi < TILE_OFM; ++fi) {
-                        ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[kii * TILE_OFM + fi];
-                    }
-                }
+            unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
+                ((int*)(&acc_tmp[bi]))[0] = IMAD(((int*)(&acc_tmp[bi]))[0],
+                            AS_DQ_TYPE_4(_sub_group_shuffle(int_dq_in_0[bi%4], (bi/4)*8 + ki)),
+                            ((MAKE_VECTOR_TYPE(DQ_TYPE, 4) *)(&wei))[0]);
+                ((int*)(&acc_tmp[bi]))[1] = IMAD(((int*)(&acc_tmp[bi]))[1],
+                            AS_DQ_TYPE_4(_sub_group_shuffle(int_dq_in_0[bi%4], (bi/4)*8 + ki)),
+                            ((MAKE_VECTOR_TYPE(DQ_TYPE, 4) *)(&wei))[1]);
             }
-#endif
 
-#if DECOMPRESSION_SCALE_POST_OP && (TILE_IFM * SIMD > DECOMPRESSION_SCALE_GROUP_SIZE)
+        #if DECOMPRESSION_SCALE_POST_OP && (TILE_IFM * SIMD > DECOMPRESSION_SCALE_GROUP_SIZE)
             unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
                 unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
                     const uint offset_ofm = out_f + fi*SIMD + sglid;
@@ -594,11 +671,11 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                     acc_tmp[bi][fi] = 0;
                 }
             }
-#endif
+        #endif
         }  // ki < (TILE_IFM * SIMD) / TILE_K
+        #endif
 
 #if DECOMPRESSION_SCALE_POST_OP && (TILE_IFM * SIMD <= DECOMPRESSION_SCALE_GROUP_SIZE)
-    #if 0
         const uint ni_offset = ((ni*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
         unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
             unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
@@ -613,22 +690,6 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += TO_ACCUMULATOR_TYPE(((int*)(&acc_tmp[bi]))[fi]) * ds * de_quantize_scale[bi%4];
             }
         }
-    #else
-        const uint ni_offset = ((ni*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
-        unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
-            unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
-                const uint offset_ofm = out_f + fi*SIMD + sglid;
-
-                #if DECOMPRESSION_SCALE_GROUPS_NUM > 1
-                    const uint scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH + ni_offset;
-                    ACCUMULATOR_TYPE ds = decompression_scale[scale_offset];
-                #else
-                    ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
-                #endif
-                ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += TO_ACCUMULATOR_TYPE(((int*)(&acc_tmp[bi]))[fi]) * ds * de_quantize_scale[bi%4];
-            }
-        }
-    #endif
 #endif
     }
 

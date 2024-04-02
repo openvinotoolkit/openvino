@@ -101,8 +101,6 @@ bool FullyConnected_bf_tiled_dyn_quan::Validate(const Params& params) const {
             return false;
     }
 
-    // std::cout << ">> FullyConnected_bf_tiled_dyn_quan::Validate : " << input.to_string() << std::endl;
-
     // We don't support 4d output
     if (fc_params.outputs[0].GetLayout() == DataLayout::bfyx) {
         if (input.X().v > 1)
@@ -353,10 +351,10 @@ FullyConnected_bf_tiled_dyn_quan::SetDefault(const fully_connected_params& param
     dispatchData.lws[1] = 1;
     dispatchData.lws[2] = can_use_slm ? lws_batches : 1;
 
-    // std::cout << ">> FullyConnected_bf_tiled_dyn_quan GWS [0,1,2] : " << dispatchData.gws[0] << ", " << dispatchData.gws[1] << ", "
-    //             << dispatchData.gws[2] << std::endl;
-    // std::cout << ">> FullyConnected_bf_tiled_dyn_quan LWS [0,1,2] : " << dispatchData.lws[0] << ", " << dispatchData.lws[1] << ", "
-    //             << dispatchData.lws[2] << std::endl;
+    std::cout << ">> FullyConnected_bf_tiled_dyn_quan GWS [0,1,2] : " << dispatchData.gws[0] << ", " << dispatchData.gws[1] << ", "
+                << dispatchData.gws[2] << std::endl;
+    std::cout << ">> FullyConnected_bf_tiled_dyn_quan LWS [0,1,2] : " << dispatchData.lws[0] << ", " << dispatchData.lws[1] << ", "
+                << dispatchData.lws[2] << std::endl;
 
     dispatchData.tile_m = tparams.tile_b;
     dispatchData.tile_n = tparams.tile_ofm;
@@ -408,13 +406,14 @@ JitConstants FullyConnected_bf_tiled_dyn_quan::GetJitConstants(const fully_conne
         // Do not use SCALE_POST_OP for SLM kernel, since it demonstrates worse performance
         if (scale_group_size % simd == 0/* && !dispatchData.use_slm*/) {
             jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
-            // std::cout << ">> FullyConnected_bf_tiled_dyn_quan : DECOMPRESSION_SCALE_POST_OP ON" << std::endl;
+            std::cout << ">> FullyConnected_bf_tiled_dyn_quan : DECOMPRESSION_SCALE_POST_OP ON" << std::endl;
         } else {
-            // std::cout << ">> FullyConnected_bf_tiled_dyn_quan : DECOMPRESSION_SCALE_POST_OP OFF" << std::endl;
+            std::cout << ">> FullyConnected_bf_tiled_dyn_quan : DECOMPRESSION_SCALE_POST_OP OFF" << std::endl;
         }
     }
 
     if (dispatchData.use_slm) {
+        std::cout << ">> FullyConnected_bf_tiled_dyn_quan : USE_SLM ON" << std::endl;
         OPENVINO_ASSERT(dispatchData.tile_n == 2, "[GPU] Unsupported TILE_OFM size for SLM kernel configuration");
         OPENVINO_ASSERT(weights_dt == WeightsType::INT4 || weights_dt == WeightsType::UINT4, "[GPU] Unsupported FC weights type for SLM kernel configuration");
 
