@@ -195,7 +195,6 @@ ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
        Same time Reduce* operations in OpenVINO has same requirement from first version
 */
 
-
 namespace set_13 {
 ov::OutputVector reduce_sum(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), supported_types_v2, false)};
