@@ -10,8 +10,7 @@ async function getSortedCacheFiles(cachePath, key = '') {
 
   const cachePattern = new RegExp(`^((${key}).*[.]cache)$`);
 
-  const filesSorted = await fs.promises
-    .readdir(cachePath)
+  const filesSorted = (await fs.promises.readdir(cachePath))
     .filter(fileName => cachePattern.test(fileName))
     .map(fileName => ({
       name: fileName,
@@ -23,7 +22,7 @@ async function getSortedCacheFiles(cachePath, key = '') {
   core.debug(
     filesSorted.map(fileName => ({
       name: fileName,
-      time: fs.statSync(path.join(cachePath, fileName)).atimeMs
+      atime: fs.statSync(path.join(cachePath, fileName)).atimeMs
     }))
   );
   return filesSorted;
