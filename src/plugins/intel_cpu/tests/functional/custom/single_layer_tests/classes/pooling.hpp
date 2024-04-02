@@ -16,8 +16,8 @@ namespace test {
 
 using poolLayerCpuTestParamsSet = std::tuple<poolSpecificParams,
                                              InputShape,
-                                             ElementType,
-                                             bool,
+                                             ElementType, //inPrc
+                                             bool, // isInt8
                                              CPUSpecificParams,
                                              fusingSpecificParams>;
 
