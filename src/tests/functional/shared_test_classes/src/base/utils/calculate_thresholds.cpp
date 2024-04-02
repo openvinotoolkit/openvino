@@ -57,6 +57,9 @@ calculate_thresholds_by_model_results(const std::shared_ptr<ov::Model>& model,
 
     const auto results = model->get_results();
     const auto ref_results = ref_model->get_results();
+    if (results.size() != ref_results.size()) {
+        throw std::runtime_error("Model and ref_model should have the same output number! Impossible to calculate default threshold!");
+    }
     for (size_t out_idx = 0; out_idx < results.size(); ++out_idx) {
         const auto elem_type = results[out_idx]->get_element_type();
         const auto ref_elem_type = ref_results[out_idx]->get_element_type();
