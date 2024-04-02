@@ -256,6 +256,12 @@ void SubgraphBaseTest::compare(const std::vector<ov::Tensor>& expected,
                                const std::vector<ov::Tensor>& actual) {
     ASSERT_EQ(expected.size(), actual.size());
     ASSERT_EQ(expected.size(), function->get_results().size());
+    ov::element::Type inference_precision = ov::element::undefined;
+    try {
+        inference_precision = core->get_property(targetDevice, ov::hint::inference_precision);
+    } catch (std::exception& e) {
+        std::cout << "[ WARNING ] Impossible to get Inference Precision with exception: " << e.what() << std::endl;
+    }
     auto compareMap = utils::getCompareMap();
     const auto& results = function->get_results();
     for (size_t j = 0; j < results.size(); j++) {
@@ -264,7 +270,9 @@ void SubgraphBaseTest::compare(const std::vector<ov::Tensor>& expected,
             std::shared_ptr<ov::Node> inputNode = result->get_input_node_shared_ptr(i);
             auto it = compareMap.find(inputNode->get_type_info());
             ASSERT_NE(it, compareMap.end());
-            it->second(inputNode, i, expected[j], actual[j], abs_threshold, rel_threshold);
+            it->second(inputNode, i, inference_precision,
+                       expected[j], actual[j],
+                       abs_threshold, rel_threshold, topk_threshold, mvn_threshold);
         }
     }
 }
