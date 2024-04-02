@@ -11,7 +11,7 @@ namespace onnx_import {
 namespace op {
 namespace custom {
 namespace set_1 {
-ov::OutputVector pad(const Node& node);
+ov::OutputVector pad(const ov::frontend::onnx::Node& node);
 }  // namespace set_1
 }  // namespace custom
 }  // namespace op
