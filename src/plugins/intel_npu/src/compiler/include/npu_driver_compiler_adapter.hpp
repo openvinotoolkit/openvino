@@ -23,7 +23,8 @@ public:
 
     uint32_t getSupportedOpsetVersion() const override final;
 
-    NetworkDescription compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const override final;
+    NetworkDescription compile(const std::shared_ptr<const ov::Model>& model,
+                               const Config& config) const override final;
 
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override final;
 
