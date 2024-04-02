@@ -3,33 +3,33 @@
 Release Policy
 =============================================================================
 
-Monthly release :
+| Monthly release :
+|
+|    OpenVINO™ is published with a cadence of around one month. Each release is supported only until
+|    the next version arrives.
+|    This makes regular releases suitable only for:
+|
+|    * Dynamically developed solutions, benefiting from the newest technologies.
+|    * Products requiring frequent changes in supported hardware, libraries, operating systems, and models.
 
-   OpenVINO™ is published with a cadence of around one month. Each release is supported only until
-   the next version arrives.
-   This makes regular releases suitable only for:
+| :ref:`Long-Term Support (LTS) <long-term-support-policy>` :
+|
+|    Each year’s final release becomes a Long-Term Support version, which continues to be supported
+|    with bug fixes and security updates, even after newer versions are published.
+|    Therefore, LTS is advised for production environments where:
+|
+|    * The highest level of security and stability is required.
+|    * There is no need for frequent changes in hardware or model support.
+|    * Upgrading is challenging, e.g., due to a high software complexity.
 
-   * Dynamically developed solutions, benefiting from the newest technologies.
-   * Products requiring frequent changes in supported hardware, libraries, operating systems, and models.
-
-:ref:`Long-Term Support (LTS) <long-term-support-policy>` :
-
-   Each year’s final release becomes a Long-Term Support version, which continues to be supported
-   with bug fixes and security updates, even after newer versions are published.
-   Therefore, LTS is advised for production environments where:
-
-   * The highest level of security and stability is required.
-   * There is no need for frequent changes in hardware or model support.
-   * Upgrading is challenging, e.g., due to a high software complexity.
-
-:ref:`Nightly packages <nightly-packages>` :
-
-   OpenVINO also offers nightly packages, as a preview of most recent changes. Due to potential
-   stability and performance issues, these should never be used for production purposes.
-   Instead, they may serve:
-
-   * Early integration testing.
-   * Previewing newest features/improvements.
+| :ref:`Nightly packages <nightly-packages>` :
+|
+|    OpenVINO also offers nightly packages, as a preview of most recent changes. Due to potential
+|    stability and performance issues, these should never be used for production purposes.
+|    Instead, they may serve:
+|
+|    * Early integration testing.
+|    * Previewing newest features/improvements.
 
 .. _long-term-support-policy:
 
