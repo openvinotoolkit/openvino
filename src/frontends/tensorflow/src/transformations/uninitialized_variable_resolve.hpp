@@ -17,10 +17,10 @@ namespace pass {
 
 // This transformation tries to resolve unitialized variables (like HashTable)
 // it borrows value of Variable that was used for some state (or node) in a graph
-class UnitializedVariableResolver : public ov::pass::MatcherPass {
+class UninitializedVariableResolver : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::tensorflow::pass::UnitializedVariableResolver");
-    UnitializedVariableResolver();
+    OPENVINO_RTTI("ov::frontend::tensorflow::pass::UninitializedVariableResolver");
+    UninitializedVariableResolver();
 };
 
 }  // namespace pass

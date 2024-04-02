@@ -541,7 +541,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     // so that not extra memory is used for intermediate decompressed constants.
     manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
     manager.register_pass<pass::SavedModelUnusedRemover>();
-    manager.register_pass<pass::UnitializedVariableResolver>();
+    manager.register_pass<pass::UninitializedVariableResolver>();
     manager.register_pass<pass::EmbeddingSegmentSingleFeatureFusion>();
     manager.register_pass<pass::BlockLSTMReplacer>();
     manager.register_pass<pass::GRUBlockCellReplacer>();

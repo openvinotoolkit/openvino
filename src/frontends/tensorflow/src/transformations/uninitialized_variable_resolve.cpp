@@ -14,7 +14,7 @@ using namespace ov;
 using namespace ov::op;
 using namespace ov::pass;
 
-ov::frontend::tensorflow::pass::UnitializedVariableResolver::UnitializedVariableResolver() {
+ov::frontend::tensorflow::pass::UninitializedVariableResolver::UninitializedVariableResolver() {
     auto unitialized_variable = pattern::wrap_type<ov::frontend::tensorflow::Variable>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
@@ -44,6 +44,6 @@ ov::frontend::tensorflow::pass::UnitializedVariableResolver::UnitializedVariable
     };
 
     auto m = std::make_shared<pattern::Matcher>(unitialized_variable,
-                                                "ov::frontend::tensorflow::pass::UnitializedVariableResolver");
+                                                "ov::frontend::tensorflow::pass::UninitializedVariableResolver");
     register_matcher(m, callback);
 }
