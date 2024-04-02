@@ -1,0 +1,48 @@
+// Copyright (C) 2018-2024 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include "openvino/op/op.hpp"
+
+namespace ov {
+namespace op {
+namespace v14 {
+/// \brief Operator performing Root Mean Square Normalization
+/// \ingroup ov_ops_cpp_api
+class OPENVINO_API RMSNorm : public ov::op::Op {
+public:
+    OPENVINO_OP("RMSNorm", "opset14", ov::op::Op);
+
+    RMSNorm() = default;
+    /// \brief Constructs an RMSNorm operation without scaling.
+    ///
+    /// \param data Input tensor with data
+    /// \param eps Epsilon for not dividing by zero while normalizing the value
+    /// \param compute_type Precision for the internal computation, same as the input type by default
+    RMSNorm(const Output<Node>& data, double epsilson, const ov::element::Type& compute_type = ov::element::undefined);
+
+    /// \brief Constructs an RMSNorm operation with scaling.
+    ///
+    /// \param data Input tensor with data
+    /// \param scale Scale values for weight
+    /// \param eps Epsilon for not dividing by zero while normalizing the value
+    /// \param compute_type Output element type
+    RMSNorm(const Output<Node>& data,
+            const Output<Node>& scale,
+            double epsilson,
+            const ov::element::Type& compute_type = ov::element::undefined);
+
+    bool visit_attributes(ov::AttributeVisitor& visitor) override;
+    void validate_and_infer_types() override;
+    std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
+
+private:
+    double m_epsilon{0};
+    ov::element::Type m_compute_type{ov::element::undefined};
+};
+
+}  // namespace v14
+}  // namespace op
+}  // namespace ov
