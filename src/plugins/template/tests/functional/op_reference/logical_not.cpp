@@ -23,8 +23,7 @@ std::vector<RefLogicalParams> generateLogicalParams() {
         Builder{}
             .opType(LogicalTypes::LOGICAL_NOT)
             .inputs({{{2, 2}, element::u8, std::vector<uint8_t>{1, 0, 1, 0}}})
-            .expected({{2, 2}, element::u8, std::vector<uint8_t>{0, 1, 0, 1}}),
-            };
+            .expected({{2, 2}, element::u8, std::vector<uint8_t>{0, 1, 0, 1}})};
     return logicalParams;
 }
 
