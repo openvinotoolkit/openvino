@@ -121,10 +121,24 @@ public:
     }
 
     /**
+     * @return The names used by the shape variables in the order registered inside the model.
+     */
+    std::vector<std::string> get_shape_names() {
+        return _metadata.shapeNames;
+    }
+
+    /**
      * @return A map holding references towards all tensors used by the current inference request object.
      */
     std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& get_all_tensors() {
         return _allTensors;
+    }
+
+    /**
+     * @return A map holding references towards all shapes tensors used by the current inference request object.
+     */
+    std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& get_shapes_tensors() {
+        return _shapesTensors;
     }
 
 protected:
@@ -160,10 +174,12 @@ protected:
     void allocate_tensor(std::string tensorName,
                          const IONodeDescriptor& descriptor,
                          const bool isState,
-                         const ov::Allocator& allocator = {});
+                         const ov::Allocator& allocator = {},
+                         const bool isShape = false);
 
     // Mutable to return reference to ov::Tensor
     mutable std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> _allTensors;
+    mutable std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> _shapesTensors;
     // A copy of each tensor is needed to maintain the original L0 memory allocation in case the user provides another
     // memory area for the tensor.
     std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> _copyAllTensors;
