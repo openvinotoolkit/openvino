@@ -3,6 +3,7 @@
 //
 
 #include "common_op_table.hpp"
+
 #include "openvino/op/gelu.hpp"
 
 using namespace std;
