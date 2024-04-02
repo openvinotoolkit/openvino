@@ -115,6 +115,14 @@ fundamental_type_for<ET> convert_if_in_element_range(const U& value) {
     return result;
 }
 
+template <element::Type_t ET, class U, typename std::enable_if<ET == element::u3>::type* = nullptr>
+fundamental_type_for<ET> convert_if_in_element_range(const U& value) {
+    using T = fundamental_type_for<ET>;
+    auto result = static_cast<T>(value);
+    OPENVINO_ASSERT(0 <= result && result <= 7, "assigned value out of range for u3");
+    return result;
+}
+
 template <element::Type_t ET, class T>
 void fill_buffer(void* buffer, const Shape& shape, const T& value) {
     std::fill_n(element::iterator<ET>(buffer), shape_size(shape), convert_if_in_element_range<ET>(value));
@@ -520,6 +528,10 @@ Constant::LPBuffer<element::u2>::LPBuffer(void* ptr)
     : iter{std::make_shared<lp_iter>(reinterpret_cast<ov::fundamental_type_for<element::u2>*>(ptr))} {}
 
 template <>
+Constant::LPBuffer<element::u3>::LPBuffer(void* ptr)
+    : iter{std::make_shared<lp_iter>(reinterpret_cast<ov::fundamental_type_for<element::u3>*>(ptr))} {}
+
+template <>
 Constant::LPBuffer<element::u4>::LPBuffer(void* ptr)
     : iter{std::make_shared<lp_iter>(reinterpret_cast<ov::fundamental_type_for<element::u4>*>(ptr))} {}
 
@@ -532,13 +544,18 @@ Constant::LPBuffer<element::nf4>::LPBuffer(void* ptr)
     : iter{std::make_shared<lp_iter>(reinterpret_cast<ov::fundamental_type_for<element::nf4>*>(ptr))} {}
 
 template <>
+void Constant::LPBuffer<element::u1>::write(const float value) {
+    iter->operator*() = convert_if_in_element_range<element::u1>(value);
+}
+
+template <>
 void Constant::LPBuffer<element::u2>::write(const float value) {
     iter->operator*() = convert_if_in_element_range<element::u2>(value);
 }
 
 template <>
-void Constant::LPBuffer<element::u1>::write(const float value) {
-    iter->operator*() = convert_if_in_element_range<element::u1>(value);
+void Constant::LPBuffer<element::u3>::write(const float value) {
+    iter->operator*() = convert_if_in_element_range<element::u3>(value);
 }
 
 template <>
@@ -567,6 +584,11 @@ ov::fundamental_type_for<element::u2> Constant::LPBuffer<element::u2>::read() co
 }
 
 template <>
+ov::fundamental_type_for<element::u3> Constant::LPBuffer<element::u3>::read() const {
+    return iter->operator*();
+}
+
+template <>
 ov::fundamental_type_for<element::u4> Constant::LPBuffer<element::u4>::read() const {
     return iter->operator*();
 }
@@ -589,6 +611,12 @@ Constant::LPBuffer<element::u1>& Constant::LPBuffer<element::u1>::operator++() {
 
 template <>
 Constant::LPBuffer<element::u2>& Constant::LPBuffer<element::u2>::operator++() {
+    iter->operator++();
+    return *this;
+}
+
+template <>
+Constant::LPBuffer<element::u3>& Constant::LPBuffer<element::u3>::operator++() {
     iter->operator++();
     return *this;
 }
@@ -652,6 +680,23 @@ CONSTANT_FILL_DATA(u2, float16)
 CONSTANT_FILL_DATA(u2, bfloat16)
 CONSTANT_FILL_DATA(u2, float)
 CONSTANT_FILL_DATA(u2, double)
+
+CONSTANT_FILL_DATA(u3, bool)
+CONSTANT_FILL_DATA(u3, char)
+CONSTANT_FILL_DATA(u3, signed char)
+CONSTANT_FILL_DATA(u3, unsigned char)
+CONSTANT_FILL_DATA(u3, short)
+CONSTANT_FILL_DATA(u3, unsigned short)
+CONSTANT_FILL_DATA(u3, int)
+CONSTANT_FILL_DATA(u3, unsigned int)
+CONSTANT_FILL_DATA(u3, long)
+CONSTANT_FILL_DATA(u3, unsigned long)
+CONSTANT_FILL_DATA(u3, float8_e4m3)
+CONSTANT_FILL_DATA(u3, float8_e5m2)
+CONSTANT_FILL_DATA(u3, float16)
+CONSTANT_FILL_DATA(u3, bfloat16)
+CONSTANT_FILL_DATA(u3, float)
+CONSTANT_FILL_DATA(u3, double)
 
 CONSTANT_FILL_DATA(u4, bool)
 CONSTANT_FILL_DATA(u4, char)
@@ -751,6 +796,21 @@ CONSTANT_CAST_VECTOR(u2, bfloat16)
 CONSTANT_CAST_VECTOR(u2, float)
 CONSTANT_CAST_VECTOR(u2, double)
 
+CONSTANT_CAST_VECTOR(u3, bool)
+CONSTANT_CAST_VECTOR(u3, char)
+CONSTANT_CAST_VECTOR(u3, signed char)
+CONSTANT_CAST_VECTOR(u3, unsigned char)
+CONSTANT_CAST_VECTOR(u3, short)
+CONSTANT_CAST_VECTOR(u3, unsigned short)
+CONSTANT_CAST_VECTOR(u3, int)
+CONSTANT_CAST_VECTOR(u3, unsigned int)
+CONSTANT_CAST_VECTOR(u3, long)
+CONSTANT_CAST_VECTOR(u3, unsigned long)
+CONSTANT_CAST_VECTOR(u3, float16)
+CONSTANT_CAST_VECTOR(u3, bfloat16)
+CONSTANT_CAST_VECTOR(u3, float)
+CONSTANT_CAST_VECTOR(u3, double)
+
 CONSTANT_CAST_VECTOR(u4, bool)
 CONSTANT_CAST_VECTOR(u4, char)
 CONSTANT_CAST_VECTOR(u4, signed char)
@@ -828,6 +888,23 @@ CONSTANT_WRITE_BUFFER(u2, float16)
 CONSTANT_WRITE_BUFFER(u2, bfloat16)
 CONSTANT_WRITE_BUFFER(u2, float)
 CONSTANT_WRITE_BUFFER(u2, double)
+
+CONSTANT_WRITE_BUFFER(u3, bool)
+CONSTANT_WRITE_BUFFER(u3, char)
+CONSTANT_WRITE_BUFFER(u3, signed char)
+CONSTANT_WRITE_BUFFER(u3, unsigned char)
+CONSTANT_WRITE_BUFFER(u3, short)
+CONSTANT_WRITE_BUFFER(u3, unsigned short)
+CONSTANT_WRITE_BUFFER(u3, int)
+CONSTANT_WRITE_BUFFER(u3, unsigned int)
+CONSTANT_WRITE_BUFFER(u3, long)
+CONSTANT_WRITE_BUFFER(u3, unsigned long)
+CONSTANT_WRITE_BUFFER(u3, float8_e4m3)
+CONSTANT_WRITE_BUFFER(u3, float8_e5m2)
+CONSTANT_WRITE_BUFFER(u3, float16)
+CONSTANT_WRITE_BUFFER(u3, bfloat16)
+CONSTANT_WRITE_BUFFER(u3, float)
+CONSTANT_WRITE_BUFFER(u3, double)
 
 CONSTANT_WRITE_BUFFER(u4, bool)
 CONSTANT_WRITE_BUFFER(u4, char)

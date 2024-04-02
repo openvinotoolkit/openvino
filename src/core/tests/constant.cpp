@@ -841,7 +841,7 @@ TEST(constant, uint1_write_then_cast_custom_type) {
 }
 
 //
-// uint1
+// uint2
 //
 
 TEST(constant, uint2_string) {
@@ -941,6 +941,123 @@ TEST(constant, uint2_input_value_validation) {
                     AssertFailure,
                     HasSubstr(exp_sub_str));
     OV_EXPECT_THROW(op::v0::Constant c(element::u2, shape, std::vector<std::string>{"4", "1"}),
+                    AssertFailure,
+                    HasSubstr(exp_sub_str));
+}
+
+//
+// uint3
+//
+
+TEST(constant, uint3_string) {
+    const auto shape = Shape{8};
+
+    op::v0::Constant c(element::u3, shape, vector<string>{"3", "0", "1", "2", "4", "7", "5", "6"});
+    auto v = c.cast_vector<uint8_t>();
+
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_THAT(v, ElementsAre(3, 0, 1, 2, 4, 7, 5, 6));
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(p[0], 0b11000110);
+    EXPECT_EQ(p[1], 0b00110110);
+    EXPECT_EQ(p[2], 0b00001111);
+}
+
+TEST(constant, uint3_string_broadcast) {
+    const auto shape = Shape{5};
+
+    op::v0::Constant c(element::u3, shape, vector<string>{"5"});
+    auto v = c.cast_vector<uint8_t>();
+
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_THAT(v, Each(5));
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(p[0], 0b01010101);
+    EXPECT_EQ(p[1] & 0b11000000, 0b01000000);
+    EXPECT_EQ(p[2] & 0b11000000, 0b11000000);
+}
+
+TEST(constant, uint3_vector_less_than_one_storage_unit) {
+    auto const shape = Shape{3};
+    const auto input = std::vector<uint8_t>{5, 3, 1};
+
+    op::v0::Constant c(element::u3, shape, input);
+    auto v = c.cast_vector<uint8_t>();
+
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_THAT(v, ElementsAre(5, 3, 1));
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(p[0] & 0b11111100, 0b01110100);
+    // p[1] ignore
+    EXPECT_EQ(p[2] & 0b11100000, 0b10000000);
+}
+
+TEST(constant, uint3_vector_greater_than_one_storage_unit) {
+    auto const shape = Shape{10};
+    const auto input = std::vector<uint8_t>{2, 3, 1, 0, 4, 5, 6, 7, 5, 2};
+
+    op::v0::Constant c(element::u3, shape, input);
+    auto v = c.cast_vector<uint8_t>();
+
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_THAT(v, ElementsAre(2, 3, 1, 0, 4, 5, 6, 7, 5, 2));
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(p[0], 0b10110100);
+    EXPECT_EQ(p[1], 0b00011011);
+    EXPECT_EQ(p[2], 0b00001111);
+
+    EXPECT_EQ(p[3] & 0b11110000, 0b01100000);
+    // p[4] ignore
+    EXPECT_EQ(p[5] & 0b11000000, 0b10000000);
+}
+
+TEST(constant, uint3_vector_broadcast) {
+    const auto shape = Shape{8};
+    op::v0::Constant c(element::u3, shape, vector<int8_t>{2});
+
+    auto v = c.cast_vector<uint8_t>();
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_THAT(v, Each(2));
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(p[0], 0b10101010);
+    EXPECT_EQ(p[1], 0b10101010);
+    EXPECT_EQ(p[2], 0b00000000);
+}
+
+TEST(constant, uint3_write_then_cast_custom_type) {
+    Shape shape{5};
+    std::vector<TestDType> input{{1.0f}, {3.0f}, {2.0f}, {6.1f}, {3.5f}};
+    ov::op::v0::Constant c(element::u3, shape, input);
+
+    auto v = c.cast_vector<int8_t>();
+
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_THAT(v, ElementsAre(1, 3, 2, 6, 3));
+}
+
+TEST(constant, uint3_input_value_validation) {
+    const auto shape = Shape{2};
+    const auto exp_sub_str = "out of range for u3";
+
+    OV_EXPECT_THROW(op::v0::Constant c(element::u3, shape, -1), AssertFailure, HasSubstr(exp_sub_str));
+    OV_EXPECT_THROW(op::v0::Constant c(element::u3, shape, 8), AssertFailure, HasSubstr(exp_sub_str));
+
+    OV_EXPECT_THROW(op::v0::Constant c(element::u3, shape, std::vector<int>{1, -2}),
+                    AssertFailure,
+                    HasSubstr(exp_sub_str));
+    OV_EXPECT_THROW(op::v0::Constant c(element::u3, shape, std::vector<int>{0, 8}),
+                    AssertFailure,
+                    HasSubstr(exp_sub_str));
+
+    OV_EXPECT_THROW(op::v0::Constant c(element::u3, shape, std::vector<std::string>{"-1", "3"}),
+                    AssertFailure,
+                    HasSubstr(exp_sub_str));
+    OV_EXPECT_THROW(op::v0::Constant c(element::u3, shape, std::vector<std::string>{"9", "1"}),
                     AssertFailure,
                     HasSubstr(exp_sub_str));
 }
@@ -2155,6 +2272,7 @@ TEST(constant, cast_vector) {
                                           element::i64,
                                           element::u1,
                                           element::u2,
+                                          element::u3,
                                           element::u4,
                                           element::u8,
                                           element::u16,
