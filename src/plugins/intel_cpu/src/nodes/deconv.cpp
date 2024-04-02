@@ -239,7 +239,6 @@ void Deconvolution::createWeiBlobAsIO() {
     if (!blob)
         OPENVINO_THROW("Cannot get const weights blob for node ", getName(), ".");
 
-    // auto const blbSize = blob->getSize();
     auto weiDims = getWeightDims();
     // WA: In int8 case, we are processing weights using internal blob.
     VectorDims dimsForBlockedDesc{weiDims};
