@@ -433,7 +433,7 @@ void ScatterUpdate::scatterElementsUpdate1D(const MemoryPtr& mem_data, const Mem
     int64_t indices_dim_stride = PlainTensor(mem_indices).stride_bytes(0);
     int64_t updates_dim_stride = arr_memptr[1].stride_bytes(axis);
 
-    OPENVINO_ASSERT(index_dim_size = updates_shape[axis], "invalid shapes of inputs!");
+    OPENVINO_ASSERT(index_dim_size == updates_shape[axis], "invalid shapes of inputs!");
 
     auto scatter_elements_update_loop = [&](char** data, const size_t* strides, const size_t n) {
         // When *use_init_val* attribute is false, we need to substitute the copied values at target locations with values that
