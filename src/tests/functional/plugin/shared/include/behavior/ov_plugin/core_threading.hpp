@@ -574,7 +574,7 @@ TEST_P(CoreThreadingTestsWithIter, smoke_CompileModel_MultipleCores) {
         numThreads);
 }
 
-TEST_P(CoreThreadingTestsWithIter, smoke_AsyncInfer_ShareInput) {
+TEST_P(CoreThreadingTestsWithIter, nightly_AsyncInfer_ShareInput) {
     SetupNetworks();
     auto model = models[0];
     ov::Tensor output_ref;
