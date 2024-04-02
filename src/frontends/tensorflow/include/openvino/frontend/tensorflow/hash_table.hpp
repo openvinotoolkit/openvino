@@ -86,6 +86,10 @@ public:
         return hash_table_node;
     }
 
+    ov::Output<ov::Node> get_value() override {
+        return output(0);
+    }
+
     ov::Output<ov::Node> get_keys() {
         if (m_is_initialized) {
             return m_keys;
