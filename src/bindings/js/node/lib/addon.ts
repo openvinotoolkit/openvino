@@ -60,6 +60,7 @@ interface Model {
   input(nameOrId?: string | number): Output;
   getName(): string;
   isDynamic(): boolean;
+  getOutputSize():number;
 }
 
 interface CompiledModel {

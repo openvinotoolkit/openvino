@@ -84,6 +84,14 @@ public:
      */
     Napi::Value is_dynamic(const Napi::CallbackInfo& info);
 
+    /**
+     * @brief Return the number of outputs for this Model.
+     * @param info Contains information about the environment and passed arguments
+     * This method does not accept any arguments. If arguments are provided it throws Napi::Error.
+     * @return number indicating number of outputs for the model
+     */
+    Napi::Value get_output_size(const Napi::CallbackInfo& info);
+
 private:
     std::shared_ptr<ov::Model> _model;
     ov::Core _core;

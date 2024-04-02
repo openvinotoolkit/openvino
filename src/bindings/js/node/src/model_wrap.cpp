@@ -20,6 +20,7 @@ Napi::Function ModelWrap::get_class(Napi::Env env) {
                         InstanceMethod("output", &ModelWrap::get_output),
                         InstanceMethod("input", &ModelWrap::get_input),
                         InstanceMethod("isDynamic", &ModelWrap::is_dynamic),
+                        InstanceMethod("getOutputSize", &ModelWrap::get_output_size),
                         InstanceAccessor<&ModelWrap::get_inputs>("inputs"),
                         InstanceAccessor<&ModelWrap::get_outputs>("outputs")});
 }
@@ -127,4 +128,14 @@ Napi::Value ModelWrap::is_dynamic(const Napi::CallbackInfo& info) {
     }
     const auto result = _model->is_dynamic();
     return Napi::Boolean::New(env, result);
+}
+
+Napi::Value ModelWrap::get_output_size(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    if (info.Length() > 0) {
+        reportError(env, "getOutputSize() does not accept any arguments.");
+        return env.Null();
+    }
+    const auto size = _model->get_output_size();
+    return Napi::Number::New(env, size);
 }
