@@ -54,7 +54,7 @@ Napi::Object InferRequestWrap::wrap(Napi::Env env, ov::InferRequest infer_reques
 }
 
 void InferRequestWrap::set_tensor(const Napi::CallbackInfo& info) {
-    if (info.Length() != 2 || !info[0].IsString() || !check_object(info, 1)) {
+    if (info.Length() != 2 || !info[0].IsString() || !info[1].IsObject()) {
         reportError(info.Env(), "InferRequest.setTensor() invalid argument.");
     } else {
         const std::string& name = info[0].ToString();
@@ -63,9 +63,9 @@ void InferRequestWrap::set_tensor(const Napi::CallbackInfo& info) {
 }
 
 void InferRequestWrap::set_input_tensor(const Napi::CallbackInfo& info) {
-    if (info.Length() == 1 && check_object(info, 0)) {
+    if (info.Length() == 1 && info[0].IsObject()) {
         _infer_request.set_input_tensor(cast_to_tensor(info, 0));
-    } else if (info.Length() == 2 && info[0].IsNumber() && check_object(info, 1)) {
+    } else if (info.Length() == 2 && info[0].IsNumber() && info[1].IsObject()) {
         const auto idx = info[0].ToNumber().Int32Value();
         _infer_request.set_input_tensor(idx, cast_to_tensor(info, 1));
     } else {
@@ -74,9 +74,9 @@ void InferRequestWrap::set_input_tensor(const Napi::CallbackInfo& info) {
 }
 
 void InferRequestWrap::set_output_tensor(const Napi::CallbackInfo& info) {
-    if (info.Length() == 1 && check_object(info, 0)) {
+    if (info.Length() == 1 && info[0].IsObject()) {
         _infer_request.set_output_tensor(cast_to_tensor(info, 0));
-    } else if (info.Length() == 2 && info[0].IsNumber() && check_object(info, 1)) {
+    } else if (info.Length() == 2 && info[0].IsNumber() && info[1].IsObject()) {
         const auto idx = info[0].ToNumber().Int32Value();
         _infer_request.set_output_tensor(idx, cast_to_tensor(info, 1));
     } else {
