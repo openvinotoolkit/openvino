@@ -53,7 +53,7 @@ void regclass_graph_Shape(py::module m) {
             throw py::error_already_set();
         }
         ov::Shape result(slicelength);
-        Common::shape_helpers::get_slice(v, start, step, slicelength, result);
+        Common::shape_helpers::get_slice(result, v, start, step, slicelength);
         return result;
     });
 

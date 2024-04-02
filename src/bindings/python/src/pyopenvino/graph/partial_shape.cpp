@@ -206,7 +206,7 @@ void regclass_graph_PartialShape(py::module m) {
         }
         ov::PartialShape result;
         result.resize(slicelength);
-        Common::shape_helpers::get_slice(self, start, step, slicelength, result);
+        Common::shape_helpers::get_slice(result, self, start, step, slicelength);
         return result;
     });
     shape.def(

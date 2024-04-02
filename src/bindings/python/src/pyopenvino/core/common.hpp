@@ -88,7 +88,7 @@ py::array array_from_tensor(ov::Tensor&& t, bool is_shared);
 namespace shape_helpers {
 
 template <typename T>
-void get_slice(const T& shape, size_t& start, size_t& step, size_t& slicelength, T& result) {
+void get_slice(T& result, const T& shape, size_t start, const size_t step, const size_t slicelength) {
     for (size_t i = 0; i < slicelength; ++i) {
         result[i] = shape[start];
         start += step;
