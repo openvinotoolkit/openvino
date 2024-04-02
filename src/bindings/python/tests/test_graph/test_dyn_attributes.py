@@ -7,7 +7,7 @@ import openvino.runtime.opset8 as ov
 import pytest
 
 
-@pytest.fixture()
+@pytest.fixture
 def proposal_node():
     attributes = {
         "base_size": np.uint16(1),

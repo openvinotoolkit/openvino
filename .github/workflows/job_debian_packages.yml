@@ -50,7 +50,8 @@ jobs:
             apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
             echo "deb https://apt.repos.intel.com/openvino/2023 ubuntu20 main" | tee /etc/apt/sources.list.d/intel-openvino-2023.list
             apt-get update -y
-            apt-get install -y openvino
+            apt-get install -y openvino-2023.2.0
+            rm /etc/apt/sources.list.d/intel-openvino-2023.list
           fi
 
           # install our local one and make sure the conflicts are resolved
