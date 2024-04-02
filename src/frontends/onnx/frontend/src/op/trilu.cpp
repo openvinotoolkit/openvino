@@ -42,6 +42,8 @@ ov::OutputVector trilu(const ov::frontend::onnx::Node& node) {
     Output<ov::Node> k;
     bool is_k_available = num_inputs == 2 && !ov::op::util::is_null(inputs[1]);
     if (is_k_available) {
+        // Trilu-14 documentation allows only 0-D tensor (scalar),
+        // but we extend support to be able work with 1-D with length == 1
         k = inputs[1];
         auto axes = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
         // Check if k is a tensor with a single value
