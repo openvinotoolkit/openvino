@@ -133,12 +133,11 @@ Napi::Value ModelWrap::is_dynamic(const Napi::CallbackInfo& info) {
 
 Napi::Value ModelWrap::set_friendly_name(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
-    if (info.Length() != 1 || !info[0].IsString()) {
-        reportError(env, "Expected a single string argument for the friendly name");
-        return env.Undefined();
-    }
-    const auto name = info[0].As<Napi::String>().Utf8Value();
     try {
+        if (info.Length() != 1 || !info[0].IsString()) {
+            OPENVINO_THROW("Expected a single string argument for the friendly name");
+        }
+        const auto name = info[0].As<Napi::String>().Utf8Value();
         _model->set_friendly_name(name);
     } catch (const std::exception& e) {
         reportError(env, e.what());

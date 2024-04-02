@@ -89,7 +89,7 @@ public:
      * @param info Contains information about the environment and passed arguments
      * this method accepts only one argument of type String,
      * throws Napi::Undefined if more than 1 arguments are provided or the provided argument is not of type String
-     * @return Null
+     * @return Napi::Undefined
      */
     Napi::Value set_friendly_name(const Napi::CallbackInfo& info);
 
