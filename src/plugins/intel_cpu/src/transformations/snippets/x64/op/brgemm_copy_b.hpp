@@ -45,7 +45,8 @@ public:
     void set_k_block_size(size_t block_size) { m_K_blk = block_size; }
     void set_n_block_size(size_t block_size) { m_N_blk = block_size; }
 
-    ov::Shape get_needed_buffer_shape() const;
+    ov::Shape get_repacking_buffer_shape() const;
+    ov::Shape get_compensations_buffer_shape() const;
 
     Type get_type() const { return m_type; }
     size_t get_brgemm_vnni_factor() const { return m_brgemmVNNIFactor; }
@@ -77,7 +78,7 @@ private:
     size_t m_N_blk = 0;
     size_t m_brgemmVNNIFactor = 1;
     // OneDNN implementation requirement
-    const size_t m_inner_n_block = 64;
+    constexpr static size_t m_inner_n_block = 64;
 };
 
 } // namespace intel_cpu

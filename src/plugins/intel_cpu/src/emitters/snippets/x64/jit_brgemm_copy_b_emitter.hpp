@@ -38,7 +38,7 @@ private:
 
     std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t> m_kernel;
 
-    ov::element::Type m_brgemm_prc;
+    ov::element::Type m_brg_weight_etype;
     size_t m_N_blk, m_inner_N_block, m_inner_N_tail;
     size_t m_K_blk;
     size_t m_brgemmVNNIFactor;

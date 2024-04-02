@@ -127,7 +127,7 @@ std::string init_info_jit_brgemm_emitter(const jit_brgemm_emitter *emitter) {
 std::string init_info_jit_brgemm_copy_b_emitter(const jit_brgemm_copy_b_emitter *emitter) {
     std::stringstream ss;
     ss << "Emitter_type_name:jit_brgemm_copy_b_emitter"
-       << " m_brgemm_prc:" << emitter->m_brgemm_prc
+       << " m_brg_weight_etype:" << emitter->m_brg_weight_etype
        << " m_N_blk:" << emitter->m_N_blk
        << " m_inner_N_block:" << emitter->m_inner_N_block
        << " m_inner_N_tail:" << emitter->m_inner_N_tail

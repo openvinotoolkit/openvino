@@ -62,7 +62,13 @@ pass::SetBrgemmCPUBlockingParams::SetBrgemmCPUBlockingParams() {
             const auto brgemm_copy_b = brgemm->get_brgemm_copy();
             const auto brgemmVNNIFactor = brgemm_copy_b->get_brgemm_vnni_factor();
             OPENVINO_ASSERT(k_blk == K || k_blk % brgemmVNNIFactor == 0,
-                            "Block size which is not divisible by 4 is not supported for brgemm data repacking.");
+                            "K Block size (",
+                            k_blk,
+                            "), which is not divisible by brgemmVNNIFactor (",
+                            brgemmVNNIFactor,
+                            ") and not equal to K dimension (",
+                            K,
+                            "), is not supported for brgemm data repacking.");
             brgemm_copy_b->set_k_block_size(k_blk);
             brgemm_copy_b->set_n_block_size(n_blk);
         }

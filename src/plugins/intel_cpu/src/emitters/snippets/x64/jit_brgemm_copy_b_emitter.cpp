@@ -56,19 +56,18 @@ jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h, cpu_isa_t
     m_inner_N_block = brgemm_repack->get_n_inner_block_size();
     m_inner_N_tail = m_N_blk % m_inner_N_block;
 
-    const auto& buffer_shape = brgemm_repack->get_needed_buffer_shape();
-    auto LDB = m_brgemm_prc == ov::element::f32 ? leading_dimension : *buffer_shape.rbegin();
+    const auto LDB = m_brg_weight_etype == ov::element::f32 ? leading_dimension : brgemm_repack->get_compensations_buffer_shape()[0];
 
-    const auto& brgemm_prc_src = brgemm_repack->get_src_element_type();
-    m_brgemm_prc = brgemm_repack->get_input_element_type(0);
+    const auto& brg_src_etype = brgemm_repack->get_src_element_type();
+    m_brg_weight_etype = brgemm_repack->get_input_element_type(0);
     m_brgemmVNNIFactor = brgemm_repack->get_brgemm_vnni_factor();
 
-    const auto& N = *(transposed_shape.rbegin());
-    const auto& K = *(transposed_shape.rbegin() + 1);
-    const auto use_amx = mayiuse(avx512_core_amx) && brgemm_prc_src != ov::element::f32 && (K % m_brgemmVNNIFactor == 0) && (N % m_brgemmVNNIFactor == 0);
+    const auto& N = *transposed_shape.rbegin();
+    const auto& K = *++transposed_shape.rbegin();
+    const auto use_amx = mayiuse(avx512_core_amx) && brg_src_etype != ov::element::f32 && (K % m_brgemmVNNIFactor == 0) && (N % m_brgemmVNNIFactor == 0);
 
-    const auto src_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(brgemm_prc_src));
-    const auto wei_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(m_brgemm_prc));
+    const auto src_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(brg_src_etype));
+    const auto wei_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(m_brg_weight_etype));
 
     init_brgemm_copy(m_kernel, leading_dimension, m_inner_N_block, m_inner_N_tail, LDB, m_K_blk, use_amx, src_dt, wei_dt);
 }
@@ -123,7 +122,7 @@ void jit_brgemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const s
     Xbyak::Reg64 dst(static_cast<int>(out[0]));
     Xbyak::Reg64 comp(static_cast<int>(m_with_comp ? out[1] : 0));
 
-    const size_t data_size = m_brgemm_prc.size();
+    const size_t data_size = m_brg_weight_etype.size();
     for (size_t nb = 0; nb < div_up(m_N_blk, m_inner_N_block); nb++) {
         const size_t offset_in = m_in_offset + nb * m_inner_N_block * data_size;
         const size_t offset_out = m_out_offset + nb * m_inner_N_block * m_brgemmVNNIFactor * data_size;
