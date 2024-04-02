@@ -360,6 +360,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("AveragePool", 1, average_pool);
     REGISTER_OPERATOR("BatchNormalization", 1, batch_norm);
     REGISTER_OPERATOR("BatchNormalization", 7, batch_norm);
+    REGISTER_OPERATOR("BatchNormalization", 14, batch_norm);
     REGISTER_OPERATOR("BitShift", 1, bitshift);
     REGISTER_OPERATOR("BitwiseAnd", 1, bitwise_and);
     REGISTER_OPERATOR("BitwiseNot", 1, bitwise_not);
@@ -510,6 +511,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("ScatterND", 1, scatter_nd);
     REGISTER_OPERATOR("Selu", 1, selu);
     REGISTER_OPERATOR("Shape", 1, shape);
+    REGISTER_OPERATOR("Shape", 15, shape)
     REGISTER_OPERATOR("Shrink", 1, shrink);
     REGISTER_OPERATOR("Sigmoid", 1, sigmoid);
     REGISTER_OPERATOR("Sign", 1, sign);

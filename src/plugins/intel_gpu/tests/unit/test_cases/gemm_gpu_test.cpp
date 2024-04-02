@@ -361,7 +361,7 @@ public:
         }
     }
 
-    void test_dynamic_padding(bool is_caching_test) {
+    void test_dynamic_padding(bool is_caching_test, bool n_dim_only) {
         tests::random_generator rg;
         rg.set_seed(GET_SUITE_NAME);
 
@@ -414,10 +414,19 @@ public:
         ov::Shape in2_shape_aligned = { aligned_batch1_size, aligned_batch2_size, aligned_k_size, aligned_n_size };
 
         // Use dynamic padding for all BFYX dimensions
-        tensor dyn_pad_dims_input({1, 1, 1, 1}, 0);
+        tensor dyn_pad_dims_input1({0, 0, 0, 0}, 0);
+        tensor dyn_pad_dims_input2({0, 0, 0, 0}, 0);
 
-        auto in1_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx, padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims_input)};
-        auto in2_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx, padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims_input)};
+        if (n_dim_only) {
+            dyn_pad_dims_input1 = tensor({0, 0, 0, 0}, 0);
+            dyn_pad_dims_input2 = tensor({0, 0, 1, 0}, 0);
+        } else {
+            dyn_pad_dims_input1 = tensor({1, 1, 1, 1}, 0);
+            dyn_pad_dims_input2 = tensor({1, 1, 1, 1}, 0);
+        }
+
+        auto in1_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx, padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims_input1)};
+        auto in2_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx, padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims_input2)};
 
         auto aligned_input1_mem = engine.allocate_memory({ov::PartialShape(in1_shape_aligned), data_types::f16, format::bfyx});
         auto aligned_input2_mem = engine.allocate_memory({ov::PartialShape(in2_shape_aligned), data_types::f16, format::bfyx});
@@ -425,14 +434,14 @@ public:
         auto input1_mem = engine.reinterpret_buffer(*aligned_input1_mem, layout{ov::PartialShape(in1_shape),
                                                                                 data_types::f16,
                                                                                 format::bfyx,
-                                                                                padding({padding_size_batch1, 0, 0, 0},
-                                                                                        {0, padding_size_batch2, padding_size_k, padding_size_m}, 0.0f, dyn_pad_dims_input)});
+                                                                                n_dim_only ? padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims_input1) :
+                                                                                             padding({padding_size_batch1, 0, 0, 0}, {0, padding_size_batch2, padding_size_k, padding_size_m}, 0.0f, dyn_pad_dims_input1)});
 
         auto input2_mem = engine.reinterpret_buffer(*aligned_input2_mem, layout{ov::PartialShape(in2_shape),
                                                                                 data_types::f16,
                                                                                 format::bfyx,
-                                                                                padding({0, padding_size_batch2, 0, 0},
-                                                                                        {padding_size_batch1, 0, padding_size_n, padding_size_k}, 0.0f, dyn_pad_dims_input)});
+                                                                                n_dim_only ? padding({0, 0, 0, 0}, {0, 0, padding_size_n, 0}, 0.0f, dyn_pad_dims_input2) :
+                                                                                            padding({0, padding_size_batch2, 0, 0}, {padding_size_batch1, 0, padding_size_n, padding_size_k}, 0.0f, dyn_pad_dims_input2)});
 
         auto input_1_data = rg.generate_random_1d<ov::float16>(ov::shape_size(in1_shape), -2, 2);
         auto input_2_data = rg.generate_random_1d<ov::float16>(ov::shape_size(in2_shape), -2, 2);
@@ -1289,44 +1298,52 @@ public:
         }
     }
 
-    void test_transpose_matmul_f32(size_t num_dims, bool is_input_dynamic, bool is_caching_test) {
+    void set_default_shapes(size_t num_dims, std::vector<size_t>& BMKN, ov::Shape& input0_shape_default, ov::Shape& input1_shape_default, ov::Shape& output_shape_default) {
+        size_t BATCH_SIZE = BMKN[0];
+        size_t M_SIZE = BMKN[1];
+        size_t K_SIZE = BMKN[2];
+        size_t N_SIZE = BMKN[3];
+        if (num_dims == 1) {
+            input0_shape_default = { K_SIZE };
+            input1_shape_default = { K_SIZE, N_SIZE };
+            output_shape_default = { 1, N_SIZE };
+        } else if (num_dims == 2) {
+            input0_shape_default = { M_SIZE, K_SIZE };
+            input1_shape_default = { K_SIZE, N_SIZE };
+            output_shape_default = { M_SIZE, N_SIZE };
+        } else if (num_dims == 3) {
+            input0_shape_default = { BATCH_SIZE, M_SIZE, K_SIZE };
+            input1_shape_default = { BATCH_SIZE, K_SIZE, N_SIZE }; 
+            output_shape_default = { BATCH_SIZE, M_SIZE, N_SIZE };
+        } else if (num_dims == 4) {
+            input0_shape_default = { BATCH_SIZE, 1, M_SIZE, K_SIZE};
+            input1_shape_default = { BATCH_SIZE, 1, K_SIZE, N_SIZE}; 
+            output_shape_default = { BATCH_SIZE, 1, M_SIZE, N_SIZE };
+        }
+    }
+
+    void test_transpose_matmul_f32(size_t num_dims, bool is_input_dynamic, bool is_caching_test, std::vector<size_t> BMKN, std::vector<int64_t> input0_order, std::vector<int64_t> input1_order) {
         tests::random_generator rg;
         rg.set_seed(GET_SUITE_NAME);
 
-        const unsigned long BATCH_SIZE = 19;
-        const unsigned long M_SIZE = 37;
-        const unsigned long K_SIZE = 23;
-        const unsigned long N_SIZE = 29;
-
         auto& engine = get_test_engine();
-        ov::Shape input0_shape;
-        ov::Shape input1_shape;
-        std::vector<int64_t> input0_order;
-        std::vector<int64_t> input1_order;
+        ov::Shape input0_shape_default;
+        ov::Shape input1_shape_default;
+        ov::Shape output_shape_default;
         ov::Shape beam_table_shape;
         cldnn::layout input0_layout;
         cldnn::layout input1_layout;
 
-        if (num_dims == 1) {
-            input0_shape = { K_SIZE };
-            input1_shape = { N_SIZE, K_SIZE };
-            input0_order = { 0 };
-            input1_order = { 1, 0 };
-        } else if (num_dims == 2) {
-            input0_shape = { K_SIZE, M_SIZE };
-            input1_shape = { N_SIZE, K_SIZE };
-            input0_order = { 1, 0 };
-            input1_order = { 1, 0 };
-        } else if (num_dims == 3) {
-            input0_shape = { BATCH_SIZE, K_SIZE, M_SIZE };
-            input1_shape = { N_SIZE, BATCH_SIZE, K_SIZE };
-            input0_order = { 0, 2, 1 };
-            input1_order = { 1, 2, 0 };
-        } else if (num_dims == 4) {
-            input0_shape = { BATCH_SIZE, K_SIZE, 1, M_SIZE };
-            input1_shape = { N_SIZE, BATCH_SIZE, 1, K_SIZE };
-            input0_order = { 0, 2, 3, 1 };
-            input1_order = { 1, 2, 3, 0 };
+        set_default_shapes(num_dims, BMKN, input0_shape_default, input1_shape_default, output_shape_default);
+        ov::Shape input0_shape(input0_shape_default.size());
+        ov::Shape input1_shape(input1_shape_default.size());
+
+        for (size_t dim = 0; dim < input0_shape_default.size(); ++dim) {
+            input0_shape[input0_order[dim]] = input0_shape_default[dim];
+        }
+
+        for (size_t dim = 0; dim < input1_shape_default.size(); ++dim) {
+            input1_shape[input1_order[dim]] = input1_shape_default[dim];
         }
 
         if (is_input_dynamic) {
@@ -1369,29 +1386,8 @@ public:
         auto output_mem = outputs.at("gemm").get_memory();
         cldnn::mem_lock<float> output_ptr(output_mem, get_test_stream());
 
-        ov::Shape ref_input0_shape;
-        ov::Shape ref_input1_shape;
-        ov::Shape ref_output_shape;
-        if (num_dims == 1) {
-            ref_input0_shape = { K_SIZE };
-            ref_input1_shape = { K_SIZE, N_SIZE };
-            ref_output_shape = { 1, N_SIZE };
-        } else if (num_dims == 2) {
-            ref_input0_shape = { M_SIZE, K_SIZE };
-            ref_input1_shape = { K_SIZE, N_SIZE };
-            ref_output_shape = { M_SIZE, N_SIZE };
-        } else if (num_dims == 3) {
-            ref_input0_shape = { BATCH_SIZE, M_SIZE, K_SIZE };
-            ref_input1_shape = { BATCH_SIZE, K_SIZE, N_SIZE };
-            ref_output_shape = { BATCH_SIZE, M_SIZE, N_SIZE };
-        } else if (num_dims == 4) {
-            ref_input0_shape = { BATCH_SIZE, 1, M_SIZE, K_SIZE };
-            ref_input1_shape = { BATCH_SIZE, 1, K_SIZE, N_SIZE };
-            ref_output_shape = { BATCH_SIZE, 1, M_SIZE, N_SIZE };
-        }
-
         std::vector<float> ref_out_data;
-        ref_out_data.resize(ov::shape_size(ref_output_shape));
+        ref_out_data.resize(ov::shape_size(output_shape_default));
 
         std::vector<float> ref_input_0_data(input_0_data.size());
         std::vector<float> ref_input_1_data(input_1_data.size());
@@ -1401,21 +1397,21 @@ public:
                                  input0_shape,
                                  sizeof(float),
                                  input0_order,
-                                 ref_input0_shape);
+                                 input0_shape_default);
 
         ov::reference::transpose((const char *)(input_1_data.data()),
                                  (char *)(ref_input_1_data.data()),
                                  input1_shape,
                                  sizeof(float),
                                  input1_order,
-                                 ref_input1_shape);
+                                 input1_shape_default);
 
         ov::reference::matmul<float>(ref_input_0_data.data(),
                                      ref_input_1_data.data(),
                                      ref_out_data.data(),
-                                     ref_input0_shape,
-                                     ref_input1_shape,
-                                     ref_output_shape,
+                                     input0_shape_default,
+                                     input1_shape_default,
+                                     output_shape_default,
                                      false,
                                      false);
 
@@ -1427,44 +1423,28 @@ public:
         }
     }
 
-    void test_transpose_matmul_f16(size_t num_dims, bool is_input_dynamic, bool is_caching_test) {
+    void test_transpose_matmul_f16(size_t num_dims, bool is_input_dynamic, bool is_caching_test, std::vector<size_t> BMKN, std::vector<int64_t> input0_order, std::vector<int64_t> input1_order) {
         tests::random_generator rg;
         rg.set_seed(GET_SUITE_NAME);
 
-        const unsigned long BATCH_SIZE = 19;
-        const unsigned long M_SIZE = 37;
-        const unsigned long K_SIZE = 23;
-        const unsigned long N_SIZE = 29;
-
         auto& engine = get_test_engine();
-        ov::Shape input0_shape;
-        ov::Shape input1_shape;
-        std::vector<int64_t> input0_order;
-        std::vector<int64_t> input1_order;
+        ov::Shape input0_shape_default;
+        ov::Shape input1_shape_default;
+        ov::Shape output_shape_default;
         ov::Shape beam_table_shape;
         cldnn::layout input0_layout;
         cldnn::layout input1_layout;
 
-        if (num_dims == 1) {
-            input0_shape = { K_SIZE };
-            input1_shape = { N_SIZE, K_SIZE };
-            input0_order = { 0 };
-            input1_order = { 1, 0 };
-        } else if (num_dims == 2) {
-            input0_shape = { K_SIZE, M_SIZE };
-            input1_shape = { N_SIZE, K_SIZE };
-            input0_order = { 1, 0 };
-            input1_order = { 1, 0 };
-        } else if (num_dims == 3) {
-            input0_shape = { BATCH_SIZE, K_SIZE, M_SIZE };
-            input1_shape = { N_SIZE, BATCH_SIZE, K_SIZE };
-            input0_order = { 0, 2, 1 };
-            input1_order = { 1, 2, 0 };
-        } else if (num_dims == 4) {
-            input0_shape = { BATCH_SIZE, K_SIZE, 1, M_SIZE };
-            input1_shape = { N_SIZE, BATCH_SIZE, 1, K_SIZE };
-            input0_order = { 0, 2, 3, 1 };
-            input1_order = { 1, 2, 3, 0 };
+        set_default_shapes(num_dims, BMKN, input0_shape_default, input1_shape_default, output_shape_default);
+        ov::Shape input0_shape(input0_shape_default.size());
+        ov::Shape input1_shape(input1_shape_default.size());
+ 
+        for (size_t dim = 0; dim < input0_shape_default.size(); ++dim) {
+            input0_shape[input0_order[dim]] = input0_shape_default[dim];
+        }
+
+        for (size_t dim = 0; dim < input1_shape_default.size(); ++dim) {
+            input1_shape[input1_order[dim]] = input1_shape_default[dim];
         }
 
         if (is_input_dynamic) {
@@ -1507,29 +1487,8 @@ public:
         auto output_mem = outputs.at("gemm").get_memory();
         cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
 
-        ov::Shape ref_input0_shape;
-        ov::Shape ref_input1_shape;
-        ov::Shape ref_output_shape;
-        if (num_dims == 1) {
-            ref_input0_shape = { K_SIZE };
-            ref_input1_shape = { K_SIZE, N_SIZE };
-            ref_output_shape = { 1, N_SIZE };
-        } else if (num_dims == 2) {
-            ref_input0_shape = { M_SIZE, K_SIZE };
-            ref_input1_shape = { K_SIZE, N_SIZE };
-            ref_output_shape = { M_SIZE, N_SIZE };
-        } else if (num_dims == 3) {
-            ref_input0_shape = { BATCH_SIZE, M_SIZE, K_SIZE };
-            ref_input1_shape = { BATCH_SIZE, K_SIZE, N_SIZE };
-            ref_output_shape = { BATCH_SIZE, M_SIZE, N_SIZE };
-        } else if (num_dims == 4) {
-            ref_input0_shape = { BATCH_SIZE, 1, M_SIZE, K_SIZE };
-            ref_input1_shape = { BATCH_SIZE, 1, K_SIZE, N_SIZE };
-            ref_output_shape = { BATCH_SIZE, 1, M_SIZE, N_SIZE };
-        }
-
         std::vector<ov::float16> ref_out_data;
-        ref_out_data.resize(ov::shape_size(ref_output_shape));
+        ref_out_data.resize(ov::shape_size(output_shape_default));
 
         std::vector<ov::float16> ref_input_0_data(input_0_data.size());
         std::vector<ov::float16> ref_input_1_data(input_1_data.size());
@@ -1539,21 +1498,21 @@ public:
                                  input0_shape,
                                  sizeof(ov::float16),
                                  input0_order,
-                                 ref_input0_shape);
+                                 input0_shape_default);
 
         ov::reference::transpose((const char *)(input_1_data.data()),
                                  (char *)(ref_input_1_data.data()),
                                  input1_shape,
                                  sizeof(ov::float16),
                                  input1_order,
-                                 ref_input1_shape);
+                                 input1_shape_default);
 
         ov::reference::matmul<ov::float16>(ref_input_0_data.data(),
                                      ref_input_1_data.data(),
                                      ref_out_data.data(),
-                                     ref_input0_shape,
-                                     ref_input1_shape,
-                                     ref_output_shape,
+                                     input0_shape_default,
+                                     input1_shape_default,
+                                     output_shape_default,
                                      false,
                                      false);
 
@@ -1574,9 +1533,14 @@ TEST_F(gemm_gpu_tests, dynamic) {
     this->test_dynamic(false);
 }
 
-TEST_F(gemm_gpu_tests, dynamic_padding) {
-    this->test_dynamic_padding(false);
+TEST_F(gemm_gpu_tests, dynamic_padding_all_dim) {
+    this->test_dynamic_padding(false, false);
 }
+
+TEST_F(gemm_gpu_tests, dynamic_padding_n_dim_only) {
+    this->test_dynamic_padding(false, true);
+}
+
 
 TEST_F(gemm_gpu_tests, dynamic_multi_inference_same_shape) {
     this->test_dynamic_multi_inference_same_shape(false);
@@ -1587,67 +1551,83 @@ TEST_F(gemm_gpu_tests, dynamic_multi_inference_different_shape) {
 }
 
 TEST_F(gemm_gpu_tests, transpose_matmul_dynamic_1d_f16) {
-    this->test_transpose_matmul_f16(1, true, false);
+    this->test_transpose_matmul_f16(1, true, false, /*BMKN*/{19, 37, 23, 29}, /*input0_order*/{0}, /*input1_order*/{1, 0});
 }
 
 TEST_F(gemm_gpu_tests, transpose_matmul_dynamic_1d_f32) {
-    this->test_transpose_matmul_f32(1, true, false);
+    this->test_transpose_matmul_f32(1, true, false, /*BMKN*/{19, 37, 23, 29}, /*input0_order*/{0}, /*input1_order*/{1, 0});
 }
 
 TEST_F(gemm_gpu_tests, transpose_matmul_static_1d_f16) {
-    this->test_transpose_matmul_f16(1, false, false);
+    this->test_transpose_matmul_f16(1, false, false, /*BMKN*/{19, 37, 23, 29}, /*input0_order*/{0}, /*input1_order*/{1, 0});
 }
 
 TEST_F(gemm_gpu_tests, transpose_matmul_static_1d_f32) {
-    this->test_transpose_matmul_f32(1, false, false);
+    this->test_transpose_matmul_f32(1, false, false, /*BMKN*/{19, 37, 23, 29}, /*input0_order*/{0}, /*input1_order*/{1, 0});
 }
 
 TEST_F(gemm_gpu_tests, transpose_matmul_dynamic_2d_f16) {
-    this->test_transpose_matmul_f16(2, true, false);
+    this->test_transpose_matmul_f16(2, true, false, /*BMKN*/{19, 37, 23, 29}, /*input0_order*/{1, 0}, /*input1_order*/{1, 0});
 }
 
 TEST_F(gemm_gpu_tests, transpose_matmul_dynamic_2d_f32) {
-    this->test_transpose_matmul_f32(2, true, false);
+    this->test_transpose_matmul_f32(2, true, false, /*BMKN*/{19, 37, 23, 29}, /*input0_order*/{1, 0}, /*input1_order*/{1, 0});
 }
 
 TEST_F(gemm_gpu_tests, transpose_matmul_static_2d_f16) {
-    this->test_transpose_matmul_f16(2, false, false);
+    this->test_transpose_matmul_f16(2, false, false, /*BMKN*/{19, 37, 23, 29}, /*input0_order*/{1, 0}, /*input1_order*/{1, 0});
 }
 
 TEST_F(gemm_gpu_tests, transpose_matmul_static_2d_f32) {
-    this->test_transpose_matmul_f32(2, false, false);
+    this->test_transpose_matmul_f32(2, false, false, /*BMKN*/{19, 37, 23, 29}, /*input0_order*/{1, 0}, /*input1_order*/{1, 0});
 }
 
 TEST_F(gemm_gpu_tests, transpose_matmul_dynamic_3d_f16) {
-    this->test_transpose_matmul_f16(3, true, false);
+    this->test_transpose_matmul_f16(3, true, false, /*BMKN*/{19, 37, 23, 29}, /*input0_order*/{0, 2, 1}, /*input1_order*/{1, 2, 0});
 }
 
 TEST_F(gemm_gpu_tests, transpose_matmul_dynamic_3d_f32) {
-    this->test_transpose_matmul_f32(3, true, false);
+    this->test_transpose_matmul_f32(3, true, false, /*BMKN*/{19, 37, 23, 29}, /*input0_order*/{0, 2, 1}, /*input1_order*/{1, 2, 0});
 }
 
 TEST_F(gemm_gpu_tests, transpose_matmul_static_3d_f16) {
-    this->test_transpose_matmul_f16(3, false, false);
+    this->test_transpose_matmul_f16(3, false, false, /*BMKN*/{19, 37, 23, 29}, /*input0_order*/{0, 2, 1}, /*input1_order*/{1, 2, 0});
 }
 
 TEST_F(gemm_gpu_tests, transpose_matmul_static_3d_f32) {
-    this->test_transpose_matmul_f32(3, false, false);
+    this->test_transpose_matmul_f32(3, false, false, /*BMKN*/{19, 37, 23, 29}, /*input0_order*/{0, 2, 1}, /*input1_order*/{1, 2, 0});
 }
 
-TEST_F(gemm_gpu_tests, transpose_matmul_dynamic_4d_f16) {
-    this->test_transpose_matmul_f16(4, true, false);
+TEST_F(gemm_gpu_tests, transpose_matmul_dynamic_4d_f16_unaligned) {
+    this->test_transpose_matmul_f16(4, true, false, /*BMKN*/{19, 37, 23, 29}, /*input0_order*/{0, 2, 3, 1}, /*input1_order*/{1, 2, 3, 0});
+}
+
+TEST_F(gemm_gpu_tests, transpose_matmul_dynamic_4d_f16_aligned) {
+    this->test_transpose_matmul_f16(4, true, false, /*BMKN*/{1, 128, 32, 64}, /*input0_order*/{0, 2, 3, 1}, /*input1_order*/{1, 2, 3, 0});
+}
+
+TEST_F(gemm_gpu_tests, transpose_matmul_dynamic_4d_f16_unaligned_input1_ylast) {
+    this->test_transpose_matmul_f16(4, true, false, /*BMKN*/{1, 128, 32, 64}, /*input0_order*/{0, 1, 2, 3}, /*input1_order*/{0, 1, 3, 2});
 }
 
 TEST_F(gemm_gpu_tests, transpose_matmul_dynamic_4d_f32) {
-    this->test_transpose_matmul_f32(4, true, false);
+    this->test_transpose_matmul_f32(4, true, false, /*BMKN*/{19, 37, 23, 29}, /*input0_order*/{0, 2, 3, 1}, /*input1_order*/{1, 2, 3, 0});
 }
 
 TEST_F(gemm_gpu_tests, transpose_matmul_static_4d_f16) {
-    this->test_transpose_matmul_f16(4, false, false);
+    this->test_transpose_matmul_f16(4, false, false, /*BMKN*/{19, 37, 23, 29}, /*input0_order*/{0, 2, 3, 1}, /*input1_order*/{1, 2, 3, 0});
 }
 
-TEST_F(gemm_gpu_tests, transpose_matmul_static_4d_f32) {
-    this->test_transpose_matmul_f32(4, false, false);
+TEST_F(gemm_gpu_tests, transpose_matmul_static_4d_f32_n_tile_16) {
+    this->test_transpose_matmul_f32(4, false, false, /*BMKN*/{19, 37, 23, 29}, /*input0_order*/{0, 2, 3, 1}, /*input1_order*/{1, 2, 3, 0});
+}
+
+TEST_F(gemm_gpu_tests, transpose_matmul_static_4d_f32_n_tile_32) {
+    this->test_transpose_matmul_f32(4, false, false, /*BMKN*/{19, 37, 23, 29}, /*input0_order*/{0, 2, 3, 1}, /*input1_order*/{1, 2, 3, 0});
+}
+
+TEST_F(gemm_gpu_tests, transpose_matmul_static_4d_f32_n_tile_32_input1_ylast) {
+    this->test_transpose_matmul_f32(4, false, false, /*BMKN*/{19, 37, 23, 29}, /*input0_order*/{0, 1, 2, 3}, /*input1_order*/{0, 1, 3, 2});
 }
 
 TEST_F(gemm_gpu_tests, transpose_matmul_in0_indirect) {
@@ -3121,7 +3101,7 @@ TEST_F(gemm_gpu_tests, basic_bfyx_t2_inplace_crop_with_pad_cached) {
 }
 
 TEST_F(gemm_gpu_tests, transpose_matmul_dynamic_4d_cached) {
-    this->test_transpose_matmul_f16(4, true, true);
+    this->test_transpose_matmul_f16(4, true, true, /*BMKN*/{19, 37, 23, 29}, /*input0_order*/{0, 2, 3, 1}, /*input1_order*/{1, 2, 3, 0});
 }
 
 TEST_F(gemm_gpu_tests, transpose_matmul_transpose_dynamic_4d_cached) {

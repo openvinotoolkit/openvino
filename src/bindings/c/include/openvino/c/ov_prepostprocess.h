@@ -216,6 +216,19 @@ OPENVINO_C_API(ov_status_e)
 ov_preprocess_preprocess_steps_scale(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps, float value);
 
 /**
+ * @brief Add scale preprocess operation. Divide each channel element of input by different specified value.
+ * @ingroup ov_prepostprocess_c_api
+ * @param preprocess_input_process_steps A pointer to ov_preprocess_preprocess_steps_t.
+ * @param values Scaling values array for each channels
+ * @param value_size Scaling value size
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_preprocess_preprocess_steps_scale_multi_channels(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
+                                                    const float* values,
+                                                    const int32_t value_size);
+
+/**
  * @brief Add mean preprocess operation. Subtract specified value from each element of input.
  * @ingroup ov_prepostprocess_c_api
  * @param preprocess_input_process_steps A pointer to ov_preprocess_preprocess_steps_t.
@@ -224,6 +237,19 @@ ov_preprocess_preprocess_steps_scale(ov_preprocess_preprocess_steps_t* preproces
  */
 OPENVINO_C_API(ov_status_e)
 ov_preprocess_preprocess_steps_mean(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps, float value);
+
+/**
+ * @brief Add mean preprocess operation. Subtract each channel element of input by different specified value.
+ * @ingroup ov_prepostprocess_c_api
+ * @param preprocess_input_process_steps A pointer to ov_preprocess_preprocess_steps_t.
+ * @param values Value array to subtract from each element.
+ * @param value_size Mean value size
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_preprocess_preprocess_steps_mean_multi_channels(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
+                                                   const float* values,
+                                                   const int32_t value_size);
 
 /**
  * @brief Crop input tensor between begin and end coordinates.
