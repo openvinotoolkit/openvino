@@ -137,10 +137,12 @@ std::shared_ptr<ov::Node> make_ov_reduction_op(const Node& node,
     }
 }
 
-std::shared_ptr<ov::Node> onnx_reduce_sum_square(const ov::frontend::onnx::Node& node, const std::set<element::Type>& supported_types, const bool axes_as_attr = true) {
+std::shared_ptr<ov::Node> onnx_reduce_sum_square(const ov::frontend::onnx::Node& node,
+                                                 const std::set<element::Type>& supported_types,
+                                                 const bool axes_as_attr = true) {
     const auto input = ov::Output<ov::Node>{node.get_ov_inputs().at(0)};
     const auto square_node = std::make_shared<v1::Multiply>(input, input);
-    return make_ov_reduction_op<v1::ReduceSum>(node, square_node,supported_types, axes_as_attr);
+    return make_ov_reduction_op<v1::ReduceSum>(node, square_node, supported_types, axes_as_attr);
 }
 }  // namespace
 
