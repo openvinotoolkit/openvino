@@ -179,7 +179,7 @@ OutputVector translate_equal_op(const NodeContext& node) {
     auto complex_type_mark_x = as_type_ptr<ComplexTypeMark>(x.get_node_shared_ptr());
     auto complex_type_mark_y = as_type_ptr<ComplexTypeMark>(y.get_node_shared_ptr());
 
-    // If both inputs are complex tensors
+    // both inputs are complex tensors
     if (complex_type_mark_x && complex_type_mark_y) {
         auto tensor1 = complex_type_mark_x->input_value(0);
         auto tensor2 = complex_type_mark_y->input_value(0);
