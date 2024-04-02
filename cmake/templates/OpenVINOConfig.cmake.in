@@ -423,7 +423,7 @@ macro(_ov_find_intel_npu_dependencies)
         find_library(_OV_ZE_LOADER_PATH
                     NAMES ${_OV_ZE_LOADER_LIBRARY_NAME}
                     HINTS ${CMAKE_INSTALL_PREFIX} ${OpenVINO_DIR} ${INSTALL_DIR}
-                    PATH_SUFFIXES lib/Release runtime/lib/intel64/
+                    PATH_SUFFIXES lib/Release runtime/lib/intel64/ lib/ bin/
                     ${extra_args})
 
         if(_OV_ZE_LOADER_PATH)
