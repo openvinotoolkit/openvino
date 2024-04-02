@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/convert.hpp"
+
 #include "element_visitor.hpp"
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/op/convert.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/reference/convert.hpp"
