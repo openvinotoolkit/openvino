@@ -230,6 +230,18 @@ const std::vector<poolSpecificParams>& paramsMax3D() {
     return paramsMax3D;
 }
 
+const std::vector<maxPoolV8SpecificParams>& paramsMaxV83D() {
+    static const std::vector<maxPoolV8SpecificParams> paramsMaxV83D = {
+            maxPoolV8SpecificParams{ {2}, {2}, {1}, {0}, {0},
+                                                            ov::element::Type_t::i32, 0,
+                                                            ov::op::RoundingType::CEIL, ov::op::PadType::SAME_LOWER },
+            maxPoolV8SpecificParams{ {7}, {2}, {1}, {2}, {2},
+                                                            ov::element::Type_t::i32, 0,
+                                                            ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT},
+    };
+    return paramsMaxV83D;
+}
+
 const std::vector<poolSpecificParams>& paramsAvg3D() {
     static const std::vector<poolSpecificParams> paramsAvg3D = {
             poolSpecificParams{ utils::PoolingTypes::AVG, {3}, {1}, {1}, {0},
