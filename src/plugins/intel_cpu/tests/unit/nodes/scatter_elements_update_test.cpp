@@ -46,49 +46,54 @@ TEST_F(SEU1DTest, performance) {
     ov::PartialShape indices_shape(updates_shape);
     ov::PartialShape indices1D_shape{1024};
 
-    using Reduction = ov::op::v12::ScatterElementsUpdate::Reduction;
-    auto data_param = std::make_shared<v0::Parameter>(dataPrec, data_shape);
-    auto updates_param = std::make_shared<v0::Parameter>(dataPrec, updates_shape);
-    auto indices_param = std::make_shared<v0::Parameter>(intPrec, indices_shape);
-    auto axis_const = std::make_shared<v0::Constant>(intPrec, ov::Shape{}, std::vector<int>{axis});
-    auto scatterupdate_result = std::make_shared<v12::ScatterElementsUpdate>(data_param, indices_param, updates_param, axis_const, Reduction::SUM);
-    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(scatterupdate_result)};
-    const auto model = std::make_shared<const ov::Model>(results, ov::ParameterVector{data_param, indices_param, updates_param}, "scatterupdates");
+    auto getScatterUpdateNode = [&]() {
+        using Reduction = ov::op::v12::ScatterElementsUpdate::Reduction;
+        auto data_param = std::make_shared<v0::Parameter>(dataPrec, data_shape);
+        auto updates_param = std::make_shared<v0::Parameter>(dataPrec, updates_shape);
+        auto indices_param = std::make_shared<v0::Parameter>(intPrec, indices_shape);
+        auto axis_const = std::make_shared<v0::Constant>(intPrec, ov::Shape{}, std::vector<int>{axis});
+        auto scatterupdate_result = std::make_shared<v12::ScatterElementsUpdate>(data_param, indices_param, updates_param, axis_const, Reduction::SUM);
+        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(scatterupdate_result)};
+        const auto model = std::make_shared<const ov::Model>(results, ov::ParameterVector{data_param, indices_param, updates_param}, "scatterupdates");
 
-    Config conf;
-    conf.rtCacheCapacity = 100;
-    const auto context = std::make_shared<const GraphContext>(conf, nullptr, false);
-    std::shared_ptr<Graph> graph = std::shared_ptr<Graph>(new Graph());
-    graph->CreateGraph(model, context);
+        Config conf;
+        conf.rtCacheCapacity = 100;
+        const auto context = std::make_shared<const GraphContext>(conf, nullptr, false);
+        std::shared_ptr<Graph> graph = std::shared_ptr<Graph>(new Graph());
+        graph->CreateGraph(model, context);
 
-    NodePtr seu_node;
-    for (auto &node : graph->GetNodes()) {
-        std::cout << "=====" << node->getTypeStr() << std::endl;
-        if (node->getType() == Type::ScatterElementsUpdate) {
-            seu_node = node;
+        NodePtr seu_node;
+        for (auto &node : graph->GetNodes()) {
+            if (node->getType() == Type::ScatterElementsUpdate) {
+                seu_node = node;
+            }
         }
-    }
-    ASSERT_TRUE(seu_node);
-
-    std::shared_ptr<ScatterUpdate> scatterupdateNode;
-    scatterupdateNode = std::dynamic_pointer_cast<ScatterUpdate>(seu_node);
+        return std::dynamic_pointer_cast<ScatterUpdate>(seu_node);
+    };
+    const std::shared_ptr<ScatterUpdate> scatterupdateNode = getScatterUpdateNode();
     ASSERT_TRUE(scatterupdateNode);
     
     auto data_memptr = create_memory(dataPrec, data_shape);
     auto updates_memptr = create_memory(dataPrec, updates_shape);
     auto indices_memptr = create_memory(intPrec, indices_shape);
 
-    {
-    auto start = std::chrono::steady_clock::now();
-    scatterupdateNode->scatterElementsUpdate<float>(data_memptr, updates_memptr, indices_memptr, axis, scatter_elements_update::ReduceAdd{});
-    auto end = std::chrono::steady_clock::now();
-    std::cout << "============================ " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << " us" << std::endl;
-    }
-
-    {
-    auto start = std::chrono::steady_clock::now();
-    scatterupdateNode->SEU1D(data_memptr, updates_memptr, indices_memptr, axis);
-    auto end = std::chrono::steady_clock::now();
-    std::cout << "============================(1D) " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << " us" << std::endl;
+    const char* penv = getenv("USE_ALGO");
+    const int32_t use_algo = penv ? std::atoi(penv) : 0;
+    if (use_algo == 0) {
+        auto start = std::chrono::steady_clock::now();
+        scatterupdateNode->scatterElementsUpdate<float>(data_memptr, indices_memptr, updates_memptr, axis, scatter_elements_update::ReduceAdd{});
+        auto end = std::chrono::steady_clock::now();
+        std::cout << "============================ " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << " us" << std::endl;
+    } else if (use_algo == 1) {
+        auto start = std::chrono::steady_clock::now();
+        scatterupdateNode->scatterElementsUpdateAdvance<float>(data_memptr, indices_memptr, updates_memptr, axis, scatter_elements_update::ReduceAdd{});
+        auto end = std::chrono::steady_clock::now();
+        std::cout << "============================(Advance) " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << " us" << std::endl;
+    } else {
+        auto indices1D_memptr = create_memory(intPrec, indices1D_shape);
+        auto start = std::chrono::steady_clock::now();
+        scatterupdateNode->scatterElementsUpdate1D<float>(data_memptr, indices1D_memptr, updates_memptr, axis, scatter_elements_update::ReduceAdd{});
+        auto end = std::chrono::steady_clock::now();
+        std::cout << "============================(1D) " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << " us" << std::endl;
     }
 }
