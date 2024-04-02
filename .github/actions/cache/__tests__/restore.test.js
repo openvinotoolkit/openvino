@@ -23,7 +23,7 @@ const setOutputMock = jest.spyOn(core, 'setOutput').mockImplementation();
 
 // Clean up mock file system after each test
 afterEach(() => {
-  // fs.rmSync(tempDir, { recursive: true });
+  fs.rmSync(tempDir, { recursive: true });
 });
 
 // Mock the action's main function
@@ -124,12 +124,57 @@ describe('action', () => {
       cacheFiles[2]
     );
     expect(setOutputMock).toHaveBeenNthCalledWith(2, 'cache-hit', true);
-    testFiles.forEach((filename, id) => {
-      const fileContent = fs.readFileSync(
-        path.join(cacheLocalPath, filename),
-        'utf8'
-      );
-      expect(fileContent).toBe(`File ${id + 1} contents`);
+    let id = 1;
+    for (const filename of testFiles) {
+      const filePath = path.join(cacheLocalPath, filename);
+      expect(fs.existsSync(filePath)).toBe(true);
+      const fileContent = fs.readFileSync(filePath, 'utf8');
+      expect(fileContent).toBe(`File ${id++} contents`);
+    }
+  });
+
+  it('gets the updated cache file', async () => {
+    // Set the action's inputs as return values from core.getInput()
+    getInputMock.mockImplementation(name => {
+      switch (name) {
+        case 'cache-path':
+          return cacheRemotePath;
+        case 'key':
+          return 'key';
+        case 'restore-keys':
+          return 'cache';
+        case 'path':
+          return cacheLocalPath;
+        default:
+          return '';
+      }
     });
+
+    // updated cache 2 access time
+    fs.utimesSync(
+      path.join(cacheRemotePath, cacheFiles[1]),
+      new Date(Date.now() - 100),
+      new Date(Date.now() - 100)
+    );
+
+    await restoreImpl.restore();
+    expect(runMock).toHaveReturned();
+
+    // Verify that all of the core library functions were called correctly
+    expect(setOutputMock).toHaveBeenNthCalledWith(
+      1,
+      'cache-file',
+      cacheFiles[1]
+    );
+    expect(setOutputMock).toHaveBeenNthCalledWith(2, 'cache-hit', true);
+    let id = 1;
+    for (const filename of testFiles.slice(0, 1)) {
+      const filePath = path.join(cacheLocalPath, filename);
+      expect(fs.existsSync(filePath)).toBe(true);
+      const fileContent = fs.readFileSync(filePath, 'utf8');
+      expect(fileContent).toBe(`File ${id++} contents`);
+    }
+    // check that file3 is absent
+    expect(fs.existsSync(path.join(cacheLocalPath, testFiles[2]))).toBe(false);
   });
 });
