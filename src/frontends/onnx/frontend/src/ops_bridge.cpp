@@ -486,7 +486,6 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("ReduceLogSumExp", 1, reduce_log_sum_exp);
     REGISTER_OPERATOR("ReduceL1", 1, reduce_l1);
     REGISTER_OPERATOR("ReduceL2", 1, reduce_l2);
-    REGISTER_OPERATOR("ReduceL2", 11, reduce_l2);
     REGISTER_OPERATOR("ReduceL2", 13, reduce_l2);
     REGISTER_OPERATOR("ReduceL2", 18, reduce_l2);
     REGISTER_OPERATOR("ReduceMax", 1, reduce_max);
