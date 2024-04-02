@@ -187,7 +187,7 @@ OutputVector translate_equal_op(const NodeContext& node) {
         auto equal_op = make_shared<v1::Equal>(tensor1, tensor2);
         // Reduce along the last dimension using ReduceAnd
         auto reduce_axes = make_shared<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{-1});
-        auto equal_reduced = make_shared<v1::ReduceLogicalAnd>(equal_op, reduce_axes, true);  // Keepdims set to true
+        auto equal_reduced = make_shared<v1::ReduceLogicalAnd>(equal_op, reduce_axes, false);
 
         set_node_name(node.get_name(), equal_op);
 
