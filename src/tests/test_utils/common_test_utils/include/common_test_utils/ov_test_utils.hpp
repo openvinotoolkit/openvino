@@ -70,8 +70,6 @@ std::shared_ptr<ov::op::v0::Constant> create_constant(const std::vector<T>& data
     return ov::op::v0::Constant::create(et, shape, data);
 }
 
-std::shared_ptr<ov::op::v0::Constant> create_zero_constant(const ov::element::Type_t& et, const ov::Shape& shape);
-
 namespace ov {
 namespace test {
 namespace utils {
