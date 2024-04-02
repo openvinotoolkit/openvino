@@ -433,7 +433,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
         auto conv_supports_fusings = [&](convolution_node& node) -> bool {
             if (_lo.get_optimization_attributes().use_onednn_impls == 1 &&
-                _lo.get_preferred_impl_type(node, format::any) == impl_types::onednn) {
+                _lo.get_preferred_impl_type(node, format::byxf /*dummy value to disable format checking*/) == impl_types::onednn) {
                 return true;
             }
 
