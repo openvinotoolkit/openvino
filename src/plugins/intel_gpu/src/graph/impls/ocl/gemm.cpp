@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/op/gemm.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "multi_stage_primitive.hpp"
@@ -174,31 +175,38 @@ public:
         params.beta = primitive->beta;
         params.transpose_input0 = primitive->transpose_input0;
         params.transpose_input1 = primitive->transpose_input1;
-        if (!primitive->input0_reshape_pattern.empty()) {
-            const auto reshape_pattern = primitive->input0_reshape_pattern;
-            auto input_pshape = impl_param.input_layouts[0].get_partial_shape();
-            auto reshape_axes = ov::intel_gpu::find_non_val_pos(reshape_pattern, 0);
-            if (reshape_axes != reshape_pattern.size()) {
-                params.input0_reshape_axes = static_cast<int32_t>(reshape_axes);
-                if (input_pshape[reshape_axes].is_static()) {
-                    params.input0_broadcast_val = reshape_pattern[reshape_axes] / input_pshape[reshape_axes].get_length();
-                }
-            }
-        }
-        if (!primitive->input1_reshape_pattern.empty()) {
-            const auto reshape_pattern = primitive->input1_reshape_pattern;
-            auto input_pshape = impl_param.input_layouts[1].get_partial_shape();
-            auto reshape_axes = ov::intel_gpu::find_non_val_pos(reshape_pattern, 0);
-            if (reshape_axes != reshape_pattern.size()) {
-                params.input1_reshape_axes = static_cast<int32_t>(reshape_axes);
-                if (input_pshape[reshape_axes].is_static()) {
-                    params.input1_broadcast_val = reshape_pattern[reshape_axes] / input_pshape[reshape_axes].get_length();
-                }
-            }
-        }
         params.input0_order = primitive->input0_transpose_order;
         params.input1_order = primitive->input1_transpose_order;
         params.output_order = primitive->output_transpose_order;
+
+        auto input0_pshape = impl_param.input_layouts[0].get_partial_shape();
+        auto input1_pshape = impl_param.input_layouts[1].get_partial_shape();
+        auto transpose_pshape = [](const ov::PartialShape pshape, const std::vector<int64_t>& order) {
+            auto transposed_pshape = ov::PartialShape::dynamic(pshape.rank());
+            for (size_t i = 0; i < order.size(); i++) {
+                transposed_pshape[i] = pshape[order[i]];
+            }
+            return transposed_pshape;
+        };
+        size_t max_rank = input0_pshape.size();
+        auto default_order = ov::intel_gpu::op::Gemm::default_order(max_rank);
+        auto input0_trans_pshape = (primitive->input0_transpose_order != default_order) ?
+                                   transpose_pshape(input0_pshape, primitive->input0_transpose_order) :
+                                   input0_pshape;
+        auto input1_trans_pshape = (primitive->input1_transpose_order != default_order) ?
+                                   transpose_pshape(input1_pshape, primitive->input1_transpose_order) :
+                                   input1_pshape;
+        for (size_t i = 0; i < max_rank - 2; ++i) {
+            if (input0_trans_pshape[i].is_static() && input1_trans_pshape[i].is_static()) {
+                if (input1_trans_pshape[i].get_length() > input0_trans_pshape[i].get_length()) {
+                    params.input0_reshape_axes = primitive->input0_transpose_order[i];
+                    params.input0_broadcast_val = input1_trans_pshape[i].get_length() / input0_trans_pshape[i].get_length();
+                } else if (input0_trans_pshape[i].get_length() > input1_trans_pshape[i].get_length()) {
+                    params.input1_reshape_axes = primitive->input1_transpose_order[i];
+                    params.input1_broadcast_val = input0_trans_pshape[i].get_length() / input1_trans_pshape[i].get_length();
+                }
+            }
+        }
 
         params.indirect_input0 = primitive->indirect_a && indirect;
         params.indirect_input1 = primitive->indirect_b && indirect;

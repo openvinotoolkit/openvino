@@ -49,8 +49,6 @@ TEST_F(TransformationTestsF, UnsqueezeBroadReshapeMatmulFusion1) {
         auto input_b = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, 2, 32});
         auto gemm = std::make_shared<ov::intel_gpu::op::Gemm>(input_a,
                                                               input_b,
-                                                              std::vector<int64_t>{},
-                                                              pattern_b,
                                                               order_a,
                                                               order_b,
                                                               order_c,

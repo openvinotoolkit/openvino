@@ -215,7 +215,7 @@ JitConstants GemmKernelBase::GetJitConstants(const gemm_params& params) const {
         jit.AddConstant(MakeJitConstant("BIAS_TERM", 1));
     }
 
-    auto get_broadcast_input_str = [](const size_t input_rank, const int32_t axes, const int64_t val) {
+    auto get_broadcast_input_str = [](const size_t input_rank, const int64_t axes, const int64_t val) {
         std::vector<std::string> dims;
         if (input_rank == 1) {
             dims = {"x"};

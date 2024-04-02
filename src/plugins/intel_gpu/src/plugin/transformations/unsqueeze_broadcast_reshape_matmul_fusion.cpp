@@ -141,8 +141,6 @@ UnsqueezeBroadcastReshapeMatmulFusion::UnsqueezeBroadcastReshapeMatmulFusion() {
 
         auto gemm = std::make_shared<op::Gemm>(input_a,
                                                input_b,
-                                               pattern_a,
-                                               pattern_b,
                                                order_a,
                                                order_b,
                                                order_c);

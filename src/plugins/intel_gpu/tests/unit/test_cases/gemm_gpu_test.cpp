@@ -760,7 +760,7 @@ public:
         topology.add(input_layout("input0", input0_layout),
                      input_layout("input1", input1_layout),
                      input_layout("beam_table", beam_table_layout),
-                     gemm("gemm", { input_info("input0"), input_info("input1") }, input_info("beam_table"), data_types::f32, {}, {}, input0_order, input1_order, {}, indirect_input0, indirect_input1)
+                     gemm("gemm", { input_info("input0"), input_info("input1") }, input_info("beam_table"), data_types::f32, input0_order, input1_order, {}, indirect_input0, indirect_input1)
             );
 
         ExecutionConfig config = get_test_default_config(engine);
@@ -876,7 +876,6 @@ public:
         auto& engine = get_test_engine();
         ov::Shape input0_shape;
         ov::Shape input1_shape;
-        std::vector<int64_t> input1_pattern;
         std::vector<int64_t> input0_order;
         std::vector<int64_t> input1_order;
         ov::Shape beam_table_shape;
@@ -885,11 +884,10 @@ public:
 
         input0_shape = { BATCH_SIZE, 32, M_SIZE, K_SIZE };
         input1_shape = { N_SIZE, BATCH_SIZE, 2, K_SIZE };
-        input1_pattern = { 0, 0, 32, K_SIZE };
         input0_order = { 0, 1, 2, 3 };
         input1_order = { 1, 2, 3, 0 };
 
-        input0_layout = layout{ov::PartialShape::dynamic(input0_shape.size()), data_types::f32, format::bfyx};
+        input0_layout = layout{ov::PartialShape{ov::Dimension::dynamic(), 32, ov::Dimension::dynamic(), K_SIZE}, data_types::f32, format::bfyx};
         input1_layout = layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), 2, K_SIZE}, data_types::f32, format::bfyx};
 
         auto input0_mem = engine.allocate_memory(layout{ov::PartialShape(input0_shape), data_types::f32, format::bfyx});
@@ -904,7 +902,7 @@ public:
         topology topology;
         topology.add(input_layout("input0", input0_layout),
                      input_layout("input1", input1_layout),
-                     gemm("gemm", { input_info("input0"), input_info("input1") }, data_types::f32, {}, input1_pattern, input0_order, input1_order)
+                     gemm("gemm", { input_info("input0"), input_info("input1") }, data_types::f32, input0_order, input1_order)
         );
 
         ExecutionConfig config = get_test_default_config(engine);
@@ -1073,7 +1071,7 @@ public:
         topology topology;
         topology.add(input_layout("input0", input0_layout),
                      input_layout("input1", input1_layout),
-                     gemm("gemm", { input_info("input0"), input_info("input1") }, data_types::f16, {}, {}, input0_order, input1_order, output_order)
+                     gemm("gemm", { input_info("input0"), input_info("input1") }, data_types::f16, input0_order, input1_order, output_order)
         );
 
         ExecutionConfig config = get_test_default_config(engine);
@@ -1360,7 +1358,7 @@ public:
         topology topology;
         topology.add(input_layout("input0", input0_layout),
                      input_layout("input1", input1_layout),
-                     gemm("gemm", { input_info("input0"), input_info("input1") }, data_types::f16, {}, {}, input0_order, input1_order)
+                     gemm("gemm", { input_info("input0"), input_info("input1") }, data_types::f16, input0_order, input1_order)
         );
 
         ExecutionConfig config = get_test_default_config(engine);

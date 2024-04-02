@@ -127,8 +127,6 @@ std::vector<layout> gemm_inst::calc_output_layouts(gemm_node const& node, const 
 
     std::vector<ShapeType> output_shapes = ov::intel_gpu::op::shape_infer(&op,
                                                                           input_shapes,
-                                                                          prim->input0_reshape_pattern,
-                                                                          prim->input1_reshape_pattern,
                                                                           prim->input0_transpose_order,
                                                                           prim->input1_transpose_order,
                                                                           prim->output_transpose_order);
