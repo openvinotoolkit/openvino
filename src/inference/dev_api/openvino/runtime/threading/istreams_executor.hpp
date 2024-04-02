@@ -55,6 +55,26 @@ public:
      * @brief Defines IStreamsExecutor configuration
      */
     struct OPENVINO_RUNTIME_API Config {
+    public:
+        enum PreferredCoreType {
+            ANY,
+            LITTLE,
+            BIG,
+            ROUND_ROBIN  // used w/multiple streams to populate the Big cores first, then the Little, then wrap around
+                         // (for large #streams)
+        };
+
+        /**
+         * @enum       StreamsMode
+         * @brief      This enum contains definition of each sub streams mode, indicating the main stream situation.
+         */
+        enum class StreamsMode {
+            SUB_STREAMS_NULL,        //!< Do not create sub streams
+            SUB_STREAMS_FOR_SOCKET,  //!< Create sub streams for multiple sockets in main stream
+            LATENCY,                 //!< latency mode
+            THROUGHPUT,              //!< throughput mode
+        };
+
     private:
         std::string _name;             //!< Used by `ITT` to name executor threads
         int _streams = 1;              //!< Number of streams.
@@ -74,6 +94,13 @@ public:
         bool _cpu_pinning = false;      //!< Whether to bind threads to cores.
         std::vector<std::vector<int>> _streams_info_table = {};
         std::vector<std::vector<int>> _stream_processor_ids;
+        int _sub_streams = 0;
+
+        /**
+         * @brief Get and reserve cpu ids based on configuration and hardware information,
+         *        streams_info_table must be present in the configuration
+         */
+        void reserve_cpu_threads();
 
          /**
          * @brief Modify _streams_info_table and related configuration according to configuration
@@ -167,6 +194,15 @@ public:
         int get_thread_binding_offset() const {
             return _threadBindingOffset;
         }
+        int get_sub_streams() const {
+            return _sub_streams;
+        }
+        StreamsMode get_sub_stream_mode() const {
+            const auto proc_type_table = get_proc_type_table();
+            int sockets = proc_type_table.size() > 1 ? static_cast<int>(proc_type_table.size()) - 1 : 1;
+            return _sub_streams > 0 ? StreamsMode::SUB_STREAMS_FOR_SOCKET
+                                    : (_streams <= sockets ? StreamsMode::LATENCY : StreamsMode::THROUGHPUT);
+        }
         bool operator==(const Config& config) {
             if (_name == config._name && _streams == config._streams &&
                 _threads_per_stream == config._threads_per_stream &&
@@ -218,6 +254,27 @@ public:
      * @param task A task to start
      */
     virtual void execute(Task task) = 0;
+
+    /**
+     * @brief Execute ov::Task inside sub stream of task executor context
+     * @param task A task to start
+     * @param id Sub stream id
+     */
+    virtual void run_sub_stream(Task task, int id) = 0;
+
+    /**
+     * @brief Execute all of the tasks and waits for its completion.
+     *        Default run_sub_stream_and_wait() method implementation uses run_sub_stream() pure virtual method
+     *        and higher level synchronization primitives from STL.
+     *        The task is wrapped into std::packaged_task which returns std::future.
+     *        std::packaged_task will call the task and signal to std::future that the task is finished
+     *        or the exception is thrown from task
+     *        Than std::future is used to wait for task execution completion and
+     *        task exception extraction
+     * @note run_sub_stream_and_wait() does not copy or capture tasks!
+     * @param tasks A vector of tasks to execute
+     */
+    void run_sub_stream_and_wait(const std::vector<Task>& tasks);
 };
 
 }  // namespace threading

@@ -81,9 +81,10 @@ private:
             CASE(f8e4m3)
             CASE(f8e5m2)
             CASE(string)
+        default:
+            return _undefined;
         }
 #undef CASE
-        return _undefined;
     }
 };
 
