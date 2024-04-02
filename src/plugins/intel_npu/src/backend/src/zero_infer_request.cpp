@@ -116,7 +116,8 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
             const std::string shapeBufferName = SHAPE_TENSOR_PREFIX + inputName;
             const IONodeDescriptor& shapeDescriptor = _metadata.shapes.at(inputName);
 
-            check_level_zero_attributes_match(shapeDescriptor, executorInputDescriptors.at(shapeBufferName),
+            check_level_zero_attributes_match(shapeDescriptor,
+                                              executorInputDescriptors.at(shapeBufferName),
                                               shapeBufferName);
             allocate_tensor(inputName, shapeDescriptor, !STATE_TENSOR, allocator, SHAPE_TENSOR);
         }
@@ -138,7 +139,8 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
             const std::string shapeBufferName = SHAPE_TENSOR_PREFIX + outputName;
             const IONodeDescriptor& shapeDescriptor = _metadata.shapes.at(outputName);
 
-            check_level_zero_attributes_match(shapeDescriptor, executorOutputDescriptors.at(shapeBufferName),
+            check_level_zero_attributes_match(shapeDescriptor,
+                                              executorOutputDescriptors.at(shapeBufferName),
                                               shapeBufferName);
             allocate_tensor(outputName, shapeDescriptor, !STATE_TENSOR, allocator, SHAPE_TENSOR);
         }
