@@ -190,9 +190,7 @@ OutputVector translate_equal_op(const NodeContext& node) {
         auto equal_reduced = make_shared<v1::ReduceLogicalAnd>(equal_op, reduce_axes, false);
 
         set_node_name(node.get_name(), equal_reduced);
-
-        auto complex_equal_op = make_shared<ComplexTypeMark>(equal_reduced, element::f32, element::boolean);
-        return {complex_equal_op->output(0)};
+        return {equal_reduced};
     }
 
     // If both inputs are non-complex, perform regular equality comparison
