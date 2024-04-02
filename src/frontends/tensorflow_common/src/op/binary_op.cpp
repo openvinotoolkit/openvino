@@ -189,10 +189,9 @@ OutputVector translate_equal_op(const NodeContext& node) {
         auto reduce_axes = make_shared<v0::Constant>(element::i32, Shape{1}, std::vector<int32_t>{-1});
         auto equal_reduced = make_shared<v1::ReduceLogicalAnd>(equal_op, reduce_axes, false);
 
-        set_node_name(node.get_name(), equal_op);
+        set_node_name(node.get_name(), equal_reduced);
 
-        auto complex_equal_op =
-            make_shared<ComplexTypeMark>(equal_op, complex_type_mark_x->get_complex_part_type(), element::boolean);
+        auto complex_equal_op = make_shared<ComplexTypeMark>(equal_reduced, element::f32, element::boolean);
         return {complex_equal_op->output(0)};
     }
 
