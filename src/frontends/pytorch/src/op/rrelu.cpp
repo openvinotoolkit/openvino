@@ -28,7 +28,8 @@ OutputVector translate_rrelu_fx(const NodeContext& context) {
        upper = context.get_input(2);
     }
     Output<Node> lower_plus_upper = std::make_shared<ov::op::v1::Add>(lower, upper);
-    Output<Node> average = std::make_shared<ov::op::v1::Divide>(lower_plus_upper, ov::op::v0::Constant::create(element::f32, Shape{1}, {2.0f}));
+    Output<Node> two = ov::op::v0::Constant::create(element::f32, Shape{1}, {2.0f};
+    Output<Node> average = std::make_shared<ov::op::v1::Divide>(lower_plus_upper, two));
     average = context.mark_node(average);
     return {context.mark_node(std::make_shared<v0::PRelu>(x, average))};     
 };
