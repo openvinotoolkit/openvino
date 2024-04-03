@@ -60,7 +60,6 @@ void RMSNorm::validate_and_infer_types() {
 
     const auto& data_shape = get_input_partial_shape(0);
     const auto& axes_shape = get_input_partial_shape(1);
-
     if (axes_shape.rank().is_static()) {
         NODE_VALIDATION_CHECK(this,
                               axes_shape.size() == 1,
@@ -74,6 +73,17 @@ void RMSNorm::validate_and_infer_types() {
                               has_axes_compatible,
                               "Number of the axes can't be higher than the rank of the data shape.");
     }
+
+    if (get_input_size() > 2) {  // Validate scale input
+        auto scale_shape = get_input_partial_shape(2);
+        const bool is_scale_shape_broadcastable =
+            PartialShape::broadcast_merge_into(scale_shape, data_shape, ov::op::AutoBroadcastType::NUMPY);
+        NODE_VALIDATION_CHECK(this,
+                              is_scale_shape_broadcastable,
+                              "Scale input shape must be broadcastable to the shape of the data input.");
+    }
+
+    // Output type and shape is the same as the first input
     set_output_type(0, data_element_type, get_input_partial_shape(0));
 }
 

@@ -101,6 +101,60 @@ TEST(type_prop, rms_norm_incorrect_input_type) {
     }
 }
 
+TEST(type_prop, rms_norm_scale_shape) {
+    const auto data = std::make_shared<Parameter>(element::f16, PartialShape{-1, 3, 8, 6});
+    const auto axes = std::make_shared<Parameter>(element::i32, PartialShape{1});
+    const auto eps = 1e-5f;
+    const auto compute_type = element::f32;
+    {
+        const auto scale = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
+        const auto op = std::make_shared<op::v14::RMSNorm>(data, axes, scale, eps, compute_type);
+        EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{-1, 3, 8, 6}));
+    }
+    {
+        const auto scale = std::make_shared<Parameter>(element::f16, PartialShape{-1});
+        const auto op = std::make_shared<op::v14::RMSNorm>(data, axes, scale, eps, compute_type);
+        EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{-1, 3, 8, 6}));
+    }
+    {
+        const auto scale = std::make_shared<Parameter>(element::f16, PartialShape{});
+        const auto op = std::make_shared<op::v14::RMSNorm>(data, axes, scale, eps, compute_type);
+        EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{-1, 3, 8, 6}));
+    }
+    {
+        const auto scale = std::make_shared<Parameter>(element::f16, PartialShape{1});
+        const auto op = std::make_shared<op::v14::RMSNorm>(data, axes, scale, eps, compute_type);
+        EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{-1, 3, 8, 6}));
+    }
+    {
+        const auto scale = std::make_shared<Parameter>(element::f16, PartialShape{6});
+        const auto op = std::make_shared<op::v14::RMSNorm>(data, axes, scale, eps, compute_type);
+        EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{-1, 3, 8, 6}));
+    }
+    {
+        const auto scale = std::make_shared<Parameter>(element::f16, PartialShape{8, 1});
+        const auto op = std::make_shared<op::v14::RMSNorm>(data, axes, scale, eps, compute_type);
+        EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{-1, 3, 8, 6}));
+    }
+    {
+        const auto scale = std::make_shared<Parameter>(element::f16, PartialShape{1, 3, 1, 1});
+        const auto op = std::make_shared<op::v14::RMSNorm>(data, axes, scale, eps, compute_type);
+        EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{-1, 3, 8, 6}));
+    }
+    {
+        const auto scale = std::make_shared<Parameter>(element::f16, PartialShape{8});
+        OV_EXPECT_THROW(std::ignore = std::make_shared<op::v14::RMSNorm>(data, axes, scale, eps, compute_type),
+                        ov::NodeValidationFailure,
+                        HasSubstr("Scale input shape must be broadcastable to the shape of the data input"));
+    }
+    {
+        const auto scale = std::make_shared<Parameter>(element::f16, PartialShape{6, 1});
+        OV_EXPECT_THROW(std::ignore = std::make_shared<op::v14::RMSNorm>(data, axes, scale, eps, compute_type),
+                        ov::NodeValidationFailure,
+                        HasSubstr("Scale input shape must be broadcastable to the shape of the data input"));
+    }
+}
+
 TEST(type_prop, rms_norm_incompatible_axes_shape) {
     const auto data = std::make_shared<Parameter>(element::f16, PartialShape{2, 3, 8});
     const auto scale = std::make_shared<Parameter>(element::f16, PartialShape{});
