@@ -1002,13 +1002,7 @@ TEST_F(FrontEndConversionWithReferenceTestsF, LoopWithInvariant) {
             model_inputs.emplace_back(input);
         }
 
-        for (const auto& loop_body_output : body_model_outputs) {
-            const auto it =
-                std::find_if(merged_outputs.begin(), merged_outputs.end(), [loop_body_output](Output<Node>& output) {
-                    return output == loop_body_output;
-                });
-            if (it == merged_outputs.end())
-                continue;
+        for (const auto& loop_body_output : merged_outputs) {
             loop->get_iter_value(loop_body_output);
         }
 
