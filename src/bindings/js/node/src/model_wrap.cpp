@@ -97,6 +97,23 @@ Napi::Value ModelWrap::get_output(const Napi::CallbackInfo& info) {
     }
 }
 
+Napi::Value ModelWrap::get_output_shape(const Napi::CallbackInfo& info) {
+    auto cm_outputs = _model->outputs();  // Output<Node>
+    Napi::Array js_outputs = Napi::Array::New(info.Env(), cm_outputs.size());
+
+    uint32_t i = 0;
+    for (auto& out : cm_outputs) {
+        auto shape = out.get_shape();
+        Napi::Array js_shape = Napi::Array::New(info.Env(), shape.size());
+        size_t j = 0;
+        for (auto& dim : shape)
+            js_shape[j++] = Napi::Number::New(info.Env(), dim);
+        js_outputs[i++] = js_shape;
+    }
+
+    return js_outputs;
+}
+
 Napi::Value ModelWrap::get_inputs(const Napi::CallbackInfo& info) {
     auto cm_inputs = _model->inputs();  // Output<Node>
     Napi::Array js_inputs = Napi::Array::New(info.Env(), cm_inputs.size());
