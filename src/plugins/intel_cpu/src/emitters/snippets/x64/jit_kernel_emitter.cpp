@@ -3,6 +3,7 @@
 //
 
 #include "jit_kernel_emitter.hpp"
+#include "snippets/utils.hpp"
 
 
 using namespace Xbyak;
@@ -200,13 +201,10 @@ jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::x64::jit_g
         element::Type etype;
         switch (expr->get_type()) {
             case snippets::lowered::IOExpression::io_type::INPUT: {
-                // Note that here we consider only the first child (which is usually load),
-                // but often there is another child - LoopEnd
-                auto consumer_inputs = expr->get_output_port_connector(0)->get_consumers();
-                const auto& first_consumer = consumer_inputs.begin()->get_expr();
-                // If there is a RankNormalization op after a parameter - we should skip it
-                if (is_type<snippets::op::RankNormalization>(first_consumer->get_node()))
-                    consumer_inputs = first_consumer->get_output_port_connector(0)->get_consumers();
+                // input->shape changing ops->load
+                const auto& shape_infer_seq = ov::snippets::utils::get_first_child_shape_infer_expr_seq(expr);
+                const auto& mem_desc_expr = shape_infer_seq.empty() ? expr : shape_infer_seq.back();
+                auto consumer_inputs = mem_desc_expr->get_output_port_connector(0)->get_consumers();
                 for (const auto& child_input : consumer_inputs) {
                     const auto ma = ov::as_type_ptr<snippets::op::MemoryAccess>(child_input.get_expr()->get_node());
                     if (ma && ma->is_memory_access_input_port(child_input.get_index())) {
@@ -214,12 +212,15 @@ jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::x64::jit_g
                         break;
                     }
                 }
-                etype = expr->get_node()->get_output_element_type(0);
+                etype = mem_desc_expr->get_node()->get_output_element_type(0);
                 break;
             }
             case snippets::lowered::IOExpression::io_type::OUTPUT: {
-                desc = expr->get_input_port_connector(0)->get_source().get_descriptor_ptr();
-                etype = expr->get_node()->get_input_element_type(0);
+                // store->shape changing ops->result
+                const auto& shape_infer_seq = ov::snippets::utils::get_first_parent_shape_infer_expr_seq(expr);
+                const auto& mem_desc_expr = shape_infer_seq.empty() ? expr : shape_infer_seq.back();
+                desc = mem_desc_expr->get_input_port_connector(0)->get_source().get_descriptor_ptr();
+                etype = mem_desc_expr->get_node()->get_input_element_type(0);
                 break;
             } default : {
                 OPENVINO_THROW("Kernel detected unsupported io_type");
