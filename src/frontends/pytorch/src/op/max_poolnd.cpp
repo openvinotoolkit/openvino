@@ -94,7 +94,8 @@ OutputVector translate_max_poolnd(const NodeContext& context) {
 
         // apply padding on input clear pads attribute
         const auto pb = context.mark_node(std::make_shared<v0::Concat>(OutputVector{pads_remaining, padding}, 0));
-        const auto& pe = context.mark_node(std::make_shared<v0::Concat>(OutputVector{pads_remaining, selected_pads}, 0));
+        const auto& pe =
+            context.mark_node(std::make_shared<v0::Concat>(OutputVector{pads_remaining, selected_pads}, 0));
         auto minus_inf =
             context.mark_node(v0::Constant::create(element::f32, Shape{}, {-std::numeric_limits<float>::infinity()}));
         minus_inf = context.mark_node(std::make_shared<v1::ConvertLike>(minus_inf, input));
