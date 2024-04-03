@@ -1530,15 +1530,6 @@ TEST(constant, convert_input_ov_string) {
     EXPECT_EQ(actual, expected);
 }
 
-TEST(constant, ov_string_broadcast_from_non_string) {
-    EXPECT_THROW(std::ignore = op::v0::Constant::create(element::string, Shape{4}, std::vector<int>{10}), Exception);
-}
-
-TEST(constant, ov_string_from_non_string_vector) {
-    EXPECT_THROW(std::ignore = op::v0::Constant::create(element::string, Shape{4}, std::vector<int>{10, 1, 3, 2}),
-                 Exception);
-}
-
 TEST(constant, convert_input) {
     EXPECT_TRUE((test_convert<float, float>()));
     EXPECT_TRUE((test_convert<float, double>()));

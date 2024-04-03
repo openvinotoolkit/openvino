@@ -518,9 +518,6 @@ private:
               typename std::enable_if<Type == element::string && std::is_same<T, std::string>::value>::type* = nullptr>
     void fill_data(const T& value) {
         auto num_elements = shape_size(m_shape);
-        if (Type == element::string){
-            fill_data<element::string>(std::string());
-        }
         std::uninitialized_fill_n(get_data_ptr_nc<Type>(), num_elements, value);
     }
 
@@ -725,7 +722,7 @@ private:
 
 #define CONSTANT_FILL_DATA_SPECIALIZATION(ET, IN_TYPE) \
     template <>                                        \
-    OPENVINO_API void Constant::fill_data<element::Type_t::ET, IN_TYPE>(const IN_TYPE& value);
+    OPENVINO_API void Constant::fill_data<element::Type_t::ET>(const IN_TYPE& value);
 
 CONSTANT_FILL_DATA_SPECIALIZATION(u1, bool)
 CONSTANT_FILL_DATA_SPECIALIZATION(u1, char)
@@ -805,11 +802,10 @@ CONSTANT_FILL_DATA_SPECIALIZATION(nf4, double)
 
 #undef CONSTANT_FILL_DATA_SPECIALIZATION
 
-#define CONSTANT_CAST_VECTOR_SPECIALIZATION(ET, OUTPUT_TYPE)                   \
-    template <>                                                                \
-    OPENVINO_API void Constant::cast_vector<element::Type_t::ET, OUTPUT_TYPE>( \
-        std::vector<OUTPUT_TYPE> & output_vector,                              \
-        size_t num_elements) const;
+#define CONSTANT_CAST_VECTOR_SPECIALIZATION(ET, OUTPUT_TYPE)                                               \
+    template <>                                                                                            \
+    OPENVINO_API void Constant::cast_vector<element::Type_t::ET>(std::vector<OUTPUT_TYPE> & output_vector, \
+                                                                 size_t num_elements) const;
 
 CONSTANT_CAST_VECTOR_SPECIALIZATION(u1, bool)
 CONSTANT_CAST_VECTOR_SPECIALIZATION(u1, char)
@@ -866,7 +862,7 @@ CONSTANT_CAST_VECTOR_SPECIALIZATION(i4, double)
 
 #define CONSTANT_WRITE_BUFFER_SPECIALIZATION(ET, INPUT_TYPE) \
     template <>                                              \
-    OPENVINO_API void Constant::write_buffer<element::Type_t::ET, INPUT_TYPE>(const std::vector<INPUT_TYPE>& source);
+    OPENVINO_API void Constant::write_buffer<element::Type_t::ET>(const std::vector<INPUT_TYPE>& source);
 
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u1, bool)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u1, char)
