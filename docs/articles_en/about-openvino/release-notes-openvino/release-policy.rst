@@ -8,7 +8,7 @@ Release Policy
 |    OpenVINO™ is published with a cadence of around one month. Each release is supported only until
 |    the next version arrives.
 |    This makes regular releases suitable only for:
-|
+
        * Dynamically developed solutions, benefiting from the newest technologies.
        * Products requiring frequent changes in supported hardware, libraries, operating systems, and models.
 
@@ -17,7 +17,7 @@ Release Policy
 |    Each year’s final release becomes a Long-Term Support version, which continues to be supported
 |    with bug fixes and security updates, even after newer versions are published.
 |    Therefore, LTS is advised for production environments where:
-|
+
        * The highest level of security and stability is required.
        * There is no need for frequent changes in hardware or model support.
        * Upgrading is challenging, e.g., due to a high software complexity.
@@ -27,7 +27,7 @@ Release Policy
 |    OpenVINO also offers nightly packages, as a preview of most recent changes. Due to potential
 |    stability and performance issues, these should never be used for production purposes.
 |    Instead, they may serve:
-|
+
        * Early integration testing.
        * Previewing newest features/improvements.
 
