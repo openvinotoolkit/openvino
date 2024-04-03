@@ -8,6 +8,9 @@ Tokenization converts the input text into a sequence of tokens, which the model 
 and process before running inference. The transformation of a sequence of numbers into a
 string is called detokenization.
 
+.. image:: _static/images/tokenization.png
+   :align: center
+
 There are two important points in the tokenizer-model relation:
 
 * Every model with text input is paired with a tokenizer and cannot be used without it.
@@ -16,24 +19,24 @@ There are two important points in the tokenizer-model relation:
 **OpenVINO Tokenizers** is an OpenVINO extension and a Python library designed to streamline
 tokenizer conversion for seamless integration into your projects. With OpenVINO Tokenizers you can:
 
-* Add text processing operations to OpenVINO. Both tokenizer and detokenizer are OpenVINO models, meaning that you can work with them as with any regular model: read, compile, save, and other.
+* Add text processing operations to OpenVINO. Both tokenizer and detokenizer are OpenVINO models, meaning that you can work with them as with any regular model: read, compile, save, etc.
 
 * Perform tokenization and detokenization without third-party dependencies.
 
-* Convert Hugging Face tokenizers into OpenVINO model tokenizer and detokenizer for efficient deployment of deep learning pipelines across varied environments.
+* Convert Hugging Face tokenizers into OpenVINO model tokenizer and detokenizer for efficient deployment across different environments. See the `conversion example <https://github.com/openvinotoolkit/openvino_tokenizers?tab=readme-ov-file#convert-huggingface-tokenizer>`__ for more details.
 
 * Combine OpenVINO models into a single model. Recommended for specific models, like classifiers or RAG Embedders, where both tokenizer and a model are used once in each pipeline inference. For more information, see the `OpenVINO Tokenizers Notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/master/notebooks/openvino-tokenizers/openvino-tokenizers.ipynb>`__.
 
 * Add greedy decoding pipeline to text generation model.
 
-* Use TensorFlow models, such as TensorFlow Text MUSE model.
+* Use TensorFlow models, such as TensorFlow Text MUSE model. See the `MUSE model inference example <https://github.com/openvinotoolkit/openvino_tokenizers?tab=readme-ov-file#tensorflow-text-integration>`__ to learn more.  Note that TensorFlow integration requires additional conversion extensions to work with string tensor operations like StringSplit, StaticRexexpReplace, StringLower, and others.
+
+Supported Tokenizers
+#####################
 
 .. note::
 
    OpenVINO Tokenizers can be inferred **only** on a CPU device.
-
-Supported Tokenizers
-#####################
 
 .. list-table::
    :widths: 30 25 20 20
@@ -64,8 +67,15 @@ Supported Tokenizers
      - yes
      - yes
 
+.. note::
+   The outputs of the converted and the original tokenizer can differ, either decreasing or increasing
+   model accuracy on a specific task. You can modify the prompt to mitigate these changes.
+   In the `OpenVINO Tokenizers repository <https://github.com/openvinotoolkit/openvino_tokenizers>`__
+   you can see the percentage of tests in which the output of the original and converted tokenizer/detokenizer match.
+
 Python Installation
 ###################
+
 
 1. Create and activate a virtual environment.
 
@@ -185,7 +195,7 @@ You can learn how to read and compile converted models in the
 Tokenizers Usage
 ################
 
-1. Convert a Tokenizer to OpenVINO Intermediate Representation (IR).
+1. Convert a Tokenizer to OpenVINO Intermediate Representation (IR)
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 You can convert Hugging Face tokenizers to IR using either a CLI tool bundled with Tokenizers or
@@ -221,15 +231,8 @@ Convert Tokenizers:
 The result is two OpenVINO models: openvino tokenizer and openvino detokenizer.
 Both can be used with ``read_model``, ``compile_model`` and ``save_model``, similar to any other OpenVINO model.
 
-2. Optional. Merge tokenizer into a model.
-++++++++++++++++++++++++++++++++++++++++++++
-
-Since the model can not be used without a tokenizer, it could be beneficial to create a model
-that combines a converted tokenizer and the original model. See the `OpenVINO Tokenizers Notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/master/notebooks/openvino-tokenizers/openvino-tokenizers.ipynb>`__
-to learn more about use cases benefiting from tokenizer merge.
-
-3. Generate text.
-+++++++++++++++++++++++++++
+2. Tokenize and Prepare Inputs
++++++++++++++++++++++++++++++++
 
 .. code-block:: python
 
@@ -242,9 +245,14 @@ to learn more about use cases benefiting from tokenizer merge.
 
    # no beam search, set idx to 0
    model_input["beam_idx"] = np.array([0], dtype=np.int32)
-   # end of sentence token is that model signifies the end of text generation will be available in next version,
-   # for now, can be obtained from the original tokenizer `original_tokenizer.eos_token_id`
-   eos_token = 2
+   # end of sentence token is where the model signifies the end of text generation
+   # read EOS token ID from rt_info of tokenizer/detokenizer ov.Model object
+   eos_token = ov_tokenizer.get_rt_info(EOS_TOKEN_ID_NAME).value
+
+3. Generate Text
++++++++++++++++++++++++++++
+
+.. code-block:: python
 
    tokens_result = np.array([[]], dtype=np.int64)
 
@@ -256,10 +264,10 @@ to learn more about use cases benefiting from tokenizer merge.
       infer_request.start_async(model_input)
       infer_request.wait()
 
-      # use greedy decoding to get the most probable token as the model prediction
-      output_token = np.argmax(infer_request.get_output_tensor().data[:, -1, :], axis=-1, keepdims=True)
+      # get a prediction for the last token on the first inference
+      output_token = infer_request.get_output_tensor().data[:, -1:]
       tokens_result = np.hstack((tokens_result, output_token))
-      if output_token[0][0] == eos_token:
+      if output_token[0, 0] == eos_token:
          break
 
       # prepare input for new inference
@@ -269,34 +277,15 @@ to learn more about use cases benefiting from tokenizer merge.
          (model_input["position_ids"].data, [[model_input["position_ids"].data.shape[-1]]])
       )
 
-   text_result = detokenizer(tokens_result)["string_output"]
-   print(f"Prompt:\n{text_input[0]}")
-   print(f"Generated:\n{text_result[0]}")
-
-4. Detokenize output.
+4. Detokenize Output
 +++++++++++++++++++++++++++++
 
 .. code-block:: python
 
-   import numpy as np
-   import openvino_tokenizers
-   from openvino import Core
+   text_result = detokenizer(tokens_result)["string_output"]
+   print(f"Prompt:\n{text_input[0]}")
+   print(f"Generated:\n{text_result[0]}")
 
-   core = Core()
-
-   # detokenizer from codellama sentencepiece model
-   compiled_detokenizer = core.compile_model("detokenizer.xml")
-
-   token_ids = np.random.randint(100, 1000, size=(3, 5))
-   openvino_output = compiled_detokenizer(token_ids)
-
-   print(openvino_output["string_output"])
-   # ['sc�ouition�', 'intvenord hasient', 'g shouldwer M more']
-
-The outputs of the converted and the original tokenizer can differ, either decreasing or increasing
-model accuracy on a specific task. You can modify the prompt to avoid these changes.
-In the `OpenVINO Tokenizers repository <https://github.com/openvinotoolkit/openvino_tokenizers>`__
-you can see the percentage of tests in which the output of the original and converted tokenizer/detokenizer match.
 
 Additional Resources
 ####################
