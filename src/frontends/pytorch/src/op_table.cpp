@@ -802,7 +802,6 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.elu_.default", op::inplace_op<op::translate_elu>},
         {"aten.embedding.default", op::translate_embedding},
         {"aten.empty.memory_format", op::translate_empty},
-        // {"aten.empty_like.default", op::translate_empty_like}, - Need further debugging to enable this op
         {"aten.eq.Scalar", op::translate_1to1_match_2_inputs_align_types<opset10::Equal>},
         {"aten.eq.Tensor", op::translate_1to1_match_2_inputs_align_types<opset10::Equal>},
         {"aten.erf.default", op::translate_erf},
@@ -837,7 +836,6 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.hardtanh.default", op::translate_hardtanh},
         {"aten.hardtanh_.default", op::inplace_op<op::translate_hardtanh>},
         {"aten.index.Tensor", op::translate_index_fx},
-        // aten.index_put.default - Supported in limited set of patterns
         {"aten.index_select.default", op::translate_index_select},
         {"aten.isfinite.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::IsFinite>>},
         {"aten.isinf.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::IsInf>>},
