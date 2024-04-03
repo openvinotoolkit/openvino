@@ -455,11 +455,19 @@ private:
                        element::from<U>());
     }
 
-    // cast_data for LP specializations
+    // generic cast_data if input is not std or OV type (do additional conversion)
     template <element::Type_t Type,
               class U,
               typename std::enable_if<is_lp_type(Type) && !std::is_same<U, std::string>::value>::type* = nullptr>
-    void cast_vector(std::vector<U>& output, size_t num_elements) const;
+    void cast_vector(std::vector<U>& output, size_t num_elements) const {
+        if (std::is_integral<U>::value) {
+            auto&& v = cast_vector<int8_t>();
+            output.insert(output.end(), v.begin(), v.end());
+        } else {
+            auto&& v = cast_vector<float>();
+            output.insert(output.end(), v.begin(), v.end());
+        }
+    }
 
     template <element::Type_t Type,
               class T,
@@ -530,11 +538,17 @@ private:
                        Type);
     }
 
-    // fill_data for LP specializations
+    // generic fill_data if input is not std or OV type (do additional conversion)
     template <element::Type_t Type,
               class T,
               typename std::enable_if<is_lp_type(Type) && !std::is_same<T, std::string>::value>::type* = nullptr>
-    void fill_data(const T& value);
+    void fill_data(const T& value) {
+        if (std::is_integral<T>::value) {
+            fill_data<Type>(static_cast<int8_t>(value));
+        } else {
+            fill_data<Type>(static_cast<float>(value));
+        }
+    }
 
     void allocate_buffer(bool memset_allocation);
 
@@ -586,11 +600,19 @@ private:
                        Type);
     }
 
-    // write_buffer LP specialization
+    // generic write_buffer if input is not std or OV type (do additional conversion)
     template <element::Type_t Type,
               class T,
               typename std::enable_if<is_lp_type(Type) && !std::is_same<T, std::string>::value>::type* = nullptr>
-    void write_buffer(const std::vector<T>& source);
+    void write_buffer(const std::vector<T>& source) {
+        if (std::is_integral<T>::value) {
+            const auto tmp = std::vector<int8_t>(source.begin(), source.end());
+            write_buffer<Type>(tmp);
+        } else {
+            const auto tmp = std::vector<float>(source.begin(), source.end());
+            write_buffer<Type>(tmp);
+        }
+    }
 
     template <typename T>
     void write_to_buffer(const std::vector<T>& source) {
