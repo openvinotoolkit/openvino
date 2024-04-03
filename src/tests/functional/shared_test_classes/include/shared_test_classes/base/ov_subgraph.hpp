@@ -44,6 +44,7 @@ protected:
 
     void update_ref_model();
     void match_parameters();
+    void init_thresholds();
     void init_input_shapes(const std::vector<InputShape>& shapes);
     void set_callback_exception(std::function<void(const std::exception& exp)> callback) { callback_exception = callback; }
 
@@ -62,7 +63,9 @@ protected:
     std::map<std::shared_ptr<ov::Node>, ov::Tensor> inputs;
     std::vector<ov::PartialShape> inputDynamicShapes;
     std::vector<std::vector<ov::Shape>> targetStaticShapes;
-    ElementType inType = ov::element::undefined, outType = ov::element::undefined;
+    ElementType inType = ov::element::undefined,
+                outType = ov::element::undefined,
+                inference_precision = ov::element::undefined;
 
     ov::CompiledModel compiledModel;
     ov::InferRequest inferRequest;
