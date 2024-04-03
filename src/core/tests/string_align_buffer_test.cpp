@@ -4,10 +4,13 @@
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "openvino/runtime/string_aligned_buffer.hpp"
 
 namespace ov {
 namespace test {
+
+using testing::HasSubstr;
 
 using StringAlignedBufferTest = testing::Test;
 
@@ -19,12 +22,21 @@ TEST_F(StringAlignedBufferTest, default_ctor) {
     EXPECT_EQ(buffer.size(), 0);
 }
 
-TEST_F(StringAlignedBufferTest, create_not_initialized_but_init_before_destruction) {
+TEST_F(StringAlignedBufferTest, create_not_initialized) {
     StringAlignedBuffer buffer{4, 100, 64, false};
 
     ASSERT_NE(buffer.get_ptr(), nullptr);
     EXPECT_EQ(buffer.get_num_elements(), 4);
     EXPECT_EQ(buffer.size(), 100);
+}
+
+TEST_F(StringAlignedBufferTest, create_not_initialized_but_init_before_destruction) {
+    constexpr size_t exp_size = 4 * sizeof(std::string) + 1;
+    StringAlignedBuffer buffer{4, exp_size, 64, false};
+
+    ASSERT_NE(buffer.get_ptr(), nullptr);
+    EXPECT_EQ(buffer.get_num_elements(), 4);
+    EXPECT_EQ(buffer.size(), exp_size);
 
     // uninitialized buffer must be initialized by user before dtor call to avoid segfault
     std::uninitialized_fill_n(buffer.get_ptr<std::string>(), buffer.get_num_elements(), std::string{});
@@ -38,6 +50,22 @@ TEST_F(StringAlignedBufferTest, create_initialized) {
     ASSERT_NE(buffer.get_ptr(), nullptr);
     EXPECT_EQ(buffer.get_num_elements(), 5);
     EXPECT_EQ(buffer.size(), exp_size);
+}
+
+TEST_F(StringAlignedBufferTest, create_initialized_not_enough_space) {
+    constexpr size_t exp_size = sizeof(std::string) * 5;
+
+    OV_EXPECT_THROW(StringAlignedBuffer buffer(5, exp_size - 1, 8, true),
+                    AssertFailure,
+                    HasSubstr("is not enough to store 5 std::string objects"));
+}
+
+TEST_F(StringAlignedBufferTest, create_not_initialized_not_enough_space) {
+    constexpr size_t exp_size = sizeof(std::string) * 5;
+
+    OV_EXPECT_THROW(StringAlignedBuffer buffer(5, exp_size - 1, 8, false),
+                    AssertFailure,
+                    HasSubstr("is not enough to store 5 std::string objects"));
 }
 
 class SharedStringAlignedBufferTest : public testing::Test {

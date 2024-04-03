@@ -82,12 +82,12 @@ namespace ov {
 StringAlignedBuffer::StringAlignedBuffer(size_t num_elements, size_t byte_size, size_t alignment, bool initialize)
     : AlignedBuffer(byte_size, alignment),
       m_num_elements(num_elements) {
-    const auto has_enough_size = (sizeof(std::string) * num_elements) <= (byte_size + alignment);
+    const auto has_enough_size = (sizeof(std::string) * m_num_elements) <= size();
     OPENVINO_ASSERT(has_enough_size,
                     "Allocated memory of size ",
-                    byte_size,
+                    size(),
                     " bytes is not enough to store ",
-                    num_elements,
+                    m_num_elements,
                     " std::string objects");
     if (initialize) {
         std::uninitialized_fill_n(get_ptr<std::string>(), m_num_elements, std::string{});
