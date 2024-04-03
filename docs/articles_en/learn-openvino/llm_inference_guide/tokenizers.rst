@@ -34,10 +34,6 @@ tokenizer conversion for seamless integration into your projects. With OpenVINO 
 Supported Tokenizers
 #####################
 
-.. note::
-
-   OpenVINO Tokenizers can be inferred **only** on a CPU device.
-
 .. list-table::
    :widths: 30 25 20 20
    :header-rows: 1
@@ -66,6 +62,10 @@ Supported Tokenizers
      - tiktoken
      - yes
      - yes
+
+.. note::
+
+   OpenVINO Tokenizers can be inferred **only** on a CPU device.
 
 .. note::
 
