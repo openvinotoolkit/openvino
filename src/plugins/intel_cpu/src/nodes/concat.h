@@ -43,6 +43,7 @@ private:
     void exec1DCase();
     std::vector<VectorDims> inputStrides;
     std::vector<size_t> nelemToCopy; // byte moved in each iter
+    size_t nelemTotal = 0;
     std::vector<size_t> dstOffset; // dst offset for each input
     std::vector<const uint8_t*> srcPtrs;
     bool hasOuterLoop = false;

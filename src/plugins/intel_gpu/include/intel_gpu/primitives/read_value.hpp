@@ -57,7 +57,7 @@ struct read_value : public primitive_base<read_value> {
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<read_value>::load(ib);
-        ov::element::Type_t data_type;
+        ov::element::Type_t data_type = ov::element::Type_t::undefined;
         ib >> variable_id;
         ib >> output_layout;
         ib >> make_data(&data_type, sizeof(ov::element::Type_t));
