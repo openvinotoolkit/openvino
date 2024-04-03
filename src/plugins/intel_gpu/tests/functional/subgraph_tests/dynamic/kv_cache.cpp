@@ -258,7 +258,8 @@ class KVCacheTests: public ::testing::Test {
                                                 int64_t concat_axis = 2,
                                                 ov::element::Type model_element_type = ov::element::f16,
                                                 size_t num_iter = 10,
-                                                size_t num_groups = 1) {
+                                                size_t num_groups = 1,
+                                                bool set_state_on_each_iter = false) {
     #if defined(ANDROID)
         GTEST_SKIP();
     #endif
@@ -437,6 +438,14 @@ class KVCacheTests: public ::testing::Test {
                 infer_request.infer();
 
                 compare_tensors({ ref_results[1] }, {matmul_out});
+
+                if (set_state_on_each_iter) {
+                    auto state = infer_request.query_state()[0].get_state();
+                    compare_tensors({ ref_kv_cache }, {state});
+                    infer_request.query_state()[0].set_state(state);
+                    auto state_1 = infer_request.query_state()[0].get_state();
+                    compare_tensors({ ref_kv_cache }, {state_1});
+                }
             }
 
             auto state = infer_request.query_state()[0].get_state();
@@ -492,6 +501,10 @@ TEST_F(KVCacheTests, smoke_multipleIterations_stateful_gather_with_initializer_b
 
 TEST_F(KVCacheTests, smoke_multipleIterations_stateful_same_shape_after_reset) {
     this->test_smoke_multipleIterations_stateful(false, false, false, 1, 2, ov::element::f16, 0);
+}
+
+TEST_F(KVCacheTests, smoke_multipleIterations_stateful_with_set_state) {
+    this->test_smoke_multipleIterations_stateful(false, true, true, 1, 2, ov::element::f16, 5, 1, true);
 }
 
 } // namespace
