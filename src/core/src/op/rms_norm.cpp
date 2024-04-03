@@ -65,9 +65,9 @@ std::shared_ptr<Node> RMSNorm::clone_with_new_inputs(const ov::OutputVector& new
     OV_OP_SCOPE(v14_RMSNorm_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 1) {
-        return std::make_shared<RMSNorm>(new_args.at(0), m_epsilon, m_compute_type);
+        return std::make_shared<RMSNorm>(new_args.at(0), new_args.at(1), m_epsilon, m_compute_type);
     }
-    return std::make_shared<RMSNorm>(new_args.at(0), new_args.at(1), m_epsilon, m_compute_type);
+    return std::make_shared<RMSNorm>(new_args.at(0), new_args.at(1), new_args.at(2), m_epsilon, m_compute_type);
 }
 
 }  // namespace v14
