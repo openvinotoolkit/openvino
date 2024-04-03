@@ -113,6 +113,13 @@ TEST(type_prop, rms_norm_incorrect_input_type) {
                         ov::NodeValidationFailure,
                         HasSubstr("The element type of the axes tensor must be i32 or i64 type"));
     }
+    {
+        const auto scale_incompatible = std::make_shared<Parameter>(element::f32, PartialShape{1});
+        OV_EXPECT_THROW(
+            std::ignore = std::make_shared<op::v14::RMSNorm>(data, axes, scale_incompatible, eps, compute_type),
+            ov::NodeValidationFailure,
+            HasSubstr("Element type of the scale input must be the same as the data input type"));
+    }
 }
 
 TEST(type_prop, rms_norm_scale_shape) {

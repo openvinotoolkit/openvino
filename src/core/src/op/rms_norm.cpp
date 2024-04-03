@@ -81,6 +81,14 @@ void RMSNorm::validate_and_infer_types() {
         NODE_VALIDATION_CHECK(this,
                               is_scale_shape_broadcastable,
                               "Scale input shape must be broadcastable to the shape of the data input.");
+
+        // Validate input types and save result for output type
+        auto merged_et = element::dynamic;
+        const auto& scale_element_type = get_input_element_type(2);
+        const bool is_scale_type_compatible = element::Type::merge(merged_et, data_element_type, scale_element_type);
+        NODE_VALIDATION_CHECK(this,
+                              is_scale_type_compatible,
+                              "Element type of the scale input must be the same as the data input type.");
     }
 
     // Output type and shape is the same as the first input
