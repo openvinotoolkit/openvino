@@ -564,7 +564,8 @@ event::ptr primitive_inst::realloc_if_needed() {
 
 
     // If we allocated too large memory, reclaim the memory.
-    if (updated_layout.get_buffer_size().count() * 10 < _max_output_layout_count) {
+    if (get_network().get_config().get_property(ov::hint::performance_mode) == ov::hint::PerformanceMode::MEMORY &&
+        updated_layout.get_buffer_size().count() * 10 < _max_output_layout_count) {
         GPU_DEBUG_TRACE_DETAIL << id() << ": Updated output size " << updated_layout.count()
                                << " is much smaller than current memory size! " << _max_output_layout_count
                                << "Reset memory" << std::endl;

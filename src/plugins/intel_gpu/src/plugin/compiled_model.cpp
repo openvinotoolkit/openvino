@@ -280,9 +280,10 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         return decltype(ov::loaded_from_cache)::value_type {m_loaded_from_cache};
     } else if (name == ov::optimal_number_of_infer_requests) {
         unsigned int nr = m_config.get_property(ov::num_streams);
-        if (m_config.get_property(ov::hint::performance_mode) != ov::hint::PerformanceMode::LATENCY)
+        if (m_config.get_property(ov::hint::performance_mode) != ov::hint::PerformanceMode::LATENCY &&
+            m_config.get_property(ov::hint::performance_mode) != ov::hint::PerformanceMode::MEMORY)
             nr *= 2;
-        return decltype(ov::optimal_number_of_infer_requests)::value_type {nr};
+        return decltype(ov::optimal_number_of_infer_requests)::value_type{nr};
     } else if (name == ov::execution_devices) {
         return decltype(ov::execution_devices)::value_type{m_context->get_device_name()};
     }

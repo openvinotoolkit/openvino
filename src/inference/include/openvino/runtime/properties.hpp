@@ -303,6 +303,7 @@ enum class PerformanceMode {
     LATENCY = 1,                //!<  Optimize for latency
     THROUGHPUT = 2,             //!<  Optimize for throughput
     CUMULATIVE_THROUGHPUT = 3,  //!<  Optimize for cumulative throughput
+    MEMORY = 4,                 //!<  Optimize for memory size
 };
 
 /** @cond INTERNAL */
@@ -314,6 +315,8 @@ inline std::ostream& operator<<(std::ostream& os, const PerformanceMode& perform
         return os << "THROUGHPUT";
     case PerformanceMode::CUMULATIVE_THROUGHPUT:
         return os << "CUMULATIVE_THROUGHPUT";
+    case PerformanceMode::MEMORY:
+        return os << "MEMORY";
     default:
         OPENVINO_THROW("Unsupported performance mode hint");
     }
@@ -328,6 +331,8 @@ inline std::istream& operator>>(std::istream& is, PerformanceMode& performance_m
         performance_mode = PerformanceMode::THROUGHPUT;
     } else if (str == "CUMULATIVE_THROUGHPUT") {
         performance_mode = PerformanceMode::CUMULATIVE_THROUGHPUT;
+    } else if (str == "MEMORY") {
+        performance_mode = PerformanceMode::MEMORY;
     } else {
         OPENVINO_THROW("Unsupported performance mode: ", str);
     }

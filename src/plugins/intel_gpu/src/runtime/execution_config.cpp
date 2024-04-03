@@ -29,7 +29,8 @@ public:
         auto mode = v.as<ov::hint::PerformanceMode>();
         return mode == ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT ||
                mode == ov::hint::PerformanceMode::THROUGHPUT ||
-               mode == ov::hint::PerformanceMode::LATENCY;
+               mode == ov::hint::PerformanceMode::LATENCY ||
+               mode == ov::hint::PerformanceMode::MEMORY;
     }
 };
 
@@ -144,7 +145,7 @@ void ExecutionConfig::apply_performance_hints(const cldnn::device_info& info) {
     if (is_set_by_user(ov::hint::performance_mode)) {
         const auto mode = get_property(ov::hint::performance_mode);
         if (!is_set_by_user(ov::num_streams)) {
-            if (mode == ov::hint::PerformanceMode::LATENCY) {
+            if (mode == ov::hint::PerformanceMode::LATENCY || mode == ov::hint::PerformanceMode::MEMORY) {
                 set_property(ov::num_streams(1));
             } else if (mode == ov::hint::PerformanceMode::THROUGHPUT) {
                 set_property(ov::num_streams(ov::streams::AUTO));
