@@ -3,6 +3,8 @@
 //
 
 #include "openvino/op/op.hpp"
+
+#include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/ops/paged_attention_extension.hpp"
 
 namespace py = pybind11;
@@ -15,7 +17,9 @@ class PagedAttentionExtension : public ov::op::Op {
 public:
     OPENVINO_OP("PagedAttentionExtension");
 
-    PagedAttentionExtension(const ov::OutputVector& args) : ov::op::Op(args) {}
+    PagedAttentionExtension(const ov::OutputVector& args) : ov::op::Op(args) {
+        constructor_validate_and_infer_types();
+    }
 
     void validate_and_infer_types() override {
         auto value_cache_shape = get_input_partial_shape(4);
@@ -122,10 +126,6 @@ public:
 
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override {
         return std::make_shared<PagedAttentionExtension>(new_args);
-    }
-
-    bool has_evaluate() const override {
-        return true;
     }
 };
 
