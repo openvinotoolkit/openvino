@@ -3,29 +3,26 @@
 Release Policy
 =============================================================================
 
-| Monthly release :
-|
+| **Monthly release** :
 |    OpenVINO™ is published with a cadence of around one month. Each release is supported only until
-|    the next version arrives. This makes regular releases suitable only for:
+     the next version arrives. This makes regular releases suitable only for:
 
 * Dynamically developed solutions, benefiting from the newest technologies.
 * Products requiring frequent changes in supported hardware, libraries, operating systems, and models.
 
 | :ref:`Long-Term Support (LTS) <long-term-support-policy>` :
-|
 |    Each year’s final release becomes a Long-Term Support version, which continues to be supported
-|    with bug fixes and security updates, even after newer versions are published.
-|    Therefore, LTS is advised for production environments where:
+     with bug fixes and security updates, even after newer versions are published. Therefore,
+     LTS is advised for production environments where:
 
 * The highest level of security and stability is required.
 * There is no need for frequent changes in hardware or model support.
 * Upgrading is challenging, e.g., due to a high software complexity.
 
 | :ref:`Nightly packages <nightly-packages>` :
-|
 |    OpenVINO also offers nightly packages, as a preview of most recent changes. Due to potential
-|    stability and performance issues, these should never be used for production purposes.
-|    Instead, they may serve:
+     stability and performance issues, these should never be used for production purposes.
+     Instead, they may serve:
 
 * Early integration testing.
 * Previewing newest features/improvements.
@@ -65,10 +62,6 @@ Nightly Packages
 OpenVINO nightly packages are released every workday.
 The following package distributions are available for installation:
 
-* OV Archives on S3
-* OV Wheels on S3
-* OV Wheels on PyPI (not recommended)
-
 .. tab-set::
 
    .. tab-item:: OV Archives on S3
@@ -107,7 +100,7 @@ The following package distributions are available for installation:
 
               pip install --pre openvino --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/pre-release
 
-   .. tab-item:: OV Wheels on PyPi
+   .. tab-item:: OV Wheels on PyPi (not recommended)
       :sync: wheels-pypi
 
       .. warning::
@@ -120,8 +113,7 @@ The following package distributions are available for installation:
 
          pip install openvino-nightly
 
-Determing the OpenVINO version
---------------------------------
+**Determining the OpenVINO version**
 
 There are two ways to determine which version of OpenVINO is included in the package:
 
@@ -141,7 +133,7 @@ There are two ways to determine which version of OpenVINO is included in the pac
 
       You can find the file version in:
 
-      .. code-block::
+      .. code-block:: text
 
          <UNZIPPED_ARCHIVE_ROOT>/runtime/version.txt
 
@@ -152,7 +144,7 @@ Additional Resources
 **Issue Reporting**
 
 To report issues, use the `Intel® Premier Support <https://www.intel.com/content/www/us/en/design/support/ips/training/welcome.html>`__
-clearly stating the issue, impact and expected timeline.
+clearly stating the issue, impact, and the expected timeline.
 
 **Distribution:**
 
