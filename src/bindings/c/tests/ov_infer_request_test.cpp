@@ -353,6 +353,12 @@ TEST_P(ov_infer_request_test, infer_async_wait_for) {
 TEST_P(ov_infer_request_test, infer_async_wait_for_return_busy) {
     OV_EXPECT_OK(ov_infer_request_set_input_tensor_by_index(infer_request, 0, input_tensor));
 
+    ov_callback_t callback;
+    callback.callback_func = [](void* args) {
+        sleep(3);
+    };
+    OV_EXPECT_OK(ov_infer_request_set_callback(infer_request, &callback));
+
     OV_ASSERT_OK(ov_infer_request_start_async(infer_request));
 
     if (!HasFatalFailure()) {
