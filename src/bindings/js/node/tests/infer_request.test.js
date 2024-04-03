@@ -128,6 +128,14 @@ describe('InferRequest', () => {
     assert.deepStrictEqual(tensor.data[0], t1.data[0]);
   });
 
+  it('Test setInputTensor(idx, tensor) throws', () => {
+    const testIdx = 10;
+    assert.throws (
+      () => inferRequest.setInputTensor(testIdx, tensor),
+      {message: /Input port for index #[0-9]+ was not found!/}
+    );
+  });
+
   it('Test setInputTensor(idx, object) throws when passed object is not a Tensor.', () => {
     assert.throws(
       () => inferRequest.setInputTensor(0, {}),
@@ -151,6 +159,14 @@ describe('InferRequest', () => {
     assert.throws(
       () => inferRequest.setOutputTensor({}),
       {message: /Argument #[0-9]+ must be a Tensor./}
+    );
+  });
+
+  it('Test setOutputTensor(idx, tensor) throws', () => {
+    const testIdx = 10;
+    assert.throws (
+      () => inferRequest.setOutputTensor(testIdx, tensor),
+      {message: /Output port for index #[0-9]+ was not found!/}
     );
   });
 
@@ -178,6 +194,13 @@ describe('InferRequest', () => {
     const res2 = inferRequest.getTensor('fc_out');
     assert.ok(res2 instanceof ov.Tensor);
     assert.deepStrictEqual(resTensor.data[0], res2.data[0]);
+  });
+
+  it('Test setTensor(string, object) - throws', () => {
+    const testName = 'testName';
+    assert.throws(
+      () => inferRequest.setTensor(testName, tensor),
+      {message: /Port for tensor name testName was not found./});
   });
 
   it('Test setTensor(string, object) - throws', () => {
