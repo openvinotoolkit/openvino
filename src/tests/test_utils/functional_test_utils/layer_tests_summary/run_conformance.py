@@ -53,7 +53,7 @@ def parse_arguments():
     gtest_filter_helper = "Specify gtest filter to apply for a test run. E.g. *Add*:*BinaryConv*. The default value is None"
     ov_config_path_helper = "Specify path to a plugin config file as `.lst` file. Default value is ``"
     special_mode_help = "Specify shape mode (`static`, `dynamic` or ``) for Opset conformance or API scope type (`mandatory` or ``). Default value is ``"
-    entity_help = "Specify validation entity: `Inference`, `ImportExport` or `QueryModel` for `OP` or "\
+    entity_help = "Specify validation entity: `Inference`, `ImportExport`, `QueryModel` or `OpImpl` for `OP` or "\
         "`ov_compiled_model`, `ov_infer_request` or `ov_plugin` for `API`. Default value is ``(all)"
     parallel_help = "Parallel over HW devices. For example run tests over GPU.0 and GPU.1 in case when device are the same"
     expected_failures_help = "Excepted failures list file path as csv"
@@ -105,7 +105,7 @@ class Conformance:
         self._cache_path = cache_path if os.path.isfile(cache_path) else ""
         self.__entity = ""
         if type == constants.OP_CONFORMANCE:
-            if entity == "Inference" or entity == "QueryModel" or entity == "ImportExport" or entity == "":
+            if entity == "Inference" or entity == "QueryModel" or entity == "ImportExport" or entity == "" or entity == "OpImpl":
                 self.__entity = entity
             else:
                 logger.error(f'Incorrect value to set entity type: {special_mode}. Please check `help` to get possible values')
@@ -115,7 +115,7 @@ class Conformance:
             else:
                 logger.error(f'Incorrect value to set shape mode: {special_mode}. Please check `help` to get possible values')
                 exit(-1)
-            self._gtest_filter = f"*{self.__entity}*{gtest_filter}*"#:*OpImpl*"
+            self._gtest_filter = f"*{self.__entity}*{gtest_filter}*{'' if self.__entity == 'OpImpl' else ':-*OpImpl*'}"
         elif type == constants.API_CONFORMANCE:
             if entity == "ov_compiled_model" or entity == "ov_plugin" or entity == "ov_infer_request" or entity == "":
                 self.__entity = entity
