@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/core/type/nf4.hpp"
 
 namespace ov {
 namespace util {
@@ -97,6 +98,11 @@ constexpr size_t bit_width<Type_t::u4>() {
 }
 
 template <>
+constexpr size_t bit_width<Type_t::nf4>() {
+    return 4;
+}
+
+template <>
 constexpr size_t bit_width<Type_t::i4>() {
     return 4;
 }
@@ -147,6 +153,12 @@ private:
         return (*m_ptr >> m_bit_shift) & value_mask;
     }
 
+    void set_bit_value(uint8_t value) {
+        constexpr auto value_mask = util::make_n_bit_mask(m_bits);
+        *m_ptr &= ~(value_mask << m_bit_shift);
+        *m_ptr |= value << m_bit_shift;
+    }
+
 public:
     using value_type = typename std::decay<T>::type;  //!< Fundamental type of bound to BitProxy.
 
@@ -183,6 +195,19 @@ public:
     }
 
     /**
+     * @brief Converts to float for NF4.
+     *
+     * @note Implementation aligned to ConvertNF4::unpack, de-quantization applied only when converting to
+     * floating point.  For integral types get bit value.
+     *
+     * @return Converted NF4 value to float.
+     */
+    template <Type_t ETT = ET, typename std::enable_if<ETT == nf4>::type* = nullptr>
+    operator float() const {
+        return ConvertNF4::dequantize(get_bit_value());
+    }
+
+    /**
      * @brief Converts to fundamental type.
      *
      * @return Value of BitProxy.
@@ -207,8 +232,17 @@ public:
      */
     BitProxy<T, ET>& operator=(const value_type v) {
         constexpr auto value_mask = util::make_n_bit_mask(m_bits);
-        *m_ptr &= ~(value_mask << m_bit_shift);
-        *m_ptr |= (static_cast<uint8_t>(v) & value_mask) << m_bit_shift;
+        set_bit_value(static_cast<uint8_t>(v) & value_mask);
+        return *this;
+    }
+
+    /**
+     * @brief Sets current NF4 value from float using qunatization.
+     * @param v  Value to be set.
+     */
+    template <Type_t ETT = ET, typename std::enable_if<ETT == nf4>::type* = nullptr>
+    BitProxy<T, ET>& operator=(const float v) {
+        set_bit_value(ConvertNF4::quantize(v));
         return *this;
     }
 };
@@ -490,13 +524,57 @@ private:
  *
  * @tparam ET  Type of ov::element::Type_t.
  * @tparam T   Type of pointer data. Must be fundamental type of ET.
-
+ *
  * @param ptr  Pointer to data.
  * @return Element iterator for type ET.
  */
 template <Type_t ET, class T, typename std::enable_if<!is_byte_type(ET) && ET != string>::type* = nullptr>
 constexpr Iterator<ET, T> iterator(T* ptr) {
     return {ptr};
+}
+
+/**
+ * @brief Make iterator from pointer for standard types.
+ *
+ * To have common interface for all ov::element::Type. Just return input pointer.
+ *
+ * @tparam ET  Type of ov::element::Type_t.
+ * @tparam T   Type of pointer data. Must be fundamental type of ET.
+ *
+ * @param ptr  Pointer to data.
+ * @return Element iterator same as input pointer.
+ */
+template <Type_t ET, class T, typename std::enable_if<is_byte_type(ET) || ET == string>::type* = nullptr>
+constexpr T* iterator(T* ptr) {
+    return ptr;
+}
+
+/**
+ * @brief Make iterator from void pointer.
+ *
+ * Data will be reinterpreted using fundamental type for ov::element::Type.
+ *
+ * @tparam ET  OpenVINO element type.
+ * @param ptr  Pointer to data.
+ * @return Iterator for given ET.
+ */
+template <Type_t ET, class T = ov::fundamental_type_for<ET>>
+constexpr auto iterator(void* ptr) -> decltype(iterator<ET, T>(reinterpret_cast<T*>(ptr))) {
+    return iterator<ET, T>(reinterpret_cast<T*>(ptr));
+}
+
+/**
+ * @brief Make iterator from constant void pointer.
+ *
+ * Data will be reinterpreted using fundamental type for ov::element::Type.
+ *
+ * @tparam ET  OpenVINO element type.
+ * @param ptr  Pointer to data.
+ * @return Iterator for given ET.
+ */
+template <Type_t ET, class T = typename std::add_const<ov::fundamental_type_for<ET>>::type>
+constexpr auto iterator(const void* ptr) -> decltype(iterator<ET, T>(reinterpret_cast<T*>(ptr))) {
+    return iterator<ET, T>(reinterpret_cast<T*>(ptr));
 }
 }  // namespace element
 }  // namespace ov
