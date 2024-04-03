@@ -99,6 +99,15 @@ protected:
             if (_kernels_data[stage].kernels[kd_idx].skip_execution)
                 continue;
 
+            if (is_dynamic()) {
+                auto pshape = instance.get_impl_params()->get_input_layout(0).get_partial_shape();
+                if (pshape[pshape.size()-1].get_max_length() % 16 == 0 && kd_idx == 1) {
+                    continue;
+                } else if (pshape[pshape.size()-1].get_max_length() % 16 != 0 && kd_idx == 0) {
+                    continue;
+                }
+            }
+
             size_t idx_final = kernel_offset + kd_idx;
             // If any user of the prim's users is CPU implementation or network's output, set prim as a output event (event won't be nullptr)
             bool needs_completion_event = instance.needs_completion_event();

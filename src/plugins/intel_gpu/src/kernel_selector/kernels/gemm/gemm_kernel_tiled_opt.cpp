@@ -356,7 +356,46 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
 }
 
 KernelsData GemmKernelTiledOpt::GetKernelsData(const Params& params) const {
-    return GetCommonKernelsData(params);
+    // return GetCommonKernelsData(params);
+    if (!Validate(params)) {
+        return KernelsData();
+    }
+
+    const auto& prim_params = static_cast<const gemm_params&>(params);
+    size_t num_kernels = params.is_shape_agnostic ? 2 : 1;
+    auto dispatchData = SetDefault(prim_params);
+    KernelData k_data = KernelData::Default<gemm_params>(params, num_kernels);
+    GetUpdateDispatchDataFunc(k_data);
+    auto cldnn_jit = GetJitConstants(prim_params);
+    for (size_t i = 0; i < num_kernels; i++) {
+        if (params.is_shape_agnostic) {
+            cldnn_jit.RemoveConstant("TILE_K_NOT_DIVISIBLE_CALC");
+            if (i == 0) {
+                cldnn_jit.AddConstant(MakeJitConstant("TILE_K_NOT_DIVISIBLE_CALC", "0"));
+            } else {
+                cldnn_jit.AddConstant(MakeJitConstant("TILE_K_NOT_DIVISIBLE_CALC", "1"));
+            }
+        }
+        auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params, i);
+        auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
+
+        auto& kernel = k_data.kernels[i];
+        FillCLKernelData(kernel,
+                        dispatchData,
+                        params.engineInfo,
+                        kernelName,
+                        jit,
+                        entry_point,
+                        EXE_MODE_DEFAULT,
+                        false,
+                        false,
+                        (uint32_t)prim_params.inputs.size(),
+                        GetFusedPrimitiveInputsCount(params),
+                        1,
+                        prim_params.is_shape_agnostic);
+    }
+
+    return {k_data};
 }
 
 KernelsPriority GemmKernelTiledOpt::GetKernelsPriority(const Params& params) const {
