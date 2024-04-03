@@ -44,7 +44,8 @@ ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
     const auto& data = inputs[0];
     const auto& pads_input = inputs[1];
     auto pads = pads_input;
-    if (pads.get_shape().size() == 2) {
+    const auto& pads_pshape = pads.get_partial_shape();
+    if (pads_pshape.rank().is_static() && pads_pshape.size() == 2) {
         pads = std::make_shared<v0::Squeeze>(pads);
     }
     ov::Output<ov::Node> values;
