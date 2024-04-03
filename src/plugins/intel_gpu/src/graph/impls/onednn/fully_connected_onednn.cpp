@@ -76,7 +76,6 @@ protected:
                 auto zp_mem = _zp_mem != nullptr ? _zp_mem : instance.dep_memory_ptr(decompression_zp_idx);
                 dnnl::memory::desc desc = onednn::layout_to_memory_desc(zp_mem->get_layout(), dnnl::memory::format_tag::a, true);
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, zp_mem->get_onednn_memory(desc)});
-
             }
         }
 
