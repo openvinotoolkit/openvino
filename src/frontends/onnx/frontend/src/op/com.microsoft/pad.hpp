@@ -18,4 +18,4 @@ ov::OutputVector pad(const ov::frontend::onnx::Node& node);
 }  // namespace op
 }  // namespace onnx
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov
