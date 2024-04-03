@@ -37,14 +37,28 @@ class TorchFXPythonDecoder (Decoder):
             self._nodes = list(pt_module.graph.nodes)
             self._inputs = []
             self._outputs = []
+            found_types = []
+            found_shapes = []
             for i in range(len(self._nodes)):
                 if self._nodes[i].op == 'placeholder':
                     self._inputs.append(i)
-                    self._input_signature.append(self._nodes[i].name)
+                    value = self._nodes[i]
+                    self._input_signature.append(value.name)
+                    if hasattr(value, "meta") and ('tensor_meta' in value.meta.keys()) and value.meta['tensor_meta']:
+                        found_shapes.append(value.meta['tensor_meta'].shape)
+                        found_types.append(OVAny(pt_to_ov_type_map[str(value.meta['tensor_meta'].dtype)]))
+                    else:
+                        found_shapes.append(None)
+                        found_types.append(None)
                 elif self._nodes[i].op == 'output':
                     # Instead of putting output index, refer to its target
                     uargs = self.unpack_containers(self._nodes[i].args)
                     self._outputs = [(arg[0], self._nodes.index(arg[1])) for arg in uargs if arg[1] is not None]
+
+            if not input_shapes or len(input_shapes) == 0:
+                self.input_shapes = found_shapes
+            if not input_types or len(input_types) == 0:
+                self.input_types = found_types
 
         elif issubclass(type(pt_module), torch.fx.Node):
 
@@ -142,7 +156,7 @@ class TorchFXPythonDecoder (Decoder):
         return self.get_input_debug_name(index)
 
     def get_input_shape(self, index):
-        if index < len(self.input_shapes):
+        if index < len(self.input_shapes) and self.input_shapes[index] is not None:
             return PartialShape(self.input_shapes[index])
         input = self._raw_input(index)
         return self.get_shape_for_value(input)
@@ -158,7 +172,7 @@ class TorchFXPythonDecoder (Decoder):
         return []
 
     def get_input_type(self, index):
-        if index < len(self.input_types):
+        if index < len(self.input_types) and self.input_types[index] is not None:
             return self.input_types[index]
         input = self._raw_input(index)
         return self.get_type_for_value(input)

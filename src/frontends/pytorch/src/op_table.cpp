@@ -775,6 +775,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.ceil.default", op::translate_1to1_match_1_inputs<opset10::Ceiling>},
         {"aten.celu.default", op::translate_celu},
         {"aten.clamp.default", op::translate_clamp},
+        {"aten.clamp.Tensor", op::translate_clamp},
         {"aten.clamp_max.default", op::translate_1to1_match_2_inputs_align_types<opset10::Minimum>},
         {"aten.clamp_max.Tensor", op::translate_1to1_match_2_inputs_align_types<opset10::Minimum>},
         {"aten.clamp_min.default", op::translate_1to1_match_2_inputs_align_types<opset10::Maximum>},

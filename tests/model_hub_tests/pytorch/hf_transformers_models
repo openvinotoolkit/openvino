@@ -50,7 +50,7 @@ connor-henderson/fastspeech2_conformer_with_hifigan,fastspeech2_conformer_with_h
 csarron/meter-vqa2-ft,meter,skip,Load problem
 ctrl,ctrl
 cwkeam/mctc-large,mctc,skip,Load problem
-dandelin/vilt-b32-finetuned-vqa,vilt,xfail,Unsupported op aten::_unique2 aten::multinomial
+dandelin/vilt-b32-finetuned-vqa,vilt,xfail,Accuracy due to random
 dangkhoadl/custom_CNN_1D,cnn,skip,Load problem
 declare-lab/segue-w2v2-base,segue,skip,Load problem
 deepesh0x/autotrain-mlsec-1013333726,julien,skip,Load problem

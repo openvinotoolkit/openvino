@@ -102,16 +102,8 @@ class PytorchLayerTest:
                 gm = em.module()
                 print(gm.code)
 
-                input_shapes = []
-                input_types = []
-                for input_data in torch_inputs:
-                    input_types.append(input_data.type())
-                    input_shapes.append(input_data.size())
-
-                decoder = TorchFXPythonDecoder(
-                    gm, gm, input_shapes=input_shapes, input_types=input_types)
                 converted_model = convert_model(
-                    decoder, example_input=torch_inputs)
+                    em, example_input=torch_inputs)
                 self._resolve_input_shape_dtype(
                     converted_model, ov_inputs, dynamic_shapes)
                 smodel = model

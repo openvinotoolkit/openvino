@@ -66,37 +66,28 @@ class TestTorchConvertModel(TestConvertModel):
         if hasattr(self, "mode") and self.mode == "export":
             from torch.export import export
             from packaging import version
-            from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 
-            input_shapes = []
-            input_types = []
             model_obj.eval()
-            # need to infer before export to initialize everything, otherwise it will be initialized with FakeTensors
             if isinstance(self.example, dict):
+                from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+
+                # need to infer before export to initialize everything, otherwise it will be initialized with FakeTensors
                 pt_res = model_obj(**self.example)
+                graph = export(model_obj, tuple(), self.example)
+                if version.parse(torch.__version__) >= version.parse("2.2"):
+                    graph = graph.run_decompositions()
+
+                gm = graph.module()
+                print(gm.code)
+
+                decoder = TorchFXPythonDecoder(gm, gm)
+                decoder._input_signature = list(self.example.keys())
+                ov_model = convert_model(decoder, verbose=True)
             else:
                 pt_res = model_obj(*self.example)
-            if isinstance(self.example, dict):
-                graph = export(model_obj, tuple(), self.example)
-                for input_data in self.example.values():
-                    input_types.append(input_data.type())
-                    input_shapes.append(input_data.size())
-            else:
                 graph = export(model_obj, self.example)
-                for input_data in self.example:
-                    input_types.append(input_data.type())
-                    input_shapes.append(input_data.size())
-            if version.parse(torch.__version__) >= version.parse("2.2"):
-                graph = graph.run_decompositions()
+                ov_model = convert_model(graph, verbose=True)
 
-            gm = graph.module()
-            print(gm.code)
-
-            decoder = TorchFXPythonDecoder(gm, gm, input_shapes=input_shapes, input_types=input_types)
-            print(list(gm.graph.nodes)[-1].args)
-            if isinstance(self.example, dict):
-                decoder._input_signature = list(self.example.keys())  
-            ov_model = convert_model(decoder, example_input=self.example) 
             if isinstance(pt_res, dict):
                 for i, k in enumerate(pt_res.keys()):
                     ov_model.outputs[i].get_tensor().set_names({k})
