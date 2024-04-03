@@ -23,6 +23,14 @@ OutputVector translate_rrelu_fx(const NodeContext& context) {
     if (context.get_input_size() == 1) {
         lower = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(lower, x));
         upper = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(upper, x));
+    } else if (context.get_input_size() == 2) {
+        if (context.input_is_none(1)) {
+            lower = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(lower, x));
+            upper = context.get_input(2);
+        } else if (context.input_is_none(2)) {
+            lower = context.get_input(1);
+            upper = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(upper, x));
+        }
     } else {
         lower = context.get_input(1);
         upper = context.get_input(2);
@@ -30,7 +38,7 @@ OutputVector translate_rrelu_fx(const NodeContext& context) {
     auto lower_plus_upper = context.mark_node(std::make_shared<ov::op::v1::Add>(lower, upper));
     auto two = context.mark_node(v0::Constant::create(element::f32, Shape{}, {2.0f});
     auto average = context.mark_node(std::make_shared<v1::Divide>(lower_plus_upper, two));
-    return {context.mark_node(std::make_shared<v0::PRelu>(x, average))};     
+    return {context.mark_node(std::make_shared<v0::PRelu>(x, average))};
 };
 
 }  // namespace op
