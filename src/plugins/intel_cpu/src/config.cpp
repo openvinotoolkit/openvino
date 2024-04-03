@@ -136,6 +136,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         } else if (key == ov::hint::performance_mode.name()) {
             try {
                 hintPerfMode = !changedHintPerfMode ? val.as<ov::hint::PerformanceMode>() : hintPerfMode;
+                OPENVINO_ASSERT(hintPerfMode != ov::hint::PerformanceMode::MEMORY);
             } catch (const ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
