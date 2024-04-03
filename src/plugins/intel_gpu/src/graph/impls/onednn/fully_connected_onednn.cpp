@@ -70,8 +70,13 @@ protected:
             }
 
             if (!prim->decompression_zero_point.empty() || prim->decompression_zero_point_scalar.has_value()) {
-                dnnl::memory::desc desc = onednn::layout_to_memory_desc(_zp_mem->get_layout(), dnnl::memory::format_tag::a, true);
-                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, _zp_mem->get_onednn_memory(desc)});
+                // If _zp_mem is not set in primitive, use the one from primitive_inst.
+                // It happens when broadcasting is not necessary.
+                auto decompression_zp_idx = prim->bias.empty() ? 3 : 4;
+                auto zp_mem = _zp_mem != nullptr ? _zp_mem : instance.dep_memory_ptr(decompression_zp_idx);
+                dnnl::memory::desc desc = onednn::layout_to_memory_desc(zp_mem->get_layout(), dnnl::memory::format_tag::a, true);
+                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, zp_mem->get_onednn_memory(desc)});
+
             }
         }
 
@@ -335,11 +340,9 @@ public:
             auto decompression_zp_idx = !arg.bias_term() ? 3 : 4;
             auto &zp_node = arg.get_dependency(decompression_zp_idx).as<data>();
             memory::ptr zp_old_mem = zp_node.get_attached_memory_ptr();
-            zp_mem = zp_old_mem;
 
             if (!is_four_bit_weight) {
                 // 8-bit quantized weight
-                auto decompression_zp_idx = !arg.bias_term() ? 3 : 4;
                 dzp_data_type = convert_data_type(arg.get_dependency(decompression_zp_idx).get_output_layout().data_type);
                 attr->set_zero_points(DNNL_ARG_WEIGHTS, 1 << 1, dnnl::memory::dims{}, dzp_data_type);
             } else {
@@ -395,9 +398,8 @@ public:
                 }
             }
 
-            if (prim->decompression_zero_point_scalar.has_value() || !prim->decompression_zero_point.empty()) {
+            if (prim->decompression_zero_point_scalar.has_value() || !prim->decompression_zero_point.empty())
                 zp_mem = prepare_zp_mem(arg, impl_params, is_four_bit_weight, group_size, dzp_data_type, attr);
-            }
 
             auto prim_desc = get_matmul_primitive_descriptor(impl_params, impl_params.prog->get_engine(),
                                                              prim->input_size, !prim->bias.empty(), *attr);
