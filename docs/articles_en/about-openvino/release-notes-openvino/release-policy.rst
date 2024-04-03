@@ -113,6 +113,10 @@ The following package distributions are available for installation:
 
          pip install openvino-nightly
 
+
+Additional Information
+#########################
+
 | **Determining the OpenVINO version**
 | If you need to operate on a specific OpenVINO release, and you are not sure which version
   is included in the installed package, you can verify it in one of two ways:
@@ -137,16 +141,11 @@ The following package distributions are available for installation:
 
          <UNZIPPED_ARCHIVE_ROOT>/runtime/version.txt
 
+| **Issue Reporting**
+| To report issues, use the `Intel® Premier Support <https://www.intel.com/content/www/us/en/design/support/ips/training/welcome.html>`__
+  clearly stating the issue, impact, and the expected timeline.
 
-Additional Resources
-########################
-
-**Issue Reporting**
-
-To report issues, use the `Intel® Premier Support <https://www.intel.com/content/www/us/en/design/support/ips/training/welcome.html>`__
-clearly stating the issue, impact, and the expected timeline.
-
-**Distribution:**
+| **Distribution:**
 
 * `Selector tool <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html>`__ of all distribution options.
 * Source code distribution: `GitHub <https://github.com/openvinotoolkit/openvino>`__ and
