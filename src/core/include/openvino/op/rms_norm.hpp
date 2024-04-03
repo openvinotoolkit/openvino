@@ -44,6 +44,9 @@ public:
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 
+    double get_epsilon() const;
+    const ov::element::Type& get_compute_type() const;
+
 private:
     double m_epsilon{0};
     ov::element::Type m_compute_type{ov::element::undefined};
