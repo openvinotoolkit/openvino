@@ -13,6 +13,20 @@ using namespace ov;
 using namespace testing;
 using ov::op::v0::Parameter;
 
+TEST(type_prop, rms_norm_default_ctor) {
+    const auto op = std::make_shared<op::v14::RMSNorm>();
+    const auto data = std::make_shared<Parameter>(element::f16, PartialShape{2, 3, 8, 6});
+    const auto axes = std::make_shared<Parameter>(element::i64, PartialShape{1});
+    const auto scale = std::make_shared<Parameter>(element::f16, PartialShape{});
+
+    op->set_arguments(ov::OutputVector{data, axes, scale});
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_output_element_type(0), element::f16);
+    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 8, 6}));
+}
+
 TEST(type_prop, rms_norm_no_scale_no_compute_type) {
     const auto data = std::make_shared<Parameter>(element::f32, PartialShape{2, 3, 8, 6});
     const auto axes = std::make_shared<Parameter>(element::i32, PartialShape{1});
