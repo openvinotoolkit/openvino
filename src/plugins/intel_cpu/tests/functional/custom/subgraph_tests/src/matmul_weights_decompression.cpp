@@ -340,10 +340,7 @@ std::vector<ov::AnyMap> filter_additional_config_amx() {
 }
 
 const std::vector<ov::test::ElementType> decompression_precisions = {ov::element::f32};
-const std::vector<ov::test::ElementType> weights_precisions = {ov::element::u8,
-                                                               ov::element::u4,
-                                                               ov::element::i4,
-                                                               ov::element::nf4};
+const std::vector<ov::test::ElementType> weights_precisions = {ov::element::u8, ov::element::u4, ov::element::i4};
 
 const std::vector<ShapeParams> input_shapes_basic = {
     {{{-1, -1, -1}, {{1, 4, 16}, {10, 16, 16}}}, {16, 32}},
