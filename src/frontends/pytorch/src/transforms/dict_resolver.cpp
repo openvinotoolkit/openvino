@@ -21,7 +21,7 @@ using namespace ov::op;
 
 bool DictParameterResolver::run_on_model(const std::shared_ptr<Model>& model) {
     bool changed = false;
-    const auto parameters = model->get_parameters();
+    const auto& parameters = model->get_parameters();
     ParameterVector new_params;
 
     for (const auto& p : parameters) {
@@ -37,7 +37,7 @@ bool DictParameterResolver::run_on_model(const std::shared_ptr<Model>& model) {
                         at_least_one_unused = true;
                         continue;
                     }
-                    const auto attrs = index_node->get_attrs();
+                    const auto& attrs = index_node->get_attrs();
                     if (attrs.find("string_value") == attrs.end()) {
                         // index node must contain string value
                         at_least_one_unused = true;
@@ -71,7 +71,7 @@ bool DictParameterResolver::run_on_model(const std::shared_ptr<Model>& model) {
 
 bool DictResultResolver::run_on_model(const std::shared_ptr<Model>& model) {
     bool changed = false;
-    const auto results = model->get_results();
+    const auto& results = model->get_results();
     for (const auto& res : results) {
         if (auto dict_construct_node = cast_fw_node(res->get_input_node_shared_ptr(0), "prim::DictConstruct")) {
             const auto inputs = dict_construct_node->input_values();
@@ -84,7 +84,7 @@ bool DictResultResolver::run_on_model(const std::shared_ptr<Model>& model) {
             ResultVector new_outputs;
             for (size_t i = 0; i < inputs.size(); i += 2) {
                 auto new_output = inputs.at(i + 1);
-                const auto name_node = inputs.at(i);
+                const auto& name_node = inputs.at(i);
                 auto fw_node = std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(name_node.get_node_shared_ptr());
                 if (!fw_node) {
                     add_exception_to_fw_node(
@@ -92,7 +92,7 @@ bool DictResultResolver::run_on_model(const std::shared_ptr<Model>& model) {
                         "prim::DictConstruct: odd inputs must contain constant strings encoded as fw nodes.");
                     return false;
                 }
-                const auto attrs = fw_node->get_attrs();
+                const auto& attrs = fw_node->get_attrs();
                 if (attrs.find("string_value") == attrs.end()) {
                     // fw node must contain string value
                     add_exception_to_fw_node(dict_construct_node, "prim::DictConstruct: unexpected dict key format.");
