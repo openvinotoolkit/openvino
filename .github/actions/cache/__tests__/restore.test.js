@@ -9,7 +9,7 @@ const tar = require('tar');
 const { log } = require('console');
 const restoreImpl = require('../src/restoreImpl');
 
-const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'test-'));
+const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'test-restore-'));
 const cacheLocalPath = path.join(tempDir, 'cache_local');
 const cacheRemotePath = path.join(tempDir, 'cache_remote');
 const cacheTmpPath = path.join(tempDir, 'cache_tmp');
@@ -30,7 +30,7 @@ afterEach(() => {
 // Mock the action's main function
 const runMock = jest.spyOn(restoreImpl, 'restore');
 
-describe('action', () => {
+describe('restore', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 

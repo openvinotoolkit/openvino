@@ -72,7 +72,7 @@ async function restore() {
     }
   } catch (error) {
     // do not fail action if cache could not be restored
-    core.warning(error.message);
+    core.error(error.message);
   }
 }
 

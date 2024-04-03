@@ -25,7 +25,7 @@ afterEach(() => {
 // Mock the action's main function
 const runMock = jest.spyOn(saveImpl, 'save');
 
-describe('action', () => {
+describe('save', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 

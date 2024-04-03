@@ -7,7 +7,7 @@ const {
   calculateTotalSize
 } = require('./utils');
 
-// Function to remove old files if their combined size exceeds 50 GB
+// Function to remove old files if their combined size exceeds the allowed size
 async function cleanUp() {
   try {
     const cacheRemotePath = core.getInput('cache-path', { required: true });
@@ -41,22 +41,18 @@ async function cleanUp() {
       core.info(
         `The cache storage size ${humanReadableFileSize(totalSize)} exceeds allowed size ${humanReadableFileSize(maxCacheSizeInBytes)}`
       );
-      for (const file of files) {
+      for (const file of files.reverse()) {
         const filePath = path.join(cacheRemotePath, file);
         const fileStats = fs.statSync(filePath);
 
         if (fileStats.isFile() && fileStats.atime < minAccessDateAgo) {
           core.info(`Removing file: ${filePath}`);
-          fs.unlink(filePath, err => {
-            if (err) {
-              core.warning(`Could not remove file: ${filePath}: ${err}`);
-            } else {
-              core.info(`${filePath} removed successfully`);
-              totalSize -= fileStats.size;
-            }
-          });
+          fs.unlinkSync(filePath);
+          core.info(`${filePath} removed successfully`);
+          totalSize -= fileStats.size;
         }
         // Exit loop if total size is within limit
+        core.info(`Total size: ${totalSize}`);
         if (totalSize <= maxCacheSizeInBytes) {
           break;
         }
@@ -68,7 +64,7 @@ async function cleanUp() {
       );
     }
   } catch (error) {
-    core.setFailed(`Error removing old cache files: ${error.message}`);
+    core.error(`Error removing old cache files: ${error.message}`);
   }
 }
 
