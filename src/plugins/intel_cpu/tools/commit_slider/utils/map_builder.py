@@ -2,10 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from os import walk, path
-import json
 from utils.helpers import CfgError
 
-def buildMap(commonPath, subPath=None):
+def buildMap(commonPath, subPath=None) -> dict:
     precomPath = commonPath
     items = next(walk(precomPath), (None, None, []))[1]
     map = {}
@@ -14,8 +13,9 @@ def buildMap(commonPath, subPath=None):
         curPath = path.join(precomPath, item)
         if (subPath is not None and subPath):
             curPath = path.join(curPath, subPath)
-        map[item] = curPath
-    return json.dumps(map)
+        if path.exists(curPath):
+            map[item] = curPath
+    return map
 
 
 def printMap(args):

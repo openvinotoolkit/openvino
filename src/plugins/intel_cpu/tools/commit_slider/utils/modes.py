@@ -3,7 +3,7 @@
 
 import os
 from utils.helpers import fetchAppOutput, getActualPath
-from utils.helpers import getMeaningfullCommitTail, excludeModelPath
+from utils.helpers import getMeaningfullCommitTail, extractModelPath
 from utils.helpers import handleCommit, getBlobDiff
 from utils.helpers import getCommitLogger, CashError, CfgError,\
 CmdError, PreliminaryAnalysisError
@@ -141,7 +141,7 @@ class BenchmarkAppPerformanceMode(Mode):
             if matcher is not None:
                 # pass if app is not openvino benchmark_app
                 try:
-                    modelPath = excludeModelPath(cmdStr)
+                    modelPath = extractModelPath(cmdStr)
                     if not os.path.isfile(modelPath):
                         raise PreliminaryAnalysisError(
                             "path {modelPath} does not exist, check config".format(
