@@ -648,6 +648,7 @@ private:
               typename StorageDataType = fundamental_type_for<Type>,
               typename std::enable_if<Type == element::Type_t::string, bool>::type = true>
     void fill_data(const T& value) {
+        fill_data<element::string>(std::string());
         std::string type_name(typeid(value).name());
         OPENVINO_THROW("fill_data does not support to fill ov::Tensor of string type with value of " + type_name);
     }
@@ -724,6 +725,7 @@ private:
               typename T,
               typename std::enable_if<Type == element::Type_t::string, bool>::type = true>
     void write_buffer(const std::vector<T>& source) {
+        fill_data<element::string>(std::string());
         if (source.size() > 0) {
             auto source_type = std::string(typeid(source[0]).name());
             OPENVINO_THROW("write_buffer does not support writing elements of type " + source_type +
