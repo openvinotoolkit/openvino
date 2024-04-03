@@ -3,12 +3,12 @@
 OpenVINO Tokenizers
 ===============================
 
-Tokenization is a required step in generating text using any text models, including LLMs.
-Tokenization converts the input text into a sequence of tokens, which the model can understand
-and process before running inference. The transformation of a sequence of numbers into a
+Tokenization is a required step in text processing using various models, including text generation with LLMs.
+Tokenization converts the input text into a sequence of tokens with corresponding IDs, so that
+the model can understand and process it during inference. The transformation of a sequence of numbers into a
 string is called detokenization.
 
-.. image:: _static/images/tokenization.png
+.. image:: ../../_static/images/tokenization.svg
    :align: center
 
 There are two important points in the tokenizer-model relation:
@@ -68,6 +68,7 @@ Supported Tokenizers
      - yes
 
 .. note::
+
    The outputs of the converted and the original tokenizer can differ, either decreasing or increasing
    model accuracy on a specific task. You can modify the prompt to mitigate these changes.
    In the `OpenVINO Tokenizers repository <https://github.com/openvinotoolkit/openvino_tokenizers>`__
@@ -99,7 +100,7 @@ Python Installation
 
       pip install openvino-tokenizers[transformers]
 
-   Install pre-release versions, if you want to experiment with latest changes:
+   Install pre-release versions, if you want to experiment with the latest changes:
 
    .. code-block:: python
 
@@ -130,7 +131,7 @@ You can use converted tokenizers in C++ pipelines with prebuild binaries.
 
 2. Download `OpenVINO Tokenizers prebuild libraries <https://storage.openvinotoolkit.org/repositories/openvino_tokenizers/packages/>`__. To ensure compatibility, the first three numbers of the OpenVINO Tokenizers version should match the OpenVINO version and OS.
 
-3. Extract OpenVINO Tokenizers archive into OpenVINO installation directory:
+3. Extract OpenVINO Tokenizers archive into the OpenVINO installation directory:
 
 .. tab-set::
 
@@ -164,7 +165,7 @@ You can use converted tokenizers in C++ pipelines with prebuild binaries.
 
          <openvino_dir>/runtime/lib/arm64/Release/
 
-After that you can add binary extension in the code with:
+After that, you can add the binary extension to the code:
 
 .. tab-set::
 
