@@ -163,6 +163,11 @@ protected:
     virtual void check_network_precision(const ov::element::Type_t precision) = 0;
 
     /**
+     * @brief Indicates a kind of provided tensor. Marks special tensors, used for internal implementation
+     */
+    enum class TensorType { InputOrOutput, Shape, State };
+
+    /**
      * @brief Allocates a tensor on host and stores the reference inside the "_allTensors" attribute. If a buffer
      * address is provided, then the tensor is built upon it and no additional data buffer is allocated.
      * @param tensorName The name by which the tensor shall be identified
@@ -173,9 +178,8 @@ protected:
      */
     void allocate_tensor(std::string tensorName,
                          const IONodeDescriptor& descriptor,
-                         const bool isState,
-                         const ov::Allocator& allocator = {},
-                         const bool isShape = false);
+                         TensorType tensorType = TensorType::InputOrOutput,
+                         const ov::Allocator& allocator = {});
 
     // Mutable to return reference to ov::Tensor
     mutable std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> _allTensors;

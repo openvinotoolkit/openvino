@@ -168,9 +168,8 @@ void SyncInferRequest::check_tensors() const {
 
 void SyncInferRequest::allocate_tensor(std::string tensorName,
                                        const IONodeDescriptor& descriptor,
-                                       const bool isState,
-                                       const ov::Allocator& allocator,
-                                       const bool isShape) {
+                                       TensorType tensorType,
+                                       const ov::Allocator& allocator) {
     std::shared_ptr<ov::ITensor> tensor;
 
     check_network_precision(descriptor.precision);
@@ -181,12 +180,11 @@ void SyncInferRequest::allocate_tensor(std::string tensorName,
         tensor = ov::make_tensor(descriptor.precision, descriptor.transposedShape.get_max_shape());
     }
 
-    if (isShape) {
+    if (tensorType == TensorType::Shape) {
         _shapesTensors[tensorName] = tensor;
         tensorName = SHAPE_TENSOR_PREFIX + tensorName;
-        _copyAllTensors[tensorName] = std::move(tensor);
-        _allTensors[tensorName] = _copyAllTensors[tensorName];
-    } else if (isState) {
+    }
+    if (tensorType == TensorType::State) {
         _variableStates[tensorName] = std::make_shared<VariableState>(tensorName, tensor);
 
         // State variables shall be identified by specific prefixes in order to avoid a potential tensor name collision.
