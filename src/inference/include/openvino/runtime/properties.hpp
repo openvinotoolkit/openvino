@@ -1158,6 +1158,11 @@ inline std::istream& operator>>(std::istream& is, Num& num_val) {
 static constexpr Property<streams::Num, PropertyMutability::RW> num_streams{"NUM_STREAMS"};
 
 /**
+ * @brief Limit `#cpu_core_ids` that are used by Inference Engine Streams for inference on the CPU.
+ */
+static constexpr Property<std::string, PropertyMutability::RW> cpu_core_ids{"CPU_CORE_IDS"};
+
+/**
  * @brief Maximum number of threads that can be used for inference tasks
  * @ingroup ov_runtime_cpp_prop_api
  */

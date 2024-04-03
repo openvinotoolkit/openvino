@@ -100,6 +100,6 @@ bool pin_current_thread_by_mask(int ncores, const CpuSet& processMask);
  * @param[in]  socket  The socket id
  * @return     `True` in case of success, `false` otherwise
  */
-bool pin_current_thread_to_socket(int socket);
+bool pin_current_thread_to_socket(int executor_id, int socket);
 }  // namespace threading
 }  // namespace ov

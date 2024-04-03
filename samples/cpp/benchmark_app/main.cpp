@@ -512,12 +512,23 @@ int main(int argc, char* argv[]) {
                     }
                 }
             };
+
+            auto set_cpu_core_ids = [&] {
+                if (supported(ov::cpu_core_ids.name())) {
+                    device_config[ov::cpu_core_ids.name()] = FLAGS_cpu_core_ids;
+                } else {
+                    throw std::logic_error("Device " + device + " doesn't support config key '" +
+                                           ov::cpu_core_ids.name() + "'! " + " values =  " + FLAGS_cpu_core_ids);
+                }
+            };
+
             if (isFlagSetInCommandLine("nthreads"))
                 set_nthreads_pin("nthreads");
 
             if (isFlagSetInCommandLine("pin"))
                 set_nthreads_pin("pin");
 
+            set_cpu_core_ids();
             set_throughput_streams();
             set_infer_precision();
 

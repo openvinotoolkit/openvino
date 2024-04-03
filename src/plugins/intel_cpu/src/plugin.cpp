@@ -161,6 +161,7 @@ void Plugin::get_performance_streams(Config& config, const std::shared_ptr<ov::M
 }
 
 void Plugin::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported) const {
+    conf.streamExecutorConfig.apply_cpu_core_ids();
     const auto model_prefer_name = std::string("MODEL_PREFER_THREADS");
     if (imported && model->has_rt_info("intel_cpu_hints_config")) {
         // load model_prefer_threads from cache
@@ -235,7 +236,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                                           const ov::AnyMap& orig_config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Plugin::compile_model");
     CREATE_DEBUG_TIMER(debugLoadTimer);
-
     // verification of supported input
     for (const auto& ii : model->inputs()) {
         auto input_precision = ii.get_element_type();
@@ -276,7 +276,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     Transformations transformations(cloned_model, enableLPT, inferencePrecision, snippetsMode, conf);
 
     transformations.UpToLpt();
-
     conf.readProperties(config, modelType);
     calculate_streams(conf, cloned_model);
 
@@ -329,7 +328,6 @@ void Plugin::set_property(const ov::AnyMap& config) {
     // @todo after Legacy configuration is dropped, use some wrapper class to keep both the property and
     // "ifSetExplicitly" flag
     streamsExplicitlySetForEngine = streamsSet(config);
-
     engConfig.readProperties(config);
 }
 
@@ -441,6 +439,7 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
         // the whole config is RW before model is loaded.
         std::vector<ov::PropertyName> rwProperties{
             RW_property(ov::num_streams.name()),
+            RW_property(ov::cpu_core_ids.name()),
             RW_property(ov::affinity.name()),
             RW_property(ov::inference_num_threads.name()),
             RW_property(ov::enable_profiling.name()),

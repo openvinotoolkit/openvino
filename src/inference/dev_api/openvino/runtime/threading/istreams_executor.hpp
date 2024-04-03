@@ -9,6 +9,8 @@
 
 #pragma once
 
+#include <execinfo.h>
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -87,6 +89,8 @@ public:
                                        //!< starting from offset
         int _threads = 0;              //!< Number of threads distributed between streams.
                                        //!< Reserved. Should not be used.
+        int _executor_id = -1;         //!< executor id to identify each executor and core map.
+        std::string _core_ids_str;
         PreferredCoreType _thread_preferred_core_type =
             PreferredCoreType::ANY;  //!< LITTLE and BIG are valid in hybrid core machine, ANY is valid in all machines.
                                      //!< Core type priority: physical PCore, ECore, logical PCore
@@ -136,7 +140,9 @@ public:
                int threads = 0,
                PreferredCoreType threadPreferredCoreType = PreferredCoreType::ANY,
                std::vector<std::vector<int>> streamsInfoTable = {},
-               bool cpuReservation = false)
+               bool cpuReservation = false,
+               int executor_id = -1,
+               std::string core_ids_str = "")
             : _name{std::move(name)},
               _streams{streams},
               _threads_per_stream{threadsPerStream},
@@ -146,7 +152,9 @@ public:
               _threads{threads},
               _thread_preferred_core_type(threadPreferredCoreType),
               _streams_info_table{std::move(streamsInfoTable)},
-              _cpu_reservation{cpuReservation} {
+              _cpu_reservation{cpuReservation},
+              _executor_id(executor_id),
+              _core_ids_str{std::move(core_ids_str)} {
             update_executor_config();
         }
 
@@ -174,6 +182,12 @@ public:
 
         std::string get_name() const {
             return _name;
+        }
+        int get_executor_id() const {
+            return _executor_id;
+        }
+        std::string get_core_ids() const {
+            return _core_ids_str;
         }
         int get_streams() const {
             return _streams;
@@ -222,6 +236,12 @@ public:
         }
 
         /**
+         * @brief Get and reserve cpu ids based on configuration and hardware information,
+         *        streams_info_table must be present in the configuration
+         */
+        void apply_cpu_core_ids();
+
+        /**
          * @brief Create appropriate multithreaded configuration
          *        filing unconfigured values from initial configuration using hardware properties
          * @param initial Inital configuration
@@ -229,7 +249,7 @@ public:
          */
         static Config make_default_multi_threaded(const Config& initial);
 
-        static int get_default_num_streams();  // no network specifics considered (only CPU's caps);
+        static int get_default_num_streams(int executor_id);  // no network specifics considered (only CPU's caps);
 
         /**
          * @brief Get and reserve cpu ids based on configuration and hardware information
