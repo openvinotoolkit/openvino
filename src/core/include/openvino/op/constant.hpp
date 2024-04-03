@@ -679,7 +679,7 @@ private:
     template <class T>
     void fill_or_write(const bool fill, const element::Type& et, const std::vector<T>& values) {
         if (fill) {
-            fill_data(et, values[0]);
+            fill_data<T>(et, values[0]);
         } else {
             write_values(values);
         }
