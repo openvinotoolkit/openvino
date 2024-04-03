@@ -179,8 +179,10 @@ jobs:
       - name: Cmake & Build - OpenVINO Contrib
         run: |
           cmake \
+            -DBUILD_nvidia_plugin=OFF \
+            -DBUILD_java_api=OFF \
             -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" \
-            -DOPENVINO_EXTRA_MODULES=${{ OPENVINO_CONTRIB_REPO }}/modules/custom_operations \
+            -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_CONTRIB_REPO }}/modules \
             -S ${{ env.OPENVINO_REPO }} \
             -B ${{ env.BUILD_DIR }}
           cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}

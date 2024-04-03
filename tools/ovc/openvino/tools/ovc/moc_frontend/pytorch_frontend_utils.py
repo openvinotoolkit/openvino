@@ -44,7 +44,11 @@ def get_pytorch_decoder(model, example_inputs, args):
     inputs = prepare_torch_inputs(example_inputs)
     if not isinstance(model, (TorchScriptPythonDecoder, TorchFXPythonDecoder)):
         if hasattr(torch, "export") and isinstance(model, (torch.export.ExportedProgram)):
-            raise RuntimeError("Models received from torch.export are not yet supported by convert_model.")
+            from packaging import version
+            if version.parse(torch.__version__) >= version.parse("2.2"):
+                model = model.run_decompositions()
+            gm = model.module()
+            decoder = TorchFXPythonDecoder(gm, gm)
         else:
             decoder = TorchScriptPythonDecoder(
                 model,
