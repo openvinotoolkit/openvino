@@ -38,10 +38,13 @@ DeepESP/gpt2-spanish,hf_transformers
 EleutherAI/gpt-j-6b,hf_transformers
 Helsinki-NLP/opus-mt-de-en,hf_transformers
 Helsinki-NLP/opus-mt-en-es,hf_transformers
+Helsinki-NLP/opus-mt-en-fr,hf_transformers
 Helsinki-NLP/opus-mt-en-ru,hf_transformers
 Helsinki-NLP/opus-mt-en-zh,hf_transformers
 Helsinki-NLP/opus-mt-es-en,hf_transformers
+Helsinki-NLP/opus-mt-fr-en,hf_transformers
 Helsinki-NLP/opus-mt-ja-en,hf_transformers
+Helsinki-NLP/opus-mt-ko-en,hf_transformers
 Helsinki-NLP/opus-mt-mul-en,hf_transformers
 Helsinki-NLP/opus-mt-ru-en,hf_transformers
 Helsinki-NLP/opus-mt-tr-en,hf_transformers
@@ -72,6 +75,7 @@ dbmdz/bert-base-turkish-cased,hf_transformers
 dbmdz/bert-large-cased-finetuned-conll03-english,hf_transformers
 dccuchile/bert-base-spanish-wwm-cased,hf_transformers
 dccuchile/bert-base-spanish-wwm-uncased,hf_transformers
+deepset/gbert-base,hf_transformers
 deepset/gbert-large,hf_transformers
 deepset/roberta-base-squad2,hf_transformers
 dslim/bert-base-NER,hf_transformers
@@ -100,6 +104,7 @@ flax-community/t5-recipe-generation,hf_transformers
 flexudy/t5-base-multi-sentence-doctor,hf_transformers
 google/byt5-small,hf_transformers
 google/electra-base-discriminator,hf_transformers
+google/mobilebert-uncased,hf_transformers
 google/mt5-base,hf_transformers
 google/mt5-large,hf_transformers
 google/mt5-small,hf_transformers
@@ -115,6 +120,7 @@ google/vit-base-patch16-224,hf_transformers
 hfl/chinese-bert-wwm-ext,hf_transformers
 hfl/chinese-bert-wwm,hf_transformers
 hfl/chinese-macbert-base,hf_transformers
+hfl/chinese-macbert-large,hf_transformers
 hfl/chinese-roberta-wwm-ext-large,hf_transformers
 hfl/chinese-roberta-wwm-ext,hf_transformers
 huggingface/CodeBERTa-language-id,hf_transformers
@@ -140,6 +146,7 @@ microsoft/deberta-v3-small,hf_transformers
 microsoft/deberta-v3-xsmall,hf_transformers
 microsoft/graphcodebert-base,hf_transformers
 microsoft/mdeberta-v3-base,hf_transformers
+microsoft/mpnet-base,hf_transformers
 mrm8488/t5-base-finetuned-question-generation-ap,hf_transformers
 neuralmind/bert-base-portuguese-cased,hf_transformers
 nlpaueb/legal-bert-base-uncased,hf_transformers
@@ -175,6 +182,7 @@ uer/gpt2-chinese-cluecorpussmall,hf_transformers
 uer/gpt2-chinese-poem,hf_transformers
 uer/roberta-base-chinese-extractive-qa,hf_transformers
 uer/roberta-base-finetuned-chinanews-chinese,hf_transformers
+uer/roberta-base-finetuned-dianping-chinese,hf_transformers
 ydshieh/vit-gpt2-coco-en,hf_transformers
 yiyanghkust/finbert-tone,hf_transformers
 cardiffnlp/twitter-roberta-base-sentiment-latest,hf_transformers
