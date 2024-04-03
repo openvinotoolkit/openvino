@@ -498,9 +498,9 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("ReduceProd", 1, reduce_prod);
     REGISTER_OPERATOR("ReduceSum", 1, reduce_sum);
     REGISTER_OPERATOR("ReduceSum", 13, reduce_sum);
-    register_operator("ReduceSumSquare", VersionRange{1, 12}, op::set_1::reduce_sum_square);
-    register_operator("ReduceSumSquare", VersionRange{13, 17}, op::set_13::reduce_sum_square);
-    register_operator("ReduceSumSquare", VersionRange::since(18), op::set_18::reduce_sum_square);
+    REGISTER_OPERATOR("ReduceSumSquare", 1, reduce_sum_square);
+    REGISTER_OPERATOR("ReduceSumSquare", 13, reduce_sum_square);
+    REGISTER_OPERATOR("ReduceSumSquare", 18, reduce_sum_square);
     REGISTER_OPERATOR("Relu", 1, relu);
     REGISTER_OPERATOR("Reshape", 1, reshape);
     REGISTER_OPERATOR("Resize", 1, resize);
