@@ -42,21 +42,37 @@ bool RMSNorm::visit_attributes(ov::AttributeVisitor& visitor) {
 
 void RMSNorm::validate_and_infer_types() {
     OV_OP_SCOPE(v14_RMSNorm_validate_and_infer_types);
+
     const auto& data_element_type = get_input_element_type(0);
+    const bool is_valid_data_type = data_element_type.is_dynamic() || data_element_type.is_real();
     NODE_VALIDATION_CHECK(this,
-                          data_element_type.is_dynamic() || data_element_type.is_real(),
-                          "The element type of the input tensor must be a floating point type.");
-    const auto& data = get_input_partial_shape(0);
-    const auto& axes = get_input_partial_shape(1);
+                          is_valid_data_type,
+                          "The element type of the data tensor must be a floating point type. Got: ",
+                          data_element_type);
 
-    if (axes.is_static()) {
-        NODE_VALIDATION_CHECK(this, is_vector(axes.to_shape()), "Expected 1D tensor for the 'axes' input. Got: ", axes);
+    const auto& axes_element_type = get_input_element_type(1);
+    const bool is_valid_axes_type =
+        data_element_type.is_dynamic() || axes_element_type == element::i32 || axes_element_type == element::i64;
+    NODE_VALIDATION_CHECK(this,
+                          is_valid_axes_type,
+                          "The element type of the axes tensor must be i32 or i64 type. Got: ",
+                          axes_element_type);
 
-        const auto data_rank = data.rank();
+    const auto& data_shape = get_input_partial_shape(0);
+    const auto& axes_shape = get_input_partial_shape(1);
+
+    if (axes_shape.rank().is_static()) {
         NODE_VALIDATION_CHECK(this,
-                              data_rank.is_dynamic() || cmp::ge(data_rank.get_length(), axes.get_shape()[0]),
-                              "Expected rank for the 'data' input to be higher than axes shape. Got: ",
-                              data);
+                              axes_shape.size() == 1,
+                              "Expected 1D tensor for the 'axes' input. Got: ",
+                              axes_shape);
+
+        const auto data_rank = data_shape.rank();
+        const bool has_axes_compatible = data_rank.is_dynamic() || axes_shape[0].is_dynamic() ||
+                                         cmp::ge(data_rank.get_length(), axes_shape.get_shape()[0]);
+        NODE_VALIDATION_CHECK(this,
+                              has_axes_compatible,
+                              "Number of the axes can't be higher than the rank of the data shape.");
     }
     set_output_type(0, data_element_type, get_input_partial_shape(0));
 }
