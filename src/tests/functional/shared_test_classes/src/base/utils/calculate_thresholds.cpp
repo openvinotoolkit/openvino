@@ -17,7 +17,7 @@ namespace utils {
 
 inline std::pair<double, double>
 calculate_thresholds_by_whole_model(const std::shared_ptr<ov::Model>& model) {
-    double max_abs_threshold = 0.f, max_rel_threshold = 0.f;
+    double max_abs_threshold = DISABLE_THRESHOLD, max_rel_threshold = DISABLE_THRESHOLD;
 
     // check all operations except convert to generate correct values
     for (const auto& op : model->get_ordered_ops()) {
@@ -53,7 +53,7 @@ inline std::pair<double, double>
 calculate_thresholds_by_model_results(const std::shared_ptr<ov::Model>& model,
                                       const std::shared_ptr<ov::Model>& ref_model,
                                       const ov::element::Type& inference_precision) {
-    double max_abs_threshold = 0.f, max_rel_threshold = 0.f;
+    double max_abs_threshold = DISABLE_THRESHOLD, max_rel_threshold = DISABLE_THRESHOLD;
 
     const auto results = model->get_results();
     const auto ref_results = ref_model->get_results();
@@ -72,14 +72,15 @@ calculate_thresholds_by_model_results(const std::shared_ptr<ov::Model>& model,
             max_rel_threshold = rel_value;
         }
     }
+    return { max_abs_threshold, max_rel_threshold };
 }
 
 std::pair<double, double>
 calculate_thresholds_by_model(const std::shared_ptr<ov::Model>& model,
                               const std::shared_ptr<ov::Model>& ref_model,
                               const ov::element::Type& inference_precision) {
-    double model_max_abs_threshold = 0.f, model_max_rel_threshold = 0.f,
-           out_max_abs_threshold = 0.f, out_max_rel_threshold = 0.f;
+    double model_max_abs_threshold = DISABLE_THRESHOLD, model_max_rel_threshold = DISABLE_THRESHOLD,
+           out_max_abs_threshold = DISABLE_THRESHOLD, out_max_rel_threshold = DISABLE_THRESHOLD;
     std::tie(model_max_abs_threshold, model_max_rel_threshold) = ov::test::utils::calculate_thresholds_by_whole_model(model);
     if (ref_model) {
         std::tie(out_max_abs_threshold, out_max_rel_threshold) =

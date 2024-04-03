@@ -15,10 +15,12 @@ namespace ov {
 namespace test {
 namespace utils {
 
+constexpr double DISABLE_THRESHOLD = -1.f;
+
 struct Threshold {
     double abs_threshold, rel_threshold;
 
-    Threshold(double in_abs_threshold = -1.f, double in_rel_threshold = -1.f)
+    Threshold(double in_abs_threshold = DISABLE_THRESHOLD, double in_rel_threshold = DISABLE_THRESHOLD)
     : abs_threshold(in_abs_threshold),
       rel_threshold(in_rel_threshold) {}
 };
