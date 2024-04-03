@@ -1,8 +1,8 @@
 const core = require('@actions/core');
 const tar = require('tar');
-const fs = require('fs');
+const fs = require('fs/promises');
 const path = require('path');
-const { humanReadableFileSize } = require('./utils');
+const { humanReadableFileSize, checkFileExists } = require('./utils');
 
 /**
  * The main function for the action.
@@ -28,7 +28,7 @@ async function save() {
     const tarNameTmp = `${key}.tmp`;
     const tarPathTmp = path.join(cacheRemotePath, tarNameTmp);
 
-    if (fs.existsSync(tarPath)) {
+    if (await checkFileExists(tarPath)) {
       core.warning(`Cache file ${tarName} already exists`);
       return;
     }
@@ -43,20 +43,20 @@ async function save() {
       },
       ['.']
     );
-    const tarSize = fs.statSync(tarName).size;
+    const tarStat = await fs.stat(tarName);
     core.info(
-      `Created cache tarball: ${tarName}, size: ${humanReadableFileSize(tarSize)}`
+      `Created cache tarball: ${tarName}, size: ${humanReadableFileSize(tarStat.size)}`
     );
 
     // remote cache directory may not be created yet
-    if (!fs.existsSync(cacheRemotePath)) {
-      fs.mkdirSync(cacheRemotePath);
+    if (!(await checkFileExists(cacheRemotePath))) {
+      await fs.mkdir(cacheRemotePath);
     }
 
     core.info('Copying cache...');
-    fs.copyFileSync(tarName, tarPathTmp);
+    await fs.copyFile(tarName, tarPathTmp);
     // After copying is done, rename file
-    fs.renameSync(tarPathTmp, tarPath);
+    await fs.rename(tarPathTmp, tarPath);
     core.info(`${tarName} copied to ${tarPath}`);
 
     core.setOutput('cache-file', tarName);

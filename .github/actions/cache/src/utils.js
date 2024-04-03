@@ -55,8 +55,18 @@ async function calculateTotalSize(dir, files) {
   return totalSize;
 }
 
+async function checkFileExists(filePath) {
+  try {
+    await fs.promises.access(filePath);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
 module.exports = {
   getSortedCacheFiles,
   humanReadableFileSize,
-  calculateTotalSize
+  calculateTotalSize,
+  checkFileExists
 };

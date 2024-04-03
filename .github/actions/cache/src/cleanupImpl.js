@@ -1,5 +1,5 @@
 const core = require('@actions/core');
-const fs = require('fs');
+const fs = require('fs/promises');
 const path = require('path');
 const {
   getSortedCacheFiles,
@@ -43,11 +43,11 @@ async function cleanUp() {
       );
       for (const file of files.reverse()) {
         const filePath = path.join(cacheRemotePath, file);
-        const fileStats = fs.statSync(filePath);
+        const fileStats = await fs.stat(filePath);
 
         if (fileStats.isFile() && fileStats.atime < minAccessDateAgo) {
           core.info(`Removing file: ${filePath}`);
-          fs.unlinkSync(filePath);
+          await fs.unlink(filePath);
           core.info(`${filePath} removed successfully`);
           totalSize -= fileStats.size;
         }

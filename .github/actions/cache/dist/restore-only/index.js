@@ -33114,13 +33114,17 @@ exports["default"] = _default;
 /***/ 5286:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
-const core = __nccwpck_require__(2186)
-const fs = __nccwpck_require__(7147)
-const path = __nccwpck_require__(1017)
-const tar = __nccwpck_require__(4674)
-const os = __nccwpck_require__(2037)
+const core = __nccwpck_require__(2186);
+const fs = __nccwpck_require__(3292);
+const path = __nccwpck_require__(1017);
+const tar = __nccwpck_require__(4674);
+const os = __nccwpck_require__(2037);
 
-const { getSortedCacheFiles, humanReadableFileSize } = __nccwpck_require__(1608)
+const {
+  getSortedCacheFiles,
+  humanReadableFileSize,
+  checkFileExists
+} = __nccwpck_require__(1608);
 
 /**
  * The main function for the action.
@@ -33128,73 +33132,72 @@ const { getSortedCacheFiles, humanReadableFileSize } = __nccwpck_require__(1608)
  */
 async function restore() {
   try {
-    const cacheRemotePath = core.getInput('cache-path', { required: true })
-    const cacheLocalPath = core.getInput('path', { required: true })
-    const key = core.getInput('key', { required: true })
+    const cacheRemotePath = core.getInput('cache-path', { required: true });
+    const cacheLocalPath = core.getInput('path', { required: true });
+    const key = core.getInput('key', { required: true });
     const keysRestore = core
       .getInput('restore-keys', { required: false })
       .split('\n')
       .map(s => s.replace(/^!\s+/, '!').trim())
-      .filter(x => x !== '')
+      .filter(x => x !== '');
 
-    core.debug(`cache-path: ${cacheRemotePath}`)
-    core.debug(`path: ${cacheLocalPath}`)
-    core.debug(`key: ${key}`)
-    core.debug(`restore-keys: ${keysRestore}`)
+    core.debug(`cache-path: ${cacheRemotePath}`);
+    core.debug(`path: ${cacheLocalPath}`);
+    core.debug(`key: ${key}`);
+    core.debug(`restore-keys: ${keysRestore}`);
 
-    let keyPattern = key
+    let keyPattern = key;
     if (keysRestore && keysRestore.length) {
-      keyPattern = keysRestore.join('|')
+      keyPattern = keysRestore.join('|');
     }
 
-    core.info(`Looking for ${keyPattern} in ${cacheRemotePath}`)
-    const files = await getSortedCacheFiles(cacheRemotePath, keyPattern)
+    core.info(`Looking for ${keyPattern} in ${cacheRemotePath}`);
+    const files = await getSortedCacheFiles(cacheRemotePath, keyPattern);
 
     if (files.length) {
-      const cacheFile = files[0]
-      const cacheSize = fs.statSync(path.join(cacheRemotePath, cacheFile)).size
-      core.info(
-        `Found cache file: ${cacheFile}, size: ${humanReadableFileSize(cacheSize)}`
-      )
+      const cacheFile = files[0];
+      const cachePath = path.join(cacheRemotePath, cacheFile);
+      const cacheStat = await fs.stat(cachePath);
 
-      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cache-'))
+      core.info(
+        `Found cache file: ${cacheFile}, size: ${humanReadableFileSize(cacheStat.size)}`
+      );
+
+      const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'cache-'));
       // copy file to temp dir
-      fs.copyFileSync(
-        path.join(cacheRemotePath, cacheFile),
-        path.join(tempDir, cacheFile)
-      )
-      core.info(`${cacheFile} was copied to ${tempDir}/${cacheFile}`)
+      await fs.copyFile(cachePath, path.join(tempDir, cacheFile));
+      core.info(`${cacheFile} was copied to ${tempDir}/${cacheFile}`);
 
       // extract
-      if (!fs.existsSync(cacheLocalPath)) {
-        fs.mkdirSync(cacheLocalPath)
+      if (!(await checkFileExists(cacheLocalPath))) {
+        await fs.mkdir(cacheLocalPath);
       }
-      core.info(`Extracting ${cacheFile} to ${cacheLocalPath}`)
+      core.info(`Extracting ${cacheFile} to ${cacheLocalPath}`);
       tar.x({
         file: path.join(tempDir, cacheFile),
         cwd: cacheLocalPath,
         sync: true
-      })
-      core.info(`Cache extracted to ${cacheLocalPath}`)
+      });
+      core.info(`Cache extracted to ${cacheLocalPath}`);
 
-      core.setOutput('cache-file', cacheFile)
-      core.setOutput('cache-hit', true)
+      core.setOutput('cache-file', cacheFile);
+      core.setOutput('cache-hit', true);
     } else {
       core.warning(
         `Could not found any suitable cache files in ${cacheRemotePath} with key ${key}`
-      )
-      core.setOutput('cache-file', '')
-      core.setOutput('cache-hit', false)
+      );
+      core.setOutput('cache-file', '');
+      core.setOutput('cache-hit', false);
     }
   } catch (error) {
     // do not fail action if cache could not be restored
-    core.warning(error.message)
+    core.error(error.message);
   }
 }
 
 module.exports = {
   restore
-}
+};
 
 
 /***/ }),
@@ -33202,69 +33205,78 @@ module.exports = {
 /***/ 1608:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
-const core = __nccwpck_require__(2186)
-const fs = __nccwpck_require__(7147)
-const path = __nccwpck_require__(1017)
+const core = __nccwpck_require__(2186);
+const fs = __nccwpck_require__(7147);
+const path = __nccwpck_require__(1017);
 
 async function getSortedCacheFiles(cachePath, key = '') {
   if (!fs.existsSync(cachePath)) {
-    core.warning(`${cachePath} doesn't exist`)
-    return []
+    core.warning(`${cachePath} doesn't exist`);
+    return [];
   }
 
-  const cachePattern = new RegExp(`^((${key}).*[.]cache)$`)
+  const cachePattern = new RegExp(`^((${key}).*[.]cache)$`);
 
-  const files = await fs.promises.readdir(cachePath)
-  const filesSorded = files
+  const filesSorted = (await fs.promises.readdir(cachePath))
     .filter(fileName => cachePattern.test(fileName))
     .map(fileName => ({
       name: fileName,
-      time: fs.statSync(path.join(cachePath, fileName)).atime.getTime()
+      time: fs.statSync(path.join(cachePath, fileName)).atimeMs
     }))
     .sort((a, b) => b.time - a.time)
-    .map(file => file.name)
+    .map(file => file.name);
 
   core.debug(
-    filesSorded.map(fileName => ({
+    filesSorted.map(fileName => ({
       name: fileName,
-      time: fs.statSync(path.join(cachePath, fileName)).atime.getTime()
+      atime: fs.statSync(path.join(cachePath, fileName)).atimeMs
     }))
-  )
-  return filesSorded
+  );
+  return filesSorted;
 }
 
 function humanReadableFileSize(sizeInBytes) {
-  const units = ['B', 'KB', 'MB', 'GB', 'TB']
-  let id = 0
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let id = 0;
 
   while (sizeInBytes >= 1024 && id < units.length - 1) {
-    sizeInBytes /= 1024
-    id++
+    sizeInBytes /= 1024;
+    id++;
   }
 
-  return `${sizeInBytes.toFixed(2)} ${units[id]}`
+  return `${sizeInBytes.toFixed(2)} ${units[id]}`;
 }
 
 // Function to calculate the total size of files in bytes
 async function calculateTotalSize(dir, files) {
-  let totalSize = 0
+  let totalSize = 0;
 
   for (const file of files) {
-    const filePath = path.join(dir, file)
-    const fileStats = fs.statSync(filePath)
+    const filePath = path.join(dir, file);
+    const fileStats = fs.statSync(filePath);
 
     if (fileStats.isFile()) {
-      totalSize += fileStats.size
+      totalSize += fileStats.size;
     }
   }
-  return totalSize
+  return totalSize;
+}
+
+async function checkFileExists(filePath) {
+  try {
+    await fs.promises.access(filePath);
+    return true;
+  } catch (error) {
+    return false;
+  }
 }
 
 module.exports = {
   getSortedCacheFiles,
   humanReadableFileSize,
-  calculateTotalSize
-}
+  calculateTotalSize,
+  checkFileExists
+};
 
 
 /***/ }),
@@ -33330,6 +33342,14 @@ module.exports = require("events");
 
 "use strict";
 module.exports = require("fs");
+
+/***/ }),
+
+/***/ 3292:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("fs/promises");
 
 /***/ }),
 
@@ -35170,9 +35190,9 @@ var __webpack_exports__ = {};
 /**
  * The entrypoint for the action.
  */
-const { restore } = __nccwpck_require__(5286)
+const { restore } = __nccwpck_require__(5286);
 
-restore()
+restore();
 
 })();
 

@@ -24704,84 +24704,79 @@ exports["default"] = _default;
 /***/ 895:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
-const core = __nccwpck_require__(2186)
-const fs = __nccwpck_require__(7147)
-const path = __nccwpck_require__(1017)
+const core = __nccwpck_require__(2186);
+const fs = __nccwpck_require__(3292);
+const path = __nccwpck_require__(1017);
 const {
   getSortedCacheFiles,
   humanReadableFileSize,
   calculateTotalSize
-} = __nccwpck_require__(1608)
+} = __nccwpck_require__(1608);
 
-// Function to remove old files if their combined size exceeds 50 GB
+// Function to remove old files if their combined size exceeds the allowed size
 async function cleanUp() {
   try {
-    const cacheRemotePath = core.getInput('cache-path', { required: true })
-    const key = core.getInput('key', { required: true })
+    const cacheRemotePath = core.getInput('cache-path', { required: true });
+    const key = core.getInput('key', { required: true });
     const keysRestore = core
       .getInput('restore-keys', { required: false })
       .split('\n')
       .map(s => s.replace(/^!\s+/, '!').trim())
-      .filter(x => x !== '')
-    const maxCacheSize = core.getInput('max-cache-size', { required: false })
+      .filter(x => x !== '');
+    const maxCacheSize = core.getInput('max-cache-size', { required: false });
 
     // Minimum time peroid in milliseconds when the files was not used
-    const minAccessTime = 1 * 60 * 60 * 1000 // 1 hour
-    const currentDate = new Date()
-    const minAccessDateAgo = new Date(currentDate - minAccessTime)
+    const minAccessTime = 1 * 60 * 60 * 1000; // 1 hour
+    const currentDate = new Date();
+    const minAccessDateAgo = new Date(currentDate - minAccessTime);
 
-    core.debug(`cache-path: ${cacheRemotePath}`)
-    core.debug(`key: ${key}`)
-    core.debug(`restore-keys: ${keysRestore}`)
+    core.debug(`cache-path: ${cacheRemotePath}`);
+    core.debug(`key: ${key}`);
+    core.debug(`restore-keys: ${keysRestore}`);
 
-    let keyPattern = key
+    let keyPattern = key;
     if (keysRestore && keysRestore.length) {
-      keyPattern = keysRestore.join('|')
+      keyPattern = keysRestore.join('|');
     }
 
-    const files = await getSortedCacheFiles(cacheRemotePath, keyPattern)
-    const maxCacheSizeInBytes = maxCacheSize * 1024 * 1024 * 1024
-    let totalSize = await calculateTotalSize(cacheRemotePath, files)
+    const files = await getSortedCacheFiles(cacheRemotePath, keyPattern);
+    const maxCacheSizeInBytes = maxCacheSize * 1024 * 1024 * 1024;
+    let totalSize = await calculateTotalSize(cacheRemotePath, files);
 
     if (totalSize > maxCacheSizeInBytes) {
       core.info(
         `The cache storage size ${humanReadableFileSize(totalSize)} exceeds allowed size ${humanReadableFileSize(maxCacheSizeInBytes)}`
-      )
-      for (let i = files.length - 1; i >= 0; i--) {
-        const file = files[i]
-        const filePath = path.join(cacheRemotePath, file)
-        const fileStats = fs.statSync(filePath)
+      );
+      for (const file of files.reverse()) {
+        const filePath = path.join(cacheRemotePath, file);
+        const fileStats = await fs.stat(filePath);
 
         if (fileStats.isFile() && fileStats.atime < minAccessDateAgo) {
-          core.info(`Removing file: ${filePath}`)
-          fs.unlink(filePath, err => {
-            if (err) {
-              core.warning(`Could not remove file: ${filePath}: ${err}`)
-            } else {
-              core.info(`${filePath} removed successfully`)
-              totalSize -= fileStats.size
-            }
-          })
+          core.info(`Removing file: ${filePath}`);
+          await fs.unlink(filePath);
+          core.info(`${filePath} removed successfully`);
+          totalSize -= fileStats.size;
         }
         // Exit loop if total size is within limit
+        core.info(`Total size: ${totalSize}`);
         if (totalSize <= maxCacheSizeInBytes) {
-          break
+          break;
         }
       }
-      core.info('Old cache files removed successfully')
+      core.info('Old cache files removed successfully');
     } else {
       core.info(
         `The cache storage size ${humanReadableFileSize(totalSize)} less then the allowed size ${humanReadableFileSize(maxCacheSizeInBytes)}`
-      )
+      );
     }
   } catch (error) {
-    core.setFailed(`Error removing old cache files: ${error.message}`)
+    core.error(`Error removing old cache files: ${error.message}`);
   }
 }
 
 module.exports = {
   cleanUp
-}
+};
 
 
 /***/ }),
@@ -24789,69 +24784,78 @@ module.exports = {
 /***/ 1608:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
-const core = __nccwpck_require__(2186)
-const fs = __nccwpck_require__(7147)
-const path = __nccwpck_require__(1017)
+const core = __nccwpck_require__(2186);
+const fs = __nccwpck_require__(7147);
+const path = __nccwpck_require__(1017);
 
 async function getSortedCacheFiles(cachePath, key = '') {
   if (!fs.existsSync(cachePath)) {
-    core.warning(`${cachePath} doesn't exist`)
-    return []
+    core.warning(`${cachePath} doesn't exist`);
+    return [];
   }
 
-  const cachePattern = new RegExp(`^((${key}).*[.]cache)$`)
+  const cachePattern = new RegExp(`^((${key}).*[.]cache)$`);
 
-  const files = await fs.promises.readdir(cachePath)
-  const filesSorded = files
+  const filesSorted = (await fs.promises.readdir(cachePath))
     .filter(fileName => cachePattern.test(fileName))
     .map(fileName => ({
       name: fileName,
-      time: fs.statSync(path.join(cachePath, fileName)).atime.getTime()
+      time: fs.statSync(path.join(cachePath, fileName)).atimeMs
     }))
     .sort((a, b) => b.time - a.time)
-    .map(file => file.name)
+    .map(file => file.name);
 
   core.debug(
-    filesSorded.map(fileName => ({
+    filesSorted.map(fileName => ({
       name: fileName,
-      time: fs.statSync(path.join(cachePath, fileName)).atime.getTime()
+      atime: fs.statSync(path.join(cachePath, fileName)).atimeMs
     }))
-  )
-  return filesSorded
+  );
+  return filesSorted;
 }
 
 function humanReadableFileSize(sizeInBytes) {
-  const units = ['B', 'KB', 'MB', 'GB', 'TB']
-  let id = 0
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let id = 0;
 
   while (sizeInBytes >= 1024 && id < units.length - 1) {
-    sizeInBytes /= 1024
-    id++
+    sizeInBytes /= 1024;
+    id++;
   }
 
-  return `${sizeInBytes.toFixed(2)} ${units[id]}`
+  return `${sizeInBytes.toFixed(2)} ${units[id]}`;
 }
 
 // Function to calculate the total size of files in bytes
 async function calculateTotalSize(dir, files) {
-  let totalSize = 0
+  let totalSize = 0;
 
   for (const file of files) {
-    const filePath = path.join(dir, file)
-    const fileStats = fs.statSync(filePath)
+    const filePath = path.join(dir, file);
+    const fileStats = fs.statSync(filePath);
 
     if (fileStats.isFile()) {
-      totalSize += fileStats.size
+      totalSize += fileStats.size;
     }
   }
-  return totalSize
+  return totalSize;
+}
+
+async function checkFileExists(filePath) {
+  try {
+    await fs.promises.access(filePath);
+    return true;
+  } catch (error) {
+    return false;
+  }
 }
 
 module.exports = {
   getSortedCacheFiles,
   humanReadableFileSize,
-  calculateTotalSize
-}
+  calculateTotalSize,
+  checkFileExists
+};
 
 
 /***/ }),
@@ -24917,6 +24921,14 @@ module.exports = require("events");
 
 "use strict";
 module.exports = require("fs");
+
+/***/ }),
+
+/***/ 3292:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("fs/promises");
 
 /***/ }),
 
@@ -26746,9 +26758,9 @@ module.exports = parseParams
 var __webpack_exports__ = {};
 // This entry need to be wrapped in an IIFE because it need to be isolated against other modules in the chunk.
 (() => {
-const { cleanUp } = __nccwpck_require__(895)
+const { cleanUp } = __nccwpck_require__(895);
 
-cleanUp()
+cleanUp();
 
 })();
 

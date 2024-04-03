@@ -1,10 +1,14 @@
 const core = require('@actions/core');
-const fs = require('fs');
+const fs = require('fs/promises');
 const path = require('path');
 const tar = require('tar');
 const os = require('os');
 
-const { getSortedCacheFiles, humanReadableFileSize } = require('./utils');
+const {
+  getSortedCacheFiles,
+  humanReadableFileSize,
+  checkFileExists
+} = require('./utils');
 
 /**
  * The main function for the action.
@@ -36,22 +40,21 @@ async function restore() {
 
     if (files.length) {
       const cacheFile = files[0];
-      const cacheSize = fs.statSync(path.join(cacheRemotePath, cacheFile)).size;
+      const cachePath = path.join(cacheRemotePath, cacheFile);
+      const cacheStat = await fs.stat(cachePath);
+
       core.info(
-        `Found cache file: ${cacheFile}, size: ${humanReadableFileSize(cacheSize)}`
+        `Found cache file: ${cacheFile}, size: ${humanReadableFileSize(cacheStat.size)}`
       );
 
-      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cache-'));
+      const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'cache-'));
       // copy file to temp dir
-      fs.copyFileSync(
-        path.join(cacheRemotePath, cacheFile),
-        path.join(tempDir, cacheFile)
-      );
+      await fs.copyFile(cachePath, path.join(tempDir, cacheFile));
       core.info(`${cacheFile} was copied to ${tempDir}/${cacheFile}`);
 
       // extract
-      if (!fs.existsSync(cacheLocalPath)) {
-        fs.mkdirSync(cacheLocalPath);
+      if (!(await checkFileExists(cacheLocalPath))) {
+        await fs.mkdir(cacheLocalPath);
       }
       core.info(`Extracting ${cacheFile} to ${cacheLocalPath}`);
       tar.x({
