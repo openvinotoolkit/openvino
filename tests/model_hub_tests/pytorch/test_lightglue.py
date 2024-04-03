@@ -44,6 +44,5 @@ class TestLightGlueModel(TestTorchConvertModel):
         self.repo_dir.cleanup()
 
     @pytest.mark.nightly
-    @pytest.mark.precommit
     def test_convert_model(self, ie_device):
         self.run("lightglue", "superpoint", ie_device)
