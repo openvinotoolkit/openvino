@@ -20,6 +20,7 @@ const testFiles = ['file1.txt', 'file2.txt', 'file3.txt'];
 // Mock the GitHub Actions core library
 const getInputMock = jest.spyOn(core, 'getInput').mockImplementation();
 const setOutputMock = jest.spyOn(core, 'setOutput').mockImplementation();
+const setFailedMock = jest.spyOn(core, 'setFailed').mockImplementation();
 
 // Clean up mock file system after each test
 afterEach(() => {
@@ -176,5 +177,93 @@ describe('action', () => {
     }
     // check that file3 is absent
     expect(fs.existsSync(path.join(cacheLocalPath, testFiles[2]))).toBe(false);
+  });
+
+  it('gets the cache file and extract to absent dir', async () => {
+    const cacheAbsentPath = path.join(tempDir, 'cache_absent');
+    // Set the action's inputs as return values from core.getInput()
+    getInputMock.mockImplementation(name => {
+      switch (name) {
+        case 'cache-path':
+          return cacheRemotePath;
+        case 'key':
+          return 'key';
+        case 'restore-keys':
+          return 'cache';
+        case 'path':
+          return cacheAbsentPath;
+        default:
+          return '';
+      }
+    });
+
+    await restoreImpl.restore();
+    expect(runMock).toHaveReturned();
+
+    // Verify that all of the core library functions were called correctly
+    expect(setOutputMock).toHaveBeenNthCalledWith(
+      1,
+      'cache-file',
+      cacheFiles[2]
+    );
+    expect(setOutputMock).toHaveBeenNthCalledWith(2, 'cache-hit', true);
+    let id = 1;
+    for (const filename of testFiles) {
+      const filePath = path.join(cacheAbsentPath, filename);
+      expect(fs.existsSync(filePath)).toBe(true);
+      const fileContent = fs.readFileSync(filePath, 'utf8');
+      expect(fileContent).toBe(`File ${id++} contents`);
+    }
+  });
+
+  it('Test when no cache found', async () => {
+    // Set the action's inputs as return values from core.getInput()
+    getInputMock.mockImplementation(name => {
+      switch (name) {
+        case 'cache-path':
+          return cacheRemotePath;
+        case 'key':
+          return 'key';
+        case 'path':
+          return cacheLocalPath;
+        default:
+          return '';
+      }
+    });
+
+    await restoreImpl.restore();
+    expect(runMock).toHaveReturned();
+
+    // Verify that all of the core library functions were called correctly
+    expect(setOutputMock).toHaveBeenNthCalledWith(1, 'cache-file', '');
+    expect(setOutputMock).toHaveBeenNthCalledWith(2, 'cache-hit', false);
+    for (const filename of testFiles) {
+      const filePath = path.join(cacheLocalPath, filename);
+      expect(fs.existsSync(filePath)).toBe(false);
+    }
+    expect(setFailedMock).not.toHaveBeenCalled();
+  });
+
+  it('Unsupported cache found', async () => {
+    const cacheFakePath = path.join(cacheRemotePath, 'cache-fake.cache');
+    fs.writeFileSync(cacheFakePath, 'Fake content');
+    // Set the action's inputs as return values from core.getInput()
+    getInputMock.mockImplementation(name => {
+      switch (name) {
+        case 'cache-path':
+          return cacheRemotePath;
+        case 'key':
+          return 'cache';
+        case 'path':
+          return cacheLocalPath;
+        default:
+          return '';
+      }
+    });
+
+    await restoreImpl.restore();
+    expect(runMock).toHaveReturned();
+    expect(setOutputMock).not.toHaveBeenCalled();
+    expect(setFailedMock).not.toHaveBeenCalled();
   });
 });

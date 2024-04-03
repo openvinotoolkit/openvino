@@ -11,6 +11,7 @@ const { log } = require('console');
 // Mock the GitHub Actions core library
 const getInputMock = jest.spyOn(core, 'getInput').mockImplementation();
 const setOutputMock = jest.spyOn(core, 'setOutput').mockImplementation();
+const setFailedMock = jest.spyOn(core, 'setFailed').mockImplementation();
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'test-'));
 const cacheLocalPath = path.join(tempDir, 'cache_local');
@@ -119,5 +120,72 @@ describe('action', () => {
     );
     expect(setOutputMock).toHaveBeenNthCalledWith(2, 'cache-hit', true);
     expect(fs.existsSync(`${cacheRemotePathAbsent}/cache.cache`)).toBe(true); // Check if the tar file was created
+  });
+
+  it('Cache files: key is not set', async () => {
+    // Set the action's inputs as return values from core.getInput()
+    getInputMock.mockImplementation(name => {
+      switch (name) {
+        case 'cache-path':
+          return cacheRemotePath;
+        case 'path':
+          return cacheLocalPath;
+        default:
+          return '';
+      }
+    });
+
+    await saveImpl.save();
+
+    expect(runMock).toHaveReturned();
+    expect(setOutputMock).not.toHaveBeenCalled();
+    expect(setFailedMock).not.toHaveBeenCalled();
+  });
+
+  it('Cache files: file already exists', async () => {
+    const cacheFakePath = path.join(cacheRemotePath, 'cache-fake.cache');
+    fs.writeFileSync(cacheFakePath, 'Fake content');
+    // Set the action's inputs as return values from core.getInput()
+    getInputMock.mockImplementation(name => {
+      switch (name) {
+        case 'cache-path':
+          return cacheRemotePath;
+        case 'key':
+          return 'cache-fake';
+        case 'path':
+          return cacheLocalPath;
+        default:
+          return '';
+      }
+    });
+
+    await saveImpl.save();
+
+    expect(runMock).toHaveReturned();
+    expect(setOutputMock).not.toHaveBeenCalled();
+    expect(setFailedMock).not.toHaveBeenCalled();
+  });
+
+  it('Test unexpected behaviour', async () => {
+    // Set folder permissions to read-only
+    fs.chmodSync(cacheRemotePath, '555');
+    // Set the action's inputs as return values from core.getInput()
+    getInputMock.mockImplementation(name => {
+      switch (name) {
+        case 'cache-path':
+          return cacheRemotePath;
+        case 'key':
+          return 'cache';
+        case 'path':
+          return cacheLocalPath;
+        default:
+          return '';
+      }
+    });
+
+    await saveImpl.save();
+    expect(runMock).toHaveReturned();
+    expect(setOutputMock).not.toHaveBeenCalled();
+    expect(setFailedMock).toHaveBeenCalled();
   });
 });
