@@ -25,13 +25,16 @@ describe('Core.getVersions()', () => {
 
   it('getVersions(validDeviceName: string)', () => {    
     const deviceVersion = core.getVersions(devices[0]);
-    assert.ok(Object.keys(deviceVersion).length >= 1);
+    assert.strictEqual(typeof deviceVersion, 'object');
+    assert.strictEqual(typeof deviceVersion.CPU, 'object');
+    assert.strictEqual(typeof deviceVersion.CPU.buildNumber, 'string');
+    assert.strictEqual(typeof deviceVersion.CPU.description, 'string');
   });
 
   it('getVersions() throws if no arguments are passed into the function', () => {
     assert.throws(
       () => core.getVersions(),
-      {message: 'No argument provided in the getVersions() method call.'}
+      {message: 'getVersions() method expects 1 argument of string type.'}
     );
   });
 

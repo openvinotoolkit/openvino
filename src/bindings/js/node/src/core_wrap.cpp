@@ -235,7 +235,7 @@ Napi::Value CoreWrap::get_available_devices(const Napi::CallbackInfo& info) {
 
 Napi::Value CoreWrap::get_versions(const Napi::CallbackInfo& info) {
     if (info.Length() == 0) {
-        reportError(info.Env(), "No argument provided in the getVersions() method call.");
+        reportError(info.Env(), "getVersions() method expects 1 argument of string type.");
         return info.Env().Undefined();
     }
     auto device_arg = info[0];
@@ -244,18 +244,18 @@ Napi::Value CoreWrap::get_versions(const Napi::CallbackInfo& info) {
         return info.Env().Undefined();
     }
     const auto& devices_map = _core.get_versions(device_arg.ToString());
-    Napi::Object versionsObject = Napi::Object::New(info.Env());
+    Napi::Object versions_object = Napi::Object::New(info.Env());
 
     for (const auto& dev : devices_map) {
-        Napi::Object deviceProperties = Napi::Object::New(info.Env());
+        Napi::Object device_properties = Napi::Object::New(info.Env());
 
-        deviceProperties.Set("buildNumber", Napi::String::New(info.Env(), dev.second.buildNumber));
-        deviceProperties.Set("description", Napi::String::New(info.Env(), dev.second.description));
+        device_properties.Set("buildNumber", Napi::String::New(info.Env(), dev.second.buildNumber));
+        device_properties.Set("description", Napi::String::New(info.Env(), dev.second.description));
 
-        versionsObject.Set(dev.first, deviceProperties);
+        versions_object.Set(dev.first, device_properties);
     }
 
-    return versionsObject;
+    return versions_object;
 }
 
 Napi::Value CoreWrap::import_model(const Napi::CallbackInfo& info) {
