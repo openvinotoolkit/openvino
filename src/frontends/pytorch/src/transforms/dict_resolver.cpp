@@ -43,7 +43,7 @@ bool DictParameterResolver::run_on_model(const std::shared_ptr<Model>& model) {
                         at_least_one_unused = true;
                         continue;
                     }
-                    const auto name = attrs.at("string_value");
+                    const auto& name = attrs.at("string_value");
                     auto new_param = std::make_shared<v0::Parameter>(getitem_node->get_output_element_type(0),
                                                                      getitem_node->get_output_partial_shape(0));
                     new_param->set_friendly_name(name);
@@ -71,7 +71,7 @@ bool DictParameterResolver::run_on_model(const std::shared_ptr<Model>& model) {
 
 bool DictResultResolver::run_on_model(const std::shared_ptr<Model>& model) {
     bool changed = false;
-    const auto& results = model->get_results();
+    const auto results = model->get_results();
     for (const auto& res : results) {
         if (auto dict_construct_node = cast_fw_node(res->get_input_node_shared_ptr(0), "prim::DictConstruct")) {
             const auto inputs = dict_construct_node->input_values();
@@ -98,7 +98,7 @@ bool DictResultResolver::run_on_model(const std::shared_ptr<Model>& model) {
                     add_exception_to_fw_node(dict_construct_node, "prim::DictConstruct: unexpected dict key format.");
                     return false;
                 }
-                auto name = attrs.at("string_value");
+                const auto& name = attrs.at("string_value");
                 new_output.set_names({name});
                 new_outputs.push_back(std::make_shared<v0::Result>(new_output));
             }
