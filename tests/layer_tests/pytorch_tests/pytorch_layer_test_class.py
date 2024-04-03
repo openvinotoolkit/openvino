@@ -48,8 +48,7 @@ class PytorchLayerTest:
     def use_torch_compile_backend():
         torch_compile_env = os.getenv("PYTORCH_TRACING_MODE")
         if torch_compile_env is not None:
-            if (torch_compile_env == "TORCHFX" or torch_compile_env == "TORCHSCRIPT"):
-                return True
+            return torch_compile_env == "TORCHFX"
         return False
 
     @staticmethod

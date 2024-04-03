@@ -145,6 +145,33 @@ OutputVector translate_var(const NodeContext& context) {
     return {res[0]};
 }
 
+OutputVector translate_std_fx(const NodeContext& context) {
+    num_inputs_check(context, 1, 2);
+    auto data = context.get_input(0);
+    ov::Output<ov::Node> axes;
+
+    if (!context.input_is_none(1)) {
+        axes = context.get_input(1);
+    }
+    int32_t correction = 0;
+    if (context.has_attribute("correction")) {
+        auto correction_node = context.get_attribute<Output<Node>>("correction");
+        auto const_node = as_type_ptr<v0::Constant>(correction_node.get_node_shared_ptr());
+        PYTORCH_OP_CONVERSION_CHECK(const_node, "correction must be const.");
+        correction = const_node->cast_vector<int32_t>()[0];
+    }
+    bool keepdim = false;
+    if (context.has_attribute("keepdim")) {
+        auto keepdim_node = context.get_attribute<Output<Node>>("keepdim");
+        auto const_node = as_type_ptr<v0::Constant>(keepdim_node.get_node_shared_ptr());
+        PYTORCH_OP_CONVERSION_CHECK(const_node, "keepdim must be const.");
+        keepdim = const_node->cast_vector<bool>()[0];
+    }
+    auto res = translate_var_mean_common(context, data, axes, correction, keepdim);
+
+    return {context.mark_node(std::make_shared<v0::Sqrt>(res[0]))};
+}
+
 OutputVector translate_std(const NodeContext& context) {
     auto res = translate_var_mean(context);
     auto var = res[0];
