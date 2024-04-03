@@ -170,17 +170,17 @@ protected:
         // do
         if (use_algo == 0) {
             auto start = std::chrono::steady_clock::now();
-            scatterupdateNode->scatterElementsUpdate<float>(data_memptr, indices_memptr, updates_memptr, use_axis, scatter_elements_update::ReduceAdd{});
+            scatterupdateNode->scatterElementsUpdate(data_memptr, indices_memptr, updates_memptr, use_axis, ScatterUpdate::ReduceAdd<float>{});
             auto end = std::chrono::steady_clock::now();
             std::cout << "============================ " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << " us" << std::endl;
         } else if (use_algo == 1) {
             auto start = std::chrono::steady_clock::now();
-            scatterupdateNode->scatterElementsUpdateAdvance<float>(data_memptr, indices_memptr, updates_memptr, use_axis, scatter_elements_update::ReduceAdd{});
+            scatterupdateNode->scatterElementsUpdateAdvance(data_memptr, indices_memptr, updates_memptr, use_axis, ScatterUpdate::ReduceAdd<float>{});
             auto end = std::chrono::steady_clock::now();
             std::cout << "============================(Advance) " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << " us" << std::endl;
         } else {
             auto start = std::chrono::steady_clock::now();
-            scatterupdateNode->scatterElementsUpdate1D<float>(data_memptr, indices1D_memptr, updates_memptr, use_axis, scatter_elements_update::ReduceAdd{});
+            scatterupdateNode->scatterElementsUpdate1D(data_memptr, indices1D_memptr, updates_memptr, use_axis, ScatterUpdate::ReduceAdd<float>{});
             auto end = std::chrono::steady_clock::now();
             std::cout << "============================(1D) " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << " us" << std::endl;
         }

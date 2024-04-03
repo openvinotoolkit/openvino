@@ -265,7 +265,7 @@ static std::vector<size_t> getBlockND(const VectorDims& shape) {
     return blockND;
 }
 
-namespace scatter_elements_update {
+namespace {
 template <typename T>
 static T reduction_neutral_value(const ScatterUpdate::Reduction reduction_type) {
     switch (reduction_type) {
@@ -352,27 +352,22 @@ struct ScatterElementsUpdateContext {
 };
 
 // tier 2 dispatcher with Reduce which follows up DataType.
-template<typename PT>
+template<typename KernelType>
 struct ScatterElementsUpdateReduceDispatcher {
     void operator()(ScatterElementsUpdateContext& ctx) {
-        using kernel_t = typename PT::second_type;
-        using data_t = typename PT::first_type;
         const char* penv = getenv("USE_SEU_ADVANCE");
         if (penv && std::atoi(penv) > 0) {
             std::cout << "=========== USE_SEU_ADVANCE=1\n";
-            ctx.node->scatterElementsUpdateAdvance<data_t>(ctx.dstMemPtr, ctx.indicesMemPtr, ctx.updateMemPtr, ctx.axis,
-                                                    kernel_t{});
+            ctx.node->scatterElementsUpdateAdvance(ctx.dstMemPtr, ctx.indicesMemPtr, ctx.updateMemPtr, ctx.axis, KernelType{});
         } else {
             std::cout << "=========== USE_SEU_ADVANCE=0\n";
-            ctx.node->scatterElementsUpdate<data_t>(ctx.dstMemPtr, ctx.indicesMemPtr, ctx.updateMemPtr, ctx.axis,
-                                                    kernel_t{});
+            ctx.node->scatterElementsUpdate(ctx.dstMemPtr, ctx.indicesMemPtr, ctx.updateMemPtr, ctx.axis, KernelType{});
         }
 
         const char* penv2 = getenv("USE_SEU_1D");
         if (penv2 && std::atoi(penv2) > 0) {
             std::cout << "=========== USE_SEU_1D=1\n";
-            ctx.node->scatterElementsUpdate1D<data_t>(ctx.dstMemPtr, ctx.indicesMemPtr, ctx.updateMemPtr, ctx.axis,
-                                                    kernel_t{});
+            ctx.node->scatterElementsUpdate1D(ctx.dstMemPtr, ctx.indicesMemPtr, ctx.updateMemPtr, ctx.axis, KernelType{});
         }
     }
 };
@@ -386,13 +381,12 @@ struct ScatterElementsUpdateDispatcher {
 
 private:
     void scatterElementsUpdate_dispatch(ScatterElementsUpdateContext& ctx) {
-        using namespace scatter_elements_update;
-        using DT_NONE = std::pair<DataType, ReduceNone>;
-        using DT_SUM = std::pair<DataType, ReduceAdd>;
-        using DT_MAX = std::pair<DataType, ReduceMaximum>;
-        using DT_MIN = std::pair<DataType, ReduceMinimum>;
-        using DT_MUL = std::pair<DataType, ReduceMultiply>;
-        using DT_MEAN = std::pair<DataType, ReduceMean>;
+        using DT_NONE = ScatterUpdate::ReduceNone<DataType>;
+        using DT_SUM = ScatterUpdate::ReduceAdd<DataType>;
+        using DT_MAX = ScatterUpdate::ReduceMaximum<DataType>;
+        using DT_MIN = ScatterUpdate::ReduceMinimum<DataType>;
+        using DT_MUL = ScatterUpdate::ReduceMultiply<DataType>;
+        using DT_MEAN = ScatterUpdate::ReduceMean<DataType>;
         OV_SWITCH(intel_cpu,
                 ScatterElementsUpdateReduceDispatcher,
                 ctx,
@@ -405,15 +399,17 @@ private:
                 OV_CASE(ScatterUpdate::Reduction::MEAN, DT_MEAN));
     }
 };
-};   // namespace scatter_elements_update
+}; // namespace
 
 // output[indices[i][j][k]][j][k] = updates[i][j][k] if axis = 0,
 // output[i][indices[i][j][k]][k] = updates[i][j][k] if axis = 1,
 // output[i][j][indices[i][j][k]] = updates[i][j][k] if axis = 2.
-template <typename DataType, typename KernelType>
-void ScatterUpdate::scatterElementsUpdate1D(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates,
-                                                int axis, const KernelType& kernel) {
-    using namespace scatter_elements_update;
+template <template<class> class KernelType, class DataType>
+void ScatterUpdate::scatterElementsUpdate1D(const MemoryPtr& mem_data,
+                                            const MemoryPtr& mem_indices,
+                                            const MemoryPtr& mem_updates,
+                                            int axis,
+                                            const KernelType<DataType>& kernel) {
     std::array<PlainTensor, 2> arr_memptr = {PlainTensor(mem_data), PlainTensor(mem_updates)};
     uint8_t *indices_in_bytes = mem_indices->getDataAs<uint8_t>();
     const auto& data_shape = mem_data->getStaticDims();
@@ -519,10 +515,12 @@ void ScatterUpdate::scatterElementsUpdate1D(const MemoryPtr& mem_data, const Mem
     });
 }
 
-template <typename DataType, typename KernelType>
-void ScatterUpdate::scatterElementsUpdateAdvance(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates,
-                                                int axis, const KernelType& kernel) {
-    using namespace scatter_elements_update;
+template <template<class> class KernelType, class DataType>
+void ScatterUpdate::scatterElementsUpdateAdvance(const MemoryPtr& mem_data,
+                                                 const MemoryPtr& mem_indices,
+                                                 const MemoryPtr& mem_updates,
+                                                 int axis,
+                                                 const KernelType<DataType>& kernel) {
     std::array<PlainTensor, 3> arr_memptr = {PlainTensor(mem_data), PlainTensor(mem_indices), PlainTensor(mem_updates)};
     const auto& data_shape = mem_data->getStaticDims();
     const auto& indices_shape = mem_indices->getStaticDims();
@@ -623,10 +621,12 @@ void ScatterUpdate::scatterElementsUpdateAdvance(const MemoryPtr& mem_data, cons
     });
 }
 
-template <typename DataType, typename KernelType>
-void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates,
-                            int axis, const KernelType& kernel) {
-    using namespace scatter_elements_update;
+template <template<class> class KernelType, class DataType>
+void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
+                                          const MemoryPtr& mem_indices,
+                                          const MemoryPtr& mem_updates,
+                                          int axis,
+                                          const KernelType<DataType>& kernel) {
     DataType *dataPtr = mem_data->getDataAs<DataType>();
     DataType *updatePtr = mem_updates->getDataAs<DataType>();
     uint8_t *indicesPtr = mem_indices->getDataAs<uint8_t>();
@@ -653,7 +653,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
         splitter(shape_size(squashed_indices_shape), nthr, ithr, start, end);
-        scatter_elements_update::TensorIterator tensorItr(squashed_indices_shape, axis);
+        TensorIterator tensorItr(squashed_indices_shape, axis);
 
         // When *use_init_val* attribute is false, we need to substitute the copied values at target locations with values that
         // will not affect the particular reduction algorithms.
@@ -736,9 +736,11 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
 // We specialize ReduceMean to avoid spoil performance of other reduce methods, as otherwise condition branch
 // were used in loops.
 template <typename DataType>
-void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates,
-                                          int axis, const scatter_elements_update::ReduceMean& kernel) {
-    using namespace scatter_elements_update;
+void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
+                                          const MemoryPtr& mem_indices,
+                                          const MemoryPtr& mem_updates,
+                                          int axis,
+                                          const ReduceMean<DataType>& kernel) {
     OPENVINO_ASSERT(reduction_type == ScatterUpdate::Reduction::MEAN, "The reduction type should be MEAN here.");
     DataType *dataPtr = mem_data->getDataAs<DataType>();
     DataType *updatePtr = mem_updates->getDataAs<DataType>();
@@ -766,7 +768,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
         splitter(shape_size(squashed_indices_shape), nthr, ithr, start, end);
-        scatter_elements_update::TensorIterator tensorItr(squashed_indices_shape, axis);
+        TensorIterator tensorItr(squashed_indices_shape, axis);
 
         // When *use_init_val* attribute is false, we need to substitute the copied values at target locations with values that
         // will not affect the particular reduction algorithms.
@@ -871,7 +873,6 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
 }
 
 void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr, int axis) {
-    using namespace scatter_elements_update;
     ScatterElementsUpdateContext ctx{this, dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduction_type};
     OV_SWITCH(intel_cpu,
               ScatterElementsUpdateDispatcher,

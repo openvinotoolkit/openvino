@@ -18,57 +18,64 @@ enum class ScatterUpdateMode {
     ScatterElementsUpdate
 };
 
-namespace scatter_elements_update {
-class ReduceMultiply {
-public:
-    template <typename DT>
-    void operator() (DT* dst_data, const DT* src_data) const {
-        *dst_data *= *src_data;
-    }
-};
-
-class ReduceAdd {
-public:
-    template <typename DT>
-    void operator() (DT* dst_data, const DT* src_data) const {
-        *dst_data += *src_data;
-    }
-};
-
-class ReduceMean {
-public:
-    template <typename DT>
-    void operator() (DT* dst_data, const DT* src_data) const {
-        *dst_data += *src_data;
-    }
-};
-
-class ReduceMaximum {
-public:
-    template <typename DT>
-    void operator() (DT* dst_data, const DT* src_data) const {
-        *dst_data = std::max(*dst_data, *src_data);
-    }
-};
-
-class ReduceMinimum {
-public:
-    template <typename DT>
-    void operator() (DT* dst_data, const DT* src_data) const {
-        *dst_data = std::min(*dst_data, *src_data);
-    }
-};
-
-class ReduceNone {
-public:
-    template <typename DT>
-    void operator() (DT* dst_data, const DT* src_data) const {
-        *dst_data = *src_data;
-    }
-};
-};  // namespace scatter_elements_update
-
 class ScatterUpdate : public Node {
+public:
+    using Reduction = ov::op::v12::ScatterElementsUpdate::Reduction;
+
+    template <typename DT>
+    class ReduceMultiply {
+    public:
+        using value_type = DT;
+        void operator() (DT* dst_data, const DT* src_data) const {
+            *dst_data *= *src_data;
+        }
+    };
+
+    template <typename DT>
+    class ReduceAdd {
+    public:
+        using value_type = DT;
+        void operator() (DT* dst_data, const DT* src_data) const {
+            *dst_data += *src_data;
+        }
+    };
+
+    template <typename DT>
+    class ReduceMean {
+    public:
+        using value_type = DT;
+        void operator() (DT* dst_data, const DT* src_data) const {
+            *dst_data += *src_data;
+        }
+    };
+
+    template <typename DT>
+    class ReduceMaximum {
+    public:
+        using value_type = DT;
+        void operator() (DT* dst_data, const DT* src_data) const {
+            *dst_data = std::max(*dst_data, *src_data);
+        }
+    };
+
+    template <typename DT>
+    class ReduceMinimum {
+    public:
+        using value_type = DT;
+        void operator() (DT* dst_data, const DT* src_data) const {
+            *dst_data = std::min(*dst_data, *src_data);
+        }
+    };
+
+    template <typename DT>
+    class ReduceNone {
+    public:
+        using value_type = DT;
+        void operator() (DT* dst_data, const DT* src_data) const {
+            *dst_data = *src_data;
+        }
+    };
+
 public:
     ScatterUpdate(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
@@ -86,26 +93,36 @@ public:
     bool isExecutable() const override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    using Reduction = ov::op::v12::ScatterElementsUpdate::Reduction;
-    template <typename DataType, typename KernelType>
-    void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis, const KernelType& kernel);
+    template <template<class> class KernelType, class DataType>
+    void scatterElementsUpdate(const MemoryPtr& mem_data,
+                               const MemoryPtr& mem_indices,
+                               const MemoryPtr& mem_updates,
+                               int axis,
+                               const KernelType<DataType>& kernel);
+
     template <typename DataType>
-    void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates,
-                                int axis, const scatter_elements_update::ReduceMean& kernel);
+    void scatterElementsUpdate(const MemoryPtr& mem_data,
+                               const MemoryPtr& mem_indices,
+                               const MemoryPtr& mem_updates,
+                               int axis,
+                               const ReduceMean<DataType>& kernel);
 
-    template <typename DataType, typename KernelType>
-    void scatterElementsUpdateAdvance(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis, const KernelType& kernel);
+    template <template<class> class KernelType, class DataType>
+    void scatterElementsUpdateAdvance(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis, const KernelType<DataType>& kernel);
 
-    template <typename DataType, typename KernelType>
-    void scatterElementsUpdate1D(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis, const KernelType& kernel);
+    template <template<class> class KernelType, class DataType>
+    void scatterElementsUpdate1D(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis, const KernelType<DataType>& kernel);                    
+
 private:
+    enum { DATA_ID, INDICES_ID, UPDATE_ID, AXIS_ID };
+
     void scatterUpdate(uint8_t *indicesPtr, uint8_t *updatePtr, int axis, uint8_t *dstDataPtr);
     void scatterNDUpdate(uint8_t *indicesPtr, uint8_t *updatePtr, uint8_t *dstDataPtr);
     void scatterElementsUpdate(const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr, int axis);
     inline int64_t getIndicesValue(uint8_t *indices, size_t offset);
 
+private:
     ScatterUpdateMode scatterUpdateMode = ScatterUpdateMode::ScatterUpdate;
-    enum { DATA_ID, INDICES_ID, UPDATE_ID, AXIS_ID };
 
     Reduction reduction_type;
     bool use_init_val = true;
