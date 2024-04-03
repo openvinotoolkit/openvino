@@ -95,6 +95,21 @@ TEST(type_prop, rms_norm_dynamic_data_shape_rank) {
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape::dynamic()));
 }
 
+TEST(type_prop, rms_norm_propagate_symbols) {
+    auto data_shape = PartialShape{-1, {3, 4}, {8, -1}, 6};
+    set_shape_symbols(data_shape);
+    const auto exp_symbols = get_shape_symbols(data_shape);
+
+    const auto data = std::make_shared<Parameter>(element::f16, data_shape);
+    const auto axes = std::make_shared<Parameter>(element::i32, PartialShape{1});
+    const auto scale = std::make_shared<Parameter>(element::f16, PartialShape{});
+    const auto eps = 1e-5f;
+    const auto compute_type = element::f32;
+
+    const auto op = std::make_shared<op::v14::RMSNorm>(data, axes, scale, eps, compute_type);
+    EXPECT_EQ(get_shape_symbols(op->get_output_partial_shape(0)), exp_symbols);
+}
+
 TEST(type_prop, rms_norm_incorrect_input_type) {
     const auto data = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
     const auto axes = std::make_shared<Parameter>(element::i32, PartialShape{1});
