@@ -6,6 +6,8 @@
 
 #include "openvino/frontend/input_model.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
+#include "openvino/frontend/tensorflow/variable.hpp"
+#include "openvino/frontend/tensorflow/variables_map.hpp"
 
 namespace ov {
 namespace frontend {
@@ -63,9 +65,16 @@ private:
     // the same topology can be converted with different shapes and types so it will be cached separately
     std::shared_ptr<CachedBodyModelsType> m_cached_body_models;
 
+    // stores variables states at each node of the graph
+    VariableMap::Ptr m_variables_map;
+
     void update_cached_body_models(const CachedBodyModelSignature& cached_body_model_signature,
                                    const std::shared_ptr<const ov::Model>& cached_body_model) {
         m_cached_body_models->insert(std::make_pair(cached_body_model_signature, cached_body_model));
+    }
+
+    VariableMap::Ptr get_variable_map(void) const {
+        return m_variables_map;
     }
 };
 
