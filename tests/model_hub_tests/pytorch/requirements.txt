@@ -24,4 +24,4 @@ torchvision
 transformers
 wheel
 PyYAML
-kornia==0.7.0
+kornia
