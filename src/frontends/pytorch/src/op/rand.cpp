@@ -45,7 +45,7 @@ OutputVector make_random_normal(const NodeContext& context,
 };  // namespace
 
 OutputVector translate_rand(const NodeContext& context) {
-    num_inputs_check(context, 2, 6);
+    num_inputs_check(context, 1, 6);
     auto sizes = context.get_input(0);
     if (context.get_input_type(0).is<type::List>()) {
         sizes = concat_list_construct(sizes);
@@ -57,14 +57,15 @@ OutputVector translate_rand(const NodeContext& context) {
     size_t out_id = 1;
     if (context.get_input_size() == 3) {
         PYTORCH_OP_CONVERSION_CHECK(context.input_is_none(1),
-                                    "aten::randn conversion with generator does not supported");
+                                    "aten::rand conversion with generator does not supported");
         out_id = 2;
     }
     // aten::rand.out(SymInt[] size, *, Tensor(a!) out) -> Tensor(a!)
     // aten::rand.generator_out(SymInt[] size, *, Generator? generator, Tensor(a!) out) -> Tensor(a!)
-    if (context.get_input_size() == 2 || context.get_input_size() == 3) {
+    if (context.get_input_size() <= 3) {
         auto res = context.mark_node(std::make_shared<v8::RandomUniform>(sizes, low, high, dtype));
-        context.mutate_input(out_id, res);
+        if (context.get_input_size() >= 2)
+            context.mutate_input(out_id, res);
         return {res};
     }
     // aten::rand(SymInt[] size, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None, bool?

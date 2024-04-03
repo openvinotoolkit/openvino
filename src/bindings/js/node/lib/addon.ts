@@ -59,6 +59,7 @@ interface Model {
   output(nameOrId?: string | number): Output;
   input(nameOrId?: string | number): Output;
   getName(): string;
+  isDynamic(): boolean;
 }
 
 interface CompiledModel {
@@ -75,6 +76,7 @@ interface Tensor {
   getElementType(): element;
   getShape(): number[];
   getData(): number[];
+  getSize(): number;
 }
 interface TensorConstructor {
   new(type: element | elementTypeString,
