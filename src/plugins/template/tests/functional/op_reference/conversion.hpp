@@ -23,21 +23,19 @@ static std::map<ConversionTypes, std::string> conversionNames = {{ConversionType
 struct ConvertParams {
     template <class IT, class OT>
     ConvertParams(ConversionTypes convType,
-                  const ov::PartialShape& shape,
+                  const ov::Shape& shape,
                   const ov::element::Type& iType,
                   const ov::element::Type& oType,
                   const std::vector<IT>& iValues,
-                  const std::vector<OT>& oValues,
-                  size_t iSize = 0,
-                  size_t oSize = 0)
+                  const std::vector<OT>& oValues)
         : conversionType(convType),
           pshape(shape),
           inType(iType),
           outType(oType),
-          inputData(CreateTensor(iType, iValues, iSize)),
-          refData(CreateTensor(oType, oValues, oSize)) {}
+          inputData(CreateTensor(shape, iType, iValues)),
+          refData(CreateTensor(shape, oType, oValues)) {}
     ConversionTypes conversionType;
-    ov::PartialShape pshape;
+    ov::Shape pshape;
     ov::element::Type inType;
     ov::element::Type outType;
     ov::Tensor inputData;
@@ -47,7 +45,6 @@ struct ConvertParams {
 class ReferenceConversionLayerTest : public testing::TestWithParam<ConvertParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        legacy_compare = true;
         const auto& params = GetParam();
         function = CreateFunction(params.pshape, params.inType, params.outType, params.conversionType);
         inputData = {params.inputData};
@@ -65,7 +62,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<ov::Model> CreateFunction(const ov::PartialShape& input_shape,
+    static std::shared_ptr<ov::Model> CreateFunction(const ov::Shape& input_shape,
                                                      const ov::element::Type& input_type,
                                                      const ov::element::Type& expected_output_type,
                                                      const ConversionTypes& conversion_type) {
