@@ -20,6 +20,7 @@ Napi::Function ModelWrap::get_class(Napi::Env env) {
                         InstanceMethod("output", &ModelWrap::get_output),
                         InstanceMethod("input", &ModelWrap::get_input),
                         InstanceMethod("isDynamic", &ModelWrap::is_dynamic),
+                        InstanceMethod("getOutputShape", &ModelWrap::get_output_shape),
                         InstanceAccessor<&ModelWrap::get_inputs>("inputs"),
                         InstanceAccessor<&ModelWrap::get_outputs>("outputs")});
 }
@@ -97,23 +98,6 @@ Napi::Value ModelWrap::get_output(const Napi::CallbackInfo& info) {
     }
 }
 
-Napi::Value ModelWrap::get_output_shape(const Napi::CallbackInfo& info) {
-    auto cm_outputs = _model->outputs();  // Output<Node>
-    Napi::Array js_outputs = Napi::Array::New(info.Env(), cm_outputs.size());
-
-    uint32_t i = 0;
-    for (auto& out : cm_outputs) {
-        auto shape = out.get_shape();
-        Napi::Array js_shape = Napi::Array::New(info.Env(), shape.size());
-        size_t j = 0;
-        for (auto& dim : shape)
-            js_shape[j++] = Napi::Number::New(info.Env(), dim);
-        js_outputs[i++] = js_shape;
-    }
-
-    return js_outputs;
-}
-
 Napi::Value ModelWrap::get_inputs(const Napi::CallbackInfo& info) {
     auto cm_inputs = _model->inputs();  // Output<Node>
     Napi::Array js_inputs = Napi::Array::New(info.Env(), cm_inputs.size());
@@ -144,4 +128,28 @@ Napi::Value ModelWrap::is_dynamic(const Napi::CallbackInfo& info) {
     }
     const auto result = _model->is_dynamic();
     return Napi::Boolean::New(env, result);
+}
+
+Napi::Value ModelWrap::get_output_shape(const Napi::CallbackInfo& info) {
+    if (info.Length() != 1 || !info[0].IsNumber()) {
+        reportError(info.Env(), "Invalid argument. Expected a single number.");
+        return Napi::Value();
+    }
+
+    auto idx = info[0].As<Napi::Number>().Int32Value();
+    auto cm_outputs = _model->outputs();  // Output<Node>
+
+    if (idx < 0 || idx >= cm_outputs.size()) {
+        reportError(info.Env(), "Invalid index. Index out of range.");
+        return Napi::Value();
+    }
+
+    auto shape = cm_outputs[idx].get_shape();
+    Napi::Array js_shape = Napi::Array::New(info.Env(), shape.size());
+
+    size_t i = 0;
+    for (auto& dim : shape)
+        js_shape[i++] = Napi::Number::New(info.Env(), dim);
+
+    return js_shape;
 }

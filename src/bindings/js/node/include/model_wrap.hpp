@@ -84,6 +84,13 @@ public:
      */
     Napi::Value is_dynamic(const Napi::CallbackInfo& info);
 
+    /**
+     * @brief Helper function to access model outputs shape.
+     * @param info Contains information about the environment and passed arguments
+     * @return A Javascript Array containing Arrays of output shapes
+     */
+    Napi::Value get_output_shape(const Napi::CallbackInfo& info);
+
 private:
     std::shared_ptr<ov::Model> _model;
     ov::Core _core;

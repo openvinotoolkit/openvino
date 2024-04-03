@@ -60,6 +60,7 @@ interface Model {
   input(nameOrId?: string | number): Output;
   getName(): string;
   isDynamic(): boolean;
+  get_output_shape(): Output[];
 }
 
 interface CompiledModel {
