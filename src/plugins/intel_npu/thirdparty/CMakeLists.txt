@@ -19,6 +19,8 @@ if(ENABLE_ZEROAPI_BACKEND)
         string(REPLACE "/WX" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
         # solve pdb access issue
         set(USE_Z7 ON)
+        # Close spectre for ze loader
+        add_compile_options("/Qspectre-")
     else()
         string(REPLACE "-Werror " " " CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
         string(REPLACE "-Werror " " " CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
