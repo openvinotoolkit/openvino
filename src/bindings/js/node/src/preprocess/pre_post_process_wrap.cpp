@@ -9,7 +9,8 @@
 #include "node/include/preprocess/output_info.hpp"
 
 PrePostProcessorWrap::PrePostProcessorWrap(const Napi::CallbackInfo& info)
-    : Napi::ObjectWrap<PrePostProcessorWrap>(info) {
+    : Napi::ObjectWrap<PrePostProcessorWrap>(info),
+      _ppp(nullptr) {
     if (info.Length() != 1)
         reportError(info.Env(), "Invalid number of arguments for PrePostProcessor constructor.");
     else {

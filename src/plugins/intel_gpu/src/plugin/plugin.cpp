@@ -26,7 +26,6 @@
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "openvino/core/deprecated.hpp"
-#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
@@ -257,6 +256,8 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
     ProgramBuilder prog(ctx->get_engine(), config);
 
+    float query_model_ratio = config.get_property(ov::internal::query_model_ratio.name()).as<float>();
+
     auto supported = ov::get_supported_nodes(model,
         [&config,this](std::shared_ptr<ov::Model>& model) {
             std::map<std::string, ov::PartialShape> shapes;
@@ -265,7 +266,8 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
         },
         [&prog](std::shared_ptr<ov::Node> node) {
             return prog.is_op_supported(node);
-        });
+        },
+        query_model_ratio);
 
     for (auto&& op_name : supported) {
         res.emplace(op_name, ctx->get_device_name());
@@ -563,7 +565,8 @@ std::vector<ov::PropertyName> Plugin::get_supported_internal_properties() const 
             ov::PropertyName{ov::internal::config_device_id.name(), ov::PropertyMutability::WO},
             ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
             ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(), ov::PropertyMutability::RO}};
+            ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::query_model_ratio.name(), PropertyMutability::RW}};
     return supported_internal_properties;
 }
 
@@ -674,10 +677,10 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
 
             if (shape.size()) {
                 for (size_t s = 0; s < shape.size(); s++) {
-                    if (ov::DimensionTracker::get_label(shape[s])) {
+                    if (const auto& symbol = shape[s].get_symbol()) {
                         batched_inputs.insert(std::make_pair(input_id, s));
                         GPU_DEBUG_LOG << "[MAX_BATCH_SIZE] detected batched input " << input->get_friendly_name()
-                                      << " with index " << input_id
+                                      << " with index " << symbol
                                       << "[" << s << "]" << std::endl;
                     }
                 }

@@ -1,7 +1,7 @@
 # OpenVINO Paddle Frontend Operator Enabling Flow
 
 1. Declare `CreatorFunction` for the Paddle operator and register it to the map in `src/op_table.cpp`.
-   * The map is retrived from:
+   * The map is retrieved from:
 
      https://github.com/openvinotoolkit/openvino/blob/7d5e0abcaa03703de9918ece2115e6ea652c39e0/src/frontends/paddle/src/op_table.cpp#L106
 
