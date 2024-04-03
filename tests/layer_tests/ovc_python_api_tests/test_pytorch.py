@@ -1,18 +1,15 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import os
-
+import unittest
 from typing import Tuple, List
-import numpy
+
 import numpy as np
 import openvino.runtime as ov
 import pytest
 import torch
-import unittest
-from openvino.runtime import PartialShape, Dimension, Model, Type
-from openvino.tools.mo import InputCutInfo
 from common.mo_convert_test_class import CommonMOConvertTest
+from openvino.runtime import PartialShape, Dimension, Model, Type
 
 
 class MyTorchOp(torch.autograd.Function):
@@ -981,13 +978,13 @@ def create_pytorch_module_with_nested_list_and_single_input(tmp_dir):
             x0 = x[0]
             x0 = torch.cat([x0, torch.zeros(1, 1)], 1)
             return x0 + torch.ones((1, 1))
-    
+
     net = PTModel()
     constant_one = ov.opset10.constant(np.ones((1, 1)), dtype=np.float32)
     const_zero = ov.opset10.constant(0, dtype=np.int64)
     constant_zeros1 = ov.opset10.constant(np.zeros((1, 1), dtype=np.float32), dtype=np.float32)
 
-    param =  ov.opset10.parameter(PartialShape([-1, -1, -1]), dtype=np.float32)
+    param = ov.opset10.parameter(PartialShape([-1, -1, -1]), dtype=np.float32)
     gather = ov.opset10.gather(param, const_zero, const_zero)
     concat1 = ov.opset10.concat([gather, constant_zeros1], 1)
     add = ov.opset10.add(concat1, constant_one)
@@ -996,19 +993,20 @@ def create_pytorch_module_with_nested_list_and_single_input(tmp_dir):
         "example_input": [torch.ones((1, 11))],
         "compress_to_fp16": False}
 
+
 def create_pytorch_module_with_single_input_as_list(tmp_dir):
     class PTModel(torch.nn.Module):
         def forward(self, x):
             x0 = x[0]
             x0 = torch.cat([x0, torch.zeros(1)], 0)
             return x0 + torch.ones(1)
-    
+
     net = PTModel()
     constant_one = ov.opset10.constant(np.ones((1,)), dtype=np.float32)
     const_zero = ov.opset10.constant(0, dtype=np.int64)
-    constant_zeros1 = ov.opset10.constant(np.zeros((1, ), dtype=np.float32), dtype=np.float32)
+    constant_zeros1 = ov.opset10.constant(np.zeros((1,), dtype=np.float32), dtype=np.float32)
 
-    param =  ov.opset10.parameter(PartialShape([-1, -1]), dtype=np.float32)
+    param = ov.opset10.parameter(PartialShape([-1, -1]), dtype=np.float32)
     gather = ov.opset10.gather(param, const_zero, const_zero)
     concat1 = ov.opset10.concat([gather, constant_zeros1], 0)
     add = ov.opset10.add(concat1, constant_one)
@@ -1016,6 +1014,7 @@ def create_pytorch_module_with_single_input_as_list(tmp_dir):
     return net, ref_model, {
         "example_input": [torch.ones((1, 11))],
         "compress_to_fp16": False}
+
 
 class TestMoConvertPyTorch(CommonMOConvertTest):
     test_data = [
@@ -1180,6 +1179,7 @@ def create_model_three_inputs():
         def forward(self, x, y, z):
             out = self.linear_relu_stack(x + y + z),
             return out
+
     return NeuralNetwork()
 
 
@@ -1206,13 +1206,12 @@ def make_ref_model_three_inputs(shape, dtype=np.float32):
 
 
 class TestPytorchConversionParams(CommonMOConvertTest):
-
     test_data = [
         {'params_test': {'input': [(torch.Size([2, 3, 4]), torch.float32),
                                    (torch.empty(2, 3, 4).size(), torch.float32),
                                    (torch.empty(2, 3, 4).shape, torch.float32)]},
          'fw_model': create_model_three_inputs(),
-         'ref_model': make_ref_model_three_inputs([2,3,4], np.float32)},
+         'ref_model': make_ref_model_three_inputs([2, 3, 4], np.float32)},
         {'params_test': {'input': [(torch.Size([5, 2]), torch.int32),
                                    (torch.empty(5, 2).size(), torch.int32),
                                    (torch.empty(5, 2).shape, torch.int32)]},
@@ -1229,7 +1228,7 @@ class TestPytorchConversionParams(CommonMOConvertTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_conversion_params(self, params, ie_device, precision, ir_version,
-                                 temp_dir, use_legacy_frontend):
+                               temp_dir, use_legacy_frontend):
         fw_model = params['fw_model']
         test_params = params['params_test']
         ref_model = params['ref_model']
