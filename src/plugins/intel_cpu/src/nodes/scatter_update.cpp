@@ -18,7 +18,10 @@
 #include <string>
 #include <vector>
 
+#include "kernels/seu_imp.hpp"
+
 using namespace dnnl;
+using namespace ov::Extensions::Cpu::XARCH;
 
 namespace ov {
 namespace intel_cpu {
@@ -430,10 +433,10 @@ void ScatterUpdate::scatterElementsUpdate1D(const MemoryPtr& mem_data, const Mem
     int64_t index_dim_size = shape_size(indices_shape);
     int64_t data_dim_size = data_shape[axis];
     int64_t data_dim_stride = arr_memptr[0].stride_bytes(axis);
-    int64_t indices_dim_stride = PlainTensor(mem_indices).stride_bytes(0);
+    // int64_t indices_dim_stride = PlainTensor(mem_indices).stride_bytes(0);
     int64_t updates_dim_stride = arr_memptr[1].stride_bytes(axis);
 
-    OPENVINO_ASSERT(index_dim_size == updates_shape[axis], "invalid shapes of inputs!");
+    OPENVINO_ASSERT(index_dim_size == static_cast<int64_t>(updates_shape[axis]), "invalid shapes of inputs!");
 
     auto scatter_elements_update_loop = [&](char** data, const size_t* strides, const size_t n) {
         // When *use_init_val* attribute is false, we need to substitute the copied values at target locations with values that
@@ -485,16 +488,23 @@ void ScatterUpdate::scatterElementsUpdate1D(const MemoryPtr& mem_data, const Mem
             }
         } else {
             for (int64_t i = 0; i < index_dim_size; i++) {
-                auto* data_in_bytes = data[0];
-                auto* updates_in_bytes = data[1];
                 int64_t idxValue =  getIndicesValue(indices_in_bytes, i);
                 if (idxValue < 0) idxValue += data_dim_size;
                 assert(idxValue < data_dim_size && idxValue >= 0);
+                auto* data_in_bytes = data[0];
+                auto* updates_in_bytes = data[1];
+                data_in_bytes += idxValue * data_dim_stride;
+                updates_in_bytes += i * updates_dim_stride;
+#define HAVE_INTRISIC_PATH 1
+#if defined(HAVE_INTRISIC_PATH)
+                reduce_add(data_in_bytes, strides[0], const_cast<char*>(updates_in_bytes), strides[1], n);
+#else
                 for (size_t k = 0; k < n; k++) {
-                    kernel(reinterpret_cast<DataType*>(data_in_bytes + idxValue * data_dim_stride), reinterpret_cast<DataType*>(updates_in_bytes + i * updates_dim_stride));
+                    kernel(reinterpret_cast<DataType*>(data_in_bytes), reinterpret_cast<DataType*>(updates_in_bytes));
                     data_in_bytes += strides[0];
                     updates_in_bytes += strides[1];
                 }
+#endif
             }
         }
     };  // loop

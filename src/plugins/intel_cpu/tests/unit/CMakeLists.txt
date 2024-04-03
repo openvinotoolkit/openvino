@@ -6,6 +6,8 @@ set(TARGET_NAME ov_cpu_unit_tests)
 
 if(BUILD_SHARED_LIBS)
     set (OBJ_LIB $<TARGET_OBJECTS:openvino_intel_cpu_plugin_obj>)
+    # list (REMOVE_ITEM OBJ_LIB "../../CMakeFiles/openvino_intel_cpu_plugin_obj.dir/src/nodes/kernels/seu_imp.cpp.o")
+    list (APPEND OBJ_LIB "../../CMakeFiles/openvino_intel_cpu_plugin.dir/cross-compiled/AVX512F/seu_imp.cpp.o" "../../CMakeFiles/openvino_intel_cpu_plugin.dir/cross-compiled/seu_imp_disp.cpp.o")
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")

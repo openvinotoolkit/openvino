@@ -139,6 +139,9 @@ file(GLOB_RECURSE FILES_TO_REMOVE ${EXCLUDE_PATHS})
 list(REMOVE_ITEM SOURCES ${FILES_TO_REMOVE})
 list(REMOVE_ITEM HEADERS ${FILES_TO_REMOVE})
 
+list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/seu_imp.cpp")
+list(REMOVE_ITEM HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/seu_imp.hpp")
+
 # create plugin
 
 ov_add_plugin(NAME ${TARGET_NAME}
@@ -202,6 +205,13 @@ cross_compiled_file(${TARGET_NAME}
                     src/nodes/kernels/scaled_attn/attn_quant.cpp
         API         src/nodes/kernels/scaled_attn/attn_quant.hpp
         NAME        attn_quantkv attn_quant_u8 attn_dequant_u8
+        NAMESPACE   ov::Extensions::Cpu::XARCH
+)
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX512F
+                    src/nodes/kernels/seu_imp.cpp
+        API         src/nodes/kernels/seu_imp.hpp
+        NAME        reduce_add
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 # system dependencies must go last

@@ -186,7 +186,7 @@ protected:
         }
 
         // validate
-        checkData(*data_memptr, *updates_memptr, dataPrec);
+        checkData(*updates_memptr, *data_memptr, dataPrec);
     }
 
 private:
