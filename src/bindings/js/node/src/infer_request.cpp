@@ -11,7 +11,6 @@
 #include "node/include/helper.hpp"
 #include "node/include/node_output.hpp"
 #include "node/include/tensor.hpp"
-#include "node/include/validation.hpp"
 
 namespace {
 std::mutex infer_mutex;

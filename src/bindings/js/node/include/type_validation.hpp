@@ -7,5 +7,5 @@
 #include "node/include/addon.hpp"
 #include "openvino/openvino.hpp"
 
-/** @brief Checks if Napi::CallbackInfo value at specified index is a TensorWrap.*/
-bool check_tensor(const Napi::CallbackInfo& info, int index);
+/** @brief Checks if Napi::Value is a TensorWrap.*/
+bool is_tensor(const Napi::Env& env, const Napi::Value& value);

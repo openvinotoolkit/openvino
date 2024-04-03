@@ -4,7 +4,7 @@
 #include "node/include/helper.hpp"
 
 #include "node/include/tensor.hpp"
-#include "node/include/validation.hpp"
+#include "node/include/type_validation.hpp"
 
 const std::vector<std::string>& get_supported_types() {
     static const std::vector<std::string> supported_element_types =
@@ -305,7 +305,7 @@ ov::Tensor cast_to_tensor(const Napi::Value& value) {
 }
 
 ov::Tensor cast_to_tensor(const Napi::CallbackInfo& info, int index) {
-    if (!check_tensor(info, index)) {
+    if (!is_tensor(info.Env(), info[index])) {
         throw Napi::Error::New(info.Env(), "Argument #" + std::to_string(index) + " must be a Tensor.");
     }
     const auto tensor_wrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[index].ToObject());
