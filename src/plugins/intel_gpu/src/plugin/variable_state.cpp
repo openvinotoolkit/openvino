@@ -58,6 +58,8 @@ void VariableState::set_layout(const cldnn::layout& new_layout) {
 
 void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
     m_layout.set_partial_shape(state->get_shape());
+    size_t rank = state->get_shape().size();
+    m_layout.data_padding = cldnn::padding(std::vector<int32_t>(rank, 0), std::vector<int32_t>(rank, 0), 0, m_layout.data_padding.get_dynamic_pad_dims());
     update_device_buffer();
     convert_and_copy(state._ptr.get(), m_memory, m_context->get_engine().get_service_stream());
     set();

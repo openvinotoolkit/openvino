@@ -14,7 +14,7 @@ using namespace ov;
 namespace {
 struct LogSoftmaxParams {
     template <class IT>
-    LogSoftmaxParams(const ov::PartialShape& shape,
+    LogSoftmaxParams(const ov::Shape& shape,
                      const ov::element::Type& iType,
                      const std::vector<IT>& iValues,
                      const std::vector<IT>& oValues,
@@ -23,12 +23,12 @@ struct LogSoftmaxParams {
           pshape(shape),
           inType(iType),
           outType(iType),
-          inputData(CreateTensor(iType, iValues)),
-          refData(CreateTensor(iType, oValues)) {}
+          inputData(CreateTensor(shape, iType, iValues)),
+          refData(CreateTensor(shape, iType, oValues)) {}
 
     int64_t axis = 0;
 
-    ov::PartialShape pshape;
+    ov::Shape pshape;
     ov::element::Type inType;
     ov::element::Type outType;
     ov::Tensor inputData;
@@ -54,7 +54,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape,
+    static std::shared_ptr<Model> CreateFunction(const Shape& input_shape,
                                                  const element::Type& input_type,
                                                  const element::Type& expected_output_type,
                                                  const int64_t axis) {
@@ -73,32 +73,32 @@ std::vector<LogSoftmaxParams> generateLogSoftmaxFloatParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<LogSoftmaxParams> logSoftmaxParams{
-        LogSoftmaxParams(ov::PartialShape{1}, IN_ET, std::vector<T>{1}, std::vector<T>{0}, 0),
-        LogSoftmaxParams(ov::PartialShape{2, 4},
+        LogSoftmaxParams(ov::Shape{1}, IN_ET, std::vector<T>{1}, std::vector<T>{0}, 0),
+        LogSoftmaxParams(ov::Shape{2, 4},
                          IN_ET,
                          std::vector<T>{0, 1, 2, 3, 10000, 10001, 10002, 10003},
                          std::vector<T>{-10000., -10000., -10000., -10000., 0., 0., 0., 0.},
                          0),
         LogSoftmaxParams(
-            ov::PartialShape{2, 4},
+            ov::Shape{2, 4},
             IN_ET,
             std::vector<T>{0, 1, 2, 3, 10000, 10001, 10002, 10003},
             std::vector<
                 T>{-3.4401896, -2.4401896, -1.4401897, -0.4401897, -3.4401896, -2.4401896, -1.4401897, -0.4401897},
             1),
         LogSoftmaxParams(
-            ov::PartialShape{2, 4},
+            ov::Shape{2, 4},
             IN_ET,
             std::vector<T>{0, 1, 2, 3, 10000, 10001, 10002, 10003},
             std::vector<
                 T>{-3.4401896, -2.4401896, -1.4401897, -0.4401897, -3.4401896, -2.4401896, -1.4401897, -0.4401897},
             -1),
-        LogSoftmaxParams(ov::PartialShape{2, 4},
+        LogSoftmaxParams(ov::Shape{2, 4},
                          IN_ET,
                          std::vector<T>{0, 1, 2, 3, 10000, 10001, 10002, 10003},
                          std::vector<T>{-10000., -10000., -10000., -10000., 0., 0., 0., 0.},
                          -2),
-        LogSoftmaxParams(ov::PartialShape{3, 2, 3},
+        LogSoftmaxParams(ov::Shape{3, 2, 3},
                          IN_ET,
                          std::vector<T>{-9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8},
                          std::vector<T>{-12.0024818,
@@ -120,7 +120,7 @@ std::vector<LogSoftmaxParams> generateLogSoftmaxFloatParams() {
                                         -2.48181414e-03,
                                         -2.48181414e-03},
                          0),
-        LogSoftmaxParams(ov::PartialShape{3, 2, 3},
+        LogSoftmaxParams(ov::Shape{3, 2, 3},
                          IN_ET,
                          std::vector<T>{-9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8},
                          std::vector<T>{-3.04858735,
@@ -142,7 +142,7 @@ std::vector<LogSoftmaxParams> generateLogSoftmaxFloatParams() {
                                         -0.04858735,
                                         -0.04858735},
                          1),
-        LogSoftmaxParams(ov::PartialShape{3, 2, 3},
+        LogSoftmaxParams(ov::Shape{3, 2, 3},
                          IN_ET,
                          std::vector<T>{-9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8},
                          std::vector<T>{-2.40760596,
@@ -164,7 +164,7 @@ std::vector<LogSoftmaxParams> generateLogSoftmaxFloatParams() {
                                         -1.40760596,
                                         -0.40760596},
                          2),
-        LogSoftmaxParams(ov::PartialShape{3, 2, 3},
+        LogSoftmaxParams(ov::Shape{3, 2, 3},
                          IN_ET,
                          std::vector<T>{-9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8},
                          std::vector<T>{-2.40760596,
@@ -186,7 +186,7 @@ std::vector<LogSoftmaxParams> generateLogSoftmaxFloatParams() {
                                         -1.40760596,
                                         -0.40760596},
                          -1),
-        LogSoftmaxParams(ov::PartialShape{3, 2, 3},
+        LogSoftmaxParams(ov::Shape{3, 2, 3},
                          IN_ET,
                          std::vector<T>{-9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8},
                          std::vector<T>{-3.04858735,
@@ -208,7 +208,7 @@ std::vector<LogSoftmaxParams> generateLogSoftmaxFloatParams() {
                                         -0.04858735,
                                         -0.04858735},
                          -2),
-        LogSoftmaxParams(ov::PartialShape{3, 2, 3},
+        LogSoftmaxParams(ov::Shape{3, 2, 3},
                          IN_ET,
                          std::vector<T>{-9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8},
                          std::vector<T>{-12.0024818,

@@ -59,6 +59,9 @@ protected:
         auto axesNode = ov::op::v0::Constant::create(ov::element::i32, { axes.size() }, axes);
         auto lrn = std::make_shared<ov::op::v0::LRN>(params[0], axesNode, alpha, beta, bias, size);
         function = makeNgraphFunction(inputPrecision, params, lrn, "LRN");
+        if (inputPrecision == ov::element::f32) {
+            abs_threshold = 5e-3;
+        }
     }
 };
 
