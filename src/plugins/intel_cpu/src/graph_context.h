@@ -32,7 +32,8 @@ public:
         numNumaNodes = 1;
         if (streamExecutor) {
             cpuStreamExecutor = std::dynamic_pointer_cast<ov::threading::CPUStreamsExecutor>(streamExecutor);
-            auto nNumaNodes = get_num_numa_nodes();
+            // Numa Nodes are virtual here.
+            auto nNumaNodes = config.streamExecutorConfig.get_streams() + config.streamExecutorConfig.get_sub_streams();
             if (numNumaNodes < nNumaNodes)
                 numNumaNodes = nNumaNodes;
         }
