@@ -32,7 +32,7 @@ from openvino.tools.ovc.version import VersionChecker
 from openvino.tools.ovc.utils import check_values_equal
 from openvino.tools.ovc.logger import init_logger
 from openvino.tools.ovc.telemetry_utils import send_params_info, send_conversion_result, \
-    init_mo_telemetry
+    init_mo_telemetry, is_optimum
 from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, extract_input_info_from_example
 from openvino.tools.ovc.moc_frontend.paddle_frontend_utils import paddle_frontend_converter
 
@@ -428,7 +428,10 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
         tracemalloc.start()
 
     simplified_ie_version = VersionChecker().get_ie_simplified_version()
-    telemetry = init_mo_telemetry()
+    if is_optimum():
+        telemetry = init_mo_telemetry("Optimum Intel")
+    else:
+        telemetry = init_mo_telemetry()
     telemetry.start_session('ovc')
     telemetry.send_event('ovc', 'version', simplified_ie_version)
     # Initialize logger with 'ERROR' as default level to be able to form nice messages

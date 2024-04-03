@@ -15,6 +15,12 @@ try:
 except ImportError:
     import openvino.tools.ovc.telemetry_stub as tm
 
+def is_optimum():
+    import traceback
+    for frame_summary in traceback.extract_stack():
+        if "/optimum/" in frame_summary.filename:
+            return True
+    return False
 
 def init_mo_telemetry(app_name='Model Conversion API'):
     return init_telemetry_class(tid=get_tid(),
