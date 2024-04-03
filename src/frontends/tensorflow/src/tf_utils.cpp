@@ -472,11 +472,12 @@ shared_ptr<op::v0::Parameter> get_parent_parameter(const shared_ptr<op::v0::Resu
 }  // namespace
 
 // create Loop operation corresponding to TensorFlow While operation
-ov::OutputVector create_loop_for_tf_while(const std::string& while_node_name,
-                                          const shared_ptr<Model>& body_model,
-                                          const shared_ptr<Model>& cond_model,
-                                          const OutputVector& ov_inputs,
-                                          const shared_ptr<Model>& prior_cond_model) {
+std::pair<ov::OutputVector, std::shared_ptr<ov::op::v5::Loop>> create_loop_for_tf_while(
+    const std::string& while_node_name,
+    const shared_ptr<Model>& body_model,
+    const shared_ptr<Model>& cond_model,
+    const OutputVector& ov_inputs,
+    const shared_ptr<Model>& prior_cond_model) {
     size_t input_size = ov_inputs.size();
     // inject condition body graph prior to Loop node
     // to check condition before to start iterations
@@ -589,7 +590,7 @@ ov::OutputVector create_loop_for_tf_while(const std::string& while_node_name,
     }
 
     loop->validate_and_infer_types();
-    return loop_outputs;
+    return std::make_pair(loop_outputs, loop);
 }
 
 void inject_body_model(std::shared_ptr<ov::Model> ov_model_to_inject,
