@@ -47,7 +47,8 @@ interface Core {
   getProperty(
     deviceName: string,
     propertyName: string,
-  ): string | number | boolean,
+  ): string | number | boolean;
+  addExtension(libraryPath: string): void;
 }
 interface CoreConstructor {
   new(): Core;

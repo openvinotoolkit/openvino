@@ -62,7 +62,8 @@ Napi::Function CoreWrap::get_class(Napi::Env env) {
                         InstanceMethod("importModelSync", &CoreWrap::import_model),
                         InstanceMethod("getAvailableDevices", &CoreWrap::get_available_devices),
                         InstanceMethod("setProperty", &CoreWrap::set_property),
-                        InstanceMethod("getProperty", &CoreWrap::get_property)});
+                        InstanceMethod("getProperty", &CoreWrap::get_property),
+                        InstanceMethod("addExtension", &CoreWrap::add_extension)});
 }
 
 Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
@@ -332,4 +333,20 @@ Napi::Value CoreWrap::get_property(const Napi::CallbackInfo& info) {
         device_name.empty() ? _core.get_property(property_name) : _core.get_property(device_name, property_name);
 
     return any_to_js(info, value);
+}
+
+Napi::Value CoreWrap::add_extension(const Napi::CallbackInfo& info) {
+    try {
+        if (!info[0].IsString()) {
+            reportError(info.Env(), "addExtension method applies one argument of string type");
+
+            return info.Env().Undefined();
+        }
+        std::string library_path = info[0].ToString();
+        _core.add_extension(library_path);
+    } catch (std::runtime_error& err) {
+        reportError(info.Env(), err.what());
+    }
+
+    return info.Env().Undefined();
 }
