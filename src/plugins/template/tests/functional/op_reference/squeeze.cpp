@@ -29,8 +29,8 @@ struct SqueezeParams {
           m_output_shape(output_shape),
           m_input_type(input_type),
           m_output_type(output_type),
-          m_input_value(CreateTensor(input_type, input_value)),
-          m_expected_value(CreateTensor(output_type, expected_value)),
+          m_input_value(CreateTensor(input_shape, input_type, input_value)),
+          m_expected_value(CreateTensor(output_shape, output_type, expected_value)),
           m_axes_shape(axes_shape),
           m_axes_type(axes_type),
           m_axes_value(CreateTensor(axes_type, axes_value)),
@@ -47,8 +47,8 @@ struct SqueezeParams {
           m_output_shape(output_shape),
           m_input_type(input_type),
           m_output_type(output_type),
-          m_input_value(CreateTensor(input_type, input_value)),
-          m_expected_value(CreateTensor(input_type, expected_value)),
+          m_input_value(CreateTensor(input_shape, input_type, input_value)),
+          m_expected_value(CreateTensor(output_shape, input_type, expected_value)),
           m_axes_node(false) {}
 
     Shape m_input_shape;

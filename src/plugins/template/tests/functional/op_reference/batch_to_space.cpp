@@ -128,7 +128,7 @@ std::vector<BatchToSpaceParams> generateBatchToSpaceParams() {
             reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{1, 1, 2, 2}),
             reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
             reference_tests::Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
-            reference_tests::Tensor({2, 1, 1, 6}, IN_ET, std::vector<T>{1, 4, 2, 5, 3, 6, 7, 10, 8, 11, 9, 12}),
+            reference_tests::Tensor({1, 1, 2, 6}, IN_ET, std::vector<T>{1, 4, 2, 5, 3, 6, 7, 10, 8, 11, 9, 12}),
             "input_with_shape_4x1x1x3_2"),
 
         // input_with_shape_4x1x2x3

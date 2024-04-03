@@ -14,14 +14,14 @@ using namespace ov;
 namespace {
 struct SwishParams {
     template <class IT>
-    SwishParams(const ov::PartialShape& shape,
+    SwishParams(const ov::Shape& shape,
                 const ov::element::Type& iType,
                 const std::vector<IT>& iValues,
                 const float beta = 1)
         : pshape(shape),
           inType(iType),
           outType(iType),
-          inputData(CreateTensor(iType, iValues)),
+          inputData(CreateTensor(shape, iType, iValues)),
           beta(beta) {
         std::vector<IT> oValues;
         std::vector<float> output;
@@ -36,13 +36,13 @@ struct SwishParams {
 
         for (auto element : output)
             oValues.push_back(static_cast<IT>(element));
-        refData = CreateTensor(outType, oValues);
+        refData = CreateTensor(shape, outType, oValues);
 
         betaVector.push_back(static_cast<IT>(beta));
         betaBlob = CreateTensor(inType, betaVector);
     }
 
-    ov::PartialShape pshape;
+    ov::Shape pshape;
     ov::element::Type inType;
     ov::element::Type outType;
     ov::Tensor inputData;
@@ -79,7 +79,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape,
+    static std::shared_ptr<Model> CreateFunction(const Shape& input_shape,
                                                  const element::Type& input_type,
                                                  const element::Type& Swishected_output_type,
                                                  const float beta) {
@@ -104,9 +104,9 @@ std::vector<SwishParams> generateSwishFloatParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<SwishParams> swishParams{
-        SwishParams(ov::PartialShape{2, 4}, IN_ET, std::vector<T>{0.4, -5.7, -6, 3, -0.9, 23, 5, 3.3}, 0.6f),
-        SwishParams(ov::PartialShape{2, 3}, IN_ET, std::vector<T>{1, 8, -8, 17, -0.5, -1}),
-        SwishParams(ov::PartialShape{2, 2, 1, 2}, IN_ET, std::vector<T>{0.1, 0.6, 20, -7, -5.3, 3.5, -9, 11}, 0.33f)};
+        SwishParams(ov::Shape{2, 4}, IN_ET, std::vector<T>{0.4, -5.7, -6, 3, -0.9, 23, 5, 3.3}, 0.6f),
+        SwishParams(ov::Shape{2, 3}, IN_ET, std::vector<T>{1, 8, -8, 17, -0.5, -1}),
+        SwishParams(ov::Shape{2, 2, 1, 2}, IN_ET, std::vector<T>{0.1, 0.6, 20, -7, -5.3, 3.5, -9, 11}, 0.33f)};
     return swishParams;
 }
 

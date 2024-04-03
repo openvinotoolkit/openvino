@@ -46,6 +46,7 @@ struct SelectParams {
 class ReferenceSelectLayerTest : public testing::TestWithParam<SelectParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params.data_type,
                                   params.broadcast,

@@ -27,7 +27,7 @@ struct MishParams {
           inType(iType),
           outType(iType),
           inputData(CreateTensor(inputShape, iType, iValues)),
-          refData(CreateTensor(iType, oValues)),
+          refData(CreateTensor(inputShape, iType, oValues)),
           testcaseName(test_name) {}
 
     ov::PartialShape dynamicShape;
@@ -42,6 +42,7 @@ struct MishParams {
 class ReferenceMishLayerTest : public testing::TestWithParam<MishParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params.dynamicShape, params.inType);
         inputData = {params.inputData};

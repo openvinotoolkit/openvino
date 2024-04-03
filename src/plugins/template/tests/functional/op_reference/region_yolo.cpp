@@ -75,6 +75,7 @@ struct RegionYoloParams {
 class ReferenceRegionYoloLayerTest : public testing::TestWithParam<RegionYoloParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params);
         inputData = {params.inputData};

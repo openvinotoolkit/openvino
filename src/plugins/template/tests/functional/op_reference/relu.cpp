@@ -14,17 +14,17 @@ using namespace ov;
 namespace {
 struct ReluParams {
     template <class IT>
-    ReluParams(const ov::PartialShape& shape,
+    ReluParams(const ov::Shape& shape,
                const ov::element::Type& iType,
                const std::vector<IT>& iValues,
                const std::vector<IT>& oValues)
         : pshape(shape),
           inType(iType),
           outType(iType),
-          inputData(CreateTensor(iType, iValues)),
-          refData(CreateTensor(iType, oValues)) {}
+          inputData(CreateTensor(shape, iType, iValues)),
+          refData(CreateTensor(shape, iType, oValues)) {}
 
-    ov::PartialShape pshape;
+    ov::Shape pshape;
     ov::element::Type inType;
     ov::element::Type outType;
     ov::Tensor inputData;
@@ -49,7 +49,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape,
+    static std::shared_ptr<Model> CreateFunction(const Shape& input_shape,
                                                  const element::Type& input_type,
                                                  const element::Type& Reluected_output_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
@@ -67,11 +67,11 @@ std::vector<ReluParams> generateReluFloatParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<ReluParams> reluParams{
-        ReluParams(ov::PartialShape{2, 5},
+        ReluParams(ov::Shape{2, 5},
                    IN_ET,
                    std::vector<T>{1, 8, -8, 17, -0.5, 1, 8, -8, 17, -0.5},
                    std::vector<T>{1, 8, 0, 17, 0, 1, 8, 0, 17, 0}),
-        ReluParams(ov::PartialShape{2, 2, 2, 2},
+        ReluParams(ov::Shape{2, 2, 2, 2},
                    IN_ET,
                    std::vector<T>{1, 8, -8, 17, -0.5, 1, 8, -8, 17, -0.5, 1, 8, -8, 17, -0.5, 1},
                    std::vector<T>{1, 8, 0, 17, 0, 1, 8, 0, 17, 0, 1, 8, 0, 17, 0, 1})};
@@ -82,7 +82,7 @@ template <element::Type_t IN_ET>
 std::vector<ReluParams> generateReluIntParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<ReluParams> reluParams{ReluParams(ov::PartialShape{2, 5},
+    std::vector<ReluParams> reluParams{ReluParams(ov::Shape{2, 5},
                                                   IN_ET,
                                                   std::vector<T>{1, 8, -8, 17, -2, 1, 8, -8, 17, -1},
                                                   std::vector<T>{1, 8, 0, 17, 0, 1, 8, 0, 17, 0})};
@@ -93,7 +93,7 @@ template <element::Type_t IN_ET>
 std::vector<ReluParams> generateReluUintParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<ReluParams> reluParams{ReluParams(ov::PartialShape{2, 5},
+    std::vector<ReluParams> reluParams{ReluParams(ov::Shape{2, 5},
                                                   IN_ET,
                                                   std::vector<T>{1, 8, 17, 1, 8, 17, 1, 8, 17, 0},
                                                   std::vector<T>{1, 8, 17, 1, 8, 17, 1, 8, 17, 0})};

@@ -155,6 +155,7 @@ class ReferenceDeformablePSROIPoolingLayerTest : public testing::TestWithParam<D
                                                  public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params);
         if (params.offsetsShape.size() != 0)

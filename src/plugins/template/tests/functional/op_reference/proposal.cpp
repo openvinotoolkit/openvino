@@ -156,6 +156,7 @@ struct ProposalV4Params {
 class ReferenceProposalV1LayerTest : public testing::TestWithParam<ProposalV1Params>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params);
         inputData = {params.clsScoreData, params.bboxPredData, params.imageShapeData};
@@ -193,6 +194,7 @@ private:
 class ReferenceProposalV4LayerTest : public testing::TestWithParam<ProposalV4Params>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params);
         inputData = {params.clsScoreData, params.bboxPredData, params.imageShapeData};

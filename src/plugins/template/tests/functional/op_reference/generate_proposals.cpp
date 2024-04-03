@@ -70,6 +70,7 @@ struct GPParams {
 class ReferenceGPLayerTest : public testing::TestWithParam<GPParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params);
         inputData = {params.imageSizeInfoData, params.anchorsData, params.deltasData, params.scoresData};

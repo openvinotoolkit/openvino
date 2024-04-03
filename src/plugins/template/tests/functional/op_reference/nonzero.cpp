@@ -42,6 +42,7 @@ struct NonZeroParams {
 class ReferenceNonZeroLayerTest : public testing::TestWithParam<NonZeroParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params.dynamicShape, params.inType, params.refType);
         inputData = {params.inputData};

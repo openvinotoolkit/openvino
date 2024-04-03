@@ -50,6 +50,7 @@ struct Builder : ParamsBuilder<LSTMCellParams> {
 class ReferenceLSTMCellTest : public testing::TestWithParam<LSTMCellParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params);
         inputData = {params.X.data, params.H_t.data, params.C_t.data, params.W.data, params.R.data, params.B.data};
@@ -109,6 +110,7 @@ private:
 class ReferenceLSTMCellTestBiasDefaultAttrs : public ReferenceLSTMCellTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         threshold = 1e-1f;
         auto params = GetParam();
         function = CreateFunction(params);
@@ -142,6 +144,7 @@ private:
 class ReferenceLSTMCellTestBiasClip : public ReferenceLSTMCellTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         threshold = 1e-1f;
         auto params = GetParam();
         function = CreateFunction(params);
@@ -240,6 +243,7 @@ private:
 class ReferenceLSTMCellV1TestBiasClip : public ReferenceLSTMCellTestBiasClip {
 public:
     void SetUp() override {
+        legacy_compare = true;
         threshold = 1e-1f;
         auto params = GetParam();
         function = CreateFunction(params);

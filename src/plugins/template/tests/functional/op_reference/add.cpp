@@ -15,8 +15,9 @@ namespace {
 
 struct AddParams {
     template <class IT>
-    AddParams(const PartialShape& shape1,
-              const PartialShape& shape2,
+    AddParams(const Shape& shape1,
+              const Shape& shape2,
+              const Shape& outshape,
               const element::Type& iType,
               const std::vector<IT>& iValues1,
               const std::vector<IT>& iValues2,
@@ -25,12 +26,12 @@ struct AddParams {
           pshape2(shape2),
           inType(iType),
           outType(iType),
-          inputData1(CreateTensor(iType, iValues1)),
-          inputData2(CreateTensor(iType, iValues2)),
-          refData(CreateTensor(iType, oValues)) {}
+          inputData1(CreateTensor(shape1, iType, iValues1)),
+          inputData2(CreateTensor(shape2, iType, iValues2)),
+          refData(CreateTensor(outshape, iType, oValues)) {}
 
-    PartialShape pshape1;
-    PartialShape pshape2;
+    Shape pshape1;
+    Shape pshape2;
     element::Type inType;
     element::Type outType;
     ov::Tensor inputData1;
@@ -58,8 +59,8 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape1,
-                                                 const PartialShape& input_shape2,
+    static std::shared_ptr<Model> CreateFunction(const Shape& input_shape1,
+                                                 const Shape& input_shape2,
                                                  const element::Type& input_type,
                                                  const element::Type& expected_output_type) {
         const auto in1 = std::make_shared<op::v0::Parameter>(input_type, input_shape1);
@@ -89,8 +90,8 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape1,
-                                                 const PartialShape& input_shape2,
+    static std::shared_ptr<Model> CreateFunction(const Shape& input_shape1,
+                                                 const Shape& input_shape2,
                                                  const element::Type& input_type,
                                                  const element::Type& expected_output_type) {
         const auto in1 = std::make_shared<op::v0::Parameter>(input_type, input_shape1);
@@ -116,26 +117,30 @@ std::vector<AddParams> generateParamsForAdd() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<AddParams> params{
-        AddParams(ov::PartialShape{2, 2},
-                  ov::PartialShape{2, 2},
+        AddParams(ov::Shape{2, 2},
+                  ov::Shape{2, 2},
+                  ov::Shape{2, 2},
                   IN_ET,
                   std::vector<T>{1, 2, 3, 4},
                   std::vector<T>{5, 6, 7, 8},
                   std::vector<T>{6, 8, 10, 12}),
-        AddParams(ov::PartialShape{1, 2},
-                  ov::PartialShape{3, 2, 2},
+        AddParams(ov::Shape{1, 2},
+                  ov::Shape{3, 2, 2},
+                  ov::Shape{3, 2, 2},
                   IN_ET,
                   std::vector<T>{1, 2},
                   std::vector<T>{5, 6, 7, 8, 2, 3, 1, 5, 6, 7, 1, 3},
                   std::vector<T>{6, 8, 8, 10, 3, 5, 2, 7, 7, 9, 2, 5}),
-        AddParams(ov::PartialShape{1},
-                  ov::PartialShape{1},
+        AddParams(ov::Shape{1},
+                  ov::Shape{1},
+                  ov::Shape{1},
                   IN_ET,
                   std::vector<T>{2},
                   std::vector<T>{8},
                   std::vector<T>{10}),
-        AddParams(ov::PartialShape{2, 2},
-                  ov::PartialShape{1},
+        AddParams(ov::Shape{2, 2},
+                  ov::Shape{1},
+                  ov::Shape{2, 2},
                   IN_ET,
                   std::vector<T>{2, 4, 7, 8},
                   std::vector<T>{8},
@@ -148,8 +153,9 @@ template <element::Type_t IN_ET>
 std::vector<AddParams> generateParamsForAddInPlace() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<AddParams> params{AddParams(ov::PartialShape{2, 2},
-                                            ov::PartialShape{2, 2},
+    std::vector<AddParams> params{AddParams(ov::Shape{2, 2},
+                                            ov::Shape{2, 2},
+                                            ov::Shape{2, 2},
                                             IN_ET,
                                             std::vector<T>{1, 2, 3, 4},
                                             std::vector<T>{5, 6, 7, 8},

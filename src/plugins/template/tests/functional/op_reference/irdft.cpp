@@ -48,6 +48,7 @@ struct IRDFTParams {
 class ReferenceIRDFTLayerTest : public testing::TestWithParam<IRDFTParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         if (params.m_signal != NULL) {
             function = CreateFunctionWithSignal(params);

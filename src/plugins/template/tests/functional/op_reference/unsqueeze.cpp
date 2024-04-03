@@ -29,11 +29,11 @@ struct UnsqueezeParams {
           m_expected_shape(expected_shape),
           m_input_type(input_type),
           m_expected_type(expected_type),
-          m_input_value(CreateTensor(input_type, input_value)),
-          m_expected_value(CreateTensor(expected_type, expected_value)),
+          m_input_value(CreateTensor(input_shape, input_type, input_value)),
+          m_expected_value(CreateTensor(expected_shape, expected_type, expected_value)),
           m_axes_shape(axes_shape),
           m_axes_type(axes_type),
-          m_axes_value(CreateTensor(axes_type, axes_value)) {}
+          m_axes_value(CreateTensor(axes_shape, axes_type, axes_value)) {}
 
     Shape m_input_shape;
     Shape m_expected_shape;

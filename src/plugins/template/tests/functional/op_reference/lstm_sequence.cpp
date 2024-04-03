@@ -176,6 +176,7 @@ struct LSTMSequenceV1Params {
 class ReferenceLSTMSequenceTest : public testing::TestWithParam<LSTMSequenceParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params);
         inputData = {params.X.data,
@@ -243,6 +244,7 @@ private:
 class ReferenceLSTMSequenceV1Test : public testing::TestWithParam<LSTMSequenceV1Params>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params);
         inputData = {params.X.data,
