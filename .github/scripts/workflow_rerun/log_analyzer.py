@@ -30,7 +30,8 @@ class LogAnalyzer:
 
         self._log_dir = tempfile.TemporaryDirectory().name
 
-        with ZipFile(self._path_to_log_archive, 'r') as zip_file:
+        with ZipFile(file=self._path_to_log_archive, 
+                     mode='r') as zip_file:
             zip_file.extractall(self._log_dir)
         
         self._log_files: list[LogFile] = []
@@ -67,7 +68,7 @@ class LogAnalyzer:
                 ...
             ...
         
-        We need to only analyze the `step_name_*.txt` files
+        We need to only analyze the `*.txt` files
         """
         for _file in Path(self._log_dir).iterdir():
             if _file.is_dir():
