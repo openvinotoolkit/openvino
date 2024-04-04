@@ -43,6 +43,19 @@ SyncInferRequest::SyncInferRequest(const std::shared_ptr<const ICompiledModel>& 
         _inputAndStateInputNames.push_back(READVALUE_PREFIX + stateName);
         _outputAndStateOutputNames.push_back(ASSIGN_PREFIX + stateName);
     }
+
+    const auto contains = [](const auto& container, const auto& value) {
+        return std::find(container.begin(), container.end(), value) != container.end();
+    };
+
+    for (const auto& shapeName : _metadata.shapeNames) {
+        if (contains(_inputAndStateInputNames, shapeName)) {
+            _inputAndStateInputNames.push_back(SHAPE_TENSOR_PREFIX + shapeName);
+        }
+        if (contains(_outputAndStateOutputNames, shapeName)) {
+            _outputAndStateOutputNames.push_back(SHAPE_TENSOR_PREFIX + shapeName);
+        }
+    }
 }
 
 const std::vector<ov::Output<const ov::Node>>& SyncInferRequest::get_inputs() const {
@@ -155,22 +168,23 @@ void SyncInferRequest::check_tensors() const {
 
 void SyncInferRequest::allocate_tensor(std::string tensorName,
                                        const IONodeDescriptor& descriptor,
-                                       const bool isState,
+                                       TensorType tensorType,
                                        const ov::Allocator& allocator) {
     std::shared_ptr<ov::ITensor> tensor;
 
     check_network_precision(descriptor.precision);
 
     if (allocator) {
-        tensor = ov::make_tensor(descriptor.precision, descriptor.transposedShape.get_shape(), allocator);
+        tensor = ov::make_tensor(descriptor.precision, descriptor.transposedShape.get_max_shape(), allocator);
     } else {
-        tensor = ov::make_tensor(descriptor.precision, descriptor.transposedShape.get_shape());
+        tensor = ov::make_tensor(descriptor.precision, descriptor.transposedShape.get_max_shape());
     }
 
-    if (!isState) {
-        _copyAllTensors[tensorName] = std::move(tensor);
-        _allTensors[tensorName] = _copyAllTensors[tensorName];
-    } else {
+    if (tensorType == TensorType::Shape) {
+        _shapesTensors[tensorName] = tensor;
+        tensorName = SHAPE_TENSOR_PREFIX + tensorName;
+    }
+    if (tensorType == TensorType::State) {
         _variableStates[tensorName] = std::make_shared<VariableState>(tensorName, tensor);
 
         // State variables shall be identified by specific prefixes in order to avoid a potential tensor name collision.
@@ -181,6 +195,9 @@ void SyncInferRequest::allocate_tensor(std::string tensorName,
         _copyAllTensors[ASSIGN_PREFIX + tensorName] = _copyAllTensors[READVALUE_PREFIX + tensorName];
         _allTensors[READVALUE_PREFIX + tensorName] = _copyAllTensors[READVALUE_PREFIX + tensorName];
         _allTensors[ASSIGN_PREFIX + tensorName] = _copyAllTensors[READVALUE_PREFIX + tensorName];
+    } else {
+        _copyAllTensors[tensorName] = std::move(tensor);
+        _allTensors[tensorName] = _copyAllTensors[tensorName];
     }
 }
 }  // namespace intel_npu
