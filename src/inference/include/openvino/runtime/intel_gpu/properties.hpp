@@ -117,8 +117,8 @@ static constexpr Property<ov::hint::Priority> host_task_priority{"GPU_HOST_TASK_
 static constexpr Property<int64_t> available_device_mem{"AVAILABLE_DEVICE_MEM_SIZE"};
 
 /**
- * @brief This key enables GPU plugin to optimize memory usage on dynamic shape execution. Note that setting this option true can
- * cause peformance drop.
+ * @brief This key enables GPU plugin to optimize memory usage on dynamic shape execution.
+ * Note that setting this option true can cause peformance drop.
  * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
  */
 static constexpr Property<bool> aggressive_memory_opt{"AGGRESSIVE_MEMORY_OPT"};
