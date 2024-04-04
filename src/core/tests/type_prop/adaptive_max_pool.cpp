@@ -48,7 +48,7 @@ TEST_F(AdaptiveMaxPoolV8Test, shape_infer) {
 
 TEST_F(AdaptiveMaxPoolV8Test, i32_indices) {
     auto data_shape = PartialShape{2, 6, 2, 10};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
 
     const auto data = make_shared<Parameter>(element::f64, data_shape);
     const auto out_shape = Constant::create<int32_t>(element::i32, Shape{2}, {7, 1});
@@ -62,12 +62,12 @@ TEST_F(AdaptiveMaxPoolV8Test, i32_indices) {
                 Each(Property("PartialShape", &Output<Node>::get_partial_shape, PartialShape({2, 6, 7, 1}))));
     EXPECT_THAT(op->outputs(),
                 Each(Property(&Output<Node>::get_partial_shape,
-                              ResultOf(get_shape_labels, ElementsAre(10, 11, ov::no_label, ov::no_label)))));
+                              ResultOf(get_shape_symbols, ElementsAre(symbols[0], symbols[1], nullptr, nullptr)))));
 }
 
 TEST_F(AdaptiveMaxPoolV8Test, dynamic_batch) {
     PartialShape data_shape{Dimension::dynamic(), 6, 8, 9};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
 
     const auto data = make_shared<Parameter>(element::f32, data_shape);
     const auto out_shape = Constant::create<int64_t>(element::i64, Shape{2}, {9, 9});
@@ -77,12 +77,12 @@ TEST_F(AdaptiveMaxPoolV8Test, dynamic_batch) {
                 Each(Property("PartialShape", &Output<Node>::get_partial_shape, PartialShape({-1, 6, 9, 9}))));
     EXPECT_THAT(op->outputs(),
                 Each(Property(&Output<Node>::get_partial_shape,
-                              ResultOf(get_shape_labels, ElementsAre(10, 11, ov::no_label, ov::no_label)))));
+                              ResultOf(get_shape_symbols, ElementsAre(symbols[0], symbols[1], nullptr, nullptr)))));
 }
 
 TEST_F(AdaptiveMaxPoolV8Test, dynamic_channel) {
     PartialShape data_shape{2, Dimension::dynamic(), {10, 20}, 9};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
 
     const auto data = make_shared<Parameter>(element::f32, data_shape);
     const auto out_shape = Constant::create<int64_t>(element::i64, Shape{2}, {5, 7});
@@ -92,12 +92,12 @@ TEST_F(AdaptiveMaxPoolV8Test, dynamic_channel) {
                 Each(Property("PartialShape", &Output<Node>::get_partial_shape, PartialShape({2, -1, 5, 7}))));
     EXPECT_THAT(op->outputs(),
                 Each(Property(&Output<Node>::get_partial_shape,
-                              ResultOf(get_shape_labels, ElementsAre(10, 11, ov::no_label, ov::no_label)))));
+                              ResultOf(get_shape_symbols, ElementsAre(symbols[0], symbols[1], nullptr, nullptr)))));
 }
 
 TEST_F(AdaptiveMaxPoolV8Test, dynamic_spatial) {
     PartialShape data_shape{2, 6, -1, -1};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
 
     const auto data = make_shared<Parameter>(element::f32, data_shape);
     const auto out_shape = Constant::create<int64_t>(element::i64, Shape{2}, {5, 7});
@@ -107,7 +107,7 @@ TEST_F(AdaptiveMaxPoolV8Test, dynamic_spatial) {
                 Each(Property("PartialShape", &Output<Node>::get_partial_shape, PartialShape({2, 6, 5, 7}))));
     EXPECT_THAT(op->outputs(),
                 Each(Property(&Output<Node>::get_partial_shape,
-                              ResultOf(get_shape_labels, ElementsAre(10, 11, ov::no_label, ov::no_label)))));
+                              ResultOf(get_shape_symbols, ElementsAre(symbols[0], symbols[1], nullptr, nullptr)))));
 }
 
 TEST_F(AdaptiveMaxPoolV8Test, dynamic_output_shape) {
@@ -146,11 +146,11 @@ TEST_F(AdaptiveMaxPoolV8Test, out_spatial_shape_size_not_match_data_spatial_dime
                     HasSubstr("Output shape for spatial dimension not compatible with data shape."));
 }
 
-TEST_F(AdaptiveMaxPoolV8Test, preserve_partial_values_and_labels_on_output_shape_input) {
+TEST_F(AdaptiveMaxPoolV8Test, preserve_partial_values_and_symbols_on_output_shape_input) {
     auto data_shape = PartialShape{{1, 2}, {2, 4}, 5, {10, 20}, -1};
-    set_shape_labels(data_shape, 10);
+    auto symbols_in = set_shape_symbols(data_shape);
     auto out_shape = PartialShape{{2, 6}, -1, {12, 13}};
-    set_shape_labels(out_shape, 20);
+    auto symbols_out = set_shape_symbols(out_shape);
 
     const auto data = make_shared<Parameter>(element::f32, data_shape);
     const auto spatial_dim_shape = make_shared<ShapeOf>(make_shared<Parameter>(element::i64, out_shape));
@@ -162,7 +162,10 @@ TEST_F(AdaptiveMaxPoolV8Test, preserve_partial_values_and_labels_on_output_shape
                               PartialShape({{1, 2}, {2, 4}, {2, 6}, -1, {12, 13}}))));
     EXPECT_THAT(
         op->outputs(),
-        Each(Property(&Output<Node>::get_partial_shape, ResultOf(get_shape_labels, ElementsAre(10, 11, 20, 21, 22)))));
+        Each(Property(
+            &Output<Node>::get_partial_shape,
+            ResultOf(get_shape_symbols,
+                     ElementsAre(symbols_in[0], symbols_in[1], symbols_out[0], symbols_out[1], symbols_out[2])))));
 }
 
 TEST_F(AdaptiveMaxPoolV8Test, unsupported_input_shape) {

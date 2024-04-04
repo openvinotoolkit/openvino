@@ -17,10 +17,11 @@ template <class T>
 class TypePropScatterNDUpdateTest : public TypePropOpTest<T> {
 protected:
     void SetUp() override {
-        set_shape_labels(data_3d_dynamic, 10);
+        set_shape_symbols(data_3d_dynamic);
     }
     PartialShape data_3d_dynamic{{2, 5}, 2, {4, 10}};
 };
+
 TYPED_TEST_SUITE_P(TypePropScatterNDUpdateTest);
 
 TYPED_TEST_P(TypePropScatterNDUpdateTest, scatter_nd_update_v3_fail_indices_element_type) {
@@ -121,7 +122,7 @@ TYPED_TEST_P(TypePropScatterNDUpdateTest, scatter_nd_update_fail_indices_last_di
     }
 }
 
-TYPED_TEST_P(TypePropScatterNDUpdateTest, data_input_partial_shape_and_labels_propagation) {
+TYPED_TEST_P(TypePropScatterNDUpdateTest, data_input_partial_shape_and_symbols_propagation) {
     const auto d = std::make_shared<Parameter>(element::f32, this->data_3d_dynamic);
     const auto i = std::make_shared<Parameter>(element::i32, PartialShape{3, 2});
     const auto u = std::make_shared<Parameter>(element::f32, PartialShape{3, 5});
@@ -132,7 +133,7 @@ TYPED_TEST_P(TypePropScatterNDUpdateTest, data_input_partial_shape_and_labels_pr
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), this->data_3d_dynamic);
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 11, 12));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), get_shape_symbols(this->data_3d_dynamic));
 }
 
 TYPED_TEST_P(TypePropScatterNDUpdateTest, indicies_input_is_dynamic) {
@@ -144,7 +145,7 @@ TYPED_TEST_P(TypePropScatterNDUpdateTest, indicies_input_is_dynamic) {
 
     EXPECT_EQ(op->get_output_element_type(0), element::f64);
     EXPECT_EQ(op->get_output_partial_shape(0), this->data_3d_dynamic);
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 11, 12));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), get_shape_symbols(this->data_3d_dynamic));
 }
 
 TYPED_TEST_P(TypePropScatterNDUpdateTest, updates_input_is_dynamic) {
@@ -156,7 +157,7 @@ TYPED_TEST_P(TypePropScatterNDUpdateTest, updates_input_is_dynamic) {
 
     EXPECT_EQ(op->get_output_element_type(0), element::f64);
     EXPECT_EQ(op->get_output_partial_shape(0), this->data_3d_dynamic);
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 11, 12));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), get_shape_symbols(this->data_3d_dynamic));
 }
 
 TYPED_TEST_P(TypePropScatterNDUpdateTest, indicies_input_has_interval_dimensions) {
@@ -168,7 +169,7 @@ TYPED_TEST_P(TypePropScatterNDUpdateTest, indicies_input_has_interval_dimensions
 
     EXPECT_EQ(op->get_output_element_type(0), element::i64);
     EXPECT_EQ(op->get_output_partial_shape(0), this->data_3d_dynamic);
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 11, 12));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), get_shape_symbols(this->data_3d_dynamic));
 }
 
 TYPED_TEST_P(TypePropScatterNDUpdateTest, updates_input_is_scalar) {
@@ -193,14 +194,14 @@ TYPED_TEST_P(TypePropScatterNDUpdateTest, default_ctor) {
 
     EXPECT_EQ(op->get_output_element_type(0), element::i64);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({2, 3, 5, 1}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(ov::no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
 }
 
-TYPED_TEST_P(TypePropScatterNDUpdateTest, preserve_partial_values_and_labels_via_evaluates_bounds) {
+TYPED_TEST_P(TypePropScatterNDUpdateTest, preserve_partial_values_and_symbols_via_evaluates_bounds) {
     const auto d = Constant::create(element::i64, Shape{4}, {2, 3, 15, 4});
     const auto i = Constant::create(element::i64, Shape{2, 1}, {2, 0});
     auto u_shape = PartialShape{{10, 20}, {3, 4}};
-    set_shape_labels(u_shape, 20);
+    auto symbols = set_shape_symbols(u_shape);
 
     const auto shape_of_u = std::make_shared<op::v0::ShapeOf>(std::make_shared<Parameter>(element::i64, u_shape));
     const auto op = this->make_op(d, i, shape_of_u);
@@ -209,7 +210,8 @@ TYPED_TEST_P(TypePropScatterNDUpdateTest, preserve_partial_values_and_labels_via
     auto bc = std::make_shared<op::v3::Broadcast>(param, op, op::BroadcastType::BIDIRECTIONAL);
 
     EXPECT_EQ(bc->get_output_partial_shape(0), PartialShape({{3, 4}, 3, {10, 20}, 4}));
-    EXPECT_THAT(get_shape_labels(bc->get_output_partial_shape(0)), ElementsAre(21, ov::no_label, 20, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(bc->get_output_partial_shape(0)),
+                ElementsAre(symbols[1], nullptr, symbols[0], nullptr));
 }
 
 TYPED_TEST_P(TypePropScatterNDUpdateTest, indices_dynamic_type) {
@@ -248,9 +250,9 @@ REGISTER_TYPED_TEST_SUITE_P(TypePropScatterNDUpdateTest,
                             default_ctor,
                             indices_dynamic_type,
                             indicies_input_has_interval_dimensions,
-                            data_input_partial_shape_and_labels_propagation,
+                            data_input_partial_shape_and_symbols_propagation,
                             indicies_input_is_dynamic,
-                            preserve_partial_values_and_labels_via_evaluates_bounds,
+                            preserve_partial_values_and_symbols_via_evaluates_bounds,
                             scatter_nd_update_fail_indices_last_dim,
                             scatter_nd_update_fail_updates_element_type,
                             scatter_nd_update_fail_updates_shape,
