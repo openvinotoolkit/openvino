@@ -770,7 +770,7 @@ private:
                   ctx,
                   ctx.inType,
                   OV_CASE(ov::element::u8, uint8_t),
-                  OV_CASE(ov::element::i8, uint8_t));
+                  OV_CASE(ov::element::i8, int8_t));
     }
     void ExecCompressed4Bit_dispatch(ExecCompressedContext& ctx) {
         switch (ctx.inType) {

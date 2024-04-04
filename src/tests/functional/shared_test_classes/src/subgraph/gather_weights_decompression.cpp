@@ -95,7 +95,10 @@ std::shared_ptr<ov::Node> GatherWeightsDecompression::init_compressed_weights_su
         original_data_shape[data_idx] = data_shape[1] / group_size;
         original_data_shape.insert(original_data_shape.begin() + data_idx + 1, group_size);
     }
-    auto weights_tensor = ov::test::utils::create_and_fill_tensor(data_precision, original_data_shape);
+    ov::test::utils::InputGenerateData generate_data;
+    if (data_precision.is_signed())
+        generate_data.start_from = -5;
+    auto weights_tensor = ov::test::utils::create_and_fill_tensor(data_precision, original_data_shape, generate_data);
     auto weights = std::make_shared<ov::op::v0::Constant>(weights_tensor);
     weights->set_friendly_name("Compressed_weights");
     auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, output_precision);
