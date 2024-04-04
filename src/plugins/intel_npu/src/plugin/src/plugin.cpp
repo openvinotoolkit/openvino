@@ -7,13 +7,12 @@
 #include <fstream>
 
 #include "compiled_model.hpp"
+#include "compiler.hpp"
 #include "device_helpers.hpp"
 #include "intel_npu/al/config/common.hpp"
 #include "intel_npu/al/config/compiler.hpp"
 #include "intel_npu/al/config/runtime.hpp"
 #include "intel_npu/al/itt.hpp"
-#include "npu_compiler.hpp"
-#include "npu_metrics.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"

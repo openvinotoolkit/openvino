@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "npu_driver_compiler_adapter.hpp"
+#include "driver_compiler_adapter.hpp"
 
 #include "graph_transformations.hpp"
 #include "intel_npu/al/config/common.hpp"

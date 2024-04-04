@@ -3,8 +3,9 @@
 //
 
 // Plugin
+#include "metrics.hpp"
+
 #include "device_helpers.hpp"
-#include "npu_metrics.hpp"
 #include "npu_private_properties.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 

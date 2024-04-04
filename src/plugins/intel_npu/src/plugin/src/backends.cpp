@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "backends.hpp"
+
 #include <fstream>
 #include <memory>
 
 #include "device_helpers.hpp"
 #include "intel_npu/al/config/common.hpp"
-#include "npu_backends.hpp"
 
 #if defined(ENABLE_ZEROAPI_BACKEND)
 #    include "zero_backend.hpp"

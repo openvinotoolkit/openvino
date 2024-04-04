@@ -8,8 +8,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include "backends.hpp"
 #include "npu.hpp"
-#include "npu_backends.hpp"
 #include "npu_private_properties.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
