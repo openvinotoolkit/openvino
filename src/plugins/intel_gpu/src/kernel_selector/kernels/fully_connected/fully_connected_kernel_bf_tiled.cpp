@@ -245,7 +245,12 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
     if (params.weights.GetDType() == WeightsType::UINT4 || params.weights.GetDType() == WeightsType::INT4) {
         if (!params.is_shape_agnostic && batch == 1) {
             // Tuning for Meteor Lake
-            return selector.Default(tune_params(1, 2, 4, 2, 1, 1, EXE_MODE_DEFAULT));
+//            return selector.Default(tune_params(1, 2, 4, 2, 1, 1, EXE_MODE_DEFAULT));
+            if (getenv("ORIG") != nullptr) {
+                return selector.Default(tune_params(1, 2, 4, 2, 1, 1, EXE_MODE_DEFAULT));
+            } else {
+                return selector.Default(tune_params(1, 1, 4, 2, 1, 1, EXE_MODE_DEFAULT));
+            }
         } else {
             // Try to use SLM kernels if possible
             if (preferred_kernel_type != KernelType::DEFAULT) {
@@ -539,6 +544,12 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
                                                                 const int autoTuneIndex) const {
     auto& fc_params = static_cast<const fully_connected_params&>(params);
 
+    size_t output_b = fc_params.outputs[0].Batch().v;
+    if (fc_params.outputs[0].GetLayout() == DataLayout::bfyx) {
+        output_b *= fc_params.outputs[0].Feature().v;
+    }
+
+
     if (autoTuneIndex >= 0 && autoTuneIndex < static_cast<int>(auto_tune_params.size())
         && !TuneParamsSelector::VerifyTuneParams(fc_params, auto_tune_params[autoTuneIndex]))
         return {};
@@ -546,7 +557,7 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
     tune_params tparams = GetAutoTuneParams(fc_params, KernelType::ANY, autoTuneIndex);
 
     WeightsLayout weights_layout = WeightsLayout::os_iyx_osv16;
-    if (tparams.tile_ofm * simd == 32)
+    if (tparams.tile_ofm * simd == 32 || output_b == 1)
         weights_layout = WeightsLayout::os_iyx_osv32;
     else if (tparams.tile_ofm * simd == 64)
         weights_layout = WeightsLayout::os_iyx_osv64;
