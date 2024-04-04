@@ -6,11 +6,6 @@ from openvino.tools.ovc.telemetry_utils import is_optimum, init_mo_telemetry
 
 import importlib.metadata as importlib_metadata
 
-# temporarily check
-
-import os
-assert "CI" in os.environ and os.environ["CI"].lower() == "true"
-
 try:
     optimum_version = importlib_metadata.version("optimum")
 except importlib_metadata.PackageNotFoundError:
