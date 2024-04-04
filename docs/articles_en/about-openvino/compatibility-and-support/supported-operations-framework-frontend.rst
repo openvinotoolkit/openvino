@@ -28,12 +28,16 @@ This page lists operations supported by OpenVINO Framework Frontend.
       aten::_convolution
       aten::_convolution_mode
       aten::_native_multi_head_attention
+      aten::_pack_padded_sequence
+      aten::_pad_packed_sequence
       aten::_set_item
       aten::_shape_as_tensor
+      aten::_unique2
       aten::_upsample_bicubic2d_aa
       aten::_upsample_bilinear2d_aa
       aten::_weight_norm
       aten::abs
+      aten::abs_
       aten::acos
       aten::acos_
       aten::acosh
@@ -81,10 +85,13 @@ This page lists operations supported by OpenVINO Framework Frontend.
       aten::Bool
       aten::broadcast_tensors                      Supported in limited set of patterns
       aten::broadcast_to
+      aten::bucketize
       aten::cat
       aten::cdist
       aten::ceil
       aten::ceil_
+      aten::celu
+      aten::celu_
       aten::channel_shuffle
       aten::chunk                                  Supported in limited set of patterns
       aten::clamp
@@ -117,10 +124,12 @@ This page lists operations supported by OpenVINO Framework Frontend.
       aten::dim
       aten::div
       aten::div_
+      aten::dot
       aten::dropout
       aten::dropout_
       aten::einsum                                 Supported in limited set of patterns
       aten::elu
+      aten::elu_
       aten::embedding
       aten::embedding_bag
       aten::empty
@@ -134,6 +143,8 @@ This page lists operations supported by OpenVINO Framework Frontend.
       aten::exp_
       aten::expand
       aten::expand_as
+      aten::expm1
+      aten::expm1_
       aten::eye
       aten::fake_quantize_per_channel_affine
       aten::fake_quantize_per_tensor_affine
@@ -148,12 +159,14 @@ This page lists operations supported by OpenVINO Framework Frontend.
       aten::floor
       aten::floor_
       aten::floor_divide
+      aten::floor_divide_
       aten::floordiv
       aten::fmod
       aten::frobenius_norm
       aten::full
       aten::full_like
       aten::gather
+      aten::gcd
       aten::ge
       aten::gelu
       aten::glu
@@ -162,6 +175,7 @@ This page lists operations supported by OpenVINO Framework Frontend.
       aten::gru
       aten::gt
       aten::hardsigmoid
+      aten::hardsigmoid_
       aten::hardswish
       aten::hardswish_
       aten::hardtanh
@@ -169,11 +183,15 @@ This page lists operations supported by OpenVINO Framework Frontend.
       aten::im2col
       aten::imag                                   Supported in limited set of patterns
       aten::index                                  Supported in limited set of patterns
+      aten::index_add
+      aten::index_add_
+      aten::index_copy_
       aten::index_put_
       aten::index_select
       aten::instance_norm
       aten::Int
       aten::IntImplicit
+      aten::inverse
       aten::is_grad_enabled
       aten::is_nonzero
       aten::item
@@ -186,6 +204,7 @@ This page lists operations supported by OpenVINO Framework Frontend.
       aten::lift_fresh
       aten::lift_fresh_copy
       aten::linalg_cross
+      aten::linalg_inv
       aten::linalg_matrix_norm
       aten::linalg_norm
       aten::linalg_vector_norm
@@ -199,6 +218,7 @@ This page lists operations supported by OpenVINO Framework Frontend.
       aten::log2
       aten::log2_
       aten::log_
+      aten::log_sigmoid
       aten::log_softmax
       aten::logical_and
       aten::logical_not
@@ -223,12 +243,16 @@ This page lists operations supported by OpenVINO Framework Frontend.
       aten::meshgrid
       aten::min
       aten::minimum
+      aten::mish
+      aten::mish_
       aten::mm
+      aten::movedim
       aten::mul
       aten::mul_
       aten::multinomial
       aten::multiply
       aten::multiply_
+      aten::mv
       aten::narrow
       aten::ne
       aten::neg
@@ -265,9 +289,11 @@ This page lists operations supported by OpenVINO Framework Frontend.
       aten::randn_like
       aten::real                                   Supported in limited set of patterns
       aten::reciprocal
+      aten::reciprocal_
       aten::reflection_pad2d                       Supported in limited set of patterns
       aten::relu
       aten::relu6
+      aten::relu6_
       aten::relu_
       aten::remainder
       aten::repeat
@@ -366,6 +392,8 @@ This page lists operations supported by OpenVINO Framework Frontend.
       prim::ListConstruct
       prim::ListUnpack
       prim::Loop
+      prim::max                                    Supported in limited set of patterns
+      prim::min                                    Supported in limited set of patterns
       prim::NumToTensor
       prim::PythonOp
       prim::requires_grad
