@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 async function getSortedCacheFiles(cachePath, key = '') {
-  if (!fs.existsSync(cachePath)) {
+  if (!(await checkFileExists(cachePath))) {
     core.warning(`${cachePath} doesn't exist`);
     return [];
   }
@@ -46,7 +46,7 @@ async function calculateTotalSize(dir, files) {
 
   for (const file of files) {
     const filePath = path.join(dir, file);
-    const fileStats = fs.statSync(filePath);
+    const fileStats = await fs.promises.stat(filePath);
 
     if (fileStats.isFile()) {
       totalSize += fileStats.size;

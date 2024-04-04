@@ -6,7 +6,6 @@ const path = require('path');
 const os = require('os');
 const fs = require('fs');
 const saveImpl = require('../src/saveImpl');
-const { log } = require('console');
 
 // Mock the GitHub Actions core library
 const getInputMock = jest.spyOn(core, 'getInput').mockImplementation();
@@ -30,7 +29,7 @@ describe('save', () => {
     jest.clearAllMocks();
 
     // Set up mock file system before each test
-    log(`Test temp fs: ${tempDir}`);
+
     // Create cache pathes
     fs.mkdirSync(cacheLocalPath, { recursive: true });
     fs.mkdirSync(cacheRemotePath, { recursive: true });
