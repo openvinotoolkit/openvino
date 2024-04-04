@@ -261,7 +261,10 @@ jobs:
           path: ${{ env.INSTALL_DIR_JS }}
           if-no-files-found: 'error'
 
-  Samples:
+  SamplesMatrix:
+    strategy:
+      matrix:
+        number: [1, 2, 3, 4]
     needs: [ Build, Smart_CI ]
     if: fromJSON(needs.smart_ci.outputs.affected_components).samples
     timeout-minutes: 20
@@ -291,6 +294,7 @@ jobs:
 
       - name: Extract OpenVINO packages
         run: |
+          echo ${{ matrix.number }}
           pushd ${{ env.INSTALL_DIR }}
             Expand-Archive openvino_package.zip -DestinationPath "${{ env.INSTALL_DIR }}"
           popd
