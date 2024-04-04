@@ -9,6 +9,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "transformations/common_optimizations/matmul_multiply_fusion.hpp"
+#include "transformations/init_node_info.hpp"
 
 namespace ov {
 namespace test {
@@ -46,6 +47,7 @@ void MatMulMultiplyFusion::SetUp() {
 
     auto transformed_function = function->clone();
     pass::Manager manager;
+    manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::pass::MatMulMultiplyFusion>();
     manager.run_passes(transformed_function);
 
@@ -104,6 +106,7 @@ void QuantizedMatMulMultiplyFusion::SetUp() {
 
     auto transformed_function = function->clone();
     pass::Manager manager;
+    manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::pass::MatMulMultiplyFusion>();
     manager.run_passes(transformed_function);
 

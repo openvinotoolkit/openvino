@@ -1,0 +1,32 @@
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include "openvino/core/node.hpp"
+#include "openvino/core/runtime_attribute.hpp"
+#include "transformations_visibility.hpp"
+
+namespace ov {
+
+TRANSFORMATIONS_API void mark_as_constant_node(const std::shared_ptr<Node>& node);
+
+TRANSFORMATIONS_API bool is_marked_as_constant_node(const std::shared_ptr<Node>& node);
+TRANSFORMATIONS_API bool is_marked_as_constant_node(const Output<Node>& node);
+
+/**
+ * @ingroup ov_runtime_attr_api
+ * @brief ConstantNode class represents runtime info attribute that marks operation
+ * that are part of constant subgraph.
+ */
+class TRANSFORMATIONS_API ConstantNode : public RuntimeAttribute {
+public:
+    OPENVINO_RTTI("constant_node", "0");
+
+    bool is_copyable() const override {
+        return true;
+    }
+};
+
+}  // namespace ov
