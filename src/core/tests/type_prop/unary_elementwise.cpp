@@ -8,7 +8,7 @@
 
 using namespace std;
 using namespace ov;
-using namespace testing;
+using testing::HasSubstr;
 
 TEST(type_prop, unary_arithmetic_unsupported_input_element_types) {
     {
