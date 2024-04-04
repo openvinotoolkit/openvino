@@ -18,6 +18,7 @@ concurrency:
 
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
+  APT_CACHE_PATH: /mount/caches/apt/ubuntu/20
   PYTHON_VERSION: '3.11'
 
 jobs:
@@ -80,6 +81,21 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow"
 
     steps:
+      - name: Setup apt cache
+        id: apt_cache_restore
+        uses: ./openvino/.github/actions/cache
+        with:
+          save-always: true
+          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          cache-size: 10
+          max-cache-size: 50
+          cache-path: ${{ env.APT_CACHE_PATH }}
+          path: '/var/cache/apt'
+          key: ${{ runner.os }}-${{ runner.arch }}-${{ github.ref_name == 'master' && '' || github.event.number }}apt-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-apt
+            ${{ runner.os }}-${{ runner.arch }}-${{ github.event.number }}apt
+
       - name: Set apt retries
         run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
 
@@ -420,7 +436,7 @@ jobs:
           name: conformance_artifacts_${{ matrix.TEST_TYPE }}-${{ env.TEST_DEVICE }}
           path: ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/conformance_artifacts.tar.gz
           if-no-files-found: 'error'
-        
+
       - name: Mandatory API Conformance Tests (Template)
         if: ${{ matrix.TEST_TYPE == 'API' }}
         run: |
@@ -445,7 +461,7 @@ jobs:
         with:
           name: conformance_artifacts_${{ matrix.TEST_TYPE }}-TEMPLATE
           path: ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/conformance_artifacts.tar.gz
-          if-no-files-found: 'error' 
+          if-no-files-found: 'error'
 
   ONNX_Runtime:
     name: ONNX Runtime Integration
