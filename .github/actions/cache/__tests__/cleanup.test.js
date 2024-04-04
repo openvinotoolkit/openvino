@@ -15,7 +15,7 @@ const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'test-cleanup-'));
 const cacheRemotePath = path.join(tempDir, 'cache_remote');
 
 const cacheFiles = ['cache_1.cache', 'cache_2.cache', 'cache_3.cache'];
-const minAccessTime = 1 * 60 * 60 * 1000; // 1 hour
+const minAccessTime = 7 * 24 * 60 * 60 * 1000; // 1 week
 
 // Mock the action's main function
 const runMock = jest.spyOn(cleanupImpl, 'cleanUp');
@@ -56,7 +56,7 @@ describe('cleanup', () => {
           return 'key';
         case 'restore-keys':
           return 'cache';
-        case 'max-cache-size':
+        case 'cache-size':
           return 1;
         default:
           return '';
@@ -82,7 +82,7 @@ describe('cleanup', () => {
           return cacheRemotePath;
         case 'key':
           return 'cache';
-        case 'max-cache-size':
+        case 'cache-size':
           return 1;
         default:
           return '';
@@ -110,7 +110,7 @@ describe('cleanup', () => {
           return 'key';
         case 'restore-keys':
           return 'cache';
-        case 'max-cache-size':
+        case 'cache-size':
           return 5;
         default:
           return '';
@@ -145,8 +145,10 @@ describe('cleanup', () => {
           return 'key';
         case 'restore-keys':
           return 'cache';
-        case 'max-cache-size':
+        case 'cache-size':
           return 1;
+        case 'max-cache-size':
+          return 5;
         default:
           return '';
       }
@@ -161,6 +163,46 @@ describe('cleanup', () => {
     }
   });
 
+  it('Cleanup recently used files by max cache limit', async () => {
+    for (const cache of cacheFiles) {
+      const cachePath = path.join(cacheRemotePath, cache);
+      fs.utimesSync(
+        cachePath,
+        new Date(Date.now() - minAccessTime / 2),
+        new Date()
+      );
+    }
+
+    // Set the action's inputs as return values from core.getInput()
+    getInputMock.mockImplementation(name => {
+      switch (name) {
+        case 'cache-path':
+          return cacheRemotePath;
+        case 'key':
+          return 'key';
+        case 'restore-keys':
+          return 'cache';
+        case 'cache-size':
+          return 1;
+        case 'max-cache-size':
+          return 2;
+        default:
+          return '';
+      }
+    });
+
+    await cleanupImpl.cleanUp();
+
+    expect(runMock).toHaveReturned();
+
+    // cache2 and cache3 should be removed
+    for (const cache of cacheFiles.slice(1, 2)) {
+      expect(fs.existsSync(path.join(cacheRemotePath, cache))).toBe(false);
+    }
+    // check that file1 exists
+    expect(fs.existsSync(path.join(cacheRemotePath, cacheFiles[0]))).toBe(true);
+  });
+
   it('Test unexpected behaviour', async () => {
     // Set folder permissions to read-only
     fs.chmodSync(cacheRemotePath, '555');
@@ -173,7 +215,7 @@ describe('cleanup', () => {
           return 'cache';
         case 'restore-keys':
           return 'cache';
-        case 'max-cache-size':
+        case 'cache-size':
           return 2;
         default:
           return '';
@@ -199,7 +241,7 @@ describe('cleanup', () => {
           return 'cache';
         case 'restore-keys':
           return 'cache';
-        case 'max-cache-size':
+        case 'cache-size':
           return 2;
         default:
           return '';
@@ -222,7 +264,7 @@ describe('cleanup', () => {
           return cacheRemotePath;
         case 'restore-keys':
           return 'cache';
-        case 'max-cache-size':
+        case 'cache-size':
           return 1;
         default:
           return '';

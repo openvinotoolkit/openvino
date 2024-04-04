@@ -16,7 +16,7 @@ inputs:
   restore-keys:
     description:
       'An ordered list of keys to use for restoring stale cache if no cache hit
-      occurred for key. Note `cache-hit` returns false in this case.'
+      occurred for key.'
     default: ''
     required: false
   save-always:
@@ -30,11 +30,18 @@ inputs:
       before fails'
     default: false
     required: false
+  cache-size:
+    description:
+      'Allowed cache storage size in Gb. Least recently used caches will be
+      automatically evicted to limit the total cache storage. The cache size can
+      exceed this value, but it is limited by "max-cache-size" value'
+    default: 10
+    required: false
   max-cache-size:
     description:
-      'Maximum cache storage size in Gb. Least recently used caches will be
-      automatically evicted to limit the total cache storage'
-    default: 10
+      'Maximum cache storage size in Gb. All cache files will be automatically
+      evicted to limit the total cache storage'
+    default: 50
     required: false
 
 outputs:

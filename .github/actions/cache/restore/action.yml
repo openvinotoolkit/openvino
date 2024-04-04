@@ -1,6 +1,6 @@
 name: 'Restore Cache'
 description: 'Restore Cache artifacts to improve workflow execution time'
-author: 'Mikhail Ryzhov'
+author: 'OpenVINO Developers'
 
 inputs:
   cache-path:
@@ -16,7 +16,7 @@ inputs:
   restore-keys:
     description:
       'An ordered list of keys to use for restoring stale cache if no cache hit
-      occurred for key. Note `cache-hit` returns false in this case.'
+      occurred for key.'
     default: ''
     required: false
 

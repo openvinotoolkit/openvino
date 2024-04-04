@@ -24723,16 +24723,19 @@ async function cleanUp() {
       .split('\n')
       .map(s => s.replace(/^!\s+/, '!').trim())
       .filter(x => x !== '');
-    const maxCacheSize = core.getInput('max-cache-size', { required: false });
+    const cacheSize = core.getInput('cache-size', { required: false });
+    const cacheMaxSize = core.getInput('max-cache-size', { required: false });
 
-    // Minimum time peroid in milliseconds when the files was not used
-    const minAccessTime = 1 * 60 * 60 * 1000; // 1 hour
+    // Minimum time peroid in milliseconds when the files was not useds
+    const minAccessTime = 7 * 24 * 60 * 60 * 1000; // 1 week
     const currentDate = new Date();
     const minAccessDateAgo = new Date(currentDate - minAccessTime);
 
     core.debug(`cache-path: ${cacheRemotePath}`);
     core.debug(`key: ${key}`);
     core.debug(`restore-keys: ${keysRestore}`);
+    core.debug(`cache-size: ${cacheSize}`);
+    core.debug(`max-cache-size: ${cacheMaxSize}`);
 
     let keyPattern = key;
     if (keysRestore && keysRestore.length) {
@@ -24740,25 +24743,29 @@ async function cleanUp() {
     }
 
     const files = await getSortedCacheFiles(cacheRemotePath, keyPattern);
-    const maxCacheSizeInBytes = maxCacheSize * 1024 * 1024 * 1024;
+    const minCacheSizeInBytes = cacheSize * 1024 * 1024 * 1024;
+    const maxCacheSizeInBytes = cacheMaxSize * 1024 * 1024 * 1024;
     let totalSize = await calculateTotalSize(cacheRemotePath, files);
 
-    if (totalSize <= maxCacheSizeInBytes) {
+    if (totalSize <= minCacheSizeInBytes) {
       core.info(
-        `The cache storage size ${humanReadableFileSize(totalSize)} less then the allowed size ${humanReadableFileSize(maxCacheSizeInBytes)}`
+        `The cache storage size ${humanReadableFileSize(totalSize)} less then the allowed size ${humanReadableFileSize(minCacheSizeInBytes)}`
       );
       return;
     }
 
     core.info(
-      `The cache storage size ${humanReadableFileSize(totalSize)} exceeds allowed size ${humanReadableFileSize(maxCacheSizeInBytes)}`
+      `The cache storage size ${humanReadableFileSize(totalSize)} exceeds allowed size ${humanReadableFileSize(minCacheSizeInBytes)}`
     );
     for (const file of files.reverse()) {
       const filePath = path.join(cacheRemotePath, file);
       const fileStats = await fs.stat(filePath);
 
-      // skipping recently used files
-      if (!fileStats.isFile() || fileStats.atime >= minAccessDateAgo) {
+      // skipping recently used files if total cache size less then maxCacheSizeInBytes
+      if (
+        !fileStats.isFile() ||
+        (fileStats.atime >= minAccessDateAgo && totalSize < maxCacheSizeInBytes)
+      ) {
         core.info(`Skipping: ${filePath}`);
         continue;
       }
@@ -24769,7 +24776,7 @@ async function cleanUp() {
       totalSize -= fileStats.size;
 
       // Exit if total size is within limit
-      if (totalSize <= maxCacheSizeInBytes) {
+      if (totalSize <= minCacheSizeInBytes) {
         core.info('Old cache files removed successfully');
         return;
       }

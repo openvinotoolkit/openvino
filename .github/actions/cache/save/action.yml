@@ -1,6 +1,6 @@
 name: 'Save a cache'
 description: 'Cache to the local file system'
-author: 'Mikhail Ryzhov'
+author: 'OpenVINO Developers'
 
 inputs:
   cache-path:
