@@ -16,7 +16,7 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_aminmax(const NodeContext& context) {
-    num_inputs_check(context, 1, 4);  // Expect between 1 and 4 inputs 
+    num_inputs_check(context, 1, 4);  // Expect between 1 and 4 inputs
                                       // (input tensor, dim = none, keepdim = false, out = none)
 
     auto input = context.get_input(0);

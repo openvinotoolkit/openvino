@@ -53,14 +53,14 @@ class TestAminMax(PytorchLayerTest):
     @pytest.mark.parametrize("mode,dtype", [
         ("", "float32"), ("", "float64"), ("", "int32"), ("", "int64"),
         ("out", "float32"), ("out", "float64"), ("out", "int32"), ("out", "int64")])
-    @pytest.mark.parametrize("inputs", [[0, 1, 2, 3, 4, -1], 
+    @pytest.mark.parametrize("inputs", [[0, 1, 2, 3, 4, -1],
                                         [-2, -1, 0, 1, 2, 3],
                                         [1, 2, 3, 4, 5, 6]])
     @pytest.mark.parametrize("dim,keepdim", [(None, False),  # Test with default arguments
                                              (0, False),     # Test with dim provided and keepdim=False
                                              (0, True),      # Test with dim provided and keepdim=True
                                              (None, True)])  # Test with keepdim=True and dim not provided
-    def test_aminmax(self, mode, dtype, inputs, ie_device, 
+    def test_aminmax(self, mode, dtype, inputs, ie_device,
                      precision, ir_version, dim, keepdim):
         self._test(
             *self.create_model(mode, dtype, dim, keepdim),
@@ -69,5 +69,5 @@ class TestAminMax(PytorchLayerTest):
             ir_version,
             trace_model=True,
             freeze_model=False,
-            kwargs_to_prepare_input={"inputs": inputs, "dtype": dtype, "out": mode == "out"}        
+            kwargs_to_prepare_input={"inputs": inputs, "dtype": dtype, "out": mode == "out"}
         )
