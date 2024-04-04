@@ -137,62 +137,62 @@ You can use converted tokenizers in C++ pipelines with prebuild binaries.
 
 3. Extract OpenVINO Tokenizers archive into the OpenVINO installation directory:
 
-.. tab-set::
+   .. tab-set::
 
-   .. tab-item:: Linux_x86
+      .. tab-item:: Linux_x86
 
-      .. code-block:: sh
+         .. code-block:: sh
 
-         <openvino_dir>/runtime/lib/intel64/
+            <openvino_dir>/runtime/lib/intel64/
 
-   .. tab-item:: Linux_arm64
+      .. tab-item:: Linux_arm64
 
-      .. code-block:: sh
+         .. code-block:: sh
 
-         <openvino_dir>/runtime/lib/aarch64/
+            <openvino_dir>/runtime/lib/aarch64/
 
-   .. tab-item:: Windows
+      .. tab-item:: Windows
 
-      .. code-block:: sh
+         .. code-block:: sh
 
-         <openvino_dir>\runtime\bin\intel64\Release\
+            <openvino_dir>\runtime\bin\intel64\Release\
 
-   .. tab-item:: MacOS_x86
+      .. tab-item:: MacOS_x86
 
-      .. code-block:: sh
+         .. code-block:: sh
 
-         <openvino_dir>/runtime/lib/intel64/Release
+            <openvino_dir>/runtime/lib/intel64/Release
 
-   .. tab-item:: MacOS_arm64
+      .. tab-item:: MacOS_arm64
 
-      .. code-block:: sh
+         .. code-block:: sh
 
-         <openvino_dir>/runtime/lib/arm64/Release/
+            <openvino_dir>/runtime/lib/arm64/Release/
 
-After that, you can add the binary extension to the code:
+   After that, you can add the binary extension to the code:
 
-.. tab-set::
+   .. tab-set::
 
-   .. tab-item:: Linux
+      .. tab-item:: Linux
 
-      .. code-block:: sh
+         .. code-block:: sh
 
-         core.add_extension("libopenvino_tokenizers.so")
+            core.add_extension("libopenvino_tokenizers.so")
 
-   .. tab-item:: Windows
+      .. tab-item:: Windows
 
-      .. code-block:: sh
+         .. code-block:: sh
 
-         core.add_extension("openvino_tokenizers.dll")
+            core.add_extension("openvino_tokenizers.dll")
 
-   .. tab-item:: MacOS
+      .. tab-item:: MacOS
 
-      .. code-block:: sh
+         .. code-block:: sh
 
-         core.add_extension("libopenvino_tokenizers.dylib") 
+            core.add_extension("libopenvino_tokenizers.dylib") 
 
 
-If you use the ``2023.3.0.0`` version, the binary extension file is called ``(lib)user_ov_extension.(dll/dylib/so)``.
+   If you use the ``2023.3.0.0`` version, the binary extension file is called ``(lib)user_ov_extension.(dll/dylib/so)``.
 
 You can learn how to read and compile converted models in the
 :doc:`Model Preparation <../../openvino-workflow/model-preparation>` guide.
