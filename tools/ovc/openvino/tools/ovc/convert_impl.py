@@ -428,10 +428,7 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
         tracemalloc.start()
 
     simplified_ie_version = VersionChecker().get_ie_simplified_version()
-    if is_optimum():
-        telemetry = init_mo_telemetry("Optimum Intel")
-    else:
-        telemetry = init_mo_telemetry()
+    telemetry = init_mo_telemetry()
     telemetry.start_session('ovc')
     telemetry.send_event('ovc', 'version', simplified_ie_version)
     # Initialize logger with 'ERROR' as default level to be able to form nice messages
