@@ -15,8 +15,9 @@
 #include "openvino/op/relu.hpp"
 
 using namespace std;
-using namespace ov;
 
+namespace ov {
+namespace test {
 TEST(tensor, tensor_names) {
     auto arg0 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
     arg0->set_friendly_name("data");
@@ -42,3 +43,50 @@ TEST(tensor, create_tensor_with_zero_dims_check_stride) {
     EXPECT_EQ(stride.back(), 0);
     EXPECT_EQ(tensor.is_continuous(), true);
 }
+
+TEST(tensor, get_byte_size_u2_less_than_min_storage_unit) {
+    const auto tensor = Tensor(element::u2, Shape{3});
+    EXPECT_EQ(tensor.get_byte_size(), 1);
+}
+
+TEST(tensor, get_byte_size_u2_even_div_by_storage_unit) {
+    const auto tensor = Tensor(element::u2, Shape{16});
+    EXPECT_EQ(tensor.get_byte_size(), 4);
+}
+
+TEST(tensor, get_byte_size_u2_not_even_div_by_storage_unit) {
+    const auto tensor = Tensor(element::u2, Shape{17});
+    EXPECT_EQ(tensor.get_byte_size(), 5);
+}
+
+TEST(tensor, get_byte_size_u3_less_than_min_storage_unit) {
+    const auto tensor = Tensor(element::u3, Shape{3});
+    EXPECT_EQ(tensor.get_byte_size(), 3);
+}
+
+TEST(tensor, get_byte_size_u3_even_div_by_storage_unit) {
+    const auto tensor = Tensor(element::u3, Shape{16});
+    EXPECT_EQ(tensor.get_byte_size(), 2 * 3);
+}
+
+TEST(tensor, get_byte_size_u3_not_even_div_by_storage_unit) {
+    const auto tensor = Tensor(element::u3, Shape{17});
+    EXPECT_EQ(tensor.get_byte_size(), 3 + 2 * 3);
+}
+
+TEST(tensor, get_byte_size_u6_less_than_min_storage_unit) {
+    const auto tensor = Tensor(element::u6, Shape{3});
+    EXPECT_EQ(tensor.get_byte_size(), 3);
+}
+
+TEST(tensor, get_byte_size_u6_even_div_by_storage_unit) {
+    const auto tensor = Tensor(element::u6, Shape{16});
+    EXPECT_EQ(tensor.get_byte_size(), 4 * 3);
+}
+
+TEST(tensor, get_byte_size_u6_not_even_div_by_storage_unit) {
+    const auto tensor = Tensor(element::u6, Shape{17});
+    EXPECT_EQ(tensor.get_byte_size(), 3 + 4 * 3);
+}
+}  // namespace test
+}  // namespace ov

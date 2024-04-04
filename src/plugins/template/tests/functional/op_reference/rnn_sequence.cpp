@@ -84,6 +84,7 @@ struct RNNSequenceParams {
 class ReferenceRNNSequenceTest : public testing::TestWithParam<RNNSequenceParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params);
         inputData =

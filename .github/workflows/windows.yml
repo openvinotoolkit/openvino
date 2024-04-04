@@ -80,7 +80,8 @@ jobs:
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: 'openvino_contrib'
-          ref: 'master'
+          # ref: 'master'
+          ref: 3eeb2326e0d974f61a83f8e67d37e918ccfa1edd
 
       #
       # Print system info
