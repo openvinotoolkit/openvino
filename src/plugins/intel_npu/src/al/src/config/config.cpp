@@ -167,8 +167,8 @@ std::vector<std::string> OptionsDesc::getSupported(bool includePrivate) const {
 }
 
 void OptionsDesc::walk(std::function<void(const details::OptionConcept&)> cb) const {
-    for (const auto& [_, opt] : _impl) {
-        cb(opt);
+    for (const auto& itr : _impl) {
+        cb(itr.second);
     }
 }
 
