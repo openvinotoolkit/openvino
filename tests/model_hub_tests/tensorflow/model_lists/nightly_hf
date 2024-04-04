@@ -9,6 +9,7 @@ google-bert/bert-large-uncased-whole-word-masking-finetuned-squad,hf_transformer
 google-bert/bert-large-uncased,hf_transformers
 almanach/camembert-base,hf_transformers
 distilbert/distilbert-base-cased-distilled-squad,hf_transformers
+distilbert/distilbert-base-cased,hf_transformers
 distilbert/distilbert-base-multilingual-cased,hf_transformers
 distilbert/distilbert-base-uncased-distilled-squad,hf_transformers
 distilbert/distilbert-base-uncased-finetuned-sst-2-english,hf_transformers
@@ -25,6 +26,7 @@ FacebookAI/roberta-base,hf_transformers
 FacebookAI/roberta-large-mnli,hf_transformers
 FacebookAI/roberta-large,hf_transformers
 google-t5/t5-11b,hf_transformers
+google-t5/t5-3b,hf_transformers
 google-t5/t5-base,hf_transformers
 google-t5/t5-large,hf_transformers
 google-t5/t5-small,hf_transformers
@@ -52,8 +54,10 @@ Helsinki-NLP/opus-mt-zh-en,hf_transformers
 Jean-Baptiste/roberta-large-ner-english,hf_transformers
 Michau/t5-base-en-generate-headline,hf_transformers
 ProsusAI/finbert,hf_transformers
+s-nlp/russian_toxicity_classifier,hf_transformers
 T-Systems-onsite/cross-en-de-roberta-sentence-transformer,hf_transformers
 TsinghuaAI/CPM-Generate,hf_transformers
+Vamsi/T5_Paraphrase_Paws,hf_transformers
 allenai/led-base-16384,hf_transformers
 allenai/longformer-base-4096,hf_transformers
 allenai/specter,hf_transformers
@@ -132,6 +136,7 @@ jhgan/ko-sroberta-multitask,hf_sentence-transformers
 joeddav/distilbert-base-uncased-go-emotions-student,hf_transformers
 joeddav/xlm-roberta-large-xnli,hf_transformers
 knkarthick/MEETING_SUMMARY,hf_transformers
+m3hrdadfi/wav2vec2-large-xlsr-persian-v3,hf_transformers
 microsoft/DialoGPT-large,hf_transformers
 microsoft/DialoGPT-medium,hf_transformers
 microsoft/DialoGPT-small,hf_transformers
@@ -145,6 +150,7 @@ microsoft/deberta-v3-large,hf_transformers
 microsoft/deberta-v3-small,hf_transformers
 microsoft/deberta-v3-xsmall,hf_transformers
 microsoft/graphcodebert-base,hf_transformers
+microsoft/layoutlm-base-uncased,hf_transformers
 microsoft/mdeberta-v3-base,hf_transformers
 microsoft/mpnet-base,hf_transformers
 mrm8488/t5-base-finetuned-question-generation-ap,hf_transformers
@@ -163,6 +169,7 @@ pierreguillou/gpt2-small-portuguese,hf_transformers
 pysentimiento/robertuito-sentiment-analysis,hf_pysentimiento
 rinna/japanese-gpt2-medium,hf_transformers
 rinna/japanese-roberta-base,hf_transformers
+samrawal/bert-base-uncased_clinical-ner,hf_transformers
 sentence-transformers/LaBSE,hf_sentence-transformers
 sentence-transformers/all-MiniLM-L6-v2,hf_sentence-transformers
 sentence-transformers/clip-ViT-B-32-multilingual-v1,hf_sentence-transformers
@@ -171,6 +178,7 @@ sentence-transformers/distiluse-base-multilingual-cased-v2,hf_sentence-transform
 sentence-transformers/msmarco-distilbert-base-tas-b,hf_sentence-transformers
 sentence-transformers/multi-qa-MiniLM-L6-cos-v1,hf_sentence-transformers
 sentence-transformers/paraphrase-MiniLM-L6-v2,hf_sentence-transformers
+sentence-transformers/paraphrase-mpnet-base-v2,hf_sentence-transformers
 sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2,hf_sentence-transformers
 sentence-transformers/paraphrase-multilingual-mpnet-base-v2,hf_sentence-transformers
 sentence-transformers/paraphrase-xlm-r-multilingual-v1,hf_sentence-transformers
@@ -182,7 +190,9 @@ uer/gpt2-chinese-cluecorpussmall,hf_transformers
 uer/gpt2-chinese-poem,hf_transformers
 uer/roberta-base-chinese-extractive-qa,hf_transformers
 uer/roberta-base-finetuned-chinanews-chinese,hf_transformers
+uer/roberta-base-finetuned-cluener2020-chinese,hf_transformers
 uer/roberta-base-finetuned-dianping-chinese,hf_transformers
+unicamp-dl/ptt5-base-portuguese-vocab,hf_transformers
 ydshieh/vit-gpt2-coco-en,hf_transformers
 yiyanghkust/finbert-tone,hf_transformers
 cardiffnlp/twitter-roberta-base-sentiment-latest,hf_transformers
@@ -219,6 +229,7 @@ Salesforce/blip-image-captioning-base,hf_transformers
 Salesforce/blip-vqa-base,hf_transformers
 Salesforce/blip-image-captioning-large,hf_transformers
 Salesforce/blip-vqa-capfilt-large,hf_transformers
+jordiclive/flan-t5-3b-summarizer,hf_transformers
 merve/chatgpt-prompts-bart-long,hf_transformers
 merve/chatgpt-prompt-generator-v12,hf_transformers
 Kaludi/chatgpt-gpt4-prompts-bart-large-cnn-samsum,hf_transformers
