@@ -245,7 +245,12 @@ JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params
     std::vector<std::string> pitches;
     const auto& output = params.outputs[0];
     if (output.is_dynamic()) {
-        pitches = GetDynamicPitches(output.GetDims(), params.inputs.size() + GetFusedPrimitiveInputsCount(params));
+        size_t tensor_idx = params.inputs.size() + GetFusedPrimitiveInputsCount(params);
+        for (auto input : params.inputs) {
+            if (!input.is_dynamic())
+                tensor_idx--;
+        }
+        pitches = GetDynamicPitches(output.GetDims(), tensor_idx);
     } else {
         pitches = GetPlanarPitches(output.GetDims());
     }
