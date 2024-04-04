@@ -88,7 +88,7 @@ Intel® Neural Processing Unit
    .. tab-item:: Operating Systems for NPU
 
       * Ubuntu 22.04 long-term support (LTS), 64-bit
-      * Windows 11, 64-bit
+      * Windows 11, 64-bit (22H2, 23H2)
 
    .. tab-item:: Additional considerations
 
