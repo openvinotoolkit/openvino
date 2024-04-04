@@ -417,7 +417,8 @@ void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out) {
         for (int64_t i = 2; i < static_cast<int64_t>(input_rank); ++i) {
             all_axes.push_back(i);
             axes_without_batch_and_channels.push_back(i);
-            if(i != static_cast<int64_t>(input_rank)-1) axes_without_batch_and_channels_last.push_back(i);
+            if (i != static_cast<int64_t>(input_rank) - 1)
+                axes_without_batch_and_channels_last.push_back(i);
         }
 
         correct_axes = ((num_of_axes == input_rank) && (m_axes == all_axes)) ||
