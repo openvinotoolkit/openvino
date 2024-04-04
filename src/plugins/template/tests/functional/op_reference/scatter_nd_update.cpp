@@ -211,9 +211,9 @@ std::vector<ScatterNDUpdateParams> generateScatterNDUpdateParams() {
             "scatter_nd_update_3x3_by_3"),
         // scatter_nd_update_1d_from_examples
         ScatterNDUpdateParams(reference_tests::Tensor({8}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8}),
-                              reference_tests::Tensor({5, 1}, IU_ET, std::vector<U>{4, 3, 1, 7, 1}),
-                              reference_tests::Tensor({5}, IN_ET, std::vector<T>{9, 10, 11, 12, 22}),
-                              reference_tests::Tensor({8}, IN_ET, std::vector<T>{1, 22, 3, 10, 9, 6, 7, 12}),
+                              reference_tests::Tensor({4, 1}, IU_ET, std::vector<U>{4, 3, 1, 7}),
+                              reference_tests::Tensor({4}, IN_ET, std::vector<T>{9, 10, 11, 12}),
+                              reference_tests::Tensor({8}, IN_ET, std::vector<T>{1, 11, 3, 10, 9, 6, 7, 12}),
                               "scatter_nd_update_1d_from_examples"),
         // scatter_nd_update_4x4_shape_from_examples
         ScatterNDUpdateParams(
@@ -250,10 +250,80 @@ std::vector<ScatterNDUpdateParams> generateScatterNDUpdateParams() {
 }
 
 template <element::Type_t IN_ET, element::Type_t IU_ET>
-std::vector<ScatterNDUpdateParams> generateScatterNDUpdateParamsReductions() {
+std::vector<ScatterNDUpdateParams> generateScatterNDUpdateV14Params() {
     using T = typename element_type_traits<IN_ET>::value_type;
     using U = typename element_type_traits<IU_ET>::value_type;
     std::vector<ScatterNDUpdateParams> scatterParams{
+        // Duplicated indices tests:
+        ScatterNDUpdateParams(reference_tests::Tensor({1}, IN_ET, std::vector<T>{1}),
+                              reference_tests::Tensor({2, 1}, IU_ET, std::vector<U>{0, 0}),
+                              reference_tests::Tensor({2}, IN_ET, std::vector<T>{40, 50}),
+                              reference_tests::Tensor({1}, IN_ET, std::vector<T>{50}),
+                              "scatter_nd_update_1x1_duplicated_indices"),
+        ScatterNDUpdateParams(reference_tests::Tensor({3, 2}, IN_ET, std::vector<T>{1, 1, 1, 1, 1, 1}),
+                              reference_tests::Tensor({2, 2}, IU_ET, std::vector<U>{0, 1, 0, 1}),
+                              reference_tests::Tensor({2}, IN_ET, std::vector<T>{5, 10}),
+                              reference_tests::Tensor({3, 2}, IN_ET, std::vector<T>{1, 10, 1, 1, 1, 1}),
+                              "scatter_nd_update_tf_example_duplicated_indices"),
+        ScatterNDUpdateParams(
+            reference_tests::Tensor({3, 3, 3}, IN_ET, std::vector<T>{8,  12, 1,  5,  3,  19, 2,  4,  13,
+                                                                     7,  6,  25, 5,  12, 11, 23, 17, 2,
+                                                                     18, 23, 16, 17, 11, 22, 0,  10, 20}),
+            reference_tests::Tensor({2, 1}, IU_ET, std::vector<U>{2, 2}),
+            reference_tests::Tensor({2, 3, 3},
+                                    IN_ET,
+                                    std::vector<T>{4, 15, 11, 13, 15, 23, 1, 4, 4, 11, 2, 10, 1, 25, 25, 19, 23, 10}),
+            reference_tests::Tensor({3, 3, 3}, IN_ET, std::vector<T>{8,  12, 1,  5, 3,  19, 2,  4,  13,
+                                                                     7,  6,  25, 5, 12, 11, 23, 17, 2,
+                                                                     11, 2,  10, 1, 25, 25, 19, 23, 10}),
+            "scatter_nd_update_3x3_by_1_duplicated_indices"),
+
+        ScatterNDUpdateParams(
+            reference_tests::Tensor({3, 3, 3}, IN_ET, std::vector<T>{11, 12, 13, 14, 15, 16, 17, 18, 19,
+                                                                     21, 22, 23, 24, 25, 26, 27, 28, 29,
+                                                                     31, 32, 33, 34, 35, 36, 37, 38, 39}),
+            reference_tests::Tensor({3, 3}, IU_ET, std::vector<U>{0, 0, 0, 2, -1, 2, -1, 2, -1}),
+            reference_tests::Tensor({3}, IN_ET, std::vector<T>{91, 99, 100}),
+            reference_tests::Tensor({3, 3, 3}, IN_ET, std::vector<T>{91, 12, 13, 14, 15, 16, 17, 18, 19,
+                                                                     21, 22, 23, 24, 25, 26, 27, 28, 29,
+                                                                     31, 32, 33, 34, 35, 36, 37, 38, 100}),
+            "scatter_nd_update_3x3_by_3_duplicated_indices"),
+        ScatterNDUpdateParams(reference_tests::Tensor({8}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8}),
+                              reference_tests::Tensor({5, 1}, IU_ET, std::vector<U>{4, 3, 1, 7, 1}),
+                              reference_tests::Tensor({5}, IN_ET, std::vector<T>{9, 10, 11, 12, 22}),
+                              reference_tests::Tensor({8}, IN_ET, std::vector<T>{1, 22, 3, 10, 9, 6, 7, 12}),
+                              "scatter_nd_update_1d_from_examples_duplicated_indices"),
+        ScatterNDUpdateParams(
+            reference_tests::Tensor({4, 4, 4}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 8, 7, 6, 5, 4, 3, 2, 1,
+                                                                     1, 2, 3, 4, 5, 6, 7, 8, 8, 7, 6, 5, 4, 3, 2, 1,
+                                                                     8, 7, 6, 5, 4, 3, 2, 1, 1, 2, 3, 4, 5, 6, 7, 8,
+                                                                     8, 7, 6, 5, 4, 3, 2, 1, 1, 2, 3, 4, 5, 6, 7, 8}),
+            reference_tests::Tensor({3, 1}, IU_ET, std::vector<U>{0, 2, -2}),
+            reference_tests::Tensor({3, 4, 4}, IN_ET, std::vector<T>{5,  5,  5,  5,  6,  6,  6,  6,  7,  7,  7,  7,
+                                                                     8,  8,  8,  8,  1,  1,  1,  1,  2,  2,  2,  2,
+                                                                     3,  3,  3,  3,  4,  4,  4,  4,  10, 10, 10, 10,
+                                                                     11, 11, 11, 11, 12, 12, 12, 12, 13, 13, 13, 13}),
+            reference_tests::Tensor({4, 4, 4}, IN_ET, std::vector<T>{5,  5,  5,  5,  6,  6,  6,  6,  7,  7,  7,  7,  8,
+                                                                     8,  8,  8,  1,  2,  3,  4,  5,  6,  7,  8,  8,  7,
+                                                                     6,  5,  4,  3,  2,  1,  10, 10, 10, 10, 11, 11, 11,
+                                                                     11, 12, 12, 12, 12, 13, 13, 13, 13, 8,  7,  6,  5,
+                                                                     4,  3,  2,  1,  1,  2,  3,  4,  5,  6,  7,  8}),
+            "scatter_nd_update_4x4_shape_from_examples_duplicated_indices"),
+        ScatterNDUpdateParams(
+            reference_tests::Tensor({4, 4, 4}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 8, 7, 6, 5, 4, 3, 2, 1,
+                                                                     1, 2, 3, 4, 5, 6, 7, 8, 8, 7, 6, 5, 4, 3, 2, 1,
+                                                                     8, 7, 6, 5, 4, 3, 2, 1, 1, 2, 3, 4, 5, 6, 7, 8,
+                                                                     8, 7, 6, 5, 4, 3, 2, 1, 1, 2, 3, 4, 5, 6, 7, 8}),
+            reference_tests::Tensor({3, 2, 2}, IU_ET, std::vector<U>{0, 0, 2, 2, 1, 1, 3, 3, 0, 0, 2, 2}),
+            reference_tests::Tensor({3, 2, 4}, IN_ET, std::vector<T>{15, 16, 17, 18, 25, 26, 27, 28, 35, 36, 37, 38,
+                                                                     45, 46, 47, 48, 55, 56, 57, 58, 65, 66, 67, 68}),
+            reference_tests::Tensor({4, 4, 4}, IN_ET, std::vector<T>{55, 56, 57, 58, 5,  6, 7, 8,  8,  7,  6,  5, 4,
+                                                                     3,  2,  1,  1,  2,  3, 4, 35, 36, 37, 38, 8, 7,
+                                                                     6,  5,  4,  3,  2,  1, 8, 7,  6,  5,  4,  3, 2,
+                                                                     1,  65, 66, 67, 68, 5, 6, 7,  8,  8,  7,  6, 5,
+                                                                     4,  3,  2,  1,  1,  2, 3, 4,  45, 46, 47, 48}),
+            "scatter_nd_update_4x4_v2_duplicated_indices"),
+        // Reduction tests:
         // scatter_nd_update_1x1
         ScatterNDUpdateParams(reference_tests::Tensor({1}, IN_ET, std::vector<T>{1}),
                               reference_tests::Tensor({1}, IU_ET, std::vector<U>{0}),
@@ -382,12 +452,67 @@ std::vector<ScatterNDUpdateParams> generateScatterNDUpdateParamsReductions() {
                                                                      29, 25, 32, 30, 36, 18, 23, 15, 22}),
             Reduction::SUB,
             "scatter_nd_update_3x3_by_1"),
+        ScatterNDUpdateParams(
+            reference_tests::Tensor({3, 3, 3}, IN_ET, std::vector<T>{11, 12, 13, 14, 15, 16, 17, 18, 19,
+                                                                     21, 22, 23, 24, 25, 26, 27, 28, 29,
+                                                                     31, 32, 33, 34, 35, 36, 37, 38, 39}),
+            reference_tests::Tensor({3, 3}, IU_ET, std::vector<U>{0, 0, 0, 2, -1, 2, -1, 2, -1}),
+            reference_tests::Tensor({3}, IN_ET, std::vector<T>{2, 4, 6}),
+            reference_tests::Tensor({3, 3, 3}, IN_ET, std::vector<T>{13, 12, 13, 14, 15, 16, 17, 18, 19,
+                                                                     21, 22, 23, 24, 25, 26, 27, 28, 29,
+                                                                     31, 32, 33, 34, 35, 36, 37, 38, 49}),
+            Reduction::SUM,
+            "scatter_nd_update_3x3_by_3_duplicated_indices"),
+        ScatterNDUpdateParams(
+            reference_tests::Tensor({3, 3, 3}, IN_ET, std::vector<T>{11, 12, 13, 14, 15, 16, 17, 18, 19,
+                                                                     21, 22, 23, 24, 25, 26, 27, 28, 29,
+                                                                     31, 32, 33, 34, 35, 36, 37, 38, 39}),
+            reference_tests::Tensor({3, 3}, IU_ET, std::vector<U>{0, 0, 0, 2, -1, 2, -1, 2, -1}),
+            reference_tests::Tensor({3}, IN_ET, std::vector<T>{2, 4, 6}),
+            reference_tests::Tensor({3, 3, 3}, IN_ET, std::vector<T>{9,  12, 13, 14, 15, 16, 17, 18, 19,
+                                                                     21, 22, 23, 24, 25, 26, 27, 28, 29,
+                                                                     31, 32, 33, 34, 35, 36, 37, 38, 29}),
+            Reduction::SUB,
+            "scatter_nd_update_3x3_by_3_duplicated_indices"),
+        ScatterNDUpdateParams(
+            reference_tests::Tensor({3, 3, 3}, IN_ET, std::vector<T>{11, 12, 13, 14, 15, 16, 17, 18, 19,
+                                                                     21, 22, 23, 24, 25, 26, 27, 28, 29,
+                                                                     31, 32, 33, 34, 35, 36, 37, 38, 39}),
+            reference_tests::Tensor({3, 3}, IU_ET, std::vector<U>{0, 0, 0, 2, -1, 2, -1, 2, -1}),
+            reference_tests::Tensor({3}, IN_ET, std::vector<T>{2, 4, 6}),
+            reference_tests::Tensor({3, 3, 3}, IN_ET, std::vector<T>{22, 12, 13, 14, 15, 16, 17, 18, 19,
+                                                                     21, 22, 23, 24, 25, 26, 27, 28, 29,
+                                                                     31, 32, 33, 34, 35, 36, 37, 38, 936}),
+            Reduction::PROD,
+            "scatter_nd_update_3x3_by_3_duplicated_indices"),
+        ScatterNDUpdateParams(
+            reference_tests::Tensor({3, 3, 3}, IN_ET, std::vector<T>{11, 12, 13, 14, 15, 16, 17, 18, 19,
+                                                                     21, 22, 23, 24, 25, 26, 27, 28, 29,
+                                                                     31, 32, 33, 34, 35, 36, 37, 38, 39}),
+            reference_tests::Tensor({3, 3}, IU_ET, std::vector<U>{0, 0, 0, 2, -1, 2, -1, 2, -1}),
+            reference_tests::Tensor({3}, IN_ET, std::vector<T>{2, 4, 6}),
+            reference_tests::Tensor({3, 3, 3}, IN_ET, std::vector<T>{11, 12, 13, 14, 15, 16, 17, 18, 19,
+                                                                     21, 22, 23, 24, 25, 26, 27, 28, 29,
+                                                                     31, 32, 33, 34, 35, 36, 37, 38, 39}),
+            Reduction::MAX,
+            "scatter_nd_update_3x3_by_3_duplicated_indices"),
+        ScatterNDUpdateParams(
+            reference_tests::Tensor({3, 3, 3}, IN_ET, std::vector<T>{11, 12, 13, 14, 15, 16, 17, 18, 19,
+                                                                     21, 22, 23, 24, 25, 26, 27, 28, 29,
+                                                                     31, 32, 33, 34, 35, 36, 37, 38, 39}),
+            reference_tests::Tensor({3, 3}, IU_ET, std::vector<U>{0, 0, 0, 2, -1, 2, -1, 2, -1}),
+            reference_tests::Tensor({3}, IN_ET, std::vector<T>{2, 4, 6}),
+            reference_tests::Tensor({3, 3, 3}, IN_ET, std::vector<T>{2,  12, 13, 14, 15, 16, 17, 18, 19,
+                                                                     21, 22, 23, 24, 25, 26, 27, 28, 29,
+                                                                     31, 32, 33, 34, 35, 36, 37, 38, 4}),
+            Reduction::MIN,
+            "scatter_nd_update_3x3_by_3_duplicated_indices"),
     };
     return scatterParams;
 }
 
 template <element::Type_t IU_ET>
-std::vector<ScatterNDUpdateParams> generateScatterNDUpdateParamsReductionsBoolean() {
+std::vector<ScatterNDUpdateParams> generateScatterNDUpdateV14ParamsReductionsBoolean() {
     const auto IN_ET = element::Type_t::boolean;
     using T = typename element_type_traits<IN_ET>::value_type;
     using U = typename element_type_traits<IU_ET>::value_type;
@@ -452,7 +577,7 @@ std::vector<ScatterNDUpdateParams> generateScatterNDUpdateParamsReductionsBoolea
     return scatterParams;
 }
 
-std::vector<ScatterNDUpdateParams> generateScatterNDUpdateCombinedParams() {
+std::vector<ScatterNDUpdateParams> generateScatterNDUpdateV3CombinedParams() {
     const std::vector<std::vector<ScatterNDUpdateParams>> scatterTypeParams{
         generateScatterNDUpdateParams<element::Type_t::i32, element::Type_t::i32>(),
         generateScatterNDUpdateParams<element::Type_t::i64, element::Type_t::i32>(),
@@ -477,24 +602,24 @@ std::vector<ScatterNDUpdateParams> generateScatterNDUpdateCombinedParams() {
     return combinedParams;
 }
 
-std::vector<ScatterNDUpdateParams> generateScatterNDUpdateCombinedParamsReductions() {
+std::vector<ScatterNDUpdateParams> generateScatterNDUpdateV14CombinedParams() {
     const std::vector<std::vector<ScatterNDUpdateParams>> scatterTypeParams{
-        generateScatterNDUpdateParamsReductions<element::Type_t::i32, element::Type_t::i32>(),
-        generateScatterNDUpdateParamsReductions<element::Type_t::i64, element::Type_t::i32>(),
-        generateScatterNDUpdateParamsReductions<element::Type_t::u32, element::Type_t::i32>(),
-        generateScatterNDUpdateParamsReductions<element::Type_t::u64, element::Type_t::i32>(),
-        generateScatterNDUpdateParamsReductions<element::Type_t::f16, element::Type_t::i32>(),
-        generateScatterNDUpdateParamsReductions<element::Type_t::f32, element::Type_t::i32>(),
-        generateScatterNDUpdateParamsReductions<element::Type_t::i32, element::Type_t::i64>(),
-        generateScatterNDUpdateParamsReductions<element::Type_t::i64, element::Type_t::i64>(),
-        generateScatterNDUpdateParamsReductions<element::Type_t::u32, element::Type_t::i64>(),
-        generateScatterNDUpdateParamsReductions<element::Type_t::u64, element::Type_t::i64>(),
-        generateScatterNDUpdateParamsReductions<element::Type_t::f16, element::Type_t::i64>(),
-        generateScatterNDUpdateParamsReductions<element::Type_t::f32, element::Type_t::i64>(),
-        generateScatterNDUpdateParamsReductionsBoolean<element::Type_t::i32>(),
-        generateScatterNDUpdateParamsReductionsBoolean<element::Type_t::i64>(),
+        generateScatterNDUpdateV14Params<element::Type_t::i32, element::Type_t::i32>(),
+        generateScatterNDUpdateV14Params<element::Type_t::i64, element::Type_t::i32>(),
+        generateScatterNDUpdateV14Params<element::Type_t::u32, element::Type_t::i32>(),
+        generateScatterNDUpdateV14Params<element::Type_t::u64, element::Type_t::i32>(),
+        generateScatterNDUpdateV14Params<element::Type_t::f16, element::Type_t::i32>(),
+        generateScatterNDUpdateV14Params<element::Type_t::f32, element::Type_t::i32>(),
+        generateScatterNDUpdateV14Params<element::Type_t::i32, element::Type_t::i64>(),
+        generateScatterNDUpdateV14Params<element::Type_t::i64, element::Type_t::i64>(),
+        generateScatterNDUpdateV14Params<element::Type_t::u32, element::Type_t::i64>(),
+        generateScatterNDUpdateV14Params<element::Type_t::u64, element::Type_t::i64>(),
+        generateScatterNDUpdateV14Params<element::Type_t::f16, element::Type_t::i64>(),
+        generateScatterNDUpdateV14Params<element::Type_t::f32, element::Type_t::i64>(),
+        generateScatterNDUpdateV14ParamsReductionsBoolean<element::Type_t::i32>(),
+        generateScatterNDUpdateV14ParamsReductionsBoolean<element::Type_t::i64>(),
     };
-    std::vector<ScatterNDUpdateParams> combinedParams = generateScatterNDUpdateCombinedParams();
+    std::vector<ScatterNDUpdateParams> combinedParams = generateScatterNDUpdateV3CombinedParams();
 
     for (const auto& params : scatterTypeParams) {
         combinedParams.insert(combinedParams.end(), params.begin(), params.end());
@@ -504,12 +629,12 @@ std::vector<ScatterNDUpdateParams> generateScatterNDUpdateCombinedParamsReductio
 
 INSTANTIATE_TEST_SUITE_P(smoke_ScatterNDUpdate_With_Hardcoded_Refs,
                          ReferenceScatterNDUpdateV3LayerTest,
-                         testing::ValuesIn(generateScatterNDUpdateCombinedParams()),
+                         testing::ValuesIn(generateScatterNDUpdateV3CombinedParams()),
                          ReferenceScatterNDUpdateV3LayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ScatterNDUpdate_With_Hardcoded_Refs,
                          ReferenceScatterNDUpdateV14LayerTest,
-                         testing::ValuesIn(generateScatterNDUpdateCombinedParamsReductions()),
+                         testing::ValuesIn(generateScatterNDUpdateV14CombinedParams()),
                          ReferenceScatterNDUpdateV14LayerTest::getTestCaseName);
 
 class ReferenceScatterNDUpdateLayerNegativeTest : public ReferenceScatterNDUpdateV3LayerTest {};
