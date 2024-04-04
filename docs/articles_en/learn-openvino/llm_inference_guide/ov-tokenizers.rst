@@ -220,7 +220,23 @@ Convert Tokenizers:
 
       .. code-block:: sh
 
-         !convert_tokenizer $model_id --with-detokenizer -o $tokenizer_dir
+         !convert_tokenizer $model_id --with-detokenizer -o tokenizer
+
+      Compile the converted model to use the tokenizer:
+
+      .. code-block:: sh
+
+         from pathlib import Path
+         import openvino_tokenizers
+         from openvino import Core
+
+
+         tokenizer_dir = Path("tokenizer/")
+         core = Core()
+         ov_tokenizer = core.read_model(tokenizer_dir / "openvino_tokenizer")
+         ov_detokenizer = core.read_model(tokenizer_dir / "openvino_detokenizer")
+
+         tokenizer, detokenizer = core.compile_model(ov_tokenizer), core.compile_model(ov_detokenizer)
 
    .. tab-item:: Python API
 
@@ -231,14 +247,15 @@ Convert Tokenizers:
 
          hf_tokenizer = AutoTokenizer.from_pretrained(model_id)
          ov_tokenizer, ov_detokenizer = convert_tokenizer(hf_tokenizer, with_detokenizer=True)
-         ov_tokenizer, ov_detokenizer
 
       Use ``save_model`` to reuse converted tokenizers later:
 
       .. code-block:: python
 
+         from pathlib import Path
          from openvino import save_model
 
+         tokenizer_dir = Path("tokenizer/")
          save_model(ov_tokenizer, tokenizer_dir / "openvino_tokenizer.xml")
          save_model(ov_detokenizer, tokenizer_dir / "openvino_detokenizer.xml")
 
@@ -250,13 +267,15 @@ Convert Tokenizers:
 
          tokenizer, detokenizer = compile_model(ov_tokenizer), compile_model(ov_detokenizer)
 
-The result is two OpenVINO models: openvino tokenizer and openvino detokenizer.
+The result is two OpenVINO models: ``ov_tokenizer`` and ``ov_detokenizer``.
 You can find more information and code snippets in the `OpenVINO Tokenizers Notebook <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/128-openvino-tokenizers>`__.
 
 2. Tokenize and Prepare Inputs
 +++++++++++++++++++++++++++++++
 
 .. code-block:: python
+
+   input numpy as np
 
    text_input = ["Quick brown fox jumped"]
 
