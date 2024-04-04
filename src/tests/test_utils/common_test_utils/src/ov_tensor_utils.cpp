@@ -474,7 +474,11 @@ double calculate_default_abs_threshold(const ov::element::Type& expected_type,
             CASE(ov::element::Type_t::u16)
             CASE(ov::element::Type_t::u32)
             CASE(ov::element::Type_t::u64)
+            CASE(ov::element::Type_t::nf4)
+            CASE(ov::element::Type_t::f8e4m3)
+            CASE(ov::element::Type_t::f8e5m2)
         default:
+            values.push_back(0.f);
             break;
         }
     }
