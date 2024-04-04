@@ -54,9 +54,6 @@ struct InputGenerateData {
 
 // Pre-defaned eps based on mantissa bit depth
 inline double get_eps_by_ov_type(const ov::element::Type& elem_type) {
-    if (elem_type.is_integral()) {
-        return 0.f;
-    }
     switch (elem_type) {
     case ov::element::f64:
         return 1e-8;
@@ -69,7 +66,7 @@ inline double get_eps_by_ov_type(const ov::element::Type& elem_type) {
     case ov::element::nf4:
         return 1e-1;
     default:
-        throw std::runtime_error("Incorrect element type to get epsilon!");
+        return 0.f;
     }
 }
 
@@ -127,12 +124,46 @@ ov::Tensor create_and_fill_tensor_real_distribution(const ov::element::Type elem
                                                     const float min,
                                                     const float max,
                                                     const int seed);
+namespace tensor_comparation {
+double calculate_threshold(const double abs_threshold, const double rel_threshold, const double ref_value);
 
+double calculate_default_abs_threshold(const ov::element::Type& expected_type,
+                                       const ov::element::Type& actual_type = ov::element::undefined,
+                                       const ov::element::Type& inference_precision = ov::element::undefined);
+
+double calculate_default_rel_threshold(const ov::element::Type& expected_type,
+                                       const ov::element::Type& actual_type = ov::element::undefined,
+                                       const ov::element::Type& inference_precision = ov::element::undefined);
+}  // namespace tensor_comparation
+
+// function to compare tensors using different metrics:
+// `expected` : reference tensor.
+// `actual` : plugin/calculated tensor.
+// `inference_precision` : real plugin calculation precision. Default abs and rel thresholds will be calculated using
+// this value.
+// `abs_threshold` : abs difference between reference and calculated value.
+// `rel_threshold` : define first incorrect element rank in mantissa.
+// `mvn_threshold` : avg value of `std::diff(ref_value - calculated_value) / threshold`.
+//  Shows tensor jitter relative to treshold. The value is [0.f, 1.f].
+// `topk_threshold` : percentage of incorrect values in tensor. The value is [0.f, 1.f].
 void compare(const ov::Tensor& expected,
              const ov::Tensor& actual,
-             const double abs_threshold = std::numeric_limits<double>::max(),
-             const double rel_threshold = std::numeric_limits<double>::max());
+             const ov::element::Type& inference_precision,
+             const double abs_threshold = -1,
+             const double rel_threshold = -1,
+             const double topk_threshold = 1.f,
+             const double mvn_threshold = 1.f);
 
+inline void compare(const ov::Tensor& expected,
+                    const ov::Tensor& actual,
+                    const double abs_threshold = -1,
+                    const double rel_threshold = -1,
+                    const double topk_threshold = 1.f,
+                    const double mvn_threshold = 1.f) {
+    compare(expected, actual, ov::element::undefined, abs_threshold, rel_threshold, topk_threshold, mvn_threshold);
+}
+
+// todo: replace this function by `compare(expected, actual)`
 void compare_str(const ov::Tensor& expected, const ov::Tensor& actual);
 }  // namespace utils
 }  // namespace test
