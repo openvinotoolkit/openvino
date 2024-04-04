@@ -55,7 +55,7 @@ public:
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool evaluate_lower(TensorVector& output_values) const override;
     bool evaluate_upper(TensorVector& output_values) const override;
-    bool evaluate_label(TensorLabelVector& output_labels) const override;
+    bool evaluate_symbol(TensorSymbolVector& output_symbols) const override;
     bool has_evaluate() const override;
 
     Reduction get_reduction() const;

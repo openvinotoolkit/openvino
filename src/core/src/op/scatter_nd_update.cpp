@@ -238,9 +238,9 @@ bool ScatterNDUpdate::evaluate_upper(TensorVector& output_values) const {
     return get_input_tensor(1).has_and_set_bound() && default_upper_bound_evaluator(this, output_values);
 }
 
-bool ScatterNDUpdate::evaluate_label(TensorLabelVector& output_labels) const {
-    OV_OP_SCOPE(v14_ScatterNDUpdate_evaluate_label);
-    return default_label_evaluator(this, {0, 2}, output_labels);
+bool ScatterNDUpdate::evaluate_symbol(TensorSymbolVector& output_symbols) const {
+    OV_OP_SCOPE(v14_ScatterNDUpdate_evaluate_symbol);
+    return default_symbol_evaluator(this, {0, 2}, output_symbols);
 }
 
 }  // namespace v14
