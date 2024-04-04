@@ -65,6 +65,9 @@
 /src/tests/**/gpu/ @openvinotoolkit/openvino-ie-gpu-maintainers
 /thirdparty/ocl/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
 
+# OpenVINO NPU:
+/src/plugins/intel_npu/  @openvinotoolkit/openvino-npu-maintainers @openvinotoolkit/openvino-npu-developers
+
 # OpenVINO Auto (MULTI) plugin:
 /src/plugins/auto/  @openvinotoolkit/openvino-ie-auto-multi-maintainers
 
