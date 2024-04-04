@@ -564,10 +564,12 @@ event::ptr primitive_inst::realloc_if_needed() {
 
 
     // If we allocated too large memory, reclaim the memory.
-    if (updated_layout.get_buffer_size().count() * 10 < _max_output_layout_count) {
+    const int64_t reclaim_criteria = 10*1024*1024; // 10MB
+    if (_max_output_layout_count > updated_layout.get_buffer_size().count()
+        && (static_cast<int64_t>(_max_output_layout_count) - static_cast<int64_t>(updated_layout.get_buffer_size().count() > reclaim_criteria))) {
         GPU_DEBUG_TRACE_DETAIL << id() << ": Updated output size " << updated_layout.count()
-                               << " is much smaller than current memory size! " << _max_output_layout_count
-                               << "Reset memory" << std::endl;
+            << " is much smaller than current memory size! " << _max_output_layout_count
+            << "Reset memory" << std::endl;
         _max_output_layout_count = 0;
     }
 
