@@ -234,12 +234,29 @@ Convert Tokenizers:
          ov_tokenizer, ov_detokenizer
 
 The result is two OpenVINO models: openvino tokenizer and openvino detokenizer.
-Both can be used with ``read_model``, ``compile_model`` and ``save_model``, similar to any other OpenVINO model.
+Both can be used with ``read_model``, ``compile_model`` and ``save_model``, similar to any OpenVINO model.
+
+Use ``save_model`` to reuse converted tokenizers later:
+
+.. code-block:: python
+
+   from openvino import save_model
+
+   save_model(ov_tokenizer, tokenizer_dir / "openvino_tokenizer.xml")
+   save_model(ov_detokenizer, tokenizer_dir / "openvino_detokenizer.xml")
+
+Compile the converted model to use the tokenizer:
+
+.. code-block:: python
+
+   from openvino import compile_model
+
+   tokenizer, detokenizer = compile_model(ov_tokenizer), compile_model(ov_detokenizer)
+
+You can find more information and code snippets in the `OpenVINO Tokenizers Notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/master/notebooks/openvino-tokenizers/openvino-tokenizers.ipynb>`__.
 
 2. Tokenize and Prepare Inputs
 +++++++++++++++++++++++++++++++
-
-tokenizer - это CompiledModel, а ov_tokenizer - Model
 
 .. code-block:: python
 
