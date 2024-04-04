@@ -5,9 +5,11 @@
 #include "cpu_memory.h"
 #include <common/memory_desc_wrapper.hpp>
 #include "nodes/reorder.h"
+#include "utils/debug_capabilities.h"
 #if defined(__linux__)
 #    include <sys/syscall.h> /* Definition of SYS_* constants */
 #    include <unistd.h>
+#    include <cstring> /* strerror(errno) */
 #endif
 
 namespace ov {
@@ -630,9 +632,10 @@ bool mbind_move(void* data, size_t size, int targetNode) {
         mask = 1ul << realNode;
         flags = MPOL_MF_MOVE | MPOL_MF_STRICT;
     }
+
     auto rc = mbind(pages, page_count * pagesize, MPOL_BIND, &mask, sizeof(mask) * 8, flags);
     if (rc < 0) {
-        perror("mbind failed");
+        DEBUG_LOG("mbind failed: ", strerror(errno));
     }
     return true;
 }
