@@ -227,6 +227,7 @@ void ZeroInferRequest::get_result() {
         if (isShapeTensorName(name)) {
             const auto actualTensorName = name.substr(SHAPE_TENSOR_PREFIX.size());
             ov::Shape actualDims;
+            actualDims.reserve(outputTensor->get_size());
 
             for (size_t i = 0; i < outputTensor->get_size(); ++i) {
                 const auto reverseIdx = outputTensor->get_size() - 1 - i;
