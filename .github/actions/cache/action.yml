@@ -1,0 +1,60 @@
+name: 'Cache'
+description: 'Cache to the local file system'
+author: 'Mikhail Ryzhov'
+
+inputs:
+  cache-path:
+    description: 'A local path where to search and save caches'
+    required: true
+  path:
+    description:
+      'A list of files, directories, and wildcard patterns to cache and restore'
+    required: true
+  key:
+    description: 'An explicit key for restoring and saving the cache'
+    required: true
+  restore-keys:
+    description:
+      'An ordered list of keys to use for restoring stale cache if no cache hit
+      occurred for key.'
+    default: ''
+    required: false
+  save-always:
+    description:
+      'Run the post step to save the cache even if another step before fails'
+    default: false
+    required: false
+  cleanup-always:
+    description:
+      'Run the post cleanup step to remove old cache files even if another step
+      before fails'
+    default: false
+    required: false
+  cache-size:
+    description:
+      'Allowed cache storage size in Gb. Least recently used caches will be
+      automatically evicted to limit the total cache storage. The cache size can
+      exceed this value, but it is limited by "max-cache-size" value'
+    default: 10
+    required: false
+  max-cache-size:
+    description:
+      'Maximum cache storage size in Gb. All cache files will be automatically
+      evicted to limit the total cache storage'
+    default: 50
+    required: false
+
+outputs:
+  cache-hit:
+    description:
+      'A boolean value to indicate an exact match was found for the primary key'
+  cache-file:
+    description: 'Found cache file'
+
+runs:
+  using: node20
+  main: 'dist/restore/index.js'
+  post: 'dist/save/index.js'
+  post-if:
+    'success() || github.event.inputs.save-always ||
+    github.event.inputs.cleanup-always'
