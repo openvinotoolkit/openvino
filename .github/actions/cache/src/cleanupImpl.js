@@ -51,14 +51,18 @@ async function cleanUp() {
       const filePath = path.join(cacheRemotePath, file);
       const fileStats = await fs.stat(filePath);
 
-      if (fileStats.isFile() && fileStats.atime < minAccessDateAgo) {
-        core.info(`Removing file: ${filePath}`);
-        await fs.unlink(filePath);
-        core.info(`${filePath} removed successfully`);
-        totalSize -= fileStats.size;
+      // skipping recently used files
+      if (!fileStats.isFile() || fileStats.atime >= minAccessDateAgo) {
+        core.info(`Skipping: ${filePath}`);
+        continue;
       }
-      // Exit loop if total size is within limit
-      core.info(`Total size: ${totalSize}`);
+
+      core.info(`Removing file: ${filePath}`);
+      await fs.unlink(filePath);
+      core.info(`${filePath} removed successfully`);
+      totalSize -= fileStats.size;
+
+      // Exit if total size is within limit
       if (totalSize <= maxCacheSizeInBytes) {
         core.info('Old cache files removed successfully');
         return;
