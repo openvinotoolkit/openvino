@@ -43,7 +43,9 @@ class LogAnalyzer:
         self.found_matching_error = False
     
     def _collect_errors_to_look_for(self) -> None:
-        with open(self._path_to_errors_file, 'r', encoding='utf-8') as errors_file:
+        with open(file=self._path_to_errors_file, 
+                  mode='r', 
+                  encoding='utf-8') as errors_file:
             errors_data = json.load(errors_file)
             for error_data in errors_data:
                 self._errors_to_look_for.append(
