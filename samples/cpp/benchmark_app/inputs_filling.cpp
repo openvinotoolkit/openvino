@@ -584,6 +584,25 @@ ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputIn
         return create_tensor_random<int16_t, int16_t>(inputInfo.second);
     } else if (type == ov::element::boolean) {
         return create_tensor_random<uint8_t, uint32_t>(inputInfo.second, 0, 1);
+    } else if (type == ov::element::string) {
+        auto in_info = inputInfo.second;
+        size_t tensor_size =
+            std::accumulate(in_info.dataShape.begin(), in_info.dataShape.end(), 1lu, std::multiplies<size_t>());
+        auto tensor = ov::Tensor(in_info.type, in_info.dataShape);
+        auto data = tensor.data<std::string>();
+
+        std::mt19937 str_len_gen(0);
+        uniformDistribution<uint32_t> len_distribution(20, 50);
+        std::mt19937 char_val_gen(0);
+        uniformDistribution<char> char_distribution(0, 127);
+        for (size_t i = 0; i < tensor_size; i++) {
+            data[i].resize(len_distribution(str_len_gen));
+            for (size_t j = 0lu; j < data[i].size(); j++) {
+                data[i][j] = char_distribution(char_val_gen);
+            }
+        }
+
+        return tensor;
     } else {
         OPENVINO_THROW("Input type is not supported for " + inputInfo.first);
     }
