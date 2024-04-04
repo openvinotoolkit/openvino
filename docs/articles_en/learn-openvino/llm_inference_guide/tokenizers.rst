@@ -88,47 +88,20 @@ Python Installation
 
 2. Install OpenVINO Tokenizers.
 
-   If you have a converted OpenVINO tokenizer:
-
-   .. code-block:: python
-
-      pip install openvino-tokenizers
-
-   If you want to convert Hugging Face tokenizers into OpenVINO tokenizers:
-
-   .. code-block:: python
-
-      pip install openvino-tokenizers[transformers]
-
-   Install pre-release versions, if you want to experiment with the latest changes:
-
-   .. code-block:: python
-
-      pip install --pre -U openvino openvino-tokenizers --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
-
-   Build and install from source:
-
-   .. code-block:: python
-
-      source path/to/installed/openvino/setupvars.sh
-
-            git clone https://github.com/openvinotoolkit/openvino_tokenizers.git
-
-      cd openvino_tokenizers
-
-      pip install --no-deps .
-
-install option
+Installation options include using a converted OpenVINO tokenizer, converting a Hugging Face tokenizer
+into an OpenVINO tokenizer, installing a pre-release version to experiment with latest changes,
+or building and installing from source. You can also install OpenVINO Tokenizers with Conda distribution.
+Check `the OpenVINO Tokenizers repository <https://github.com/openvinotoolkit/openvino_tokenizers.git>`__ for more information.
 
 .. tab-set::
 
-   .. tab-item:: If you have a converted OpenVINO tokenizer
+   .. tab-item:: Converted OpenVINO tokenizer
 
       .. code-block:: python
 
          pip install openvino-tokenizers
 
-   .. tab-item:: Сonvert Hugging Face tokenizer
+   .. tab-item:: Hugging Face tokenizer
 
       .. code-block:: python
 
@@ -140,7 +113,7 @@ install option
 
          pip install --pre -U openvino openvino-tokenizers --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
 
-   .. tab-item:: Build and install from source
+   .. tab-item:: Build from source
 
       .. code-block:: python
 
@@ -152,10 +125,6 @@ install option
 
          pip install --no-deps .
 
-
-You can also install OpenVINO Tokenizers with Conda distribution. Check `the OpenVINO Tokenizers
-repository <https://github.com/openvinotoolkit/openvino_tokenizers.git>`__ for more
-information.
 
 C++ Installation
 ################
