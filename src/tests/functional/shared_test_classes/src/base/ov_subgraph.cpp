@@ -31,6 +31,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
 #include "shared_test_classes/base/utils/compare_results.hpp"
+#include "shared_test_classes/base/utils/calculate_thresholds.hpp"
 
 
 namespace ov {
@@ -256,6 +257,7 @@ void SubgraphBaseTest::compare(const std::vector<ov::Tensor>& expected,
                                const std::vector<ov::Tensor>& actual) {
     ASSERT_EQ(expected.size(), actual.size());
     ASSERT_EQ(expected.size(), function->get_results().size());
+    init_thresholds();
     auto compareMap = utils::getCompareMap();
     const auto& results = function->get_results();
     for (size_t j = 0; j < results.size(); j++) {
@@ -264,7 +266,9 @@ void SubgraphBaseTest::compare(const std::vector<ov::Tensor>& expected,
             std::shared_ptr<ov::Node> inputNode = result->get_input_node_shared_ptr(i);
             auto it = compareMap.find(inputNode->get_type_info());
             ASSERT_NE(it, compareMap.end());
-            it->second(inputNode, i, expected[j], actual[j], abs_threshold, rel_threshold);
+            it->second(inputNode, i, inference_precision,
+                       expected[j], actual[j],
+                       abs_threshold, rel_threshold, topk_threshold, mvn_threshold);
         }
     }
 }
@@ -306,6 +310,11 @@ void SubgraphBaseTest::compile_model() {
         auto end_time = std::chrono::system_clock::now();
         std::chrono::duration<double> duration = end_time - start_time;
         std::cout << "[ PLUGIN      ] `SubgraphBaseTest::compile_model()` is finished successfully. Duration is " << duration.count() << "s" << std::endl;
+    }
+    try {
+        inference_precision = core->get_property(targetDevice, ov::hint::inference_precision);
+    } catch (std::exception& e) {
+        std::cout << "[ WARNING ] Impossible to get Inference Precision with exception: " << e.what() << std::endl;
     }
 }
 
@@ -514,6 +523,17 @@ void SubgraphBaseTest::validate() {
         auto end_time = std::chrono::system_clock::now();
         std::chrono::duration<double> duration = end_time - start_time;
         std::cout << "[ COMPARATION ] `ov_tensor_utils.hpp::compare()` is finished successfully. Duration is " << duration.count() << "s" << std::endl;
+    }
+}
+
+void SubgraphBaseTest::init_thresholds() {
+    double max_abs_threshold = 0.f, max_rel_threshold = 0.f;
+    std::tie(max_abs_threshold, max_rel_threshold) = ov::test::utils::calculate_thresholds_by_model(function, functionRefs, inference_precision);
+    if (abs_threshold == disable_threshold) {
+        abs_threshold = max_abs_threshold;
+    }
+    if (rel_threshold == disable_threshold) {
+        rel_threshold = max_rel_threshold;
     }
 }
 
