@@ -60,6 +60,7 @@ struct MaxPoolParams {
 class ReferenceMaxPoolLayerTestV8 : public testing::TestWithParam<MaxPoolParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         const auto params = GetParam();
         function = CreateFunction(params);
         inputData = {params.m_input_data};
@@ -425,6 +426,7 @@ INSTANTIATE_TEST_SUITE_P(
 class ReferenceMaxPoolLayerTestV14 : public testing::TestWithParam<MaxPoolParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         const auto params = GetParam();
         function = CreateFunction(params);
         inputData = {params.m_input_data};

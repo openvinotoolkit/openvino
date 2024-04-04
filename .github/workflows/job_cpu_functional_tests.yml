@@ -100,6 +100,8 @@ jobs:
           if [[ -f "${INSTALL_DIR}/setupvars.sh" ]]; then
             source ${INSTALL_DIR}/setupvars.sh
           fi
+          # Needed as ze_loader.so is under INSTALL_TEST_DIR
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALL_TEST_DIR}
 
           python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
         timeout-minutes: 25

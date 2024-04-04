@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/primitives/crop.hpp"
+#include "intel_gpu/primitives/eltwise.hpp"
+#include "intel_gpu/primitives/tile.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 #include "openvino/core/partial_shape.hpp"
@@ -32,6 +35,27 @@ cldnn::format::type layout_4d(cldnn::format f) {
     default:
         return f.value;
     }
+}
+
+template <typename OutputT, typename InputT, typename WeightsT, typename BiasT, typename AccT = OutputT>
+VF<OutputT> dynamic_fully_connected_reference_calc(ov::Dimension::value_type batch,
+                                                    ov::Dimension::value_type input_f,
+                                                    ov::Dimension::value_type output_f,
+                                                    VF<InputT>& input,
+                                                    VF<WeightsT>& weights,
+                                                    VF<BiasT>& bias) {
+    VF<OutputT> result(batch * output_f);
+    for (int b = 0; b < batch; b++) {
+        for (int ofm = 0; ofm < output_f; ofm++) {
+            AccT acc = static_cast<AccT>(bias[ofm]);
+            for (int ifm = 0; ifm < input_f; ifm++) {
+                acc += weights[ofm * input_f + ifm] * input[b * input_f + ifm];
+            }
+            result[b * output_f + ofm] = acc;
+        }
+    }
+
+    return result;
 }
 
 template <typename T>
@@ -905,6 +929,80 @@ TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b12) {
         }
     }
 }
+
+
+TEST(fully_connected_gpu, bf_tiled_with_pad) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+    // Test parameters
+    const int batch_num = 2;
+    const int feature_num = 128;
+    const int input_x = 1;
+    const int input_y = 36;
+    const int output_y = input_y;
+
+    // Allocate memory
+    auto input_mem = engine.allocate_memory({ { batch_num, feature_num, input_y, input_x }, data_types::f16, format::bfyx });
+    auto weights_mem = engine.allocate_memory({ { output_y, input_y }, data_types::f16, format::bfyx });
+    auto eltw_mem = engine.allocate_memory({ { 1, feature_num*2, 1, 1 }, data_types::f16, format::bfyx });
+
+    // Generate random input data and set values
+    auto input_data = rg.generate_random_4d<ov::float16>(batch_num, feature_num, input_y, input_x, -1, 1);
+    auto weights_data = rg.generate_random_4d<ov::float16>(output_y, input_y, 1, 1, -1, 1);
+
+    auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
+    auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
+    std::vector<ov::float16> empty_bias(output_y, 0);
+    std::vector<ov::float16> eltwise_input(feature_num*2, 0);
+    for (size_t i = 0; i < feature_num; i++) {
+        eltwise_input[i] = 100.f;
+    }
+
+    set_values(input_mem, input_data_bfyx);
+    set_values(weights_mem, weights_data_bfyx);
+    set_values(eltw_mem, eltwise_input);
+
+    // Calculate CPU reference
+    auto reference_output = dynamic_fully_connected_reference_calc<ov::float16>(batch_num * feature_num,
+                                                                                input_y,
+                                                                                output_y,
+                                                                                input_data_bfyx,
+                                                                                weights_data_bfyx,
+                                                                                empty_bias);
+
+    // Create topology to test
+    topology topology(
+        input_layout("input", input_mem->get_layout()),
+        data("weights", weights_mem),
+        data("eltw_input", eltw_mem),
+        tile("tile", input_info("input"), std::vector<int64_t>{1, 2, 1, 1}),
+        eltwise("eltw", { input_info("tile"), input_info("eltw_input") }, eltwise_mode::sum),
+        crop("crop", input_info("eltw"), tensor{batch_num, feature_num, input_x, input_y}, tensor{0, feature_num, 0, 0}),
+        fully_connected("fc_prim", input_info("crop"), "weights", "", padding(), 3, 3)
+    );
+
+    // Set data optimization to allow weights reordering to optimal format
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+
+    ov::intel_gpu::ImplementationDesc fc_impl_desc = { format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc_prim", fc_impl_desc} }));
+
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+    auto output_mem = outputs.at("fc_prim").get_memory();
+    cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+    ASSERT_EQ(output_mem->count(), batch_num * feature_num * output_y);
+
+    for (size_t i = 0; i < batch_num * feature_num * output_y; ++i) {
+        ASSERT_FLOAT_EQ(reference_output[i], output_ptr[i]) << " i = " << i;
+    }
+}
+
 
 TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b34)
 {
@@ -2939,32 +3037,6 @@ TEST_F(fully_connected_gpu_tests, dynamic_multi_inference_multiple_shapes_cached
     this->test_dynamic_multi_inference_multiple_shapes(true);
 }
 
-namespace {
-    template <typename OutputT,
-              typename InputT,
-              typename WeightsT,
-              typename BiasT,
-              typename AccT = OutputT>
-    VF<OutputT> dynamic_fully_connected_reference_calc(ov::Dimension::value_type batch,
-                                                       ov::Dimension::value_type input_f,
-                                                       ov::Dimension::value_type output_f,
-                                                       VF<InputT>& input,
-                                                       VF<WeightsT>& weights,
-                                                       VF<BiasT>& bias) {
-        VF<OutputT> result(batch * output_f);
-        for (int b = 0; b < batch; b++) {
-            for (int ofm = 0; ofm < output_f; ofm++) {
-                AccT acc = static_cast<AccT>(bias[ofm]);
-                for (int ifm = 0; ifm < input_f; ifm++) {
-                    acc += weights[ofm * input_f + ifm] * input[b * input_f + ifm];
-                }
-                result[b * output_f + ofm] = acc;
-            }
-        }
-
-        return result;
-    }
-} // namespace
 
 using fully_connected_dynamic_test_params = std::tuple<
     std::vector<ov::Dimension::value_type>, // batch_sizes
