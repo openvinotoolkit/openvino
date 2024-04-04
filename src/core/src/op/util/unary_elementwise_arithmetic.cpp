@@ -12,11 +12,11 @@ ov::op::util::UnaryElementwiseArithmetic::UnaryElementwiseArithmetic(const Outpu
 
 void ov::op::util::UnaryElementwiseArithmetic::validate_and_infer_elementwise_arithmetic() {
     const auto& element_type = get_input_element_type(0);
+    const auto is_supported_et = (element_type != element::boolean && element_type != element::string);
     NODE_VALIDATION_CHECK(this,
-                          element_type.is_dynamic() || element_type != element::boolean,
-                          "Arguments cannot have boolean element type (argument element type: ",
-                          element_type,
-                          ").");
+                          is_supported_et,
+                          "This operation does not support input with element type: ",
+                          element_type);
 
     const auto& arg_pshape = get_input_partial_shape(0);
     set_output_type(0, element_type, arg_pshape);
