@@ -29,23 +29,23 @@ describe('Node.js Model.isDynamic()', () => {
   });
 });
 
-describe('Node.js Model.get_output_shape()', () => {
+describe('Node.js Model.getOutputShape()', () => {
   
     it('should return the shape of the output tensor', () => {
-      const outputShape = model.get_output_shape(0);
-      assert.ok(Array.isArray(outputShape), 'get_output_shape() should return an array');
+      const outputShape = model.getOutputShape(0);
+      assert.ok(Array.isArray(outputShape), 'getOutputShape() should return an array');
       assert.strictEqual(outputShape.length, 2, 'Expected output shape to have 2 dimensions');
     });
   
     it('should throw an error if the output index is out of range', () => {
       assert.throws(() => {
-        model.get_output_shape(1);
-      }, /^Error: Invalid output index: 1\.$/, 'Expected get_output_shape to throw an error when called with an invalid output index');
+        model.getOutputShape(1);
+      }, /^Error: Invalid output index: 1$/, 'Expected getOutputShape to throw an error when called with an invalid output index');
     });
   
     it('should throw an error if the output index is not an integer', () => {
       assert.throws(() => {
-        model.get_output_shape('unexpected argument');
-      }, /^Error: Invalid output index: unexpected argument\.$/, 'Expected get_output_shape to throw an error when called with an invalid output index');
+        model.getOutputShape('unexpected argument');
+      }, /^Invalid argument. Expected a single number.$/, 'Expected getOutputShape to throw an error when called with an invalid output index');
     });
-})
+});

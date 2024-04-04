@@ -139,17 +139,13 @@ Napi::Value ModelWrap::get_output_shape(const Napi::CallbackInfo& info) {
     auto idx = info[0].As<Napi::Number>().Int32Value();
     auto cm_outputs = _model->outputs();  // Output<Node>
 
-    if (idx < 0 || idx >= cm_outputs.size()) {
-        reportError(info.Env(), "Invalid index. Index out of range.");
-        return Napi::Value();
+    try
+    {
+        return cpp_to_js<ov::Shape, Napi::Array>(info, cm_outputs.get_output_shape(idx));
     }
-
-    auto shape = cm_outputs[idx].get_shape();
-    Napi::Array js_shape = Napi::Array::New(info.Env(), shape.size());
-
-    size_t i = 0;
-    for (auto& dim : shape)
-        js_shape[i++] = Napi::Number::New(info.Env(), dim);
-
-    return js_shape;
+    catch(const std::exception& e)
+    {
+        reportError(info.Env(), "Invalid index. Index out of range.");
+        return Napi::Undefined();
+    }
 }
