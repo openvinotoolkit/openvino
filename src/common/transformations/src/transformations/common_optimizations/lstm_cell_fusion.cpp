@@ -390,7 +390,7 @@ size_t get_hidden_size_from_bias_shape(const ov::Shape& shape, bool& is_shape_co
 bool is_w_weights_shape_correct(const ov::Shape& shape, bool weights_transposed, size_t hidden_size) {
     if (shape.size() != 2)
         return false;
-    const size_t hidden_size_4_idx = weights_transposed ? 0 : 1;
+    const std::ptrdiff_t hidden_size_4_idx = weights_transposed ? 0 : 1;
     if (shape[hidden_size_4_idx] % 4)
         return false;
     return (shape[hidden_size_4_idx] / 4) == hidden_size;
@@ -402,8 +402,8 @@ bool is_w_weights_shape_correct(const ov::Shape& shape, bool weights_transposed,
 bool is_r_weights_shape_correct(const ov::Shape& shape, bool is_r_weights_transposed, size_t hidden_size) {
     if (shape.size() != 2)
         return false;
-    const size_t hidden_size_idx = is_r_weights_transposed ? 1 : 0;
-    const size_t hidden_size_4_idx = is_r_weights_transposed ? 0 : 1;
+    const std::ptrdiff_t hidden_size_idx = is_r_weights_transposed ? 1 : 0;
+    const std::ptrdiff_t hidden_size_4_idx = is_r_weights_transposed ? 0 : 1;
     if (shape[hidden_size_4_idx] % 4)
         return false;
     return shape[hidden_size_4_idx] / 4 == shape[hidden_size_idx] && shape[hidden_size_idx] == hidden_size;
@@ -443,7 +443,7 @@ ov::pass::LSTMCellTfKerasFusion::LSTMCellTfKerasFusion() {
     auto split_label = pattern::wrap_type<op::v1::Split>({bias_add_label, axis_label});
     auto it_label = pattern::wrap_type<op::v0::Relu, op::v0::Sigmoid, op::v0::Tanh>({split_label});
     auto ct_label = pattern::wrap_type<op::v0::Relu, op::v0::Sigmoid, op::v0::Tanh>({split_label});
-    auto ft_label = pattern::wrap_type<op::v0::Relu, op::v0::Sigmoid, op::v0::Tanh>({/*add_label*/ split_label});
+    auto ft_label = pattern::wrap_type<op::v0::Relu, op::v0::Sigmoid, op::v0::Tanh>({split_label});
     auto ot_label = pattern::wrap_type<op::v0::Relu, op::v0::Sigmoid, op::v0::Tanh>({split_label});
     auto mul_label = pattern::wrap_type<op::v1::Multiply>({it_label, ct_label});
     auto c_label = pattern::any_input();
