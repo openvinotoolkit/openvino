@@ -7,7 +7,6 @@ import torch
 
 from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
-
 @pytest.mark.parametrize('alpha', (-0.5, 0, 0.5, 1, 2))
 @pytest.mark.parametrize('input_shape_rhs', [
     [2, 5, 3, 4],
