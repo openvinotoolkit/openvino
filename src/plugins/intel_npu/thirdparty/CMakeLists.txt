@@ -27,9 +27,11 @@ if(ENABLE_ZEROAPI_BACKEND)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \
             -Wno-error=undef \
             -Wno-error=unused-but-set-variable \
-            -Wno-error=missing-declarations \
-            -Wno-error=stringop-truncation \
-            -Wno-unknown-warning-option")
+            -Wno-error=missing-declarations")
+        if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 8.1)
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \
+                -Wno-error=stringop-truncation")
+        endif()
     endif()
     set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
     add_subdirectory(level-zero EXCLUDE_FROM_ALL)
