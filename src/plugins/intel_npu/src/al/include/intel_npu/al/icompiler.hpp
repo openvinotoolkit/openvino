@@ -51,10 +51,12 @@ struct NetworkMetadata final {
     std::vector<std::string> inputNames;
     std::vector<std::string> outputNames;
     std::vector<std::string> stateNames;
+    std::vector<std::string> shapeNames;
 
     IONodeDescriptorMap parameters;
     IONodeDescriptorMap results;
     IONodeDescriptorMap states;
+    IONodeDescriptorMap shapes;
     IONodeDescriptorMap profilingOutputs;
 
     std::unordered_map<std::string, size_t> inputOrder;
