@@ -117,12 +117,11 @@ static constexpr Property<ov::hint::Priority> host_task_priority{"GPU_HOST_TASK_
 static constexpr Property<int64_t> available_device_mem{"AVAILABLE_DEVICE_MEM_SIZE"};
 
 /**
- * @brief This key specifies priority for optimization in GPU plugin for dynamic shapes either of memory or performance.
- * - "memory" : Set memory management policy to optimize memory aggresively, which can affect peformmance drop.
- * - "performance" : Prioritize performance always, which can increase memory usage.
+ * @brief This key enables GPU plugin to optimize memory usage on dynamic shape execution. Note that setting this option true can
+ * cause peformance drop.
  * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
  */
-static constexpr Property<std::string> llm_opt_mode{"GPU_LLM_OPT_MODE"};
+static constexpr Property<bool> aggressive_memory_opt{"AGGRESSIVE_MEMORY_OPT"};
 }  // namespace hint
 
 /**
