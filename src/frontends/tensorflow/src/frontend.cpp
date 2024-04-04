@@ -35,6 +35,7 @@
 #include "transformations/resolve_names_collisions.hpp"
 #include "transformations/switch_merge_resolve.hpp"
 #include "transformations/transpose_sinking/ts_general.hpp"
+#include "transformations/uninitialized_variable_resolve.hpp"
 #include "translate_session.hpp"
 #include "utils.hpp"
 
@@ -540,6 +541,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     // so that not extra memory is used for intermediate decompressed constants.
     manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
     manager.register_pass<pass::SavedModelUnusedRemover>();
+    manager.register_pass<pass::UninitializedVariableResolver>();
     manager.register_pass<pass::EmbeddingSegmentSingleFeatureFusion>();
     manager.register_pass<pass::BlockLSTMReplacer>();
     manager.register_pass<pass::GRUBlockCellReplacer>();

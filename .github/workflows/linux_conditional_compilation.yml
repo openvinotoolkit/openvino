@@ -212,6 +212,7 @@ jobs:
             tar -czvf ${BUILD_DIR}/openvino_tests.tar.gz \
               tests/ov_cpu_func_tests \
               tests/libopenvino_template_extension.so \
+              tests/libze_loader.so* \
               tests/functional_test_utils/layer_tests_summary/*
           popd
 
