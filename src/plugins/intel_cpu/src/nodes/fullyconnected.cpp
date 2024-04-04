@@ -109,7 +109,7 @@ bool FullyConnected::created() const {
     return getType() == Type::FullyConnected;
 }
 
-void FullyConnected::toNumaNode(int numaID) {
+void FullyConnected::toNumaNodeImpl(int numaID) {
     executor->moveMemToNumaNode(numaID);
 }
 
