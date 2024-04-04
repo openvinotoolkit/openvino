@@ -92,6 +92,7 @@ jobs:
         with:
           save-always: true
           cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          cache-size: 10
           max-cache-size: 50
           cache-path: ${{ env.CCACHE_REMOTE_DIR }}
           path: ${{ env.CCACHE_DIR }}
@@ -230,7 +231,8 @@ jobs:
           CMAKE_TOOLCHAIN_FILE: ${{ env.OPENVINO_BUILD_DIR }}/dependencies/conan_toolchain.cmake
 
       - name: Clean ccache
-        run: ccache --cleanup --evict-older-than 7200s
+        run: ccache --cleanup
+
   Overall_Status:
     name: ci/gha_overall_status_linux_riscv
     needs: [Smart_CI, Build]
