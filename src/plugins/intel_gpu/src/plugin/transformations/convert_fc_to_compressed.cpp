@@ -23,7 +23,7 @@
 namespace ov {
 namespace intel_gpu {
 
-ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyConnectedCompressed() {
+ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyConnectedCompressed(bool convert_u4zp_to_u8) {
     using namespace ov::pass::pattern;
 
     auto compressed_constant = [](const ov::Output<ov::Node>& output) {
@@ -97,13 +97,23 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             return std::make_shared<ov::op::v0::Constant>(*constant, new_shape);
         };
 
+        auto convert_u4const_to_u8 = [convert_u4zp_to_u8](std::shared_ptr<ov::Node> node) {
+            auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
+            if (constant->get_element_type() != ov::element::u4 || !convert_u4zp_to_u8)
+                return std::dynamic_pointer_cast<ov::Node>(constant);
+            std::cout << "convert_u4const_to_u8 " << constant->get_friendly_name() << std::endl;
+            return std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(node, ov::element::u8));
+        };
+
+
         const ov::Output<Node>& fc_input_a = fc->input(0).get_source_output();
         const auto& scale = reshape_const_to_2d(pattern_map.at(mul_const_m).get_node_shared_ptr());
         std::shared_ptr<ov::Node> optional_zero_point = nullptr;
 
         const bool with_zero_point = pattern_map.count(sub_no_convert_m) > 0 || pattern_map.count(sub_with_convert_m) > 0;
         if (with_zero_point) {
-            optional_zero_point = reshape_const_to_2d(pattern_map.at(sub_const_m).get_node_shared_ptr());
+            // WA: Convert ZP to u8 for OneDNN case to avoid u4 reorder
+            optional_zero_point = convert_u4const_to_u8(reshape_const_to_2d(pattern_map.at(sub_const_m).get_node_shared_ptr()));
         }
 
         std::shared_ptr<ov::Node> fc_input_b = reshape_const_to_2d(pattern_map.at(weights_m).get_node_shared_ptr());
