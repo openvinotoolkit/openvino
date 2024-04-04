@@ -34,6 +34,10 @@ tokenizer conversion for seamless integration into your projects. With OpenVINO 
 Supported Tokenizers
 #####################
 
+.. note::
+
+   OpenVINO Tokenizers can be inferred **only** on a CPU device.
+
 .. list-table::
    :widths: 30 25 20 20
    :header-rows: 1
@@ -62,10 +66,6 @@ Supported Tokenizers
      - tiktoken
      - yes
      - yes
-
-.. note::
-
-   OpenVINO Tokenizers can be inferred **only** on a CPU device.
 
 .. note::
 
@@ -117,6 +117,41 @@ Python Installation
       cd openvino_tokenizers
 
       pip install --no-deps .
+
+install option
+
+.. tab-set::
+
+   .. tab-item:: If you have a converted OpenVINO tokenizer
+
+      .. code-block:: python
+
+         pip install openvino-tokenizers
+
+   .. tab-item:: Сonvert Hugging Face tokenizer
+
+      .. code-block:: python
+
+         pip install openvino-tokenizers[transformers]
+
+   .. tab-item:: Pre-release version
+
+      .. code-block:: python
+
+         pip install --pre -U openvino openvino-tokenizers --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+
+   .. tab-item:: Build and install from source
+
+      .. code-block:: python
+
+         source path/to/installed/openvino/setupvars.sh
+
+               git clone https://github.com/openvinotoolkit/openvino_tokenizers.git
+
+         cd openvino_tokenizers
+
+         pip install --no-deps .
+
 
 You can also install OpenVINO Tokenizers with Conda distribution. Check `the OpenVINO Tokenizers
 repository <https://github.com/openvinotoolkit/openvino_tokenizers.git>`__ for more
@@ -235,6 +270,8 @@ Both can be used with ``read_model``, ``compile_model`` and ``save_model``, simi
 2. Tokenize and Prepare Inputs
 +++++++++++++++++++++++++++++++
 
+tokenizer - это CompiledModel, а ov_tokenizer - Model
+
 .. code-block:: python
 
    text_input = ["Quick brown fox jumped"]
@@ -261,7 +298,7 @@ Both can be used with ``read_model``, ``compile_model`` and ``save_model``, simi
    infer_request.reset_state()
    max_infer = 10
 
-   for _ in trange(max_infer):
+   for _ in range(max_infer):
       infer_request.start_async(model_input)
       infer_request.wait()
 
@@ -291,7 +328,7 @@ Both can be used with ``read_model``, ``compile_model`` and ``save_model``, simi
 Additional Resources
 ####################
 
-* `OpenVINO Tokenizers <https://github.com/openvinotoolkit/openvino_tokenizers>`__
+* `OpenVINO Tokenizers repo <https://github.com/openvinotoolkit/openvino_tokenizers>`__
 * `OpenVINO Tokenizers Notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/master/notebooks/openvino-tokenizers/openvino-tokenizers.ipynb>`__
 * `Text generation C++ samples that support most popular models like LLaMA 2 <https://github.com/openvinotoolkit/openvino.genai/tree/master/text_generation/causal_lm/cpp>`__
 * `OpenVINO GenAI Repo <https://github.com/openvinotoolkit/openvino.genai>`__
