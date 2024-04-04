@@ -315,6 +315,7 @@ network::network(program::ptr program, const ExecutionConfig& config, stream::pt
     , _internal(is_internal)
     , _is_primary_stream(is_primary_stream)
     , _enable_profiling(config.get_property(ov::enable_profiling))
+    , _aggressive_memory_opt(config.get_property(ov::intel_gpu::hint::aggressive_memory_opt))
     , _reset_arguments(true)
     , _shape_predictor(new ShapePredictor(&program->get_engine(), config.get_property(ov::intel_gpu::buffers_preallocation_ratio))) {
     if (!_internal) {

@@ -227,6 +227,10 @@ public:
     std::shared_ptr<ShapePredictor> get_shape_predictor() { return _shape_predictor; }
     void set_shape_predictor(std::shared_ptr<ShapePredictor> shape_predictor) { _shape_predictor = shape_predictor; }
 
+    bool aggressive_memory_opt() const {
+        return _aggressive_memory_opt;
+    }
+
 #ifdef GPU_DEBUG_CONFIG
     int64_t get_current_iteration_num() { return iteration; }
 #endif
@@ -243,6 +247,7 @@ private:
     bool _is_primary_stream;
     bool _is_dynamic = false;
     bool _enable_profiling = false;
+    bool _aggressive_memory_opt = false;
     bool _reset_arguments;
     uint32_t _local_net_id = 0;     // This is for thread-safe deserialization. 'net_id' is globally unique,
                                     // but '_local_net_id' is unique only in each intel_gpu::Graph.
