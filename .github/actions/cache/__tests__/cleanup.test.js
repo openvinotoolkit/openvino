@@ -6,7 +6,6 @@ const path = require('path');
 const os = require('os');
 const fs = require('fs');
 const cleanupImpl = require('../src/cleanupImpl');
-const { log } = require('console');
 
 // Mock the GitHub Actions core library
 const getInputMock = jest.spyOn(core, 'getInput').mockImplementation();
@@ -26,8 +25,6 @@ describe('cleanup', () => {
     jest.clearAllMocks();
 
     // Set up file system before each test
-    log(`Test temp fs: ${tempDir}`);
-    // Create cache pathes
     fs.mkdirSync(cacheRemotePath, { recursive: true });
 
     const fileSizeInBytes = 1024 * 1024 * 1024; // 1 GB

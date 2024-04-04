@@ -6,7 +6,6 @@ const path = require('path');
 const os = require('os');
 const fs = require('fs');
 const tar = require('tar');
-const { log } = require('console');
 const restoreImpl = require('../src/restoreImpl');
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'test-restore-'));
@@ -35,8 +34,6 @@ describe('restore', () => {
     jest.clearAllMocks();
 
     // Set up mock file system before each test
-    log(`Test temp fs: ${tempDir}`);
-    // Create cache pathes
     fs.mkdirSync(cacheLocalPath, { recursive: true });
     fs.mkdirSync(cacheRemotePath, { recursive: true });
     fs.mkdirSync(cacheTmpPath, { recursive: true });
