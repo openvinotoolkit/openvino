@@ -25,7 +25,7 @@ limitations under the License.*/
 // ordered code that encodes the name of the tensor and the slice
 // information. The name is also stored in the SaveSlice message for ease of
 // debugging and manual examination.
-// Modification Copyright (C) 2023 Intel Corporation
+// Modification Copyright (C) 2024 Intel Corporation
 
 syntax = "proto3";
 
