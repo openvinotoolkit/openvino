@@ -279,7 +279,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // Disable subtract folding only for the dGPUs to meet the requirements of oneDNN:
         // it expects to have the same data type for weights and zero points (apply it only for u8 data type, since other compression
         // types are not supported by oneDNN)
-        manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8, ov::element::u4, ov::element::i4}, !device_info.supports_immad);
+        manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8, ov::element::u4, ov::element::i4},
+                                                                    !device_info.supports_immad);
 
         // Need to check if transformations work correctly for mixed models with both compression and quantization at the same time.
         if (!is_model_quantized)
