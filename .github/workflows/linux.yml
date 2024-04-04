@@ -760,16 +760,117 @@ jobs:
           path: ${{ env.EXTENSION_BUILD_DIR }}/*.whl
           if-no-files-found: 'error'
 
-  GPU_Stub:
+  GPU:
+    name: GPU Unit and Functional Tests
     needs: [ Build, Smart_CI ]
-    runs-on: ubuntu-latest
     if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
-    steps:
-      - name: GPU stub
-        run: |
-          echo "This is only a stub to collect statistics of GPU runs filtered by Smart CI.
-          It will help us to estimate hardware requirements"
+    timeout-minutes: 300
+    runs-on: [ self-hosted, gpu ]
+    container:
+      image: ubuntu:20.04
+      options: --device /dev/dri:/dev/dri --group-add 109 --group-add 44
+      volumes:
+        - /dev/dri:/dev/dri
+    defaults:
+      run:
         shell: bash
+    env:
+      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      PARALLEL_TEST_SCRIPT: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py
+    steps:
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@v4
+        with:
+          name: 'openvino_package'
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package
+        uses: actions/download-artifact@v4
+        with:
+          name: 'openvino_tests'
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      # Needed as ${{ github.workspace }} is not working correctly when using Docker
+      - name: Setup Variables
+        run: |
+          echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
+          echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
+          echo "PARALLEL_TEST_SCRIPT=$GITHUB_WORKSPACE/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py" >> "$GITHUB_ENV"
+
+      - name: Extract OpenVINO packages
+        run: |
+          pushd $INSTALL_DIR
+            tar -xzf openvino_package.tar.gz -C $INSTALL_DIR
+          popd
+          pushd $INSTALL_TEST_DIR
+            tar -xzf openvino_tests.tar.gz -C $INSTALL_DIR
+          popd
+
+      - name: Install dependencies (Linux)
+        run: |
+          $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -c=gpu -y
+
+          apt-get update && apt-get install -y wget software-properties-common ocl-icd-libopencl1 ca-certificates gpg-agent tzdata
+        env:
+          DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+          TZ: "Europe/London" # to prevent tzdata from waiting user input
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install python dependencies for run_parallel.py
+        run: python3 -m pip install -r ${INSTALL_TEST_DIR}/functional_test_utils/layer_tests_summary/requirements.txt
+
+      - name: Install GPU Drivers
+        run: |
+          wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-core_1.0.15985.7_amd64.deb
+          wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-opencl_1.0.15985.7_amd64.deb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-level-zero-gpu-dbgsym_1.3.28454.6_amd64.ddeb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-level-zero-gpu_1.3.28454.6_amd64.deb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-opencl-icd-dbgsym_24.05.28454.6_amd64.ddeb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-opencl-icd_24.05.28454.6_amd64.deb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/libigdgmm12_22.3.11_amd64.deb
+          dpkg -i *.deb
+
+      #
+      # Tests
+      #
+
+      - name: OpenVINO GPU Unit Tests
+        if: always()
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+
+          rm -rf ${INSTALL_TEST_DIR}/gpu_unit_tests && mkdir -p ${INSTALL_TEST_DIR}/gpu_unit_tests
+          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_gpu_unit_tests -w ${INSTALL_TEST_DIR}/gpu_unit_tests -s suite -rf 1 -- --gtest_print_time=1
+
+      - name: OpenVINO GPU Func Tests
+        if: always()
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+
+          rm -rf ${INSTALL_TEST_DIR}/gpu_func_tests && mkdir -p ${INSTALL_TEST_DIR}/gpu_func_tests
+          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_gpu_func_tests -w ${INSTALL_TEST_DIR}/gpu_func_tests -s suite -rf 1 -- --gtest_print_time=1 --gtest_filter=*smoke*:-*SqueezeUnsqueezeLayerTest.CompareWithRefs*
+
+      - name: Upload Test Results (Unittests GPU)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-unit-gpu
+          path: ${{ env.INSTALL_TEST_DIR }}/gpu_unit_tests
+          if-no-files-found: 'error'
+
+      - name: Upload Test Results (Functional tests GPU)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-functional-gpu
+          path: ${{ env.INSTALL_TEST_DIR }}/gpu_func_tests
+          if-no-files-found: 'error'
 
   Overall_Status:
     name: ci/gha_overall_status
