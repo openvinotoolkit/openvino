@@ -94,7 +94,7 @@ The script has the following optional arguments:
 * `sm SPECIAL_MODE, --special_mode SPECIAL_MODE`
                         Specify shape mode (`static`, `dynamic` or ``) for Opset conformance or API scope type (`mandatory` or ``). Default value is ``
 *  `-e ENTITY, --entity ENTITY`
-                        Specify validation entity: `Inference`, `ImportExport` or `QueryModel` for `OP` or `ov`. Default value is `ov_compiled_model`, `ov_infer_request` or `ov_plugin` for `API`. Default value is ``(all)
+                        Specify validation entity: `Inference`, `ImportExport`, `QueryModel` or `OpImpl` for `OP` or `ov`. Default value is `ov_compiled_model`, `ov_infer_request` or `ov_plugin` for `API`. Default value is ``(all)
 * `p PARALLEL_DEVICES, --parallel_devices PARALLEL_DEVICES`
                         Parallel over HW devices. For example run tests over `GPU.0` and `GPU.1` in case when device are the same
 * `f EXPECTED_FAILURES, --expected_failures EXPECTED_FAILURES`
