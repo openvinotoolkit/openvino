@@ -33153,31 +33153,32 @@ async function cleanUp() {
     const maxCacheSizeInBytes = maxCacheSize * 1024 * 1024 * 1024;
     let totalSize = await calculateTotalSize(cacheRemotePath, files);
 
-    if (totalSize > maxCacheSizeInBytes) {
-      core.info(
-        `The cache storage size ${humanReadableFileSize(totalSize)} exceeds allowed size ${humanReadableFileSize(maxCacheSizeInBytes)}`
-      );
-      for (const file of files.reverse()) {
-        const filePath = path.join(cacheRemotePath, file);
-        const fileStats = await fs.stat(filePath);
-
-        if (fileStats.isFile() && fileStats.atime < minAccessDateAgo) {
-          core.info(`Removing file: ${filePath}`);
-          await fs.unlink(filePath);
-          core.info(`${filePath} removed successfully`);
-          totalSize -= fileStats.size;
-        }
-        // Exit loop if total size is within limit
-        core.info(`Total size: ${totalSize}`);
-        if (totalSize <= maxCacheSizeInBytes) {
-          break;
-        }
-      }
-      core.info('Old cache files removed successfully');
-    } else {
+    if (totalSize <= maxCacheSizeInBytes) {
       core.info(
         `The cache storage size ${humanReadableFileSize(totalSize)} less then the allowed size ${humanReadableFileSize(maxCacheSizeInBytes)}`
       );
+      return;
+    }
+
+    core.info(
+      `The cache storage size ${humanReadableFileSize(totalSize)} exceeds allowed size ${humanReadableFileSize(maxCacheSizeInBytes)}`
+    );
+    for (const file of files.reverse()) {
+      const filePath = path.join(cacheRemotePath, file);
+      const fileStats = await fs.stat(filePath);
+
+      if (fileStats.isFile() && fileStats.atime < minAccessDateAgo) {
+        core.info(`Removing file: ${filePath}`);
+        await fs.unlink(filePath);
+        core.info(`${filePath} removed successfully`);
+        totalSize -= fileStats.size;
+      }
+      // Exit loop if total size is within limit
+      core.info(`Total size: ${totalSize}`);
+      if (totalSize <= maxCacheSizeInBytes) {
+        core.info('Old cache files removed successfully');
+        return;
+      }
     }
   } catch (error) {
     core.error(`Error removing old cache files: ${error.message}`);
@@ -33277,7 +33278,7 @@ const fs = __nccwpck_require__(7147);
 const path = __nccwpck_require__(1017);
 
 async function getSortedCacheFiles(cachePath, key = '') {
-  if (!fs.existsSync(cachePath)) {
+  if (!(await checkFileExists(cachePath))) {
     core.warning(`${cachePath} doesn't exist`);
     return [];
   }
@@ -33320,7 +33321,7 @@ async function calculateTotalSize(dir, files) {
 
   for (const file of files) {
     const filePath = path.join(dir, file);
-    const fileStats = fs.statSync(filePath);
+    const fileStats = await fs.promises.stat(filePath);
 
     if (fileStats.isFile()) {
       totalSize += fileStats.size;
