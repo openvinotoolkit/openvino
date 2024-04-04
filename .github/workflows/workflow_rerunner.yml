@@ -1,0 +1,47 @@
+name: Rerun Workflow with Known Errors
+
+on:
+  workflow_run:
+    workflows:
+      - Linux (Ubuntu 20.04, Python 3.11)
+      - Linux ARM64 (Ubuntu 20.04, Python 3.11)
+      - Linux Static CC (Ubuntu 22.04, Python 3.11, Clang)
+      - Linux RISC-V with Conan (Ubuntu 22.04, Python 3.10)
+      - Windows (VS 2019, Python 3.11)
+      - Windows Conditional Compilation (VS 2022, Python 3.11)
+    types:
+      - completed
+
+permissions:
+  actions: write
+  contents: read
+  statuses: read
+  checks: read
+
+jobs:
+  rerun:
+    name: Rerun Workflow
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: '.github'
+
+      - name: Install deps
+        run: pip3 install PyGithub==2.2.0 requests==2.31.0
+
+      - name: Dump GitHub context
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+        run: echo "$GITHUB_CONTEXT"
+
+      - name: Rerun
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          export PYTHONPATH=${{ github.workspace }}/.github/scripts/workflow_rerun:${{ github.workspace }}/.github/scripts:$PYTHONPATH
+          python3 ${{ github.workspace }}/.github/scripts/workflow_rerun/rerunner.py \
+          --run-id ${{ github.event.workflow_run.id }} \
+          --repository-name ${GITHUB_REPOSITORY}
