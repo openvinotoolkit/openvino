@@ -131,7 +131,6 @@ xfail_issue_63043 = xfail_test(reason="Recurrent node expects constants as W, R,
 
 skip_rng_tests = pytest.mark.skip(reason="Tests use random number generator with no seed.")
 xfail_issue_63137 = xfail_test(reason="Unsupported operations: OptionalHasElement, OptionalGetElement")
-xfail_issue_63138 = xfail_test(reason="Missing ONNX Shape-15 support")
 xfail_issue_68212 = xfail_test(reason="Unsupported reading model with bytes streams")
 
 xfail_issue_78843 = xfail_test(reason="Missing reference output files for ssd mobilenet models")
@@ -170,7 +169,6 @@ skip_issue_124587 = pytest.mark.skip(reason="Fail on new macos machines")
 xfail_issue_125491 = xfail_test(reason="AveragePool mismatch with differences in shapes")
 xfail_issue_125492 = xfail_test(reason="DFT mismatch")
 xfail_issue_125493 = xfail_test(reason="Reduce* mismatch")
-xfail_issue_125495 = xfail_test(reason="ReduceMin/Max doesn't support boolean")
 xfail_issue_122776 = xfail_test(reason="test_mish_expanded_cpu - "
                                        "Not equal to tolerance")
 xfail_issue_122775 = xfail_test(reason="test_resize_downsample_scales_linear_cpu - "

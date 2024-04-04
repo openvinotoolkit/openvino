@@ -32,14 +32,22 @@ inline VectorDims collapse_dims_to_max_rank(VectorDims dims) {
 }
 
 /**
-* @brief ACL handles NHWC specifically, it thinks it is NCHW, so we need to change layout manually:
-* NCHW (0, 1, 2, 3) -> NHWC (0, 2, 3, 1)
-* @param shape shape to convert
+* @brief ACL handles NH_C specifically, it thinks it is NC_W, so we need to change layout manually:
+* e.g. NCHW (0, 1, 2, 3) -> NHWC (0, 2, 3, 1)
+* @param _listDims list of dimensions to convert
 * @return none
 */
-inline void changeLayoutToNhwc(VectorDims& shape) {
-    std::swap(shape[1], shape[2]);
-    std::swap(shape[2], shape[3]);
+
+inline void changeLayoutToNH_C(const std::vector<arm_compute::TensorShape*> &_listDims) {
+    auto mover = [](arm_compute::TensorShape &_shape) {
+        if (_shape.num_dimensions() > 4) { std::swap(_shape[2], _shape[3]); }
+        if (_shape.num_dimensions() > 3) { std::swap(_shape[1], _shape[2]); }
+        if (_shape.num_dimensions() > 2) { std::swap(_shape[0], _shape[1]); }
+    };
+
+    for (auto& dims : _listDims) {
+        mover(*dims);
+    }
 }
 
 /**

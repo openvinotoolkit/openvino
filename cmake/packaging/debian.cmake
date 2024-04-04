@@ -183,7 +183,7 @@ macro(ov_cpack_settings)
     endif()
 
     # intel-npu
-    if(ENABLE_INTEL_NPU OR BUILD_npu OR BUILD_vpux-plugin OR BUILD_applications.ai.vpu-accelerators.vpux-plugin)
+    if(ENABLE_INTEL_NPU)
         set(CPACK_COMPONENT_NPU_DESCRIPTION "Intel® Neural Processing Unit inference plugin")
         set(CPACK_COMPONENT_NPU_DEPENDS "${OV_CPACK_COMP_CORE}")
         set(CPACK_DEBIAN_NPU_PACKAGE_NAME "libopenvino-intel-npu-plugin-${cpack_name_ver}")
