@@ -133,7 +133,7 @@ Napi::Value ModelWrap::is_dynamic(const Napi::CallbackInfo& info) {
 Napi::Value ModelWrap::get_output_shape(const Napi::CallbackInfo& info) {
     if (info.Length() != 1 || !info[0].IsNumber()) {
         reportError(info.Env(), "Invalid argument. Expected a single number.");
-        return Napi::Value();
+        return Napi::Undefined();
     }
 
     auto idx = info[0].As<Napi::Number>().Int32Value();
