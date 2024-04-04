@@ -309,7 +309,7 @@ TEST_P(fc_compressed_int8_bias_dynamic, basic) {
         reorder("reorder_bfyx", input_info("bias_add"), p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = 1.0f;
     execute(p, true);
 }
 

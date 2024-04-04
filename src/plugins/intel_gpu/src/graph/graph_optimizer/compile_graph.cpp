@@ -46,11 +46,10 @@ void compile_graph::run(program& p) {
 
         if (node->is_type<fully_connected>() && change_initial_impl) {
             const auto fc_prim = node->as<fully_connected>().get_primitive();
-            const auto weights_dt = node->get_input_layout(1).data_type;
 
-            // Do not change impl (i.e. do not use ocl shape-agnostic kernels) in case of FC and 8bit compressed weights,
+            // Do not change impl (i.e. do not use ocl shape-agnostic kernels) in case of compressed weights,
             // since oneDNN primitives/kernels caching mechanism will be used instead.
-            if (fc_prim->compressed_weights && ov::element::Type(weights_dt).bitwidth() == 8)
+            if (fc_prim->compressed_weights)
                 change_initial_impl = false;
         }
 

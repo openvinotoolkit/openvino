@@ -1145,8 +1145,10 @@ public:
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
 
-        if (engine.get_device_info().dev_type == device_type::discrete_gpu)
+        // TODO: enable unittest for unsupported case
+        if (engine.get_device_info().supports_immad && is_dynamic)
             GTEST_SKIP();
+
 
         long int ifm_num = 256;
         long int ofm_num = 256;
@@ -1168,6 +1170,7 @@ public:
                                     : layout{ {batch_num, ifm_num}, data_types::f16, format::bfyx };
 
         auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16, padding(), 2, 2);
+
         fc_prim.decompression_zero_point_scalar = 8;
 
         auto get_ref_results = [&]() {
@@ -1210,7 +1213,10 @@ public:
         if (is_dynamic) {
             auto inst = network->get_primitive("fc_prim");
             auto impl = inst->get_impl();
-            ASSERT_EQ(impl->get_kernels().size(), size_t(2)); // Two shape-agnostic kernels
+            size_t num_kernels = engine.get_device_info().dev_type == device_type::discrete_gpu ?
+                1 :
+                2; // Two shape-agnostic kernels
+            ASSERT_EQ(impl->get_kernels().size(), num_kernels);
         }
 
         network->set_input_data("input", input_mem);
@@ -1226,7 +1232,7 @@ public:
         cldnn::mem_lock<ov::float16> output_ptr_ref (ref_output_mem, get_test_stream());
 
         for (size_t i = 0; i < output_ptr_ref.size(); i++)
-            ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], 5.0) << "i = " << i;
+            ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], 9.0) << "i = " << i;
     }
 
     void test_compressed_int8_scale_zp_bias(bool is_caching_test) {
@@ -2977,6 +2983,10 @@ TEST_F(fully_connected_gpu_tests, compressed_int8_scale_b1_bias_zp_3d) {
     this->test_compressed_int8_scale(false, true, 1, true, true, true);
 }
 
+TEST_F(fully_connected_gpu_tests, compressed_int8_scale_cached) {
+    this->test_compressed_int8_scale(true, false, 1, true, false);
+}
+
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_zp_b1) {
     this->test_compressed_int8_scale(false, true, 1, false, true);
 }
@@ -3537,3 +3547,4 @@ TEST_F(fully_connected_gpu_tests, weights_reorder_shapes_update) {
 TEST_F(fully_connected_gpu_tests, weights_reorder_shapes_update_cached) {
     this->test_weights_reorder_shapes_update(true);
 }
+

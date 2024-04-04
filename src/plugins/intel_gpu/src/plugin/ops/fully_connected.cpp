@@ -30,16 +30,17 @@ static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::share
     auto inputs = p.GetInputInfo(op);
     std::string primitive_name = layer_type_name_ID(op);
 
+    const int INPUT_CNT_WITH_ZP = 5;
     auto input_name = inputs[0].pid;
     auto weights_name = inputs[1].pid;
     auto bias_name = inputs[2].pid;
     auto scale_name = inputs[3].pid;
-    auto zp_name = inputs.size() == 5 ? inputs[4].pid : "";
+    auto zp_name = inputs.size() == INPUT_CNT_WITH_ZP ? inputs[4].pid : "";
 
     float zp_value = 0.0f;
     bool has_scalar_zp = false;
-    if (op->get_input_size() == 4) {
-        auto zp_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(3));
+    if (op->get_input_size() == INPUT_CNT_WITH_ZP) {
+        auto zp_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(INPUT_CNT_WITH_ZP-1));
         if (zp_const && ov::shape_size(zp_const->get_output_shape(0)) == 1) {
             has_scalar_zp = true;
             zp_value = zp_const->cast_vector<float>()[0];
