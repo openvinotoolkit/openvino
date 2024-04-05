@@ -25,7 +25,7 @@ If you install OpenVINO Runtime via archive files, sample applications are creat
 .. note::
    If you install OpenVINO without samples, you can still get them directly from `the OpenVINO repository <https://github.com/openvinotoolkit/openvino/>`__.
 
-Before you build samples, refer to the :doc:`system requirements <../../about-openvino/system-requirements>` page and make sure that all the prerequisites have been installed. Next, you can perform the following steps:
+Before you build samples, refer to the :doc:`system requirements <../../about-openvino/release-notes-openvino/system-requirements>` page and make sure that all the prerequisites have been installed. Next, you can perform the following steps:
 
 1. :ref:`Build Samples <build-samples>`.
 2. :ref:`Select a Sample <select-sample>`.
