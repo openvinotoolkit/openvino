@@ -22,9 +22,9 @@ template <class T, typename std::enable_if<std::is_integral<T>::value>::type* = 
 T atanh(const T in) {
     // Integral type not support NAN and INFINITY, use integral limits instead for special values.
     if (in > 0) {
-        return std::numeric_limits<T>::min();
-    } else if (in < 0) {
         return std::numeric_limits<T>::max();
+    } else if (in < 0) {
+        return std::numeric_limits<T>::min();
     } else {
         return 0;
     }
