@@ -96,6 +96,14 @@ class LogAnalyzer:
         
     @staticmethod
     def _clean_up_string(string: str) -> str:
+        """
+        Removes special characters from the string, strips from leading and following spaces,
+        and lowers it
+        
+        for "Could not resolve host: github.com" it will return: "could not resolve host github com"
+        
+        This cleanup is applied to both errors to look for and logs themselves for easy finding
+        """
         return re.sub(r'[^A-Za-z0-9]+', ' ', string).lower().strip()
 
     def analyze(self) -> None:
