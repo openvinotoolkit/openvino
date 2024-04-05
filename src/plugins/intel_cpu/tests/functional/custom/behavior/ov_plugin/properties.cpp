@@ -37,6 +37,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginAllSupportedPropertiesAreAvailable) {
         RO_property(ov::device::capabilities.name()),
         RO_property(ov::device::type.name()),
         RO_property(ov::device::architecture.name()),
+        RO_property(ov::optimal_batch_size.name()),
         // read write
         RW_property(ov::num_streams.name()),
         RW_property(ov::inference_num_threads.name()),
@@ -325,6 +326,16 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginCheckCPUDeviceArchitecture) {
 #elif defined(OPENVINO_ARCH_RISCV64)
     ASSERT_EQ(value.as<std::string>(), "riscv");
 #endif
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_CpuExceNetworkCheckCPUOptimalBatchSize) {
+    ov::Core ie;
+    ov::Any value;
+    ov::CompiledModel compiledModel;
+
+    ASSERT_NO_THROW(compiledModel = ie.compile_model(model, deviceName));
+    ASSERT_NO_THROW(value = compiledModel.get_property(ov::optimal_batch_size));
+    ASSERT_EQ(value.as<unsigned int>(), 1);
 }
 
 } // namespace
