@@ -87,7 +87,7 @@ public:
     /**
      * @brief Helper function to access model outputs shape.
      * @param info Contains information about the environment and passed arguments
-     * @return A Javascript Array containing Arrays of output shapes
+     * @return Napi::Array containing a shape of requested output.
      */
     Napi::Value get_output_shape(const Napi::CallbackInfo& info);
 
