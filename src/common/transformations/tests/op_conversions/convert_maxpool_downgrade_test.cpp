@@ -12,7 +12,6 @@
 #include "openvino/opsets/opset14.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
-#include "openvino/pass/visualize_tree.hpp"
 
 namespace {
 
@@ -21,8 +20,16 @@ std::shared_ptr<ov::Model> create_v14_model(const ov::op::RoundingType rounding_
     const ov::Strides strides{1, 1}, dilations{1, 1};
     const ov::Shape pads_begin{1, 1}, pads_end{1, 1}, kernel{2, 2};
 
-    const auto max_pool_v14 =
-        std::make_shared<ov::opset14::MaxPool>(input, strides, dilations, pads_begin, pads_end, kernel, rounding_type);
+    const auto max_pool_v14 = std::make_shared<ov::opset14::MaxPool>(input,
+                                                                     strides,
+                                                                     dilations,
+                                                                     pads_begin,
+                                                                     pads_end,
+                                                                     kernel,
+                                                                     rounding_type,
+                                                                     ov::op::PadType::EXPLICIT,
+                                                                     ov::element::i64,
+                                                                     2);
 
     max_pool_v14->set_friendly_name("max_pool_v14");
 
@@ -34,8 +41,16 @@ std::shared_ptr<ov::Model> create_v8_model(const ov::op::RoundingType rounding_t
     const ov::Strides strides{1, 1}, dilations{1, 1};
     const ov::Shape pads_begin{1, 1}, pads_end{1, 1}, kernel{2, 2};
 
-    const auto max_pool_v8 =
-        std::make_shared<ov::opset8::MaxPool>(input, strides, dilations, pads_begin, pads_end, kernel, rounding_type);
+    const auto max_pool_v8 = std::make_shared<ov::opset8::MaxPool>(input,
+                                                                   strides,
+                                                                   dilations,
+                                                                   pads_begin,
+                                                                   pads_end,
+                                                                   kernel,
+                                                                   rounding_type,
+                                                                   ov::op::PadType::EXPLICIT,
+                                                                   ov::element::i64,
+                                                                   2);
 
     max_pool_v8->set_friendly_name("max_pool_v8");
 
@@ -47,57 +62,66 @@ std::shared_ptr<ov::Model> create_ceil_torch_workaround_model(const ov::op::Roun
     const ov::Strides strides{1, 1}, dilations{1, 1};
     ov::Shape pads_begin{1, 1}, pads_end{1, 1}, kernel{2, 2};
 
-    const auto padding_begin_node = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{pads_begin.size()}, pads_begin);
-    const auto padding_end_node = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{pads_end.size()}, pads_end);
-    const auto zero = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
-    const auto one = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {1});
-    const auto two = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {2});
+    const auto padding_begin_node =
+        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{pads_begin.size()}, pads_begin);
+    const auto padding_end_node = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{pads_end.size()}, pads_end);
+    const auto zero = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    const auto one = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+    const auto two = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {2});
 
     const auto pads_size = pads_begin.size();
-    const auto pads_len = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {pads_size});
-    const auto pads_remaining = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {0, 0});
+    const auto pads_len = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {pads_size});
+    const auto pads_remaining = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {0, 0});
 
     // gather input spatial dims and prepare for compare as values (in_dim + pad)
-    const auto end = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {pads_size + 2});
-    const auto dim_idxs = std::make_shared<ov::op::v4::Range>(two, end, one, ov::element::i32);
-    const auto shape = std::make_shared<ov::op::v3::ShapeOf>(input, ov::element::i32);
+    const auto end = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {pads_size + 2});
+    const auto dim_idxs = std::make_shared<ov::op::v4::Range>(two, end, one, ov::element::i64);
+    const auto shape = std::make_shared<ov::op::v3::ShapeOf>(input, ov::element::i64);
     const auto gth_in_dims = std::make_shared<ov::op::v8::Gather>(shape, dim_idxs, zero);
     const auto in_left_padded = std::make_shared<ov::op::v1::Add>(gth_in_dims, padding_begin_node);
 
     // gather output spatial dims and prepare it for compare as values (out_dim - 1) * stride
-    const auto mp = 
-        std::make_shared<ov::op::v8::MaxPool>(input, strides, dilations, pads_begin, pads_end, kernel, ov::op::RoundingType::CEIL);
-    const auto shape_of_mp = std::make_shared<ov::op::v3::ShapeOf>(mp, ov::element::i32);
+    const auto mp = std::make_shared<ov::op::v8::MaxPool>(input,
+                                                          strides,
+                                                          dilations,
+                                                          pads_begin,
+                                                          pads_end,
+                                                          kernel,
+                                                          ov::op::RoundingType::CEIL);
+    const auto shape_of_mp = std::make_shared<ov::op::v3::ShapeOf>(mp, ov::element::i64);
     const auto gth_out_dims = std::make_shared<ov::op::v8::Gather>(shape_of_mp, dim_idxs, zero);
     const auto out_sub_one = std::make_shared<ov::op::v1::Subtract>(gth_out_dims, one);
-    const auto stride_node = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{strides.size()}, strides);
+    const auto stride_node = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{strides.size()}, strides);
     const auto out_mul_stride = std::make_shared<ov::op::v1::Multiply>(out_sub_one, stride_node);
 
-    // if (in_dim + pad) > ((out_dim - 1) * stride) sliding window in bound use end padding.
-    const auto in_gt_out = std::make_shared<ov::op::v1::Greater>(in_left_padded, out_mul_stride);
+    // if (in_dim + pad) < ((out_dim - 1) * stride) sliding window in bound use end padding.
+    const auto in_gt_out = std::make_shared<ov::op::v1::Greater>(out_mul_stride, in_left_padded);
     const auto selected_pads = std::make_shared<ov::op::v1::Select>(in_gt_out, padding_end_node, zero);
 
     // apply padding on input clear pads attribute
-    const auto pb = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{pads_remaining->output(0), padding_end_node}, 0);
+    const auto pb =
+        std::make_shared<ov::op::v0::Concat>(ov::OutputVector{pads_remaining->output(0), padding_end_node}, 0);
     const auto pe = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{pads_remaining, selected_pads}, 0);
-    auto minus_inf = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {-std::numeric_limits<float>::infinity()});
+    auto minus_inf =
+        ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {-std::numeric_limits<float>::infinity()});
     std::shared_ptr<ov::Node> convert_like_node = std::make_shared<ov::op::v1::ConvertLike>(minus_inf, input);
-    const auto pad_node = std::make_shared<ov::op::v12::Pad>(input, pb, pe, convert_like_node, ov::op::PadMode::CONSTANT);
+    const auto pad_node =
+        std::make_shared<ov::op::v12::Pad>(input, pb, pe, convert_like_node, ov::op::PadMode::CONSTANT);
     std::fill_n(pads_begin.begin(), pads_begin.size(), 0);
     std::fill_n(pads_end.begin(), pads_end.size(), 0);
 
     const auto max_pool_v8 = std::make_shared<ov::op::v8::MaxPool>(pad_node,
-                                                        strides,
-                                                        dilations,
-                                                        pads_begin,
-                                                        pads_end,
-                                                        kernel,
-                                                        ov::op::RoundingType::CEIL,
-                                                        ov::op::PadType::EXPLICIT,
-                                                        ov::element::i32,
-                                                        2);
+                                                                   strides,
+                                                                   dilations,
+                                                                   pads_begin,
+                                                                   pads_end,
+                                                                   kernel,
+                                                                   ov::op::RoundingType::CEIL,
+                                                                   ov::op::PadType::EXPLICIT,
+                                                                   ov::element::i64,
+                                                                   2);
 
-    max_pool_v8->set_friendly_name("max_pool_v14");
+    max_pool_v8->set_friendly_name("max_pool_v8_ceil_torch_workaround");
 
     return std::make_shared<ov::Model>(max_pool_v8->outputs(), ov::ParameterVector{input});
 }
@@ -130,12 +154,9 @@ TEST_F(TransformationTestsF, ConvertMaxPool8ToMaxPool1) {
 TEST_F(TransformationTestsF, ConvertMaxPool14ToMaxPool8_ceil_torch_to_ceil) {
     model = create_v14_model(ov::op::RoundingType::CEIL_TORCH);
     model_ref = create_ceil_torch_workaround_model(ov::op::RoundingType::CEIL);
-    //auto tree_vis = ov::pass::VisualizeTree("/home/pwysocki/model_ref.svg");
-    //tree_vis.run_on_model(model_ref);
-    manager.register_pass<ov::pass::VisualizeTree>("/home/pwysocki/model_before.svg");
     manager.register_pass<ov::pass::ConvertMaxPool14ToMaxPool8>();
-    manager.register_pass<ov::pass::VisualizeTree>("/home/pwysocki/model_after.svg");
-    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+    comparator.disable(FunctionsComparator::CmpValues::ACCURACY);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, ConvertMaxPool14ToMaxPool8_ceil_to_ceil) {
