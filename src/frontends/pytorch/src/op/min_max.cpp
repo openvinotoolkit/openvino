@@ -211,8 +211,6 @@ OutputVector translate_aminmax(const NodeContext& context) {
     num_inputs_check(context, 1, 4);  // Expect between 1 and 4 inputs
                                       // (input tensor, dim = none, keepdim = false, out = none)
 
-    OPENVINO_ASSERT(!context.input_is_none(3), "out argument is not supported in this conversion");
-
     auto input = context.get_input(0);
 
     // check if dim is provided, if not, get the range of axes to compute min and max
@@ -223,6 +221,10 @@ OutputVector translate_aminmax(const NodeContext& context) {
 
     auto amin = context.mark_node(std::make_shared<v1::ReduceMin>(input, dim, keep_dims));
     auto amax = context.mark_node(std::make_shared<v1::ReduceMax>(input, dim, keep_dims));
+
+    if (!context.input_is_none(3)) {
+        OPENVINO_ASSERT(false, "out argument is not supported in this conversion");
+    }
 
     return {amin, amax};
 }
