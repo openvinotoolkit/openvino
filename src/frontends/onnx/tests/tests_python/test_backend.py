@@ -690,7 +690,6 @@ tests_expected_to_fail = [
     (
         xfail_issue_125493,
         "OnnxBackendNodeModelTest.test_reduce_l1_empty_set_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_l2_empty_set_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_empty_set_cpu",
         "OnnxBackendNodeModelTest.test_reduce_min_empty_set_cpu",
         "OnnxBackendNodeModelTest.test_reduce_prod_empty_set_cpu",
