@@ -61,9 +61,11 @@ jobs:
       OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
       CONAN_USER_HOME: /mount/caches/ccache/ubuntu22_riscv64_master_release/.conan
-      CCACHE_DIR: /mount/caches/ccache/ubuntu22_riscv64_master_release
+      CCACHE_REMOTE_DIR: /mount/caches/ccache/ubuntu22_riscv64
+      CCACHE_DIR: /__w/openvino/openvino/ccache
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
-      CCACHE_MAXSIZE: 50G
+      CCACHE_MAXSIZE: 5G
+
     if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
     steps:
       - name: Set apt retries
@@ -83,6 +85,21 @@ jobs:
 
       - name: System info
         uses: ./openvino/.github/actions/system_info
+
+      - name: Setup ccache
+        id: ccache_restore
+        uses: ./openvino/.github/actions/cache
+        with:
+          save-always: true
+          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          cache-size: 10
+          max-cache-size: 50
+          cache-path: ${{ env.CCACHE_REMOTE_DIR }}
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-${{ runner.arch }}-${{ github.ref_name == 'master' && '' || github.event.number }}ccache-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-ccache
+            ${{ runner.os }}-${{ runner.arch }}-${{ github.event.number }}ccache
 
       - name: Init submodules for non-Conan dependencies
         run: |
@@ -162,6 +179,8 @@ jobs:
       #
       # Build
       #
+      - name: Clean ccache stats
+        run: ccache --zero-stats
 
       - name: CMake - Configure
         run: |
@@ -210,6 +229,9 @@ jobs:
           source ${OPENVINO_BUILD_DIR}/dependencies/deactivate_conanbuild.sh
         env:
           CMAKE_TOOLCHAIN_FILE: ${{ env.OPENVINO_BUILD_DIR }}/dependencies/conan_toolchain.cmake
+
+      - name: Clean ccache
+        run: ccache --cleanup
 
   Overall_Status:
     name: ci/gha_overall_status_linux_riscv
