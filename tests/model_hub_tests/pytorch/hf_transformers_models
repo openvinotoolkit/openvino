@@ -74,7 +74,7 @@ facebook/encodec_24khz,encodec
 facebook/esm2_t6_8M_UR50D,esm
 facebook/flava-full,flava,xfail,Tracing problem
 facebook/flava-image-codebook,flava_image_codebook,skip,Load problem
-facebook/levit-128S,levit,xfail,Tracing problem
+facebook/levit-128S,levit
 facebook/m2m100_418M,m2m_100
 facebook/mask2former-swin-base-coco-panoptic,mask2former
 facebook/maskformer-swin-base-coco,maskformer
@@ -367,7 +367,7 @@ thomwolf/vqgan_imagenet_f16_1024,vqgan_model,skip,Load problem
 thu-ml/zh-clip-vit-roberta-large-patch14,zhclip,skip,Load problem
 tifa-benchmark/promptcap-coco-vqa,ofa,skip,Load problem
 tli8hf/robertabase_snli,transformerfornli,skip,Load problem
-transfo-xl-wt103,transfo-xl,xfail,Unsupported op aten::index_copy_
+# transfo-xl/transfo-xl-wt103,transfo-xl - deprecated by transformers due to security vulnerability, not inferable in latest transformers
 transZ/BART_shared_clean,shared_bart,skip,Load problem
 transZ/BART_shared_v2,shared_bart_v2,skip,Load problem
 transZ/misecom,misecom,skip,Load problem
