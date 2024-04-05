@@ -354,6 +354,10 @@ public:
         return originalLayers;
     }
 
+    const std::string &getParallelDomain() const {
+        return parallelDomain;
+    }
+
     Type getType() const {
         return type;
     }
@@ -652,6 +656,13 @@ protected:
 
     std::vector <NodePtr> fusedWith;
     std::vector <NodePtr> mergedWith;
+
+    std::vector <NodePtr> parallelWith;
+    int curNumaNode = -1;
+
+    void toNumaNode(int numaID);
+    virtual void toNumaNodeImpl(int numaID);
+
     std::string primitivesPriority;
     std::vector <impl_desc_type> customImplPriorities;
     std::vector <dnnl::memory::format_tag> inputMemoryFormatsFilter;
@@ -660,6 +671,7 @@ protected:
     bool keepOriginalPrecision  = false;
 
     std::string originalLayers;  // contains names of the original layers separated by comma
+    std::string parallelDomain;
 
     Node(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr ctx, const ShapeInferFactory& shapeInferFactory);
     Node(const std::string& type,
@@ -762,7 +774,7 @@ protected:
 
     MemoryPtr getScratchPadMem(const DnnlMemoryDescPtr& desc) {
         if (!scratchpadMem || !scratchpadMem->getDesc().isCompatible(*desc)) {
-            scratchpadMem = context->getScratchPad()->createScratchPadMem(desc);
+            scratchpadMem = context->getScratchPad(curNumaNode)->createScratchPadMem(desc);
         }
         return scratchpadMem;
     }

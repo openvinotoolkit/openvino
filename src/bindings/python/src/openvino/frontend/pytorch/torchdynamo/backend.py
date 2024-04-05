@@ -20,7 +20,7 @@ from openvino.frontend import FrontEndManager
 from openvino.runtime import Core, Type, PartialShape
 from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 from openvino.frontend.pytorch.torchdynamo import decompositions
-from openvino.frontend.pytorch.torchdynamo.decompositions import get_aot_decomposition_list
+from openvino.frontend.pytorch.torchdynamo.decompositions import get_aot_decomposition_list, get_inf_decomposition_list
 from openvino.frontend.pytorch.torchdynamo.partition import Partitioner
 from openvino.frontend.pytorch.torchdynamo.execute import execute, execute_cached
 from openvino.frontend.pytorch.torchdynamo.compile import cached_model_name, openvino_compile_cached_model
@@ -57,69 +57,6 @@ def openvino(subgraph, example_inputs, options=None):
         return aot_autograd(fw_compiler=fx_openvino, bw_compiler=fx_openvino)(subgraph, example_inputs)
     return fx_openvino(subgraph, example_inputs, options)
 
-@register_backend
-@fake_tensor_unsupported
-def openvino_ts(subgraph, example_inputs):
-    return ts_openvino(subgraph, example_inputs)
-
-def ts_openvino(subgraph, example_inputs):
-    try:
-        model = torch.jit.script(subgraph)
-        model.eval()
-        fr_model = torch.jit.freeze(model)
-
-        core = Core()
-        fe_manager = FrontEndManager()
-        fe = fe_manager.load_by_framework('pytorch')
-        dtype_mapping = {
-            torch.float64: Type.f64,
-            torch.float32: Type.f32,
-            torch.float16: Type.f16,
-            torch.int64: Type.i64,
-            torch.int32: Type.i32,
-            torch.uint8: Type.u8,
-            torch.int8: Type.i8,
-            torch.bool: Type.boolean,
-        }
-        decoder = TorchScriptPythonDecoder(fr_model)
-
-        # TODO: Use convert_model instead when mo --convert_model api becomes a part of OV runtime
-        im = fe.load(decoder)
-        om = fe.convert(im)
-
-        for idx, input_data in enumerate(example_inputs):
-            om.inputs[idx].get_node().set_element_type(dtype_mapping[input_data.dtype])
-            om.inputs[idx].get_node().set_partial_shape(PartialShape(list(input_data.shape)))
-        om.validate_nodes_and_infer_types()
-
-        device = "CPU"
-        if (os.getenv("OPENVINO_TORCH_BACKEND_DEVICE") is not None):
-            device = os.getenv("OPENVINO_TORCH_BACKEND_DEVICE")
-            assert device in core.available_devices, "Specified device " + device + " is not in the list of OpenVINO Available Devices"
-
-        compiled_model = core.compile_model(om, device)
-
-        def _call(*args):
-            if not hasattr(_call, "execute_on_ov"):
-                _call.execute_on_ov = True
-            execute_on_ov = getattr(_call, "execute_on_ov")
-            if execute_on_ov:
-                ov_inputs = [a.detach().cpu().numpy() for a in args]
-                try:
-                    res = compiled_model(ov_inputs)
-                except Exception as e:
-                    logger.debug(f"Failed in OpenVINO execution: {e}")
-                    _call.execute_on_ov = False
-                    return subgraph.forward(*args)
-                result = [torch.from_numpy(res[out]) for out in compiled_model.outputs]
-                return result
-            else:
-                return subgraph.forward(*args)
-        return _call
-    except Exception as e:
-        logger.debug(f"Failed in compilation: {e}")
-        return compile_fx(subgraph, example_inputs)
-
 def fx_openvino(subgraph, example_inputs, options=None):
     try:
         if len(openvino_options) != 0:
@@ -146,7 +83,7 @@ def fx_openvino(subgraph, example_inputs, options=None):
             example_inputs.reverse()
 
         from torch._subclasses.fake_tensor import FakeTensorMode
-        decompositions = _get_decompositions(options)
+        decompositions = _get_decompositions(options) + get_inf_decomposition_list()
         if (_get_aot_autograd(options)):
             decompositions = decompositions + get_aot_decomposition_list()
         with FakeTensorMode(allow_non_fake_inputs=True):

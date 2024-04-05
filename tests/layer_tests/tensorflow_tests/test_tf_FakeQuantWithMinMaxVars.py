@@ -48,7 +48,7 @@ class TestFakeQuantWithMinMaxVars(CommonTFLayerTest):
     @pytest.mark.parametrize("fake_quant_op", [
         'tf.raw_ops.FakeQuantWithMinMaxVars', 'tf.raw_ops.FakeQuantWithMinMaxArgs'
     ])
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122716')
@@ -63,7 +63,7 @@ class TestFakeQuantWithMinMaxVars(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("inputs_shape, min_value, max_value, num_bits, narrow_range, fake_quant_op", test_per_channel_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.xfail("104822")
     def test_fake_quant_with_min_max_vars_per_channel_basic(self, inputs_shape, min_value, max_value, num_bits, narrow_range, fake_quant_op, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
