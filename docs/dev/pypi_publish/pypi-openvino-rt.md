@@ -1,15 +1,12 @@
 # OpenVINO™
 
-<!--- The note below is intended for master branch only for pre-release purpose. Remove it for official releases. --->
-> **NOTE**: This version is pre-release software and has not undergone full release validation or qualification. No support is offered on pre-release software and APIs/behavior are subject to change. It should NOT be incorporated into any production software/solution and instead should be used only for early testing and integration while awaiting a final release version of this software.
-
 Intel® Distribution of OpenVINO™ toolkit is an open-source toolkit for optimizing and deploying AI inference. It can be used to develop applications and solutions based on deep learning tasks, such as: emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, etc. It provides high-performance and rich deployment options, from edge to cloud.
 
 If you have already finished developing your models and converting them to the OpenVINO model format, you can install OpenVINO Runtime to deploy your applications on various devices. The [OpenVINO™](https://docs.openvino.ai/2024/openvino-workflow/running-inference.html) Python package includes a set of libraries for an easy inference integration with your products.
 
 ## System Requirements
 
-Before you start the installation, check the supported operating systems and required Python* versions. The complete list of supported hardware is available in the [System Requirements](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html).
+Before you start the installation, check the supported operating systems and required Python* versions. The complete list of supported hardware is available in the [System Requirements](https://docs.openvino.ai/2024/about-openvino/system-requirements.html).
 
 **C++ libraries** are also required for the installation on Windows*. To install that, you can [download the Visual Studio Redistributable file (.exe)](https://aka.ms/vs/17/release/vc_redist.x64.exe).
 
