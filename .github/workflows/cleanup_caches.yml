@@ -4,8 +4,6 @@ on:
   schedule:
     # at 00:00 on the 1st day of every month
     - cron: '0 0 1 * *'
-  # TODO: need to remove, only for debug:
-  pull_request:
 
 jobs:
   Cleanup_PIP:
@@ -54,4 +52,4 @@ jobs:
           cache-size: 10
           max-cache-size: 50
           cache-path: ${{ env.CCACHE_PATH }}
-          key: '.'
+          key: '*'
