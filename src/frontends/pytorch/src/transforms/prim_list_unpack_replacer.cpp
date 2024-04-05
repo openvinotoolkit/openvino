@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -81,6 +81,7 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
             }
             auto input_tensor = chunk->get_input_source_output(0);
             auto chunks = chunk->get_input_source_output(1);
+            chunks = rg.make<opset10::Convert>(chunks, element::i32);
             auto dim = chunk->get_input_source_output(2);
 
             auto tensor_0 = opset10::Constant::create(element::i32, Shape{1}, {0});
@@ -127,6 +128,7 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
 
             auto input = tensor_split->get_input_source_output(0);
             auto indices_or_sections = tensor_split->get_input_source_output(1);
+            indices_or_sections = std::make_shared<opset10::Convert>(indices_or_sections, element::i32);
             auto dim = rg.make<opset10::Unsqueeze>(tensor_split->get_input_source_output(2), const_0);
             auto list_num_outs = opset10::Constant::create(element::i32, Shape{1}, {list_unpack->get_output_size()});
             auto list_num_outs_scalar =

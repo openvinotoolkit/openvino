@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,7 +68,7 @@ static std::shared_ptr<ov::Model> makeSDPA(const ov::PartialShape& inputShape, b
                 auto gather_ls = makeOP<opset8::Gather>({concat_shape, {2, 3}, 0}, {{"batch_dims", 0}});
                 auto expected_group_shape = makeOP<opset1::Concat>({beam_idx_shape, {inputShape[1] / 4}, {4}, gather_ls}, {{"axis", 0}});
                 auto expand_Abs = makeOP<opset1::Abs>({expected_group_shape});
-                auto axis_mapping = makeConst(element::u8, ov::Shape({}), 0);
+                auto axis_mapping = makeConst(element::u8, ov::Shape({}), {0});
                 auto expand_ones = makeOP<opset1::Broadcast>({{1.0f},
                     expand_Abs,
                     axis_mapping}, {{"mode", "numpy"}});

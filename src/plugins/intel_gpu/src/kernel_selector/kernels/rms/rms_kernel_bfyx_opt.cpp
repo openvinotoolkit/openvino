@@ -91,9 +91,11 @@ RMSKernelBase::DispatchData RMSKernelBfyxOpt::SetDefault(const rms_params& param
             case 1:
                 dispatchData.dataSize = input.Batch().v;
                 dispatchData.dataCount = 1;
+                break;
             case 2:
                 dispatchData.dataSize = input.Feature().v;
                 dispatchData.dataCount = input.Batch().v;
+                break;
             case 3:
                 dispatchData.dataSize = input.Y().v;
                 dispatchData.dataCount = input.Batch().v * input.Feature().v;

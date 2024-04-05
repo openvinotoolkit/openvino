@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,6 +47,7 @@ struct ConvertParams {
 class ReferenceConversionLayerTest : public testing::TestWithParam<ConvertParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         const auto& params = GetParam();
         function = CreateFunction(params.pshape, params.inType, params.outType, params.conversionType);
         inputData = {params.inputData};

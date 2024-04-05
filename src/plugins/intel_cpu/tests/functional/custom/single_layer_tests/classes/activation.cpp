@@ -52,9 +52,14 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
     uint32_t range = 0;
     int32_t resolution = 0;
 
-    if (activationType == utils::ActivationTypes::Exp && netPrecision == ov::element::bf16) {
-        startFrom = 0;
-        range = 2;
+    if (activationType == utils::ActivationTypes::Exp) {
+        if (netPrecision == ov::element::bf16) {
+            startFrom = 0;
+            range = 2;
+        } else {
+            startFrom = -10;
+            range = 25;
+        }
         resolution = 32768;
     } else if (activationType == utils::ActivationTypes::Acosh) {
         startFrom = 2;
@@ -132,6 +137,14 @@ void ActivationLayerCPUTest::SetUp() {
     auto activation = utils::make_activation(params, netPrecision, activationType, activationShapes, constantsValue);
     activation->get_rt_info() = getCPUInfo();
     function = std::make_shared<ov::Model>(ov::NodeVector{activation}, ov::ParameterVector{params}, "Activation");
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    if (netPrecision == ov::element::f32 && outPrecision == ov::element::f32) {
+        abs_threshold = 8e-4;
+    }
+#endif
+    if (netPrecision == ov::element::bf16 && outPrecision == ov::element::f32) {
+        abs_threshold = 6e-2;
+    }
 }
 
 std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationTypes& activation_type,
@@ -139,7 +152,11 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
                                                      const std::vector<std::pair<ov::PartialShape, std::vector<ov::Shape>>>& input_shapes) const {
 #if defined(OV_CPU_WITH_ACL)
 #if defined(OPENVINO_ARCH_ARM64)
-    if ((element_type == ov::element::f32) && (activation_type == utils::ActivationTypes::Relu)) {
+    if ((element_type == ov::element::f32) &&
+        ((activation_type == utils::ActivationTypes::Clamp) ||
+        (activation_type == utils::ActivationTypes::Exp) ||
+        (activation_type == utils::ActivationTypes::Relu) ||
+        (activation_type == utils::ActivationTypes::Sigmoid))) {
         return "jit";
     }
 

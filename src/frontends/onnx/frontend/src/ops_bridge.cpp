@@ -360,6 +360,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("AveragePool", 1, average_pool);
     REGISTER_OPERATOR("BatchNormalization", 1, batch_norm);
     REGISTER_OPERATOR("BatchNormalization", 7, batch_norm);
+    REGISTER_OPERATOR("BatchNormalization", 14, batch_norm);
     REGISTER_OPERATOR("BitShift", 1, bitshift);
     REGISTER_OPERATOR("BitwiseAnd", 1, bitwise_and);
     REGISTER_OPERATOR("BitwiseNot", 1, bitwise_not);
@@ -480,12 +481,20 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("RandomUniformLike", 1, random_uniform_like);
     REGISTER_OPERATOR("Reciprocal", 1, reciprocal);
     REGISTER_OPERATOR("ReduceLogSum", 1, reduce_log_sum);
+    register_operator("ReduceLogSum", VersionRange{1, 17}, op::set_1::reduce_log_sum);
+    register_operator("ReduceLogSum", VersionRange::since(18), op::set_18::reduce_log_sum);
     REGISTER_OPERATOR("ReduceLogSumExp", 1, reduce_log_sum_exp);
     REGISTER_OPERATOR("ReduceL1", 1, reduce_l1);
     REGISTER_OPERATOR("ReduceL2", 1, reduce_l2);
     REGISTER_OPERATOR("ReduceMax", 1, reduce_max);
+    REGISTER_OPERATOR("ReduceMax", 13, reduce_max);
+    REGISTER_OPERATOR("ReduceMax", 18, reduce_max);
+    REGISTER_OPERATOR("ReduceMax", 20, reduce_max);
     REGISTER_OPERATOR("ReduceMean", 1, reduce_mean);
     REGISTER_OPERATOR("ReduceMin", 1, reduce_min);
+    REGISTER_OPERATOR("ReduceMin", 13, reduce_min);
+    REGISTER_OPERATOR("ReduceMin", 18, reduce_min);
+    REGISTER_OPERATOR("ReduceMin", 20, reduce_min);
     REGISTER_OPERATOR("ReduceProd", 1, reduce_prod);
     REGISTER_OPERATOR("ReduceSum", 1, reduce_sum);
     REGISTER_OPERATOR("ReduceSum", 13, reduce_sum);
@@ -505,6 +514,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("ScatterND", 1, scatter_nd);
     REGISTER_OPERATOR("Selu", 1, selu);
     REGISTER_OPERATOR("Shape", 1, shape);
+    REGISTER_OPERATOR("Shape", 15, shape)
     REGISTER_OPERATOR("Shrink", 1, shrink);
     REGISTER_OPERATOR("Sigmoid", 1, sigmoid);
     REGISTER_OPERATOR("Sign", 1, sign);
