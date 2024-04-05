@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/util/log.hpp"
-#include "openvino/op/result.hpp"
-#include "openvino/op/convert.hpp"
 #include "openvino/op/if.hpp"
+
+#include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/util/log.hpp"
 #include "translate_session.hpp"
 #include "utils.hpp"
 
@@ -20,9 +21,7 @@ using namespace ov::op;
 namespace {
 // TODO: Ticket 106627. This is a WA and will work only if both branches of if will eventually go to the operation that
 // will have same output type for both types
-void align_result_types(const NodeContext& context,
-                        std::shared_ptr<v0::Result> r1,
-                        std::shared_ptr<v0::Result> r2) {
+void align_result_types(const NodeContext& context, std::shared_ptr<v0::Result> r1, std::shared_ptr<v0::Result> r2) {
     auto r1_tensor = r1->input_value(0);
     auto r2_tensor = r2->input_value(0);
     auto r1_type = r1_tensor.get_element_type();
