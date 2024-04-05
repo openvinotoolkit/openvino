@@ -3,8 +3,8 @@
 OpenVINO Tokenizers
 ===============================
 
-Tokenization is a required step in text processing using various models, including text generation with LLMs.
-Tokenization converts the input text into a sequence of tokens with corresponding IDs, so that
+Tokenization is a necessary step in text processing using various models, including text generation with LLMs.
+Tokenizers convert the input text into a sequence of tokens with corresponding IDs, so that
 the model can understand and process it during inference. The transformation of a sequence of numbers into a
 string is called detokenization.
 
@@ -17,19 +17,19 @@ There are two important points in the tokenizer-model relation:
 * To reproduce the model accuracy on a specific task, it is essential to use the same tokenizer employed during the model training.
 
 **OpenVINO Tokenizers** is an OpenVINO extension and a Python library designed to streamline
-tokenizer conversion for seamless integration into your projects. With OpenVINO Tokenizers you can:
+tokenizer conversion for seamless integration into your project. With OpenVINO Tokenizers you can:
 
-* Add text processing operations to OpenVINO. Both tokenizer and detokenizer are OpenVINO models, meaning that you can work with them as with any regular model: read, compile, save, etc.
+* Add text processing operations to OpenVINO. Both tokenizer and detokenizer are OpenVINO models, meaning that you can work with them as with any model: read, compile, save, etc.
 
 * Perform tokenization and detokenization without third-party dependencies.
 
-* Convert Hugging Face tokenizers into OpenVINO model tokenizer and detokenizer for efficient deployment across different environments. See the `conversion example <https://github.com/openvinotoolkit/openvino_tokenizers?tab=readme-ov-file#convert-huggingface-tokenizer>`__ for more details.
+* Convert Hugging Face tokenizers into OpenVINO tokenizer and detokenizer for efficient deployment across different environments. See the `conversion example <https://github.com/openvinotoolkit/openvino_tokenizers?tab=readme-ov-file#convert-huggingface-tokenizer>`__ for more details.
 
 * Combine OpenVINO models into a single model. Recommended for specific models, like classifiers or RAG Embedders, where both tokenizer and a model are used once in each pipeline inference. For more information, see the `OpenVINO Tokenizers Notebook <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/128-openvino-tokenizers>`__.
 
-* Add greedy decoding pipeline to text generation model.
+* Add greedy decoding pipeline to text generation models.
 
-* Use TensorFlow models, such as TensorFlow Text MUSE model. See the `MUSE model inference example <https://github.com/openvinotoolkit/openvino_tokenizers?tab=readme-ov-file#tensorflow-text-integration>`__ to learn more.  Note that TensorFlow integration requires additional conversion extensions to work with string tensor operations like StringSplit, StaticRexexpReplace, StringLower, and others.
+* Use TensorFlow models, such as TensorFlow Text MUSE model. See the `MUSE model inference example <https://github.com/openvinotoolkit/openvino_tokenizers?tab=readme-ov-file#tensorflow-text-integration>`__ for detailed instructions.  Note that TensorFlow integration requires additional conversion extensions to work with string tensor operations like StringSplit, StaticRexexpReplace, StringLower, and others.
 
 .. note::
 
@@ -56,23 +56,28 @@ Supported Tokenizers
      - yes
    * -
      - Unigram
-     - no
-     - no
+     - No
+     - No
    * - Legacy
      - SentencePiece .model
-     - yes
-     - yes
+     - Yes
+     - Yes
    * - Custom
      - tiktoken
-     - yes
-     - yes
+     - Yes
+     - Yes
+   * - RWKV
+     - Trie
+     - Yes
+     - Yes
+
 
 .. note::
 
-   The outputs of the converted and the original tokenizer can differ, either decreasing or increasing
+   The outputs of the converted and the original tokenizer may differ, either decreasing or increasing
    model accuracy on a specific task. You can modify the prompt to mitigate these changes.
    In the `OpenVINO Tokenizers repository <https://github.com/openvinotoolkit/openvino_tokenizers>`__
-   you can see the percentage of tests in which the output of the original and converted tokenizer/detokenizer match.
+   you can find the percentage of tests where the outputs of the original and converted tokenizer/detokenizer match.
 
 Python Installation
 ###################
