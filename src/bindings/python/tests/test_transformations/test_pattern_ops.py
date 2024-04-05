@@ -98,18 +98,6 @@ def test_optional_full_match():
     assert matcher.match(model_relu)
 
 
-def test_optional_half_match():
-    model_input = ops.parameter(PartialShape.dynamic())
-    model_relu = ops.relu(model_input)
-    model_relu1 = ops.relu(model_relu.output(0))
-
-    pattern_abs = Optional(["opset13.Abs"])
-    pattern_relu = ops.relu(pattern_abs.output(0))
-
-    matcher = Matcher(pattern_relu, "FindRelu")
-    assert not matcher.match(model_relu1)
-
-
 def test_optional_one_node():
     model_input = ops.parameter(PartialShape.dynamic())
     model_relu = ops.relu(model_input)

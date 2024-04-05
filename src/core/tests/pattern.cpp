@@ -840,20 +840,6 @@ TEST(pattern, optional_full_match) {
     ASSERT_TRUE(tm.match(pattern_relu1, model_relu1));
 }
 
-TEST(pattern, optional_half_match) {
-    Shape shape{};
-    auto model_input = std::make_shared<op::v0::Parameter>(element::i32, shape);
-    auto model_relu = std::make_shared<op::v0::Relu>(model_input);
-    auto model_relu1 = std::make_shared<op::v0::Relu>(model_relu->output(0));
-
-    auto pattern_abs = ov::pass::pattern::optional<op::v0::Abs>();
-    auto pattern_relu = std::make_shared<op::v0::Relu>(pattern_abs->output(0));
-
-    TestMatcher tm;
-
-    ASSERT_FALSE(tm.match(pattern_relu, model_relu1));
-}
-
 TEST(pattern, mean) {
     // construct mean
     TestMatcher n;

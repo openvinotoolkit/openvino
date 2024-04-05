@@ -491,7 +491,7 @@ static void reg_pattern_optional(py::module m) {
     optional_type.def(py::init([](const std::vector<std::string>& type_names) {
                           return std::make_shared<ov::pass::pattern::op::Optional>(get_types(type_names));
                       }),
-                      py::arg("type_name"),
+                      py::arg("type_names"),
                       R"(
         Create Optional with the given node type.
 
@@ -545,7 +545,7 @@ static void reg_pattern_optional(py::module m) {
         :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
         :type type_names: List[str]
 
-        :param inputs: input node's output vector.
+        :param inputs: input node's output list.
         :type inputs: List[openvino.runtime.Output]
     )");
 
@@ -562,7 +562,7 @@ static void reg_pattern_optional(py::module m) {
         :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
         :type type_names: List[str]
 
-        :param inputs: input node vector
+        :param inputs: input node list
         :type inputs: List[openvino.runtime.Node]
     )");
 
@@ -643,7 +643,7 @@ static void reg_pattern_optional(py::module m) {
         :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
         :type type_names: List[str]
 
-        :param inputs: input node's output vector.
+        :param inputs: input node's output list.
         :type inputs: List[openvino.runtime.Output]
 
         :param predicate: Function that performs additional checks for matching.
@@ -665,7 +665,7 @@ static void reg_pattern_optional(py::module m) {
         :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
         :type type_names: List[str]
 
-        :param inputs: input node vector
+        :param inputs: input node list
         :type inputs: List[openvino.runtime.Node]
 
         :param predicate: Function that performs additional checks for matching.
