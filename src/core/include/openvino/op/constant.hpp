@@ -83,64 +83,64 @@ public:
 #endif
         switch (type) {
         case Type_t::boolean:
-            fill_data<Type_t::boolean>(value);
+            fill_data<Type_t::boolean, T>(value);
             break;
         case Type_t::bf16:
-            fill_data<Type_t::bf16>(value);
+            fill_data<Type_t::bf16, T>(value);
             break;
         case Type_t::f16:
-            fill_data<Type_t::f16>(value);
+            fill_data<Type_t::f16, T>(value);
             break;
         case Type_t::f32:
-            fill_data<Type_t::f32>(value);
+            fill_data<Type_t::f32, T>(value);
             break;
         case Type_t::f64:
-            fill_data<Type_t::f64>(value);
+            fill_data<Type_t::f64, T>(value);
             break;
         case Type_t::i4:
-            fill_data<Type_t::i4>(value);
+            fill_lp_data<Type_t::i4>(value);
             break;
         case Type_t::i8:
-            fill_data<Type_t::i8>(value);
+            fill_data<Type_t::i8, T>(value);
             break;
         case Type_t::i16:
-            fill_data<Type_t::i16>(value);
+            fill_data<Type_t::i16, T>(value);
             break;
         case Type_t::i32:
-            fill_data<Type_t::i32>(value);
+            fill_data<Type_t::i32, T>(value);
             break;
         case Type_t::i64:
-            fill_data<Type_t::i64>(value);
+            fill_data<Type_t::i64, T>(value);
             break;
         case Type_t::u1:
-            fill_data<Type_t::u1>(value);
+            fill_lp_data<Type_t::u1>(value);
             break;
         case Type_t::u4:
-            fill_data<Type_t::u4>(value);
+            fill_lp_data<Type_t::u4>(value);
             break;
         case Type_t::u8:
-            fill_data<Type_t::u8>(value);
+            fill_data<Type_t::u8, T>(value);
             break;
         case Type_t::u16:
-            fill_data<Type_t::u16>(value);
+            fill_data<Type_t::u16, T>(value);
             break;
         case Type_t::u32:
-            fill_data<Type_t::u32>(value);
+            fill_data<Type_t::u32, T>(value);
             break;
         case Type_t::u64:
-            fill_data<Type_t::u64>(value);
+            fill_data<Type_t::u64, T>(value);
             break;
         case Type_t::nf4:
-            fill_data<Type_t::nf4>(value);
+            fill_lp_data<Type_t::nf4>(value);
             break;
         case Type_t::f8e4m3:
-            fill_data<Type_t::f8e4m3>(value);
+            fill_data<Type_t::f8e4m3, T>(value);
             break;
         case Type_t::f8e5m2:
-            fill_data<Type_t::f8e5m2>(value);
+            fill_data<Type_t::f8e5m2, T>(value);
             break;
         case Type_t::string:
-            fill_data<Type_t::string>(value);
+            fill_data<Type_t::string, T>(value);
             break;
         case Type_t::u2:
         case Type_t::u3:
@@ -287,61 +287,61 @@ public:
 
         switch (m_element_type) {
         case Type_t::boolean:
-            cast_vector<Type_t::boolean>(rc, num_elements_to_cast);
+            cast_vector<Type_t::boolean, T>(rc, num_elements_to_cast);
             break;
         case Type_t::bf16:
-            cast_vector<Type_t::bf16>(rc, num_elements_to_cast);
+            cast_vector<Type_t::bf16, T>(rc, num_elements_to_cast);
             break;
         case Type_t::f16:
-            cast_vector<Type_t::f16>(rc, num_elements_to_cast);
+            cast_vector<Type_t::f16, T>(rc, num_elements_to_cast);
             break;
         case Type_t::f32:
-            cast_vector<Type_t::f32>(rc, num_elements_to_cast);
+            cast_vector<Type_t::f32, T>(rc, num_elements_to_cast);
             break;
         case Type_t::f64:
-            cast_vector<Type_t::f64>(rc, num_elements_to_cast);
+            cast_vector<Type_t::f64, T>(rc, num_elements_to_cast);
             break;
         case Type_t::i4:
-            cast_vector<Type_t::i4>(rc, num_elements_to_cast);
+            cast_lp_vector<Type_t::i4>(rc, num_elements_to_cast);
             break;
         case Type_t::i8:
-            cast_vector<Type_t::i8>(rc, num_elements_to_cast);
+            cast_vector<Type_t::i8, T>(rc, num_elements_to_cast);
             break;
         case Type_t::i16:
-            cast_vector<Type_t::i16>(rc, num_elements_to_cast);
+            cast_vector<Type_t::i16, T>(rc, num_elements_to_cast);
             break;
         case Type_t::i32:
-            cast_vector<Type_t::i32>(rc, num_elements_to_cast);
+            cast_vector<Type_t::i32, T>(rc, num_elements_to_cast);
             break;
         case Type_t::i64:
-            cast_vector<Type_t::i64>(rc, num_elements_to_cast);
+            cast_vector<Type_t::i64, T>(rc, num_elements_to_cast);
             break;
         case Type_t::u1:
-            cast_vector<Type_t::u1>(rc, num_elements_to_cast);
+            cast_lp_vector<Type_t::u1>(rc, num_elements_to_cast);
             break;
         case Type_t::u4:
-            cast_vector<Type_t::u4>(rc, num_elements_to_cast);
+            cast_lp_vector<Type_t::u4>(rc, num_elements_to_cast);
             break;
         case Type_t::u8:
-            cast_vector<Type_t::u8>(rc, num_elements_to_cast);
+            cast_vector<Type_t::u8, T>(rc, num_elements_to_cast);
             break;
         case Type_t::u16:
-            cast_vector<Type_t::u16>(rc, num_elements_to_cast);
+            cast_vector<Type_t::u16, T>(rc, num_elements_to_cast);
             break;
         case Type_t::u32:
-            cast_vector<Type_t::u32>(rc, num_elements_to_cast);
+            cast_vector<Type_t::u32, T>(rc, num_elements_to_cast);
             break;
         case Type_t::u64:
-            cast_vector<Type_t::u64>(rc, num_elements_to_cast);
+            cast_vector<Type_t::u64, T>(rc, num_elements_to_cast);
             break;
         case Type_t::f8e4m3:
-            cast_vector<Type_t::f8e4m3>(rc, num_elements_to_cast);
+            cast_vector<Type_t::f8e4m3, T>(rc, num_elements_to_cast);
             break;
         case Type_t::f8e5m2:
-            cast_vector<Type_t::f8e5m2>(rc, num_elements_to_cast);
+            cast_vector<Type_t::f8e5m2, T>(rc, num_elements_to_cast);
             break;
         case Type_t::string:
-            cast_vector<Type_t::string>(rc, num_elements_to_cast);
+            cast_vector<Type_t::string, T>(rc, num_elements_to_cast);
             break;
         default:
             OPENVINO_THROW("unsupported type");
@@ -376,14 +376,10 @@ public:
 private:
     Constant(bool memset_allocation, const element::Type& type, const Shape& shape);
 
-    static constexpr bool is_lp_type(const element::Type& et) {
-        return et == element::u1 || et == element::u4 || et == element::i4 || et == element::nf4;
-    }
-
-    template <element::Type_t Type,
-              class OUT_T,
-              typename std::enable_if<!is_lp_type(Type) && Type != element::string &&
-                                      !std::is_same<OUT_T, std::string>::value>::type* = nullptr>
+    template <
+        element::Type_t Type,
+        class OUT_T,
+        typename std::enable_if<Type != element::string && !std::is_same<OUT_T, std::string>::value>::type* = nullptr>
     void cast_vector(std::vector<OUT_T>& output_vector, size_t num_elements) const {
         // this function is workaround for waring during windows building
         // build complains for vector creation based on iterators
@@ -455,24 +451,28 @@ private:
                        element::from<U>());
     }
 
-    // generic cast_data if input is not std or OV type (do additional conversion)
-    template <element::Type_t Type,
-              class U,
-              typename std::enable_if<is_lp_type(Type) && !std::is_same<U, std::string>::value>::type* = nullptr>
-    void cast_vector(std::vector<U>& output, size_t num_elements) const {
+    // generic cast_LP_data if input is not std or OV type (do additional conversion)
+    template <element::Type_t ET, class U>
+    void cast_lp_vector(std::vector<U>& output, size_t num_elements) const {
         if (std::is_integral<U>::value) {
-            auto&& v = cast_vector<int8_t>();
-            output.insert(output.end(), v.begin(), v.end());
+            std::vector<int8_t> tmp;
+            cast_lp_vector<ET>(tmp, num_elements);
+            output.insert(output.end(), tmp.begin(), tmp.end());
         } else {
-            auto&& v = cast_vector<float>();
-            output.insert(output.end(), v.begin(), v.end());
+            std::vector<float> tmp;
+            cast_lp_vector<ET>(tmp, num_elements);
+            output.insert(output.end(), tmp.begin(), tmp.end());
         }
+    }
+
+    template <element::Type_t ET>
+    void cast_lp_vector(std::vector<std::string>& output, size_t num_elements) const {
+        cast_vector<element::i8>(output, num_elements);
     }
 
     template <element::Type_t Type,
               class T,
-              typename std::enable_if<(!is_lp_type(Type) && Type != element::string) &&
-                                      !std::is_same<T, std::string>::value>::type* = nullptr>
+              typename std::enable_if<Type != element::string && !std::is_same<T, std::string>::value>::type* = nullptr>
     void fill_data(const T& value) {
         using StorageDataType = ov::fundamental_type_for<Type>;
 #ifdef __clang__
@@ -527,7 +527,7 @@ private:
         typename std::enable_if<(Type == element::string) != std::is_same<T, std::string>::value>::type* = nullptr>
     void fill_data(const T& value) {
         if (Type == element::string) {
-            fill_data<element::string>(std::string());
+            fill_data<element::string, std::string>(std::string());
         }
         OPENVINO_THROW("'fill_data' does not support writing elements of type ",
                        element::from<T>(),
@@ -535,16 +535,19 @@ private:
                        Type);
     }
 
-    // generic fill_data if input is not std or OV type (do additional conversion)
-    template <element::Type_t Type,
-              class T,
-              typename std::enable_if<is_lp_type(Type) && !std::is_same<T, std::string>::value>::type* = nullptr>
-    void fill_data(const T& value) {
+    // generic fill_lp_data if input is not std or OV type (do additional conversion)
+    template <element::Type_t ET, class T>
+    void fill_lp_data(const T& value) {
         if (std::is_integral<T>::value) {
-            fill_data<Type>(static_cast<int8_t>(value));
+            fill_lp_data<ET>(static_cast<int8_t>(value));
         } else {
-            fill_data<Type>(static_cast<float>(value));
+            fill_lp_data<ET>(static_cast<float>(value));
         }
+    }
+
+    template <element::Type_t ET>
+    void fill_lp_data(const std::string& value) {
+        fill_data<element::i8>(value);
     }
 
     void allocate_buffer(bool memset_allocation);
@@ -564,8 +567,7 @@ private:
 
     template <element::Type_t Type,
               typename T,
-              typename std::enable_if<!is_lp_type(Type) && Type != element::string &&
-                                      !std::is_same<T, std::string>::value>::type* = nullptr>
+              typename std::enable_if<Type != element::string && !std::is_same<T, std::string>::value>::type* = nullptr>
     void write_buffer(const std::vector<T>& source) {
         using StorageDataType = fundamental_type_for<Type>;
         auto p = get_data_ptr_nc<Type>();
@@ -597,18 +599,21 @@ private:
                        Type);
     }
 
-    // generic write_buffer if input is not std or OV type (do additional conversion)
-    template <element::Type_t Type,
-              class T,
-              typename std::enable_if<is_lp_type(Type) && !std::is_same<T, std::string>::value>::type* = nullptr>
-    void write_buffer(const std::vector<T>& source) {
+    // generic write_lp_buffer if input is not std or OV type (do additional conversion)
+    template <element::Type_t ET, class T>
+    void write_lp_buffer(const std::vector<T>& source) {
         if (std::is_integral<T>::value) {
             const auto tmp = std::vector<int8_t>(source.begin(), source.end());
-            write_buffer<Type>(tmp);
+            write_lp_buffer<ET>(tmp);
         } else {
             const auto tmp = std::vector<float>(source.begin(), source.end());
-            write_buffer<Type>(tmp);
+            write_lp_buffer<ET>(tmp);
         }
+    }
+
+    template <element::Type_t ET>
+    void write_lp_buffer(const std::vector<std::string>& source) {
+        write_buffer<element::i8>(source);
     }
 
     template <typename T>
@@ -639,7 +644,7 @@ private:
             write_buffer<Type_t::f64>(source);
             break;
         case Type_t::i4:
-            write_buffer<Type_t::i4>(source);
+            write_lp_buffer<Type_t::i4>(source);
             break;
         case Type_t::i8:
             write_buffer<Type_t::i8>(source);
@@ -654,10 +659,10 @@ private:
             write_buffer<Type_t::i64>(source);
             break;
         case Type_t::u1:
-            write_buffer<Type_t::u1>(source);
+            write_lp_buffer<Type_t::u1>(source);
             break;
         case Type_t::u4:
-            write_buffer<Type_t::u4>(source);
+            write_lp_buffer<Type_t::u4>(source);
             break;
         case Type_t::u8:
             write_buffer<Type_t::u8>(source);
@@ -672,7 +677,7 @@ private:
             write_buffer<Type_t::u64>(source);
             break;
         case Type_t::nf4:
-            write_buffer<Type_t::nf4>(source);
+            write_lp_buffer<Type_t::nf4>(source);
             break;
         case Type_t::f8e4m3:
             write_buffer<Type_t::f8e4m3>(source);
@@ -720,9 +725,9 @@ private:
     bool m_alloc_buffer_on_visit_attributes{true};
 };
 
-#define CONSTANT_FILL_DATA_SPECIALIZATION(ET, IN_TYPE) \
-    template <>                                        \
-    OPENVINO_API void Constant::fill_data<element::Type_t::ET>(const IN_TYPE& value);
+#define CONSTANT_FILL_DATA_SPECIALIZATION(ET, SRC_TYPE) \
+    template <>                                         \
+    OPENVINO_API void Constant::fill_lp_data<element::Type_t::ET>(const SRC_TYPE& value);
 
 CONSTANT_FILL_DATA_SPECIALIZATION(u1, bool)
 CONSTANT_FILL_DATA_SPECIALIZATION(u1, char)
@@ -802,10 +807,10 @@ CONSTANT_FILL_DATA_SPECIALIZATION(nf4, double)
 
 #undef CONSTANT_FILL_DATA_SPECIALIZATION
 
-#define CONSTANT_CAST_VECTOR_SPECIALIZATION(ET, OUTPUT_TYPE)                                               \
+#define CONSTANT_CAST_VECTOR_SPECIALIZATION(ET, DST_TYPE)                                                  \
     template <>                                                                                            \
-    OPENVINO_API void Constant::cast_vector<element::Type_t::ET>(std::vector<OUTPUT_TYPE> & output_vector, \
-                                                                 size_t num_elements) const;
+    OPENVINO_API void Constant::cast_lp_vector<element::Type_t::ET>(std::vector<DST_TYPE> & output_vector, \
+                                                                    size_t num_elements) const;
 
 CONSTANT_CAST_VECTOR_SPECIALIZATION(u1, bool)
 CONSTANT_CAST_VECTOR_SPECIALIZATION(u1, char)
@@ -860,9 +865,9 @@ CONSTANT_CAST_VECTOR_SPECIALIZATION(i4, double)
 
 #undef CONSTANT_CAST_VECTOR_SPECIALIZATION
 
-#define CONSTANT_WRITE_BUFFER_SPECIALIZATION(ET, INPUT_TYPE) \
-    template <>                                              \
-    OPENVINO_API void Constant::write_buffer<element::Type_t::ET>(const std::vector<INPUT_TYPE>& source);
+#define CONSTANT_WRITE_BUFFER_SPECIALIZATION(ET, SRC_TYPE) \
+    template <>                                            \
+    OPENVINO_API void Constant::write_lp_buffer<element::Type_t::ET>(const std::vector<SRC_TYPE>& source);
 
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u1, bool)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u1, char)

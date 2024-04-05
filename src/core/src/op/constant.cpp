@@ -154,7 +154,6 @@ Constant::Constant(const element::Type& type, const Shape& shape, const std::vec
     const auto is_checked_and_identical = has_single_value && (this_shape_size != 1);
 
     if (type == element::string) {
-        std::cout << "1" << std::endl;
         fill_or_write(is_checked_and_identical, type, values);
     } else if (type.is_real()) {
         fill_or_write(is_checked_and_identical, type, from_string_vector<double>(values));
@@ -504,10 +503,10 @@ bool Constant::constant_fold(OutputVector&, const OutputVector&) {
     return false;
 }
 
-#define CONSTANT_FILL_DATA(ET, SRC_TYPE)                                     \
-    template <>                                                              \
-    void Constant::fill_data<element::Type_t::ET>(const SRC_TYPE& value) {   \
-        ov::op::fill_buffer<element::ET>(get_data_ptr_nc(), m_shape, value); \
+#define CONSTANT_FILL_DATA(ET, SRC_TYPE)                                      \
+    template <>                                                               \
+    void Constant::fill_lp_data<element::Type_t::ET>(const SRC_TYPE& value) { \
+        ov::op::fill_buffer<element::ET>(get_data_ptr_nc(), m_shape, value);  \
     }
 
 CONSTANT_FILL_DATA(u1, bool)
@@ -588,11 +587,11 @@ CONSTANT_FILL_DATA(nf4, double)
 
 #undef CONSTANT_FILL_DATA
 
-#define CONSTANT_CAST_VECTOR(ET, DST_TYPE)                                                                      \
-    template <>                                                                                                 \
-    void Constant::cast_vector<element::Type_t::ET>(std::vector<DST_TYPE> & output_vector, size_t num_elements) \
-        const {                                                                                                 \
-        ov::op::cast_buffer<element::ET>(get_data_ptr(), num_elements, output_vector);                          \
+#define CONSTANT_CAST_VECTOR(ET, DST_TYPE)                                                              \
+    template <>                                                                                         \
+    void Constant::cast_lp_vector<element::Type_t::ET, DST_TYPE>(std::vector<DST_TYPE> & output_vector, \
+                                                                 size_t num_elements) const {           \
+        ov::op::cast_buffer<element::ET>(get_data_ptr(), num_elements, output_vector);                  \
     }
 
 CONSTANT_CAST_VECTOR(u1, bool)
@@ -648,10 +647,10 @@ CONSTANT_CAST_VECTOR(i4, double)
 
 #undef CONSTANT_CAST_VECTOR
 
-#define CONSTANT_WRITE_BUFFER(ET, SRC_TYPE)                                                 \
-    template <>                                                                             \
-    void Constant::write_buffer<element::Type_t::ET>(const std::vector<SRC_TYPE>& source) { \
-        ov::op::write_buffer<element::ET>(source, get_data_ptr_nc());                       \
+#define CONSTANT_WRITE_BUFFER(ET, SRC_TYPE)                                                    \
+    template <>                                                                                \
+    void Constant::write_lp_buffer<element::Type_t::ET>(const std::vector<SRC_TYPE>& source) { \
+        ov::op::write_buffer<element::ET>(source, get_data_ptr_nc());                          \
     }
 
 CONSTANT_WRITE_BUFFER(u1, bool)
