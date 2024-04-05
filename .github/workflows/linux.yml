@@ -761,11 +761,16 @@ jobs:
           if-no-files-found: 'error'
 
   GPU:
-    name: GPU Unit and Functional Tests
+    name: GPU ${{ matrix.TEST_TYPE }} Tests
     needs: [ Build, Smart_CI ]
     if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
     timeout-minutes: 300
     runs-on: [ self-hosted, gpu ]
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix:
+        TEST_TYPE: ['unit', 'func']
     container:
       image: ubuntu:20.04
       options: --device /dev/dri:/dev/dri --group-add 109 --group-add 44
@@ -840,38 +845,26 @@ jobs:
       # Tests
       #
 
-      - name: OpenVINO GPU Unit Tests
-        if: always()
+      - name: OpenVINO GPU ${{ matrix.TEST_TYPE }} Tests
         run: |
           source ${INSTALL_DIR}/setupvars.sh
 
-          rm -rf ${INSTALL_TEST_DIR}/gpu_unit_tests && mkdir -p ${INSTALL_TEST_DIR}/gpu_unit_tests
-
-          skip_list='-*scatter_nd_update_gpu.dynamic_padded_output*:*border_gpu.basic_zero_input*:*bicubic_zeros_no_align_data1x1*:*bicubic_border_align_batches*:*bilinear_zeros_no_align_data1x1*:*non_zero_gpu.empty_input*:*mark_shape_of_subgraphs.concat_with_empty_tensor_inputs*:*concat_cpu_impl.dynamic_4d_f*:*border_gpu.basic_zero_input_dynamic*:*network_test.model_with_empty_input_is_not_dynamic*:*bicubic_zeros_align_data1x1*'
-          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_gpu_unit_tests -w ${INSTALL_TEST_DIR}/gpu_unit_tests -s suite -rf 1 -- --gtest_print_time=1 --gtest_filter=$skip_list
-
-      - name: OpenVINO GPU Func Tests
-        if: always()
-        run: |
-          source ${INSTALL_DIR}/setupvars.sh
-
-          rm -rf ${INSTALL_TEST_DIR}/gpu_func_tests && mkdir -p ${INSTALL_TEST_DIR}/gpu_func_tests
-          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_gpu_func_tests -w ${INSTALL_TEST_DIR}/gpu_func_tests -s suite -rf 1 -- --gtest_print_time=1 --gtest_filter=*smoke*:-*SqueezeUnsqueezeLayerTest.CompareWithRefs*
-
-      - name: Upload Test Results (Unittests GPU)
+          rm -rf ${INSTALL_TEST_DIR}/gpu_${{ matrix.TEST_TYPE }}_tests && mkdir -p ${INSTALL_TEST_DIR}/gpu_${{ matrix.TEST_TYPE }}_tests
+          
+          test_filter=''
+          if [[ "${{ matrix.TEST_TYPE }}" == "unit" ]]; then
+            test_filter='-*scatter_nd_update_gpu.dynamic_padded_output*:*border_gpu.basic_zero_input*:*bicubic_zeros_no_align_data1x1*:*bicubic_border_align_batches*:*bilinear_zeros_no_align_data1x1*:*non_zero_gpu.empty_input*:*mark_shape_of_subgraphs.concat_with_empty_tensor_inputs*:*concat_cpu_impl.dynamic_4d_f*:*border_gpu.basic_zero_input_dynamic*:*network_test.model_with_empty_input_is_not_dynamic*:*bicubic_zeros_align_data1x1*'
+          else
+            test_filter='*smoke*:-*SqueezeUnsqueezeLayerTest.CompareWithRefs*'
+          fi
+          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_gpu_${{ matrix.TEST_TYPE }}_tests -w ${INSTALL_TEST_DIR}/gpu_${{ matrix.TEST_TYPE }}_tests -s suite -rf 1 -- --gtest_print_time=1 --gtest_filter=$test_filter
+      
+      - name: Upload Test Results
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: test-results-unit-gpu
-          path: ${{ env.INSTALL_TEST_DIR }}/gpu_unit_tests
-          if-no-files-found: 'error'
-
-      - name: Upload Test Results (Functional tests GPU)
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test-results-functional-gpu
-          path: ${{ env.INSTALL_TEST_DIR }}/gpu_func_tests
+          name: test-results-${{ matrix.TEST_TYPE }}-gpu
+          path: ${{ env.INSTALL_TEST_DIR }}/gpu_${{ matrix.TEST_TYPE }}_tests
           if-no-files-found: 'error'
 
   Overall_Status:
