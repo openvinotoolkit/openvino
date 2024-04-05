@@ -57,7 +57,7 @@ Providing just a path to the model or model object as ``openvino.convert_model``
           import openvino as ov
 
           ov_model = ov.convert_model(original_model)
-          ov.save_model(ov_model, 'model.xml' compress_to_fp16=False)
+          ov.save_model(ov_model, 'model.xml', compress_to_fp16=False)
 
     .. tab-item:: CLI
        :sync: cli
