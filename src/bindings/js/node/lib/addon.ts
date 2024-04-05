@@ -60,7 +60,7 @@ interface Model {
   input(nameOrId?: string | number): Output;
   getName(): string;
   isDynamic(): boolean;
-  getOutputShape(): Int8Array|Int16Array|Int32Array;
+  getOutputShape(): number[];
 }
 
 interface CompiledModel {
