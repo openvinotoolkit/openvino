@@ -14,17 +14,16 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 OutputVector translate_matrix_inverse_op(const NodeContext& node) {
+    // a function that performs standard or default checks on a specific operation within the OpenVINO pipeline
+    default_op_checks(node, 1, {"GELU"}); // copied from issue #22964
     auto op_type = node.get_op_type();
     TENSORFLOW_OP_VALIDATION(node, op_type == "MatrixInverse", "Internal error: incorrect usage of translate_matrix_inverse_op.");
-    auto equation = node.get_attribute<std::string>("equation"); 
+    auto input = node.get_attribute<std::string>("input"); // extract the input attribute from tf.raw_ops.MatrixInverse(input, adjoint=False, name=None)
 
-    OutputVector inputs;
-    for (size_t input_ind = 0; input_ind < node.get_input_size(); ++input_ind) {
-        inputs.push_back(node.get_input(input_ind));
-    }
+    OutputVector input;
 
     // Create the OpenVINO equivalent operation (Inverse from opset-14)
-    auto inverse_op = make_shared<ov::op::v14::Inverse>(inputs[0], false);
+    auto inverse_op = make_shared<ov::op::v14::Inverse>(input, false);
     set_node_name(node.get_name(), inverse_op);
     return {inverse_op};
 }
