@@ -907,6 +907,13 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryD
 }
 
 void Node::toNumaNode(int numaNodeID) {
+    if (!isExecutable())
+        return;
+
+    return toNumaNodeImpl(numaNodeID);
+}
+
+void Node::toNumaNodeImpl(int numaNodeID) {
     if (curNumaNode == numaNodeID)
         return;
 
