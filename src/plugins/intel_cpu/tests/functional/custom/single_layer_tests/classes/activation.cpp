@@ -156,7 +156,8 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         ((activation_type == utils::ActivationTypes::Clamp) ||
         (activation_type == utils::ActivationTypes::Exp) ||
         (activation_type == utils::ActivationTypes::Relu) ||
-        (activation_type == utils::ActivationTypes::Sigmoid))) {
+        (activation_type == utils::ActivationTypes::Sigmoid) ||
+        (activation_type == utils::ActivationTypes::Tanh))) {
         return "jit";
     }
 

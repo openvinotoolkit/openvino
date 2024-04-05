@@ -220,7 +220,7 @@ void jit_emitter::store_context(
     // 2.1. store pair registers
     int prev_reg_idx = -1;
     size_t ignore_registers_count = 0;
-    for (size_t reg_idx = 0; reg_idx < vec_regs.size(); reg_idx++) {
+    for (const auto reg_idx : vec_regs) {
         if (ignore_vec_regs.find(reg_idx) != ignore_vec_regs.end()) {
             ignore_registers_count++;
             continue;
