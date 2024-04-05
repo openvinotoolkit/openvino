@@ -170,32 +170,31 @@ bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& g
         OPENVINO_DEBUG << "[MATCHER] Aborting at " << *graph_node << " for pattern " << *pattern_node;
         return false;
     }
-}
 
-if (ov::op::util::is_commutative(graph_node)) {
-    // TODO: [nikolayk] we don't really have to use lexicographically-based perms,
-    // heap's algo should be faster
-    std::sort(begin(pattern_args),
-              end(pattern_args),
-              [](const ov::Output<ov::Node>& n1, const ov::Output<ov::Node>& n2) {
-                  return n1 < n2;
-              });
-    do {
-        auto saved = start_match();
-        if (match_permutation(pattern_args, args)) {
-            return saved.finish(true);
-        }
-    } while (std::next_permutation(begin(pattern_args),
-                                   end(pattern_args),
-                                   [](const ov::Output<ov::Node>& n1, const ov::Output<ov::Node>& n2) {
-                                       return n1 < n2;
-                                   }));
-} else {
-    return match_permutation(pattern_args, args);
-}
+    if (ov::op::util::is_commutative(graph_node)) {
+        // TODO: [nikolayk] we don't really have to use lexicographically-based perms,
+        // heap's algo should be faster
+        std::sort(begin(pattern_args),
+                  end(pattern_args),
+                  [](const ov::Output<ov::Node>& n1, const ov::Output<ov::Node>& n2) {
+                      return n1 < n2;
+                  });
+        do {
+            auto saved = start_match();
+            if (match_permutation(pattern_args, args)) {
+                return saved.finish(true);
+            }
+        } while (std::next_permutation(begin(pattern_args),
+                                       end(pattern_args),
+                                       [](const ov::Output<ov::Node>& n1, const ov::Output<ov::Node>& n2) {
+                                           return n1 < n2;
+                                       }));
+    } else {
+        return match_permutation(pattern_args, args);
+    }
 
-OPENVINO_DEBUG << "[MATCHER] Aborting at " << *graph_node << " for pattern " << *pattern_node;
-return false;
+    OPENVINO_DEBUG << "[MATCHER] Aborting at " << *graph_node << " for pattern " << *pattern_node;
+    return false;
 }
 
 bool Matcher::match(const Output<Node>& graph_value) {
