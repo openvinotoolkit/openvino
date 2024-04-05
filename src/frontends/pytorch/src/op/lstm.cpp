@@ -99,7 +99,7 @@ OutputVector generic_rnn(ov::pass::NodeRegistry& rg,
                                 "Unexpected length of list with weights for rnn operation.");
 
     const auto w_hh = all_weights[1];
-    const auto w_hh_pshape = w_hh.get_partial_shape();
+    const auto& w_hh_pshape = w_hh.get_partial_shape();
     PYTORCH_OP_CONVERSION_CHECK(w_hh_pshape.rank().is_static() && w_hh_pshape[1].is_static(), "");
     const auto hidden_size = w_hh_pshape[1].get_length();
 
@@ -151,8 +151,8 @@ OutputVector generic_rnn(ov::pass::NodeRegistry& rg,
             weight_ih = convert_data_format(rg, variant, all_weights[idx]);
             weight_hh = convert_data_format(rg, variant, all_weights[idx + 1]);
             if (has_biases) {
-                const auto bias_ih = all_weights[idx + 2];
-                const auto bias_hh = all_weights[idx + 3];
+                const auto& bias_ih = all_weights[idx + 2];
+                const auto& bias_hh = all_weights[idx + 3];
                 bias_concat = format_bias(rg, variant, bias_ih, bias_hh);
             }
         } else {
@@ -163,12 +163,12 @@ OutputVector generic_rnn(ov::pass::NodeRegistry& rg,
             if (has_biases) {
                 weight_ih_f = all_weights[2 * idx];
                 weight_hh_f = all_weights[2 * idx + 1];
-                const auto bias_ih_f = all_weights[2 * idx + 2];
-                const auto bias_hh_f = all_weights[2 * idx + 3];
+                const auto& bias_ih_f = all_weights[2 * idx + 2];
+                const auto& bias_hh_f = all_weights[2 * idx + 3];
                 weight_ih_b = all_weights[2 * idx + 4];
                 weight_hh_b = all_weights[2 * idx + 5];
-                const auto bias_ih_b = all_weights[2 * idx + 6];
-                const auto bias_hh_b = all_weights[2 * idx + 7];
+                const auto& bias_ih_b = all_weights[2 * idx + 6];
+                const auto& bias_hh_b = all_weights[2 * idx + 7];
                 const auto bias_f = format_bias(rg, variant, bias_ih_f, bias_hh_f);
                 const auto bias_b = format_bias(rg, variant, bias_ih_b, bias_hh_b);
                 bias_concat = rg.make<v0::Concat>(OutputVector{bias_f, bias_b}, 0);

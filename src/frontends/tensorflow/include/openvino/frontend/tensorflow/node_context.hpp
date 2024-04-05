@@ -9,6 +9,7 @@
 #include "openvino/core/any.hpp"
 #include "openvino/frontend/node_context.hpp"
 #include "variable.hpp"
+#include "variables_map.hpp"
 
 namespace ov {
 namespace frontend {

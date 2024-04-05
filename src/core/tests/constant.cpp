@@ -1499,6 +1499,15 @@ TEST(constant, ov_string_shared_data) {
     EXPECT_EQ(p1, p2);
 }
 
+TEST(constant, ov_string_broadcast_from_non_string) {
+    EXPECT_THROW(std::ignore = op::v0::Constant::create(element::string, Shape{4}, std::vector<int>{10}), Exception);
+}
+
+TEST(constant, ov_string_from_non_string_vector) {
+    EXPECT_THROW(std::ignore = op::v0::Constant::create(element::string, Shape{4}, std::vector<int>{10, 1, 3, 2}),
+                 Exception);
+}
+
 template <typename T1, typename T2>
 ::testing::AssertionResult test_convert() {
     Shape shape{5};
