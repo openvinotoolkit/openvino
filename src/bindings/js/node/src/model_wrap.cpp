@@ -139,13 +139,9 @@ Napi::Value ModelWrap::get_output_shape(const Napi::CallbackInfo& info) {
     auto idx = info[0].As<Napi::Number>().Int32Value();
     auto cm_outputs = _model->outputs();  // Output<Node>
 
-    try
-    {
+    try {
         return cpp_to_js<ov::Shape, Napi::Array>(info, cm_outputs.get_output_shape(idx));
-    }
-    catch(const std::exception& e)
-    {
-        reportError(info.Env(), "Invalid index. Index out of range.");
-        return Napi::Undefined();
+    } catch (const std::exception& e) {
+        std::cerr << e.what() << '\n';
     }
 }

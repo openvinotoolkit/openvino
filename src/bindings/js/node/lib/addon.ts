@@ -60,7 +60,7 @@ interface Model {
   input(nameOrId?: string | number): Output;
   getName(): string;
   isDynamic(): boolean;
-  getOutputShape(): number;
+  getOutputShape(): SupportedTypedArray;
 }
 
 interface CompiledModel {
