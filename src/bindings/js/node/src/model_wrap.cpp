@@ -142,6 +142,7 @@ Napi::Value ModelWrap::get_output_shape(const Napi::CallbackInfo& info) {
     try {
         return cpp_to_js<ov::Shape, Napi::Array>(info, cm_outputs.get_output_shape(idx));
     } catch (const std::exception& e) {
-        std::cerr << e.what() << '\n';
+        reportError(info.Env(), e.what());
+        return Napi::Undefined();
     }
 }
