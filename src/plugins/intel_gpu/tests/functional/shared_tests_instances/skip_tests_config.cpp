@@ -205,6 +205,8 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_ConvolutionBackpropData3D_AutoPadding_OutputPaddingDefined/ConvolutionBackpropDataLayerTest.Inference/.*_TS=\{\(1.16.5.5.5\)\}_.*_netPRC=f16_.*)",
             R"(.*smoke_PSROIPooling_average/PSROIPoolingLayerTest.Inference/IS=\(3.8.16.16\)_coord_shape=\(10.5\)_out_dim=2_group_size=2_scale=(0.625|1)_bins_x=1_bins_y=1_mode=average_modelType=f16.*)",
             R"(.*smoke_RDFT_5d_last_axis/RDFTLayerTest.Inference/IS=\(10.4.8.2.5\)_modelType=f32_Axes=\(0.1.2.3.4\)_SignalSize=\(\).*)",
+            // Issue: 129991
+            R"(.*StridedSliceLayerTest.*TS=.*2.2.4.1*.*)",
             // Issue: 136862
             R"(.*smoke_ConditionGPUTest_static/StaticConditionLayerGPUTest.CompareWithRefs/IS=\(3.6\)_netPRC=i8_ifCond=PARAM_targetDevice=GPU_.*)",
 #if defined(_WIN32)

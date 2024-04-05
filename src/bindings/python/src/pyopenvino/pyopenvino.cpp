@@ -52,6 +52,7 @@
 #include "pyopenvino/graph/ops/constant.hpp"
 #include "pyopenvino/graph/ops/if.hpp"
 #include "pyopenvino/graph/ops/loop.hpp"
+#include "pyopenvino/graph/ops/paged_attention_extension.hpp"
 #include "pyopenvino/graph/ops/parameter.hpp"
 #include "pyopenvino/graph/ops/result.hpp"
 #include "pyopenvino/graph/ops/tensor_iterator.hpp"
@@ -234,6 +235,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
     py::module m_op = m.def_submodule("op", "Package ngraph.impl.op that wraps ov::op");  // TODO(!)
     regclass_graph_op_Assign(m_op);
     regclass_graph_op_Constant(m_op);
+    regclass_graph_op_PagedAttentionExtension(m_op);
     regclass_graph_op_Parameter(m_op);
     regclass_graph_op_Result(m_op);
     regclass_graph_op_If(m_op);
