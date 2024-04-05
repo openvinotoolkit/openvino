@@ -155,6 +155,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
       _profilingQuery(0,
                       _executor->getInitStructs()->getDevice(),
                       _executor->getInitStructs()->getProfilingDdiTable()) {
+    _logger.debug("ZeroInferRequest::ZeroInferRequest - SyncInferRequest");
     const std::unordered_map<std::string, ZeroExecutor::ArgumentDescriptor>& executorInputDescriptors =
         _executor->inputs_desc_map();
     const std::unordered_map<std::string, ZeroExecutor::ArgumentDescriptor>& executorOutputDescriptors =
@@ -162,6 +163,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
     auto proftype = config.get<PROFILING_TYPE>();
     if (proftype == ov::intel_npu::ProfilingType::INFER) {
+        _logger.debug("ZeroInferRequest::ZeroInferRequest - profiling type == ov::intel_npu::ProfilingType::INFER");
         _npuProfiling = std::make_shared<zeroProfiling::NpuInferProfiling>(_executor->getInitStructs()->getContext(),
                                                                            _executor->getInitStructs()->getDevice(),
                                                                            _config.get<LOG_LEVEL>());
@@ -178,6 +180,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
     auto allocator = zeroMemory::HostMemAllocator(backendPtr);
 
+    _logger.debug("ZeroInferRequest::ZeroInferRequest - performing I/O buffer allocation using Level Zero API");
     for (const std::string& inputName : _metadata.inputNames) {
         if (!executorInputDescriptors.count(inputName)) {
             OPENVINO_THROW("Invalid graph input descriptor key: " + inputName);
@@ -230,6 +233,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
         }
     }
 
+    _logger.debug("ZeroInferRequest::ZeroInferRequest - checking level zero attributes and allocate tensor");
     for (const std::string& outputName : _metadata.outputNames) {
         IONodeDescriptor& resultDescriptor = _metadata.results.at(outputName);
         checkLevelZeroAttributesMatch(resultDescriptor, executorOutputDescriptors.at(outputName), outputName);
@@ -257,6 +261,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
         }
     }
 
+    _logger.debug("ZeroInferRequest::ZeroInferRequest - capturing latest tensor value in output");
     for (const std::string& stateName : _metadata.stateNames) {
         const std::string& stateInputBufferName = READVALUE_PREFIX + stateName;
         const std::string& stateOutputBufferName = ASSIGN_PREFIX + stateName;
@@ -281,6 +286,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
         allocate_tensor(stateName, stateDescriptor, TensorType::State, allocator);
     }
 
+    _logger.debug("ZeroInferRequest::ZeroInferRequest - constructing pipeline");
     /// Construct pipepline
     _pipeline = makePipeline(_executorPtr,
                              _config,
@@ -289,6 +295,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
                              _npuProfiling,
                              _copyAllTensors,
                              _batchSize);
+    _logger.debug("ZeroInferRequest::ZeroInferRequest - SyncInferRequest completed");
 }
 
 void ZeroInferRequest::infer() {
@@ -405,6 +412,7 @@ void ZeroInferRequest::check_network_precision(const ov::element::Type_t precisi
 }
 
 std::vector<ov::ProfilingInfo> ZeroInferRequest::get_profiling_info() const {
+    _logger.debug("InferRequest::get_profiling_info started");
     const auto& compiledModel = *std::dynamic_pointer_cast<const ICompiledModel>(_compiledModel);
     const auto& compilerConfig = compiledModel.get_config();
     if (!compilerConfig.get<PERF_COUNT>() || !_config.get<PERF_COUNT>()) {
@@ -428,6 +436,7 @@ std::vector<ov::ProfilingInfo> ZeroInferRequest::get_profiling_info() const {
             return _profilingQuery.getLayerStatistics();
         }
     }
+    _logger.debug("InferRequest::get_profiling_info completed");
 }
 
 std::vector<uint8_t> ZeroInferRequest::get_raw_profiling_data() const {
