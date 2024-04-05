@@ -459,6 +459,10 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"WriteFile", CreatorFunction(translate_write_file)},
     };
 };
+
+const std::vector<std::string> get_supported_ops_via_tokenizers() {
+    return {"RaggedTensorToSparse", "RaggedTensorToTensor", "StaticRegexReplace", "StringLower", "StringSplitV2"};
+}
 }  // namespace op
 }  // namespace tensorflow
 }  // namespace frontend
