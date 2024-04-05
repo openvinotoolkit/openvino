@@ -423,6 +423,7 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
             RO_property(ov::device::capabilities.name()),
             RO_property(ov::device::type.name()),
             RO_property(ov::device::architecture.name()),
+            RO_property(ov::optimal_batch_size.name()),
         };
         // the whole config is RW before model is loaded.
         std::vector<ov::PropertyName> rwProperties{
@@ -526,6 +527,8 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
 #else
 #    error "Undefined system processor"
 #endif
+    } else if (name == ov::optimal_batch_size){
+        return decltype(ov::optimal_batch_size)::value_type(1);
     }
 
     OPENVINO_THROW("Cannot get unsupported property: ", name);

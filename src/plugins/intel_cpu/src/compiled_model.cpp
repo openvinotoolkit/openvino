@@ -271,6 +271,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::value_cache_precision.name()),
             RO_property(ov::key_cache_group_size.name()),
             RO_property(ov::value_cache_group_size.name()),
+            RO_property(ov::optimal_batch_size.name()),
         };
 
         return ro_properties;
@@ -351,6 +352,8 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     }
     if (name == ov::hint::kv_cache_precision) {
         return decltype(ov::hint::kv_cache_precision)::value_type(config.kvCachePrecision);
+    } else if (name == ov::optimal_batch_size.name()) {
+        return decltype(ov::optimal_batch_size)::value_type(1);
     }
     if (name == ov::key_cache_precision) {
         return decltype(ov::key_cache_precision)::value_type(config.keyCachePrecision);
