@@ -42,6 +42,12 @@ public:
     inline ze_graph_profiling_dditable_ext_t* getProfilingDdiTable() const {
         return _graph_profiling_ddi_table_ext;
     }
+    inline uint32_t getDriverVersion() const {
+        return driver_properties.driverVersion;
+    }
+    inline uint32_t getDriverExtVersion() const {
+        return driver_ext_version;
+    }
 
 private:
     static const ze_driver_uuid_t uuid;
@@ -52,6 +58,9 @@ private:
     ze_context_handle_t context = nullptr;
     std::unique_ptr<ze_graph_dditable_ext_decorator> graph_dditable_ext_decorator;
     ze_graph_profiling_dditable_ext_t* _graph_profiling_ddi_table_ext = nullptr;
+
+    ze_driver_properties_t driver_properties = {};
+    uint32_t driver_ext_version = 0;
 };
 
 }  // namespace intel_npu

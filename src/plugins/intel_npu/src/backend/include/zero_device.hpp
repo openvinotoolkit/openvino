@@ -29,7 +29,6 @@ public:
     uint32_t getMaxNumSlices() const override;
     uint64_t getAllocMemSize() const override;
     uint64_t getTotalMemSize() const override;
-    uint32_t getDriverVersion() const override;
 
     std::shared_ptr<SyncInferRequest> createInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel,
                                                          const std::shared_ptr<IExecutor>& executor,
@@ -44,7 +43,6 @@ private:
     ze_graph_dditable_ext_curr_t* _graph_ddi_table_ext = nullptr;
 
     ze_device_properties_t device_properties = {};
-    ze_driver_properties_t driver_properties = {};
 
     uint32_t _group_ordinal;
 

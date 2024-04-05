@@ -139,6 +139,22 @@ std::string NPUBackends::getBackendName() const {
     return "";
 }
 
+uint32_t NPUBackends::getDriverVersion() const {
+    if (_backend != nullptr) {
+        return _backend->getDriverVersion();
+    }
+
+    OPENVINO_THROW("No available backend");
+}
+
+uint32_t NPUBackends::getDriverExtVersion() const {
+    if (_backend != nullptr) {
+        return _backend->getDriverExtVersion();
+    }
+
+    OPENVINO_THROW("No available backend");
+}
+
 std::shared_ptr<IDevice> NPUBackends::getDevice(const std::string& specificName) const {
     _logger.debug("Searching for device %s to use started...", specificName.c_str());
     // TODO iterate over all available backends

@@ -27,6 +27,10 @@ public:
     virtual const std::shared_ptr<IDevice> getDevice(const ov::AnyMap& paramMap) const;
     /** @brief Provide a list of names of all devices, with which user can work directly */
     virtual const std::vector<std::string> getDeviceNames() const;
+    /** @brief Provide driver version */
+    virtual uint32_t getDriverVersion() const;
+    /** @brief Provide driver extension version */
+    virtual uint32_t getDriverExtVersion() const;
     /** @brief Get name of backend */
     virtual const std::string getName() const = 0;
     /** @brief Register backend-specific options */
@@ -60,7 +64,6 @@ public:
     virtual uint32_t getMaxNumSlices() const;
     virtual uint64_t getAllocMemSize() const;
     virtual uint64_t getTotalMemSize() const;
-    virtual uint32_t getDriverVersion() const;
 
     virtual std::shared_ptr<SyncInferRequest> createInferRequest(
         const std::shared_ptr<const ICompiledModel>& compiledModel,

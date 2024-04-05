@@ -20,6 +20,14 @@ ZeroEngineBackend::ZeroEngineBackend(const Config& config) {
     _devices.emplace(std::make_pair(device->getName(), device));
 }
 
+uint32_t ZeroEngineBackend::getDriverVersion() const {
+    return _instance->getDriverVersion();
+}
+
+uint32_t ZeroEngineBackend::getDriverExtVersion() const {
+    return _instance->getDriverExtVersion();
+}
+
 ZeroEngineBackend::~ZeroEngineBackend() = default;
 
 const std::shared_ptr<IDevice> ZeroEngineBackend::getDevice() const {
