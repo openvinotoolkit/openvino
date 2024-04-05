@@ -53,13 +53,13 @@ bool Transpose::evaluate(TensorVector& outputs, const TensorVector& inputs) cons
         auto axes_order = ov::get_tensor_data_as<int64_t>(order);
         const auto out_shape = calc_output_shape(this, arg.get_shape(), axes_order);
 
-        auto &out = outputs[ARG_T];
+        auto& out = outputs[ARG_T];
         out.set_shape(out_shape);
 
         struct int4_iterator {
             explicit int4_iterator(uint8_t* ptr) : m_ptr(ptr), m_half(int4_extract_t::low_half) {}
             explicit int4_iterator(uint8_t* ptr, int4_extract_t half) : m_ptr(ptr), m_half(half) {}
-            void operator ++() {
+            void operator++() {
                 if (m_half == int4_extract_t::low_half) {
                     m_half = int4_extract_t::high_half;
                 } else {
@@ -69,7 +69,8 @@ bool Transpose::evaluate(TensorVector& outputs, const TensorVector& inputs) cons
             }
 
             int4_iterator operator+(const size_t shift) {
-                return int4_iterator{m_ptr + shift/2, shift % 2 ?  int4_extract_t::high_half : int4_extract_t::low_half};
+                return int4_iterator{m_ptr + shift / 2,
+                                     shift % 2 ?  int4_extract_t::high_half : int4_extract_t::low_half};
             }
 
             void copy_from(const int4_iterator& from) const {
@@ -82,7 +83,7 @@ bool Transpose::evaluate(TensorVector& outputs, const TensorVector& inputs) cons
                 if (from.m_half < m_half) {
                     from_val <<= 4;
                 } else if (from.m_half > m_half) {
-                    from_val >>=4;
+                    from_val >>= 4;
                 } else {
                     from_val &= mask_from;
                 }
@@ -94,8 +95,8 @@ bool Transpose::evaluate(TensorVector& outputs, const TensorVector& inputs) cons
             int4_extract_t m_half;
         };
 
-        auto out_ptr = int4_iterator(static_cast<uint8_t *>(out.data()));
-        auto in_ptr = int4_iterator(static_cast<uint8_t *>(arg.data()));
+        auto out_ptr = int4_iterator(static_cast<uint8_t*>(out.data()));
+        auto in_ptr = int4_iterator(static_cast<uint8_t*>(arg.data()));
         if ((arg_type == ov::element::i4 || arg_type == ov::element::u4) && arg.get_shape().size() == 2) {
             for (size_t i = 0; i < out_shape[0]; i++) {
                 size_t off = i;
@@ -106,8 +107,8 @@ bool Transpose::evaluate(TensorVector& outputs, const TensorVector& inputs) cons
                 }
             }
         } else {
-            reference::transpose(static_cast<const char *>(arg.data()),
-                                 static_cast<char *>(out.data()),
+            reference::transpose(static_cast<const char*>(arg.data()),
+                                 static_cast<char*>(out.data()),
                                  arg.get_shape(),
                                  arg.get_element_type().size(),
                                  axes_order,
