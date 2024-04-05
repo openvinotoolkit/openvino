@@ -95,7 +95,7 @@ jobs:
           repository: 'openvinotoolkit/testdata'
           path: ${{ env.MODELS_PATH }}
           lfs: 'true'
-          ref: 'master'
+          ref: 'releases/2024/1'
 
       #
       # Print system info
@@ -296,7 +296,7 @@ jobs:
           repository: 'openvinotoolkit/testdata'
           path: ${{ env.MODELS_PATH }}
           lfs: 'true'
-          ref: 'master'
+          ref: 'releases/2024/1'
 
       - name: Download selective build statistics package
         uses: actions/download-artifact@v4
