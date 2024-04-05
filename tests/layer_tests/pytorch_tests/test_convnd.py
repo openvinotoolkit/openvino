@@ -216,7 +216,6 @@ class TestConv2DInSubgraph(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.xfail(reason="ticket 123727")
     def test_conv2d(self, ie_device, precision, ir_version):
         self._test(*self.create_model(),
-                   ie_device, precision, ir_version, freeze_model=True, dynamic_shapes=False)
+                   ie_device, precision, ir_version, freeze_model=True)
