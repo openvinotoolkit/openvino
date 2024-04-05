@@ -91,8 +91,8 @@ OutputVector translate_if(const NodeContext& context) {
     }
     OutputVector res;
     const auto num_outs = context.get_output_size();
-    const auto then_results = then_body->get_results();
-    const auto else_results = else_body->get_results();
+    const auto& then_results = then_body->get_results();
+    const auto& else_results = else_body->get_results();
     PYTORCH_OP_CONVERSION_CHECK(then_results.size() >= num_outs && else_results.size() >= num_outs,
                                 "Else or then body have less outputs than prim::If requires.");
     for (size_t i = 0; i < num_outs; i++) {
