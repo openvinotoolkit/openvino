@@ -12,12 +12,10 @@ namespace pattern {
 namespace op {
 
 /// A submatch on the graph value which contains optional op types defined in constructor.
-/// `Optional` pattern supports multi input operations. In this case the pattern checks all pattern input branches
-/// while a branch will be matched with the graph.
+/// `Optional` pattern supports multi input operations. In this case the pattern checks
+/// inputs with optional node type or 1st input.
 /// The match is succeed in case of full graphs matching or extended by one of optional type graph or pattern.
 /// Otherwise fails.
-/// Important notes:
-///   1. a graph can include only one optional op in the end of graph vs pattern.
 //
 //  +------+   +------+                       +------+  +------+      +------+
 //  | op_0 |   | op_1 |                       | op_0 |  | op_1 |      | op_0 |

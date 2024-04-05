@@ -140,12 +140,12 @@ bool Matcher::match_permutation(const OutputVector& pattern_args, const OutputVe
     return true;
 }
 
-// matching aguments in case of `optional`: input values size can be different
-// in this case pattern should cover all posible cases by `optional` pattern
-// againt graph with `lost` inputs
+// matching arguments in case of `optional`: input values size can be different
+// in this case pattern should cover all possible cases by `optional` pattern
+// against graph with `lost` inputs
 // Operation example: ov::op::v5::NMS
-inline bool are_arguments_mislagned(const std::vector<ov::Output<Node>>& args,
-                                    const std::vector<ov::Output<Node>>& pattern_args) {
+inline bool are_arguments_misaligned(const std::vector<ov::Output<Node>>& args,
+                                     const std::vector<ov::Output<Node>>& pattern_args) {
     // 'lost' operation can be defined in the end
     // try to find them
     if (pattern_args.size() < args.size()) {
@@ -166,37 +166,36 @@ bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& g
     auto args = graph_node->input_values();
     auto pattern_args = pattern_node->input_values();
 
-    if (args.size() != pattern_args.size()) {
-        if (are_arguments_mislagned(args, pattern_args)) {
-            OPENVINO_DEBUG << "[MATCHER] Aborting at " << *graph_node << " for pattern " << *pattern_node;
-            return false;
+    if (args.size() != pattern_args.size() && are_arguments_misaligned(args, pattern_args)) {
+        OPENVINO_DEBUG << "[MATCHER] Aborting at " << *graph_node << " for pattern " << *pattern_node;
+        return false;
+    }
+}
+
+if (ov::op::util::is_commutative(graph_node)) {
+    // TODO: [nikolayk] we don't really have to use lexicographically-based perms,
+    // heap's algo should be faster
+    std::sort(begin(pattern_args),
+              end(pattern_args),
+              [](const ov::Output<ov::Node>& n1, const ov::Output<ov::Node>& n2) {
+                  return n1 < n2;
+              });
+    do {
+        auto saved = start_match();
+        if (match_permutation(pattern_args, args)) {
+            return saved.finish(true);
         }
-    }
+    } while (std::next_permutation(begin(pattern_args),
+                                   end(pattern_args),
+                                   [](const ov::Output<ov::Node>& n1, const ov::Output<ov::Node>& n2) {
+                                       return n1 < n2;
+                                   }));
+} else {
+    return match_permutation(pattern_args, args);
+}
 
-    if (ov::op::util::is_commutative(graph_node)) {
-        // TODO: [nikolayk] we don't really have to use lexicographically-based perms,
-        // heap's algo should be faster
-        std::sort(begin(pattern_args),
-                  end(pattern_args),
-                  [](const ov::Output<ov::Node>& n1, const ov::Output<ov::Node>& n2) {
-                      return n1 < n2;
-                  });
-        do {
-            auto saved = start_match();
-            if (match_permutation(pattern_args, args)) {
-                return saved.finish(true);
-            }
-        } while (std::next_permutation(begin(pattern_args),
-                                       end(pattern_args),
-                                       [](const ov::Output<ov::Node>& n1, const ov::Output<ov::Node>& n2) {
-                                           return n1 < n2;
-                                       }));
-    } else {
-        return match_permutation(pattern_args, args);
-    }
-
-    OPENVINO_DEBUG << "[MATCHER] Aborting at " << *graph_node << " for pattern " << *pattern_node;
-    return false;
+OPENVINO_DEBUG << "[MATCHER] Aborting at " << *graph_node << " for pattern " << *pattern_node;
+return false;
 }
 
 bool Matcher::match(const Output<Node>& graph_value) {

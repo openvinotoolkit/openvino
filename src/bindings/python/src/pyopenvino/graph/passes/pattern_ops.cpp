@@ -494,6 +494,7 @@ static void reg_pattern_optional(py::module m) {
                       py::arg("type_name"),
                       R"(
         Create Optional with the given node type.
+
         :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
         :type type_names: List[str]
     )");
@@ -528,11 +529,8 @@ static void reg_pattern_optional(py::module m) {
         :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
         :type type_names: List[str]
 
-        :param input: input node's output.
-        :type input: openvino.runtime.Output
-
-        :param predicate: Function that performs additional checks for matching.
-        :type predicate: function
+        :param input: input node.
+        :type input: openvino.runtime.Node
     )");
 
     optional_type.def(
@@ -577,8 +575,10 @@ static void reg_pattern_optional(py::module m) {
                       py::arg("predicate"),
                       R"(
         Create Optional with the given node type and predicate.
+
         :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
         :type type_names: List[str]
+
         :param predicate: Function that performs additional checks for matching.
         :type predicate: function
     )");
