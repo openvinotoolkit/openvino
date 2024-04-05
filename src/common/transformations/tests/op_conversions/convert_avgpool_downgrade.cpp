@@ -125,9 +125,7 @@ std::shared_ptr<ov::Model> create_ceil_torch_workaround_model() {
 TEST_F(TransformationTestsF, ConvertAvgPool14ToAvgPool1_ceil_torch_to_ceil) {
     model = create_v14_model(ov::op::RoundingType::CEIL_TORCH);
     model_ref = create_ceil_torch_workaround_model();
-    manager.register_pass<ov::pass::VisualizeTree>("/home/pwysocki/model_before.svg");
     manager.register_pass<ov::pass::ConvertAvgPool14ToAvgPool1>();
-    manager.register_pass<ov::pass::VisualizeTree>("/home/pwysocki/model_after.svg");
     comparator.disable(FunctionsComparator::CmpValues::ACCURACY);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }

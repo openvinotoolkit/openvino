@@ -108,14 +108,14 @@ ov::pass::ConvertAvgPool14ToAvgPool1::ConvertAvgPool14ToAvgPool1() {
                                              pad_node,
                                              avg_pool_v1});
         } else {
-            const auto avg_pool_v1 = std::make_shared<ov::op::v1::AvgPool>(avg_pool_v14->input_value(0),
-                                                                           avg_pool_v14->get_strides(),
-                                                                           avg_pool_v14->get_pads_begin(),
-                                                                           avg_pool_v14->get_pads_end(),
-                                                                           avg_pool_v14->get_kernel(),
-                                                                           avg_pool_v14->get_exclude_pad(),
-                                                                           avg_pool_v14->get_rounding_type(),
-                                                                           avg_pool_v14->get_auto_pad());
+            avg_pool_v1 = std::make_shared<ov::op::v1::AvgPool>(avg_pool_v14->input_value(0),
+                                                                avg_pool_v14->get_strides(),
+                                                                avg_pool_v14->get_pads_begin(),
+                                                                avg_pool_v14->get_pads_end(),
+                                                                avg_pool_v14->get_kernel(),
+                                                                avg_pool_v14->get_exclude_pad(),
+                                                                avg_pool_v14->get_rounding_type(),
+                                                                avg_pool_v14->get_auto_pad());
             copy_runtime_info(avg_pool_v14, avg_pool_v1);
         }
         avg_pool_v1->set_friendly_name(avg_pool_v14->get_friendly_name());
