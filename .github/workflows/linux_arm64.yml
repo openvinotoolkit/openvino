@@ -100,7 +100,7 @@ jobs:
           repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
           submodules: 'true'
-          # ref: 'master'
+          # ref: 'releases/2024/1'
           ref: 3eeb2326e0d974f61a83f8e67d37e918ccfa1edd
 
       #
