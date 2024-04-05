@@ -21,7 +21,6 @@
 #include "transformations/op_conversions/convert_convertlike.hpp"
 #include "transformations/op_conversions/convert_convertpromotetypes.hpp"
 #include "transformations/resolve_names_collisions.hpp"
-#include "transforms.hpp"
 #include "transforms/append_list_unpack_replacer.hpp"
 #include "transforms/aten_cat_replacer.hpp"
 #include "transforms/aten_getitem_replacer.hpp"
@@ -220,8 +219,6 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
     manager.register_pass<ov::pass::ResolveNameCollisions>(true);
     manager.run_passes(model);
-
-    apply_pytorch_conversion_transforms(model);
 
     // Usually if nn.Module.forward is given as a source model for conversion, there is the first Parameter
     // that represents original `self` argument in forward(self, ...). `self` shouldn't play any role in model

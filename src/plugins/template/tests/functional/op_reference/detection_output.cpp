@@ -158,6 +158,7 @@ class ReferenceDetectionOutputLayerTest : public testing::TestWithParam<Detectio
                                           public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params);
         if ((params.auxLocShape.size() != 0) && (params.auxConfShape.size() != 0))
@@ -205,6 +206,7 @@ class ReferenceDetectionOutputV8LayerTest : public testing::TestWithParam<Detect
                                             public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params);
         if ((params.auxLocShape.size() != 0) && (params.auxConfShape.size() != 0))

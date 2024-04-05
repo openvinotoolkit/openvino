@@ -294,9 +294,12 @@ OP_CONVERTER(translate_split_with_sizes_fx);
 OP_CONVERTER(translate_stack_fx);
 OP_CONVERTER(translate_sub_fx);
 OP_CONVERTER(translate_sum_fx);
+OP_CONVERTER(translate_std_fx);
 OP_CONVERTER(translate_topk_fx);
 OP_CONVERTER(translate_to_fx);
 OP_CONVERTER(translate_transpose_fx);
+OP_CONVERTER(translate_quantize_per_channel_fx);
+OP_CONVERTER(translate_quantize_per_tensor_fx);
 OP_CONVERTER(translate_var_fx);
 OP_CONVERTER(translate_var_mean_fx);
 OP_CONVERTER(translate_unbind_int_fx);
@@ -761,6 +764,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.argmax.default", op::translate_argmax},
         {"aten.argmin.default", op::translate_argmin},
         {"aten.as_strided.default", op::translate_as_strided},
+        {"aten.as_strided_.default", op::translate_as_strided},
         {"aten.asin.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Asin>},
         {"aten.asinh.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Asinh>},
         {"aten.atan.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Atan>},
@@ -835,7 +839,6 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.hardtanh.default", op::translate_hardtanh},
         {"aten.hardtanh_.default", op::inplace_op<op::translate_hardtanh>},
         {"aten.index.Tensor", op::translate_index_fx},
-        // aten.index_put.default - Supported in limited set of patterns
         {"aten.index_select.default", op::translate_index_select},
         {"aten.isfinite.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::IsFinite>>},
         {"aten.isinf.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::IsInf>>},
@@ -852,6 +855,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.log1p.default", op::translate_log1p},
         {"aten.log2.default", op::translate_log2},
         {"aten.logical_and.default", op::translate_and},
+        {"aten.logical_not.default", op::translate_not},
         {"aten.logsumexp.default", op::translate_logsumexp},
         {"aten.lt.Scalar", op::translate_1to1_match_2_inputs_align_types<opset10::Less>},
         {"aten.lt.Tensor", op::translate_1to1_match_2_inputs_align_types<opset10::Less>},
@@ -873,6 +877,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.mm.default", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten.mul.Scalar", op::translate_mul},
         {"aten.mul.Tensor", op::translate_mul},
+        {"aten.mul_.Tensor", op::translate_mul},
         {"aten.native_batch_norm.default", op::translate_batch_norm_legit_fx},
         {"aten.native_dropout.default", op::skip_node},
         {"aten.native_group_norm.default", op::translate_group_norm_fx},
@@ -911,6 +916,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.select.int", op::translate_select},
         {"aten.select_scatter.default", op::translate_select_scatter_fx},
         {"aten.sigmoid.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sigmoid>},
+        {"aten.sigmoid_.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sigmoid>},
         {"aten.sign.default", op::translate_sign},
         {"aten.silu.default", op::translate_1to1_match_1_inputs<opset10::Swish>},
         {"aten.silu_.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Swish>>},
@@ -925,6 +931,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.squeeze.dim", op::translate_squeeze},
         {"aten.squeeze.dims", op::translate_squeeze},
         {"aten.stack.default", op::translate_stack_fx},
+        {"aten.std.correction", op::translate_std_fx},
         {"aten.sub.default", op::translate_sub_fx},
         {"aten.sub.Tensor", op::translate_sub_fx},
         {"aten.sum.default", op::translate_sum_fx},
@@ -949,6 +956,10 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"get_attr", op::translate_constant},
         {"torchvision.deform_conv2d.default", op::translate_deform_conv},
         {"torchvision.roi_align.default", op::translate_roi_align},
+        {"quantized_decomposed.quantize_per_tensor.default", op::translate_quantize_per_tensor_fx},
+        {"quantized_decomposed.quantize_per_channel.default", op::translate_quantize_per_channel_fx},
+        {"quantized_decomposed.dequantize_per_tensor.default", op::skip_node},
+        {"quantized_decomposed.dequantize_per_channel.default", op::skip_node},
     };
 };
 
