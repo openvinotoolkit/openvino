@@ -71,6 +71,9 @@
 - 'src/plugins/intel_gpu/**/*'
 - 'thirdparty/ocl/**/*'
 
+'category: NPU':
+- 'src/plugins/intel_npu/**/*'
+
 'category: HETERO':
 - 'src/plugins/hetero/**/*'
 
