@@ -67,7 +67,8 @@ private:
                              const std::vector<MemoryCPtr>& dstMemory,
                              const std::string& errorPrefix) : errorPrefix(errorPrefix) {}
         virtual void exec(const std::vector<MemoryCPtr>& srcMemory,
-                          const std::vector<MemoryCPtr>& dstMemory) = 0;
+                          const std::vector<MemoryCPtr>& dstMemory,
+                          int w_rank = -1) = 0;
         virtual ~StridedSliceExecutor() = default;
 
     protected:
@@ -81,7 +82,8 @@ private:
                                    const std::vector<MemoryCPtr>& dstMemory,
                                    const std::string& errorPrefix);
         void exec(const std::vector<MemoryCPtr>& srcMemory,
-                  const std::vector<MemoryCPtr>& dstMemory) override;
+                  const std::vector<MemoryCPtr>& dstMemory,
+                  int w_rank = -1) override;
 
     private:
         struct StridedSliceParams {
@@ -132,6 +134,8 @@ private:
     std::vector<MemoryCPtr> dstMemory;
 
     std::string errorPrefix;
+
+    int w_rank = -1;
 };
 
 }   // namespace node

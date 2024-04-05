@@ -115,7 +115,7 @@ std::ostream & operator<<(std::ostream & os, const dnnl::memory::format_tag dtyp
 std::ostream & operator<<(std::ostream & os, const dnnl::primitive_attr& attr);
 std::ostream & operator<<(std::ostream & os, const dnnl::algorithm& alg);
 
-void print_dnnl_memory(const dnnl::memory& memory, const size_t size, const int id, const char* message = "");
+void print_dnnl_memory(const dnnl::memory& memory, const size_t size, const int id = 0, const char* message = "");
 
 template<typename T>
 std::ostream & operator<<(std::ostream & os, const PrintableVector<T>& vec) {
@@ -166,6 +166,16 @@ static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg,
 
 #define DEBUG_LOG(...) DEBUG_LOG_EXT(nullptr, std::cout, "[ DEBUG ] ", __VA_ARGS__)
 #define ERROR_LOG(...) DEBUG_LOG_EXT(nullptr, std::cerr, "[ ERROR ] ", __VA_ARGS__)
+
+static inline bool extra_log_enabled() {
+    static bool result = std::getenv("EXTRA_LOG") ? true : false;
+    return result;
+}
+
+#define EXTRA_LOG(...)                          \
+    if (extra_log_enabled()) {                  \
+        __VA_ARGS__                             \
+    }
 
 #define CREATE_DEBUG_TIMER(x) PrintableTimer x
 
@@ -273,6 +283,7 @@ struct EnforceInferPrcDebug {
 #define DEBUG_LOG_EXT(name, ...)
 
 #define CREATE_DEBUG_TIMER(x)
+#define EXTRA_LOG(...)
 
 #endif // CPU_DEBUG_CAPS
 

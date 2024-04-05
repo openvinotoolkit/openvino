@@ -158,232 +158,234 @@ std::ostream & operator<<(std::ostream & os, const Edge& edge) {
 }
 
 std::ostream & operator<<(std::ostream & os, const Node &c_node) {
-    Node & node = const_cast<Node &>(c_node);
-    const int align_col = 50;
-    const char * comma = "";
-    auto node_id = [](Node & node) {
-        auto id = node.getName();
-        if (id.size() > 50)
-            return node.getTypeStr() + "_" + std::to_string(node.getExecIndex());
-        return id;
-    };
-    auto is_single_output_port = [](Node & node) {
-        for (auto & e : node.getChildEdges()) {
-            auto edge = e.lock();
-            if (!edge) continue;
-            if (edge->getInputNum() != 0)
-                return false;
-        }
-        return true;
-    };
-
-    auto nodeDesc = node.getSelectedPrimitiveDescriptor();
-    std::stringstream leftside;
-
-    int num_output_port = 0;
-    for (const auto& wptr : node.getChildEdges()) {
-        auto edge = wptr.lock();
-        if (num_output_port < edge->getInputNum() + 1)
-            num_output_port = edge->getInputNum() + 1;
-    }
-
-    auto getData = [](const MemoryPtr& ptr) {
-        std::string ret;
-        try {
-            std::stringstream ss;
-            ss << ptr->getData();
-            ret = ss.str();
-        } catch (const std::exception& e) {
-            ret = "?";
-        }
-        return ret;
-    };
-
-    if (num_output_port) {
-        if (num_output_port > 1) leftside << "(";
-        comma = "";
-        for (int i = 0; i < num_output_port; i++) {
-            bool b_ouputed = false;
-            auto edge = node.getChildEdgeAt(i);
-            if (edge->getStatus() != Edge::Status::NotAllocated) {
-                auto ptr = edge->getMemoryPtr();
-                if (ptr) {
-                    auto desc = &(ptr->getDesc());
-                    auto shape_str = desc->getShape().toString();
-                    replace_all(shape_str, " ", "");
-                    leftside << comma << desc->getPrecision().get_type_name()
-                                << "_" << desc->serializeFormat()
-                                << "_" << shape_str
-                                << "&" << getData(ptr);
-                    b_ouputed = true;
-                } else {
-                    leftside << "(empty)";
-                }
-            }
-            if (!b_ouputed && nodeDesc && i < static_cast<int>(nodeDesc->getConfig().outConfs.size())) {
-                auto desc = nodeDesc->getConfig().outConfs[i].getMemDesc();
-                auto shape_str = desc->getShape().toString();
-                replace_all(shape_str, "0 - ?", "?");
-                replace_all(shape_str, " ", "");
-                leftside << comma << desc->getPrecision().get_type_name()
-                            << "_" << desc->serializeFormat()
-                            << "_" << shape_str;
-                b_ouputed = true;
-            }
-            if (!b_ouputed) {
-                leftside << comma << "???";
-            }
-            comma = ",";
-        }
-        if (num_output_port > 1) leftside << ")";
-    } else if (nodeDesc) {
-        // output Desc is enough since input is always in consistent
-        // with output.
-        /*
-        auto& inConfs = nodeDesc->getConfig().inConfs;
-        if (!inConfs.empty()) {
-            os << " in:[";
-            for (auto& c : inConfs) {
-                os << c.getMemDesc()->getPrecision().get_type_name()
-                        << c.getMemDesc()->
-                        << "/" << c.getMemDesc()->serializeFormat()
-                        << "; ";
-            }
-            os << "]";
-        }*/
-
-        auto& outConfs = nodeDesc->getConfig().outConfs;
-        if (!outConfs.empty()) {
-            if (outConfs.size() > 1) leftside << "(";
-            comma = "";
-            for (auto& c : outConfs) {
-                auto shape_str = c.getMemDesc()->getShape().toString();
-                replace_all(shape_str, "0 - ?", "?");
-                leftside << comma << c.getMemDesc()->getPrecision().get_type_name()
-                            << "_" << c.getMemDesc()->serializeFormat()
-                            << "_" << shape_str;
-                comma = ",";
-            }
-            if (outConfs.size() > 1) leftside << ")";
-        }
-    } else {
-        // no SPD yet, use orginal shapes
-        comma = "";
-        for (size_t i = 0; i < node.getOriginalOutputPrecisions().size(); i++) {
-            auto shape = node.getOutputShapeAtPort(i);
-            std::string prec_name = "Undef";
-            prec_name = node.getOriginalOutputPrecisionAtPort(i).get_type_name();
-            auto shape_str = shape.toString();
-            replace_all(shape_str, "0 - ?", "?");
-            leftside << comma << prec_name
-                        << "_" << shape_str;
-            comma = ",";
-        }
-    }
-    leftside << "  " << node_id(node) << " = ";
-    os << "#" << node.getExecIndex() << " :" << std::right << std::setw(align_col) << leftside.str();
-    os << std::left << node.getTypeStr();
-    if (node.getAlgorithm() != Algorithm::Default)
-        os << "." << algToString(node.getAlgorithm());
-    os << " (";
-
-    comma = "";
-    for (size_t port = 0; port < node.getParentEdges().size(); ++port) {
-        // find the Parent edge connecting to port
-        os << comma;
-        const char * sep2 = "";
-        for (const auto & e : node.getParentEdges()) {
-            auto edge = e.lock();
-            if (!edge) continue;
-            if (edge->getOutputNum() != static_cast<int>(port)) continue;
-            auto n = edge->getParent();
-            os << sep2;
-            os << node_id(*edge->getParent());
-            auto ptr = edge->getMemoryPtr();
-            if (ptr) {
-                os << "&" << getData(ptr);
-            }
-            if (!is_single_output_port(*n))
-                os << "[" << edge->getInputNum() << "]";
-            sep2 = "|"; // show all edges at single port(usually indicating bugs)
-        }
-        comma = ",";
-    }
-
-    if (node.getType() == intel_cpu::Type::Input && node.isConstant()) {
-        if (auto input_node = reinterpret_cast<intel_cpu::node::Input *>(&node)) {
-            auto pmem = input_node->getMemoryPtr();
-            void * data = pmem->getData();
-            auto shape = pmem->getDesc().getShape().getDims();
-
-            if (shape_size(shape) <= 8) {
-                auto type = pmem->getDesc().getPrecision();
-                auto tensor = ov::Tensor(type, shape, data);
-                auto constop = std::make_shared<ov::op::v0::Constant>(tensor);
-                comma = "";
-                for (auto & v : constop->get_value_strings()) {
-                    os << comma << v;
-                    comma = ",";
-                }
-            } else {
-                os << "...";
-            }
-        } else {
-            os << "?";
-        }
-    }
-
-    // additional properties
-    if (node.getType() == intel_cpu::Type::Eltwise) {
-        auto eltwise_node = reinterpret_cast<intel_cpu::node::Eltwise *>(&node);
-        os << " | Alpha=" << eltwise_node->getAlpha()
-        << ", Beta=" << eltwise_node->getBeta()
-        << ", Gamma=" << eltwise_node->getGamma()
-        << ", BroadcastingPolicy=";
-
-        switch (eltwise_node->getBroadcastingPolicy()) {
-            case intel_cpu::node::Eltwise::BroadcastingPolicy::PerChannel:
-                os << "PerChannel";
-                break;
-            case intel_cpu::node::Eltwise::BroadcastingPolicy::PerTensor:
-                os << "PerTensor";
-                break;
-            default:
-                os << "?";
-        }
-    }
-
-    os << ")  ";
-    os << " " << node.getPrimitiveDescriptorType();
-
-    // last line(s): fused layers
-    os << " " << node.getOriginalLayers();
-    os << " " << node.getParallelDomain();
-
-    if (node.PerfCounter().count()) {
-        os << " latency:" << node.PerfCounter().avg() << "(us) x" << node.PerfCounter().count();
-    }
-
-    for (auto & fn : node.getFusedWith()) {
-        os << "\n\t  FusedWith: " << *fn;
-    }
-
-    // primArgs
-    /*
-    if (node.primArgs.size()) {
-        comma = "";
-        os << " primArgs={";
-        for (auto & it : node.primArgs) {
-            void * ptr = it.second.map_data();
-            it.second.unmap_data(ptr);
-            auto arg_id = it.first;
-            os << comma << arg_id << ":" << ptr;
-            comma = ",";
-        }
-        os << "}";
-    }*/
-
+    os << c_node.getName() << ":" << c_node.getTypeStr();
     return os;
+    // Node & node = const_cast<Node &>(c_node);
+    // const int align_col = 50;
+    // const char * comma = "";
+    // auto node_id = [](Node & node) {
+    //     auto id = node.getName();
+    //     if (id.size() > 50)
+    //         return node.getTypeStr() + "_" + std::to_string(node.getExecIndex());
+    //     return id;
+    // };
+    // auto is_single_output_port = [](Node & node) {
+    //     for (auto & e : node.getChildEdges()) {
+    //         auto edge = e.lock();
+    //         if (!edge) continue;
+    //         if (edge->getInputNum() != 0)
+    //             return false;
+    //     }
+    //     return true;
+    // };
+
+    // auto nodeDesc = node.getSelectedPrimitiveDescriptor();
+    // std::stringstream leftside;
+
+    // int num_output_port = 0;
+    // for (const auto& wptr : node.getChildEdges()) {
+    //     auto edge = wptr.lock();
+    //     if (num_output_port < edge->getInputNum() + 1)
+    //         num_output_port = edge->getInputNum() + 1;
+    // }
+
+    // auto getData = [](const MemoryPtr& ptr) {
+    //     std::string ret;
+    //     try {
+    //         std::stringstream ss;
+    //         ss << ptr->getData();
+    //         ret = ss.str();
+    //     } catch (const std::exception& e) {
+    //         ret = "?";
+    //     }
+    //     return ret;
+    // };
+
+    // if (num_output_port) {
+    //     if (num_output_port > 1) leftside << "(";
+    //     comma = "";
+    //     for (int i = 0; i < num_output_port; i++) {
+    //         bool b_ouputed = false;
+    //         auto edge = node.getChildEdgeAt(i);
+    //         if (edge->getStatus() != Edge::Status::NotAllocated) {
+    //             auto ptr = edge->getMemoryPtr();
+    //             if (ptr) {
+    //                 auto desc = &(ptr->getDesc());
+    //                 auto shape_str = desc->getShape().toString();
+    //                 replace_all(shape_str, " ", "");
+    //                 leftside << comma << desc->getPrecision().get_type_name()
+    //                             << "_" << desc->serializeFormat()
+    //                             << "_" << shape_str
+    //                             << "&" << getData(ptr);
+    //                 b_ouputed = true;
+    //             } else {
+    //                 leftside << "(empty)";
+    //             }
+    //         }
+    //         if (!b_ouputed && nodeDesc && i < static_cast<int>(nodeDesc->getConfig().outConfs.size())) {
+    //             auto desc = nodeDesc->getConfig().outConfs[i].getMemDesc();
+    //             auto shape_str = desc->getShape().toString();
+    //             replace_all(shape_str, "0 - ?", "?");
+    //             replace_all(shape_str, " ", "");
+    //             leftside << comma << desc->getPrecision().get_type_name()
+    //                         << "_" << desc->serializeFormat()
+    //                         << "_" << shape_str;
+    //             b_ouputed = true;
+    //         }
+    //         if (!b_ouputed) {
+    //             leftside << comma << "???";
+    //         }
+    //         comma = ",";
+    //     }
+    //     if (num_output_port > 1) leftside << ")";
+    // } else if (nodeDesc) {
+    //     // output Desc is enough since input is always in consistent
+    //     // with output.
+    //     /*
+    //     auto& inConfs = nodeDesc->getConfig().inConfs;
+    //     if (!inConfs.empty()) {
+    //         os << " in:[";
+    //         for (auto& c : inConfs) {
+    //             os << c.getMemDesc()->getPrecision().get_type_name()
+    //                     << c.getMemDesc()->
+    //                     << "/" << c.getMemDesc()->serializeFormat()
+    //                     << "; ";
+    //         }
+    //         os << "]";
+    //     }*/
+
+    //     auto& outConfs = nodeDesc->getConfig().outConfs;
+    //     if (!outConfs.empty()) {
+    //         if (outConfs.size() > 1) leftside << "(";
+    //         comma = "";
+    //         for (auto& c : outConfs) {
+    //             auto shape_str = c.getMemDesc()->getShape().toString();
+    //             replace_all(shape_str, "0 - ?", "?");
+    //             leftside << comma << c.getMemDesc()->getPrecision().get_type_name()
+    //                         << "_" << c.getMemDesc()->serializeFormat()
+    //                         << "_" << shape_str;
+    //             comma = ",";
+    //         }
+    //         if (outConfs.size() > 1) leftside << ")";
+    //     }
+    // } else {
+    //     // no SPD yet, use orginal shapes
+    //     comma = "";
+    //     for (size_t i = 0; i < node.getOriginalOutputPrecisions().size(); i++) {
+    //         auto shape = node.getOutputShapeAtPort(i);
+    //         std::string prec_name = "Undef";
+    //         prec_name = node.getOriginalOutputPrecisionAtPort(i).get_type_name();
+    //         auto shape_str = shape.toString();
+    //         replace_all(shape_str, "0 - ?", "?");
+    //         leftside << comma << prec_name
+    //                     << "_" << shape_str;
+    //         comma = ",";
+    //     }
+    // }
+    // leftside << "  " << node_id(node) << " = ";
+    // os << "#" << node.getExecIndex() << " :" << std::right << std::setw(align_col) << leftside.str();
+    // os << std::left << node.getTypeStr();
+    // if (node.getAlgorithm() != Algorithm::Default)
+    //     os << "." << algToString(node.getAlgorithm());
+    // os << " (";
+
+    // comma = "";
+    // for (size_t port = 0; port < node.getParentEdges().size(); ++port) {
+    //     // find the Parent edge connecting to port
+    //     os << comma;
+    //     const char * sep2 = "";
+    //     for (const auto & e : node.getParentEdges()) {
+    //         auto edge = e.lock();
+    //         if (!edge) continue;
+    //         if (edge->getOutputNum() != static_cast<int>(port)) continue;
+    //         auto n = edge->getParent();
+    //         os << sep2;
+    //         os << node_id(*edge->getParent());
+    //         auto ptr = edge->getMemoryPtr();
+    //         if (ptr) {
+    //             os << "&" << getData(ptr);
+    //         }
+    //         if (!is_single_output_port(*n))
+    //             os << "[" << edge->getInputNum() << "]";
+    //         sep2 = "|"; // show all edges at single port(usually indicating bugs)
+    //     }
+    //     comma = ",";
+    // }
+
+    // if (node.getType() == intel_cpu::Type::Input && node.isConstant()) {
+    //     if (auto input_node = reinterpret_cast<intel_cpu::node::Input *>(&node)) {
+    //         auto pmem = input_node->getMemoryPtr();
+    //         void * data = pmem->getData();
+    //         auto shape = pmem->getDesc().getShape().getDims();
+
+    //         if (shape_size(shape) <= 8) {
+    //             auto type = pmem->getDesc().getPrecision();
+    //             auto tensor = ov::Tensor(type, shape, data);
+    //             auto constop = std::make_shared<ov::op::v0::Constant>(tensor);
+    //             comma = "";
+    //             for (auto & v : constop->get_value_strings()) {
+    //                 os << comma << v;
+    //                 comma = ",";
+    //             }
+    //         } else {
+    //             os << "...";
+    //         }
+    //     } else {
+    //         os << "?";
+    //     }
+    // }
+
+    // // additional properties
+    // if (node.getType() == intel_cpu::Type::Eltwise) {
+    //     auto eltwise_node = reinterpret_cast<intel_cpu::node::Eltwise *>(&node);
+    //     os << " | Alpha=" << eltwise_node->getAlpha()
+    //     << ", Beta=" << eltwise_node->getBeta()
+    //     << ", Gamma=" << eltwise_node->getGamma()
+    //     << ", BroadcastingPolicy=";
+
+    //     switch (eltwise_node->getBroadcastingPolicy()) {
+    //         case intel_cpu::node::Eltwise::BroadcastingPolicy::PerChannel:
+    //             os << "PerChannel";
+    //             break;
+    //         case intel_cpu::node::Eltwise::BroadcastingPolicy::PerTensor:
+    //             os << "PerTensor";
+    //             break;
+    //         default:
+    //             os << "?";
+    //     }
+    // }
+
+    // os << ")  ";
+    // os << " " << node.getPrimitiveDescriptorType();
+
+    // // last line(s): fused layers
+    // os << " " << node.getOriginalLayers();
+    // os << " " << node.getParallelDomain();
+
+    // if (node.PerfCounter().count()) {
+    //     os << " latency:" << node.PerfCounter().avg() << "(us) x" << node.PerfCounter().count();
+    // }
+
+    // for (auto & fn : node.getFusedWith()) {
+    //     os << "\n\t  FusedWith: " << *fn;
+    // }
+
+    // // primArgs
+    // /*
+    // if (node.primArgs.size()) {
+    //     comma = "";
+    //     os << " primArgs={";
+    //     for (auto & it : node.primArgs) {
+    //         void * ptr = it.second.map_data();
+    //         it.second.unmap_data(ptr);
+    //         auto arg_id = it.first;
+    //         os << comma << arg_id << ":" << ptr;
+    //         comma = ",";
+    //     }
+    //     os << "}";
+    // }*/
+
+    // return os;
 }
 std::ostream & operator<<(std::ostream & os, const Shape& shape) {
     os << shape.toString();

@@ -508,7 +508,7 @@ void Reorder::reorderData(const IMemory &input, const IMemory &output, MultiCach
                 reorder = getReorderPrim(cache, dstMemory.get_engine(), srcMemory.get_desc(), dstMemory.get_desc());
             }
             if (!reorder) {
-                OPENVINO_THROW("No reorder available for the following tensor descriptors: ",
+                OPENVINO_THROW(": No reorder available for the following tensor descriptors: ",
                                input.getDesc().serializeFormat(),
                                " and ",
                                output.getDesc().serializeFormat());

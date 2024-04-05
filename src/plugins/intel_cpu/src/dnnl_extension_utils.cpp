@@ -45,6 +45,7 @@ dnnl::memory::data_type DnnlExtensionUtils::ElementTypeToDataType(const ov::elem
     switch (elementType) {
         case ov::element::f32:
             return memory::data_type::f32;
+        case ov::element::i64:
         case ov::element::i32:
             return memory::data_type::s32;
         case ov::element::bf16:

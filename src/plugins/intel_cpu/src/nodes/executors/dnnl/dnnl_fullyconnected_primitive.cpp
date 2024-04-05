@@ -28,6 +28,7 @@
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "utils/debug_capabilities.h"
+#include "dnnl_utils.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -273,6 +274,14 @@ static dnnl::inner_product_forward::primitive_desc createDescriptorInternal(cons
         useSparseWeights ? dnnl::memory::desc().sparse_desc(weightDesc.get_dims(), wdt)
                          : dnnl::memory::desc(weightDesc.get_dims(), wdt, memory::format_tag::any);
 
+    // std::cout << "initial intput desc: " << inputDesc << "\n";
+    // std::cout << "intput desc: " << normalizedInputDesc << "\n";
+    // std::cout << "initial wei desc: " << weightDesc << "\n";
+    // std::cout << "wei desc: " << weightsDesc << "\n";
+    // std::cout << "initial bias desc: " << biasDesc << "\n";
+    // std::cout << "bias desc: " << newBiasDesc << "\n";
+    // std::cout << "output desc: " << normalizedOutputDesc << "\n";
+
     return dnnl::inner_product_forward::primitive_desc(engine,
                                                        dnnl::prop_kind::forward_inference,
                                                        normalizedInputDesc,
@@ -392,8 +401,9 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
 
     const auto weightsDesc = DnnlExtensionUtils::makeDescriptor(primDesc.weights_desc());
     auto originalWeightsDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weiDesc);
-    if (attrs.weightsNonTransposed)
-        originalWeightsDesc = utils::makeTransposedWeightDescriptor(originalWeightsDesc, weightsDesc);
+    originalWeightsDesc = utils::makeTransposedWeightDescriptor<DnnlFCPrimitive>(originalWeightsDesc,
+                                                                                 weightsDesc,
+                                                                                 attrs.weightsNonTransposed);
 
     // ignore the result since we just need to put the packed weights into the cache
     (void)utils::prepareWeightsMemory(originalWeightsDesc,

@@ -287,6 +287,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     conf.readProperties(config, modelType);
     calculate_streams(conf, cloned_model);
+    std::cout << "### Total number of threads: " << conf.streamExecutorConfig.get_threads()
+              << " Threads per stream: " << conf.streamExecutorConfig.get_threads_per_stream()
+              << " Number of substreams: " << conf.streamExecutorConfig.get_sub_streams()
+              << " Number of streams: " << conf.streamExecutorConfig.get_streams()
+              << "\n";
 
     if (conf.streamExecutorConfig.get_sub_stream_mode() ==
         IStreamsExecutor::Config::StreamsMode::SUB_STREAMS_FOR_SOCKET) {
@@ -542,7 +547,7 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
 }
 
 ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& config) const {
-    WeightsSharing::Ptr fake_w_cache;
+    std::shared_ptr<SocketsWeights> fake_w_cache = std::make_shared<SocketsWeights>();
 
     if (model == nullptr) {
         OPENVINO_THROW("Only ngraph-based models are supported!");

@@ -3,18 +3,10 @@
 //
 
 #include "mlas_gemm.hpp"
+#include "mlas/sgemm.hpp"
 
 #include <cstdint>
 #include <memory>
-
-#include "cpu_memory.h"
-#include "memory_desc/cpu_blocked_memory_desc.h"
-#include "mlas/sgemm.hpp"
-#include "nodes/executors/executor.hpp"
-#include "nodes/executors/fullyconnected_config.hpp"
-#include "nodes/executors/memory_arguments.hpp"
-#include "nodes/executors/mlas/mlas_gemm.hpp"
-#include "utils/debug_capabilities.h"
 
 namespace ov {
 namespace intel_cpu {

@@ -46,7 +46,8 @@ void check_all_variables_registered(const std::vector<shared_ptr<ov::Node>>& ord
 }
 
 void check_all_parameters_registered(const std::vector<shared_ptr<ov::Node>>& ordered_ops,
-                                     const ov::ParameterVector& parameters) {
+                                     const ov::ParameterVector& parameters,
+                                     const std::string& name = "") {
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Model::check_all_parameters_registered");
 
     std::stringstream unregistered_parameters;
@@ -56,7 +57,7 @@ void check_all_parameters_registered(const std::vector<shared_ptr<ov::Node>>& or
             unregistered_parameters << node << std::endl;
     }
     OPENVINO_ASSERT(unregistered_parameters.str().empty(),
-                    "Model references undeclared parameters: ",
+                    "Model ", name, " references undeclared parameters: ",
                     unregistered_parameters.str());
 }
 
@@ -209,7 +210,7 @@ void ov::Model::prerequirements(bool detect_variables, bool detect_parameters) {
     if (detect_parameters)
         m_parameters = auto_detect_parameters(ordered_ops);
     else
-        check_all_parameters_registered(ordered_ops, m_parameters);
+        check_all_parameters_registered(ordered_ops, m_parameters, get_friendly_name());
 
     if (detect_variables)
         m_variables = auto_detect_variables(ordered_ops);
@@ -244,11 +245,13 @@ void ov::Model::validate_nodes_and_infer_types() const {
     }
 
     OPENVINO_ASSERT(unregistered_parameters.str().empty(),
-                    "Model references undeclared parameters: ",
+                    "Model ", m_name,
+                    " references undeclared parameters: ",
                     unregistered_parameters.str());
 
     OPENVINO_ASSERT(unregistered_variables.str().empty(),
-                    "Model references undeclared Variables: ",
+                    "Model ", m_name,
+                    " references undeclared Variables: ",
                     unregistered_variables.str());
 
     for (const auto& output : outputs()) {

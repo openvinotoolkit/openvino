@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <memory>
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "cache/multi_cache.h"
 #include "config.h"
@@ -23,34 +24,61 @@ public:
     typedef std::shared_ptr<const GraphContext> CPtr;
 
     GraphContext(const Config& config,
-                 WeightsSharing::Ptr w_cache,
+                 std::shared_ptr<SocketsWeights> w_cache,
                  bool isGraphQuantized,
-                 ov::threading::IStreamsExecutor::Ptr streamExecutor = nullptr);
+                 std::shared_ptr<std::vector<MultiCachePtr>> rtParamsCache = nullptr,
+                 ov::threading::IStreamsExecutor::Ptr streamExecutor = nullptr,
+                 int sub_stream_id = -1,
+                 std::shared_ptr<node::MemoryStatesRegister> memoryStatesRegister = nullptr);
 
     const Config& getConfig() const {
         return config;
     }
 
-    WeightsSharing::Ptr getWeightsCache() const {
+    std::shared_ptr<SocketsWeights> getWeightsCaches() const {
         return weightsCache;
     }
 
+    WeightsSharing::Ptr getWeightsCache() const {
+        return (*weightsCache)[m_numa_id];
+    }
+
+    std::shared_ptr<std::vector<MultiCachePtr>> getParamsCaches() const {
+        return m_rtParamsCache;
+    }
 
     MultiCachePtr getParamsCache() const {
-        return rtParamsCache;
+        return (*m_rtParamsCache)[m_numa_id];
     }
 
-    DnnlScratchPadPtr getScratchPad(int subStreamID = 0) const {
-        if (subStreamID < 0)
-            subStreamID = 0;
-        if (subStreamID >= numNumaNodes - 1)
-            subStreamID = numNumaNodes - 1;
-        return rtScratchPads[subStreamID];
+    // DnnlScratchPadPtr getScratchPad(int subStreamID = 0) const {
+    //     if (subStreamID < 0)
+    //         subStreamID = 0;
+    //     if (subStreamID >= numNumaNodes - 1)
+    //         subStreamID = numNumaNodes - 1;
+    //     return rtScratchPads[subStreamID];
+    // }
+    DnnlScratchPadPtr getScratchPad() const {
+        // if (subStreamID < 0)
+        //     subStreamID = 0;
+        // if (subStreamID >= numNumaNodes - 1)
+        //     subStreamID = numNumaNodes - 1;
+        // const int numa_id = m_streamExecutor->get_numa_node_id();
+        return rtScratchPads[m_numa_id];
     }
 
-    const std::vector<DnnlScratchPadPtr>& getScratchPads() const {
-        return rtScratchPads;
+    int getNumaId() const {
+        // if (subStreamID < 0)
+        //     subStreamID = 0;
+        // if (subStreamID >= numNumaNodes - 1)
+        //     subStreamID = numNumaNodes - 1;
+        // const int numa_id = m_streamExecutor->get_numa_node_id();
+        return m_numa_id;
     }
+
+    // const std::vector<DnnlScratchPadPtr>& getScratchPads() const {
+    //     return rtScratchPads;
+    // }
 
     static const dnnl::engine& getEngine();
 
@@ -58,7 +86,7 @@ public:
         return isGraphQuantizedFlag;
     }
 
-    ov::threading::CPUStreamsExecutor::Ptr getCPUStreamExecutor() const {
+    const ov::threading::CPUStreamsExecutor::Ptr& getCPUStreamExecutor() const {
         return cpuStreamExecutor;
     }
 
@@ -70,24 +98,42 @@ public:
         return memoryStatesRegister;
     }
 
+int getMainNumaNode() const {
+        return mainNumaNode;
+    }
+
+    int getSubStreamToUse() const {
+        return m_sub_steam_id;
+        // const int result = *subStreamToUse;
+        // (*subStreamToUse)++;
+        // if ((*subStreamToUse + 1) >= numNumaNodes) {
+        //     *subStreamToUse = -1;
+        // }
+        // // *subStreamToUse = (*subStreamToUse + 1) % numNumaNodes;
+        // return result;
+    }
+
 private:
     Config config;  // network-level config
 
-    WeightsSharing::Ptr weightsCache;         // per NUMA node caches for sharing weights data
+    std::shared_ptr<SocketsWeights> weightsCache;         // per NUMA node caches for sharing weights data
 
-    MultiCachePtr rtParamsCache;     // primitive cache
-    DnnlScratchPadPtr rtScratchPad;  // scratch pad
+    std::shared_ptr<std::vector<MultiCachePtr>> m_rtParamsCache;
 
     bool isGraphQuantizedFlag = false;
 
     std::vector<DnnlScratchPadPtr> rtScratchPads;  // scratch pad (each sub-stream has its own copy)
 
-    ov::threading::IStreamsExecutor::Ptr streamExecutor;   // stream executor for current graph
+    ov::threading::IStreamsExecutor::Ptr m_streamExecutor;   // stream executor for current graph
 
     ov::threading::CPUStreamsExecutor::Ptr cpuStreamExecutor;   // cpu stream executor for current graph
+    std::shared_ptr<int> subStreamToUse;
 
     int numNumaNodes = 1;
 
+    int mainNumaNode = 0;
+    int m_numa_id = 0;
+    int m_sub_steam_id = -1;
     std::shared_ptr<node::MemoryStatesRegister> memoryStatesRegister;
 };
 

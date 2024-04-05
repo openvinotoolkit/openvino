@@ -343,8 +343,6 @@ void Pooling::getSupportedDescriptors() {
     if ((inputRank < 3) || (inputRank > 5))
         OPENVINO_THROW("Pooling layer. Unsupported mode. Only 3D, 4D and 5D blobs are supported as input.");
 
-
-
     initEffectiveAttributes(inShape,
                             MemoryDescUtils::makeDummyShape(childShape));
 

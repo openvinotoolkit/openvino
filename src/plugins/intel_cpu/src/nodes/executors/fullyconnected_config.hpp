@@ -27,6 +27,8 @@ struct FCAttrs {
     MemoryCPtr decompressionMultiplyPtr;
     uint64_t dynamicQuantizationGroupSize;
     ov::intel_cpu::Config::ModelType modelType = ov::intel_cpu::Config::ModelType::Unknown;
+    int64_t activation_k_dim = 0;
+    int64_t activation_offset = 0;
 };
 
 using FCConfig = executor::Config<FCAttrs>;

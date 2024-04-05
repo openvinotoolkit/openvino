@@ -115,7 +115,7 @@ class BenchmarkLayerTest : public BaseLayerTest {
         for (const auto& input : this->inputs) {
             this->inferRequest.set_tensor(input.first, input.second);
         }
-
+#define ENABLE_BENCHMARK_FILE_REPORT
 #ifdef ENABLE_BENCHMARK_FILE_REPORT
         reporter_ = std::unique_ptr<ov::test::BenchmarkLayerTestReporter>(
                 new ::ov::test::BenchmarkLayerTestReporter{false});

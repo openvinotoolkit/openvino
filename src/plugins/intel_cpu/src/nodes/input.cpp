@@ -5,7 +5,9 @@
 #include "input.h"
 
 #include "cpu/x64/jit_generator.hpp"
+#include "onednn/iml_type_mapper.h"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "shape_inference/shape_inference_pass_through.hpp"
 
 using namespace dnnl;
@@ -373,7 +375,9 @@ void Input::cloneBlobIfRequired() {
                 + "_" + ptr;
     };
 
-    const auto weightCache = context->getWeightsCache();
+    auto weightCache = context->getWeightsCache();
+    if (std::getenv("DISABLE_INPUT_WC"))
+        weightCache = nullptr;
     const bool clone_is_not_needed =
         prec != element::string && !isWA() &&
         // IRs already have all subnormals flushed to zero, but in
@@ -460,6 +464,9 @@ void Input::getSupportedDescriptors() {
 }
 
 void Input::initSupportedPrimitiveDescriptors() {
+    if (zeroCopyOutput)
+        return;
+
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -516,6 +523,9 @@ void Input::initSupportedPdDefault() {
 }
 
 void Input::initSupportedPdFromMemDesc() {
+    if (zeroCopyOutput)
+        return;
+
     NodeConfig config;
     PortConfig portConfig;
     portConfig.inPlace(-1);
@@ -527,6 +537,35 @@ void Input::initSupportedPdFromMemDesc() {
         config.inConfs.push_back(portConfig);
     }
     supportedPrimitiveDescriptors.emplace_back(std::move(config), impl_desc_type::unknown);
+}
+
+void Input::selectOptimalPrimitiveDescriptor() {
+    if (!zeroCopyOutput)
+        return Node::selectOptimalPrimitiveDescriptor();
+
+    NodeConfig config;
+
+    if (getType() == Type::Output) {
+        auto parentEdge = getParentEdgeAt(0);
+        auto parentPtr = parentEdge->getParent();
+        auto parent_spd = parentPtr->getSelectedPrimitiveDescriptor();
+        OPENVINO_ASSERT(parent_spd, "Parent selected primitive descriptor is missed");
+        const auto& parentOutConf = parent_spd->getConfig().outConfs;
+        OPENVINO_ASSERT(!parentOutConf.empty(), "Parent output configuration is empty");
+
+        int inNum = parentEdge->getInputNum();
+        auto parentDesc = parent_spd->getConfig().outConfs[inNum].getMemDesc();
+        if (getName() == "Result_159360") {
+            config.inConfs.emplace_back(parentDesc->cloneWithNewPrecision(element::f32));
+        } else {
+            config.inConfs.emplace_back(parentDesc);
+        }
+    } else {
+        config.outConfs.emplace_back(extMemDesc);
+    }
+
+    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
+    selectPrimitiveDescriptorByIndex(0);
 }
 
 }   // namespace node

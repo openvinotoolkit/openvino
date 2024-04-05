@@ -48,7 +48,10 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
       m_plugin(plugin),
       m_cfg{cfg},
       m_name{model->get_name()},
-      m_loaded_from_cache(loaded_from_cache) {
+      m_loaded_from_cache(loaded_from_cache),
+      m_rtParamsCache(std::make_shared<std::vector<MultiCachePtr>>(
+                          get_num_sockets(),
+                          std::make_shared<MultiCache>(cfg.rtCacheCapacity))) {
     m_mutex = std::make_shared<std::mutex>();
     const auto& core = m_plugin->get_core();
     if (!core)
@@ -116,11 +119,11 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
 CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
     int streamId = 0;
-    int socketId = 0;
+    // int socketId = 0;
     auto streamsExecutor = std::dynamic_pointer_cast<IStreamsExecutor>(m_task_executor);
     if (nullptr != streamsExecutor) {
         streamId = streamsExecutor->get_stream_id();
-        socketId = streamsExecutor->get_socket_id();
+        // socketId = streamsExecutor->get_socket_id();
     }
     auto graphLock = GraphGuard::Lock(m_graphs[streamId % m_graphs.size()]);
     if (!graphLock._graph.IsReady()) {
@@ -130,11 +133,14 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
                 GraphContext::Ptr ctx;
                 {
                     std::lock_guard<std::mutex> lock{*m_mutex.get()};
+                    // disable weights caching if graph was created only once
+                    // auto weightsCache = m_cfg.streamExecutorConfig.get_streams() != 1 ? m_socketWeights[socketId] : nullptr;
                     auto isQuantizedFlag =
                         (m_cfg.lpTransformsMode == Config::On) &&
                         ov::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);
 
-                    ctx = std::make_shared<GraphContext>(m_cfg, m_socketWeights[socketId], isQuantizedFlag, streamsExecutor);
+                    // ctx = std::make_shared<GraphContext>(m_cfg, m_socketWeights, isQuantizedFlag, nullptr, streamsExecutor);
+                    ctx = std::make_shared<GraphContext>(m_cfg, m_socketWeights, isQuantizedFlag, m_rtParamsCache, streamsExecutor);
                 }
                 const std::shared_ptr<const ov::Model> model = m_model;
                 graphLock._graph.CreateGraph(model, ctx);

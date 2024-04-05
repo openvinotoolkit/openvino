@@ -113,6 +113,7 @@ enum class Type {
     MulticlassNms,
     Multinomial,
     Subgraph,
+    SubModel,
     PriorBox,
     PriorBoxClustered,
     Interaction,

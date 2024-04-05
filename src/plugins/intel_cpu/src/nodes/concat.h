@@ -6,6 +6,7 @@
 
 #include "node.h"
 #include "graph_context.h"
+#include "nodes/common/memcpy.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -46,12 +47,18 @@ private:
     size_t nelemTotal = 0;
     std::vector<size_t> dstOffset; // dst offset for each input
     std::vector<const uint8_t*> srcPtrs;
+
     bool hasOuterLoop = false;
     ov::element::Type inputPrecision = ov::element::f32;
     ov::element::Type outputPrecision = ov::element::f32;
     bool canExecRef = false;
     static constexpr size_t MAX_RANK_REF = 6;
     dnnl::primitive prim;
+
+    size_t m_physDims[5] = {1, 1, 1, 1, 1};
+    size_t m_outputStrides[MAX_RANK_REF] = {0};
+    unsigned m_L1Size = dnnl::utils::get_cache_size(1, true);
+    MemCpy jit_memcpy;
 };
 
 }   // namespace node

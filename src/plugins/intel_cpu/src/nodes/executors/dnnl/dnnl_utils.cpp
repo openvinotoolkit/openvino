@@ -15,10 +15,31 @@ namespace ov {
 namespace intel_cpu {
 namespace utils {
 
-DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr srcDesc, const DnnlMemoryDescPtr dstDesc) {
+template <>
+DnnlMemoryDescPtr makeTransposedWeightDescriptor<DnnlFCPrimitive>(const DnnlMemoryDescPtr srcDesc,
+                                                                  const DnnlMemoryDescPtr dstDesc,
+                                                                  bool weightsNonTransposed) {
+    if (!weightsNonTransposed)
+        return srcDesc;
+
     const auto& weiDesc = srcDesc->getDnnlDesc();
     const auto reorderedWeiDesc = dnnl::memory::desc{weiDesc.get_dims(), weiDesc.get_data_type(), dnnl::memory::format_tag::ba};
     const auto transposedWeiDesc = reorderedWeiDesc.reshape(dstDesc->getDnnlDesc().get_dims());
+
+    return DnnlExtensionUtils::makeDescriptor(transposedWeiDesc);
+}
+
+template <>
+DnnlMemoryDescPtr makeTransposedWeightDescriptor<DnnlMatMulPrimitive>(const DnnlMemoryDescPtr srcDesc,
+                                                                      const DnnlMemoryDescPtr dstDesc,
+                                                                      bool weightsNonTransposed) {
+    const auto& weiDesc = srcDesc->getDnnlDesc();
+    auto wDims = weiDesc.get_dims();
+    auto wDataType = weiDesc.get_data_type();
+    std::swap(wDims[wDims.size() - 1], wDims[wDims.size() - 2]);
+
+    const auto format = weightsNonTransposed ? dnnl::memory::format_tag::ab : dnnl::memory::format_tag::ba;
+    const auto transposedWeiDesc = dnnl::memory::desc{wDims, wDataType, format};
 
     return DnnlExtensionUtils::makeDescriptor(transposedWeiDesc);
 }

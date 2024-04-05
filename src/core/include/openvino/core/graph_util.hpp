@@ -231,14 +231,17 @@ std::vector<std::shared_ptr<Node>> topological_sort(T root_nodes) {
     for (auto& node : root_nodes) {
         nodes_to_do.push(node.get());
     }
+
     while (nodes_to_do.size() > 0) {
         Node* node = nodes_to_do.top();
         if (nodes_done.count(node) == 0) {
             bool can_add = true;
+
             if (++nodes_visited[node] > 2)
-                // Node may be at the top of `nodes_to_do` not more than twice before it's added to `nodes_done` -
-                // when visited and placed in `nodes_to_do` and after the subtree traversal is finished.
-                // Otherwise it's a loop.
+                //     // Node may be at the top of `nodes_to_do` not more than twice before it's added to `nodes_done`
+                //     -
+                //     // when visited and placed in `nodes_to_do` and after the subtree traversal is finished.
+                //     // Otherwise it's a loop.
                 OPENVINO_THROW("Loop detected during topological sort starting from '",
                                node->get_friendly_name(),
                                "' node.");
@@ -254,6 +257,54 @@ std::vector<std::shared_ptr<Node>> topological_sort(T root_nodes) {
             for (auto& depptr : node->get_control_dependencies()) {
                 Node* dep = depptr.get();
                 if (nodes_done.count(dep) == 0) {
+                    can_add = false;
+                    nodes_to_do.push(dep);
+                }
+            }
+            if (can_add) {
+                result.push_back(node->shared_from_this());
+                nodes_to_do.pop();
+                nodes_done.insert(node);
+            }
+        } else {
+            nodes_to_do.pop();
+        }
+    }
+    return result;
+}
+
+template <typename T>
+std::vector<std::shared_ptr<Node>> topological_sort_new(T root_nodes, std::unordered_set<Node*>& nodes_done) {
+    std::stack<Node*, std::vector<Node*>> nodes_to_do;
+    std::unordered_map<Node*, uint8_t /*is_visited*/> nodes_visited;
+    std::vector<std::shared_ptr<Node>> result;
+
+    for (auto& node : root_nodes) {
+        nodes_to_do.push(node.get());
+    }
+    while (nodes_to_do.size() > 0) {
+        Node* node = nodes_to_do.top();
+        if (!nodes_done.count(node)) {
+            bool can_add = true;
+            if (++nodes_visited[node] > 2)
+                // Node may be at the top of `nodes_to_do` not more than twice before it's added to `nodes_done` -
+                // when visited and placed in `nodes_to_do` and after the subtree traversal is finished.
+                // Otherwise it's a loop.
+                OPENVINO_THROW("topological_sort_new: Loop detected during topological sort starting from '",
+                               node->get_friendly_name(),
+                               "' node.");
+
+            size_t arg_count = node->get_input_size();
+            for (size_t i = 0; i < arg_count; ++i) {
+                Node* dep = node->get_input_node_ptr(arg_count - i - 1);
+                if (!nodes_done.count(dep)) {
+                    can_add = false;
+                    nodes_to_do.push(dep);
+                }
+            }
+            for (auto& depptr : node->get_control_dependencies()) {
+                Node* dep = depptr.get();
+                if (!nodes_done.count(dep)) {
                     can_add = false;
                     nodes_to_do.push(dep);
                 }

@@ -16,11 +16,11 @@ namespace intel_cpu {
 
 class Verbose {
 public:
-    Verbose(const NodePtr& _node, const std::string& _lvl)
+    Verbose(const NodePtr& _node, const std::string& graphName, const std::string& _lvl)
         : node(_node), lvl(atoi(_lvl.c_str())) {
         if (!shouldBePrinted())
             return;
-        printInfo();
+        printInfo(graphName);
     }
 
     ~Verbose() {
@@ -37,7 +37,7 @@ private:
     std::stringstream stream;
 
     bool shouldBePrinted() const;
-    void printInfo();
+    void printInfo(const std::string& graphName);
     void printDuration();
     void flush() const;
 };

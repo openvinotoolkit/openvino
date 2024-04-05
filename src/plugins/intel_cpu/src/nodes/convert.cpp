@@ -6,6 +6,7 @@
 
 #include "common/blocked_desc_creator.h"
 #include "dnnl_extension_utils.h"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "shape_inference/shape_inference_pass_through.hpp"
 
@@ -130,12 +131,18 @@ void Convert::initSupportedPrimitiveDescriptors() {
                 break;
             }
         }
-        auto range = hasOutputChild
-                         ? BlockedDescCreator::makeFilteredRange(creators, insShape.getRank(), {LayoutType::ncsp})
-                         : BlockedDescCreator::makeFilteredRange(creators, insShape.getRank());
+        // auto range = hasOutputChild
+        //                  ? BlockedDescCreator::makeFilteredRange(creators, insShape.getRank(), {LayoutType::ncsp})
+        //                  : BlockedDescCreator::makeFilteredRange(creators, insShape.getRank());
+        auto range = BlockedDescCreator::makeFilteredRange(creators, insShape.getRank(), {LayoutType::ncsp});
 
         for (auto itr = range.first; itr != range.second; ++itr) {
             config.inConfs[0].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(itr->second->createDesc(insPrecision, insShape)));
+            config.outConfs[0].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(itr->second->createDesc(outPrecision, outputShape)));
+
+            supportedPrimitiveDescriptorsBuilder(config);
+
+            config.inConfs[0].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(itr->second->createDesc(ov::element::f32, insShape)));
             config.outConfs[0].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(itr->second->createDesc(outPrecision, outputShape)));
 
             supportedPrimitiveDescriptorsBuilder(config);
