@@ -80,7 +80,7 @@ To do so, run the following command in your Conda environment:
 .. code-block:: sh
 
     conda install cmake c-compiler cxx-compiler make
-    conda env config vars set LD_LIBRARY_PATH=$CONDA_PREFIX/lib
+    conda env config vars set LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
 
 It is crucial to reactivate your Conda environment after installing the compilers.
 This step ensures that all the environment variables are set correctly for successful linkage.
