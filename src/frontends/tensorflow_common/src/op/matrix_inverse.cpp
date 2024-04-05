@@ -1,6 +1,6 @@
-// Contributed by Hongbo Wei
-// https://github.com/hongbo-wei
-// Good first issue: https://github.com/openvinotoolkit/openvino/issues/22957
+// Copyright (C) 2024 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
 
 #include "openvino/op/inverse.hpp"
 
