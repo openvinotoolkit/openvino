@@ -87,7 +87,7 @@ Example that shows update of two slices of ``4x4`` shape in ``data``, with *redu
 
 *   **1**: ``data`` tensor of arbitrary rank ``r`` >= 1 and of type *T*. **Required.**
 
-*   **2**: ``indices`` tensor with indices of arbitrary rank ``q`` >= 1 and of type *T_IND*. All index values ``i_j`` in index entry ``(i_0, i_1, ...,i_k)`` (where ``k = indices.shape[-1]``) must be within bounds ``[-s_j, s_j - 1]`` where ``s_j = data.shape[j]``. ``k`` must be at most ``r``. If multiple indices point to the same output location then the order of updating the values is undefined. Negative value of index means reverse indexing and will be normalized to value ``len(data.shape[j] + index)``. If an index points to non-existing element then exception is raised. **Required.**
+*   **2**: ``indices`` tensor with indices of arbitrary rank ``q`` >= 1 and of type *T_IND*. All index values ``i_j`` in index entry ``(i_0, i_1, ...,i_k)`` (where ``k = indices.shape[-1]``) must be within bounds ``[-s_j, s_j - 1]`` where ``s_j = data.shape[j]``. ``k`` must be at most ``r``. If multiple indices point to the same output location then values will be updated in order of their occurrence. Negative value of index means reverse indexing and will be normalized to value ``len(data.shape[j] + index)``. If an index points to non-existing element then exception is raised. **Required.**
 
 *   **3**: ``updates`` tensor of rank ``r - indices.shape[-1] + q - 1`` of type *T*. If expected ``updates`` rank is 0D it can be a tensor with single element. **Required.**
 
