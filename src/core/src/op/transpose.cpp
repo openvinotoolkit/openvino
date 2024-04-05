@@ -70,7 +70,7 @@ bool Transpose::evaluate(TensorVector& outputs, const TensorVector& inputs) cons
 
             int4_iterator operator+(const size_t shift) {
                 return int4_iterator{m_ptr + shift / 2,
-                                     shift % 2 ?  int4_extract_t::high_half : int4_extract_t::low_half};
+                                     shift % 2 ? int4_extract_t::high_half : int4_extract_t::low_half};
             }
 
             void copy_from(const int4_iterator& from) const {
