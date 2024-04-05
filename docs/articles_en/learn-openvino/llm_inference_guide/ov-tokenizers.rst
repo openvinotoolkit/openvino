@@ -48,12 +48,12 @@ Supported Tokenizers
      - Detokenizer
    * - Fast
      - WordPiece
-     - yes
-     - no
+     - Yes
+     - No
    * -
      - BPE
-     - yes
-     - yes
+     - Yes
+     - Yes
    * -
      - Unigram
      - No
