@@ -26,9 +26,6 @@ OutputVector translate_matrix_inverse_op(const NodeContext& node) {
     // Handle optional 'adjoint' attribute (default is False)
     bool adjoint = node.get_attribute<bool>("adjoint", false);
 
-    // initialize the output vector
-    OutputVector outputs;
-    outputs.push_back(input);
 
     // Create the OpenVINO equivalent operation (Inverse from opset-14)
     auto inverse_op = make_shared<ov::op::v14::Inverse>(input, false);
