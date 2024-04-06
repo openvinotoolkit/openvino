@@ -204,7 +204,7 @@ public:
         std::vector<int64_t> output_spatial_shape;
     };
 
-    InfoForGenericLinearONNXMode get_info_for_generic_linear_onnx();
+    InfoForGenericLinearONNXMode get_info_for_generic_linear_onnx(bool channel_last);
 
     struct InfoForLinearMode {
         bool antialias;
@@ -408,6 +408,8 @@ void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out) {
         ((input_rank == 2) && (num_of_axes == 2) && (m_axes[0] == 0) && (m_axes[1] == 1)) ||
         ((input_rank == 3) && (num_of_axes == 3) && (m_axes[0] == 0) && (m_axes[1] == 1) && (m_axes[2] == 2));
 
+    bool channel_last = false;
+
     if (input_rank >= 4) {
         std::vector<int64_t> all_axes;
         std::vector<int64_t> axes_without_batch_and_channels;
@@ -425,12 +427,15 @@ void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out) {
         correct_axes = ((num_of_axes == input_rank) && (m_axes == all_axes)) ||
                        ((num_of_axes == input_rank - 2) && (m_axes == axes_without_batch_and_channels)) ||
                        ((num_of_axes == input_rank - 2) && (m_axes == axes_without_batch_and_channels_last));
+
+        if ((num_of_axes == input_rank - 2) && (m_axes == axes_without_batch_and_channels_last))
+            channel_last = true;
     }
 
     if (!correct_axes)
         OPENVINO_THROW("Axes are not correct!");
 
-    const auto info = helper.get_info_for_generic_linear_onnx();
+    const auto info = helper.get_info_for_generic_linear_onnx(channel_last);
 
     const int64_t batch_size = info.batch_size;
     const int64_t num_channels = info.num_channels;
@@ -449,9 +454,9 @@ void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out) {
     // or
     //     num_of_axes == input_rank - 2.
     // Hence, if num_of_axes != input_rank, then interpolated axes indices are
-    //    [0, 1, ..., num_of_axes - 1]
-    // Otherwise, if num_of_axes == input_rank, interpolated axes indices are
     //    [2, 3, ..., num_of_axes - 1]
+    // Otherwise, if num_of_axes == input_rank, interpolated axes indices are
+    //    [0, 1, ..., num_of_axes - 1]
     const int64_t axis_idx_offset = (input_rank == num_of_axes) ? 2 : 0;
 
     const int64_t spatial_rank = info.spatial_rank;
@@ -459,8 +464,11 @@ void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out) {
 
     const T* xdata = input_data;
     T* ydata = out;
+
     for (int64_t n = 0; n < batch_size; ++n) {
         for (int64_t c = 0; c < num_channels; ++c) {
+            if (channel_last && c > 0)
+                break;
             for (int64_t idx = 0; idx < output_data_ptr_increment; ++idx) {
                 // 1. Get the current spatial coords vector.
                 std::vector<int64_t> output_coords(spatial_rank);
@@ -469,7 +477,10 @@ void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out) {
                     output_coords[j] = curr / output_index_multipliers[j];
                     curr %= output_index_multipliers[j];
                 }
-                output_coords[spatial_rank - 1] = curr;
+                if (channel_last)
+                    output_coords[spatial_rank - 1] = curr / num_channels;
+                else
+                    output_coords[spatial_rank - 1] = curr;
 
                 // 2. Some preliminaries.
                 std::vector<int64_t> in1(spatial_rank);
@@ -508,6 +519,10 @@ void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out) {
                             offset += in2[j] * input_index_multipliers[j];
                         }
                     }
+                    if (channel_last) {
+                        int64_t tmp_channel_idx = curr % num_channels;
+                        offset += tmp_channel_idx;
+                    }
                     values_of_input_points[i] = xdata[offset];
                 }
 
@@ -524,7 +539,6 @@ void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out) {
                 // 6. Store result.
                 ydata[idx] = static_cast<T>(sum);
             }
-
             xdata += input_data_ptr_increment;
             ydata += output_data_ptr_increment;
         }

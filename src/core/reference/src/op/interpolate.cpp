@@ -40,7 +40,8 @@ Coordinate InterpolateEvalHelper::get_input_coords_for_nearest_mode(const Coordi
     return input_coord;
 }
 
-InterpolateEvalHelper::InfoForGenericLinearONNXMode InterpolateEvalHelper::get_info_for_generic_linear_onnx() {
+InterpolateEvalHelper::InfoForGenericLinearONNXMode InterpolateEvalHelper::get_info_for_generic_linear_onnx(
+    bool channel_last = false) {
     InfoForGenericLinearONNXMode result;
 
     std::size_t input_rank = m_input_data_shape.size();
@@ -63,29 +64,55 @@ InterpolateEvalHelper::InfoForGenericLinearONNXMode InterpolateEvalHelper::get_i
     }
 
     int64_t batch_size = input_shape[0];
-    int64_t num_channels = input_shape[1];
+    int64_t num_channels;
+    if (channel_last)
+        num_channels = input_shape[input_shape.size() - 1];
+    else
+        num_channels = input_shape[0];
 
     std::size_t spatial_rank = input_shape.size() - 2;
 
     std::vector<int64_t> input_index_multipliers(spatial_rank);
     std::vector<int64_t> output_index_multipliers(spatial_rank);
-    input_index_multipliers[spatial_rank - 1] = 1;
-    output_index_multipliers[spatial_rank - 1] = 1;
-
-    for (int64_t i = static_cast<int64_t>(spatial_rank) - 2; i >= 0; --i) {
-        input_index_multipliers[i] = input_index_multipliers[i + 1] * static_cast<int64_t>(input_shape[i + 3]);
-        output_index_multipliers[i] = output_index_multipliers[i + 1] * static_cast<int64_t>(output_shape[i + 3]);
+    if (channel_last) {
+        input_index_multipliers[spatial_rank - 1] = num_channels;
+        output_index_multipliers[spatial_rank - 1] = num_channels;
+    } else {
+        input_index_multipliers[spatial_rank - 1] = 1;
+        output_index_multipliers[spatial_rank - 1] = 1;
     }
 
-    int64_t input_data_ptr_increment = input_index_multipliers[0] * static_cast<int64_t>(input_shape[2]);
-    int64_t output_data_ptr_increment = output_index_multipliers[0] * static_cast<int64_t>(output_shape[2]);
+    for (int64_t i = static_cast<int64_t>(spatial_rank) - 2; i >= 0; --i) {
+        if (channel_last) {
+            input_index_multipliers[i] = input_index_multipliers[i + 1] * static_cast<int64_t>(input_shape[i + 2]);
+            output_index_multipliers[i] = output_index_multipliers[i + 1] * static_cast<int64_t>(output_shape[i + 2]);
+        } else {
+            input_index_multipliers[i] = input_index_multipliers[i + 1] * static_cast<int64_t>(input_shape[i + 3]);
+            output_index_multipliers[i] = output_index_multipliers[i + 1] * static_cast<int64_t>(output_shape[i + 3]);
+        }
+    }
+
+    int64_t input_data_ptr_increment;
+    int64_t output_data_ptr_increment;
+    if (channel_last) {
+        input_data_ptr_increment = input_index_multipliers[0] * static_cast<int64_t>(input_shape[1]);
+        output_data_ptr_increment = output_index_multipliers[0] * static_cast<int64_t>(output_shape[1]);
+    } else {
+        input_data_ptr_increment = input_index_multipliers[0] * static_cast<int64_t>(input_shape[2]);
+        output_data_ptr_increment = output_index_multipliers[0] * static_cast<int64_t>(output_shape[2]);
+    }
 
     std::vector<int64_t> input_spatial_shape(spatial_rank);
     std::vector<int64_t> output_spatial_shape(spatial_rank);
 
     for (size_t i = 0; i < spatial_rank; ++i) {
-        input_spatial_shape[i] = static_cast<int64_t>(input_shape[i + 2]);
-        output_spatial_shape[i] = static_cast<int64_t>(output_shape[i + 2]);
+        if (channel_last) {
+            input_spatial_shape[i] = static_cast<int64_t>(input_shape[i + 1]);
+            output_spatial_shape[i] = static_cast<int64_t>(output_shape[i + 1]);
+        } else {
+            input_spatial_shape[i] = static_cast<int64_t>(input_shape[i + 2]);
+            output_spatial_shape[i] = static_cast<int64_t>(output_shape[i + 2]);
+        }
     }
 
     result.input_data_ptr_increment = input_data_ptr_increment;
