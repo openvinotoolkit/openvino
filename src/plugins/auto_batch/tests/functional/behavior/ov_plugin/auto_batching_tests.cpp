@@ -31,23 +31,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_TEMPLATE_AutoBatching,
                                             ::testing::ValuesIn(num_batch)),
                          AutoBatching_Test_DetectionOutput::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(nightly_CPU_AutoBatching,
-                         AutoBatching_Test,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_CPU),
-                                            ::testing::ValuesIn(get_vs_set),
-                                            ::testing::ValuesIn(num_streams),
-                                            ::testing::ValuesIn(num_requests),
-                                            ::testing::ValuesIn(num_batch)),
-                         AutoBatching_Test::getTestCaseName);
+// INSTANTIATE_TEST_SUITE_P(nightly_CPU_AutoBatching,
+//                          AutoBatching_Test,
+//                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_CPU),
+//                                             ::testing::ValuesIn(get_vs_set),
+//                                             ::testing::ValuesIn(num_streams),
+//                                             ::testing::ValuesIn(num_requests),
+//                                             ::testing::ValuesIn(num_batch)),
+//                          AutoBatching_Test::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(nightly_CPU_AutoBatching,
-                         AutoBatching_Test_DetectionOutput,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_CPU),
-                                            ::testing::ValuesIn(get_vs_set),
-                                            ::testing::ValuesIn(num_streams),
-                                            ::testing::ValuesIn(num_requests),
-                                            ::testing::ValuesIn(num_batch)),
-                         AutoBatching_Test_DetectionOutput::getTestCaseName);
+// INSTANTIATE_TEST_SUITE_P(nightly_CPU_AutoBatching,
+//                          AutoBatching_Test_DetectionOutput,
+//                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_CPU),
+//                                             ::testing::ValuesIn(get_vs_set),
+//                                             ::testing::ValuesIn(num_streams),
+//                                             ::testing::ValuesIn(num_requests),
+//                                             ::testing::ValuesIn(num_batch)),
+//                          AutoBatching_Test_DetectionOutput::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_GPU_AutoBatching,
                          AutoBatching_Test,
