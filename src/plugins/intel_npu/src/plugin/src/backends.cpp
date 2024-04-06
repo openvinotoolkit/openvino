@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "backends.hpp"
+
 #include <fstream>
 #include <memory>
 
 #include "device_helpers.hpp"
 #include "intel_npu/al/config/common.hpp"
-#include "npu_backends.hpp"
 
 #if defined(ENABLE_ZEROAPI_BACKEND)
 #    include "zero_backend.hpp"
@@ -136,6 +137,22 @@ std::string NPUBackends::getBackendName() const {
     }
 
     return "";
+}
+
+uint32_t NPUBackends::getDriverVersion() const {
+    if (_backend != nullptr) {
+        return _backend->getDriverVersion();
+    }
+
+    OPENVINO_THROW("No available backend");
+}
+
+uint32_t NPUBackends::getDriverExtVersion() const {
+    if (_backend != nullptr) {
+        return _backend->getDriverExtVersion();
+    }
+
+    OPENVINO_THROW("No available backend");
 }
 
 std::shared_ptr<IDevice> NPUBackends::getDevice(const std::string& specificName) const {

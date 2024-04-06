@@ -7,6 +7,7 @@ import sys
 
 not_supported_ops_with_translators = ["WriteFile"]
 
+
 def run_in_ci():
     if "CI" in os.environ and os.environ["CI"].lower() == "true":
         return True
@@ -33,15 +34,13 @@ supported_ops_doc = sys.argv[2]
 
 # parse source file on implemented operations
 supported_ops = []
-pattern = r'\{"([a-zA-Z0-9]+)"'
+pattern = r'"([^"]*)"'
 with open(op_table_src, 'rt') as f:
     for line in f.readlines():
-        line = line.split(',')[0].strip()
-        match = re.match(pattern, line)
-        if match:
-            op = line[2:-1]
-            if op not in not_supported_ops_with_translators:
-                supported_ops.append(op)
+        all_operations = re.findall(pattern, line)
+        for operation in all_operations:
+            if operation not in not_supported_ops_with_translators:
+                supported_ops.append(operation)
 
 # parse a document of supported operations
 documented_ops = {}

@@ -1,0 +1,73 @@
+{
+  "name": "compressed-cache-action",
+  "description": "action to save/restore cache as tarballs",
+  "version": "0.0.1",
+  "author": "OpenVINO Developers",
+  "private": true,
+  "keywords": [
+    "GitHub",
+    "Actions",
+    "JavaScript"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "dist/restore/index.js",
+  "scripts": {
+    "bundle": "npm run format:write && npm run package",
+    "ci-test": "npx jest",
+    "coverage": "npx jest -- --coverage",
+    "format:write": "npx prettier --write .",
+    "format:check": "npx prettier --check .",
+    "lint": "npx eslint . -c ./linters/.eslintrc.yml ",
+    "package": "npx ncc build src/restore.js -o dist/restore && npx ncc build src/save.js -o dist/save && npx ncc build src/restore.js -o dist/restore-only && npx ncc build src/save.js -o dist/save-only && npx ncc build src/cleanup.js -o dist/cleanup-only",
+    "package:watch": "npm run package -- --watch",
+    "test": "npx jest",
+    "all": "npm run format:write && npm run lint && npm run test && npm run coverage && npm run package"
+  },
+  "eslintConfig": {
+    "extends": "./linters/.eslintrc.yml"
+  },
+  "jest": {
+    "verbose": true,
+    "clearMocks": true,
+    "testEnvironment": "node",
+    "moduleFileExtensions": [
+      "js"
+    ],
+    "testMatch": [
+      "**/*.test.js"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/dist/"
+    ],
+    "coverageReporters": [
+      "json-summary",
+      "text",
+      "lcov"
+    ],
+    "collectCoverage": true,
+    "collectCoverageFrom": [
+      "./src/**"
+    ]
+  },
+  "dependencies": {
+    "@actions/core": "^1.10.1",
+    "fs": "^0.0.1-security",
+    "tar": "^6.2.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.24.0",
+    "@babel/eslint-parser": "^7.23.10",
+    "@babel/preset-env": "^7.24.0",
+    "@vercel/ncc": "^0.38.1",
+    "babel-preset-jest": "^29.6.3",
+    "eslint": "^8.57.0",
+    "eslint-plugin-github": "^4.10.2",
+    "eslint-plugin-jest": "^27.9.0",
+    "fs": "0.0.1-security",
+    "jest": "^29.7.0",
+    "prettier": "^3.2.5"
+  }
+}
