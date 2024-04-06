@@ -121,6 +121,36 @@ void regclass_graph_Dimension(py::module m) {
                 :return: Value of the dimension.
                 :rtype: int
             )");
+
+    /// Symbol-related methods: START
+    dim.def("has_symbol",
+            &ov::Dimension::has_symbol,
+            R"(
+              Check if Dimension has meaningful symbol.
+
+              :return: True if symbol was set, else False.
+              :rtype: bool
+            )");
+    dim.def("get_symbol",
+            &ov::Dimension::get_symbol,
+            R"(
+                Return this dimension's symbol as Symbol object.
+
+                :return: Value of the dimension.
+                :rtype: openvino.Symbol
+            )");
+
+    dim.def("set_symbol",
+            &ov::Dimension::set_symbol,
+            py::arg("symbol"),
+            R"(
+                Sets provided Symbol as this dimension's symbol.
+
+                :param symbol: The symbol to set to this dimension.
+                :type symbol: openvino.Symbol
+            )");
+    /// Symbol-related methods: END
+
     dim.def("same_scheme",
             &ov::Dimension::same_scheme,
             py::arg("dim"),
