@@ -8,7 +8,7 @@
 
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
-#include "intel_gpu/op/gather_compressed.hpp"
+#include "ov_ops/gather_compressed.hpp"
 
 #include "intel_gpu/primitives/gather.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
@@ -18,7 +18,7 @@
 namespace ov {
 namespace op {
 namespace internal {
-using GatherCompressed = ov::intel_gpu::op::GatherCompressed;
+using GatherCompressed = ov::op::internal::GatherCompressed;
 }  // namespace internal
 }  // namespace op
 }  // namespace ov
@@ -154,7 +154,7 @@ void CreateGatherOpBase(ProgramBuilder& p, const std::shared_ptr<T>& op, const i
                 }
             }
 
-            std::shared_ptr<ov::intel_gpu::op::GatherCompressed> op_compressed = std::dynamic_pointer_cast<ov::intel_gpu::op::GatherCompressed>(op);
+            std::shared_ptr<ov::op::internal::GatherCompressed> op_compressed = std::dynamic_pointer_cast<ov::op::internal::GatherCompressed>(op);
 
             auto gatherPrim = cldnn::gather(layerName,
                                             reordered_inputs[0],
