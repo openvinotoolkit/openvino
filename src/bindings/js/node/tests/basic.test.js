@@ -21,10 +21,9 @@ it('Core.getAvailableDevices()', () => {
 });
 
 describe('Core.getVersions()', () => {
-  const devices = core.getAvailableDevices();
 
   it('getVersions(validDeviceName: string)', () => {    
-    const deviceVersion = core.getVersions(devices[0]);
+    const deviceVersion = core.getVersions('CPU');
     assert.strictEqual(typeof deviceVersion, 'object');
     assert.strictEqual(typeof deviceVersion.CPU, 'object');
     assert.strictEqual(typeof deviceVersion.CPU.buildNumber, 'string');
@@ -40,7 +39,7 @@ describe('Core.getVersions()', () => {
 
   it('getVersions() throws if non string coercable arguments are passed into the function', () => {
     assert.throws(
-      () => core.getVersions({deviceName:devices[0]}),
+      () => core.getVersions({ deviceName: 'CPU' }),
       {message: 'The argument in getVersions() method must be a string or convertible to a string.'}
     );
   });
