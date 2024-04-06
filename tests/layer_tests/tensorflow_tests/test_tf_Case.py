@@ -23,7 +23,7 @@ class TestIfFloat(CommonTFLayerTest):
         inputs_data['y:0'] = np.random.randint(-50, 50, y_shape).astype(np.float32)
         return inputs_data
 
-    def create_if_net(self, x_shape, y_shape, lower_control_flow):
+    def create_case_net(self, x_shape, y_shape, lower_control_flow):
         from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
         def if_function(cond, x, y):
             def then_branch():
