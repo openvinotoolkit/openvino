@@ -98,6 +98,7 @@ TF_OP_CONVERTER(translate_iterator_op);
 TF_OP_CONVERTER(translate_lookup_table_import_op);
 TF_OP_CONVERTER(translate_lookup_table_find_op);
 TF_OP_CONVERTER(translate_loop_cond_op);
+TF_OP_CONVERTER(translate_matrix_inverse_op);
 TF_OP_CONVERTER(translate_merge_op);
 TF_OP_CONVERTER(translate_mergev2checkpoint_op);
 TF_OP_CONVERTER(translate_next_iteration_op);
