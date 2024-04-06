@@ -20,8 +20,6 @@ OutputVector translate_matrix_inverse_op(const NodeContext& node) {
     */
     // a function that performs standard or default checks on a specific operation within the OpenVINO pipeline
     default_op_checks(node, 1, {"MatrixInverse"}); // copied from issue #22964
-    auto op_type = node.get_op_type();
-    TENSORFLOW_OP_VALIDATION(node, op_type == "MatrixInverse", "Internal error: incorrect usage of translate_matrix_inverse_op.");
     // Retrieve the input tensor
     auto input = node.get_input(0);
 
