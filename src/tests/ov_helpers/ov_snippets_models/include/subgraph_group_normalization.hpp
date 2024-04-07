@@ -9,6 +9,7 @@
 namespace ov {
 namespace test {
 namespace snippets {
+
 class GroupNormalizationFunction : public SnippetsFunctionBase {
 public:
     explicit GroupNormalizationFunction(const std::vector<PartialShape>& inputShapes, const size_t& numGroup, const float& eps)

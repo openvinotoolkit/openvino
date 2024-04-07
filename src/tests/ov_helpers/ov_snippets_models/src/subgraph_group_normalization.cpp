@@ -3,14 +3,12 @@
 //
 
 #include "subgraph_group_normalization.hpp"
-#include "common_test_utils/data_utils.hpp"
-#include "common_test_utils/node_builders/constant.hpp"
 #include <snippets/op/subgraph.hpp>
-#include "openvino/core/validation_util.hpp"
 
 namespace ov {
 namespace test {
 namespace snippets {
+
 std::shared_ptr<ov::Model> GroupNormalizationFunction::initOriginal() const {
     auto data = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     auto scale = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
@@ -39,23 +37,24 @@ std::shared_ptr<ov::Model> GroupNormalizationFunction::initLowered() const {
 
     // reduceMean
     float group_size_inv = 1.0f / static_cast<float>(group_shape[3]);
-    const auto group_size_inv_node = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{}, std::vector<float>{group_size_inv});
+    // scalar const -> scalar in data_flow_optimization.
+    const auto group_size_inv_node = std::make_shared<ov::snippets::op::Scalar>(element::f32, Shape{1}, group_size_inv);
     const auto reduce_mean = std::make_shared<ov::op::v1::Multiply>(reduce_sum, group_size_inv_node);
 
     // x - mean
     std::shared_ptr<ov::Node> reshaped_node2 = reshaped_node_orig;
     auto sub_mean = std::make_shared<ov::op::v1::Subtract>(reshaped_node2, reduce_mean);
     // (x - mean) ^ 2
-    auto sqr_const = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{1}, std::vector<float>{2});
-    auto sqr = std::make_shared<ov::op::v1::Power>(sub_mean, sqr_const);
+    // power -> poweStatic in data_flow_optimization
+    auto sqr = std::make_shared<ov::snippets::op::PowerStatic>(sub_mean, 2.0f);
     // reduceSum((x - mean) ^ 2)
     auto sqr_reduce_sum = std::make_shared<ov::snippets::op::ReduceSum>(sqr, group_rank - 1);
     // reduceMean((x - mean) ^ 2)
-    const auto group_size_inv_node_aux = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{}, std::vector<float>{group_size_inv});
+    const auto group_size_inv_node_aux = std::make_shared<ov::snippets::op::Scalar>(element::f32, Shape{1}, group_size_inv);
     auto sqr_mean = std::make_shared<ov::op::v1::Multiply>(sqr_reduce_sum, group_size_inv_node_aux);
     // reduceMean((x - mean) ^ 2) + eps
-    auto eps_node = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{1}, std::vector<float>{epsilon});
-    auto eps_add = std::make_shared<ov::op::v1::Add>(sqr_mean, eps_node);  // fma to this add and parent multiply
+    auto eps_node = std::make_shared<ov::snippets::op::Scalar>(element::f32, Shape{1}, epsilon);
+    auto eps_add = std::make_shared<ov::op::v1::Add>(sqr_mean, eps_node);
     // variance = sqrt( reducemean( (x - mean) ^ 2 ) + eps )
     auto variance = std::make_shared<ov::op::v0::Sqrt>(eps_add);
     // divide variance
@@ -77,7 +76,7 @@ std::shared_ptr<ov::Model> GroupNormalizationFunction::initLowered() const {
     // reshape_back [N, group, C / group, spatial] to [N, C, spatial]
     const auto reshape_back_node = std::make_shared<ov::snippets::op::Reshape>(biased_node, orig_shape);
 
-    return std::make_shared<ov::Model>(NodeVector{reshape_back_node}, ParameterVector{data});
+    return std::make_shared<ov::Model>(NodeVector{reshape_back_node}, ParameterVector{data, scale, bias});
 }
 
 }  // namespace snippets
