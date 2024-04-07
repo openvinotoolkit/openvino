@@ -83,34 +83,34 @@ public:
 #endif
         switch (type) {
         case Type_t::boolean:
-            fill_data<Type_t::boolean, T>(value);
+            fill_data<Type_t::boolean>(value);
             break;
         case Type_t::bf16:
-            fill_data<Type_t::bf16, T>(value);
+            fill_data<Type_t::bf16>(value);
             break;
         case Type_t::f16:
-            fill_data<Type_t::f16, T>(value);
+            fill_data<Type_t::f16>(value);
             break;
         case Type_t::f32:
-            fill_data<Type_t::f32, T>(value);
+            fill_data<Type_t::f32>(value);
             break;
         case Type_t::f64:
-            fill_data<Type_t::f64, T>(value);
+            fill_data<Type_t::f64>(value);
             break;
         case Type_t::i4:
             fill_lp_data<Type_t::i4>(value);
             break;
         case Type_t::i8:
-            fill_data<Type_t::i8, T>(value);
+            fill_data<Type_t::i8>(value);
             break;
         case Type_t::i16:
-            fill_data<Type_t::i16, T>(value);
+            fill_data<Type_t::i16>(value);
             break;
         case Type_t::i32:
-            fill_data<Type_t::i32, T>(value);
+            fill_data<Type_t::i32>(value);
             break;
         case Type_t::i64:
-            fill_data<Type_t::i64, T>(value);
+            fill_data<Type_t::i64>(value);
             break;
         case Type_t::u1:
             fill_lp_data<Type_t::u1>(value);
@@ -119,28 +119,28 @@ public:
             fill_lp_data<Type_t::u4>(value);
             break;
         case Type_t::u8:
-            fill_data<Type_t::u8, T>(value);
+            fill_data<Type_t::u8>(value);
             break;
         case Type_t::u16:
-            fill_data<Type_t::u16, T>(value);
+            fill_data<Type_t::u16>(value);
             break;
         case Type_t::u32:
-            fill_data<Type_t::u32, T>(value);
+            fill_data<Type_t::u32>(value);
             break;
         case Type_t::u64:
-            fill_data<Type_t::u64, T>(value);
+            fill_data<Type_t::u64>(value);
             break;
         case Type_t::nf4:
             fill_lp_data<Type_t::nf4>(value);
             break;
         case Type_t::f8e4m3:
-            fill_data<Type_t::f8e4m3, T>(value);
+            fill_data<Type_t::f8e4m3>(value);
             break;
         case Type_t::f8e5m2:
-            fill_data<Type_t::f8e5m2, T>(value);
+            fill_data<Type_t::f8e5m2>(value);
             break;
         case Type_t::string:
-            fill_data<Type_t::string, T>(value);
+            fill_data<Type_t::string>(value);
             break;
         case Type_t::u2:
         case Type_t::u3:
@@ -287,34 +287,34 @@ public:
 
         switch (m_element_type) {
         case Type_t::boolean:
-            cast_vector<Type_t::boolean, T>(rc, num_elements_to_cast);
+            cast_vector<Type_t::boolean>(rc, num_elements_to_cast);
             break;
         case Type_t::bf16:
-            cast_vector<Type_t::bf16, T>(rc, num_elements_to_cast);
+            cast_vector<Type_t::bf16>(rc, num_elements_to_cast);
             break;
         case Type_t::f16:
-            cast_vector<Type_t::f16, T>(rc, num_elements_to_cast);
+            cast_vector<Type_t::f16>(rc, num_elements_to_cast);
             break;
         case Type_t::f32:
-            cast_vector<Type_t::f32, T>(rc, num_elements_to_cast);
+            cast_vector<Type_t::f32>(rc, num_elements_to_cast);
             break;
         case Type_t::f64:
-            cast_vector<Type_t::f64, T>(rc, num_elements_to_cast);
+            cast_vector<Type_t::f64>(rc, num_elements_to_cast);
             break;
         case Type_t::i4:
             cast_lp_vector<Type_t::i4>(rc, num_elements_to_cast);
             break;
         case Type_t::i8:
-            cast_vector<Type_t::i8, T>(rc, num_elements_to_cast);
+            cast_vector<Type_t::i8>(rc, num_elements_to_cast);
             break;
         case Type_t::i16:
-            cast_vector<Type_t::i16, T>(rc, num_elements_to_cast);
+            cast_vector<Type_t::i16>(rc, num_elements_to_cast);
             break;
         case Type_t::i32:
-            cast_vector<Type_t::i32, T>(rc, num_elements_to_cast);
+            cast_vector<Type_t::i32>(rc, num_elements_to_cast);
             break;
         case Type_t::i64:
-            cast_vector<Type_t::i64, T>(rc, num_elements_to_cast);
+            cast_vector<Type_t::i64>(rc, num_elements_to_cast);
             break;
         case Type_t::u1:
             cast_lp_vector<Type_t::u1>(rc, num_elements_to_cast);
@@ -323,25 +323,25 @@ public:
             cast_lp_vector<Type_t::u4>(rc, num_elements_to_cast);
             break;
         case Type_t::u8:
-            cast_vector<Type_t::u8, T>(rc, num_elements_to_cast);
+            cast_vector<Type_t::u8>(rc, num_elements_to_cast);
             break;
         case Type_t::u16:
-            cast_vector<Type_t::u16, T>(rc, num_elements_to_cast);
+            cast_vector<Type_t::u16>(rc, num_elements_to_cast);
             break;
         case Type_t::u32:
-            cast_vector<Type_t::u32, T>(rc, num_elements_to_cast);
+            cast_vector<Type_t::u32>(rc, num_elements_to_cast);
             break;
         case Type_t::u64:
-            cast_vector<Type_t::u64, T>(rc, num_elements_to_cast);
+            cast_vector<Type_t::u64>(rc, num_elements_to_cast);
             break;
         case Type_t::f8e4m3:
-            cast_vector<Type_t::f8e4m3, T>(rc, num_elements_to_cast);
+            cast_vector<Type_t::f8e4m3>(rc, num_elements_to_cast);
             break;
         case Type_t::f8e5m2:
-            cast_vector<Type_t::f8e5m2, T>(rc, num_elements_to_cast);
+            cast_vector<Type_t::f8e5m2>(rc, num_elements_to_cast);
             break;
         case Type_t::string:
-            cast_vector<Type_t::string, T>(rc, num_elements_to_cast);
+            cast_vector<Type_t::string>(rc, num_elements_to_cast);
             break;
         default:
             OPENVINO_THROW("unsupported type");
