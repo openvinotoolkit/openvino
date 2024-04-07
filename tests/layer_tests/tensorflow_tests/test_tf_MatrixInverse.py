@@ -11,9 +11,15 @@ class TestMatrixInverse(CommonTFLayerTest):
         assert 'input:0' in inputs_info
         input_shape = inputs_info['input:0']
         inputs_data = {}
-        inputs_data['input:0'] = np.random.rand(*input_shape).astype(np.float32)  # Example random input
-
+        inputs_data['input:0'] = self._generate_invertible_matrix(input_shape)
         return inputs_data
+    
+    def _generate_invertible_matrix(self, shape):
+        while True:
+            matrix = np.random.rand(*shape).astype(np.float32)
+             # if the matrix has correct rank, and the determinat is not zero, then it is invertible
+            if np.linalg.matrix_rank(matrix) == shape[0] and np.linalg.det(matrix) != 0:
+                return matrix
 
     def create_matrix_inverse_net(self, input_shape):
         tf.compat.v1.reset_default_graph()
@@ -35,8 +41,7 @@ class TestMatrixInverse(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_matrix_inverse_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                  use_legacy_frontend):
+    def test_matrix_inverse_basic(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
         self._test(*self.create_matrix_inverse_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
