@@ -74,9 +74,10 @@ OutputVector translate_gather_v2_op(const NodeContext& node) {
     if (complex_type_mark) {
         params = complex_type_mark->input_value(0);
         auto zero = create_same_type_const_scalar<int32_t>(axis, 0);
-        // Create a condition for the Select operation
+        // create a condition for the Select operation
         auto condition = make_shared<v1::Less>(axis, zero);
-        // Calculate the updated value for the axis
+
+        // calculate the updated value for the axis
         auto params_shape = make_shared<v3::ShapeOf>(params, ov::element::i32);
         auto params_rank = make_shared<v3::ShapeOf>(params_shape, ov::element::i32);
         auto updated_axis = make_shared<v1::Subtract>(params_rank, make_shared<v0::Constant>(ov::element::i32, Shape{}, 1));
