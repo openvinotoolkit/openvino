@@ -621,7 +621,10 @@ protected:
     friend class Graph;
     friend class GraphOptimizer;
 
-    void selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs);
+    using select_pd_callback = std::function<bool(const ov::intel_cpu::MemoryDescPtr&, const ov::intel_cpu::MemoryDescPtr&)>;
+    void selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority,
+                                         bool ignoreConstInputs,
+                                         select_pd_callback cb = nullptr);
     bool isConfigDefined(const NodeConfig &config) const;
     virtual bool canBeInPlace() const;
 

@@ -283,7 +283,20 @@ void Snippet::initSupportedPrimitiveDescriptors() {
 }
 
 void Snippet::selectOptimalPrimitiveDescriptor() {
-    selectPreferPrimitiveDescriptor(getImplPriority(), true);
+    auto fun = [](const ov::intel_cpu::MemoryDescPtr& curDesc, const ov::intel_cpu::MemoryDescPtr& parentDesc) {
+        if (curDesc->getPrecision() == parentDesc->getPrecision()) {
+            auto& curShape = curDesc->getShape();
+            auto& parentShape = parentDesc->getShape();
+            if (curShape.isStatic() && (parentShape == curShape)) {
+                auto& curDims = curShape.getDims();
+                if (curDims.size() > 2 && curDims[curDims.size() - 1] == 1 && curDims[curDims.size() - 2] == 1) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
+    selectPreferPrimitiveDescriptor(getImplPriority(), true, fun);
 }
 
 void Snippet::initOptimalPrimitiveDescriptor() {
