@@ -81,7 +81,7 @@ OutputVector translate_gather_v2_op(const NodeContext& node) {
         auto params_rank = make_shared<v3::ShapeOf>(params_shape, ov::element::i32);
         auto updated_axis = make_shared<v1::Subtract>(params_rank, make_shared<v0::Constant>(ov::element::i32, Shape{}, 1));
 
-        // Create Select operation to choose between original axis and updated axis
+        // create Select operation to choose between original axis and updated axis
         auto selected_axis = make_shared<v1::Select>(condition, updated_axis, axis);
         
         auto gather = make_shared<v8::Gather>(params, indices, selected_axis, 0);
