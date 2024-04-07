@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -81,6 +81,7 @@ RegType Generator::get_op_out_reg_type(const ov::Output<Node>& out) const {
         std::dynamic_pointer_cast<op::IntermediateMemoryBuffer>(op) ||
         std::dynamic_pointer_cast<op::NewMemoryBuffer>(op) ||
         std::dynamic_pointer_cast<op::RankNormalization>(op) ||
+        std::dynamic_pointer_cast<op::Reshape>(op) ||
         std::dynamic_pointer_cast<snippets::op::Store>(op)
 #ifdef SNIPPETS_DEBUG_CAPS
         || std::dynamic_pointer_cast<op::PerfCountBeginBase>(op)

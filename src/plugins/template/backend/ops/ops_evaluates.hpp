@@ -131,6 +131,10 @@ extern template bool evaluate_node<ov::op::v1::AvgPool>(std::shared_ptr<ov::Node
                                                         ov::TensorVector& outputs,
                                                         const ov::TensorVector& inputs);
 
+extern template bool evaluate_node<ov::op::v14::AvgPool>(std::shared_ptr<ov::Node> node,
+                                                         ov::TensorVector& outputs,
+                                                         const ov::TensorVector& inputs);
+
 extern template bool evaluate_node<ov::op::v1::BinaryConvolution>(std::shared_ptr<ov::Node> node,
                                                                   ov::TensorVector& outputs,
                                                                   const ov::TensorVector& inputs);
@@ -150,6 +154,10 @@ extern template bool evaluate_node<ov::op::v1::ConvolutionBackpropData>(std::sha
 extern template bool evaluate_node<ov::op::v1::DeformablePSROIPooling>(std::shared_ptr<ov::Node> node,
                                                                        ov::TensorVector& outputs,
                                                                        const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::v1::Divide>(std::shared_ptr<ov::Node> node,
+                                                       ov::TensorVector& outputs,
+                                                       const ov::TensorVector& inputs);
 
 extern template bool evaluate_node<ov::op::v1::Equal>(std::shared_ptr<ov::Node> node,
                                                       ov::TensorVector& outputs,

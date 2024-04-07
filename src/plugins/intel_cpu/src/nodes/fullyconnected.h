@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,6 +61,9 @@ public:
 
     void fuseDecompressionMultiply(const MemoryCPtr& memory);
     void fuseDecompressionSubtract(const MemoryCPtr& memory);
+
+protected:
+    void toNumaNodeImpl(int numaID) override;
 
 private:
     static const size_t DATA_ID = 0;

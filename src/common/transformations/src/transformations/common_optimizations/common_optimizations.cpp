@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,7 +69,6 @@
 #include "transformations/op_conversions/convert_bitwise_to_logical_bool.hpp"
 #include "transformations/op_conversions/convert_broadcast_to_tiles.hpp"
 #include "transformations/op_conversions/convert_convertlike.hpp"
-#include "transformations/op_conversions/convert_convertpromotetypes.hpp"
 #include "transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp"
 #include "transformations/op_conversions/convert_depth_to_space.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
@@ -165,7 +164,6 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(decomp, ConvertDivide)
     ADD_MATCHER(decomp, ConvertDepthToSpace)
     ADD_MATCHER(decomp, ConvertSpaceToDepth)
-    ADD_MATCHER(decomp, ConvertConvertPromoteTypes)
     ADD_MATCHER(decomp, ConvertConvertLike)
     ADD_MATCHER(decomp, BatchNormDecomposition)
     ADD_MATCHER(decomp, GroupNormalizationDecomposition)

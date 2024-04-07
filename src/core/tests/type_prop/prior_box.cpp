@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -103,7 +103,7 @@ TYPED_TEST_P(PriorBoxTest, inputs_dynamic_rank) {
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({2, -1}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TYPED_TEST_P(PriorBoxTest, input_output_size_is_dynamic_rank) {
@@ -115,12 +115,12 @@ TYPED_TEST_P(PriorBoxTest, input_output_size_is_dynamic_rank) {
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({2, -1}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TYPED_TEST_P(PriorBoxTest, input_output_size_is_static_rank_with_dynamic_dims) {
     auto out_size_shape = PartialShape::dynamic(1);
-    set_shape_labels(out_size_shape, 10);
+    set_shape_symbols(out_size_shape);
 
     const auto output_size = std::make_shared<Parameter>(element::u32, out_size_shape);
     const auto image_size = Constant::create(element::u32, Shape{2}, {300, 300});
@@ -130,7 +130,7 @@ TYPED_TEST_P(PriorBoxTest, input_output_size_is_static_rank_with_dynamic_dims) {
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({2, -1}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TYPED_TEST_P(PriorBoxTest, input_image_size_is_dynamic_rank) {
@@ -142,14 +142,14 @@ TYPED_TEST_P(PriorBoxTest, input_image_size_is_dynamic_rank) {
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({2, 20480}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TYPED_TEST_P(PriorBoxTest, input_image_size_is_static_rank_dynamic_dim) {
     this->attrs.flip = true;
 
     auto img_size_shape = PartialShape::dynamic(1);
-    set_shape_labels(img_size_shape, 20);
+    set_shape_symbols(img_size_shape);
 
     const auto output_size = Constant::create(element::u16, Shape{2}, {32, 32});
     const auto image_size = std::make_shared<Parameter>(element::u16, img_size_shape);
@@ -159,14 +159,14 @@ TYPED_TEST_P(PriorBoxTest, input_image_size_is_static_rank_dynamic_dim) {
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({2, 32768}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TYPED_TEST_P(PriorBoxTest, inputs_are_interval_shapes) {
     auto out_size_shape = PartialShape{{0, 10}};
     auto img_size_shape = PartialShape{{1, 5}};
-    set_shape_labels(out_size_shape, 20);
-    set_shape_labels(img_size_shape, 20);
+    auto symbol = set_shape_symbols(out_size_shape);
+    set_shape_symbols(img_size_shape, symbol);
 
     const auto output_size = std::make_shared<Parameter>(element::u64, out_size_shape);
     const auto image_size = std::make_shared<Parameter>(element::u64, img_size_shape);
@@ -176,12 +176,12 @@ TYPED_TEST_P(PriorBoxTest, inputs_are_interval_shapes) {
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({2, -1}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
 }
 
-TYPED_TEST_P(PriorBoxTest, preseve_values_and_labels_on_inputs) {
+TYPED_TEST_P(PriorBoxTest, preseve_values_and_symbols_on_inputs) {
     auto out_size_shape = PartialShape{6, 8};
-    DimensionTracker::set_label(out_size_shape[0], 10);
+    out_size_shape[0].set_symbol(std::make_shared<Symbol>());
 
     const auto output_size = std::make_shared<Parameter>(element::i16, out_size_shape);
     const auto image_size = Constant::create(element::i16, Shape{2}, {300, 300});
@@ -192,12 +192,12 @@ TYPED_TEST_P(PriorBoxTest, preseve_values_and_labels_on_inputs) {
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({2, 960}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
 }
 
-TYPED_TEST_P(PriorBoxTest, preseve_partial_values_and_labels_on_inputs) {
+TYPED_TEST_P(PriorBoxTest, preseve_partial_values_and_symbols_on_inputs) {
     auto out_size_shape = PartialShape{{1, 4}, {5, 10}};
-    set_shape_labels(out_size_shape, 10);
+    set_shape_symbols(out_size_shape);
 
     const auto output_size = std::make_shared<Parameter>(element::u64, out_size_shape);
     const auto image_size = Constant::create(element::u64, Shape{2}, {300, 300});
@@ -208,12 +208,12 @@ TYPED_TEST_P(PriorBoxTest, preseve_partial_values_and_labels_on_inputs) {
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({2, {100, 800}}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TYPED_TEST_P(PriorBoxTest, preseve_partial_values_inf_bound) {
     auto out_size_shape = PartialShape{{1, 4}, {5, -1}};  // ShapeOf make 2nd Dim {0, -1}
-    set_shape_labels(out_size_shape, 10);
+    set_shape_symbols(out_size_shape);
 
     const auto output_size = std::make_shared<Parameter>(element::u64, out_size_shape);
     const auto image_size = Constant::create(element::u64, Shape{2}, {300, 300});
@@ -224,7 +224,7 @@ TYPED_TEST_P(PriorBoxTest, preseve_partial_values_inf_bound) {
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({2, {0, -1}}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TYPED_TEST_P(PriorBoxTest, out_size_input_not_integer) {
@@ -282,8 +282,8 @@ REGISTER_TYPED_TEST_SUITE_P(PriorBoxTest,
                             input_image_size_is_dynamic_rank,
                             input_image_size_is_static_rank_dynamic_dim,
                             inputs_are_interval_shapes,
-                            preseve_values_and_labels_on_inputs,
-                            preseve_partial_values_and_labels_on_inputs,
+                            preseve_values_and_symbols_on_inputs,
+                            preseve_partial_values_and_symbols_on_inputs,
                             preseve_partial_values_inf_bound,
                             out_size_input_not_integer,
                             img_size_input_not_integer,

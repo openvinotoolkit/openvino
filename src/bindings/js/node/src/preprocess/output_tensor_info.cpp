@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include "node/include/preprocess/output_tensor_info.hpp"
@@ -6,7 +6,9 @@
 #include "node/include/errors.hpp"
 #include "node/include/helper.hpp"
 
-OutputTensorInfo::OutputTensorInfo(const Napi::CallbackInfo& info) : Napi::ObjectWrap<OutputTensorInfo>(info){};
+OutputTensorInfo::OutputTensorInfo(const Napi::CallbackInfo& info)
+    : Napi::ObjectWrap<OutputTensorInfo>(info),
+      _tensor_info(nullptr){};
 
 Napi::Function OutputTensorInfo::get_class_constructor(Napi::Env env) {
     return DefineClass(env,

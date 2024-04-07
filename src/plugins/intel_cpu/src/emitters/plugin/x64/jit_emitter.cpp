@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "jit_emitter.hpp"
 #include <vector>
 #include "utils/general_utils.h"
+#include "utils.hpp"
 
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl;

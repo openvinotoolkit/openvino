@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -43,7 +43,7 @@ class TestReduceArithmeticOps(CommonTFLayerTest):
     @pytest.mark.parametrize("operation", ["EuclideanNorm", "Max", "Mean", "Min", "Prod", "Sum"])
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.nightly
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     def test_reduce(self, params, operation, keep_dims, ie_device, precision, ir_version, temp_dir,
                     use_legacy_frontend):
         self._test(*self.create_reduce_net(**params, operation=operation, keep_dims=keep_dims, ir_version=ir_version,

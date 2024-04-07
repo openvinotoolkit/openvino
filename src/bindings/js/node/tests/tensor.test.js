@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 const { addon: ov } = require('..');
@@ -136,3 +136,49 @@ describe('Tensor element type', () => {
     });
   });
 });
+
+
+describe('Tensor getSize', () => {
+
+  it('getSize returns the correct total number of elements', () => {
+    const tensor = new ov.Tensor(ov.element.f32, shape, data);
+    const expectedSize = shape.reduce((acc, dim) => acc * dim, 1);
+    assert.strictEqual(tensor.getSize(), expectedSize);
+  });
+
+  it('getSize should throw an error if arguments are provided', () => {
+    const tensor = new ov.Tensor(ov.element.f32, shape, data);
+    assert.throws(
+      () => tensor.getSize(1),
+      { message: 'getSize() does not accept any arguments.' }
+    );
+  });
+});
+
+describe('Tensor getSize for various shapes', () => {
+
+  it('calculates size correctly for a common image data shape [3, 224, 224]', () => {
+    const shape = [3, 224, 224];
+    const expectedSize = 3*224*224;
+    const tensorData = new Float32Array(expectedSize).fill(0);
+    const tensor = new ov.Tensor(ov.element.f32, shape, tensorData);
+    assert.strictEqual(tensor.getSize(), expectedSize);
+  });
+
+  it('calculates size correctly for a scalar wrapped in a tensor [1]', () => {
+    const shape = [1];
+    const expectedSize = 1;
+    const tensorData = new Float32Array(expectedSize).fill(0);
+    const tensor = new ov.Tensor(ov.element.f32, shape, tensorData);
+    assert.strictEqual(tensor.getSize(), expectedSize);
+  });
+
+  it('calculates size correctly for a vector [10]', () => {
+    const shape = [10];
+    const expectedSize = 10;
+    const tensorData = new Float32Array(expectedSize).fill(0);
+    const tensor = new ov.Tensor(ov.element.f32, shape, tensorData);
+    assert.strictEqual(tensor.getSize(), expectedSize);
+  });
+});
+

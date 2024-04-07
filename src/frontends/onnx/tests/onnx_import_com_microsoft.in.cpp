@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1275,4 +1275,28 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_nd) {
     test_case.add_input<int>(Shape{2, 2}, indices);
     test_case.add_expected_output<int>(Shape{2}, output);
     test_case.run_with_tolerance_as_fp();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_pad_2d) {
+    const auto model = convert_model("com.microsoft/pad_2d.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>({1.f, 1.2f, 2.3f, 3.4f, 4.5f, 5.7f});
+    test_case.add_input<int64_t>({0, 2, 0, 0});
+    test_case.add_expected_output<float>(Shape{3, 4},
+                                         {0.f, 0.f, 1.f, 1.2f, 0.f, 0.f, 2.3f, 3.4f, 0.f, 0.f, 4.5f, 5.7f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_pad_1d) {
+    const auto model = convert_model("com.microsoft/pad_1d.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>({1.f, 1.2f, 2.3f, 3.4f, 4.5f, 5.7f});
+    test_case.add_input<int64_t>({0, 2, 0, 0});
+    test_case.add_expected_output<float>(Shape{3, 4},
+                                         {0.f, 0.f, 1.f, 1.2f, 0.f, 0.f, 2.3f, 3.4f, 0.f, 0.f, 4.5f, 5.7f});
+
+    test_case.run();
 }

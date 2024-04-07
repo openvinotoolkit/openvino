@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,9 +10,11 @@
 #include "checkpoint_utils.hpp"
 #include "graph_iterator_saved_model.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "ov_tensorflow/tensor_bundle.pb.h"
 #include "ov_tensorflow/trackable_object_graph.pb.h"
+#include "tf_utils.hpp"
 
 #ifdef ENABLE_SNAPPY_COMPRESSION
 #    include "snappy.h"
@@ -366,7 +368,9 @@ static void read_stateful_partitioned_call(const std::shared_ptr<::tensorflow::G
 }
 
 void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::GraphDef> graph_def,
-                                        std::map<std::string, std::string>& variables_map) {
+                                        std::map<std::string, std::string>& variables_map,
+                                        HashTableKeysValuesMap& hash_table_keys_map,
+                                        HashTableKeysValuesMap& hash_table_values_map) {
     std::map<std::string, PtrNode::SharedPtrNode> nodes;
 
     for (const auto& node : graph_def->node()) {
@@ -442,6 +446,32 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
 
                 variables_map[variablev2_nodes[0]->node->name()] = variable_name;
             }
+        } else if (node.second->op() == "LookupTableImportV2") {
+            std::vector<PtrNode::SharedPtrNode> hash_tablev2_nodes;
+            node.second->find_parent_by_op("HashTableV2", hash_tablev2_nodes);
+            if (hash_tablev2_nodes.size() == 0 || node.second->node->input_size() < 3) {
+                continue;
+            }
+
+            // extract tensors with keys and values
+            // expect Constant (with keys) -> LookupTableImportV2 and Constant (with values) -> LookupTableImportV2
+            if (node.second->inputs[1]->node->op() != "Const" || node.second->inputs[2]->node->op() != "Const") {
+                continue;
+            }
+
+            auto hash_tablev2_name = hash_tablev2_nodes[0]->node->name();
+            auto ov_tensor_keys =
+                unpack_tensor_proto(node.second->inputs[1]->node->attr().at("value").tensor()).as<ov::Tensor>();
+            auto ov_tensor_values =
+                unpack_tensor_proto(node.second->inputs[2]->node->attr().at("value").tensor()).as<ov::Tensor>();
+
+            // create Constant nodes for keys and values and store them in maps
+            // these Constant nodes can be retrieved during conversion stage for conversion HashTableV2 operation
+            auto keys_const = std::make_shared<ov::op::v0::Constant>(ov_tensor_keys);
+            auto values_const = std::make_shared<ov::op::v0::Constant>(ov_tensor_values);
+
+            hash_table_keys_map[hash_tablev2_name] = keys_const;
+            hash_table_values_map[hash_tablev2_name] = values_const;
         }
     }
 

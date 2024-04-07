@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,15 +69,16 @@ public:
 private:
     void check_tensors() const override;
 
-    std::unordered_map<std::string, TensorWrapper> m_user_inputs;
-    std::unordered_map<std::string, TensorWrapper> m_user_outputs;
+    std::unordered_map<size_t, TensorWrapper> m_user_inputs;
+    std::unordered_map<size_t, TensorWrapper> m_user_outputs;
 
-    std::unordered_map<std::string, TensorWrapper> m_plugin_inputs;
-    std::unordered_map<std::string, TensorWrapper> m_plugin_outputs;
+    std::unordered_map<size_t, TensorWrapper> m_plugin_inputs;
+    std::unordered_map<size_t, TensorWrapper> m_plugin_outputs;
 
-    std::unordered_map<std::string, ov::Output<const ov::Node>> m_input_ports_map;
-    std::unordered_map<std::string, ov::Output<const ov::Node>> m_output_ports_map;
-    std::unordered_map<std::string, std::string> m_output_names_map;
+    std::unordered_map<size_t, ov::Output<const ov::Node>> m_input_ports_map;
+    std::unordered_map<size_t, ov::Output<const ov::Node>> m_output_ports_map;
+
+    std::unordered_map<size_t, std::string> m_output_names_map;
 
     std::map<cldnn::primitive_id, cldnn::network_output> m_internal_outputs;
     VariablesMap m_variables;
@@ -90,9 +91,12 @@ private:
     bool m_use_external_queue = false;
 
     void prepare_state(const std::string& name, const std::shared_ptr<VariableStateBase>& variable);
-    std::vector<cldnn::event::ptr> prepare_input(const std::string& name, const ov::Output<const ov::Node>& port, const TensorWrapper& user_tensor_wrapper);
-    std::vector<cldnn::event::ptr> prepare_output(const std::string& name, const ov::Output<const ov::Node>& port, const TensorWrapper& user_tensor_wrapper);
-    std::vector<cldnn::event::ptr> prepare_batched_input(const std::string& name,
+    std::vector<cldnn::event::ptr> prepare_input(const std::string& internal_name,
+                                                 size_t input_idx,
+                                                 const ov::Output<const ov::Node>& port,
+                                                 const TensorWrapper& user_tensor_wrapper);
+    std::vector<cldnn::event::ptr> prepare_output(size_t output_idx, const ov::Output<const ov::Node>& port, const TensorWrapper& user_tensor_wrapper);
+    std::vector<cldnn::event::ptr> prepare_batched_input(size_t input_idx,
                                                          const ov::Output<const ov::Node>& port,
                                                          const std::vector<ov::SoPtr<ov::ITensor>>& user_tensors);
 
@@ -108,8 +112,8 @@ private:
     void allocate_inputs();
     void allocate_outputs();
     void allocate_states();
-    void allocate_input(const ov::Output<const ov::Node>& port, const std::string& name);
-    void allocate_output(const ov::Output<const ov::Node>& port, const std::string& name);
+    void allocate_input(const ov::Output<const ov::Node>& port, size_t input_idx);
+    void allocate_output(const ov::Output<const ov::Node>& port, size_t output_idx);
     cldnn::event::ptr copy_output_data(cldnn::memory::ptr src, const ov::ITensor& dst) const;
 
     void init_mappings();

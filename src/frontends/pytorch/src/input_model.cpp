@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ InputModel::InputModel(const std::shared_ptr<TorchDecoder>& model_decoder) : m_m
     const auto& outputs = m_model_decoder->outputs();
     for (size_t i = 0; i < outputs.size(); ++i) {
         auto out_place = std::make_shared<pytorch::Place>(*this, outputs[i]);
-        m_name_to_place.emplace(std::to_string(inputs[i]), std::dynamic_pointer_cast<frontend::Place>(out_place));
+        m_name_to_place.emplace(std::to_string(outputs[i]), std::dynamic_pointer_cast<frontend::Place>(out_place));
         for (const auto& name : out_place->get_names()) {
             m_name_to_place.emplace(name, std::dynamic_pointer_cast<frontend::Place>(out_place));
         }
@@ -93,8 +93,8 @@ void InputModel::set_tensor_value(const Place::Ptr& place, const void* value) {
                             "Provided place is invalid, only inputs are supported for setting tensor value.");
     auto pytorch_place = std::dynamic_pointer_cast<pytorch::Place>(place);
     FRONT_END_GENERAL_CHECK(pytorch_place, "Only place produced by PyTorch Frontend is supported");
-    const auto el_type = pytorch_place->m_type;
-    const auto p_shape = pytorch_place->m_pshape;
+    const auto& el_type = pytorch_place->m_type;
+    const auto& p_shape = pytorch_place->m_pshape;
     FRONT_END_GENERAL_CHECK(el_type.is_static() && p_shape.is_static(),
                             "Shape and type must be statically defined before calling set_tensor_value");
     auto const_node = ov::op::v0::Constant::create(el_type, p_shape.to_shape(), value);
