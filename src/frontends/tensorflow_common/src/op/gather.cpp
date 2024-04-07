@@ -87,8 +87,8 @@ OutputVector translate_gather_v2_op(const NodeContext& node) {
         auto gather = make_shared<v8::Gather>(params, indices, selected_axis, 0);
 
         set_node_name(node.get_name(), gather);
-        auto complex_reshape = make_shared<ComplexTypeMark>(gather, complex_type_mark->get_complex_part_type());
-        return {complex_reshape->output(0)};
+        auto complex_gather = make_shared<ComplexTypeMark>(gather, complex_type_mark->get_complex_part_type());
+        return {complex_gather->output(0)};
     }
 
     return translate_basic_gather_op(node, axis, batch_dims);
