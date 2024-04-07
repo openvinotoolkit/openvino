@@ -162,10 +162,15 @@ KERNEL(gemm_tiled_opt)(
 #ifdef BIAS_TERM
     const uint batch_offset_input2 = FUNC_CALL(get_input2_batch_offset)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z);
 #endif // BIAS_TERM
-    uint write_id = 0;
+    uint y_write_id = 0;
+    uint x_write_id = 0;
     const uint batch_offset_output = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR TR_B, TR_F, TR_W, TR_Z, TR_Y, TR_X);
-    write_id = 1;
-    const uint batch_offset_output_diff = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR TR_B, TR_F, TR_W, TR_Z, TR_Y, TR_X) - batch_offset_output;
+    y_write_id = 1;
+    x_write_id = 0;
+    const uint output_y_pitch = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR TR_B, TR_F, TR_W, TR_Z, TR_Y, TR_X) - batch_offset_output;
+    y_write_id = 0;
+    x_write_id = 1;
+    const uint output_x_pitch = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR TR_B, TR_F, TR_W, TR_Z, TR_Y, TR_X) - batch_offset_output;
 
     // Start pointers offsets
 #if TRANSPOSE_INPUT0 == TRANSPOSE_X_LAST
@@ -424,7 +429,7 @@ KERNEL(gemm_tiled_opt)(
     #endif // TILE_K > SIMD_WIDTH
                 }
             }
-    #if IS_DYNAMIC && !INDIRECT_INPUT0 && !HAS_DYNAMIC_K_PADDING 
+    #if IS_DYNAMIC && !INDIRECT_INPUT0 && !HAS_DYNAMIC_K_PADDING
         // Read A for next dot_id
         #if TILE_K_NOT_DIVISIBLE
             a_read = (dot_id + 1 < tile_m_iterations) ? TILE_K_NOT_DIVISIBLE_CALC ? a_ptr[sglid] : BLOCK_READ_A(a_ptr, 0) : 0;
@@ -732,7 +737,13 @@ KERNEL(gemm_tiled_opt)(
         #endif // HAS_FUSED_OPS
         }
     #else
-        OUTPUT_TYPE* d_ptr_tmp = d_ptr + sglid;
+        #if TRANSPOSE_OUTPUT == TRANSPOSE_X_LAST
+        const uint x_pitch = 1;
+        #else
+        const uint x_pitch = output_x_pitch;
+        #endif
+        OUTPUT_TYPE* d_ptr_tmp = d_ptr + sglid * x_pitch;
+
         #ifdef BIAS_TERM
         ACCUMULATOR_TYPE_VEC dequantized = (ACCUMULATOR_TYPE_VEC)(ALPHA) * c_tile[write_id] + TO_ACCUMULATOR_TYPE(BETA) * c_ptr[sglid];
         #else // BIAS_TERM
@@ -743,13 +754,13 @@ KERNEL(gemm_tiled_opt)(
         OUTPUT_TYPE_VEC result = FUSED_OPS_RESULT_VEC;
         unroll_for (uint n_elem = 0; n_elem < B_VEC_SIZE; ++n_elem) {
             if (b_raw_global_id + SIMD_WIDTH * n_elem < N) {
-                *(d_ptr_tmp + SIMD_WIDTH * n_elem) = result[n_elem];
+                *(d_ptr_tmp + SIMD_WIDTH * n_elem * x_pitch) = result[n_elem];
             }
         }
         #else
         unroll_for (uint n_elem = 0; n_elem < B_VEC_SIZE; ++n_elem) {
             if (b_raw_global_id + SIMD_WIDTH * n_elem < N) {
-                *(d_ptr_tmp + SIMD_WIDTH * n_elem) = dequantized[n_elem];
+                *(d_ptr_tmp + SIMD_WIDTH * n_elem * x_pitch) = dequantized[n_elem];
             }
         }
         #endif // HAS_FUSED_OPS
@@ -796,7 +807,7 @@ KERNEL(gemm_tiled_opt)(
         #endif // HAS_FUSED_OPS
     #endif // TILE_N_NOT_DIVISIBLE || B_VEC_SIZE == 1
 #endif // IS_DYNAMIC
-        d_ptr += batch_offset_output_diff;
+        d_ptr += output_y_pitch;
 #ifdef BIAS_TERM
         c_ptr += N;
 #endif // BIAS_TERM

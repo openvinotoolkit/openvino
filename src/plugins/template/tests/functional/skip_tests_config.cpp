@@ -82,12 +82,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReferenceConcatTest.*concat_zero_.*)",
         // CVS-64102
         R"(.*ReferenceExperimentalPGGLayerTest.*iType=bf16.*stride_x=(32|64).*)",
-        // CVS-72215
-        R"(.*ReferenceTileTest.*aType=i4.*)",
-        R"(.*ReferenceTileTest.*aType=u4.*)",
-        // CVS-71891
-        R"(.*ReferenceTileTest.*rType=i4.*)",
-        R"(.*ReferenceTileTest.*rType=u4.*)",
 
         // New plugin API doesn't support legacy NV12 I420 preprocessing
         R"(.*ConvertNV12WithLegacyTest.*)",

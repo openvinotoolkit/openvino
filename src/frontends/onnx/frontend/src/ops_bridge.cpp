@@ -43,6 +43,7 @@
 #include "op/com.microsoft/embed_layer_normalization.hpp"
 #include "op/com.microsoft/fused_conv.hpp"
 #include "op/com.microsoft/fusedgemm.hpp"
+#include "op/com.microsoft/pad.hpp"
 #include "op/com.microsoft/skip_layer_normalization.hpp"
 #include "op/compress.hpp"
 #include "op/concat.hpp"
@@ -492,6 +493,9 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("ReduceMax", 20, reduce_max);
     REGISTER_OPERATOR("ReduceMean", 1, reduce_mean);
     REGISTER_OPERATOR("ReduceMin", 1, reduce_min);
+    REGISTER_OPERATOR("ReduceMin", 13, reduce_min);
+    REGISTER_OPERATOR("ReduceMin", 18, reduce_min);
+    REGISTER_OPERATOR("ReduceMin", 20, reduce_min);
     REGISTER_OPERATOR("ReduceProd", 1, reduce_prod);
     REGISTER_OPERATOR("ReduceSum", 1, reduce_sum);
     REGISTER_OPERATOR("ReduceSum", 13, reduce_sum);
@@ -608,6 +612,10 @@ OperatorsBridge::OperatorsBridge() {
                                        op::set_13::dequantize_linear,
                                        "com.microsoft");
     register_operator_in_custom_domain("Gelu", VersionRange::since(1), op::set_1::gelu, "com.microsoft");
+    register_operator_in_custom_domain("Pad",
+                                       VersionRange::single_version_for_all_opsets(),
+                                       op::custom::set_1::pad,
+                                       "com.microsoft");
     register_operator_in_custom_domain("QuantizeLinear",
                                        VersionRange::since(1),
                                        op::set_13::quantize_linear,

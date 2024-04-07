@@ -41,6 +41,7 @@ struct FloorModParams {
 class ReferenceFloorModLayerTest : public testing::TestWithParam<FloorModParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params.pshape1, params.pshape2, params.inType, params.outType);
         inputData = {params.inputData1, params.inputData2};
