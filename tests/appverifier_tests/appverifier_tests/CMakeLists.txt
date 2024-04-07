@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME ov_thread_local_test)
+set(TARGET_NAME ov_appverifier_tests)
 
 file (GLOB_RECURSE SRC *.cpp)
 file (GLOB_RECURSE HDR *.h)

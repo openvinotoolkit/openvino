@@ -4,7 +4,7 @@ This test suite is used to detect whether AppVerifier will report a memory leak 
 
 ## Getting Started
 
-Thread_local tests are based on the googletest framework. You can filter tests with
+AppVerifier tests are based on the googletest framework. You can filter tests with
 `--gtest_filter` and explore tests available with `--gtest_list_tests` options.
 
 ### Pre-requisites
@@ -25,5 +25,5 @@ cmake .. && cmake --build . --config Release -j8
 ### Running Tests
 
 ``` bash
-.\test\Release\ov_thread_local_test.exe
+.\test\Release\ov_appverifier_tests.exe
 ```

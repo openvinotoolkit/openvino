@@ -4,7 +4,7 @@
 
 cmake_minimum_required(VERSION 3.13)
 
-project(thread_local_test)
+project(appverifier_tests)
 
 if(NOT WIN32)
     message(FATAL_ERROR "This test only supports windows OS")
@@ -28,4 +28,4 @@ set(CMAKE_PDB_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/test")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/test")
 
 add_subdirectory(thread_local)
-add_subdirectory(thread_local_test)
+add_subdirectory(appverifier_tests)
