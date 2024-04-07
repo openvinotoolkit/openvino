@@ -73,7 +73,7 @@ OutputVector translate_gather_v2_op(const NodeContext& node) {
 
     if (complex_type_mark) {
         params = complex_type_mark->input_value(0);
-        auto zero = create_same_type_const_scalar<float>(axis, 0);
+        auto zero = create_same_type_const_scalar<int32_t>(axis, 0);
         // Create a condition for the Select operation
         auto condition = make_shared<v1::Less>(axis, zero);
         // Calculate the updated value for the axis
