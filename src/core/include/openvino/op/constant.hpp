@@ -20,6 +20,11 @@ namespace ov {
 
 class AlignedBuffer;
 
+namespace element {
+template <Type_t ET, class T>
+class Iterator;
+}
+
 namespace op {
 namespace v0 {
 /// \brief Class for constants.
@@ -454,14 +459,10 @@ private:
     // generic cast_LP_data if input is not std or OV type (do additional conversion)
     template <element::Type_t ET, class U>
     void cast_lp_vector(std::vector<U>& output, size_t num_elements) const {
-        if (std::is_integral<U>::value) {
-            std::vector<int8_t> tmp;
-            cast_lp_vector<ET>(tmp, num_elements);
-            output.insert(output.end(), tmp.begin(), tmp.end());
-        } else {
-            std::vector<float> tmp;
-            cast_lp_vector<ET>(tmp, num_elements);
-            output.insert(output.end(), tmp.begin(), tmp.end());
+        auto lp_buffer = LPBuffer<ET>(get_data_ptr());
+        auto out_inserter = std::back_inserter(output);
+        for (size_t i = 0; i < num_elements; ++i, ++lp_buffer) {
+            *out_inserter = lp_buffer.read();
         }
     }
 
@@ -538,11 +539,7 @@ private:
     // generic fill_lp_data if input is not std or OV type (do additional conversion)
     template <element::Type_t ET, class T>
     void fill_lp_data(const T& value) {
-        if (std::is_integral<T>::value) {
-            fill_lp_data<ET>(static_cast<int8_t>(value));
-        } else {
-            fill_lp_data<ET>(static_cast<float>(value));
-        }
+        fill_lp_data<ET>(static_cast<float>(value));
     }
 
     template <element::Type_t ET>
@@ -602,12 +599,10 @@ private:
     // generic write_lp_buffer if input is not std or OV type (do additional conversion)
     template <element::Type_t ET, class T>
     void write_lp_buffer(const std::vector<T>& source) {
-        if (std::is_integral<T>::value) {
-            const auto tmp = std::vector<int8_t>(source.begin(), source.end());
-            write_lp_buffer<ET>(tmp);
-        } else {
-            const auto tmp = std::vector<float>(source.begin(), source.end());
-            write_lp_buffer<ET>(tmp);
+        auto lp_buffer = LPBuffer<ET>(get_data_ptr_nc());
+        for (const auto& value : source) {
+            lp_buffer.write(static_cast<float>(value));
+            ++lp_buffer;
         }
     }
 
@@ -717,6 +712,20 @@ private:
         return 64;
     }
 
+    // Internal helper to read/write low precision values for not standard or OV type.
+    template <element::Type_t ET>
+    struct LPBuffer {
+        using lp_iter = element::Iterator<ET, typename ov::fundamental_type_for<ET>>;
+        using lp_iter_ptr = std::shared_ptr<lp_iter>;
+
+        LPBuffer(void* ptr);
+        void write(const float value);
+        ov::fundamental_type_for<ET> read() const;
+        LPBuffer& operator++();
+
+        lp_iter_ptr iter;
+    };
+
     element::Type m_element_type{};
     Shape m_shape{};
     std::shared_ptr<ov::AlignedBuffer> m_data{};
@@ -724,6 +733,42 @@ private:
     mutable std::atomic_bool m_all_elements_bitwise_identical_checked{false};
     bool m_alloc_buffer_on_visit_attributes{true};
 };
+
+template <>
+OPENVINO_API Constant::LPBuffer<element::u1>::LPBuffer(void* ptr);
+template <>
+OPENVINO_API Constant::LPBuffer<element::u4>::LPBuffer(void* ptr);
+template <>
+OPENVINO_API Constant::LPBuffer<element::i4>::LPBuffer(void* ptr);
+template <>
+OPENVINO_API Constant::LPBuffer<element::nf4>::LPBuffer(void* ptr);
+
+template <>
+OPENVINO_API void Constant::LPBuffer<element::u1>::write(const float value);
+template <>
+OPENVINO_API void Constant::LPBuffer<element::u4>::write(const float value);
+template <>
+OPENVINO_API void Constant::LPBuffer<element::i4>::write(const float value);
+template <>
+OPENVINO_API void Constant::LPBuffer<element::nf4>::write(const float value);
+
+template <>
+OPENVINO_API ov::fundamental_type_for<element::u1> Constant::LPBuffer<element::u1>::read() const;
+template <>
+OPENVINO_API ov::fundamental_type_for<element::u4> Constant::LPBuffer<element::u4>::read() const;
+template <>
+OPENVINO_API ov::fundamental_type_for<element::i4> Constant::LPBuffer<element::i4>::read() const;
+template <>
+OPENVINO_API ov::fundamental_type_for<element::nf4> Constant::LPBuffer<element::nf4>::read() const;
+
+template <>
+OPENVINO_API Constant::LPBuffer<element::u1>& Constant::LPBuffer<element::u1>::operator++();
+template <>
+OPENVINO_API Constant::LPBuffer<element::u4>& Constant::LPBuffer<element::u4>::operator++();
+template <>
+OPENVINO_API Constant::LPBuffer<element::i4>& Constant::LPBuffer<element::i4>::operator++();
+template <>
+OPENVINO_API Constant::LPBuffer<element::nf4>& Constant::LPBuffer<element::nf4>::operator++();
 
 #define CONSTANT_FILL_DATA_SPECIALIZATION(ET, SRC_TYPE) \
     template <>                                         \

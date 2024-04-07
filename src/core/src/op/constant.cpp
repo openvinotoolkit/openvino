@@ -503,6 +503,86 @@ bool Constant::constant_fold(OutputVector&, const OutputVector&) {
     return false;
 }
 
+template <>
+Constant::LPBuffer<element::u1>::LPBuffer(void* ptr)
+    : iter{std::make_shared<lp_iter>(reinterpret_cast<ov::fundamental_type_for<element::u1>*>(ptr))} {}
+
+template <>
+Constant::LPBuffer<element::u4>::LPBuffer(void* ptr)
+    : iter{std::make_shared<lp_iter>(reinterpret_cast<ov::fundamental_type_for<element::u4>*>(ptr))} {}
+
+template <>
+Constant::LPBuffer<element::i4>::LPBuffer(void* ptr)
+    : iter{std::make_shared<lp_iter>(reinterpret_cast<ov::fundamental_type_for<element::i4>*>(ptr))} {}
+
+template <>
+Constant::LPBuffer<element::nf4>::LPBuffer(void* ptr)
+    : iter{std::make_shared<lp_iter>(reinterpret_cast<ov::fundamental_type_for<element::nf4>*>(ptr))} {}
+
+template <>
+void Constant::LPBuffer<element::u1>::write(const float value) {
+    iter->operator*() = convert_if_in_element_range<element::u1>(value);
+}
+
+template <>
+void Constant::LPBuffer<element::u4>::write(const float value) {
+    iter->operator*() = convert_if_in_element_range<element::u4>(value);
+}
+
+template <>
+void Constant::LPBuffer<element::i4>::write(const float value) {
+    iter->operator*() = convert_if_in_element_range<element::i4>(value);
+}
+
+template <>
+void Constant::LPBuffer<element::nf4>::write(const float value) {
+    iter->operator*() = convert_if_in_element_range<element::nf4>(value);
+}
+
+template <>
+ov::fundamental_type_for<element::u1> Constant::LPBuffer<element::u1>::read() const {
+    return iter->operator*();
+}
+
+template <>
+ov::fundamental_type_for<element::u4> Constant::LPBuffer<element::u4>::read() const {
+    return iter->operator*();
+}
+
+template <>
+ov::fundamental_type_for<element::i4> Constant::LPBuffer<element::i4>::read() const {
+    return iter->operator*();
+}
+
+template <>
+ov::fundamental_type_for<element::nf4> Constant::LPBuffer<element::nf4>::read() const {
+    return iter->operator*();
+}
+
+template <>
+Constant::LPBuffer<element::u1>& Constant::LPBuffer<element::u1>::operator++() {
+    iter->operator++();
+    return *this;
+}
+
+template <>
+Constant::LPBuffer<element::u4>& Constant::LPBuffer<element::u4>::operator++() {
+    iter->operator++();
+    return *this;
+}
+
+template <>
+Constant::LPBuffer<element::i4>& Constant::LPBuffer<element::i4>::operator++() {
+    iter->operator++();
+    return *this;
+}
+
+template <>
+Constant::LPBuffer<element::nf4>& Constant::LPBuffer<element::nf4>::operator++() {
+    iter->operator++();
+    return *this;
+}
+
 #define CONSTANT_FILL_DATA(ET, SRC_TYPE)                                      \
     template <>                                                               \
     void Constant::fill_lp_data<element::Type_t::ET>(const SRC_TYPE& value) { \

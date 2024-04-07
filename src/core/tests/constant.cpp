@@ -17,6 +17,16 @@
 using namespace ov;
 using namespace std;
 
+using testing::ElementsAre;
+
+struct TestDType {
+    operator float() const {
+        return value;
+    }
+
+    float value;
+};
+
 //
 // boolean
 //
@@ -382,6 +392,16 @@ TEST(constant, int4_input_value_validation) {
     EXPECT_THROW(ov::op::v0::Constant c(element::i4, shape, std::vector<std::string>{"8", "1"}), ::ov::AssertFailure);
 }
 
+TEST(constant, int4_write_then_cast_custom_type) {
+    Shape shape{3};
+    std::vector<TestDType> input{{1.0f}, {-2.0f}, {7.0f}};
+    ov::op::v0::Constant c(element::i4, shape, input);
+
+    auto v = c.cast_vector<int8_t>();
+
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_THAT(v, ElementsAre(1, -2, 7));
+}
 //
 // int8
 //
@@ -805,6 +825,17 @@ TEST(constant, uint1_vector_broadcast) {
     EXPECT_EQ(0xE0, p[0] & 0xE0);
 }
 
+TEST(constant, uint1_write_then_cast_custom_type) {
+    Shape shape{3};
+    std::vector<TestDType> input{{1.0f}, {0.0f}, {12.0f}};
+    ov::op::v0::Constant c(element::u1, shape, input);
+
+    auto v = c.cast_vector<int8_t>();
+
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_THAT(v, ElementsAre(1, 0, 1));
+}
+
 //
 // uint4
 //
@@ -890,6 +921,17 @@ TEST(constant, uint4_input_value_validation) {
 
     EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, std::vector<std::string>{"-1", "1"}), ::ov::AssertFailure);
     EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, std::vector<std::string>{"16", "1"}), ::ov::AssertFailure);
+}
+
+TEST(constant, uint4_write_then_cast_custom_type) {
+    Shape shape{3};
+    std::vector<TestDType> input{{1.0f}, {3.0f}, {12.0f}};
+    ov::op::v0::Constant c(element::u4, shape, input);
+
+    auto v = c.cast_vector<int8_t>();
+
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_THAT(v, ElementsAre(1, 3, 12));
 }
 
 //
@@ -1231,6 +1273,20 @@ TEST(constant, uint64_string_max) {
     for (unsigned i = 0; i != input.size(); ++i) {
         EXPECT_EQ(input[i], c.convert_value_to_string(i));
     }
+}
+
+//
+// nf4
+//
+TEST(constant, nf4_write_custom_type) {
+    Shape shape{3};
+    std::vector<TestDType> input{{-1.1f}, {-.5f}, {2.0f}};
+    ov::op::v0::Constant c(element::nf4, shape, input);
+
+    auto p = c.get_data_ptr<uint8_t>();
+
+    EXPECT_EQ(p[0], 0x20);
+    EXPECT_EQ(p[1] & 0x0f, 0x0f);
 }
 
 //
