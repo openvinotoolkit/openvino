@@ -1222,31 +1222,36 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
 
             int val = 0;
             get_env("CONV_TEST", val);
-            if (val == 1) {
-                if (!static_cast<bool>(prepare_padding::get_convolution_needed_padding(node)))
-                    expected_format = format::bfyx;
-            } else if (val == 2) {
-                std::function<bool(const program_node&, size_t, size_t)> need_heavy_reorder = [&](const program_node& node, size_t cur_depth, size_t max_depth) {
-                    if (cur_depth > max_depth) return false;
-                    if (node.is_type<reorder>()) {
-                        for (auto& reorder_user : node.get_users()) {
-                            if (reorder_user->is_type<reshape>()) {
-                                for (auto& reshape_user : reorder_user->get_users()) {
-                                    if (reshape_user->is_type<mvn>()) { // && node.get_output_layout().get_linear_size() > 8300000) {
-                                        GPU_DEBUG_LOG << node.id() << ": " << node.get_output_layout().to_short_string() << " -> reorder pattern!" << std::endl;
-                                        return true;
-                                    }
+
+            std::function<bool(const program_node&, size_t, size_t)> user_is_reorder = [&](const program_node& node, size_t cur_depth, size_t max_depth) {
+                if (cur_depth > max_depth) return false;
+                if (node.is_type<reorder>()) {
+                    for (auto& reorder_user : node.get_users()) {
+                        if (reorder_user->is_type<reshape>()) {
+                            for (auto& reshape_user : reorder_user->get_users()) {
+                                if (reshape_user->is_type<mvn>()) {
+                                    GPU_DEBUG_LOG << node.id() << ": " << node.get_output_layout().to_short_string() << " -> reorder pattern!" << std::endl;
+                                    return true;
                                 }
                             }
                         }
                     }
-                    bool res = false;
-                    for (const auto& usr : node.get_users()) {
-                        res |= need_heavy_reorder(*usr, cur_depth + 1, max_depth);
-                    }
-                    return res;
+                }
+                bool res = false;
+                for (const auto& usr : node.get_users()) {
+                    res |= user_is_reorder(*usr, cur_depth + 1, max_depth);
+                }
+                return res;
                 };
-                if (!static_cast<bool>(prepare_padding::get_convolution_needed_padding(node)) && !need_heavy_reorder(reinterpret_cast<program_node const&>(node), 0, 3)) {
+            if (val == 1) {
+                if (!static_cast<bool>(prepare_padding::get_convolution_needed_padding(node)))
+                    expected_format = format::bfyx;
+            } else if (val == 2) {
+                if (user_is_reorder(reinterpret_cast<program_node const&>(node), 0, 3)) {
+                    expected_format = format::bfyx;
+                }
+            } else if (val == 3) {
+                if (!static_cast<bool>(prepare_padding::get_convolution_needed_padding(node)) && user_is_reorder(reinterpret_cast<program_node const&>(node), 0, 3)) {
                     expected_format = format::bfyx;
                 }
             }
