@@ -441,7 +441,6 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
         // the whole config is RW before model is loaded.
         std::vector<ov::PropertyName> rwProperties{
             RW_property(ov::num_streams.name()),
-            RW_property(ov::affinity.name()),
             RW_property(ov::inference_num_threads.name()),
             RW_property(ov::enable_profiling.name()),
             RW_property(ov::hint::inference_precision.name()),
@@ -459,6 +458,10 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
             RW_property(ov::hint::dynamic_quantization_group_size.name()),
             RW_property(ov::hint::kv_cache_precision.name()),
         };
+
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        rwProperties.insert(rwProperties.end(), RW_property(ov::affinity.name()));
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         std::vector<ov::PropertyName> supportedProperties;
         supportedProperties.reserve(roProperties.size() + rwProperties.size());

@@ -37,7 +37,7 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
         "${cmake_packages[@]}" \
         "${x86_64_specific_packages[@]}" \
         `# to find dependencies` \
-        pkg-config \
+        pkgconf \
         `# to deternime product version via git` \
         git \
         `# check bash scripts for correctness` \

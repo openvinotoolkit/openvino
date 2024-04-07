@@ -202,12 +202,11 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     };
 
     if (name == ov::supported_properties) {
-        return std::vector<ov::PropertyName>{
+        std::vector<ov::PropertyName> ro_properties{
             RO_property(ov::supported_properties.name()),
             RO_property(ov::model_name.name()),
             RO_property(ov::optimal_number_of_infer_requests.name()),
             RO_property(ov::num_streams.name()),
-            RO_property(ov::affinity.name()),
             RO_property(ov::inference_num_threads.name()),
             RO_property(ov::enable_profiling.name()),
             RO_property(ov::hint::inference_precision.name()),
@@ -225,6 +224,12 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::hint::dynamic_quantization_group_size.name()),
             RO_property(ov::hint::kv_cache_precision.name()),
         };
+
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        ro_properties.insert(ro_properties.end(), RO_property(ov::affinity.name()));
+        OPENVINO_SUPPRESS_DEPRECATED_END
+
+        return ro_properties;
     }
 
     if (name == ov::model_name) {
