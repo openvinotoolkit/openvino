@@ -239,7 +239,7 @@ std::vector<AUGRUCellParams> generateParams() {
                                                    0.07849785f,
                                                    0.76568159f}),
             reference_tests::Tensor(ET, {1, 1}, std::vector<T>{0.3333f}),
-            reference_tests::Tensor(ET, {2, 2}, std::vector<T>{0.666063f, 0.451451f, 0.792762f, 0.453281f}),
+            reference_tests::Tensor(ET, {1, 4}, std::vector<T>{0.666063f, 0.451451f, 0.792762f, 0.453281f}),
             "augru_different_input_and_hidden_size"),
     };
     return params;

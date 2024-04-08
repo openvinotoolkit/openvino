@@ -87,7 +87,9 @@ jobs:
             -DENABLE_CPPLINT=OFF \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
             -DCMAKE_VERBOSE_MAKEFILE=ON \
+            -DBUILD_nvidia_plugin=OFF \
             -DENABLE_FASTER_BUILD=OFF \
+            -DOPENVINO_EXTRA_MODULES=${OPENVINO_CONTRIB_REPO}/modules \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
