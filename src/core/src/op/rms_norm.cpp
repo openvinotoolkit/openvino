@@ -6,7 +6,9 @@
 
 #include "compare.hpp"
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/op.hpp"
+#include "rms_norm_shape_inference.hpp"
 
 namespace ov {
 namespace op {
@@ -58,31 +60,9 @@ void RMSNorm::validate_and_infer_types() {
                           "The element type of the axes tensor must be i32 or i64 type. Got: ",
                           axes_element_type);
 
-    const auto& data_shape = get_input_partial_shape(0);
-    const auto& axes_shape = get_input_partial_shape(1);
-    if (axes_shape.rank().is_static()) {
-        NODE_VALIDATION_CHECK(this,
-                              axes_shape.size() == 1,
-                              "Expected 1D tensor for the 'axes' input. Got: ",
-                              axes_shape);
+    if (get_input_size() > 2) {  // Validate scale input type
 
-        const auto data_rank = data_shape.rank();
-        const bool has_axes_compatible = data_rank.is_dynamic() || axes_shape[0].is_dynamic() ||
-                                         cmp::ge(data_rank.get_length(), axes_shape.get_shape()[0]);
-        NODE_VALIDATION_CHECK(this,
-                              has_axes_compatible,
-                              "Number of the axes can't be higher than the rank of the data shape.");
-    }
-
-    if (get_input_size() > 2) {  // Validate scale input
-        auto scale_shape = get_input_partial_shape(2);
-        const bool is_scale_shape_broadcastable =
-            PartialShape::broadcast_merge_into(scale_shape, data_shape, ov::op::AutoBroadcastType::NUMPY);
-        NODE_VALIDATION_CHECK(this,
-                              is_scale_shape_broadcastable,
-                              "Scale input shape must be broadcastable to the shape of the data input.");
-
-        // Validate input types and save result for output type
+        // Validate input types
         auto merged_et = element::dynamic;
         const auto& scale_element_type = get_input_element_type(2);
         const bool is_scale_type_compatible = element::Type::merge(merged_et, data_element_type, scale_element_type);
@@ -91,8 +71,9 @@ void RMSNorm::validate_and_infer_types() {
                               "Element type of the scale input must be the same as the data input type.");
     }
 
+    const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
     // Output type and shape is the same as the first input
-    set_output_type(0, data_element_type, get_input_partial_shape(0));
+    set_output_type(0, data_element_type, output_shapes[0]);
 }
 
 std::shared_ptr<Node> RMSNorm::clone_with_new_inputs(const ov::OutputVector& new_args) const {
