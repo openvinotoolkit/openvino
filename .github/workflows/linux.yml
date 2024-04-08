@@ -18,7 +18,7 @@ concurrency:
 
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
-  APT_CACHE_PATH: /mount/caches/ccache/apt
+  APT_CACHE_PATH: /mount/caches/ccache/apt/ubuntu/20
   PYTHON_VERSION: '3.11'
 
 jobs:
@@ -123,7 +123,7 @@ jobs:
           cache-size: 10
           max-cache-size: 50
           cache-path: ${{ env.APT_CACHE_PATH }}
-          path: '/var/cache/apt'
+          path: '/var/cache/apt/archives'
           key: ${{ runner.os }}-${{ runner.arch }}-${{ github.ref_name == 'master' && '' || github.event.number }}apt-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-apt
