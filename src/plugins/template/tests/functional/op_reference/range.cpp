@@ -81,6 +81,7 @@ static std::shared_ptr<op::v0::Constant> CreateConstant(Shape& ishape, element::
 class ReferenceRangeV0LayerTest : public testing::TestWithParam<RangeParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params.inShape,
                                   params.outShape,
@@ -124,6 +125,7 @@ private:
 class ReferenceRangeV4LayerTest : public testing::TestWithParam<RangeParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params.inShape,
                                   params.outShape,

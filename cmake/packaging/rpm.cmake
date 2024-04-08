@@ -78,6 +78,7 @@ macro(ov_cpack_settings)
         2023.2.0
         2023.3.0 2023.3.1 2023.3.2 2023.3.3 2023.3.4 2023.3.5
         2024.0
+        2024.1
         )
 
     find_host_program(rpmlint_PROGRAM NAMES rpmlint DOC "Path to rpmlint")
