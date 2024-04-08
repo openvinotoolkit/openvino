@@ -545,7 +545,7 @@ jobs:
 
           # Find and install the dev OV wheel
           $ovDevWheelPath=Get-ChildItem -Path "${{ env.INSTALL_DIR }}\tools" -Filter openvino_dev*.whl | % { $_.FullName }
-          python3 -m pip install "$ovDevWheelPath[mxnet,caffe,kaldi,onnx,pytorch]"
+          python3 -m pip install "$ovDevWheelPath[mxnet,caffe,kaldi,onnx,pytorch,tensorflow2]"
 
       - name: Install Python API tests dependencies
         run: |
