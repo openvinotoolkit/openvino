@@ -226,7 +226,7 @@ Constant::Constant(const element::Type& type, const Shape& shape, const void* da
 Constant::Constant(const element::Type& type, const Shape& shape, const std::shared_ptr<ov::AlignedBuffer>& data)
     : m_element_type(type),
       m_shape(shape),
-      m_data{data} {
+      m_data(data) {
     constructor_validate_and_infer_types();
 }
 
