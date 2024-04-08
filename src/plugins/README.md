@@ -10,6 +10,7 @@ The list of supported plugins:
  * [intel_cpu](./intel_cpu/README.md)
  * [intel_gna](./intel_gna)
  * [intel_gpu](./intel_gpu/README.md)
+ * [intel_npu](./intel_npu/README.md)
  * [template](./template/README.md)
 
 ## See also
