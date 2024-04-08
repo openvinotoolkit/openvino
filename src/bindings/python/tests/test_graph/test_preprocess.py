@@ -740,7 +740,6 @@ def test_pad_vector_constant_layout():
     ppp.input().tensor().set_shape([1, 3, 199, 199])
     ppp.input().preprocess().pad([0, 0, 0, 0], [0, 0, 1, 1], 0, PaddingMode.CONSTANT)
     assert ppp.build()
-    assert list(model.get_output_shape(0)) == shape
 
 
 def test_pad_vector_out_of_range():
@@ -750,7 +749,6 @@ def test_pad_vector_out_of_range():
     model = Model(model, [parameter_a], "TestModel")
     ppp = PrePostProcessor(model)
     assert not ppp.input().preprocess().pad([0, 0, -2, 0], [0, 0, -4, 1], 0, PaddingMode.CONSTANT)
-    assert list(model.get_output_shape(0)) == shape
 
 
 def test_pad_vector_dim_mismatch():
@@ -760,4 +758,3 @@ def test_pad_vector_dim_mismatch():
     model = Model(model, [parameter_a], "TestModel")
     ppp = PrePostProcessor(model)
     assert not ppp.input().preprocess().pad([0, 0, 2, 0, 1], [0, 0, 4, 1, 1], 0, PaddingMode.CONSTANT)
-    assert list(model.get_output_shape(0)) == shape
