@@ -19,8 +19,8 @@ except ImportError:
 def is_optimum():
     import traceback
     for frame_summary in traceback.extract_stack():
-        if os.path.join("optimum", "intel") in frame_summary.filename or os.path.join("optimum", "exporters",
-                                                                                      "openvino") in frame_summary.filename:
+        if os.path.join("optimum", "intel") in frame_summary.filename or \
+                os.path.join("optimum", "exporters", "openvino") in frame_summary.filename:
             return True
     return False
 
