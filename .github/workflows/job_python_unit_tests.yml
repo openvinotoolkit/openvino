@@ -99,7 +99,7 @@ jobs:
           # Install the core OV wheel
           python3 -m pip install ${INSTALL_DIR}/tools/openvino-*.whl
 
-          extras_to_install="caffe,kaldi,onnx,pytorch"
+          extras_to_install="caffe,kaldi,onnx,tensorflow2,pytorch"
 
           if [[ "${{ runner.arch }}" != "ARM64" ]]; then
             extras_to_install="mxnet,$extras_to_install"
