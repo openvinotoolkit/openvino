@@ -40,16 +40,63 @@ void check_level_zero_attributes_match(const IONodeDescriptor& nodeDescriptor,
             "Given: " + std::to_string(ovDimensions.size()));
     }
 
-    for (size_t index = 0; index < ovDimensions.size(); ++index) {
-        if (ovDimensions[index] != zeDescriptor.info.dims[index] && !nodeDescriptor.originalShape.is_dynamic()) {
-            OPENVINO_THROW("Shape mismatch for parameter " + name);
-        }
-    }
     for (size_t index = ovDimensions.size(); index < ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE; ++index) {
         if (zeDescriptor.info.dims[index] != 0 && zeDescriptor.info.dims[index] != 1) {
             OPENVINO_THROW("Shape mismatch for parameter " + name);
         }
     }
+}
+
+size_t get_batch_size_for_node(const IONodeDescriptor& nodeDescriptor,
+                               const ZeroExecutor::ArgumentDescriptor& zeDescriptor) {
+    const std::vector<size_t>& ovDimensions = nodeDescriptor.originalShape.get_shape();
+    switch (zeDescriptor.info.deviceLayout) {
+    case ZE_GRAPH_ARGUMENT_LAYOUT_NCHW:
+    case ZE_GRAPH_ARGUMENT_LAYOUT_NHWC:
+    case ZE_GRAPH_ARGUMENT_LAYOUT_NCDHW:
+    case ZE_GRAPH_ARGUMENT_LAYOUT_NDHWC:
+    case ZE_GRAPH_ARGUMENT_LAYOUT_NC:
+        if ((ovDimensions[0] == zeDescriptor.info.dims[0]) && (ovDimensions[0] != 1)) {
+            OPENVINO_THROW("Batching on the plugin is not used, batching is handled by the compiler");
+        } else {
+            return ovDimensions[0];
+        }
+        break;
+    default:
+        OPENVINO_THROW("Batching on the plugin is working only when batching is found on 0th dimension");
+    }
+
+    return 1;
+}
+
+size_t get_batch_size(
+    const NetworkMetadata& metadata,
+    const std::unordered_map<std::string, ZeroExecutor::ArgumentDescriptor>& executorInputDescriptors,
+    const std::unordered_map<std::string, ZeroExecutor::ArgumentDescriptor>& executorOutputDescriptors) {
+    std::set<size_t> batch_size;
+
+    for (const std::string& inputName : metadata.inputNames) {
+        if (!executorInputDescriptors.count(inputName)) {
+            OPENVINO_THROW("Invalid graph input descriptor key: " + inputName);
+        }
+        batch_size.insert(
+            get_batch_size_for_node(metadata.parameters.at(inputName), executorInputDescriptors.at(inputName)));
+    }
+
+    for (const std::string& outputName : metadata.outputNames) {
+        if (!executorOutputDescriptors.count(outputName)) {
+            OPENVINO_THROW("Invalid graph output descriptor key: " + outputName);
+        }
+        batch_size.insert(
+            get_batch_size_for_node(metadata.results.at(outputName), executorOutputDescriptors.at(outputName)));
+    }
+
+    if (batch_size.size() != 1) {
+        OPENVINO_THROW("Batching on the plugin is working only when have same value for all tensors!");
+    }
+
+    auto it = batch_size.begin();
+    return *it;
 }
 
 }  // namespace
@@ -93,12 +140,20 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
     auto allocator = zeroMemory::HostMemAllocator(backendPtr);
 
+    if (config.get<BATCH_MODE>() != ov::intel_npu::BatchMode::COMPILER) {
+        try {
+            _batch_size = get_batch_size(_metadata, executorInputDescriptors, executorOutputDescriptors);
+        } catch (const std::exception& ex) {
+            _logger.warning("Got an error when checking the batch size: {0}", ex.what());
+        }
+    }
+
     for (const std::string& inputName : _metadata.inputNames) {
         if (!executorInputDescriptors.count(inputName)) {
             OPENVINO_THROW("Invalid graph input descriptor key: " + inputName);
         }
 
-        const IONodeDescriptor& parameterDescriptor = _metadata.parameters.at(inputName);
+        IONodeDescriptor parameterDescriptor = _metadata.parameters.at(inputName);
         check_level_zero_attributes_match(parameterDescriptor, executorInputDescriptors.at(inputName), inputName);
 
         ov::Allocator inputAllocator;
@@ -107,6 +162,12 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
         } else {
             inputAllocator = zeroMemory::HostMemAllocator(backendPtr);
         };
+
+        // When batching is handled by the plugin we need to modify transposed shape with the original batch size since
+        // it will be forced to 1 at the compilation time
+        if (_batch_size > 1) {
+            parameterDescriptor.transposedShape[0] = _batch_size;
+        }
 
         // The I/O buffers already allocated using the Level Zero API are being reused here
         allocate_tensor(inputName, parameterDescriptor, TensorType::InputOrOutput, inputAllocator);
@@ -128,8 +189,14 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
             OPENVINO_THROW("Invalid graph output descriptor key: " + outputName);
         }
 
-        const IONodeDescriptor& resultDescriptor = _metadata.results.at(outputName);
+        IONodeDescriptor resultDescriptor = _metadata.results.at(outputName);
         check_level_zero_attributes_match(resultDescriptor, executorOutputDescriptors.at(outputName), outputName);
+
+        // When batching is handled by the plugin we need to modify transposed shape with the original batch size since
+        // it will be forced to 1 at the compilation time
+        if (_batch_size > 1) {
+            resultDescriptor.transposedShape[0] = _batch_size;
+        }
 
         allocate_tensor(outputName, resultDescriptor, TensorType::InputOrOutput, allocator);
 
@@ -173,7 +240,13 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
     }
 
     /// Construct pipepline
-    _pipeline = makePipeline(_executorPtr, _config, _profiling_pool, _profiling_query, _npu_profiling, _copyAllTensors);
+    _pipeline = makePipeline(_executorPtr,
+                             _config,
+                             _profiling_pool,
+                             _profiling_query,
+                             _npu_profiling,
+                             _copyAllTensors,
+                             _batch_size);
 }
 
 void ZeroInferRequest::infer() {
@@ -211,13 +284,17 @@ void ZeroInferRequest::infer_async() {
         }
     }
 
-    _pipeline->push();
+    for (size_t i = 0; i < _batch_size; i++) {
+        _pipeline->push(i);
+    }
 }
 
 void ZeroInferRequest::get_result() {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "get_result");
 
-    _pipeline->pull();
+    for (size_t i = 0; i < _batch_size; i++) {
+        _pipeline->pull(i);
+    }
 
     for (const auto& name : _outputAndStateOutputNames) {
         const auto& outputTensor = _allTensors.at(name);
@@ -251,7 +328,9 @@ void ZeroInferRequest::get_result() {
         }
     }
 
-    _pipeline->reset();
+    for (size_t i = 0; i < _batch_size; i++) {
+        _pipeline->reset(i);
+    }
     _logger.debug("InferRequest::get_result finished");
 }
 

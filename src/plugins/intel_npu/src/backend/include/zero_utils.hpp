@@ -10,7 +10,7 @@
 
 #include "intel_npu/al/config/runtime.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "intel_npu/utils/zero/zero_result.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 
 namespace intel_npu {
 

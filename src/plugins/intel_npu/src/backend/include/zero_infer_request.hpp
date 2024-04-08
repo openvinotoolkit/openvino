@@ -46,6 +46,10 @@ private:
     zeroProfiling::ProfilingQuery _profiling_query;
     std::shared_ptr<zeroProfiling::NpuInferProfiling> _npu_profiling;
     std::unique_ptr<Pipeline> _pipeline;
+
+    // If batching is handled on the compiler side then batching on the plugin shall be set to 1, we don't do any
+    // specific operations on the plugin in this case.
+    size_t _batch_size = 1;
 };
 
 }  //  namespace intel_npu

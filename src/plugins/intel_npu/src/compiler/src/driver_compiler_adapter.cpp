@@ -6,7 +6,7 @@
 
 #include "graph_transformations.hpp"
 #include "intel_npu/al/config/common.hpp"
-#include "intel_npu/utils/zero/zero_result.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "ze_intel_vpu_uuid.h"
 #include "zero_compiler_in_driver.hpp"
 

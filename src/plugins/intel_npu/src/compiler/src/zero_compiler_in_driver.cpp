@@ -11,7 +11,7 @@
 #include "intel_npu/al/config/runtime.hpp"
 #include "intel_npu/al/itt.hpp"
 #include "intel_npu/al/prefix.hpp"
-#include "intel_npu/utils/zero/zero_result.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/core/model.hpp"
 
 namespace {
@@ -466,7 +466,7 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeConfig(
     }
 
     /// Stepping and max_tiles are not supported in versions < 5.3 - need to remove it
-    if ((compilerVersion.major < 5) || (compilerVersion.major <= 5 && compilerVersion.minor < 3)) {
+    if ((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 3)) {
         std::ostringstream stepstr;
         stepstr << ov::intel_npu::stepping.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\d+"
                 << VALUE_DELIMITER;
@@ -478,8 +478,9 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeConfig(
         _logger.warning("NPU_MAX_TILES property is not suppored by this compiler version. Removing from parameters");
         content = std::regex_replace(content, std::regex(maxtilestr.str()), "");
     }
+
     /// Removing INFERENCE_PRECISION_HINT for older compilers
-    if ((compilerVersion.major < 5) || (compilerVersion.major <= 5 && compilerVersion.minor < 4)) {
+    if ((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 4)) {
         std::ostringstream precstr;
         precstr << ov::hint::inference_precision.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
                 << VALUE_DELIMITER;
@@ -487,11 +488,21 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeConfig(
             "INFERENCE_PRECISION_HINT property is not suppored by this compiler version. Removing from parameters");
         content = std::regex_replace(content, std::regex(precstr.str()), "");
     }
+
     /// Replacing NPU_TILES (for all versions) with NPU_DPU_GROUPS for backwards compatibility
     if (std::regex_search(content, std::regex(ov::intel_npu::tiles.name()))) {
         _logger.warning("NPU_TILES property is not suppored by this compiler version. Swaping it to "
                         "NPU_DPU_GROUPS (obsolete)");
         content = std::regex_replace(content, std::regex(ov::intel_npu::tiles.name()), "NPU_DPU_GROUPS");
+    }
+
+    // Batch mode property is not supported in versions < 5.5 - need to remove it
+    if ((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 5)) {
+        std::ostringstream batchstr;
+        batchstr << ov::intel_npu::batch_mode.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
+                 << VALUE_DELIMITER;
+        _logger.warning("NPU_BATCH_MODE property is not suppored by this compiler version. Removing from parameters");
+        content = std::regex_replace(content, std::regex(batchstr.str()), "");
     }
 
     return "--config " + content;
@@ -981,24 +992,31 @@ static void getNodeDescriptor(IONodeDescriptorMap& nodeDescriptors,
         {legacyName, metadata.friendly_name, std::move(outputTensorNames), precision, shape, shape};
 }
 
-static void getNodeDescriptor(IONodeDescriptorMap& nodeDescriptors,
-                              std::vector<std::string>& names,
-                              ze_graph_argument_properties_3_t& arg) {
+void getNodeDescriptor(IONodeDescriptorMap& nodeDescriptors,
+                       std::vector<std::string>& names,
+                       ze_graph_argument_properties_3_t& arg,
+                       ze_graph_argument_metadata_t& metadata) {
     ov::element::Type_t precision = toOVElementType(arg.devicePrecision);
-    ov::Shape shape;
+    ov::Shape transposedShape, originalShape;
     std::unordered_set<std::string> outputTensorNames;
 
     for (uint32_t id = 0; id < arg.associated_tensor_names_count; id++) {
         outputTensorNames.insert(arg.associated_tensor_names[id]);
     }
+
     for (uint32_t id = 0; id < arg.dims_count; id++) {
-        shape.push_back(arg.dims[id]);
+        transposedShape.push_back(arg.dims[id]);
     }
+
+    for (uint32_t id = 0; id < metadata.shape_size; id++) {
+        originalShape.push_back(metadata.shape[id]);
+    }
+
     const std::string& legacyName = arg.name;
 
     names.push_back(arg.debug_friendly_name);
     nodeDescriptors[arg.debug_friendly_name] =
-        {legacyName, arg.debug_friendly_name, std::move(outputTensorNames), precision, shape, shape};
+        {legacyName, arg.debug_friendly_name, std::move(outputTensorNames), precision, originalShape, transposedShape};
 }
 
 template <>
@@ -1093,12 +1111,23 @@ void LevelZeroCompilerInDriver<TableExtension>::getMetadata(TableExtension* grap
     }
 
     if (!isStateInputName(arg.name) && !isStateOutputName(arg.name)) {
+        ze_graph_argument_metadata_t metadata;
+        result = graphDdiTableExt->pfnGraphGetArgumentMetadata(graphHandle, index, &metadata);
+        if (ZE_RESULT_SUCCESS != result) {
+            OPENVINO_THROW("L0 pfnGraphGetArgumentMetadata",
+                           " result: ",
+                           ze_result_to_string(result),
+                           ", code 0x",
+                           std::hex,
+                           uint64_t(result));
+        }
+
         if (ZE_GRAPH_ARGUMENT_TYPE_INPUT == arg.type) {
-            getNodeDescriptor(parameters, inputNames, arg);
+            getNodeDescriptor(parameters, inputNames, arg, metadata);
         }
 
         if (ZE_GRAPH_ARGUMENT_TYPE_OUTPUT == arg.type) {
-            getNodeDescriptor(results, outputNames, arg);
+            getNodeDescriptor(results, outputNames, arg, metadata);
         }
     }
 

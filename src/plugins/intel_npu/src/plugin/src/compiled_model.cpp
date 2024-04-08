@@ -318,6 +318,12 @@ void CompiledModel::initialize_properties() {
           [](const Config& config) {
               return config.get<CREATE_EXECUTOR>();
           }}},
+        {ov::intel_npu::batch_mode.name(),
+         {false,
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.getString<BATCH_MODE>();
+          }}},
     };
 
     for (auto& property : _properties) {

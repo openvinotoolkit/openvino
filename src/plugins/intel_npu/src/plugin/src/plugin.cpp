@@ -13,6 +13,7 @@
 #include "intel_npu/al/config/compiler.hpp"
 #include "intel_npu/al/config/runtime.hpp"
 #include "intel_npu/al/itt.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
@@ -37,18 +38,31 @@ const char* NPU_PLUGIN_LIB_NAME = "openvino_intel_npu_plugin";
  * @param resultDescriptors Describes the output nodes.
  * @param inputNames The names of the inputs registered in the order given by the model.
  * @param outputNames The names of the outputs registered in the order given by the model.
+ * @param config
  */
-std::shared_ptr<ov::Model> create_dummy_model(const IONodeDescriptorMap& parameterDescriptors,
-                                              const IONodeDescriptorMap& resultDescriptors,
+std::shared_ptr<ov::Model> create_dummy_model(IONodeDescriptorMap& parameterDescriptors,
+                                              IONodeDescriptorMap& resultDescriptors,
                                               const std::vector<std::string>& inputNames,
-                                              const std::vector<std::string>& outputNames) {
+                                              const std::vector<std::string>& outputNames,
+                                              const Config& config) {
     ov::ParameterVector parameters;
     ov::NodeVector results;
 
+    const auto& batchMode = config.get<BATCH_MODE>();
+
     for (const std::string& inputName : inputNames) {
-        const IONodeDescriptor& parameterDescriptor = parameterDescriptors.at(inputName);
-        std::shared_ptr<ov::op::v0::Parameter> parameter =
-            std::make_shared<ov::op::v0::Parameter>(parameterDescriptor.precision, parameterDescriptor.transposedShape);
+        IONodeDescriptor& parameterDescriptor = parameterDescriptors.at(inputName);
+
+        std::shared_ptr<ov::op::v0::Parameter> parameter = [&] {
+            if (batchMode != ov::intel_npu::BatchMode::COMPILER) {
+                return std::make_shared<ov::op::v0::Parameter>(parameterDescriptor.precision,
+                                                               parameterDescriptor.originalShape);
+            } else {
+                return std::make_shared<ov::op::v0::Parameter>(parameterDescriptor.precision,
+                                                               parameterDescriptor.transposedShape);
+            }
+        }();
+
         parameter->set_friendly_name(parameterDescriptor.currentNodeName);
         parameter->output(0).get_tensor().set_names(parameterDescriptor.outputTensorNames);
         parameters.push_back(parameter);
@@ -60,15 +74,22 @@ std::shared_ptr<ov::Model> create_dummy_model(const IONodeDescriptorMap& paramet
     // constant can't have dynamic shape). The dummy tensor was also brought in order to register the correct,
     // potentially dynamic, output shape.
     for (const std::string& outputName : outputNames) {
-        const IONodeDescriptor& resultDescriptor = resultDescriptors.at(outputName);
+        IONodeDescriptor& resultDescriptor = resultDescriptors.at(outputName);
         std::shared_ptr<ov::Node> constantDummy =
             std::make_shared<ov::op::v0::Constant>(resultDescriptor.precision, CONSTANT_NODE_DUMMY_SHAPE);
         constantDummy->set_friendly_name(resultDescriptor.legacyName);
 
-        const std::shared_ptr<ov::descriptor::Tensor>& tensorDummy =
-            std::make_shared<ov::descriptor::Tensor>(resultDescriptor.precision,
-                                                     resultDescriptor.transposedShape,
-                                                     resultDescriptor.outputTensorNames);
+        const std::shared_ptr<ov::descriptor::Tensor>& tensorDummy = [&] {
+            if (batchMode != ov::intel_npu::BatchMode::COMPILER) {
+                return std::make_shared<ov::descriptor::Tensor>(resultDescriptor.precision,
+                                                                resultDescriptor.originalShape,
+                                                                resultDescriptor.outputTensorNames);
+            } else {
+                return std::make_shared<ov::descriptor::Tensor>(resultDescriptor.precision,
+                                                                resultDescriptor.transposedShape,
+                                                                resultDescriptor.outputTensorNames);
+            }
+        }();
 
         std::shared_ptr<ov::Node> result = std::make_shared<ov::op::v0::Result>(constantDummy);
         result->output(0).set_tensor_ptr(tensorDummy);
@@ -77,6 +98,18 @@ std::shared_ptr<ov::Model> create_dummy_model(const IONodeDescriptorMap& paramet
     }
 
     return std::make_shared<ov::Model>(results, parameters);
+}
+
+bool check_batch_on_plugin(const IONodeDescriptorMap& parameterDescriptors,
+                           const std::vector<std::string>& inputNames) {
+    for (const std::string& inputName : inputNames) {
+        const IONodeDescriptor& parameterDescriptor = parameterDescriptors.at(inputName);
+
+        if (parameterDescriptor.originalShape[0] == parameterDescriptor.transposedShape[0]) {
+            return false;
+        }
+    }
+    return true;
 }
 
 std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
@@ -423,6 +456,12 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.getString<BACKEND_COMPILATION_PARAMS>();
           }}},
+        {ov::intel_npu::batch_mode.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.getString<BATCH_MODE>();
+          }}},
     };
 
     for (auto& property : _properties) {
@@ -485,6 +524,32 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto device = _backends->getDevice(localConfig.get<DEVICE_ID>());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
 
+    if (!support_batching_on_plugin(_backends->getDriverExtVersion()) || platform == ov::intel_npu::Platform::NPU3700) {
+        std::stringstream strStream;
+        strStream << ov::intel_npu::BatchMode::COMPILER;
+        localConfig.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
+    }
+
+    if (!localConfig.has<BATCH_MODE>()) {
+        std::stringstream strStream;
+        strStream << ov::intel_npu::BatchMode::AUTO;
+        localConfig.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
+    }
+
+    const auto batch_mode = localConfig.get<BATCH_MODE>();
+    if (model->get_variables().size()) {
+        if (batch_mode == ov::intel_npu::BatchMode::AUTO) {
+            std::stringstream strStream;
+            strStream << ov::intel_npu::BatchMode::COMPILER;
+            localConfig.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
+
+            _logger.warning(
+                "This model does not support handling batching on the plugin, it will be handled by the compiler");
+        } else if (batch_mode == ov::intel_npu::BatchMode::PLUGIN) {
+            OPENVINO_THROW("This model does not support handling batching on the plugin");
+        }
+    }
+
     // Update stepping w/ information from driver, unless provided by user or we are off-device
     // Ignore, if compilation was requested for platform, different from current
     if (!localConfig.has<STEPPING>() && device != nullptr && device->getName() == platform) {
@@ -520,6 +585,17 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     } catch (...) {
         _logger.error("Unexpected exception");
         OPENVINO_THROW("NPU ExecutableNetwork got unexpected exception from compiler");
+    }
+
+    // When batching is handled by the plugin we need to modify performance_mode property to Throughput mode
+    if (check_batch_on_plugin(networkDescription->metadata.parameters, networkDescription->metadata.inputNames) &&
+        localConfig.get<BATCH_MODE>() != ov::intel_npu::BatchMode::COMPILER) {
+        const auto performance_mode = localConfig.get<PERFORMANCE_HINT>();
+        if (performance_mode == ov::hint::PerformanceMode::LATENCY) {
+            std::stringstream strStream;
+            strStream << ov::hint::PerformanceMode::THROUGHPUT;
+            localConfig.update({{ov::hint::performance_mode.name(), strStream.str()}});
+        }
     }
 
     try {
@@ -566,6 +642,18 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
     auto device = _backends->getDevice(localConfig.get<DEVICE_ID>());
 
+    if (!support_batching_on_plugin(_backends->getDriverExtVersion()) || platform == ov::intel_npu::Platform::NPU3700) {
+        std::stringstream strStream;
+        strStream << ov::intel_npu::BatchMode::COMPILER;
+        localConfig.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
+    }
+
+    if (!localConfig.has<BATCH_MODE>()) {
+        std::stringstream strStream;
+        strStream << ov::intel_npu::BatchMode::AUTO;
+        localConfig.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
+    }
+
     Logger logger("NPUPlugin", localConfig.get<LOG_LEVEL>());
 
     const auto loadedFromCache = localConfig.get<LOADED_FROM_CACHE>();
@@ -590,8 +678,19 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         auto meta = compiler->parse(blob, localConfig);
         meta.name = "net" + std::to_string(_compiledModelLoadCounter++);
 
+        const auto& batchMode = localConfig.get<BATCH_MODE>();
+        if (check_batch_on_plugin(meta.parameters, meta.inputNames) &&
+            batchMode != ov::intel_npu::BatchMode::COMPILER) {
+            const auto performance_mode = localConfig.get<PERFORMANCE_HINT>();
+            if (performance_mode == ov::hint::PerformanceMode::LATENCY) {
+                std::stringstream strStream;
+                strStream << ov::hint::PerformanceMode::THROUGHPUT;
+                localConfig.update({{ov::hint::performance_mode.name(), strStream.str()}});
+            }
+        }
+
         const std::shared_ptr<ov::Model> modelDummy =
-            create_dummy_model(meta.parameters, meta.results, meta.inputNames, meta.outputNames);
+            create_dummy_model(meta.parameters, meta.results, meta.inputNames, meta.outputNames, localConfig);
 
         bool profiling = localConfig.get<PERF_COUNT>();
 
