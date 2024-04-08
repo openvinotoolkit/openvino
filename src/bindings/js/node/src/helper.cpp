@@ -306,7 +306,7 @@ ov::Tensor cast_to_tensor(const Napi::Value& value) {
 
 ov::Tensor cast_to_tensor(const Napi::CallbackInfo& info, int index) {
     if (!is_tensor(info.Env(), info[index])) {
-        throw Napi::Error::New(info.Env(), "Argument #" + std::to_string(index) + " must be a Tensor.");
+        OPENVINO_THROW(std::string("Argument #" + std::to_string(index) + " must be a Tensor."));
     }
     const auto tensor_wrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[index].ToObject());
     return tensor_wrap->get_tensor();
