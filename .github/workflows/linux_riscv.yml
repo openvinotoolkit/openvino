@@ -90,16 +90,15 @@ jobs:
         id: ccache_restore
         uses: ./openvino/.github/actions/cache
         with:
-          save-always: true
+          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
           cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
           cache-size: 10
           max-cache-size: 50
           cache-path: ${{ env.CCACHE_REMOTE_DIR }}
           path: ${{ env.CCACHE_DIR }}
-          key: ${{ runner.os }}-${{ runner.arch }}-${{ github.ref_name == 'master' && '' || github.event.number }}ccache-${{ github.sha }}
+          key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-ccache
-            ${{ runner.os }}-${{ runner.arch }}-${{ github.event.number }}ccache
 
       - name: Init submodules for non-Conan dependencies
         run: |
