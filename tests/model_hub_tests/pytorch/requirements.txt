@@ -1,0 +1,27 @@
+-c ../../constraints.txt
+--extra-index-url https://download.pytorch.org/whl/cpu
+auto-gptq>=0.5.1
+av
+basicsr
+datasets
+facexlib
+numpy
+optimum
+packaging
+pandas
+protobuf
+pyctcdecode
+pytest
+pytest-html
+sacremoses
+sentencepiece
+soundfile
+super-image
+timm
+torch
+torchaudio
+torchvision
+transformers
+wheel
+PyYAML
+kornia

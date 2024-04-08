@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,19 +51,23 @@ bool LogicalNot::evaluate(TensorVector& outputs, const TensorVector& inputs) con
     outputs[0].set_shape(inputs[0].get_shape());
 
     using namespace ov::element;
-    return IF_TYPE_OF(v1_LogicalNot_evaluate,
-                      OV_PP_ET_LIST(boolean, i32, i64, u32, u64, f16, f32),
-                      logical_not::Evaluate,
-                      inputs[0].get_element_type(),
-                      inputs[0],
-                      outputs[0],
-                      shape_size(inputs[0].get_shape()));
+    return IF_TYPE_OF_CONVERT_TENSORS(v1_LogicalNot_evaluate,
+                                      this,
+                                      outputs,
+                                      inputs,
+                                      OV_PP_ET_LIST(boolean, u8, i32, i64, u32, u64, f32),
+                                      logical_not::Evaluate,
+                                      inputs[0].get_element_type(),
+                                      inputs[0],
+                                      outputs[0],
+                                      shape_size(inputs[0].get_shape()));
 }
 
 bool LogicalNot::has_evaluate() const {
     OV_OP_SCOPE(v1_LogicalNot_has_evaluate);
     switch (get_input_element_type(0)) {
     case element::boolean:
+    case element::u8:
     case element::f16:
     case element::f32:
     case element::i32:

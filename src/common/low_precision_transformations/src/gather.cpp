@@ -2,19 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision/gather.hpp"
-
 #include <memory>
 
 #include "itt.hpp"
+#include "openvino/util/log.hpp"
+
+#include "low_precision/gather.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset7.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace pass {
@@ -119,7 +120,9 @@ bool GatherTransformation::transform(TransformationContext& context, ov::pass::p
         replace_node(dequantization.subtractConstant, newConstant);
     }
 
-    moveDequantizationAfter(context, gather, NetworkHelper::getDequantization(gather, defaultPrecisions), false);
+    const auto newOperation = moveDequantizationAfter(context, gather, NetworkHelper::getDequantization(gather, defaultPrecisions));
+
+    OPENVINO_DEBUG << "LPT: done: " << newOperation;
     return true;
 }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,8 +17,8 @@ class FuseMultiplyToFakeQuantizeTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     ov::PartialShape inputShape;

@@ -86,6 +86,7 @@ class ReferenceTILayerTest : public testing::TestWithParam<TensorIteratorParams>
 public:
     void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        legacy_compare = true;
         auto params = GetParam();
         function = params.function->create_function(params.inputs, params.expected_results);
         inputData.reserve(params.inputs.size());
@@ -483,6 +484,7 @@ class ReferenceTILayerStaticTest : public testing::TestWithParam<TensorIteratorS
 public:
     void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        legacy_compare = true;
         auto params = GetParam();
         function = params.function->create_function(params);
         if (params.body_type == TensorIteratorBodyType::LSTM) {

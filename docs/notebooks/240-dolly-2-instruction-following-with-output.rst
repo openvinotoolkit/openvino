@@ -81,8 +81,8 @@ dataset can be found in `Databricks blog
 post <https://www.databricks.com/blog/2023/04/12/dolly-first-open-commercially-viable-instruction-tuned-llm>`__
 and `repo <https://github.com/databrickslabs/dolly>`__
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Prerequisites <#prerequisites>`__
 
@@ -121,7 +121,7 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 
 .. code:: ipython3
 
-    %pip install -q "diffusers>=0.16.1" "transformers>=4.33.0" "openvino>=2023.2.0" "nncf>=2.6.0" datasets onnx gradio --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "diffusers>=0.16.1" "transformers>=4.33.0" "openvino>=2023.2.0" "nncf>=2.6.0" onnx gradio --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q --upgrade "git+https://github.com/huggingface/optimum-intel.git" 
 
 Select inference device

@@ -24,14 +24,13 @@ std::string SpaceToBatchTransformation::getTestCaseName(const testing::TestParam
 }
 
 void SpaceToBatchTransformation::SetUp() {
-    abs_threshold = 1.1;
     ov::element::Type input_type;
     SpaceToBatchTransformationParam param;
     std::tie(input_type, targetDevice, param) = this->GetParam();
 
     init_input_shapes(param.input_shape);
 
-    function = ngraph::builder::subgraph::SpaceToBatchFunction::get(
+    function = ov::builder::subgraph::SpaceToBatchFunction::get(
         param.input_shape,
         input_type,
         param.fake_quantize,

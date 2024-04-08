@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -169,8 +169,8 @@ struct gather : public primitive_base<gather> {
     }
 
 protected:
-    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
-        std::vector<std::reference_wrapper<const primitive_id>> ret;
+    std::vector<input_info> get_dependencies() const override {
+        std::vector<input_info> ret;
 
         if (decompression_scale.is_valid())
             ret.push_back(decompression_scale.pid);

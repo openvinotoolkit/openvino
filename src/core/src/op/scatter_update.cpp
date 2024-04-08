@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,10 +9,10 @@
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/reference/scatter_update.hpp"
 #include "utils.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -106,9 +106,9 @@ bool ScatterUpdate::has_evaluate() const {
     }
 }
 
-bool ScatterUpdate::evaluate_label(TensorLabelVector& output_labels) const {
-    OV_OP_SCOPE(v3_ScatterUpdate_evaluate_label);
-    return default_label_evaluator(this, {0, 2}, output_labels);
+bool ScatterUpdate::evaluate_symbol(TensorSymbolVector& output_symbols) const {
+    OV_OP_SCOPE(v3_ScatterUpdate_evaluate_symbol);
+    return default_symbol_evaluator(this, {0, 2}, output_symbols);
 }
 }  // namespace v3
 }  // namespace op

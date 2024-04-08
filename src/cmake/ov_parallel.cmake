@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -274,7 +274,7 @@ function(ov_set_threading_interface_for TARGET_NAME)
         set(LINK_TYPE "PRIVATE")
         set(COMPILE_DEF_TYPE "PRIVATE")
     elseif(target_type STREQUAL "STATIC_LIBRARY")
-        # Affected libraries: inference_engine_s
+        # Affected libraries: openvino_runtime_s
         # they don't have TBB in public headers => PRIVATE
         set(LINK_TYPE "PRIVATE")
         set(COMPILE_DEF_TYPE "PUBLIC")
@@ -296,7 +296,7 @@ function(ov_set_threading_interface_for TARGET_NAME)
                 if(include_directories)
                     foreach(include_directory IN LISTS include_directories)
                         # cannot include /usr/include headers as SYSTEM
-                        if(NOT "${include_directory}" MATCHES "^/usr.*$")
+                        if(NOT "${include_directory}" MATCHES ".*/usr/include.*$")
                             target_include_directories(${TARGET_NAME} SYSTEM
                                 ${LINK_TYPE} $<BUILD_INTERFACE:${include_directory}>)
                         else()

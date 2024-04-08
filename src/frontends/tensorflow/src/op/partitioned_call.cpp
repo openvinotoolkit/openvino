@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,6 +60,13 @@ OutputVector translate_partitioned_call_op(const NodeContext& node) {
     // set output tensor names
     for (size_t idx = 0; idx < ov_outputs.size(); ++idx) {
         set_out_name({node_name + ":" + to_string(idx)}, ov_outputs[idx]);
+    }
+
+    // pass Sink operations to outer graph
+    for (auto node : body_model->get_sinks()) {
+        if (node->outputs().size()) {
+            ov_outputs.push_back(node->outputs()[0]);
+        }
     }
 
     return ov_outputs;

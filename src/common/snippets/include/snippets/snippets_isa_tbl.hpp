@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@ OV_OP(LoopBegin, ov::snippets::op)
 OV_OP(LoopEnd, ov::snippets::op)
 OV_OP(Brgemm, ov::snippets::op)
 OV_OP(BroadcastLoad, ov::snippets::op)
+OV_OP(Reshape, ov::snippets::op)
 
 OV_OP(Store, ov::snippets::op)
 
@@ -23,6 +24,8 @@ OV_OP(BroadcastMove, ov::snippets::op)
 OV_OP(Scalar, ov::snippets::op)
 OV_OP(Nop, ov::snippets::op)
 OV_OP(RankNormalization, ov::snippets::op)
+OV_OP(ReduceMax, ov::snippets::op)
+OV_OP(ReduceSum, ov::snippets::op)
 
 #ifdef SNIPPETS_DEBUG_CAPS
 OV_OP(PerfCountBegin, ov::snippets::op)

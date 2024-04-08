@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,13 +24,6 @@ struct softmax_params : public base_params {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// softmax_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct softmax_optional_params : optional_params {
-    softmax_optional_params() : optional_params(KernelType::SOFT_MAX) {}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // SoftmaxKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class SoftmaxKernelBase : public KernelBaseOpenCL {
@@ -50,10 +43,10 @@ public:
     };
 
 protected:
-    bool Validate(const Params&, const optional_params&) const override;
+    bool Validate(const Params&) const override;
     virtual JitConstants GetJitConstants(const softmax_params& params, DispatchData dispatchData) const;
     virtual DispatchData SetDefault(const softmax_params& params) const;
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params& optParams) const;
+    KernelsData GetCommonKernelsData(const Params& params) const;
     Datatype GetActivationType(const softmax_params& params) const {
         if (params.inputs[0].GetDType() == Datatype::F16)
             return Datatype::F16;
@@ -69,7 +62,7 @@ public:
     virtual ~SoftmaxKernelBaseBF() {}
 
 protected:
-    bool Validate(const Params&, const optional_params&) const override;
+    bool Validate(const Params&) const override;
     DispatchData SetDefault(const softmax_params& params) const override;
 };
 }  // namespace kernel_selector

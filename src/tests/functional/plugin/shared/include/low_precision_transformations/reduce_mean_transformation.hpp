@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,11 +21,11 @@ public:
 
 class ReduceMeanTransformationParam {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convert;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    ov::builder::subgraph::DequantizationOperations::Convert convert;
+    ov::builder::subgraph::DequantizationOperations dequantizationBefore;
     ReduceMeanOperation reduceMean;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+    ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     std::string layerName;
     std::string expectedKernelType;
 };

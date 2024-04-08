@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -278,6 +278,9 @@ bool Deconvolution::canBeExecutedInInt8() const {
     if (std::dynamic_pointer_cast<Input>(getParentEdgeAt(1)->getParent()) == nullptr) {
         return false;
     }
+    if (!one_of(getInputShapeAtPort(0).getRank(), 3ul, 4ul, 5ul)) {
+        return false;
+    }
 
     if (!withGroups && deconvAttrs.stride.back() > 3)
         return false;
@@ -464,8 +467,8 @@ void Deconvolution::getSupportedDescriptors() {
     }
     VectorDims inDims, outDims;
     std::tie(inDims, outDims) = makeDummyInOutShape();
-    inShape = Shape(inDims);
-    Shape outShape(outDims);
+    inShape  = Shape(inDims);
+    outShape = Shape(outDims);
     initPaddingR(inShape, outShape);
 
 #if defined(OV_CPU_WITH_ACL)
@@ -474,32 +477,39 @@ void Deconvolution::getSupportedDescriptors() {
     config.outConfs.resize(getOriginalOutputsNumber());
 
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-    for (size_t i = 0; i < getParentEdges().size(); ++i) {
-        auto checkDesc = [&](LayoutType format) -> bool {
-            NodeConfig config;
-            config.inConfs.resize(getParentEdges().size());
-            config.outConfs.resize(getOriginalOutputsNumber());
+    auto checkDesc = [&](LayoutType format, LayoutType weights_format = LayoutType::ncsp) -> bool {
+        NodeConfig config;
+        config.inConfs.resize(getParentEdges().size());
+        config.outConfs.resize(getOriginalOutputsNumber());
+        // ACL use same precision for all inputs
+        config.inConfs[0].setMemDesc(
+                creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(0), getInputShapeAtPort(0)));
+        config.inConfs[1].setMemDesc(
+                creatorsMap.at(weights_format)->createSharedDesc(getOriginalInputPrecisionAtPort(0), getInputShapeAtPort(1)));
+        for (size_t i = 2; i < getParentEdges().size(); ++i) {
+            config.inConfs[i].setMemDesc(
+                    creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(0), getInputShapeAtPort(i)));
+        }
 
-            for (size_t i = 0; i < getParentEdges().size(); ++i) {
-                config.inConfs[i].setMemDesc(
-                        creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(i), getInputShapeAtPort(i)));
-            }
-            config.outConfs[0].setMemDesc(
-                    creatorsMap.at(format)->createSharedDesc(getOriginalOutputPrecisionAtPort(0), getOutputShapeAtPort(0)));
+        for (size_t i = 0; i < getChildEdges().size(); ++i) {
+            config.outConfs[i].setMemDesc(
+                    creatorsMap.at(format)->createSharedDesc(getOriginalOutputPrecisionAtPort(0), getOutputShapeAtPort(i)));
+        }
 
-            std::vector<MemoryDescPtr> srcMemoryDescs;
-            for (size_t i = 0; i < config.inConfs.size(); i++) {
-                srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
-            }
-            std::vector<MemoryDescPtr> dstMemoryDescs;
-            for (size_t i = 0; i < config.outConfs.size(); i++) {
-                dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
-            }
+        std::vector<MemoryDescPtr> srcMemoryDescs;
+        srcMemoryDescs.push_back(config.inConfs[0].getMemDesc()->cloneWithNewDims(inDims));
+        for (size_t i = 1; i < config.inConfs.size(); i++) {
+            srcMemoryDescs.push_back(config.inConfs[i].getMemDesc()->clone());
+        }
+        std::vector<MemoryDescPtr> dstMemoryDescs;
+        dstMemoryDescs.push_back(config.outConfs[0].getMemDesc()->cloneWithNewDims(outDims));
+        for (size_t i = 1; i < config.outConfs.size(); i++) {
+            dstMemoryDescs.push_back(config.outConfs[i].getMemDesc()->clone());
+        }
 
-            return AclDeconvExecutorBuilder::customIsSupported(deconvAttrs, srcMemoryDescs, dstMemoryDescs);
-        };
-        useACL = checkDesc(LayoutType::nspc) || checkDesc(LayoutType::ncsp);
-    }
+        return AclDeconvExecutorBuilder::customIsSupported(deconvAttrs, srcMemoryDescs, dstMemoryDescs);
+    };
+    useACL = checkDesc(LayoutType::nspc) || checkDesc(LayoutType::ncsp);
     if (useACL) return;
 #endif
 
@@ -510,7 +520,10 @@ void Deconvolution::getSupportedDescriptors() {
         //  WA: if int8 deconvolution is supported, we create internal weights blob in IO format
         std::swap(int8WeightDims[withGroups + 0], int8WeightDims[withGroups + 1]);
         internalBlobs.push_back(createWeiBlobAsIO(int8WeightDims));
-        auto format = getInputShapeAtPort(0).getRank() == 5 ? dnnl::memory::format_tag::ndhwc : dnnl::memory::format_tag::nhwc;
+        const auto& rank = getInputShapeAtPort(0).getRank();
+        auto format = rank == 5   ? dnnl::memory::format_tag::ndhwc
+                      : rank == 4 ? dnnl::memory::format_tag::nhwc
+                                  : dnnl::memory::format_tag::nwc;
         MemoryDescPtr in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0), inputDataType, format);
         MemoryDescPtr out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(0), outputDataType, format);
         createDescriptor({in_candidate}, {out_candidate});
@@ -555,7 +568,7 @@ void Deconvolution::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dim
     //                                  weiScaleMaskPerChannel =  1 << 0
     // Weight dims in Group deconv:     [Group, Deconv_OC, Deconv_IC, KH, KW], perchannel weight scale is applied on GROUP and Deconv_OC,
     //                                   weiScaleMaskPerChannel = ( 1 << 0 | 1 << 1) = 0x03
-    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, 1, isInt8, withGroups ? 3 : 1 << 0,  getDQScales(), withBiases);
+    DnnlPostOpsComposerLegacy dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, 1, isInt8, withGroups ? 3 : 1 << 0,  getDQScales(), withBiases);
 
     for (size_t i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];
@@ -644,11 +657,11 @@ void Deconvolution::execute(dnnl::stream strm) {
     if (useACL) {
         std::vector<MemoryCPtr> srcMemory;
         for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
-            srcMemory.push_back(getParentEdgeAt(i)->getMemoryPtr());
+            srcMemory.push_back(getSrcMemoryAtPort(i));
         }
         std::vector<MemoryPtr> dstMemory;
         for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
-            dstMemory.push_back(getChildEdgeAt(i)->getMemoryPtr());
+            dstMemory.push_back(getDstMemoryAtPort(i));
         }
         //TODO: need to pass post ops data
         execPtrDeconv->exec(srcMemory, dstMemory, nullptr);
@@ -751,14 +764,14 @@ dnnl::primitive_desc createDescriptorInternalInt8(const dnnl::memory::desc& in_c
 }
 
 DefaultDeconvDescs createDefaultMkldnnDeconvDesc(const dnnl::memory::desc& srcDesc,
-                                                                    const dnnl::memory::desc& wghDesc,
-                                                                    const dnnl::memory::desc& dstDesc,
-                                                                    const std::vector<ptrdiff_t>& stride,
-                                                                    const std::vector<ptrdiff_t>& dilation,
-                                                                    const ov::CoordinateDiff& paddingL,
-                                                                    const ov::CoordinateDiff& paddingR,
-                                                                    const dnnl::primitive_attr& attr,
-                                                                    const dnnl::engine& engine) {
+                                                 const dnnl::memory::desc& wghDesc,
+                                                 const dnnl::memory::desc& dstDesc,
+                                                 const std::vector<ptrdiff_t>& stride,
+                                                 const std::vector<ptrdiff_t>& dilation,
+                                                 const ov::CoordinateDiff& paddingL,
+                                                 const ov::CoordinateDiff& paddingR,
+                                                 const dnnl::primitive_attr& attr,
+                                                 const dnnl::engine& engine) {
     dnnl::algorithm alg = dnnl::algorithm::convolution_direct;
     convolution_backward_data::primitive_desc deconv_desc;
     convolution_forward::primitive_desc fwd_conv_pd;
@@ -823,13 +836,13 @@ void Deconvolution::createPrimitive() {
             inDims = getInputShapeAtPort(0).getStaticDims();
             outDims = getOutputShapeAtPort(0).getStaticDims();
 
-            inDesc = getParentEdgesAtPort(0).front()->getMemory().getDescWithType<DnnlMemoryDesc>();
-            outDesc = getChildEdgesAtPort(0).front()->getMemory().getDescWithType<DnnlMemoryDesc>();
+            inDesc = getParentEdgeAt(0)->getMemory().getDescWithType<DnnlMemoryDesc>();
+            outDesc = getChildEdgeAt(0)->getMemory().getDescWithType<DnnlMemoryDesc>();
         }
 
         dnnl::memory::desc dnnlBiasDesc;
         if (withBiases) {
-            DnnlMemoryDescPtr biasDesc = getParentEdgesAtPort(biasPort).front()->getMemory().getDescWithType<DnnlMemoryDesc>();
+            DnnlMemoryDescPtr biasDesc = getParentEdgeAt(biasPort)->getMemory().getDescWithType<DnnlMemoryDesc>();
             dnnlBiasDesc = biasDesc->getDnnlDesc();
         }
 
@@ -854,9 +867,9 @@ void Deconvolution::createPrimitive() {
 }
 
 void Deconvolution::prepareParams() {
-    auto srcMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
-    auto wghMemPtr = getParentEdgesAtPort(1)[0]->getMemoryPtr();
-    auto dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
+    auto srcMemPtr = getSrcMemoryAtPort(0);
+    auto wghMemPtr = getSrcMemoryAtPort(1);
+    auto dstMemPtr = getDstMemoryAtPort(0);
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         OPENVINO_THROW("Destination memory has not been allocated.");
     if (!srcMemPtr || !srcMemPtr->isAllocated())
@@ -868,13 +881,17 @@ void Deconvolution::prepareParams() {
         OPENVINO_THROW("Preferable primitive descriptor is not set for node ", getName(), ".");
 
     if (useACL) {
+        if (isDynamicNode()) {
+            initPaddingR(getParentEdgeAt(0)->getMemory().getDescPtr()->getShape(),
+                         getChildEdgeAt(0)->getMemory().getDescPtr()->getShape());
+        }
         std::vector<MemoryDescPtr> srcMemoryDescs;
         for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
-            srcMemoryDescs.push_back(getParentEdgesAtPort(i).front()->getMemory().getDescWithType<DnnlMemoryDesc>());
+            srcMemoryDescs.push_back(getParentEdgeAt(i)->getMemory().getDescWithType<DnnlMemoryDesc>());
         }
         std::vector<MemoryDescPtr> dstMemoryDescs;
         for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
-            dstMemoryDescs.push_back(getChildEdgesAtPort(i).front()->getMemory().getDescWithType<DnnlMemoryDesc>());
+            dstMemoryDescs.push_back(getChildEdgeAt(i)->getMemory().getDescWithType<DnnlMemoryDesc>());
         }
 
         execPtrDeconv = selected_pd->getExecutorFactoryAs<DeconvExecutorFactory>()->makeExecutor(deconvAttrs, srcMemoryDescs,
@@ -883,8 +900,8 @@ void Deconvolution::prepareParams() {
         return;
     }
 
-    auto inMemoryDesc = getParentEdgesAtPort(0).front()->getMemory().getDescWithType<DnnlMemoryDesc>();
-    auto outMemoryDesc = getChildEdgesAtPort(0).front()->getMemory().getDescWithType<DnnlMemoryDesc>();
+    auto inMemoryDesc = getParentEdgeAt(0)->getMemory().getDescWithType<DnnlMemoryDesc>();
+    auto outMemoryDesc = getChildEdgeAt(0)->getMemory().getDescWithType<DnnlMemoryDesc>();
 
     AttrPtr pAttrLocal;
     if (isDynamicNode()) {
@@ -909,13 +926,13 @@ void Deconvolution::prepareParams() {
     if (isInt8) {
         wghDesc = internalBlobMemory.front()->getDescWithType<DnnlMemoryDesc>();
         if (withBiases) {
-            biasMemPtr = getParentEdgesAtPort(biasPort)[0]->getMemoryPtr();
+            biasMemPtr = getSrcMemoryAtPort(biasPort);
             if (!biasMemPtr || !biasMemPtr->isAllocated())
                 OPENVINO_THROW("Bias memory  memory didn't allocate.");
             biasDesc = biasMemPtr->getDescWithType<DnnlMemoryDesc>();
         }
     } else {
-        wghDesc = getParentEdgesAtPort(1).front()->getMemory().getDescWithType<DnnlMemoryDesc>();
+        wghDesc = getParentEdgeAt(1)->getMemory().getDescWithType<DnnlMemoryDesc>();
     }
 
     DeconvKey key = {inMemoryDesc,
@@ -1096,8 +1113,8 @@ void Deconvolution::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc
         convolution_backward_data::primitive_desc deconv_desc;
         convolution_forward::primitive_desc fwd_conv_pd;
         std::tie(deconv_desc, fwd_conv_pd) = createDescriptorInternalDefault(in_candidate, wgh_candidate, out_candidate, dnnl::algorithm::convolution_direct,
-                                                                                deconvAttrs.stride, deconvAttrs.dilation, deconvAttrs.paddingL,
-                                                                                deconvAttrs.paddingR, *attr, getEngine());
+                                                                             deconvAttrs.stride, deconvAttrs.dilation, deconvAttrs.paddingL,
+                                                                             deconvAttrs.paddingR, *attr, getEngine());
         if (fwd_conv_pd && deconv_desc && deconv_desc.get(true) != nullptr) {
             fwdConvPD.push_back(fwd_conv_pd);  // oneDNN requires forward pd to exists until primitive is created
             descs.push_back(deconv_desc);
@@ -1183,7 +1200,7 @@ std::vector<int32_t> Deconvolution::readOutputSpatialDims() const {
     if (getParentEdges().size() < 3) {
         OPENVINO_THROW("Can't get output spatial dims. Inputs number = ", getParentEdges().size());
     }
-    const auto &shapeMemPtr = getParentEdgesAtPort(2)[0]->getMemoryPtr();
+    const auto &shapeMemPtr = getSrcMemoryAtPort(2);
     if (!shapeMemPtr || !shapeMemPtr->isAllocated()) {
         OPENVINO_THROW("'output_shape' input memory is not allocated.");
     }
@@ -1191,7 +1208,7 @@ std::vector<int32_t> Deconvolution::readOutputSpatialDims() const {
     if (shapeMemPtr->getStaticDims()[0] != spDimsNum) {
         OPENVINO_THROW("Can't read output spatial dims, beause 'output_shape' input has incorrect number of elements");
     }
-    const int32_t *outShapePtr = reinterpret_cast<const int32_t *>(shapeMemPtr->getData());
+    const int32_t *outShapePtr = shapeMemPtr->getDataAs<const int32_t>();
     std::vector<int32_t> outSpDims(outShapePtr, outShapePtr + shapeMemPtr->getStaticDims()[0]);
     return outSpDims;
 }
@@ -1210,35 +1227,50 @@ void Deconvolution::initSupportedPrimitiveDescriptors() {
         return;
     }
 
+    VectorDims inDims, outDims;
+    std::tie(inDims, outDims) = makeDummyInOutShape();
+    auto tmpInShape  = Shape(inDims);
+    auto tmpOutShape = Shape(outDims);
+    initPaddingR(tmpInShape, tmpOutShape);
+
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-    auto pushDesc = [&](LayoutType format) {
+    auto pushDesc = [&](LayoutType format, LayoutType weights_format = LayoutType::ncsp) {
         NodeConfig config;
         config.inConfs.resize(getParentEdges().size());
         config.outConfs.resize(getOriginalOutputsNumber());
 
-        for (size_t i = 0; i < getParentEdges().size(); ++i) {
+        config.inConfs[0].setMemDesc(
+                creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(0), getInputShapeAtPort(0)));
+        config.inConfs[1].setMemDesc(
+                creatorsMap.at(weights_format)->createSharedDesc(getOriginalInputPrecisionAtPort(0), getInputShapeAtPort(1)));
+
+        for (size_t i = 2; i < getParentEdges().size(); ++i) {
             config.inConfs[i].setMemDesc(
-                // ACL expected equal precision
-                creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(0), getInputShapeAtPort(i)));
+                    creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(0), getInputShapeAtPort(i)));
         }
-        config.outConfs[0].setMemDesc(
-                // ACL expected equal precision
-                creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(0), getOutputShapeAtPort(0)));
+
+        for (size_t i = 0; i < getChildEdges().size(); ++i) {
+            config.outConfs[i].setMemDesc(
+                    creatorsMap.at(format)->createSharedDesc(getOriginalOutputPrecisionAtPort(0), getOutputShapeAtPort(i)));
+        }
 
         std::vector<MemoryDescPtr> srcMemoryDescs;
-        for (size_t i = 0; i < config.inConfs.size(); i++) {
-            srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
+        srcMemoryDescs.push_back(config.inConfs[0].getMemDesc()->cloneWithNewDims(tmpInShape.getDims()));
+        for (size_t i = 1; i < config.inConfs.size(); i++) {
+            srcMemoryDescs.push_back(config.inConfs[i].getMemDesc()->clone());
         }
         std::vector<MemoryDescPtr> dstMemoryDescs;
-        for (size_t i = 0; i < config.outConfs.size(); i++) {
-            dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
+        dstMemoryDescs.push_back(config.outConfs[0].getMemDesc()->cloneWithNewDims(tmpOutShape.getDims()));
+        for (size_t i = 1; i < config.outConfs.size(); i++) {
+            dstMemoryDescs.push_back(config.outConfs[i].getMemDesc()->clone());
         }
 
         auto factory = std::make_shared<DeconvExecutorFactory>(deconvAttrs, srcMemoryDescs, dstMemoryDescs,
                                                                std::make_shared<ExecutorContext>(context, getImplPriority()));
 
-        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::acl, factory);
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::gemm_acl, factory);
     };
+    pushDesc(LayoutType::nspc);
     pushDesc(LayoutType::ncsp);
 }
 

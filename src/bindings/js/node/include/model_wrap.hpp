@@ -1,15 +1,12 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
 
 #include <napi.h>
 
-#include "compiled_model.hpp"
-#include "errors.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/core.hpp"
-#include "tensor.hpp"
 
 class ModelWrap : public Napi::ObjectWrap<ModelWrap> {
 public:
@@ -78,6 +75,14 @@ public:
      * @return A Javascript Array containing Outputs
      */
     Napi::Value get_outputs(const Napi::CallbackInfo& info);
+
+    /**
+     * @brief Checks if the model is dynamic.
+     * @param info Contains information about the environment and passed arguments
+     * This method does not accept any arguments. If arguments are provided it throws Napi::Error.
+     * @return Boolean indicating if the model is dynamic or not
+     */
+    Napi::Value is_dynamic(const Napi::CallbackInfo& info);
 
 private:
     std::shared_ptr<ov::Model> _model;

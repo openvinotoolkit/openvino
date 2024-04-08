@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,6 +57,7 @@ struct UniqueParams {
 class ReferenceUniqueLayerTest : public testing::TestWithParam<UniqueParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         const auto& params = GetParam();
         function = CreateFunction(params);
         inputData = {params.m_input_data};

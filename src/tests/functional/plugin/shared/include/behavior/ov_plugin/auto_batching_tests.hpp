@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,6 @@
 #include "common_test_utils/subgraph_builders/single_conv.hpp"
 #include "common_test_utils/subgraph_builders/detection_output.hpp"
 #include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
 
 namespace ov {
 namespace test {
@@ -56,7 +55,7 @@ protected:
         ov::OutputVector outputs;
         std::vector<std::pair<std::shared_ptr<ov::Model>, ov::InferRequest>> irs;
         std::vector<ov::InferRequest> irs_ref;
-        std::vector<int> outElementsCount;
+        std::vector<size_t> outElementsCount;
 
         for (size_t i = 0; i < fn_ptrs.size(); ++i) {
             auto model = fn_ptrs[i];
@@ -66,12 +65,13 @@ protected:
             }
             ov::AnyMap config;
             if (target_device.find("GPU") != std::string::npos) {
-                config.insert(ov::num_streams(num_streams));
+                config.insert(ov::num_streams(static_cast<int32_t>(num_streams)));
                 config.insert(ov::hint::inference_precision(ov::element::f32));
             }
 
             if (target_device.find("CPU") != std::string::npos) {
-                config.insert(ov::num_streams(num_streams));
+                config.insert(ov::num_streams(static_cast<int32_t>(num_streams)));
+                config.insert(ov::hint::inference_precision(ov::element::f32));
             }
             // minimize timeout to reduce test time
             config.insert(ov::auto_batch_timeout(1));
@@ -86,7 +86,7 @@ protected:
             for (size_t j = 0; j < num_requests; j++) {
                 outputs.push_back(output);
                 outElementsCount.push_back(
-                        std::accumulate(begin(fn_ptrs[i]->get_output_shape(0)), end(fn_ptrs[i]->get_output_shape(0)), 1,
+                        std::accumulate(begin(fn_ptrs[i]->get_output_shape(0)), end(fn_ptrs[i]->get_output_shape(0)), size_t(1),
                                         std::multiplies<size_t>()));
 
                 auto inf_req = compiled_model.create_infer_request();

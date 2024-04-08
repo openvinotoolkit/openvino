@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -151,7 +151,7 @@ std::string crop_inst::to_string(crop_node const& node) {
     const auto& desc = node.get_primitive();
     auto ref_in_sizes = desc->reference_input;
     const auto& offsets = desc->offsets;
-    const auto in_layout = node.input().get_output_layout();
+    const auto in_layout = node.get_input_layout();
     auto node_info = node.desc_to_json();
     std::stringstream primitive_description;
     json_composite crop_info;
@@ -179,7 +179,7 @@ std::string crop_inst::to_string(crop_node const& node) {
 
 crop_inst::typed_primitive_inst(network& network, crop_node const& node) : parent(network, node) {
     const auto& ref_in_sizes = argument->reference_input;
-    const auto in_layout = node.input().get_output_layout();
+    const auto in_layout = node.get_input_layout();
     const auto& offsets = argument->offsets;
     tensor null_tensor {};
     tensor value_tensor { 1, 1, 1, 1, 1 };
@@ -222,7 +222,7 @@ crop_inst::typed_primitive_inst(network& network, crop_node const& node) : paren
                                             ref_in_sizes,
                                             "input sizes",
                                             in_sizes,
-                                            "Reference input tensor/ input tensor mismtach");
+                                            "Reference input tensor/ input tensor mismatch");
 
         // check if offsets do not extend input sizes and if match the output sizes
         CLDNN_ERROR_TENSOR_SIZES_LESS_THAN(node.id(),

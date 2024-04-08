@@ -101,7 +101,7 @@ ov::Shape compute_allocation_shape(const LinearIR::LoopManagerPtr& loop_manager,
 }  // namespace
 
 InsertBuffers::InsertBuffers(int32_t buffer_allocation_rank)
-    : Pass(), m_buffer_allocation_rank(buffer_allocation_rank) {}
+    : RangedPass(), m_buffer_allocation_rank(buffer_allocation_rank) {}
 
 LinearIR::constExprIt InsertBuffers::insertion_position(const LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager,
                                                         const ExpressionPtr& up_expr, const ExpressionPtr& down_expr) {
@@ -126,23 +126,20 @@ LinearIR::constExprIt InsertBuffers::insertion_position(const LinearIR& linear_i
     // If upper expression is inside Loop, we should insert Buffer after this Loop
     if (loop_idx < up_loop_count) {
         const auto up_loop_id = up_loops[loop_idx];
-        const auto loop_info = loop_manager->get_loop_info(up_loop_id);
-        LinearIR::constExprIt loop_begin_pos, loop_end_pos;
-        loop_manager->get_loop_bounds(linear_ir, up_loop_id, loop_begin_pos, loop_end_pos);
-        return loop_end_pos;
+        return loop_manager->get_loop_bounds(linear_ir, up_loop_id).second;
     }
     // If lower expression is inside Loop, we should insert Buffer before this Loop
     if (loop_idx < down_loop_count) {
         const auto down_loop_id = down_loops[loop_idx];
-        const auto loop_info = loop_manager->get_loop_info(down_loop_id);
-        LinearIR::constExprIt loop_begin_pos, loop_end_pos;
-        loop_manager->get_loop_bounds(linear_ir, down_loop_id, loop_begin_pos, loop_end_pos);
-        return loop_begin_pos;
+        return loop_manager->get_loop_bounds(linear_ir, down_loop_id).first;
     }
     OPENVINO_THROW("Incorrect configuration for Buffer insertion!");
 }
 
-void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::constExprIt& expr_it, const LinearIR::LoopManagerPtr& loop_manager,
+void InsertBuffers::insertion(LinearIR& linear_ir,
+                              const LinearIR::constExprIt& begin_it,
+                              const LinearIR::constExprIt& end_it,
+                              const LinearIR::LoopManagerPtr& loop_manager,
                               const std::vector<LinearIR::LoopManager::LoopPort>& loop_entries,
                               const std::vector<LinearIR::LoopManager::LoopPort>& loop_exits) {
     for (const auto& entry_point : loop_entries) {
@@ -150,10 +147,20 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::constExprIt& 
         const auto& expr = entry_port->get_expr();
         const auto port_idx = entry_port->get_index();
         const auto node = expr->get_node();
-        const auto& parent_expr_output = expr->get_input_port_connector(port_idx)->get_source();
-        const auto& parent_expr = parent_expr_output.get_expr();
-        const auto parent_port = parent_expr_output.get_index();
-        const auto parent = parent_expr->get_node();
+        auto parent_expr_output = expr->get_input_port_connector(port_idx)->get_source();
+        auto parent_expr = parent_expr_output.get_expr();
+        bool has_shape_infer_parent = false;
+        auto top_shape_infer_expr = expr;
+        // parent before shape infer ops is used to determine if buffer needed according loopInfo
+        const auto& shape_infer_parents = utils::get_first_parent_shape_infer_expr_seq(parent_expr);
+        if (!shape_infer_parents.empty()) {
+            parent_expr_output = shape_infer_parents.back()->get_input_port_connector(0)->get_source();
+            has_shape_infer_parent = true;
+            top_shape_infer_expr = shape_infer_parents.back();
+            parent_expr = parent_expr_output.get_expr();
+        }
+        const auto& parent_port = parent_expr_output.get_index();
+        const auto& parent = parent_expr->get_node();
         if (ov::is_type<op::Buffer>(parent) ||
             ov::is_type<op::VectorBuffer>(parent) ||
             ov::is_type<ov::op::v0::Parameter>(parent) ||
@@ -181,7 +188,8 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::constExprIt& 
                                                                    parent_expr_output,
                                                                    m_buffer_allocation_rank);
             const auto buffer = std::make_shared<op::IntermediateMemoryBuffer>(parent->output(parent_port), allocation_shape);
-            linear_ir.insert_node(buffer, std::vector<ExpressionPort>{ parent_expr_output }, buffer_loop_ids, false, pos, { *entry_port });
+            const auto buffer_consumer = has_shape_infer_parent ? top_shape_infer_expr->get_input_port(0)  : *entry_port;
+            linear_ir.insert_node(buffer, std::vector<ExpressionPort>{ parent_expr_output }, buffer_loop_ids, false, pos, { buffer_consumer  });
         }
     }
 
@@ -236,7 +244,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::constExprIt& 
                     const auto buffer_consumers_inputs = buffer_out->get_consumers();
                     replace_input_port_connectors(buffer_consumers_inputs, output_connector);
                     potential_consumers.insert(buffer_consumers_inputs.begin(), buffer_consumers_inputs.end());
-                    linear_ir.erase(linear_ir.find_after(expr_it, buffer));
+                    linear_ir.erase(linear_ir.find_after(begin_it, buffer));
                 }
             }
 
@@ -249,9 +257,9 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::constExprIt& 
                 std::set<ExpressionPtr> consumers;
                 for (const auto& port : potential_consumers)
                     consumers.insert(port.get_expr());
-                const auto it = std::find_if(expr_it, linear_ir.cend(),
+                const auto it = std::find_if(begin_it, end_it,
                                              [&consumers](const ExpressionPtr& expr) { return consumers.count(expr) > 0; });
-                OPENVINO_ASSERT(it != linear_ir.cend(), "Consumer of Buffer has not been found in Linear IR");
+                OPENVINO_ASSERT(it != end_it, "Consumer of Buffer has not been found in Linear IR");
                 consumer_expr = *it;
             }
 
@@ -281,11 +289,8 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::constExprIt& 
     }
 }
 
-bool InsertBuffers::run(LinearIR& linear_ir) {
+bool InsertBuffers::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::InsertBuffers")
-    if (linear_ir.empty())
-        return false;
-
     const auto& loop_manager = linear_ir.get_loop_manager();
     const auto loop_data_map = loop_manager->get_map();
     for (const auto& loop_data : loop_data_map) {
@@ -293,10 +298,10 @@ bool InsertBuffers::run(LinearIR& linear_ir) {
         const auto loop_entries = loop_info->get_entry_points();
         const auto loop_exits = loop_info->get_exit_points();
         // using begin() as expr_it because we work with LoopInfo, not expressions in Linear IR
-        insertion(linear_ir, linear_ir.cbegin(), loop_manager, loop_entries, loop_exits);
+        insertion(linear_ir, begin, end, loop_manager, loop_entries, loop_exits);
     }
 
-    for (auto expr_it = linear_ir.cbegin(); expr_it != linear_ir.cend(); expr_it++) {
+    for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto expr = *expr_it;
         const auto node = (*expr_it)->get_node();
         const auto ma = ov::as_type_ptr<op::MemoryAccess>(node);
@@ -313,7 +318,7 @@ bool InsertBuffers::run(LinearIR& linear_ir) {
             loop_exits[p.first] = expr->get_output_port(p.first);
         }
 
-        insertion(linear_ir, expr_it, loop_manager, loop_entries, loop_exits);
+        insertion(linear_ir, expr_it, end, loop_manager, loop_entries, loop_exits);
     }
 
     return true;

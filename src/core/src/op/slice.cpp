@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,9 @@
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/reference/slice.hpp"
 #include "slice_shape_inference.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -146,8 +146,8 @@ bool Slice::evaluate_upper(ov::TensorVector& output_values) const {
     return slice_bound_check(this) && default_upper_bound_evaluator(this, output_values);
 }
 
-bool Slice::evaluate_label(TensorLabelVector& output_labels) const {
-    return slice_bound_check(this) && ov::util::default_label_evaluator(this, output_labels);
+bool Slice::evaluate_symbol(TensorSymbolVector& output_symbols) const {
+    return slice_bound_check(this) && ov::util::default_symbol_evaluator(this, output_symbols);
 }
 }  // namespace v8
 }  // namespace op

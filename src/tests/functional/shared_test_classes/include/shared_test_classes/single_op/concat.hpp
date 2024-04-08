@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,6 +27,25 @@ public:
 
 protected:
     void SetUp() override;
+};
+
+using ConcatStringParamsTuple = typename std::tuple<int,                                     // Concat axis
+                                                    std::vector<ov::Shape>,                 // Input shapes
+                                                    ov::element::Type,                       // Model type
+                                                    std::string,                             // Device name
+                                                    std::vector<std::vector<std::string>>>;  // String data
+
+class ConcatStringLayerTest : public testing::WithParamInterface<ConcatStringParamsTuple>,
+                              virtual public ov::test::SubgraphBaseTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<ConcatStringParamsTuple>& obj);
+
+protected:
+    void SetUp() override;
+    void generate_inputs(const std::vector<ov::Shape>& target_shapes) override;
+
+private:
+    std::vector<std::vector<std::string>> string_data;
 };
 }  // namespace test
 }  // namespace ov

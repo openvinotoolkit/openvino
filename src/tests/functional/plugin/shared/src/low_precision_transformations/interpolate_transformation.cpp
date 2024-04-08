@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,7 +63,7 @@ void InterpolateTransformation::SetUp() {
     interpAttrs.pads_begin = attributes.pads_begin;
     interpAttrs.pads_end = attributes.pads_end;
 
-    function = ngraph::builder::subgraph::InterpolateFunction::getOriginal(precision, shapes.first, shapes.second, interpAttrs);
+    function = ov::builder::subgraph::InterpolateFunction::getOriginal(precision, shapes.first, shapes.second, interpAttrs);
 }
 
 TEST_P(InterpolateTransformation, CompareWithRefImpl) {

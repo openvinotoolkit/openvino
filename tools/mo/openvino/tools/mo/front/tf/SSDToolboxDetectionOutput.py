@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.ops.DetectionOutput import DetectionOutput
@@ -19,7 +19,7 @@ class SSDToolboxDetectionOutputReplacement(FrontReplacementFromConfigFileSubGrap
         return []
 
     def generate_sub_graph(self, graph: Graph, match: SubgraphMatch):
-        # IE DetectionOutput layer consumes flattened confidences and locations tensors.
+        # OV DetectionOutput layer consumes flattened confidences and locations tensors.
         # That is why we add reshapes before them.
         locs_node = match.single_input_node(0)
         conf_node = match.single_input_node(1)

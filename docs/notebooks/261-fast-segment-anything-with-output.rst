@@ -28,8 +28,8 @@ the prompt.
 
    pipeline
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Prerequisites <#prerequisites>`__
 
@@ -67,20 +67,48 @@ Install requirements
 .. code:: ipython3
 
     %pip install -q "ultralytics==8.0.200" onnx --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "openvino-dev>=2023.1.0"
+    %pip install -q "openvino-dev>=2024.0.0"
     %pip install -q "nncf>=2.6.0"
-    %pip install -q gradio
+    %pip install -q "gradio>=4.13"
 
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+
+
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+
+
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+
+
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -93,12 +121,12 @@ Imports
 
     import ipywidgets as widgets
     from pathlib import Path
-    
+
     import openvino as ov
     import torch
     from PIL import Image, ImageDraw
     from ultralytics import FastSAM
-    
+
     import urllib.request
     # Fetch skip_kernel_extension module
     urllib.request.urlretrieve(
@@ -130,7 +158,7 @@ model and generate a segmentation map.
 
     model_name = "FastSAM-x"
     model = FastSAM(model_name)
-    
+
     # Run inference on an image
     image_uri = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bike.jpg"
     image_uri = download_file(image_uri)
@@ -142,10 +170,179 @@ model and generate a segmentation map.
     Downloading https://github.com/ultralytics/assets/releases/download/v0.0.0/FastSAM-x.pt to 'FastSAM-x.pt'...
 
 
+.. parsed-literal::
+
+
+  0%|          | 0.00/138M [00:00<?, ?B/s]
 
 .. parsed-literal::
 
-      0%|          | 0.00/138M [00:00<?, ?B/s]
+
+  0%|          | 304k/138M [00:00<00:46, 3.09MB/s]
+
+.. parsed-literal::
+
+
+  2%|▏         | 2.25M/138M [00:00<00:10, 13.2MB/s]
+
+.. parsed-literal::
+
+
+  5%|▌         | 7.08M/138M [00:00<00:04, 29.2MB/s]
+
+.. parsed-literal::
+
+
+  9%|▊         | 11.9M/138M [00:00<00:03, 37.5MB/s]
+
+.. parsed-literal::
+
+
+ 12%|█▏        | 16.8M/138M [00:00<00:02, 42.5MB/s]
+
+.. parsed-literal::
+
+
+ 16%|█▌        | 21.6M/138M [00:00<00:02, 44.9MB/s]
+
+.. parsed-literal::
+
+
+ 19%|█▉        | 26.7M/138M [00:00<00:02, 47.7MB/s]
+
+.. parsed-literal::
+
+
+ 23%|██▎       | 31.4M/138M [00:00<00:02, 48.1MB/s]
+
+.. parsed-literal::
+
+
+ 26%|██▌       | 36.0M/138M [00:00<00:02, 47.2MB/s]
+
+.. parsed-literal::
+
+
+ 29%|██▉       | 40.5M/138M [00:01<00:02, 46.6MB/s]
+
+.. parsed-literal::
+
+
+ 33%|███▎      | 45.1M/138M [00:01<00:02, 47.0MB/s]
+
+.. parsed-literal::
+
+
+ 36%|███▌      | 49.6M/138M [00:01<00:01, 46.7MB/s]
+
+.. parsed-literal::
+
+
+ 39%|███▉      | 54.0M/138M [00:01<00:01, 44.5MB/s]
+
+.. parsed-literal::
+
+
+ 42%|████▏     | 58.3M/138M [00:01<00:01, 42.9MB/s]
+
+.. parsed-literal::
+
+
+ 45%|████▌     | 62.8M/138M [00:01<00:01, 44.1MB/s]
+
+.. parsed-literal::
+
+
+ 49%|████▊     | 67.1M/138M [00:01<00:01, 44.0MB/s]
+
+.. parsed-literal::
+
+
+ 52%|█████▏    | 71.5M/138M [00:01<00:01, 44.7MB/s]
+
+.. parsed-literal::
+
+
+ 55%|█████▍    | 75.8M/138M [00:01<00:01, 44.1MB/s]
+
+.. parsed-literal::
+
+
+ 58%|█████▊    | 80.3M/138M [00:01<00:01, 45.2MB/s]
+
+.. parsed-literal::
+
+
+ 61%|██████    | 84.7M/138M [00:02<00:01, 44.7MB/s]
+
+.. parsed-literal::
+
+
+ 65%|██████▍   | 89.3M/138M [00:02<00:01, 45.9MB/s]
+
+.. parsed-literal::
+
+
+ 68%|██████▊   | 93.7M/138M [00:02<00:01, 44.3MB/s]
+
+.. parsed-literal::
+
+
+ 71%|███████▏  | 98.6M/138M [00:02<00:00, 46.3MB/s]
+
+.. parsed-literal::
+
+
+ 75%|███████▍  | 103M/138M [00:02<00:00, 45.7MB/s]
+
+.. parsed-literal::
+
+
+ 78%|███████▊  | 107M/138M [00:02<00:00, 43.3MB/s]
+
+.. parsed-literal::
+
+
+ 81%|████████  | 112M/138M [00:02<00:00, 43.7MB/s]
+
+.. parsed-literal::
+
+
+ 84%|████████▍ | 116M/138M [00:02<00:00, 42.3MB/s]
+
+.. parsed-literal::
+
+
+ 87%|████████▋ | 120M/138M [00:02<00:00, 40.6MB/s]
+
+.. parsed-literal::
+
+
+ 90%|████████▉ | 124M/138M [00:03<00:00, 41.7MB/s]
+
+.. parsed-literal::
+
+
+ 93%|█████████▎| 128M/138M [00:03<00:00, 42.5MB/s]
+
+.. parsed-literal::
+
+
+ 96%|█████████▌| 133M/138M [00:03<00:00, 43.0MB/s]
+
+.. parsed-literal::
+
+
+ 99%|█████████▉| 137M/138M [00:03<00:00, 43.4MB/s]
+
+.. parsed-literal::
+
+
+   100%|██████████| 138M/138M [00:03<00:00, 43.1MB/s]
+
+
+
+
 
 
 
@@ -154,11 +351,19 @@ model and generate a segmentation map.
     coco_bike.jpg:   0%|          | 0.00/182k [00:00<?, ?B/s]
 
 
+
+
+
+
+
 .. parsed-literal::
 
-    
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/261-fast-segment-anything/coco_bike.jpg: 768x1024 37 objects, 621.3ms
-    Speed: 3.7ms preprocess, 621.3ms inference, 22.9ms postprocess per image at shape (1, 3, 768, 1024)
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/261-fast-segment-anything/coco_bike.jpg: 768x1024 37 objects, 617.2ms
+
+
+.. parsed-literal::
+
+    Speed: 3.0ms preprocess, 617.2ms inference, 27.3ms postprocess per image at shape (1, 3, 768, 1024)
 
 
 The model returns segmentation maps for all the objects on the image.
@@ -197,20 +402,44 @@ tracing. The FastSAM model itself is based on YOLOv8 model.
 
 .. parsed-literal::
 
-    Ultralytics YOLOv8.0.200 🚀 Python-3.8.10 torch-1.13.1+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
-    
+    Ultralytics YOLOv8.0.200 🚀 Python-3.8.10 torch-2.2.1+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
+
+
+.. parsed-literal::
+
+
     PyTorch: starting from 'FastSAM-x.pt' with input shape (1, 3, 1024, 1024) BCHW and output shape(s) ((1, 37, 21504), (1, 32, 256, 256)) (138.2 MB)
-    
-    ONNX: starting export with onnx 1.15.0 opset 16...
-    ONNX: export success ✅ 3.4s, saved as 'FastSAM-x.onnx' (275.5 MB)
-    
-    OpenVINO: starting export with openvino 2023.2.0-13089-cfd42bd2cb0-HEAD...
-    OpenVINO: export success ✅ 1.1s, saved as 'FastSAM-x_openvino_model/' (275.9 MB)
-    
-    Export complete (7.4s)
-    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/261-fast-segment-anything
-    Predict:         yolo predict task=segment model=FastSAM-x_openvino_model imgsz=1024  
-    Validate:        yolo val task=segment model=FastSAM-x_openvino_model imgsz=1024 data=ultralytics/datasets/sa.yaml  
+
+
+.. parsed-literal::
+
+
+    ONNX: starting export with onnx 1.15.0 opset 17...
+
+
+.. parsed-literal::
+
+    ONNX: export success ✅ 3.6s, saved as 'FastSAM-x.onnx' (275.5 MB)
+
+
+.. parsed-literal::
+
+
+    OpenVINO: starting export with openvino 2024.0.0-14509-34caeefd078-releases/2024/0...
+
+
+.. parsed-literal::
+
+    OpenVINO: export success ✅ 1.0s, saved as 'FastSAM-x_openvino_model/' (275.9 MB)
+
+
+.. parsed-literal::
+
+
+    Export complete (7.6s)
+    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/261-fast-segment-anything
+    Predict:         yolo predict task=segment model=FastSAM-x_openvino_model imgsz=1024
+    Validate:        yolo val task=segment model=FastSAM-x_openvino_model imgsz=1024 data=ultralytics/datasets/sa.yaml
     Visualize:       https://netron.app
 
 
@@ -221,7 +450,7 @@ Embedding the converted models into the original pipeline
 
 OpenVINO™ Runtime Python API is used to compile the model in OpenVINO IR
 format. The
-`Core <https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.Core.html>`__
+`Core <https://docs.openvino.ai/2024/api/ie_python_api/_autosummary/openvino.runtime.Core.html>`__
 class provides access to the OpenVINO Runtime API. The ``core`` object,
 which is an instance of the ``Core`` class represents the API and it is
 used to compile the model.
@@ -240,14 +469,14 @@ from the dropdown list:
 
 .. code:: ipython3
 
-    DEVICE = widgets.Dropdown(
+    device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
-    DEVICE
+
+    device
 
 
 
@@ -283,12 +512,12 @@ object, so we need to redefine the magic ``__call__`` method.
     class OVWrapper:
         def __init__(self, ov_model, device="CPU", stride=32) -> None:
             self.model = core.compile_model(ov_model, device_name=device)
-    
+
             self.stride = stride
             self.pt = True
             self.fp16 = False
             self.names = {0: "object"}
-    
+
         def __call__(self, im, **_):
             result = self.model(im)
             return torch.from_numpy(result[0]), torch.from_numpy(result[1])
@@ -298,17 +527,25 @@ pipeline.
 
 .. code:: ipython3
 
-    wrapped_model = OVWrapper(ov_model_path, device=DEVICE.value, stride=model.predictor.model.stride)
+    wrapped_model = OVWrapper(ov_model_path, device=device.value, stride=model.predictor.model.stride)
     model.predictor.model = wrapped_model
-    
-    ov_results = model(image_uri, device=DEVICE.value, retina_masks=True, imgsz=640, conf=0.6, iou=0.9)
+
+    ov_results = model(image_uri, device=device.value, retina_masks=True, imgsz=640, conf=0.6, iou=0.9)
+
+
+
+
+
 
 
 .. parsed-literal::
 
-    
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/261-fast-segment-anything/coco_bike.jpg: 480x640 33 objects, 321.2ms
-    Speed: 2.3ms preprocess, 321.2ms inference, 20.1ms postprocess per image at shape (1, 3, 480, 640)
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/261-fast-segment-anything/coco_bike.jpg: 480x640 33 objects, 299.4ms
+
+
+.. parsed-literal::
+
+    Speed: 2.4ms preprocess, 299.4ms inference, 25.3ms postprocess per image at shape (1, 3, 480, 640)
 
 
 One can observe the converted model outputs in the next cell, they is
@@ -349,7 +586,7 @@ The optimization process contains the following steps:
         description='Quantization',
         disabled=False,
     )
-    
+
     do_quantize
 
 
@@ -377,7 +614,7 @@ The quantization algorithm is based on `The YOLOv8 quantization
 example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/post_training_quantization/openvino/yolov8>`__
 in the NNCF repo, refer there for more details. Moreover, you can check
 out other quantization tutorials in the `OV notebooks
-repo <../230-yolov8-optimization/>`__.
+repo <230-yolov8-optimizati-with-output.html>`__.
 
    **Note**: Model post-training quantization is time-consuming process.
    Be patient, it can take several minutes depending on your hardware.
@@ -385,20 +622,20 @@ repo <../230-yolov8-optimization/>`__.
 .. code:: ipython3
 
     %%skip not $do_quantize.value
-    
+
     import pickle
     from contextlib import contextmanager
     from zipfile import ZipFile
-    
+
     import cv2
     from tqdm.autonotebook import tqdm
-    
+
     import nncf
-    
-    
+
+
     COLLECT_CALIBRATION_DATA = False
     calibration_data = []
-    
+
     @contextmanager
     def calibration_data_collection():
         global COLLECT_CALIBRATION_DATA
@@ -407,58 +644,58 @@ repo <../230-yolov8-optimization/>`__.
             yield
         finally:
             COLLECT_CALIBRATION_DATA = False
-    
-    
+
+
     class NNCFWrapper:
         def __init__(self, ov_model, stride=32) -> None:
             self.model = core.read_model(ov_model)
             self.compiled_model = core.compile_model(self.model, device_name="CPU")
-    
+
             self.stride = stride
             self.pt = True
             self.fp16 = False
             self.names = {0: "object"}
-    
+
         def __call__(self, im, **_):
             if COLLECT_CALIBRATION_DATA:
                 calibration_data.append(im)
-    
+
             result = self.compiled_model(im)
             return torch.from_numpy(result[0]), torch.from_numpy(result[1])
-    
+
     # Fetch data from the web and descibe a dataloader
     DATA_URL = "https://ultralytics.com/assets/coco128.zip"
     OUT_DIR = Path('.')
-    
+
     download_file(DATA_URL, directory=OUT_DIR, show_progress=True)
-    
+
     if not (OUT_DIR / "coco128/images/train2017").exists():
         with ZipFile('coco128.zip', "r") as zip_ref:
             zip_ref.extractall(OUT_DIR)
-    
+
     class COCOLoader(torch.utils.data.Dataset):
         def __init__(self, images_path):
             self.images = list(Path(images_path).iterdir())
-    
+
         def __getitem__(self, index):
             if isinstance(index, slice):
                 return [self.read_image(image_path) for image_path in self.images[index]]
             return self.read_image(self.images[index])
-    
+
         def read_image(self, image_path):
             image = cv2.imread(str(image_path))
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             return image
-    
+
         def __len__(self):
             return len(self.images)
-    
-    
+
+
     def collect_calibration_data_for_decoder(model, calibration_dataset_size: int,
                                              calibration_cache_path: Path):
         global calibration_data
-    
-    
+
+
         if not calibration_cache_path.exists():
             coco_dataset = COCOLoader(OUT_DIR / 'coco128/images/train2017')
             with calibration_data_collection():
@@ -470,10 +707,10 @@ repo <../230-yolov8-optimization/>`__.
         else:
             with open(calibration_cache_path, "rb") as f:
                 calibration_data = pickle.load(f)
-    
+
         return calibration_data
-    
-    
+
+
     def quantize(model, save_model_path: Path, calibration_cache_path: Path,
                  calibration_dataset_size: int, preset: nncf.QuantizationPreset):
         calibration_data = collect_calibration_data_for_decoder(
@@ -503,10 +740,10 @@ repo <../230-yolov8-optimization/>`__.
             )
         )
         ov.save_model(quantized_ov_decoder, save_model_path)
-    
+
     wrapped_model = NNCFWrapper(ov_model_path, stride=model.predictor.model.stride)
     model.predictor.model = wrapped_model
-    
+
     calibration_dataset_size = 128
     quantized_model_path = Path(f"{model_name}_quantized") / "FastSAM-x.xml"
     calibration_cache_path = Path(f"calibration_data/coco{calibration_dataset_size}.pkl")
@@ -536,13 +773,41 @@ repo <../230-yolov8-optimization/>`__.
 .. parsed-literal::
 
     INFO:nncf:12 ignored nodes were found by name in the NNCFGraph
-    INFO:nncf:9 ignored nodes were found by types in the NNCFGraph
+
+
+.. parsed-literal::
+
+    INFO:nncf:13 ignored nodes were found by types in the NNCFGraph
+
+
+.. parsed-literal::
+
     INFO:nncf:Not adding activation input quantizer for operation: 204 /model.22/Sigmoid
+
+
+.. parsed-literal::
+
     INFO:nncf:Not adding activation input quantizer for operation: 246 /model.22/dfl/conv/Conv
+
+
+.. parsed-literal::
+
     INFO:nncf:Not adding activation input quantizer for operation: 275 /model.22/Sub
+
+
+.. parsed-literal::
+
     INFO:nncf:Not adding activation input quantizer for operation: 276 /model.22/Add_10
-    INFO:nncf:Not adding activation input quantizer for operation: 298 /model.22/Sub_1
-    INFO:nncf:Not adding activation input quantizer for operation: 335 /model.22/Mul_5
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 299 /model.22/Sub_1
+
+
+.. parsed-literal::
+
+    INFO:nncf:Not adding activation input quantizer for operation: 341 /model.22/Mul_5
 
 
 
@@ -568,7 +833,7 @@ repo <../230-yolov8-optimization/>`__.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/experimental/tensor/tensor.py:80: RuntimeWarning: invalid value encountered in multiply
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/experimental/tensor/tensor.py:84: RuntimeWarning: invalid value encountered in multiply
       return Tensor(self.data * unwrap_tensor_data(other))
 
 
@@ -604,15 +869,15 @@ calibration dataset to measure the performance.
 .. code:: ipython3
 
     %%skip not $do_quantize.value
-    
+
     import datetime
-    
+
     coco_dataset = COCOLoader(OUT_DIR / 'coco128/images/train2017')
     calibration_dataset_size = 128
-    
-    wrapped_model = OVWrapper(ov_model_path, device=DEVICE.value, stride=model.predictor.model.stride)
+
+    wrapped_model = OVWrapper(ov_model_path, device=device.value, stride=model.predictor.model.stride)
     model.predictor.model = wrapped_model
-    
+
     start_time = datetime.datetime.now()
     for image in tqdm(coco_dataset, desc="Measuring inference time"):
         model(image, retina_masks=True, imgsz=640, conf=0.6, iou=0.9, verbose=False)
@@ -636,10 +901,10 @@ calibration dataset to measure the performance.
 .. code:: ipython3
 
     %%skip not $do_quantize.value
-    
-    quantized_wrapped_model = OVWrapper(quantized_model_path, device=DEVICE.value, stride=model.predictor.model.stride)
+
+    quantized_wrapped_model = OVWrapper(quantized_model_path, device=device.value, stride=model.predictor.model.stride)
     model.predictor.model = quantized_wrapped_model
-    
+
     start_time = datetime.datetime.now()
     for image in tqdm(coco_dataset, desc="Measuring inference time"):
         model(image, retina_masks=True, imgsz=640, conf=0.6, iou=0.9, verbose=False)
@@ -679,7 +944,7 @@ bounding boxes on input image.
     import cv2
     import numpy as np
     import matplotlib.pyplot as plt
-    
+
     def fast_process(
         annotations,
         image,
@@ -690,15 +955,15 @@ bounding boxes on input image.
         use_retina=True,
         with_contours=True,
     ):
-    
+
         original_h = image.height
         original_w = image.width
-    
+
         if better_quality:
             for i, mask in enumerate(annotations):
                 mask = cv2.morphologyEx(mask.astype(np.uint8), cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
                 annotations[i] = cv2.morphologyEx(mask.astype(np.uint8), cv2.MORPH_OPEN, np.ones((8, 8), np.uint8))
-    
+
         inner_mask = fast_show_mask(
             annotations,
             plt.gca(),
@@ -708,7 +973,7 @@ bounding boxes on input image.
             target_height=original_h,
             target_width=original_w,
         )
-    
+
         if with_contours:
             contour_all = []
             temp = np.zeros((original_h, original_w, 1))
@@ -726,18 +991,18 @@ bounding boxes on input image.
             cv2.drawContours(temp, contour_all, -1, (255, 255, 255), 2 // scale)
             color = np.array([0 / 255, 0 / 255, 255 / 255, 0.9])
             contour_mask = temp / 255 * color.reshape(1, 1, -1)
-    
+
         image = image.convert("RGBA")
         overlay_inner = Image.fromarray((inner_mask * 255).astype(np.uint8), "RGBA")
         image.paste(overlay_inner, (0, 0), overlay_inner)
-    
+
         if with_contours:
             overlay_contour = Image.fromarray((contour_mask * 255).astype(np.uint8), "RGBA")
             image.paste(overlay_contour, (0, 0), overlay_contour)
-    
+
         return image
-    
-    
+
+
     # CPU post process
     def fast_show_mask(
         annotation,
@@ -751,11 +1016,11 @@ bounding boxes on input image.
         mask_sum = annotation.shape[0]
         height = annotation.shape[1]
         weight = annotation.shape[2]
-        # 
+        #
         areas = np.sum(annotation, axis=(1, 2))
         sorted_indices = np.argsort(areas)[::1]
         annotation = annotation[sorted_indices]
-    
+
         index = (annotation != 0).argmax(axis=0)
         if random_color:
             color = np.random.random((mask_sum, 1, 1, 3))
@@ -764,29 +1029,29 @@ bounding boxes on input image.
         transparency = np.ones((mask_sum, 1, 1, 1)) * 0.6
         visual = np.concatenate([color, transparency], axis=-1)
         mask_image = np.expand_dims(annotation, -1) * visual
-    
+
         mask = np.zeros((height, weight, 4))
-    
+
         h_indices, w_indices = np.meshgrid(np.arange(height), np.arange(weight), indexing="ij")
         indices = (index[h_indices, w_indices], h_indices, w_indices, slice(None))
-    
+
         mask[h_indices, w_indices, :] = mask_image[indices]
         if bbox is not None:
             x1, y1, x2, y2 = bbox
             ax.add_patch(plt.Rectangle((x1, y1), x2 - x1, y2 - y1, fill=False, edgecolor="b", linewidth=1))
-    
+
         if not retinamask:
             mask = cv2.resize(mask, (target_width, target_height), interpolation=cv2.INTER_NEAREST)
-    
+
         return mask
 
 .. code:: ipython3
 
     import gradio as gr
-    
+
     examples = [[image_uri], ["https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/empty_road_mapillary.jpg"],
                 ["https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/wall.jpg"]]
-    
+
     object_points = []
     background_points = []
     bbox_points = []
@@ -800,7 +1065,7 @@ based on user input.
     def segment(
             image,
             model_type,
-            input_size=1024, 
+            input_size=1024,
             iou_threshold=0.75,
             conf_threshold=0.4,
             better_quality=True,
@@ -812,28 +1077,28 @@ based on user input.
             model.predictor.model = quantized_wrapped_model
         else:
             model.predictor.model = wrapped_model
-        
+
         input_size = int(input_size)
         w, h = image.size
         scale = input_size / max(w, h)
         new_w = int(w * scale)
         new_h = int(h * scale)
         image = image.resize((new_w, new_h))
-    
+
         results = model(image,
-                        device=DEVICE.value,
+                        device=device.value,
                         retina_masks=use_retina,
                         iou=iou_threshold,
                         conf=conf_threshold,
                         imgsz=input_size,)
-    
+
         masks = results[0].masks.data
         # Calculate annotations
         if not (object_points or bbox_points):
             annotations = masks.cpu().numpy()
         else:
             annotations = []
-    
+
         if object_points:
             all_points = object_points + background_points
             labels = [1] * len(object_points) + [0] * len(background_points)
@@ -856,20 +1121,20 @@ based on user input.
                 x = max(min(x, new_w), 0)
                 y = max(min(y, new_h), 0)
                 scaled_bbox_points.append((x, y))
-    
+
             for i in range(0, len(scaled_bbox_points) - 1, 2):
                 x0, y0, x1, y1 = *scaled_bbox_points[i], *scaled_bbox_points[i + 1]
-                
+
                 intersection_area = torch.sum(masks[:, y0:y1, x0:x1], dim=(1, 2))
                 masks_area = torch.sum(masks, dim=(1, 2))
                 bbox_area = (y1 - y0) * (x1 - x0)
-    
+
                 union = bbox_area + masks_area - intersection_area
                 iou = intersection_area / union
                 max_iou_index = torch.argmax(iou)
-    
+
                 annotations.append(masks[max_iou_index].cpu().numpy())
-    
+
         return fast_process(
             annotations=np.array(annotations),
             image=image,
@@ -915,7 +1180,7 @@ based on user input.
             fill=color
         )
         return img
-    
+
     def clear_points() -> (Image.Image, None):
         """Gradio clear points callback."""
         global object_points, background_points, bbox_points
@@ -924,7 +1189,7 @@ based on user input.
         background_points = []
         bbox_points = []
         return last_image, None
-    
+
     def save_last_picked_image(img: Image.Image) -> None:
         """Gradio callback saves the last used image."""
         global last_image
@@ -934,7 +1199,7 @@ based on user input.
         clear_points()
         # Removes the segmentation map output
         return None
-    
+
     with gr.Blocks(title="Fast SAM") as demo:
         with gr.Row(variant="panel"):
             original_img = gr.Image(label="Input", value=examples[0][0], type="pil")
@@ -954,7 +1219,7 @@ based on user input.
         gr.Examples(examples, inputs=original_img,
                     fn=save_last_picked_image, run_on_click=True, outputs=segmented_img
         )
-    
+
         # Callbacks
         original_img.select(select_point,
                             inputs=[original_img, point_type],
@@ -962,12 +1227,12 @@ based on user input.
         original_img.upload(save_last_picked_image, inputs=original_img, outputs=segmented_img)
         clear_button.click(clear_points, outputs=[original_img, segmented_img])
         segment_button.click(segment, inputs=[original_img, model_type], outputs=segmented_img)
-    
+
     try:
         demo.queue().launch(debug=False)
     except Exception:
         demo.queue().launch(share=True, debug=False)
-    
+
     # If you are launching remotely, specify server_name and server_port
     # EXAMPLE: `demo.launch(server_name="your server name", server_port="server port in int")`
     # To learn more please refer to the Gradio docs: https://gradio.app/docs/
@@ -976,12 +1241,12 @@ based on user input.
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 
 
-.. .. raw:: html
 
-..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

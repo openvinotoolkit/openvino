@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,6 +34,7 @@
 #include "assign_inst.h"
 #include "read_value_inst.h"
 #include "reshape_inst.h"
+#include "kv_cache_inst.h"
 #include "program_helpers.h"
 #include "to_string_utils.h"
 #include "kernels_cache.hpp"
@@ -104,6 +105,9 @@ void dump_perf_data_raw(std::string dump_path, const std::list<std::shared_ptr<p
                 if (a_info.cache_hit != b_info.cache_hit)
                     return a_info.cache_hit;
 
+                if (a_info.memalloc_info != b_info.memalloc_info)
+                    return a_info.memalloc_info.length() < b_info.memalloc_info.length();
+
                 size_t total_out_size_a = 0;
                 size_t total_out_size_b = 0;
                 for (auto& ol : a_info.output_layouts) {
@@ -123,9 +127,14 @@ void dump_perf_data_raw(std::string dump_path, const std::list<std::shared_ptr<p
                 std::string net_in_l_str = layouts_to_str(key.network_input_layouts);
                 std::string in_l_str = layouts_to_str(key.input_layouts);
                 std::string out_l_str = layouts_to_str(key.output_layouts);
+                std::string stage_suffix = "";
+                if (key.cache_hit)
+                    stage_suffix += " (cache_hit) ";
+                if (key.memalloc_info != "")
+                    stage_suffix += " (" + key.memalloc_info + ") ";
                 of << prim_id << ","
                 << inst->desc()->type_string() << ","
-                << key.stage << (key.cache_hit ? " (cache_hit)" : "") << ","
+                << key.stage << stage_suffix << ","
                 << net_in_l_str << ","
                 << in_l_str << ","
                 << out_l_str << ","
@@ -215,6 +224,66 @@ void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream, bool dump
     file_stream << buffer.str();
 }
 
+void unpack(cldnn::data_types type, uint8_t input, int8_t &v0, int8_t &v1) {
+    if (type == cldnn::data_types::i4) {
+        char s_bit = (input & 0x08);
+        char mask = s_bit > 0 ? 0xF0 : 0x00;
+        v0 = (input & 0x0F) | mask;
+
+        input >>= 4;
+        s_bit = (input & 0x08);
+        mask = s_bit > 0 ? 0xF0 : 0x00;
+        v1 = (input & 0x0F) | mask;
+    } else if (type == cldnn::data_types::u4) {
+        v0 = input & 0x0F;
+        v1 = input >> 4;
+    } else {
+        OPENVINO_ASSERT(false, "not supported unpacking");
+    }
+}
+
+void dump_i4u4(cldnn::data_types type, memory::ptr mem, stream& stream, std::ofstream& file_stream, bool dump_raw) {
+    auto&& size = mem->get_layout().get_tensor();
+
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    auto batch_size = std::max(std::min(debug_config->dump_layers_limit_batch, size.batch[0]), 1);
+    tensor tmp_size(size);
+    tmp_size.batch[0] = batch_size;
+    if (tmp_size == size) {
+        file_stream << "shape: " << size.to_string() << " ";
+        file_stream << "(count: " << size.count()
+                    << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format) << ")"
+                    << (dump_raw ? " raw data" : "") << std::endl;
+    } else {
+        file_stream << "shape: " << tmp_size.to_string() << " ";
+        file_stream << "(count: " << tmp_size.count()
+                    << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format)
+                    << ", original shape: " << size.to_string() << ")"
+                    << (dump_raw ? " raw data" : "") << std::endl;
+    }
+
+    if (size.count() == 0) {
+        file_stream << "Empty buffer" << std::endl;
+        return;
+    }
+
+    mem_lock<uint8_t, mem_lock_type::read> lock(mem, stream);
+    auto mem_ptr = lock.data();
+    std::stringstream buffer;
+
+    if (dump_raw) {
+        for (size_t i = 0; i < lock.size(); ++i) {
+            int8_t v0, v1;
+            unpack(type, mem_ptr[i], v0, v1);
+            buffer << std::fixed << std::setprecision(6) << static_cast<int>(v0) << std::endl;
+            buffer << std::fixed << std::setprecision(6) << static_cast<int>(v1) << std::endl;
+        }
+    } else {
+        std::cout << __func__ << " supports raw dump only" << std::endl;
+    }
+    file_stream << buffer.str();
+}
+
 void log_memory_to_file(memory::ptr mem, layout data_layout, stream& stream, std::string layerName, bool dump_raw) {
     std::cout << "Dump " << (dump_raw ? "raw " : "") << layerName << std::endl;
     GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -242,6 +311,12 @@ void log_memory_to_file(memory::ptr mem, layout data_layout, stream& stream, std
         dump<int8_t>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::u8)
         dump<uint8_t>(actual_mem, stream, file_stream, dump_raw);
+    else if (mem_dt == cldnn::data_types::u8)
+        dump<uint8_t>(actual_mem, stream, file_stream, dump_raw);
+    else if (mem_dt == cldnn::data_types::i4 || mem_dt == cldnn::data_types::u4)
+        dump_i4u4(mem_dt, actual_mem, stream, file_stream, dump_raw);
+    else
+        std::cout << "Dump for this data type is not supported: " << dt_to_str(mem_dt) << std::endl;
 }
 
 void wait_for_the_turn() {
@@ -413,8 +488,13 @@ void network::set_arguments() {
                 // In that case some_op is static and we may want to set arguments once,
                 // but dynamic optimized out reshape means that output buffer of reshape is unavailable
                 // and attempt to set args will fail.
+
+                // (dynamic) -> static optimizable reshape -> static optimizable reshape -> some_op
+                // In that case, it is a limit about second reshape.
                 auto prim = dep.first->get_impl_params()->desc;
-                if (dep.first->can_be_optimized() && (dep.first->is_dynamic() || prim->type == read_value::type_id()))
+                if (dep.first->can_be_optimized() && (dep.first->is_dynamic() ||
+                                                      dep.first->output_memory_ptr() == nullptr ||
+                                                      prim->type == read_value::type_id()))
                     can_set_args = false;
             }
 
@@ -633,8 +713,6 @@ void cldnn::network::check_names() {
 }
 
 std::shared_ptr<primitive_inst> cldnn::network::find_primitive(const primitive_id& id) const {
-    std::shared_ptr<primitive_inst> ret;
-
     if (_primitives.find(id) != _primitives.end())
         return _primitives.at(id);
 
@@ -846,16 +924,16 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     int64_t curr_iter = -1;
     GPU_DEBUG_GET_INSTANCE(debug_config);
 #ifdef GPU_DEBUG_CONFIG
-    curr_iter = iteration++;
+    curr_iter = iteration;
 #endif
 
     // Wait for previous execution completion
     reset_execution(false);
     GPU_DEBUG_IF(debug_config->dump_runtime_memory_pool > 0) {
-        GPU_DEBUG_COUT << "----------------------------------------------" << std::endl;
+        GPU_DEBUG_COUT << "============================================================================" << std::endl;
         GPU_DEBUG_COUT << "Start network execution (net_id : " << get_id() << ", iter :" << curr_iter << ")" << std::endl;
     } else {
-        GPU_DEBUG_TRACE << "----------------------------------------------" << std::endl;
+        GPU_DEBUG_TRACE << "============================================================================" << std::endl;
         GPU_DEBUG_TRACE << "Start network execution (net_id : " << get_id() << ", iter :" << curr_iter << ")" << std::endl;
     }
 
@@ -968,16 +1046,18 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                     auto dump_file = debug_config->get_matched_from_filelist(files, "_src0__");
                     OPENVINO_ASSERT(dump_file.length() != 0, "Could not find expected pattern '_src[N]__' for binary dump input : " + layer_name);
 
-                    OPENVINO_ASSERT(files.size() == get_primitive(inst->id())->dependencies().size(), "Mis-match dump file count");
-
                     for (size_t i = 0; i < get_primitive(inst->id())->dependencies().size(); i++) {
                         auto dump_file = files[0];
                         if (files.size() > 1 || get_primitive(inst->id())->dependencies().size() != 1) {
                             std::string pattern = "_src" + std::to_string(i) + "__";
                             dump_file = debug_config->get_matched_from_filelist(files, pattern);
                         }
+                        if (dump_file.length() == 0) {
+                            GPU_DEBUG_COUT  << " Skip loading for  input(" << i << ") of " << layer_name << std::endl;
+                            continue;
+                        }
                         OPENVINO_ASSERT((dump_file.length() > 0), "Could not find expected pattern '_src[N]__' for binary dump input");
-                        GPU_DEBUG_COUT  << " Load binary dump : " << dump_file << " for input of " << layer_name << std::endl;
+                        GPU_DEBUG_COUT  << " Load binary dump : " << dump_file << " for input(" << i << ") of " << layer_name << std::endl;
 
                         std::vector<uint8_t> bin = ov::util::load_binary(dump_file);
                         OPENVINO_ASSERT(!bin.empty(), "Failure loading binary from OV_GPU_LoadDumpRawBinary : " + dump_file);
@@ -994,9 +1074,6 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         // Dump input buffers of 'inst'
         GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
             const std::string layer_name = inst->id();
-            GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                std::cerr << inst->id() << std::endl;
-            }
 
             GPU_DEBUG_IF(debug_config->is_target_iteration(curr_iter) &&
                         debug_config->dump_layers_dst_only == 0 && debug_config->is_layer_for_dumping(layer_name)) {
@@ -1035,7 +1112,6 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
 
         execute_primitive(inst, events);
         executed_prims++;
-
         if (needs_flushing && executed_prims % flush_frequency == 0)
             get_stream().flush();
 
@@ -1167,6 +1243,9 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     GPU_DEBUG_IF(debug_config->dump_runtime_memory_pool > 0) {
         get_memory_pool().dump(get_id());
     }
+#ifdef GPU_DEBUG_CONFIG
+    iteration++;
+#endif
 }
 
 std::vector<primitive_id> network::get_input_ids() const {
@@ -1297,7 +1376,7 @@ void network::allocate_primitive_instance(program_node const& node) {
     std::function<bool(const program_node&)> is_mutable_input = [&is_mutable_input](const program_node& node) {
         for (auto& dep : node.get_dependencies()) {
             const auto dep_node = dep.first;
-            if (dep_node->is_type<input_layout>() || dep_node->is_type<mutable_data>() || dep_node->is_type<read_value>()) {
+            if (dep_node->is_type<input_layout>() || dep_node->is_type<mutable_data>() || (dep_node->is_type<read_value>() && !dep_node->can_be_optimized())) {
                 return true;
             }
             if (dep_node->can_be_optimized()) {
@@ -1330,8 +1409,12 @@ void network::allocate_primitive_instance(program_node const& node) {
         if (node.is_type<data>())
             _data_outputs.push_back(inst);
     }
+    if (node.is_type<kv_cache>()) {
+       kv_cache_ids.push_back(node.id());
+    }
     if (auto state_prim = std::dynamic_pointer_cast<memory_state::variable>(inst)) {
-        set_variables_state_info(state_prim->variable_id(), node.get_output_layout(0), state_prim->get_user_specified_type());
+        auto prim = inst->get_node().get_primitive();
+        set_variables_state_info(state_prim->variable_id(), node.get_output_layout(0), state_prim->get_user_specified_type(), prim.get());
     }
     if (node.is_constant())
         transfer_memory_to_device(inst, node);
@@ -1364,12 +1447,12 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
         auto device_mem = inst_mem.get_engine()->allocate_memory(inst_mem.get_layout(), allocation_type::usm_device, false);
         device_mem->copy_from(get_stream(), inst_mem);
         GPU_DEBUG_LOG << "[" << node.id() << ": constant]" << std::endl;
-        _memory_pool->release_memory(&inst_mem, node.id(), get_id());
+        _memory_pool->release_memory(&inst_mem, node.get_unique_id(), node.id(), get_id());
         instance->set_output_memory(device_mem);
     }
 }
 
-void network::set_variable(const std::string& name, const std::shared_ptr<ov::intel_gpu::VariableState>& variable) {
+void network::set_variable(const std::string& name, const std::shared_ptr<ov::intel_gpu::VariableStateBase>& variable) {
     GPU_DEBUG_TRACE_DETAIL << "Set variable " << name << " " << variable->get_layout().to_short_string() << std::endl;
     _variables_states[name] = variable;
 }
@@ -1378,11 +1461,12 @@ bool network::has_variable(const std::string &variable_id) const {
     return _variables_states.find(variable_id) != _variables_states.end();
 }
 
-ov::intel_gpu::VariableState& network::get_variable(const std::string &variable_id) const {
+ov::intel_gpu::VariableStateBase& network::get_variable(const std::string &variable_id) const {
     auto it = _variables_states.find(variable_id);
     OPENVINO_ASSERT(it != _variables_states.end(), "[GPU] ", variable_id, " variable not found");
     return *it->second;
 }
+
 const ov::intel_gpu::VariableStateInfo& network::get_variable_info(const std::string &variable_id) const {
     auto it = _variables_state_info.find(variable_id);
     OPENVINO_ASSERT(it != _variables_state_info.end(), "[GPU] ", variable_id, " variable info not found");
@@ -1397,8 +1481,14 @@ const ov::intel_gpu::VariablesInfoMap& network::get_variables_info() const {
     return _variables_state_info;
 }
 
-void network::set_variables_state_info(const std::string& variable_id, const layout& variable_layout, ov::element::Type user_specified_type) {
+void network::set_variables_state_info(const std::string& variable_id,
+                                       const layout& variable_layout,
+                                       ov::element::Type user_specified_type,
+                                       const primitive* p) {
     _variables_state_info.emplace(variable_id, ov::intel_gpu::VariableStateInfo{variable_id, variable_layout, user_specified_type});
+
+    _variables_state_info.at(variable_id).m_primitives.insert(p);
 }
+
 
 }  // namespace cldnn

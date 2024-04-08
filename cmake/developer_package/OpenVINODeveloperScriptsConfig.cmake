@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -220,6 +220,8 @@ set(CMAKE_POLICY_DEFAULT_CMP0094 NEW)
 set(CMAKE_POLICY_DEFAULT_CMP0111 NEW)
 # CMake 3.22+ :cmake_dependent_option() supports full Condition Syntax
 set(CMAKE_POLICY_DEFAULT_CMP0127 NEW)
+# CMake 3.24+ :prefers to set the timestamps of all extracted contents to the time of the extraction
+set(CMAKE_POLICY_DEFAULT_CMP0135 NEW)
 
 set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "Don't warn about obsolete cmake versions in 3rdparty")
 set(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION ON CACHE BOOL "Warn about absolute paths in destination")

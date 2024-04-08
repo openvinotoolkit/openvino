@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,6 @@
 
 #include "itt.hpp"
 #include "multiclass_nms_shape_inference.hpp"
-#include "openvino/core/validation_util.hpp"
 
 namespace ov {
 namespace op {

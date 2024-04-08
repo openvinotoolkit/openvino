@@ -33,10 +33,10 @@ class TestKerasActivityRegularization(CommonTF2LayerTest):
     @pytest.mark.precommit
     def test_keras_activity_regularization_case1_float32(self, params, ie_device, precision,
                                                          ir_version, temp_dir,
-                                                         use_new_frontend):
+                                                         use_legacy_frontend):
         self._test(*self.create_keras_activity_regularization_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_new_frontend=use_new_frontend, **params)
+                   use_legacy_frontend=use_legacy_frontend, **params)
 
     test_data_extended_float32 = [
         dict(l1_param=0.07, l2_param=0.05, input_names=["x1"], input_shapes=[[1]],

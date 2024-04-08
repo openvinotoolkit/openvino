@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,6 @@
 #include <gmock/gmock-spec-builders.h>
 #include "low_precision/layer_transformation.hpp"
 #include "low_precision/fake_quantize.hpp"
-
-#include <ie_data.h>
 
 using namespace ::testing;
 using namespace std;

@@ -21,7 +21,7 @@ class TRANSFORMATIONS_API TSSqueezeBackward;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief TSSqueezeForward transformation sinks Transpose through Reshape, Squeeze operations
  * in the forward direction.
  */
@@ -32,7 +32,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief TSSqueezeBackward transformation sinks Transpose through Reshape, Squeeze operations
  * in the backward direction.
  */

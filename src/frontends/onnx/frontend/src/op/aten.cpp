@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "op/aten.hpp"
 
+#include "core/null_node.hpp"
 #include "exceptions.hpp"
-#include "onnx_import/core/null_node.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -19,14 +19,14 @@
 
 using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 
-OutputVector aten(const Node& node) {
-    OutputVector inputs{node.get_ng_inputs()};
+ov::OutputVector aten(const ov::frontend::onnx::Node& node) {
+    ov::OutputVector inputs{node.get_ov_inputs()};
 
     const auto operator_name = node.get_attribute_value<std::string>("operator", "");
     CHECK_VALID_NODE(node,
@@ -48,7 +48,7 @@ OutputVector aten(const Node& node) {
         inputs.size() == 4 && ov::op::util::is_null(inputs[2]) && !ov::op::util::is_null(inputs[3]);
     const bool is_offsets_three_inputs = inputs.size() == 3 && !ov::op::util::is_null(inputs[2]);
 
-    Output<ov::Node> embedding_bag;
+    ov::Output<ov::Node> embedding_bag;
     if (is_packed_two_inputs) {
         embedding_bag = std::make_shared<v3::EmbeddingBagPackedSum>(inputs[0], inputs[1]);
     } else if (is_packed_three_inputs) {
@@ -65,19 +65,20 @@ OutputVector aten(const Node& node) {
         const auto data_type = emb_tbl_in.get_element_type();
         const auto ind_type = indices_in.get_element_type();
 
-        const auto zero_const = std::make_shared<v0::Constant>(ind_type, Shape{}, 0);
+        const auto zero_const = std::make_shared<v0::Constant>(ind_type, ov::Shape{}, 0);
 
         // Shape aligned node, filled with zeros
-        const auto zero_of_data_type_const = std::make_shared<v0::Constant>(data_type, Shape{1}, 0);
+        const auto zero_of_data_type_const = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, 0);
         const auto weights_shape_node = std::make_shared<v3::ShapeOf>(emb_tbl_in, ind_type);
-        const auto weights_last_dim_idx = std::make_shared<v0::Constant>(element::i32, Shape{1}, -1);
+        const auto weights_last_dim_idx = std::make_shared<v0::Constant>(ov::element::i32, ov::Shape{1}, -1);
         const auto weights_last_dim =
             std::make_shared<v8::Gather>(weights_shape_node, weights_last_dim_idx, zero_const);
         const auto zero_col_node = std::make_shared<v3::Broadcast>(zero_of_data_type_const, weights_last_dim);
         const auto default_embeddings_node = std::make_shared<v0::Unsqueeze>(zero_col_node, zero_const);
 
         // Expanded embedding table weights
-        const auto weights_concat = std::make_shared<v0::Concat>(OutputVector{emb_tbl_in, default_embeddings_node}, 0);
+        const auto weights_concat =
+            std::make_shared<v0::Concat>(ov::OutputVector{emb_tbl_in, default_embeddings_node}, 0);
         // Index in embedding table to fill empty bags
         const auto weights_first_dim =
             std::make_shared<v0::Squeeze>(std::make_shared<v8::Gather>(weights_shape_node, zero_const, zero_const));
@@ -92,11 +93,11 @@ OutputVector aten(const Node& node) {
         OPENVINO_THROW("Unsupported inputs configuration for ATen `embedding_bag` operation.");
     }
     // Enable import onnx Node with duplicated outputs
-    return OutputVector(node.get_outputs_size(), embedding_bag);
+    return ov::OutputVector(node.get_outputs_size(), embedding_bag);
 }
 
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

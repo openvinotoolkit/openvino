@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -9,17 +9,17 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestShape(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'input' in inputs_info
-        input_shape = inputs_info['input']
+        assert 'input:0' in inputs_info
+        input_shape = inputs_info['input:0']
         inputs_data = {}
         rng = np.random.default_rng()
         if self.input_type == str or self.input_type == np.str_:
             strings_dictionary = ['first', 'second sentence', ' sentence 3 three', '34ferf466 23435* ', '汉语句子',
                                   'Oferta polska',
                                   'предложение по-русски']
-            inputs_data['input'] = rng.choice(strings_dictionary, input_shape)
+            inputs_data['input:0'] = rng.choice(strings_dictionary, input_shape)
         else:
-            inputs_data['input'] = rng.integers(-10, 10, size=input_shape).astype(self.input_type)
+            inputs_data['input:0'] = rng.integers(-10, 10, size=input_shape).astype(self.input_type)
         return inputs_data
 
     def create_shape_net(self, input_shape, input_type, out_type):
@@ -48,27 +48,29 @@ class TestShape(CommonTFLayerTest):
     @pytest.mark.parametrize("input_shape", [[], [2], [3, 4], [5, 1, 2]])
     @pytest.mark.parametrize("input_type", [np.float32, np.int32, str, np.str_])
     @pytest.mark.parametrize("out_type", [tf.int32, tf.int64])
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_shape_basic(self, input_shape, input_type, out_type, ie_device, precision, ir_version, temp_dir,
-                         use_new_frontend):
+                         use_legacy_frontend):
+        if ie_device == 'GPU' and (input_shape == [] or input_type == str or input_type == np.str_):
+            pytest.skip("scalar shape is not supported or string type is not supported on GPU")
         if input_shape == [] and out_type == tf.int64:
             pytest.skip('129100 - Hangs or segfault')
         self._test(*self.create_shape_net(input_shape=input_shape, input_type=input_type, out_type=out_type),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
 
 
 class TestComplexShape(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         rng = np.random.default_rng()
-        assert 'param_real' in inputs_info
-        assert 'param_imag' in inputs_info
-        param_real_shape_1 = inputs_info['param_real']
-        param_imag_shape_1 = inputs_info['param_imag']
+        assert 'param_real:0' in inputs_info
+        assert 'param_imag:0' in inputs_info
+        param_real_shape_1 = inputs_info['param_real:0']
+        param_imag_shape_1 = inputs_info['param_imag:0']
         inputs_data = {}
-        inputs_data['param_real'] = 4 * rng.random(param_real_shape_1).astype(np.float32) - 2
-        inputs_data['param_imag'] = 4 * rng.random(param_imag_shape_1).astype(np.float32) - 2
+        inputs_data['param_real:0'] = 4 * rng.random(param_real_shape_1).astype(np.float32) - 2
+        inputs_data['param_imag:0'] = 4 * rng.random(param_imag_shape_1).astype(np.float32) - 2
         return inputs_data
 
     def create_complex_shape_net(self, input_shape):
@@ -93,11 +95,13 @@ class TestComplexShape(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_complex_shape(self, params, ie_device, precision, ir_version, temp_dir,
-                           use_new_frontend):
+                           use_legacy_frontend):
+        if ie_device == 'GPU' and params['input_shape'] == []:
+            pytest.skip("scalar shape is not supported or string type is not supported on GPU")
         self._test(
             *self.create_complex_shape_net(**params),
             ie_device, precision, ir_version, temp_dir=temp_dir,
-            use_new_frontend=use_new_frontend)
+            use_legacy_frontend=use_legacy_frontend)

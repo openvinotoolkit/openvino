@@ -1,30 +1,25 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "openvino/core/deprecated.hpp"
-OPENVINO_SUPPRESS_DEPRECATED_START
+#include "core/node.hpp"
 
-#include "ngraph/node.hpp"
-#include "onnx_import/core/node.hpp"
-
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-OutputVector resize(const Node& node);
+ov::OutputVector resize(const ov::frontend::onnx::Node& node);
 
 }  // namespace set_1
 
 namespace set_11 {
-OutputVector resize(const Node& node);
+ov::OutputVector resize(const ov::frontend::onnx::Node& node);
 }
 
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

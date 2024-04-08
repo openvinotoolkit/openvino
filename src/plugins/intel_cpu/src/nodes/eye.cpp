@@ -3,7 +3,8 @@
 //
 
 #include "eye.h"
-
+#include "openvino/op/eye.hpp"
+#include <utils/bfloat16.hpp>
 #include "openvino/core/parallel.hpp"
 #include "shape_inference/shape_inference_ngraph.hpp"
 #include "utils/bfloat16.hpp"
@@ -73,7 +74,7 @@ struct Eye::EyeExecute {
 };
 
 void Eye::execute(dnnl::stream strm) {
-    auto outputPrec = getChildEdgesAtPort(0)[0]->getMemory().getDesc().getPrecision();
+    auto outputPrec = getChildEdgeAt(0)->getMemory().getDesc().getPrecision();
     OV_SWITCH(intel_cpu, EyeExecute, this, outputPrec,
               OV_CASE(ov::element::f32, float),
               OV_CASE(ov::element::bf16, bfloat16_t),
@@ -102,10 +103,10 @@ void Eye::executeSpecified() {
     const size_t rowNum = getRowNum();
     const size_t colNum = getColNum();
     const int64_t shift = getDiagIndex();
-    auto outPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto outPtr = getDstMemoryAtPort(0);
     if (!outPtr || !outPtr ->isAllocated())
         THROW_ERROR(errorPrefix, "Destination memory didn't allocate.");
-    T *dst = reinterpret_cast<T *>(outPtr->getData());
+    T *dst = outPtr->getDataAs<T>();
 
     const size_t batchVolume = getBatchVolume(getBatchShape());
     const size_t spatialCount = colNum * rowNum;

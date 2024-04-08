@@ -4,8 +4,7 @@
 
 #include "dft.hpp"
 
-#include "onnx_import/core/null_node.hpp"
-#include "openvino/core/deprecated.hpp"
+#include "core/null_node.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -18,8 +17,9 @@
 
 using namespace ov::op;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace dft {
 
 namespace {
@@ -33,7 +33,7 @@ bool try_convert_real_to_complex(ov::Output<ov::Node>& signal) {
         if (last_dim.is_static() && last_dim.get_length() == 1) {
             ov::Output<ov::Node> imag_part = v0::Constant::create(signal.get_element_type(), {}, {0});
             imag_part = std::make_shared<v3::Broadcast>(imag_part, std::make_shared<v3::ShapeOf>(signal));
-            signal = std::make_shared<v0::Concat>(OutputVector{signal, imag_part}, last_axis_pos);
+            signal = std::make_shared<v0::Concat>(ov::OutputVector{signal, imag_part}, last_axis_pos);
             return true;
         }
     }
@@ -49,14 +49,13 @@ ov::Output<ov::Node> make_dft(const ov::Output<ov::Node>& signal,
                               bool is_inversed,
                               bool is_onesided) {
     auto processed_signal = signal;
-    const auto axis_const = v0::Constant::create(element::i64, {1}, {axis});
+    const auto axis_const = v0::Constant::create(ov::element::i64, {1}, {axis});
     bool conversion_to_complex_applied = false;
     if (is_inversed || !is_onesided) {  // skip for RDFT case
         conversion_to_complex_applied = try_convert_real_to_complex(processed_signal);
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
+
     bool dft_length_provided = !ov::op::util::is_null(length);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ov::Output<ov::Node> result;
     if (is_inversed) {
@@ -64,7 +63,7 @@ ov::Output<ov::Node> make_dft(const ov::Output<ov::Node>& signal,
             result = dft_length_provided ? std::make_shared<v9::IRDFT>(processed_signal, axis_const, length)
                                          : std::make_shared<v9::IRDFT>(processed_signal, axis_const);
             if (conversion_to_complex_applied) {  // align the output shape with a real numbers representation
-                const auto unsqueeze_axis = v0::Constant::create(element::i64, {}, {-1});
+                const auto unsqueeze_axis = v0::Constant::create(ov::element::i64, {}, {-1});
                 result = std::make_shared<v0::Unsqueeze>(result, unsqueeze_axis);
             }
         } else {
@@ -83,5 +82,6 @@ ov::Output<ov::Node> make_dft(const ov::Output<ov::Node>& signal,
     return {result};
 }
 }  // namespace  dft
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

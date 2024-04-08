@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/concat.hpp"
@@ -22,6 +23,8 @@
 bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(UnrollTensorIterator);
     for (const auto& op : f->get_ops()) {
+        ov::op::util::process_subgraph(*this, op);
+
         auto sub_graph_op = std::dynamic_pointer_cast<op::util::SubGraphOp>(op);
         if (!sub_graph_op || transformation_callback(sub_graph_op)) {
             continue;

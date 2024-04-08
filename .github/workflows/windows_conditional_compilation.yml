@@ -5,6 +5,7 @@ on:
     # run daily at 00:00
     - cron: '0 0 * * *'
   pull_request:
+  merge_group:
   push:
     branches:
       - master
@@ -49,12 +50,17 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: aks-win-16-cores-32gb
+    runs-on: aks-win-8-cores-64gb
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja Multi-Config'
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
+      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
+      SCCACHE_SERVER_PORT: 35555
+      SCCACHE_IDLE_TIMEOUT: 0
+      SCCACHE_ERROR_LOG: "${{ github.workspace }}\\openvino\\sccache_log.txt"
+      SCCACHE_LOG: warn
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\tests_install"
@@ -63,7 +69,7 @@ jobs:
       SELECTIVE_BUILD_STAT_DIR: "${{ github.workspace }}\\selective_build_stat"
       # TODO: specify version of compiler here
       SCCACHE_AZURE_KEY_PREFIX: windows2022_x86_64_itt_Release
-    if: "!needs.smart_ci.outputs.skip_workflow"
+    if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
 
     steps:
       - name: Clone OpenVINO
@@ -99,12 +105,16 @@ jobs:
           self-hosted-runner: 'false'
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.3
+        uses: mozilla-actions/sccache-action@v0.0.4
         with:
-          version: "v0.5.4"
+          version: "v0.7.5"
 
       - name: Install build dependencies
-        run: choco install --no-progress ninja
+        run: |
+          Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-win.zip -OutFile ninja-win.zip -MaximumRetryCount 10
+          Expand-Archive -Force ninja-win.zip
+          # Add it to the GitHub Path so it would be available in the subsequent steps
+          Add-Content -Path $env:GITHUB_PATH -Value "${{ github.workspace }}/ninja-win"
 
       - name: Install python dependencies
         run: |
@@ -138,6 +148,7 @@ jobs:
         run: |
           cmake -G "${{ env.CMAKE_GENERATOR }}" `
             -DBUILD_SHARED_LIBS=OFF `
+            -DCMAKE_CXX_STANDARD=20 `
             -DENABLE_TESTS=ON `
             -DENABLE_CPPLINT=OFF `
             -DENABLE_NCC_STYLE=OFF `
@@ -187,13 +198,13 @@ jobs:
       - name: Ctest - OpenVINO unit tests
         shell: cmd
         run: |
-          set path=%path%;${{ env.OPENVINO_REPO }}\temp\tbb\bin
+          set path=%path%;${{ env.OPENVINO_REPO }}\temp\tbb\bin;${{ env.BUILD_DIR }}\bin\Release
           ctest -C ${{ env.CMAKE_BUILD_TYPE }} --test-dir ${{ env.BUILD_DIR }} -V -L UNIT
 
       - name: Perform code tracing via ITT collector
         shell: cmd
         run: |
-          set path=%path%;${{ env.OPENVINO_REPO }}\temp\tbb\bin
+          set path=%path%;${{ env.OPENVINO_REPO }}\temp\tbb\bin;${{ env.BUILD_DIR }}\bin\Release
 
           python3 ${{ env.OPENVINO_REPO }}\thirdparty\itt_collector\runtool\sea_runtool.py ^
           --bindir ${{ env.OPENVINO_REPO }}\bin\intel64\${{ env.CMAKE_BUILD_TYPE }} ^
@@ -222,15 +233,26 @@ jobs:
           Compress-Archive @compress
 
           $compress = @{
-            Path = "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_cpu_func_tests.exe", "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/openvino_template_extension.dll", "${{ env.OPENVINO_REPO }}/src/tests/test_utils/functional_test_utils/layer_tests_summary", "${{ env.INSTALL_DIR }}/runtime/3rdparty/tbb"
+            Path = "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_cpu_func_tests.exe", "${{ env.BUILD_DIR }}/bin/Release/ze_loader.dll", "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/openvino_template_extension.dll", "${{ env.OPENVINO_REPO }}/src/tests/test_utils/functional_test_utils/layer_tests_summary", "${{ env.INSTALL_DIR }}/runtime/3rdparty/tbb"
             CompressionLevel = "Optimal"
             DestinationPath = "${{ env.BUILD_DIR }}/openvino_tests.zip"
           }
           Compress-Archive @compress
 
+      #
+      # Upload build artifacts and logs
+      #
+      - name: Upload build logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build_logs
+          path: ${{ env.SCCACHE_ERROR_LOG }}
+          if-no-files-found: 'ignore'
+
       - name: Upload selective build statistics package
         if: ${{ always() }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: openvino_selective_build_stat
           path: ${{ env.BUILD_DIR }}/openvino_selective_build_stat.zip
@@ -238,7 +260,7 @@ jobs:
 
       - name: Upload OpenVINO tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.zip
@@ -250,11 +272,14 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: aks-win-16-cores-32gb
+    runs-on: aks-win-8-cores-64gb
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
+      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
+      SCCACHE_SERVER_PORT: 35555
+      SCCACHE_IDLE_TIMEOUT: 0
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
       MODELS_PATH: "${{ github.workspace }}\\testdata"
@@ -278,7 +303,7 @@ jobs:
           ref: 'master'
 
       - name: Download selective build statistics package
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: openvino_selective_build_stat
           path: ${{ env.SELECTIVE_BUILD_STAT_DIR }}
@@ -294,7 +319,7 @@ jobs:
           self-hosted-runner: 'false'
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.3
+        uses: mozilla-actions/sccache-action@v0.0.4
         with:
           version: "v0.5.4"
 
@@ -331,7 +356,7 @@ jobs:
       - name: Run with CC-ed runtime
         shell: cmd
         run: |
-          set path=%path%;${{ env.OPENVINO_REPO }}\temp\tbb\bin
+          set path=%path%;${{ env.OPENVINO_REPO }}\temp\tbb\bin;${{ env.BUILD_DIR }}\bin\Release
           ${{ env.OPENVINO_REPO }}\bin\intel64\${{ env.CMAKE_BUILD_TYPE }}\benchmark_app.exe -niter 1 -nireq 1 -m ${{ env.MODELS_PATH }}\models\test_model\test_model_fp32.xml -d CPU
 
   CPU_Functional_Tests:
@@ -351,7 +376,7 @@ jobs:
 
     steps:
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -389,12 +414,12 @@ jobs:
       - name: Intel CPU plugin func tests (parallel)
         shell: cmd
         run: |
-          set path=%path%;${{ env.INSTALL_TEST_DIR }}\tbb\bin;${{ env.INSTALL_TEST_DIR }}\tbb
+          set path=%path%;${{ env.INSTALL_TEST_DIR }}\tbb\bin;${{ env.INSTALL_TEST_DIR }}\tbb;${{ env.INSTALL_TEST_DIR }}
           python3 ${{ env.PARALLEL_TEST_SCRIPT }} -e ${{ env.INSTALL_TEST_DIR }}\ov_cpu_func_tests.exe -w ${{ env.INSTALL_TEST_DIR }} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
         timeout-minutes: 60
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
           name: test-results-functional-cpu

@@ -1,11 +1,12 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 /**
  * @brief The header provides a declaration of MemorySolver utility class
- * @file
+ * @file openvino/runtime/memory_solver.hpp
  */
+
 #pragma once
 
 #include <stdint.h>

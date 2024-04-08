@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1373,6 +1373,52 @@ TEST(constant, float16_vector) {
     EXPECT_EQ(p[3], float16(0));
 }
 
+TEST(constant, float8_e4m3_vector) {
+    const auto data_vec = std::vector<ov::float8_e4m3>{std::numeric_limits<ov::float8_e4m3>::lowest(),
+                                                       -std::numeric_limits<ov::float8_e4m3>::min(),
+                                                       std::numeric_limits<ov::float8_e4m3>::min(),
+                                                       std::numeric_limits<ov::float8_e4m3>::max(),
+                                                       std::numeric_limits<ov::float8_e4m3>::denorm_min(),
+                                                       -1.5f,
+                                                       -1.f,
+                                                       -0.5f,
+                                                       0.f,
+                                                       0.5f,
+                                                       1.f,
+                                                       1.5f};
+    Shape data_shape{data_vec.size()};
+    EXPECT_EQ(data_vec.size(), shape_size(data_shape));
+
+    ov::op::v0::Constant const_op_from_vec(ov::element::f8e4m3, data_shape, data_vec);
+    EXPECT_EQ(data_vec, const_op_from_vec.get_vector<ov::float8_e4m3>());
+
+    ov::op::v0::Constant const_op_from_ptr(ov::element::f8e4m3, data_shape, data_vec.data());
+    EXPECT_EQ(data_vec, const_op_from_ptr.get_vector<ov::float8_e4m3>());
+}
+
+TEST(constant, float8_e5m3_vector) {
+    const auto data_vec = std::vector<ov::float8_e5m2>{std::numeric_limits<ov::float8_e5m2>::lowest(),
+                                                       -std::numeric_limits<ov::float8_e5m2>::min(),
+                                                       std::numeric_limits<ov::float8_e5m2>::min(),
+                                                       std::numeric_limits<ov::float8_e5m2>::max(),
+                                                       std::numeric_limits<ov::float8_e5m2>::denorm_min(),
+                                                       -1.5f,
+                                                       -1.f,
+                                                       -0.5f,
+                                                       0.f,
+                                                       0.5f,
+                                                       1.f,
+                                                       1.5f};
+    Shape data_shape{data_vec.size()};
+    EXPECT_EQ(data_vec.size(), shape_size(data_shape));
+
+    ov::op::v0::Constant const_op_from_vec(ov::element::f8e5m2, data_shape, data_vec);
+    EXPECT_EQ(data_vec, const_op_from_vec.get_vector<ov::float8_e5m2>());
+
+    ov::op::v0::Constant const_op_from_ptr(ov::element::f8e5m2, data_shape, data_vec.data());
+    EXPECT_EQ(data_vec, const_op_from_ptr.get_vector<ov::float8_e5m2>());
+}
+
 TEST(constant, float16_vector_broadcast) {
     Shape shape{4};
     ov::op::v0::Constant c(element::f16, shape, vector<float16>{1});
@@ -1451,6 +1497,15 @@ TEST(constant, ov_string_shared_data) {
     const int16_t* p1 = c1->get_data_ptr<int16_t>();
     const int16_t* p2 = c2->get_data_ptr<int16_t>();
     EXPECT_EQ(p1, p2);
+}
+
+TEST(constant, ov_string_broadcast_from_non_string) {
+    EXPECT_THROW(std::ignore = op::v0::Constant::create(element::string, Shape{4}, std::vector<int>{10}), Exception);
+}
+
+TEST(constant, ov_string_from_non_string_vector) {
+    EXPECT_THROW(std::ignore = op::v0::Constant::create(element::string, Shape{4}, std::vector<int>{10, 1, 3, 2}),
+                 Exception);
 }
 
 template <typename T1, typename T2>

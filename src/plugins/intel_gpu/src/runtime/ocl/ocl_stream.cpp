@@ -265,7 +265,7 @@ void ocl_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& args
     auto& kern = ocl_kernel.get_handle();
 
     try {
-        GPU_DEBUG_TRACE_DETAIL << "Set arguments for primitive: " << args_desc.layerID << " (" << kern.get() << ")\n";
+        GPU_DEBUG_TRACE_DETAIL << "Set arguments for primitive: " << args_desc.layerID << " (" << kernel.get_id() << " = " << kern.get() << ")\n";
         set_arguments_impl(kern, args_desc.arguments, args);
     } catch (cl::Error const& err) {
         OPENVINO_THROW(OCL_ERR_MSG_FMT(err));

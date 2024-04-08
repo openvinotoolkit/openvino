@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,10 +15,10 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "functional_test_utils/test_model/test_model.hpp"
-#include "ie_extension.h"
 #include "openvino/core/so_extension.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/util/file_util.hpp"
+
 #ifdef __GLIBC__
 #    include <gnu/libc-version.h>
 #    if __GLIBC_MINOR__ < 34

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,11 +18,11 @@ public:
     class Actual {
     public:
         ov::element::Type precisionBeforeAdd;
-        ngraph::builder::subgraph::Add add;
+        ov::builder::subgraph::Add add;
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
         ov::element::Type precisionAfterDequantization;
-        ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
+        ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
     };
 
     ov::PartialShape inputShape;

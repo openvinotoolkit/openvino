@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -33,7 +33,7 @@ class SSliceComplex(MiddleReplacementPattern):
     Here SomeOp is some node with the real output and with the shape [N_0, ..., N_{k - 1}, 2, N_{k +1}, ..., N_{r - 1}],
     and StridedSlice nodes have output shapes [N_0, ..., N_{k - 1}, N_{k +1}, ..., N_{r - 1}].
 
-    But MO and Inference Engine do not support complex tensors. Hence, we need to replace this sub-graph with.
+    But MO and OpenVINO do not support complex tensors. Hence, we need to replace this sub-graph with.
     1. If k == r - 1, then the replacement should be the subgraph
 
          SomeOp   other inputs

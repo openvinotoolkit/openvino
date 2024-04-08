@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,8 @@ namespace LayerTestsDefinitions {
 
 class MatMulWithOptimizedConstantFakeQuantizeTransformationTestValues {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData;
-    ngraph::builder::subgraph::FakeQuantizeOnData fqOnWeights;
+    ov::builder::subgraph::FakeQuantizeOnData fqOnData;
+    ov::builder::subgraph::FakeQuantizeOnData fqOnWeights;
 };
 
 typedef std::tuple<

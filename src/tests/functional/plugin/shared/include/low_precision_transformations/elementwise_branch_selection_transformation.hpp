@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,14 +16,14 @@ class ElementwiseBranchSelectionTestValues{
 public:
     class Branch {
     public:
-        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeBefore;
-        ngraph::builder::subgraph::Convolution convolution;
-        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeAfter;
+        ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeBefore;
+        ov::builder::subgraph::Convolution convolution;
+        ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeAfter;
     };
 
     Branch branch1;
     Branch branch2;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeAfter;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeAfter;
     std::vector<std::pair<std::string, std::string>> expectedReorders;
     // expected operation name + expected operation precision
     std::vector<std::pair<std::string, std::string>> expectedPrecisions;

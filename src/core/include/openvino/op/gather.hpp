@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,7 +74,6 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
     int64_t get_batch_dims() const;
-
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };
 }  // namespace v8

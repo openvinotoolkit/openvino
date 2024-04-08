@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,21 +7,14 @@
 #include <cmath>
 #include <cstring>
 
-#ifndef IN_OV_COMPONENT
-#    define IN_OV_COMPONENT
-#    define WAS_OV_LIBRARY_DEFINED_CONSTANT
-#endif
-
-#include "ngraph/util.hpp"
-#include "openvino/core/rtti.hpp"
-
-#ifdef WAS_OV_LIBRARY_DEFINED_CONSTANT
-#    undef IN_OV_COMPONENT
-#    undef WAS_OV_LIBRARY_DEFINED_CONSTANT
-#endif
+#include "openvino/core/axis_set.hpp"
+#include "openvino/core/axis_vector.hpp"
 #include "openvino/core/coordinate_diff.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/rtti.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/op/op.hpp"
 
 namespace ov {
 
@@ -153,6 +146,9 @@ public:
         case Type_t::string:
             fill_data<Type_t::string>(value);
             break;
+        case Type_t::u2:
+        case Type_t::u3:
+        case Type_t::u6:
         case Type_t::undefined:
         case Type_t::dynamic:
             OPENVINO_THROW("unsupported type");
@@ -355,6 +351,12 @@ public:
             break;
         case Type_t::u64:
             cast_vector<Type_t::u64>(rc, num_elements_to_cast);
+            break;
+        case Type_t::f8e4m3:
+            cast_vector<Type_t::f8e4m3>(rc, num_elements_to_cast);
+            break;
+        case Type_t::f8e5m2:
+            cast_vector<Type_t::f8e5m2>(rc, num_elements_to_cast);
             break;
         case Type_t::string:
             cast_vector<Type_t::string>(rc, num_elements_to_cast);
@@ -646,6 +648,7 @@ private:
               typename StorageDataType = fundamental_type_for<Type>,
               typename std::enable_if<Type == element::Type_t::string, bool>::type = true>
     void fill_data(const T& value) {
+        fill_data<element::string>(std::string());
         std::string type_name(typeid(value).name());
         OPENVINO_THROW("fill_data does not support to fill ov::Tensor of string type with value of " + type_name);
     }
@@ -722,6 +725,7 @@ private:
               typename T,
               typename std::enable_if<Type == element::Type_t::string, bool>::type = true>
     void write_buffer(const std::vector<T>& source) {
+        fill_data<element::string>(std::string());
         if (source.size() > 0) {
             auto source_type = std::string(typeid(source[0]).name());
             OPENVINO_THROW("write_buffer does not support writing elements of type " + source_type +
@@ -755,7 +759,8 @@ private:
               typename StorageDataType = fundamental_type_for<Type>,
               typename std::enable_if<Type == element::Type_t::nf4 &&
                                           (std::is_floating_point<T>::value || std::is_same<T, bfloat16>::value ||
-                                           std::is_same<T, float16>::value),
+                                           std::is_same<T, float16>::value || std::is_same<T, float8_e4m3>::value ||
+                                           std::is_same<T, float8_e5m2>::value),
                                       bool>::type = true>
     void write_buffer(const std::vector<T>& source) {
         auto p = get_data_ptr_nc<Type>();
@@ -872,6 +877,9 @@ private:
         case Type_t::string:
             write_buffer<Type_t::string>(source);
             break;
+        case element::Type_t::u2:
+        case element::Type_t::u3:
+        case element::Type_t::u6:
         case element::Type_t::undefined:
         case element::Type_t::dynamic:
             OPENVINO_THROW("unsupported type");

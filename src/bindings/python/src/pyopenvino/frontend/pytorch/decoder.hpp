@@ -110,8 +110,21 @@ class PyDecoder : public ov::frontend::pytorch::TorchDecoder {
         PYBIND11_OVERRIDE_PURE(bool, TorchDecoder, may_produce_alias, in_index, out_index);
     }
 
-    ov::OutputVector inlined_inputs(size_t start_index) const override {
-        PYBIND11_OVERRIDE_PURE(ov::OutputVector, TorchDecoder, inlined_inputs, start_index); }
+    ov::OutputVector inlined_input(size_t index) const override {
+        PYBIND11_OVERRIDE_PURE(ov::OutputVector, TorchDecoder, inlined_input, index);
+    }
+
+    bool is_input_inlined(size_t index) const override {
+        PYBIND11_OVERRIDE_PURE(bool, TorchDecoder, is_input_inlined, index);
+    }
+
+    ov::Any get_attribute(const std::string &name) const override{
+        PYBIND11_OVERRIDE_PURE(ov::Any, TorchDecoder, get_attribute, name);
+    }
+
+    size_t get_named_input(const std::string &name) const override{
+        PYBIND11_OVERRIDE_PURE(size_t, TorchDecoder, get_named_input, name);
+    }
 
     const std::string& decoder_type_name() const override {
         PYBIND11_OVERRIDE_PURE(const std::string&, TorchDecoder, decoder_type_name);

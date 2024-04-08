@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,32 +8,30 @@
 #include "openvino/op/hard_sigmoid.hpp"
 
 using namespace ov::op;
+using ov::Shape;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-OutputVector hard_sigmoid(const Node& node) {
-    const auto data = node.get_ng_inputs().at(0);
+ov::OutputVector hard_sigmoid(const ov::frontend::onnx::Node& node) {
+    const auto data = node.get_ov_inputs().at(0);
 
     const auto alpha =
         v0::Constant::create<double>(data.get_element_type(),
-                                     Shape{},
+                                     ov::Shape{},
                                      std::vector<double>{node.get_attribute_value<double>("alpha", 0.2)});
 
     const auto beta = v0::Constant::create<double>(data.get_element_type(),
-                                                   Shape{},
+                                                   ov::Shape{},
                                                    std::vector<double>{node.get_attribute_value<double>("beta", 0.5)});
 
     return {std::make_shared<v0::HardSigmoid>(data, alpha, beta)};
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

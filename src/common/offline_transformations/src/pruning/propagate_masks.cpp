@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 
 #include "mask_attribute.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/gelu.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -19,7 +20,6 @@
 #include "openvino/reference/utils/coordinate_transform.hpp"
 #include "openvino/util/log.hpp"
 #include "pruning.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace pass {

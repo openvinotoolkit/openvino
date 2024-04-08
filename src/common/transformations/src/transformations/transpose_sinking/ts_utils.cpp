@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -187,6 +187,9 @@ AxisVector AlignTransposeOrder(const Output<Node>& output, const TransposeInputs
     }
     auto num_of_val = static_cast<int64_t>(shape_size(transpose_input_info.transpose_const->get_shape()));
     const auto rank = output.get_partial_shape().rank();
+    if (rank.is_dynamic()) {
+        return {};
+    }
     const auto rank_val = rank.get_length();
     AxisVector new_transpose_order;
     if (rank_val > num_of_val) {
