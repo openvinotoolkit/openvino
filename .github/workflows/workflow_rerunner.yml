@@ -63,6 +63,8 @@ jobs:
         run: pip3 install PyGithub==2.2.0 requests==2.31.0
 
       - name: Test Rerunner
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         working-directory: ${{ github.workspace }}/.github/scripts/workflow_rerun
         run: |
           export PYTHONPATH=${{ github.workspace }}/.github/scripts/workflow_rerun:${{ github.workspace }}/.github/scripts:$PYTHONPATH

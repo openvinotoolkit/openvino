@@ -27,7 +27,7 @@ if __name__ == '__main__':
         LOGGER.info(f'THERE ARE {run.run_attempt} ATTEMPTS ALREADY. NOT CHECKING LOGS AND NOT RETRIGGERING. EXITING')
         sys.exit(0)
         
-    log_archive_path = Path(tempfile.TemporaryDirectory().name)
+    log_archive_path = Path(tempfile.NamedTemporaryFile(suffix='.zip').name)
 
     collect_logs_for_run(
         run=run,
