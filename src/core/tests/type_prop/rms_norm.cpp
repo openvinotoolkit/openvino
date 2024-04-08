@@ -200,7 +200,7 @@ TEST(type_prop, rms_norm_incompatible_axes_shape) {
         const auto axes = std::make_shared<Parameter>(element::i32, PartialShape{1, 2});
         OV_EXPECT_THROW(std::ignore = std::make_shared<op::v14::RMSNorm>(data, axes, scale, eps, compute_type),
                         ov::NodeValidationFailure,
-                        HasSubstr("Expected 1D tensor for the 'axes' input"));
+                        HasSubstr("Axes input must be a scalar or 1D input. Got: [1,2]"));
     }
     {
         const auto axes = std::make_shared<Parameter>(element::i32, PartialShape{4});
