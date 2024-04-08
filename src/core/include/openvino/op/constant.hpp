@@ -719,6 +719,7 @@ private:
         using lp_iter_ptr = std::shared_ptr<lp_iter>;
 
         LPBuffer(void* ptr);
+        LPBuffer(const void* ptr) : LPBuffer{const_cast<void*>(ptr)} {}
         void write(const float value);
         ov::fundamental_type_for<ET> read() const;
         LPBuffer& operator++();
