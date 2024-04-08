@@ -764,7 +764,7 @@ jobs:
     name: GPU ${{ matrix.TEST_TYPE }} Tests
     needs: [ Build, Smart_CI ]
     if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
-    timeout-minutes: 300
+    timeout-minutes: 80
     runs-on: [ self-hosted, gpu ]
     strategy:
       max-parallel: 2
@@ -784,6 +784,7 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       PARALLEL_TEST_SCRIPT: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py
+      GTEST_PARALLEL_SCRIPT: ${{ github.workspace }}/gtest_parallel.py
     steps:
       - name: Download OpenVINO package
         uses: actions/download-artifact@v4
@@ -803,6 +804,7 @@ jobs:
           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
           echo "PARALLEL_TEST_SCRIPT=$GITHUB_WORKSPACE/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py" >> "$GITHUB_ENV"
+          echo "GTEST_PARALLEL_SCRIPT=$GITHUB_WORKSPACE/gtest_parallel.py" >> "$GITHUB_ENV"
 
       - name: Extract OpenVINO packages
         run: |
@@ -829,6 +831,10 @@ jobs:
 
       - name: Install python dependencies for run_parallel.py
         run: python3 -m pip install -r ${INSTALL_TEST_DIR}/functional_test_utils/layer_tests_summary/requirements.txt
+
+      - name: Get gtest-parallel script
+        run: |
+          wget https://raw.githubusercontent.com/google/gtest-parallel/master/gtest_parallel.py
 
       - name: Install GPU Drivers
         run: |
@@ -857,8 +863,10 @@ jobs:
           else
             test_filter='*smoke*:-*SqueezeUnsqueezeLayerTest.CompareWithRefs*'
           fi
-          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_gpu_${{ matrix.TEST_TYPE }}_tests -w ${INSTALL_TEST_DIR}/gpu_${{ matrix.TEST_TYPE }}_tests -s suite -rf 1 -- --gtest_print_time=1 --gtest_filter=$test_filter
-      
+          # python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_gpu_${{ matrix.TEST_TYPE }}_tests -w ${INSTALL_TEST_DIR}/gpu_${{ matrix.TEST_TYPE }}_tests -s suite -rf 1 -- --gtest_print_time=1 --gtest_filter=$test_filter
+          python3 ${GTEST_PARALLEL_SCRIPT} ${INSTALL_TEST_DIR}/ov_gpu_unit_tests --output_dir=${INSTALL_TEST_DIR}/gpu_${{ matrix.TEST_TYPE }}_tests --workers=22 --dump_json_test_results=${INSTALL_TEST_DIR}/gpu_${{ matrix.TEST_TYPE }}_tests/ov_gpu_${{ matrix.TEST_TYPE }}_tests.json -- --report_unique_name --gtest_filter=$test_filter
+          
+
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
         if: always()
