@@ -42,7 +42,7 @@ std::vector<TRShape> shape_infer(const RMSNorm* op,
                                "Number of the axes can't be higher than the rank of the data shape.");
     }
 
-    if (input_shapes.size() > 2) {  // Validate scale input
+    if (has_scale_input) {  // Validate scale input
         auto scale_shape = input_shapes[2];
         const bool is_scale_shape_broadcastable =
             TRShape::broadcast_merge_into(scale_shape, data_shape, ov::op::AutoBroadcastType::NUMPY);
