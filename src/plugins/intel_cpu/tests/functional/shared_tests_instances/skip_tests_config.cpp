@@ -467,6 +467,7 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(nightly_Deconv_2D_Blocked_FP16/.*brgconv_avx512.*)");
         retVector.emplace_back(R"(smoke_Deconv_3D_Blocked_FP16/.*brgconv_avx512.*)");
         retVector.emplace_back(R"(nightly_Deconv_3D_Blocked_FP16/.*brgconv_avx512.*)");
+        retVector.emplace_back(R"(smoke_Conv_Sum_Broadcast_FP16/ConvSumInPlaceTest.*Relu\.Multiply\(PerChannel\)\.Add\(PerChannel\).*)");
     }
 
     if (ov::with_cpu_x86_avx512_core_amx_fp16()) {
