@@ -23,6 +23,7 @@ TEST(type_prop, rms_norm_default_ctor) {
     op->validate_and_infer_types();
 
     EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_input_size(), 3);
     EXPECT_EQ(op->get_output_element_type(0), element::f16);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 8, 6}));
 }
@@ -33,6 +34,7 @@ TEST(type_prop, rms_norm_no_scale_no_compute_type) {
     const auto eps = 1e-5;
 
     const auto op = std::make_shared<op::v14::RMSNorm>(data, axes, eps);
+    EXPECT_EQ(op->get_input_size(), 2);
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 8, 6}));
@@ -46,6 +48,7 @@ TEST(type_prop, rms_norm_scale_no_compute_type) {
     const auto eps = 1e-5;
 
     const auto op = std::make_shared<op::v14::RMSNorm>(data, axes, scale, eps);
+    EXPECT_EQ(op->get_input_size(), 3);
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_output_element_type(0), element::f16);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 8, 6}));
@@ -60,6 +63,7 @@ TEST(type_prop, rms_norm_scale_compute_type) {
     const auto compute_type = element::f32;
 
     const auto op = std::make_shared<op::v14::RMSNorm>(data, axes, scale, eps, compute_type);
+    EXPECT_EQ(op->get_input_size(), 3);
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_output_element_type(0), element::f16);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 8, 6}));
