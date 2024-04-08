@@ -855,6 +855,9 @@ TEST(constant, uint2_string) {
 
     const auto p = c.get_data_ptr<uint8_t>();
     EXPECT_EQ(p[0], 0b11000110);
+
+    EXPECT_EQ(c.convert_value_to_string(1), "0");
+    EXPECT_THAT(c.get_value_strings(), ElementsAre("3", "0", "1", "2"));
 }
 
 TEST(constant, uint2_string_broadcast) {
@@ -962,6 +965,9 @@ TEST(constant, uint3_string) {
     EXPECT_EQ(p[0], 0b11000110);
     EXPECT_EQ(p[1], 0b00110110);
     EXPECT_EQ(p[2], 0b00001111);
+
+    EXPECT_EQ(c.convert_value_to_string(6), "5");
+    EXPECT_THAT(c.get_value_strings(), ElementsAre("3", "0", "1", "2", "4", "7", "5", "6"));
 }
 
 TEST(constant, uint3_string_broadcast) {
@@ -1177,6 +1183,9 @@ TEST(constant, uint6_string) {
     EXPECT_EQ(p[0], 0x49);
     EXPECT_EQ(p[1], 0xf0);
     EXPECT_EQ(p[2], 0b00000001);
+
+    EXPECT_EQ(c.convert_value_to_string(2), "15");
+    EXPECT_THAT(c.get_value_strings(), ElementsAre("4", "9", "15", "16"));
 }
 
 TEST(constant, uint6_string_broadcast) {
