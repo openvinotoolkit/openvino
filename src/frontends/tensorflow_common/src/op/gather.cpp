@@ -68,7 +68,8 @@ OutputVector translate_gather_v2_op(const NodeContext& node) {
     auto indices = node.get_input(1);
     auto axis = node.get_input(2);
     auto batch_dims = node.get_attribute<int64_t>("batch_dims", 0);
-
+    auto params_shape = make_shared<v3::ShapeOf>(params, ov::element::i32);
+    auto params_rank = make_shared<v3::ShapeOf>(params_shape, ov::element::i32);
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(params.get_node_shared_ptr());
 
     if (complex_type_mark) {
@@ -80,19 +81,25 @@ OutputVector translate_gather_v2_op(const NodeContext& node) {
         // calculate the updated value for the axis
         auto params_shape = make_shared<v3::ShapeOf>(params, ov::element::i32);
         auto params_rank = make_shared<v3::ShapeOf>(params_shape, ov::element::i32);
-        auto updated_axis = make_shared<v1::Subtract>(params_rank, make_shared<v0::Constant>(ov::element::i32, Shape{}, 1));
+        auto updated_axis =
+            make_shared<v1::Subtract>(params_rank, make_shared<v0::Constant>(ov::element::i32, Shape{}, 1));
 
         // create Select operation to choose between original axis and updated axis
         auto selected_axis = make_shared<v1::Select>(condition, updated_axis, axis);
-        
-        auto gather = make_shared<v8::Gather>(params, indices, selected_axis, 0);
+
+        // Update batch_dims if negative
+        auto updated_batch_dims = batch_dims < 0 ? make_shared<v1::Add>(batch_dims, params_rank) : batch_dims;
+
+        auto gather = make_shared<v8::Gather>(params, indices, selected_axis, updated_batch_dims);
 
         set_node_name(node.get_name(), gather);
         auto complex_gather = make_shared<ComplexTypeMark>(gather, complex_type_mark->get_complex_part_type());
         return {complex_gather->output(0)};
     }
+    // Update batch_dims if negative
+    auto updated_batch_dims = batch_dims < 0 ? make_shared<v1::Add>(batch_dims, params_rank) : batch_dims;
 
-    return translate_basic_gather_op(node, axis, batch_dims);
+    return translate_basic_gather_op(node, axis, batch_dims, updated_batch_dims);
 }
 
 OutputVector translate_gather_nd_op(const NodeContext& node) {
