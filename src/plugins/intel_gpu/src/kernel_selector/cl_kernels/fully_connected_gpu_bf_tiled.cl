@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -176,7 +176,15 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     FILTER_VEC_TYPE wei = 0;
 #endif
 
+
+#if OUTPUT_3D
+    uint out_b0 = out_b / OUTPUT_FEATURE_NUM;
+    uint out_b1 = out_b % OUTPUT_FEATURE_NUM;
+    uint input_offset = out_b0 * INPUT0_BATCH_PITCH + out_b1 * INPUT0_FEATURE_PITCH + INPUT0_OFFSET;
+#else
     uint input_offset = out_b * TILE_IN_B_PITCH + INPUT0_OFFSET;
+#endif
+
 #if COMPRESSED_WEIGHTS_INT4
     uint weights_offset = out_f * (INPUT_ELEMENTS_COUNT / 2);
 #else

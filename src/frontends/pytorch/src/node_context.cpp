@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ OutputVector NodeContext::as_constant() const {
     auto dtype = m_decoder->get_output_type(0);
     if (dtype.is<type::Str>()) {
         // Cannot represent string as Constant, creating FrameworkNode
-        auto str = m_decoder->as_string();
+        const auto& str = m_decoder->as_string();
         auto fw_node = std::make_shared<PtFrameworkNode>(m_decoder, OutputVector{});
         auto attrs = fw_node->get_attrs();
         attrs["string_value"] = str;

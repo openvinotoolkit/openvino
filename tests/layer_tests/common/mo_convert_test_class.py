@@ -1,14 +1,10 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from pathlib import Path
 
-from openvino.runtime import serialize, save_model
-from openvino.tools.ovc import convert_model
-from openvino.tools.mo import convert_model as legacy_convert_model
-from openvino.test_utils import compare_functions
-
 from common.utils.common_utils import generate_ir
+from openvino.test_utils import compare_functions
 
 
 class CommonMOConvertTest:
@@ -19,11 +15,14 @@ class CommonMOConvertTest:
         del kwargs['output_dir']
         del kwargs['model_name']
         if 'use_legacy_frontend' in kwargs or 'use_convert_model_from_mo' in kwargs:
+            from openvino.tools.mo import convert_model as legacy_convert_model
+            from openvino.runtime import serialize
             if 'use_convert_model_from_mo' in kwargs:
                 del kwargs['use_convert_model_from_mo']
             model = legacy_convert_model(**kwargs)
             serialize(model, str(Path(output_dir, model_name + '.xml')))
         else:
+            from openvino import convert_model, save_model
             # ovc.convert_model does not have 'compress_to_fp16' arg, it's moved into save model
             compress_to_fp16 = True
             if 'compress_to_fp16' in kwargs:
@@ -37,7 +36,7 @@ class CommonMOConvertTest:
         Generates two IRs using MO Python API and using cmd tool.
         Then two IRs are compared.
         """
-        from openvino.runtime import Core
+        from openvino import Core
         core = Core()
 
         test_params.update({"model_name": 'model_test', "output_dir": temp_dir})
@@ -59,7 +58,7 @@ class CommonMOConvertTest:
         """
         Generates IR using MO Python API, reads it and compares with reference graph.
         """
-        from openvino.runtime import Core
+        from openvino import Core
         core = Core()
 
         test_params.update({"model_name": 'model_test', "output_dir": temp_dir})
