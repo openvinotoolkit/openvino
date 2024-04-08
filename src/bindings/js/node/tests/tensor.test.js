@@ -49,6 +49,27 @@ describe('Tensor data', () => {
     assert.deepStrictEqual(tensor.getData(), data);
   });
 
+  it('Test set tensor.data [1,2,3]', () => {
+    const hello123 = Float32Array.from([1,2,3] );
+    const tensor = new ov.Tensor(ov.element.f32, [1,3]);
+    tensor.data = hello123;
+    assert.deepStrictEqual(tensor.getData(), hello123);
+  });
+
+  it('Test set tensor.data throws', () => {
+    const hello123 = Float64Array.from([1,2,3] );
+    const tensor = new ov.Tensor(ov.element.f32, [1,3]);
+    assert.throws(() => {
+        tensor.data = hello123;
+    })
+  });
+
+  it('Test set tensor.data', () => {
+    const tensor = new ov.Tensor(ov.element.f32, shape);
+    tensor.data = data;
+    assert.deepStrictEqual(tensor.getData(), data);
+  });
+
   it('Set tensor data with Float32Array created from ArrayBuffer', () => {
     const size = elemNum * 4;
     const buffer = new ArrayBuffer(size);
