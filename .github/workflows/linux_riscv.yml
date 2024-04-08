@@ -64,7 +64,7 @@ jobs:
       CCACHE_REMOTE_DIR: /mount/caches/ccache/ubuntu22_riscv64
       CCACHE_DIR: /__w/openvino/openvino/ccache
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
-      CCACHE_MAXSIZE: 5G
+      CCACHE_MAXSIZE: 2G
 
     if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
     steps:
