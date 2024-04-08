@@ -1,8 +1,10 @@
 """
 LogAnalyzer tests
 """
-from pathlib import Path
 import unittest
+from pathlib import Path
+
+
 from workflow_rerun.log_analyzer import LogAnalyzer
 
 
@@ -13,9 +15,9 @@ class LogAnalyzerTest(unittest.TestCase):
     
     def setUp(self) -> None:
         self._cwd = Path(__file__).parent
-        self.log_archive_with_error = self._cwd.joinpath('data').joinpath('log_archive_wo_error.zip')
-        self.log_archive_wo_error = self._cwd.joinpath('data').joinpath('log_archive_with_error.zip')
-        self.errors_to_look_for_file = self._cwd.joinpath('data').joinpath('errors_to_look_for.json')
+        self.log_archive_with_error = self._cwd.joinpath('data').joinpath('log_archive_with_error.zip')
+        self.log_archive_wo_error = self._cwd.joinpath('data').joinpath('log_archive_wo_error.zip')
+        self.errors_to_look_for_file = self._cwd.parent.joinpath('errors_to_look_for.json')
     
     def test_log_analyzer_instantiation(self) -> None:
         """
@@ -24,9 +26,9 @@ class LogAnalyzerTest(unittest.TestCase):
         analyzer = LogAnalyzer(path_to_log_archive=self.log_archive_wo_error,
                                path_to_errors_file=self.errors_to_look_for_file) 
         self.assertTrue(hasattr(analyzer, '_errors_to_look_for'),
-                        "Analyzer should have _errors_to_look_for")
+                        'Analyzer should have _errors_to_look_for')
         self.assertTrue(hasattr(analyzer, '_log_files'),
-                        "Analyzer should have _log_files")
+                        'Analyzer should have _log_files')
         
         for error_data in analyzer._errors_to_look_for:
             self.assertTrue(error_data['error_text'], 'Each error_data should have text')
@@ -37,9 +39,9 @@ class LogAnalyzerTest(unittest.TestCase):
             self.assertTrue(log_file['path'], 'Each log_file should have path')
         
 
-    def test_log_parsing(self) -> None:
+    def test_log_cleanup(self) -> None:
         """
-        Ensure log parsing function returns correct results
+        Ensure log cleanup function returns correct results
         """
         analyzer = LogAnalyzer(path_to_log_archive=self.log_archive_wo_error,
                                path_to_errors_file=self.errors_to_look_for_file)
@@ -49,3 +51,21 @@ class LogAnalyzerTest(unittest.TestCase):
         
         for input_str, expected_str in zip(data, expected):
             self.assertEqual(analyzer._clean_up_string(string=input_str), expected_str)
+
+    def test_analyzer_with_error(self) -> None:
+        """
+        Ensure LogAnalyzer can find an error
+        """
+        analyzer = LogAnalyzer(path_to_log_archive=self.log_archive_with_error,
+                               path_to_errors_file=self.errors_to_look_for_file)
+        analyzer.analyze()
+        self.assertTrue(analyzer.found_matching_error)
+    
+    def test_analyzer_wo_error(self) -> None:
+        """
+        Ensure LogAnalyzer does not find an error in the log files w/o errors
+        """
+        analyzer = LogAnalyzer(path_to_log_archive=self.log_archive_wo_error,
+                               path_to_errors_file=self.errors_to_look_for_file)
+        analyzer.analyze()
+        self.assertFalse(analyzer.found_matching_error)
