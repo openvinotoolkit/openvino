@@ -914,7 +914,7 @@ jit_swish_emitter::jit_swish_emitter(dnnl::impl::cpu::aarch64::jit_generator* ho
 size_t jit_swish_emitter::get_inputs_count() const {return 1; }
 
 size_t jit_swish_emitter::get_aux_vecs_count() const {
-    return sigmoid_emitter->get_aux_vecs_count() + 1;
+    return sigmoid_emitter->get_aux_vecs_count() + 2;
 }
 
 size_t jit_swish_emitter::get_aux_gprs_count() const {
@@ -937,16 +937,17 @@ void jit_swish_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const s
     const TReg vmm_src(in_vec_idxs[0]);
     const TReg vmm_dst(out_vec_idxs[0]);
     const TReg vmm_orig_src(aux_vec_idxs[sigmoid_emitter->get_aux_vecs_count()]);
+    const TReg vmm_aux(aux_vec_idxs[sigmoid_emitter->get_aux_vecs_count() + 1]);
 
     h->mov(vmm_orig_src.b16, vmm_src.b16);
 
     // x*beta
-    h->ld1r(vmm_dst.s, table_val2("beta"));
-    h->fmul(vmm_dst.s, vmm_dst.s, vmm_src.s);
+    h->ld1r(vmm_aux.s, table_val2("beta"));
+    h->fmul(vmm_aux.s, vmm_aux.s, vmm_src.s);
 
     // sigmoid(x*beta)
     sigmoid_emitter->emit_code(
-            { vmm_dst.getIdx() },
+            { vmm_aux.getIdx() },
             out_vec_idxs,
             aux_vec_idxs,
             aux_gpr_idxs);
