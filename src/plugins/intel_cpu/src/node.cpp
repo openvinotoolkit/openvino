@@ -324,7 +324,7 @@ void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& pr
                     if (isCompatible) {
                         equalsLocalFormatCount++;
                     } else if (cb) {
-                        if (cb(curDesc, parentDesc)) {
+                        if (cb(curDesc, parentDesc, descInConfSize)) {
                             equalsLocalFormatCount++;
                         }
                     }

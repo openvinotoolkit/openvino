@@ -283,8 +283,10 @@ void Snippet::initSupportedPrimitiveDescriptors() {
 }
 
 void Snippet::selectOptimalPrimitiveDescriptor() {
-    auto fun = [](const ov::intel_cpu::MemoryDescPtr& curDesc, const ov::intel_cpu::MemoryDescPtr& parentDesc) {
-        if (curDesc->getPrecision() == parentDesc->getPrecision()) {
+    auto fun = [](const ov::intel_cpu::MemoryDescPtr& curDesc,
+                  const ov::intel_cpu::MemoryDescPtr& parentDesc,
+                  const size_t& descInConfSize) {
+        if (curDesc->getPrecision() == parentDesc->getPrecision() && descInConfSize >= 3u) {
             auto& curShape = curDesc->getShape();
             auto& parentShape = parentDesc->getShape();
             if (curShape.isStatic() && (parentShape == curShape)) {
