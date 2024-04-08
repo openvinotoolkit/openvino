@@ -35,6 +35,7 @@ public:
                               bool hasBias);
 
     void appendBinary(const dnnl::algorithm alg, const std::vector<float>& data);
+    void appendPReLU(const std::vector<float>& data);
     void appendEltwise(const dnnl::algorithm alg, float alpha, float beta);
     void appendRoundHTE();
     bool appendScale(const std::vector<float>& scale, bool isLastPostOp, bool allowBinary = true);

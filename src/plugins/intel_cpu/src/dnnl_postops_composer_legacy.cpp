@@ -95,6 +95,24 @@ void DnnlPostOpsComposerLegacy::appendBinary(const dnnl::algorithm alg, const st
     args[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_SRC_1] = mem;
 }
 
+void DnnlPostOpsComposerLegacy::appendPReLU(const std::vector<float>& data) {
+    VectorDims* pdims = &dimsPerTensor;
+    if (data.size() > 1) {
+        OPENVINO_ASSERT(data.size() == OC);
+        pdims = &dimsPerOC;
+    }
+
+    DEBUG_LOG("Append PReLU post op");
+
+    DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, Shape(*pdims));
+    ops.append_prelu(1 << idxOC);
+
+    // copy the data as args
+    auto mem = std::make_shared<Memory>(engine, memoryDesc);
+    memcpy(mem->getData(), data.data(), data.size() * sizeof(float));
+    args[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_WEIGHTS] = mem;
+}
+
 void DnnlPostOpsComposerLegacy::appendEltwise(const dnnl::algorithm alg, float alpha, float beta) {
     DEBUG_LOG("Append eltwise post op with algorithm: ", convert_to_c(alg));
     ops.append_eltwise(alg, alpha, beta);

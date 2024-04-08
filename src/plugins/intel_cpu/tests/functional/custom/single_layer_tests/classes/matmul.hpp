@@ -49,6 +49,7 @@ protected:
     void transpose(T& shape);
 
     void SetUp() override;
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 };
 
 namespace MatMul {

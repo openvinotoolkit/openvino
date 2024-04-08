@@ -142,7 +142,7 @@ bool DnnlPostOpsComposer::appendAttrPostOps(const ScaleShiftPostOp& postOp, bool
     case ScaleShiftPostOp::Type::prelu:
         if (!allowBinary)
             return false;
-        appendBinary(dnnl::algorithm::binary_prelu, scales);
+        appendPrelu(scales);
         break;
     default:
         OPENVINO_THROW(postOp.type(), " as post operation is not supported");
@@ -431,6 +431,25 @@ void DnnlPostOpsComposer::appendBinary(const dnnl::algorithm alg, const std::vec
     memcpy(mem->getData(), data.data(), data.size() * sizeof(float));
     cpuArgs[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_SRC_1] = mem;
     dnnlArgs[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_SRC_1] = mem->getPrimitive();
+}
+
+void DnnlPostOpsComposer::appendPrelu(const std::vector<float>& data) {
+    VectorDims* pdims = &dimsPerTensor;
+    if (data.size() > 1) {
+        OPENVINO_ASSERT(data.size() == OC);
+        pdims = &dimsPerOC;
+    }
+
+    DEBUG_LOG("Append prelu post op Shape: ", Shape(*pdims));
+
+    DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, Shape(*pdims));
+    ops.append_prelu(1 << idxOC);
+
+    // copy the data as args
+    auto mem = std::make_shared<Memory>(engine, memoryDesc);
+    memcpy(mem->getData(), data.data(), data.size() * sizeof(float));
+    cpuArgs[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_WEIGHTS] = mem;
+    dnnlArgs[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_WEIGHTS] = mem->getPrimitive();
 }
 
 void DnnlPostOpsComposer::appendEltwise(const dnnl::algorithm alg, float alpha, float beta) {

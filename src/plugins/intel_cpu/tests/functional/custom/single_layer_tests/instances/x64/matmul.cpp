@@ -26,6 +26,7 @@ std::vector<fusingSpecificParams> fusingParamsSet2D_nightly {
         fusingScaleShift, //covered by MLAS
 #endif
         fusingPReluPerTensor,
+        fusingPReluPerChannel,
         fusingFakeQuantizePerChannelRelu,
 };
 
@@ -104,7 +105,7 @@ std::vector<ov::AnyMap> filterAdditionalConfig_Brgemm() {
         ov::AnyMap{/* empty config */}
     };
 #else
-    std::vector<ov::AnyMap> additionalConfig = {};
+    std::vector<ov::AnyMap> additionalConfig = {{}};
 #endif
     if (with_cpu_x86_bfloat16()) {
         additionalConfig.push_back({ov::hint::inference_precision(ov::element::bf16)});

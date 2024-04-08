@@ -43,6 +43,7 @@ private:
                            bool doRounding,
                            bool allowBinary = true);
     void appendBinary(const dnnl::algorithm alg, const std::vector<float>& data);
+    void appendPrelu(const std::vector<float>& data);
     void appendEltwise(const dnnl::algorithm alg, float alpha, float beta);
     void appendRoundHTE();
     bool appendScale(const std::vector<float>& scale, bool isLastPostOp, bool allowBinary = true);

@@ -2983,7 +2983,7 @@ bool Eltwise::appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc, bool isLastP
         case Algorithm::EltwisePrelu:
             if (!allowBinary)
                 return false;
-            dnnlpoc.appendBinary(dnnl::algorithm::binary_prelu, scales);
+            dnnlpoc.appendPReLU(scales);
             break;
         default:
             OPENVINO_THROW(errorPrefix, "as post operation is not supported");
