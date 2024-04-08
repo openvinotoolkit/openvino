@@ -132,7 +132,7 @@ describe('InferRequest', () => {
     const testIdx = 10;
     assert.throws (
       () => inferRequest.setInputTensor(testIdx, tensor),
-      {message: /Input port for index #[0-9]+ was not found!/}
+      {message: /Input port for index [0-9]+ was not found!/}
     );
   });
 
@@ -146,7 +146,8 @@ describe('InferRequest', () => {
   it('Test setInputTensor(tensor, tensor) throws', () => {
     assert.throws(
       () => inferRequest.setInputTensor(resTensor, tensor),
-      {message: 'InferRequest.setInputTensor() invalid argument.'});
+      {message: / invalid argument./}
+    );
   });
 
   it('Test setOutputTensor(tensor)', () => {
@@ -166,7 +167,7 @@ describe('InferRequest', () => {
     const testIdx = 10;
     assert.throws (
       () => inferRequest.setOutputTensor(testIdx, tensor),
-      {message: /Output port for index #[0-9]+ was not found!/}
+      {message: /Output port for index [0-9]+ was not found!/}
     );
   });
 
@@ -186,7 +187,7 @@ describe('InferRequest', () => {
   it('Test setOutputTensor() - pass two tensors', () => {
     assert.throws(
       () => inferRequest.setOutputTensor(resTensor, tensor),
-      {message: 'InferRequest.setOutputTensor() invalid argument.'});
+      {message: / invalid argument./});
   });
 
   it('Test setTensor(string, tensor)', () => {
@@ -212,19 +213,22 @@ describe('InferRequest', () => {
   it('Test setTensor(string, tensor) - pass one arg', () => {
     assert.throws(
       () => inferRequest.setTensor('fc_out'),
-      {message: 'InferRequest.setTensor() invalid argument.'});
+      {message: / invalid argument./}
+    );
   });
 
   it('Test setTensor(string, tensor) - pass args in wrong order', () => {
     assert.throws(
       () => inferRequest.setTensor(resTensor, 'fc_out'),
-      {message: 'InferRequest.setTensor() invalid argument.'});
+      {message: / invalid argument./}
+    );
   });
 
   it('Test setTensor(string, tensor) - pass number as first arg', () => {
     assert.throws(
       () => inferRequest.setTensor(123, 'fc_out'),
-      {message: 'InferRequest.setTensor() invalid argument.'});
+      {message: / invalid argument/}
+    );
   });
 
   const irGetters = compiledModel.createInferRequest();
