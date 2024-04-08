@@ -67,7 +67,7 @@ jobs:
         id: ccache_restore
         uses: ./.github/actions/cache
         with:
-          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          save-always: true
           cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
           cache-path: ${{ env.CCACHE_REMOTE_DIR }}
           path: ${{ env.CCACHE_DIR }}
