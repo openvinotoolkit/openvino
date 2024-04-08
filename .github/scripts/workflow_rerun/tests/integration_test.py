@@ -4,7 +4,7 @@ Integration tests
 
 import unittest
 from pathlib import Path
-from github import Github
+from github import Github, Auth
 import os
 import tempfile
 
@@ -19,12 +19,12 @@ class IntegrationTest(unittest.TestCase):
     """
 
     def setUp(self) -> None:
-        print(f'\nIn test: "{self._testMethodName}"')
+        print(f'\nIn test: "{self._testMethodName}"', flush=True)
         self._cwd = Path(__file__).parent
         self.errors_to_look_for_file = self._cwd.parent.joinpath(
             'errors_to_look_for.json'
         )
-        self.github = Github(login_or_token=os.environ.get('GITHUB_TOKEN'))
+        self.github = Github(auth=Auth.Token(token=os.environ.get('GITHUB_TOKEN')))
         self.gh_repo = self.github.get_repo(full_name_or_id='openvinotoolkit/openvino')
 
         # Even if we use "failure" for status we cannot guarantee logs containing any of the known error

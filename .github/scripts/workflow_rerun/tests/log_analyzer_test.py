@@ -15,7 +15,7 @@ class LogAnalyzerTest(unittest.TestCase):
     """
 
     def setUp(self) -> None:
-        print(f'\nIn test: "{self._testMethodName}"')
+        print(f'\nIn test: "{self._testMethodName}"', flush=True)
         self._cwd = Path(__file__).parent
         self.log_archive_with_error = self._cwd.joinpath("data").joinpath(
             'log_archive_with_error.zip'

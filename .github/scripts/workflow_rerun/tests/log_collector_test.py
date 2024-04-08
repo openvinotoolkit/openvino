@@ -7,7 +7,7 @@ import unittest
 import tempfile
 from pathlib import Path
 
-from github import Github
+from github import Github, Auth
 
 from workflow_rerun.log_collector import collect_logs_for_run
 
@@ -18,9 +18,9 @@ class LogCollectorTest(unittest.TestCase):
     """
 
     def setUp(self) -> None:
-        print(f'\nIn test: "{self._testMethodName}"')
+        print(f'\nIn test: "{self._testMethodName}"', flush=True)
         self._cwd = Path(__file__).parent
-        self.github = Github(login_or_token=os.environ.get('GITHUB_TOKEN'))
+        self.github = Github(auth=Auth.Token(token=os.environ.get('GITHUB_TOKEN')))
         self.gh_repo = self.github.get_repo(full_name_or_id='openvinotoolkit/openvino')
         # Use the logs of the most recent successfull pipeline
         self.wf_run = self.gh_repo.get_workflow_runs(status='success')[0]

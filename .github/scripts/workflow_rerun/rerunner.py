@@ -2,7 +2,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from github import Github
+from github import Github, Auth
 from workflow_rerun.argument_parser import get_arguments
 from workflow_rerun.constants import GITHUB_TOKEN, LOGGER
 from workflow_rerun.log_analyzer import LogAnalyzer
@@ -14,7 +14,7 @@ if __name__ == '__main__':
     run_id = args.run_id
     repository_name = args.repository_name
 
-    github = Github(login_or_token=GITHUB_TOKEN)
+    github = Github(auth=Auth.Token(token=GITHUB_TOKEN))
     gh_repo = github.get_repo(full_name_or_id=repository_name)
     run = gh_repo.get_workflow_run(id_=run_id)
     
