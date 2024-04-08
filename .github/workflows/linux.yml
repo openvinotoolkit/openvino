@@ -18,7 +18,7 @@ concurrency:
 
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
-  APT_CACHE_PATH: /mount/caches/apt/ubuntu/20
+  APT_CACHE_PATH: /mount/caches/ccache/apt
   PYTHON_VERSION: '3.11'
 
 jobs:
