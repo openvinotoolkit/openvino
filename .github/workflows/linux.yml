@@ -420,7 +420,7 @@ jobs:
           name: conformance_artifacts_${{ matrix.TEST_TYPE }}-${{ env.TEST_DEVICE }}
           path: ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/conformance_artifacts.tar.gz
           if-no-files-found: 'error'
-        
+
       - name: Mandatory API Conformance Tests (Template)
         if: ${{ matrix.TEST_TYPE == 'API' }}
         run: |
@@ -445,7 +445,7 @@ jobs:
         with:
           name: conformance_artifacts_${{ matrix.TEST_TYPE }}-TEMPLATE
           path: ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/conformance_artifacts.tar.gz
-          if-no-files-found: 'error' 
+          if-no-files-found: 'error'
 
   ONNX_Runtime:
     name: ONNX Runtime Integration
@@ -672,96 +672,14 @@ jobs:
   Openvino_tokenizers:
     name: OpenVINO tokenizers extension
     needs: [ Build, Smart_CI ]
-    timeout-minutes: 25
-    defaults:
-      run:
-        shell: bash
-    runs-on: aks-linux-4-cores-16gb
-    container:
-      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
-      volumes:
-        - /mount:/mount
-    env:
-      INSTALL_DIR: /__w/openvino/openvino/install
-      OPENVINO_TOKENIZERS_REPO: /__w/openvino/openvino/openvino_tokenizers
-      EXTENSION_BUILD_DIR: /__w/openvino/openvino/build
+    uses: ./.github/workflows/job_tokenizers.yml
+    with:
+      runner: 'aks-linux-4-cores-16gb'
+      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"]}'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
     if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
 
-    steps:
-      - name: checkout action
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            .github/actions/setup_python
-            install_build_dependencies.sh
-
-      - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: ./.github/actions/setup_python
-        with:
-          version: ${{ env.PYTHON_VERSION }}
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
-          self-hosted-runner: 'true'
-          show-cache-info: 'false'
-
-      - name: Clone OpenVINO Tokenizers
-        uses: actions/checkout@v4
-        with:
-          repository: 'openvinotoolkit/openvino_tokenizers'
-          path: ${{ env.OPENVINO_TOKENIZERS_REPO }}
-          ref: 'master'
-
-      - name: Download OpenVINO package
-        uses: actions/download-artifact@v4
-        with:
-          name: openvino_package
-          path: ${{ env.INSTALL_DIR }}
-
-      - name: Extract OpenVINO packages
-        run: |
-          pushd ${INSTALL_DIR}
-            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
-          popd
-
-      #
-      # Dependencies
-      #
-
-      - name: Install build dependencies
-        run: ./install_build_dependencies.sh
-
-      - name: Install python dependencies
-        run: |
-          # wheel packaging
-          python3 -m pip install -r ${OPENVINO_TOKENIZERS_REPO}/requirements-build.txt
-
-      #
-      # Build
-      #
-
-      - name: Build tokenizers wheel
-        run: |
-          source ${INSTALL_DIR}/setupvars.sh
-          python -m build --wheel --outdir ${EXTENSION_BUILD_DIR} ${OPENVINO_TOKENIZERS_REPO}
-        env:
-          CMAKE_ARGS: '-DBUILD_FAST_TOKENIZERS=OFF'
-          CMAKE_BUILD_PARALLEL_LEVEL: '4'
-          CMAKE_GENERATOR: 'Unix Makefiles'
-
-      #
-      # Upload build artifacts
-      #
-
-      - name: Upload openvino tokenizers wheel
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: openvino_tokenizers_wheel
-          path: ${{ env.EXTENSION_BUILD_DIR }}/*.whl
-          if-no-files-found: 'error'
-
-  GPU:
-    name: GPU ${{ matrix.TEST_TYPE }} Tests
+  GPU_Stub:
     needs: [ Build, Smart_CI ]
     if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
     timeout-minutes: 80
@@ -850,7 +768,7 @@ jobs:
           source ${INSTALL_DIR}/setupvars.sh
 
           rm -rf ${INSTALL_TEST_DIR}/gpu_${{ matrix.TEST_TYPE }}_tests && mkdir -p ${INSTALL_TEST_DIR}/gpu_${{ matrix.TEST_TYPE }}_tests
-          
+
           test_filter=''
           if [[ "${{ matrix.TEST_TYPE }}" == "unit" ]]; then
             # Ticket: 138018
@@ -859,7 +777,7 @@ jobs:
             test_filter='*smoke*'
           fi
           python3 ${GTEST_PARALLEL_SCRIPT} ${INSTALL_TEST_DIR}/ov_gpu_${{ matrix.TEST_TYPE }}_tests --dump_json_test_results=${INSTALL_TEST_DIR}/gpu_${{ matrix.TEST_TYPE }}_tests/ov_gpu_${{ matrix.TEST_TYPE }}_tests.json -- --report_unique_name --gtest_filter=$test_filter
-          
+
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
