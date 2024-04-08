@@ -30,6 +30,7 @@ class IntegrationTest(unittest.TestCase):
         # Even if we use "failure" for status we cannot guarantee logs containing any of the known error
         # So these tests use the logs of a successfull pipeline
         self.wf_run = self.gh_repo.get_workflow_runs(status='success')[0]
+        print(f'Workflow run for testing: {self.wf_run}', flush=True)
 
     def test_log_collection_and_analysis(self) -> None:
         """

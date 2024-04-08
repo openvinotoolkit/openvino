@@ -24,6 +24,7 @@ class LogCollectorTest(unittest.TestCase):
         self.gh_repo = self.github.get_repo(full_name_or_id='openvinotoolkit/openvino')
         # Use the logs of the most recent successfull pipeline
         self.wf_run = self.gh_repo.get_workflow_runs(status='success')[0]
+        print(f'Workflow run for testing: {self.wf_run}', flush=True)
 
     def test_log_collection(self) -> None:
         """
