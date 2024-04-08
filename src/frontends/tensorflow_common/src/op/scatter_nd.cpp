@@ -22,16 +22,17 @@ OutputVector translate_scatter_nd_op(const NodeContext& node) {
     auto updates = node.get_input(1);
     auto shape = node.get_input(2);
     auto complex_type_mark_updates = as_type_ptr<ComplexTypeMark>(updates.get_node_shared_ptr());
+    auto zero_scalar = create_same_type_const(updates, 0);
 
     if (complex_type_mark_updates) {
         updates = complex_type_mark_updates->input_value(0);
         // Add two auxiliary dimensions to the shape tensor
-        Shape shape_dims = shape.get_shape();
-        shape_dims.insert(shape_dims.begin(), 2);
+        auto shape_of_op = make_shared<v0::ShapeOf>(updates);
+        auto shape_dims = make_shared<v0::ShapeOf>(shape_of_op);
         auto aux_shape = create_same_type_const<int32_t>(shape, std::vector<int32_t>{2}, Shape{1});
-        auto updated_shape = make_shared<v0::Concat>(OutputVector{aux_shape, shape}, 0);
+        auto updated_shape = make_shared<v0::Concat>(OutputVector{aux_shape, shape_dims}, 0);
 
-        auto input_data = create_same_type_const<int32_t>(updates, vector<int32_t>{0}, Shape{1});
+        auto input_data = zero_scalar;
         auto broadcast = make_shared<v3::Broadcast>(input_data, updated_shape);
 
         auto scatter_nd = make_shared<v3::ScatterNDUpdate>(broadcast, input_indices, updates);
@@ -42,7 +43,7 @@ OutputVector translate_scatter_nd_op(const NodeContext& node) {
         return {complex_scatter_nd};
     }
 
-    auto input_data = create_same_type_const<int32_t>(updates, vector<int32_t>{0}, Shape{1});
+    auto input_data = zero_scalar;
     auto broadcast = make_shared<v3::Broadcast>(input_data, shape);
     auto scatter_nd = make_shared<v3::ScatterNDUpdate>(broadcast, input_indices, updates);
     set_node_name(node.get_name(), scatter_nd);
