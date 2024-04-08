@@ -859,7 +859,7 @@ jobs:
             # Ticket: 138019
             test_filter='*smoke*:-*SqueezeUnsqueezeLayerTest.CompareWithRefs*:*bicubic_border_align_batches*:*bilinear_zeros_no_align_data1x1*:*bicubic_zeros_no_align_data1x1*:*bicubic_zeros_align_data1x1*'
           fi
-          python3 ${GTEST_PARALLEL_SCRIPT} ${INSTALL_TEST_DIR}/ov_gpu_unit_tests --workers=22 --dump_json_test_results=${INSTALL_TEST_DIR}/gpu_${{ matrix.TEST_TYPE }}_tests/ov_gpu_${{ matrix.TEST_TYPE }}_tests.json -- --report_unique_name --gtest_filter=$test_filter
+          python3 ${GTEST_PARALLEL_SCRIPT} ${INSTALL_TEST_DIR}/ov_gpu_${{ matrix.TEST_TYPE }}_tests --workers=22 --dump_json_test_results=${INSTALL_TEST_DIR}/gpu_${{ matrix.TEST_TYPE }}_tests/ov_gpu_${{ matrix.TEST_TYPE }}_tests.json -- --report_unique_name --gtest_filter=$test_filter
           
 
       - name: Upload Test Results
