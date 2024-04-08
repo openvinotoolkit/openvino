@@ -359,6 +359,9 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("ATen", 1, aten);
     REGISTER_OPERATOR("Atanh", 1, atanh);
     REGISTER_OPERATOR("AveragePool", 1, average_pool);
+    REGISTER_OPERATOR("AveragePool", 7, average_pool);
+    REGISTER_OPERATOR("AveragePool", 10, average_pool);
+    REGISTER_OPERATOR("AveragePool", 19, average_pool);
     REGISTER_OPERATOR("BatchNormalization", 1, batch_norm);
     REGISTER_OPERATOR("BatchNormalization", 7, batch_norm);
     REGISTER_OPERATOR("BatchNormalization", 14, batch_norm);
