@@ -1041,7 +1041,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             B = k_input.size(0);
             L1 = k_input.size(1);
             auto Hk = present_key.size(1);
-            S = present_value.size(3);
+            S = present_value.size(3) - (present_value.m_dt == ov::element::Type_t::u8 ? 8 : 0);
             auto H = q_input.size(2) / S;
             // L0 in each batch may be different
             L0 = 0;
@@ -1576,17 +1576,22 @@ void ScaledDotProductAttention::gatherConcatPastkvForPagedAttn(const std::vector
     auto B = k.size(0);
     auto L1 = k.size(1);
     auto H = k_cache.size(1);
-    auto S = v_cache.size(3);
+    auto S = v_cache.size(3) - (k_cache.m_dt == ov::element::Type_t::u8 ? 8 : 0);
 
     k.assert_dims({B, L1, H * S});
     v.assert_dims({B, L1, H * S});
-    k_cache.assert_dims({0, H, 0, S}, true);
-    v_cache.assert_dims({k_cache.m_dims[0], H, k_cache.m_dims[2], S});
     slot_mapping.assert_dims({B, 0}, true);
     k = k.reshape({B, L1, H, S}).permute({0, 2, 1, 3});
     v = v.reshape({B, L1, H, S}).permute({0, 2, 1, 3});
-    paged_attn_memcpy(k, v, k_cache, v_cache, slot_mapping);
-    // TODO: add u8 kvcache support
+    if (k_cache.m_dt == ov::element::Type_t::u8) {
+        k_cache.assert_dims({0, H, 0, S + 8}, true);
+        v_cache.assert_dims({k_cache.m_dims[0], H, k_cache.m_dims[2], S + 8});
+        paged_attn_quantkv(k, v, k_cache, v_cache, slot_mapping);
+    } else {
+        k_cache.assert_dims({0, H, 0, S}, true);
+        v_cache.assert_dims({k_cache.m_dims[0], H, k_cache.m_dims[2], S});
+        paged_attn_memcpy(k, v, k_cache, v_cache, slot_mapping);
+    }
 }
 
 void ScaledDotProductAttention::gatherConcatPastkv(const MemoryPtr& mem_cur_k, const MemoryPtr& mem_cur_v, const MemoryPtr& mem_beam_idx) {
