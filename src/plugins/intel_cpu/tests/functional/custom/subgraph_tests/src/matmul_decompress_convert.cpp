@@ -218,7 +218,7 @@ protected:
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inShapeA)};
         std::shared_ptr<ov::Node> inputB =
             ov::test::utils::deprecated::make_constant<float>(weiConstElemType, inShapeB.get_shape(), {}, true);
-        if (weiConstElemType == ElementType::f16 && weiConstElemType != convertOutType) {
+        if (weiConstElemType == ElementType::f16) {
             inputB = std::make_shared<ov::op::v0::Convert>(inputB, convertOutType);
             mark_as_decompression(inputB);
         }
@@ -250,9 +250,6 @@ TEST_P(MatMulDecompressConvertTest, CompareWithRefs) {
 
 using MatMulDecompressConvertTest_FP16 = MatMulDecompressConvertTest;
 TEST_P(MatMulDecompressConvertTest_FP16, CompareWithRefs) {
-    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
-        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
-    }
     run();
     // only check this test case can run successfully in FP16 precision
     CheckPluginRelatedResults(compiledModel, "FullyConnected");
@@ -371,8 +368,7 @@ const auto testParams2D_runtime_FP16_smoke = ::testing::Combine(::testing::Value
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_runtime_FP16,
                          MatMulDecompressConvertTest_FP16,
                          testParams2D_runtime_FP16_smoke,
-                         MatMulDecompressConvertTest::getTestCaseName);
-
+                         MatMulDecompressConvertTest_FP16::getTestCaseName);
 
 const auto testParams3D_FP32_smoke = ::testing::Combine(::testing::ValuesIn(inputShapes3D),
                                                         ::testing::ValuesIn(transposeParams),

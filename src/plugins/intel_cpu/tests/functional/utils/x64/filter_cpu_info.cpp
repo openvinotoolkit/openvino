@@ -66,7 +66,7 @@ std::vector<CPUSpecificParams> filterCPUInfoForDeviceWithFP16(const std::vector<
             return false;
         }
         if (selected.find("avx2") != std::string::npos
-                || selected.find("avx") != std::string::npos
+                || (selected.find("avx") != std::string::npos && selected.find("avx512") == std::string::npos)
                 || selected.find("sse42") != std::string::npos) {
             return false;
         }
@@ -75,6 +75,4 @@ std::vector<CPUSpecificParams> filterCPUInfoForDeviceWithFP16(const std::vector<
     auto test_params = filterCPUInfoForDevice(specificParams);
     return test_params;
 }
-
-
 } // namespace CPUTestUtils
