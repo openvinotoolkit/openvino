@@ -32,10 +32,17 @@ jobs:
     container: ${{ fromJSON(inputs.container) }}
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
-      OPENVINO_TOKENIZERS_REPO: ${{ github.workspace }}openvino_tokenizers
+      OPENVINO_TOKENIZERS_REPO: ${{ github.workspace }}/openvino_tokenizers
       EXTENSION_BUILD_DIR: ${{ github.workspace }}/build
 
     steps:
+      # Needed as ${{ github.workspace }} is not working correctly when using Docker
+      - name: Setup Variables
+        run: |
+          echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
+          echo "OPENVINO_TOKENIZERS_REPO=$GITHUB_WORKSPACE/openvino_tokenizers" >> "$GITHUB_ENV"
+          echo "EXTENSION_BUILD_DIR=$GITHUB_WORKSPACE/build" >> "$GITHUB_ENV"
+
       - name: checkout action
         uses: actions/checkout@v4
         with:
