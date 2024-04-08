@@ -15,7 +15,7 @@ Large Language Model Inference Guide
 
    LLM Inference with Optimum Intel <llm_inference_guide/llm-inference-hf>
    LLM Inference with OpenVINO API <llm_inference_guide/llm-inference-native-ov>
-
+   OpenVINO Tokenizers <llm_inference_guide/ov-tokenizers>
 
 Large Language Models (LLMs) like GPT are transformative deep learning networks capable of a
 broad range of natural language tasks, from text generation to language translation. OpenVINO
