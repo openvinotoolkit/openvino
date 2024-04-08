@@ -15,7 +15,7 @@
 
 ov::pass::ConvertMaxPool8ToMaxPool1::ConvertMaxPool8ToMaxPool1() {
     MATCHER_SCOPE(ConvertMaxPool8ToMaxPool1);
-    
+
     auto maxpool_v8_pattern = pattern::wrap_type<ov::op::v8::MaxPool>();
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto maxpool_v8_node = std::dynamic_pointer_cast<ov::op::v8::MaxPool>(m.get_match_root());
@@ -23,14 +23,11 @@ ov::pass::ConvertMaxPool8ToMaxPool1::ConvertMaxPool8ToMaxPool1() {
         if (!maxpool_v8_node || maxpool_v8_node->get_output_target_inputs(1).size() != 0) {
             return false;
         }
-            
 
-        for (auto dilation : maxpool_v8_node->get_dilations())
-        {
+        for (auto dilation : maxpool_v8_node->get_dilations()) {
             if (dilation != 1) {
                 return false;
             }
-                
         }
 
         auto maxpool_v1_node = std::make_shared<ov::op::v1::MaxPool>(maxpool_v8_node->input_value(0),
