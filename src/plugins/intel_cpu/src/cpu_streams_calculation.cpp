@@ -192,7 +192,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
         ((input_streams_changed == true) && (input_streams == 1))) {
         n_streams = 1;
         stream_info[NUMBER_OF_STREAMS] = n_streams;
-        current_socket_id = input_current_socket_id == -1 ? get_current_socket_id() : input_current_socket_id;
+        current_socket_id = input_current_socket_id == -1 ? get_current_socket_id(executor_id) : input_current_socket_id;
         if (input_threads > 0) {
             if (hint_model_distribution_policy.size() == 0) {
                 for (auto& row : proc_socket_table) {
@@ -468,7 +468,7 @@ int get_model_prefer_threads(const int num_streams,
                              const std::vector<std::vector<int>> proc_type_table,
                              const std::shared_ptr<ov::Model>& model,
                              Config& config) {
-    const int sockets = get_num_sockets();
+    const int sockets = get_num_sockets(config.streamExecutorConfig.get_executor_id());
     auto model_prefer = 0;
     if (-1 == config.modelPreferThreads) {
         const auto isa = dnnl::get_effective_cpu_isa();
