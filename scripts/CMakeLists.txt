@@ -18,6 +18,7 @@ set(shellcheck_skip_list
 ov_shellcheck_process(DIRECTORY "${OpenVINO_SOURCE_DIR}"
                       SKIP ${shellcheck_skip_list})
 
+                      
 #
 # cpack
 #
