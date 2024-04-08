@@ -27,6 +27,10 @@ struct TestDType {
     float value;
 };
 
+using testing::Each;
+using testing::ElementsAre;
+using testing::HasSubstr;
+
 //
 // boolean
 //
@@ -834,6 +838,111 @@ TEST(constant, uint1_write_then_cast_custom_type) {
 
     ASSERT_EQ(v.size(), shape_size(shape));
     EXPECT_THAT(v, ElementsAre(1, 0, 1));
+}
+
+//
+// uint1
+//
+
+TEST(constant, uint2_string) {
+    const auto shape = Shape{4};
+
+    op::v0::Constant c(element::u2, shape, vector<string>{"3", "0", "1", "2"});
+    auto v = c.cast_vector<uint8_t>();
+
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_THAT(v, ElementsAre(3, 0, 1, 2));
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(p[0], 0b11000110);
+}
+
+TEST(constant, uint2_string_broadcast) {
+    const auto shape = Shape{5};
+
+    op::v0::Constant c(element::u2, shape, vector<string>{"1"});
+    auto v = c.cast_vector<uint8_t>();
+
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_THAT(v, Each(1));
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(p[0], 0b01010101);
+    EXPECT_EQ(p[1] & 0b11000000, 0b01000000);
+}
+
+TEST(constant, uint2_vector_less_than_single_byte) {
+    auto const shape = Shape{3};
+    const auto input = std::vector<uint8_t>{2, 3, 1};
+
+    op::v0::Constant c(element::u2, shape, input);
+    auto v = c.cast_vector<uint8_t>();
+
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_THAT(v, ElementsAre(2, 3, 1));
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(p[0] & 0b11111100, 0b10110100);
+}
+
+TEST(constant, uint2_vector_bigger_than_single_byte) {
+    auto const shape = Shape{7};
+    const auto input = std::vector<uint8_t>{2, 3, 1, 0, 1, 2, 0};
+
+    op::v0::Constant c(element::u2, shape, input);
+    auto v = c.cast_vector<uint8_t>();
+
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_THAT(v, ElementsAre(2, 3, 1, 0, 1, 2, 0));
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(p[0], 0b10110100);
+    EXPECT_EQ(p[1] & 0b11111100, 0b01100000);
+}
+
+TEST(constant, uint2_vector_broadcast) {
+    const auto shape = Shape{3};
+    op::v0::Constant c(element::u2, shape, vector<int8_t>{2});
+
+    auto v = c.cast_vector<uint8_t>();
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_THAT(v, Each(2));
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(p[0] & 0b11111100, 0b10101000);
+}
+
+TEST(constant, uint2_write_then_cast_custom_type) {
+    Shape shape{3};
+    std::vector<TestDType> input{{1.0f}, {3.0f}, {2.0f}};
+    ov::op::v0::Constant c(element::u2, shape, input);
+
+    auto v = c.cast_vector<int8_t>();
+
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_THAT(v, ElementsAre(1, 3, 2));
+}
+
+TEST(constant, uint2_input_value_validation) {
+    const auto shape = Shape{2};
+    const auto exp_sub_str = "out of range for u2";
+
+    OV_EXPECT_THROW(op::v0::Constant c(element::u2, shape, -1), AssertFailure, HasSubstr(exp_sub_str));
+    OV_EXPECT_THROW(op::v0::Constant c(element::u2, shape, 4), AssertFailure, HasSubstr(exp_sub_str));
+
+    OV_EXPECT_THROW(op::v0::Constant c(element::u2, shape, std::vector<int>{1, -2}),
+                    AssertFailure,
+                    HasSubstr(exp_sub_str));
+    OV_EXPECT_THROW(op::v0::Constant c(element::u2, shape, std::vector<int>{0, 4}),
+                    AssertFailure,
+                    HasSubstr(exp_sub_str));
+
+    OV_EXPECT_THROW(op::v0::Constant c(element::u2, shape, std::vector<std::string>{"-1", "3"}),
+                    AssertFailure,
+                    HasSubstr(exp_sub_str));
+    OV_EXPECT_THROW(op::v0::Constant c(element::u2, shape, std::vector<std::string>{"4", "1"}),
+                    AssertFailure,
+                    HasSubstr(exp_sub_str));
 }
 
 //
@@ -2045,6 +2154,7 @@ TEST(constant, cast_vector) {
                                           element::i32,
                                           element::i64,
                                           element::u1,
+                                          element::u2,
                                           element::u4,
                                           element::u8,
                                           element::u16,
