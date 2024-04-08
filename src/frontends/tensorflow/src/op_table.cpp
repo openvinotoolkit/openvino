@@ -21,7 +21,6 @@
 #include "openvino/op/cos.hpp"
 #include "openvino/op/cosh.hpp"
 #include "openvino/op/divide.hpp"
-#include "openvino/op/equal.hpp"
 #include "openvino/op/erf.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/floor.hpp"
