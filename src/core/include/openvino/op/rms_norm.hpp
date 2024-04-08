@@ -21,7 +21,7 @@ public:
     /// \param data Input tensor with data
     /// \param axes Axes for reduce mean calculation
     /// \param eps Epsilon for not dividing by zero while normalizing the value
-    /// \param compute_type Precision for the internal computation, same as the input type by default
+    /// \param compute_type Precision for the internal computation, if undefined it's the same as the input type
     RMSNorm(const Output<Node>& data,
             const Output<Node>& axes,
             double epsilson,
@@ -33,7 +33,7 @@ public:
     /// \param axes Axes for reduce mean calculation
     /// \param scale Scale values for weight
     /// \param eps Epsilon for not dividing by zero while normalizing the value
-    /// \param compute_type Output element type
+    /// \param compute_type Precision for the internal computation, if undefined it's the same as the input type
     RMSNorm(const Output<Node>& data,
             const Output<Node>& axes,
             const Output<Node>& scale,
