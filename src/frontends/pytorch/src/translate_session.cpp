@@ -150,12 +150,16 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
             m_op_statistics[context.get_op_type()]++;
             auto converted_outputs = convert_node(context);
 
-            auto fw_outputs = node->outputs();
+            const auto& fw_outputs = node->outputs();
             // Ops with subgraphs or with mutated inputs may have more outputs after conversion compared to pytorch ones
             FRONT_END_OP_CONVERSION_CHECK(fw_outputs.size() <= converted_outputs.size(),
                                           "Number of ",
                                           context.get_op_type(),
-                                          " outputs greater then number of converted outputs.");
+                                          " outputs greater than number of converted outputs, which are",
+                                          fw_outputs.size(),
+                                          " and ",
+                                          converted_outputs.size(),
+                                          " respectively.");
 
             for (size_t i = 0; i < fw_outputs.size(); ++i) {
                 size_t fw_tensor_id = node->output(i);
@@ -246,7 +250,6 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                                         tensor_id,
                                         " doesn't exist in tensor map.");
                 // model input was mutated we need to make a result for it
-                auto mutated_tensor = tensor_map->at(tensor_id);
                 // empty external_tensor_map means this is main body of the model and we don't want to create
                 // additional outputs in that case.
                 if (!external_tensor_map.empty()) {

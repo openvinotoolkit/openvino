@@ -401,8 +401,10 @@ void primitive_inst::update_shape() {
     _impl_params->memory_deps = memory_deps;
 
     auto update_output_layout = [&](layout& layout, size_t idx) {
-        auto data_padding = padding::max(_impl_params->get_output_layout(idx).data_padding, layout.data_padding);
-        layout.data_padding = padding::max(_node->get_primitive()->get_output_padding(idx), data_padding);
+        if (!_node->is_type<reshape>()) {
+            auto data_padding = padding::max(_impl_params->get_output_layout(idx).data_padding, layout.data_padding);
+            layout.data_padding = padding::max(_node->get_primitive()->get_output_padding(idx), data_padding);
+        }
         if (_impl_params->get_output_layout(idx) != layout) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": update shape: was: " << _impl_params->get_output_layout(idx).to_short_string()
                                    << " now: " << layout.to_short_string() << std::endl;
@@ -1409,7 +1411,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
 
     // Replace multiple events with single grouped event in case of barriers synchronization to prevent `_last_barrier_ev` usage as a dependency
     // event of optimized_out instance's users, which may lead to unwanted extra synchronization of CPU impls with GPU kernels
-    if (_node && _node->is_in_shape_of_subgraph() && can_be_optimized() && dependencies.size() > 1 && out_of_order_queue) {
+    if (_node->is_in_shape_of_subgraph() && can_be_optimized() && dependencies.size() > 1 && out_of_order_queue) {
         auto grouped_ev = get_network().get_stream().group_events(dependencies);
         dependencies = {grouped_ev};
     }
@@ -1676,6 +1678,8 @@ event::ptr primitive_inst::update_weights() {
         // incorrect memory buffer may be assigned, so reset cached weights for such case
         _reordered_weights_cache.add(original_layout, original_weights_memory);
         _impl_params->weights_layout = optional_layout(original_layout);
+        GPU_DEBUG_TRACE_DETAIL << id() << ": add original weights memory " << original_layout.to_short_string() << " to weights cache; "
+                                       << "cache_size=" << _reordered_weights_cache.size() << "/" << _reordered_weights_cache.capacity() << std::endl;
     } else {
         auto expected_layout = reorder_kernel_params->get_output_layout();
         // Set original partial shape, because it may be lost during kernel_selector::weights_tensor -> layout conversion

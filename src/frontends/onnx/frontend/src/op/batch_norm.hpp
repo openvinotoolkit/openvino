@@ -19,6 +19,11 @@ namespace set_7 {
 ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node);
 
 }  // namespace set_7
+
+namespace set_14 {
+ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node);
+
+}  // namespace set_14
 }  // namespace op
 }  // namespace onnx
 }  // namespace frontend

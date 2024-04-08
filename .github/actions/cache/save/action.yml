@@ -1,0 +1,22 @@
+name: 'Save a cache'
+description: 'Cache to the local file system'
+author: 'OpenVINO Developers'
+
+inputs:
+  cache-path:
+    description: 'A local path where to search and save caches'
+    required: true
+  path:
+    description:
+      'A list of files, directories, and wildcard patterns to cache and restore'
+    required: true
+  key:
+    description: 'An explicit key for restoring and saving the cache'
+    required: true
+
+runs:
+  using: 'node20'
+  main: '../dist/save-only/index.js'
+branding:
+  icon: 'archive'
+  color: 'gray-dark'
