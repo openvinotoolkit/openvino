@@ -123,6 +123,14 @@ fundamental_type_for<ET> convert_if_in_element_range(const U& value) {
     return result;
 }
 
+template <element::Type_t ET, class U, typename std::enable_if<ET == element::u6>::type* = nullptr>
+fundamental_type_for<ET> convert_if_in_element_range(const U& value) {
+    using T = fundamental_type_for<ET>;
+    auto result = static_cast<T>(value);
+    OPENVINO_ASSERT(0 <= result && result <= 63, "assigned value out of range for u6");
+    return result;
+}
+
 template <element::Type_t ET, class T>
 void fill_buffer(void* buffer, const Shape& shape, const T& value) {
     std::fill_n(element::iterator<ET>(buffer), shape_size(shape), convert_if_in_element_range<ET>(value));
@@ -287,7 +295,10 @@ std::string Constant::convert_value_to_string(size_t index) const {
                     i32,
                     i64,
                     u1,
+                    u2,
+                    u3,
                     u4,
+                    u6,
                     u8,
                     u16,
                     u32,
@@ -342,8 +353,8 @@ struct ValuesToString : ov::element::NotSupported<void> {
 std::vector<std::string> Constant::get_value_strings() const {
     std::vector<std::string> out;
     using namespace ov::element;
-    IfTypeOf<boolean, bf16, f16, f32, f64, i4, i8, i16, i32, i64, u1, u4, u8, u16, u32, u64, nf4, string>::apply<
-        ValuesToString>(get_element_type(), get_data_ptr(), shape_size(m_shape), out);
+    IfTypeOf<boolean, bf16, f16, f32, f64, i4, i8, i16, i32, i64, u1, u2, u3, u4, u6, u8, u16, u32, u64, nf4, string>::
+        apply<ValuesToString>(get_element_type(), get_data_ptr(), shape_size(m_shape), out);
     return out;
 }
 
@@ -536,6 +547,10 @@ Constant::LPBuffer<element::u4>::LPBuffer(void* ptr)
     : iter{std::make_shared<lp_iter>(reinterpret_cast<ov::fundamental_type_for<element::u4>*>(ptr))} {}
 
 template <>
+Constant::LPBuffer<element::u6>::LPBuffer(void* ptr)
+    : iter{std::make_shared<lp_iter>(reinterpret_cast<ov::fundamental_type_for<element::u6>*>(ptr))} {}
+
+template <>
 Constant::LPBuffer<element::i4>::LPBuffer(void* ptr)
     : iter{std::make_shared<lp_iter>(reinterpret_cast<ov::fundamental_type_for<element::i4>*>(ptr))} {}
 
@@ -561,6 +576,11 @@ void Constant::LPBuffer<element::u3>::write(const float value) {
 template <>
 void Constant::LPBuffer<element::u4>::write(const float value) {
     iter->operator*() = convert_if_in_element_range<element::u4>(value);
+}
+
+template <>
+void Constant::LPBuffer<element::u6>::write(const float value) {
+    iter->operator*() = convert_if_in_element_range<element::u6>(value);
 }
 
 template <>
@@ -594,6 +614,11 @@ ov::fundamental_type_for<element::u4> Constant::LPBuffer<element::u4>::read() co
 }
 
 template <>
+ov::fundamental_type_for<element::u6> Constant::LPBuffer<element::u6>::read() const {
+    return iter->operator*();
+}
+
+template <>
 ov::fundamental_type_for<element::i4> Constant::LPBuffer<element::i4>::read() const {
     return iter->operator*();
 }
@@ -623,6 +648,12 @@ Constant::LPBuffer<element::u3>& Constant::LPBuffer<element::u3>::operator++() {
 
 template <>
 Constant::LPBuffer<element::u4>& Constant::LPBuffer<element::u4>::operator++() {
+    iter->operator++();
+    return *this;
+}
+
+template <>
+Constant::LPBuffer<element::u6>& Constant::LPBuffer<element::u6>::operator++() {
     iter->operator++();
     return *this;
 }
@@ -716,6 +747,25 @@ CONSTANT_FILL_DATA(u4, float16)
 CONSTANT_FILL_DATA(u4, bfloat16)
 CONSTANT_FILL_DATA(u4, float)
 CONSTANT_FILL_DATA(u4, double)
+
+CONSTANT_FILL_DATA(u6, bool)
+CONSTANT_FILL_DATA(u6, char)
+CONSTANT_FILL_DATA(u6, signed char)
+CONSTANT_FILL_DATA(u6, unsigned char)
+CONSTANT_FILL_DATA(u6, short)
+CONSTANT_FILL_DATA(u6, unsigned short)
+CONSTANT_FILL_DATA(u6, int)
+CONSTANT_FILL_DATA(u6, unsigned int)
+CONSTANT_FILL_DATA(u6, long)
+CONSTANT_FILL_DATA(u6, unsigned long)
+CONSTANT_FILL_DATA(u6, long long)
+CONSTANT_FILL_DATA(u6, unsigned long long)
+CONSTANT_FILL_DATA(u6, float8_e4m3)
+CONSTANT_FILL_DATA(u6, float8_e5m2)
+CONSTANT_FILL_DATA(u6, float16)
+CONSTANT_FILL_DATA(u6, bfloat16)
+CONSTANT_FILL_DATA(u6, float)
+CONSTANT_FILL_DATA(u6, double)
 
 CONSTANT_FILL_DATA(i4, bool)
 CONSTANT_FILL_DATA(i4, char)
@@ -828,6 +878,23 @@ CONSTANT_CAST_VECTOR(u4, bfloat16)
 CONSTANT_CAST_VECTOR(u4, float)
 CONSTANT_CAST_VECTOR(u4, double)
 
+CONSTANT_CAST_VECTOR(u6, bool)
+CONSTANT_CAST_VECTOR(u6, char)
+CONSTANT_CAST_VECTOR(u6, signed char)
+CONSTANT_CAST_VECTOR(u6, unsigned char)
+CONSTANT_CAST_VECTOR(u6, short)
+CONSTANT_CAST_VECTOR(u6, unsigned short)
+CONSTANT_CAST_VECTOR(u6, int)
+CONSTANT_CAST_VECTOR(u6, unsigned int)
+CONSTANT_CAST_VECTOR(u6, long)
+CONSTANT_CAST_VECTOR(u6, unsigned long)
+CONSTANT_CAST_VECTOR(u6, long long)
+CONSTANT_CAST_VECTOR(u6, unsigned long long)
+CONSTANT_CAST_VECTOR(u6, float16)
+CONSTANT_CAST_VECTOR(u6, bfloat16)
+CONSTANT_CAST_VECTOR(u6, float)
+CONSTANT_CAST_VECTOR(u6, double)
+
 CONSTANT_CAST_VECTOR(i4, bool)
 CONSTANT_CAST_VECTOR(i4, char)
 CONSTANT_CAST_VECTOR(i4, signed char)
@@ -924,6 +991,25 @@ CONSTANT_WRITE_BUFFER(u4, float16)
 CONSTANT_WRITE_BUFFER(u4, bfloat16)
 CONSTANT_WRITE_BUFFER(u4, float)
 CONSTANT_WRITE_BUFFER(u4, double)
+
+CONSTANT_WRITE_BUFFER(u6, bool)
+CONSTANT_WRITE_BUFFER(u6, char)
+CONSTANT_WRITE_BUFFER(u6, signed char)
+CONSTANT_WRITE_BUFFER(u6, unsigned char)
+CONSTANT_WRITE_BUFFER(u6, short)
+CONSTANT_WRITE_BUFFER(u6, unsigned short)
+CONSTANT_WRITE_BUFFER(u6, int)
+CONSTANT_WRITE_BUFFER(u6, unsigned int)
+CONSTANT_WRITE_BUFFER(u6, long)
+CONSTANT_WRITE_BUFFER(u6, unsigned long)
+CONSTANT_WRITE_BUFFER(u6, long long)
+CONSTANT_WRITE_BUFFER(u6, unsigned long long)
+CONSTANT_WRITE_BUFFER(u6, float8_e4m3)
+CONSTANT_WRITE_BUFFER(u6, float8_e5m2)
+CONSTANT_WRITE_BUFFER(u6, float16)
+CONSTANT_WRITE_BUFFER(u6, bfloat16)
+CONSTANT_WRITE_BUFFER(u6, float)
+CONSTANT_WRITE_BUFFER(u6, double)
 
 CONSTANT_WRITE_BUFFER(i4, bool)
 CONSTANT_WRITE_BUFFER(i4, char)

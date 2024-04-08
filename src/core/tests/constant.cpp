@@ -1161,6 +1161,123 @@ TEST(constant, uint4_write_then_cast_custom_type) {
 }
 
 //
+// uint6
+//
+
+TEST(constant, uint6_string) {
+    const auto shape = Shape{4};
+
+    op::v0::Constant c(element::u6, shape, vector<string>{"4", "9", "15", "16"});
+    auto v = c.cast_vector<uint8_t>();
+
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_THAT(v, ElementsAre(4, 9, 15, 16));
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(p[0], 0x49);
+    EXPECT_EQ(p[1], 0xf0);
+    EXPECT_EQ(p[2], 0b00000001);
+}
+
+TEST(constant, uint6_string_broadcast) {
+    const auto shape = Shape{4};
+
+    op::v0::Constant c(element::u6, shape, vector<string>{"5"});
+    auto v = c.cast_vector<uint8_t>();
+
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_THAT(v, Each(5));
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(p[0], 0x55);
+    EXPECT_EQ(p[1], 0x55);
+    EXPECT_EQ(p[2], 0b00000000);
+}
+
+TEST(constant, uint6_vector_less_than_one_storage_unit) {
+    auto const shape = Shape{3};
+    const auto input = std::vector<uint8_t>{5, 23, 1};
+
+    op::v0::Constant c(element::u6, shape, input);
+    auto v = c.cast_vector<uint8_t>();
+
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_THAT(v, ElementsAre(5, 23, 1));
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(p[0], 0x57);
+    EXPECT_EQ(p[1] & 0xF0, 0x10);
+    EXPECT_EQ(p[2] & 0b1111100, 0b00010000);
+}
+
+TEST(constant, uint6_vector_greater_than_one_storage_unit) {
+    auto const shape = Shape{6};
+    const auto input = std::vector<uint8_t>{25, 3, 1, 0, 45, 5};
+
+    op::v0::Constant c(element::u6, shape, input);
+    auto v = c.cast_vector<uint8_t>();
+
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_THAT(v, ElementsAre(25, 3, 1, 0, 45, 5));
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(p[0], 0x93);
+    EXPECT_EQ(p[1], 0x10);
+    EXPECT_EQ(p[2], 0b01000000);
+
+    EXPECT_EQ(p[3], 0xd5);
+    // p[4] ignore
+    EXPECT_EQ(p[5] & 0b11110000, 0b10000000);
+}
+
+TEST(constant, uint6_vector_broadcast) {
+    const auto shape = Shape{4};
+    op::v0::Constant c(element::u6, shape, vector<int8_t>{45});
+
+    auto v = c.cast_vector<uint8_t>();
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_THAT(v, Each(45));
+
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(p[0], 0xdd);
+    EXPECT_EQ(p[1], 0xdd);
+    EXPECT_EQ(p[2], 0b10101010);
+}
+
+TEST(constant, uint6_write_then_cast_custom_type) {
+    Shape shape{5};
+    std::vector<TestDType> input{{1.0f}, {3.0f}, {2.0f}, {6.1f}, {3.5f}};
+    ov::op::v0::Constant c(element::u6, shape, input);
+
+    auto v = c.cast_vector<int8_t>();
+
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_THAT(v, ElementsAre(1, 3, 2, 6, 3));
+}
+
+TEST(constant, uint6_input_value_validation) {
+    const auto shape = Shape{2};
+    const auto exp_sub_str = "out of range for u6";
+
+    OV_EXPECT_THROW(op::v0::Constant c(element::u6, shape, -1), AssertFailure, HasSubstr(exp_sub_str));
+    OV_EXPECT_THROW(op::v0::Constant c(element::u6, shape, 64), AssertFailure, HasSubstr(exp_sub_str));
+
+    OV_EXPECT_THROW(op::v0::Constant c(element::u6, shape, std::vector<int>{1, -2}),
+                    AssertFailure,
+                    HasSubstr(exp_sub_str));
+    OV_EXPECT_THROW(op::v0::Constant c(element::u6, shape, std::vector<int>{0, 64}),
+                    AssertFailure,
+                    HasSubstr(exp_sub_str));
+
+    OV_EXPECT_THROW(op::v0::Constant c(element::u6, shape, std::vector<std::string>{"-1", "3"}),
+                    AssertFailure,
+                    HasSubstr(exp_sub_str));
+    OV_EXPECT_THROW(op::v0::Constant c(element::u6, shape, std::vector<std::string>{"65", "1"}),
+                    AssertFailure,
+                    HasSubstr(exp_sub_str));
+}
+
+//
 // uint8
 //
 
