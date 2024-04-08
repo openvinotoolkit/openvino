@@ -17,8 +17,6 @@ struct Config {
     MemoryDescArgs descs;
     Attrs attrs;
     PostOps postOps;
-
-    CPU_DEBUG_CAP_ENABLE(friend std::ostream& operator<< <>(std::ostream& os, const Config& key));
 };
 
 }  // namespace executor
