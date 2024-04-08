@@ -203,7 +203,6 @@ template OutputVector translate_binary_op<v1::Add>(const NodeContext& node);
 template OutputVector translate_binary_op<v13::BitwiseAnd>(const NodeContext& node);
 template OutputVector translate_binary_op<v13::BitwiseOr>(const NodeContext& node);
 template OutputVector translate_binary_op<v13::BitwiseXor>(const NodeContext& node);
-template OutputVector translate_binary_op<v1::Equal>(const NodeContext& node);
 template OutputVector translate_binary_op<v1::FloorMod>(const NodeContext& node);
 template OutputVector translate_binary_op<v1::Greater>(const NodeContext& node);
 template OutputVector translate_binary_op<v1::GreaterEqual>(const NodeContext& node);
