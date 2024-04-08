@@ -7,6 +7,7 @@
 //#include <climits>
 
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "utils.hpp"
@@ -55,7 +56,11 @@ OutputVector translate_unbind_int_fx(const NodeContext& context) {
     auto num_splits = static_cast<int>(shape[dim_val]);
     auto chunk = context.mark_node(std::make_shared<v1::Split>(input, dim, num_splits));
 
-    return {context.mark_node(make_list_construct(chunk->outputs()))};
+    ov::OutputVector out_vec;
+    for (auto& out : chunk->outputs())
+        out_vec.push_back(std::make_shared<v0::Squeeze>(out, dim));
+
+    return {context.mark_node(make_list_construct(out_vec))};
 }
 
 OutputVector translate_split_with_sizes_fx(const NodeContext& context) {

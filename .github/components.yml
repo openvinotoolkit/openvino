@@ -48,6 +48,10 @@ GPU:
     - IR_FE
     - PROXY
 
+NPU:
+  revalidate: []
+  build: []
+
 HETERO:
   revalidate:
     - CPU
