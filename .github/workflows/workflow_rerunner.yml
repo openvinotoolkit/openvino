@@ -11,20 +11,22 @@ on:
       - Windows Conditional Compilation (VS 2022, Python 3.11)
     types:
       - completed
-
-permissions:
-  actions: write
-  contents: read
-  statuses: read
-  checks: read
+  pull_request:
+    paths:
+      - '.github/workflows/workflow_rerunner.yml'
+      - '.github/scripts/workflow_rerun/**'
 
 jobs:
   rerun:
     name: Rerun Workflow
-    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}  # Run only for the completed workflows
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+      statuses: read
+      checks: read
     steps:
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -46,3 +48,22 @@ jobs:
           python3 ${{ github.workspace }}/.github/scripts/workflow_rerun/rerunner.py \
           --run-id ${{ github.event.workflow_run.id }} \
           --repository-name ${GITHUB_REPOSITORY}
+
+  rerunner_tests:
+    name: Rerunner Tests
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: '.github'
+
+      - name: Install deps
+        run: pip3 install PyGithub==2.2.0 requests==2.31.0
+
+      - name: Test Rerunner
+        working-directory: ${{ github.workspace }}/.github/scripts/workflow_rerun
+        run: |
+          export PYTHONPATH=${{ github.workspace }}/.github/scripts/workflow_rerun:${{ github.workspace }}/.github/scripts:$PYTHONPATH
+          python3 -m unittest tests/*_test.py
