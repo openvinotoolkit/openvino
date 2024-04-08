@@ -47,6 +47,7 @@ runs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ inputs.version }}
+        cache: 'pip'
       env:
         PIP_CACHE_DIR: ${{ inputs.self-hosted-runner == 'true' && inputs.pip-cache-path || '' }}
 
