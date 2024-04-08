@@ -45,7 +45,7 @@ TensorWrap::TensorWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Tensor
 Napi::Function TensorWrap::get_class(Napi::Env env) {
     return DefineClass(env,
                        "TensorWrap",
-                       {InstanceAccessor<&TensorWrap::get_data>("data"),
+                       {InstanceAccessor<&TensorWrap::get_data, &TensorWrap::set_data>("data"),
                         InstanceMethod("getData", &TensorWrap::get_data),
                         InstanceMethod("getShape", &TensorWrap::get_shape),
                         InstanceMethod("getElementType", &TensorWrap::get_element_type),
@@ -128,6 +128,38 @@ Napi::Value TensorWrap::get_data(const Napi::CallbackInfo& info) {
     default: {
         reportError(info.Env(), "Failed to return tensor data.");
         return info.Env().Null();
+    }
+    }
+}
+
+void TensorWrap::set_data(const Napi::CallbackInfo& info, const Napi::Value& value) {
+    if (!value.IsTypedArray()) {
+        OPENVINO_THROW(std::string("Passed argument must be of type Array or TypedArray."));
+    }
+    Napi::TypedArray buf;
+    napi_typedarray_type type = value.As<Napi::TypedArray>().TypedArrayType();
+
+    switch (type) {
+    case napi_float32_array: {
+        buf = value.As<Napi::Float32Array>();
+        if (_tensor.get_byte_size() != buf.ByteLength()) {
+            OPENVINO_THROW("Passed array must have the same size as the Tensor!");
+        }
+        if (_tensor.get_element_type() != ov::element::Type_t::f32) {
+            OPENVINO_THROW("Passed array must have the same element type as the Tensor!");
+        }
+        auto data_ptr = static_cast<float*>(buf.ArrayBuffer().Data());
+
+        // auto data = _tensor.data<float>();
+        // for (size_t i = 0; i < _tensor.get_size(); ++i) {
+        //     data[i] = data_ptr[i];
+        // }
+        std::memcpy(_tensor.data(), data_ptr, _tensor.get_byte_size());
+
+        break;
+    }
+    default: {
+        reportError(info.Env(), "Failed to set tensor data.");
     }
     }
 }
