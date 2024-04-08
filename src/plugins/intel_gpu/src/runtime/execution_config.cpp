@@ -19,7 +19,7 @@ class InferencePrecisionValidator : public BaseValidator {
 public:
     bool is_valid(const ov::Any& v) const override {
         auto precision = v.as<ov::element::Type>();
-        return precision == ov::element::f16 || precision == ov::element::f32;
+        return precision == ov::element::f16 || precision == ov::element::f32 || precision == ov::element::undefined;
     }
 };
 
@@ -129,7 +129,7 @@ void ExecutionConfig::apply_execution_hints(const cldnn::device_info& info) {
         const auto mode = get_property(ov::hint::execution_mode);
         if (!is_set_by_user(ov::hint::inference_precision)) {
             if (mode == ov::hint::ExecutionMode::ACCURACY) {
-                set_property(ov::hint::inference_precision(ov::element::f32));
+                set_property(ov::hint::inference_precision(ov::element::undefined));
             } else if (mode == ov::hint::ExecutionMode::PERFORMANCE) {
                 if (info.supports_fp16)
                     set_property(ov::hint::inference_precision(ov::element::f16));

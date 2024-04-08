@@ -6,6 +6,7 @@
 
 #include <vector>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/core/symbol.hpp"
 #include "openvino/op/util/attr_types.hpp"
@@ -250,11 +251,23 @@ TYPED_TEST_P(ArithmeticOperator, incompatible_element_types) {
     ASSERT_THROW(const auto unused = std::make_shared<TypeParam>(A, B), ov::NodeValidationFailure);
 }
 
-TYPED_TEST_P(ArithmeticOperator, incompatible_boolean_type) {
-    auto A = std::make_shared<ov::op::v0::Parameter>(element::boolean, Shape{2, 2, 3, 3});
-    auto B = std::make_shared<ov::op::v0::Parameter>(element::boolean, Shape{2, 2, 3, 3});
+TYPED_TEST_P(ArithmeticOperator, unsupported_element_type) {
+    {
+        auto A = std::make_shared<ov::op::v0::Parameter>(element::boolean, Shape{2, 2, 3, 3});
+        auto B = std::make_shared<ov::op::v0::Parameter>(element::boolean, Shape{2, 2, 3, 3});
 
-    ASSERT_THROW(const auto unused = std::make_shared<TypeParam>(A, B), ov::NodeValidationFailure);
+        OV_EXPECT_THROW(std::ignore = std::make_shared<TypeParam>(A, B),
+                        NodeValidationFailure,
+                        HasSubstr("This operation does not support inputs with element type: boolean"));
+    }
+    {
+        auto A = std::make_shared<ov::op::v0::Parameter>(element::string, Shape{2});
+        auto B = std::make_shared<ov::op::v0::Parameter>(element::string, Shape{2});
+
+        OV_EXPECT_THROW(std::ignore = std::make_shared<TypeParam>(A, B),
+                        NodeValidationFailure,
+                        HasSubstr("This operation does not support inputs with element type: string"));
+    }
 }
 
 TYPED_TEST_P(ArithmeticOperator, shape_inference_1D_x_1D_incompatible) {
@@ -989,7 +1002,7 @@ REGISTER_TYPED_TEST_SUITE_P(ArithmeticOperator,
                             static_shape_inference_4D_x_4D_pdpd_broadcast,
                             static_shape_inference_4D_x_3D_ax_default_pdpd_broadcast,
                             incompatible_element_types,
-                            incompatible_boolean_type,
+                            unsupported_element_type,
                             shape_inference_1D_x_1D_incompatible,
                             shape_inference_3D_x_3D_incompatible,
                             shape_inference_5D_x_5D_incompatible,
