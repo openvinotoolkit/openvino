@@ -48,7 +48,6 @@ class TestAdaptiveMaxPool3D(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
-    @pytest.mark.precommit_ts_backend
     @pytest.mark.precommit_fx_backend
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
@@ -94,7 +93,6 @@ class TestAdaptiveMaxPool2D(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
-    @pytest.mark.precommit_ts_backend
     @pytest.mark.precommit_fx_backend
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
@@ -142,7 +140,6 @@ class TestAdaptiveMaxPool1D(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
-    @pytest.mark.precommit_ts_backend
     @pytest.mark.precommit_fx_backend
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')

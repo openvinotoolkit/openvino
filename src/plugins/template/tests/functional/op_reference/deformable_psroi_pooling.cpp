@@ -45,27 +45,28 @@ struct DeformablePSROIPoolingParams {
           inputType(iType),
           roisType(iType),
           outType(iType),
-          roisData(CreateTensor(iType, roisValues)),
           testcaseName(test_name) {
         outputDim = (channel_in / (group_size * group_size)) -
                     (static_cast<size_t>(channel_in / (group_size * group_size)) % 2);
         inputShape = Shape{batch_in, channel_in, height_in, width_in};
-        roisShape = Shape{rois_dim, 5};
 
-        std::vector<IT> inputValues(shape_size(inputShape.get_shape()));
+        roisShape = Shape{rois_dim, 5};
+        roisData = CreateTensor(roisShape, iType, roisValues);
+
+        std::vector<IT> inputValues(shape_size(inputShape));
         if (is_input_generation_iota)
             std::iota(inputValues.begin(), inputValues.end(), inputValue);
         else
             std::fill(inputValues.begin(), inputValues.end(), inputValue);
-        inputData = CreateTensor(iType, inputValues);
+        inputData = CreateTensor(inputShape, iType, inputValues);
 
+        const auto output_shape = Shape{rois_dim, outputDim, group_size, group_size};
         if (oValues.size() > 1) {
-            refData = CreateTensor(iType, oValues);
+            refData = CreateTensor(output_shape, iType, oValues);
         } else {
-            Shape output_shape{rois_dim, outputDim, group_size, group_size};
             std::vector<IT> expected_output_values(shape_size(output_shape));
             std::fill(expected_output_values.begin(), expected_output_values.end(), oValues[0]);
-            refData = CreateTensor(iType, expected_output_values);
+            refData = CreateTensor(output_shape, iType, expected_output_values);
         }
     }
 
@@ -100,31 +101,32 @@ struct DeformablePSROIPoolingParams {
           roisType(iType),
           offsetsType(iType),
           outType(iType),
-          roisData(CreateTensor(iType, roisValues)),
           testcaseName(test_name) {
         outputDim = (channel_in / (group_size * group_size)) - ((channel_in / (group_size * group_size)) % 2);
         inputShape = Shape{batch_in, channel_in, height_in, width_in};
-        roisShape = Shape{rois_dim, 5};
         offsetsShape = Shape{rois_dim, 2, group_size, group_size};
 
-        std::vector<IT> inputValues(shape_size(inputShape.get_shape()));
+        roisShape = Shape{rois_dim, 5};
+        roisData = CreateTensor(roisShape, iType, roisValues);
+
+        std::vector<IT> inputValues(shape_size(inputShape));
         if (is_input_generation_iota)
             std::iota(inputValues.begin(), inputValues.end(), inputValue);
         else
             std::fill(inputValues.begin(), inputValues.end(), inputValue);
-        inputData = CreateTensor(iType, inputValues);
+        inputData = CreateTensor(inputShape, iType, inputValues);
 
-        std::vector<IT> offsetsValues(shape_size(offsetsShape.get_shape()));
+        std::vector<IT> offsetsValues(shape_size(offsetsShape));
         std::fill(offsetsValues.begin(), offsetsValues.end(), offsetValue);
-        offsetsData = CreateTensor(iType, offsetsValues);
+        offsetsData = CreateTensor(offsetsShape, iType, offsetsValues);
 
+        const auto output_shape = Shape{rois_dim, outputDim, group_size, group_size};
         if (oValues.size() > 1) {
-            refData = CreateTensor(iType, oValues);
+            refData = CreateTensor(output_shape, iType, oValues);
         } else {
-            Shape output_shape{rois_dim, outputDim, group_size, group_size};
             std::vector<IT> expected_output_values(shape_size(output_shape));
             std::fill(expected_output_values.begin(), expected_output_values.end(), oValues[0]);
-            refData = CreateTensor(iType, expected_output_values);
+            refData = CreateTensor(output_shape, iType, expected_output_values);
         }
     }
 
@@ -137,9 +139,9 @@ struct DeformablePSROIPoolingParams {
     int64_t partSize;
 
     std::string mode;
-    ov::PartialShape inputShape;
-    ov::PartialShape roisShape;
-    ov::PartialShape offsetsShape;
+    ov::Shape inputShape;
+    ov::Shape roisShape;
+    ov::Shape offsetsShape;
     ov::element::Type inputType;
     ov::element::Type roisType;
     ov::element::Type offsetsType;
@@ -155,7 +157,7 @@ class ReferenceDeformablePSROIPoolingLayerTest : public testing::TestWithParam<D
                                                  public CommonReferenceTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params);
         if (params.offsetsShape.size() != 0)
             inputData = {params.inputData, params.roisData, params.offsetsData};
@@ -164,7 +166,7 @@ public:
         refOutData = {params.refData};
     }
     static std::string getTestCaseName(const testing::TestParamInfo<DeformablePSROIPoolingParams>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
         result << "inputShape=" << param.inputShape << "_";
         result << "roiShape=" << param.roisShape << "_";

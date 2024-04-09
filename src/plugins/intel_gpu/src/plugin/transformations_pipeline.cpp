@@ -50,7 +50,6 @@
 #include "plugin/transformations/binary_conv_to_conv.hpp"
 #include "plugin/transformations/clamp_fp16_output.hpp"
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
-#include "plugin/transformations/convert_gather_to_compressed.hpp"
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/fc_convert_fusion.hpp"
 #include "plugin/transformations/kv_cache_fusion.hpp"
@@ -91,6 +90,7 @@
 #include "transformations/op_conversions/convert_gather_0d.hpp"
 #include "transformations/op_conversions/convert_gather_downgrade.hpp"
 #include "transformations/op_conversions/convert_gelu.hpp"
+#include "transformations/op_conversions/convert_gather_to_compressed.hpp"
 #include "transformations/op_conversions/convert_gp9_to_gp_ie_internal.hpp"
 #include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
 #include "transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp"
@@ -279,14 +279,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // Disable subtract folding only for the dGPUs to meet the requirements of oneDNN:
         // it expects to have the same data type for weights and zero points (apply it only for u8 data type, since other compression
         // types are not supported by oneDNN)
-        if (device_info.supports_immad) {
-            manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8}, false);
-            manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u4, ov::element::i4}, true);
-        } else {
-            manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8, ov::element::u4, ov::element::i4}, true);
-        }
+        manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8, ov::element::u4, ov::element::i4},
+                                                                    !device_info.supports_immad);
 
-        // Need to check if transfomrations work correctly for mixed models with both compression and quantization at the same time.
+        // Need to check if transformations work correctly for mixed models with both compression and quantization at the same time.
         if (!is_model_quantized)
             pass_config->set_callback<ov::pass::MarkDequantizationSubgraph>(is_non_supported_decompression_op);
 
@@ -536,7 +532,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         pass_config->enable<ov::pass::SoftmaxDecomposition>();
         pass_config->set_callback<ov::pass::SoftmaxDecomposition>(
-            [](const_node_ptr &node) -> bool {
+            [&](const_node_ptr &node) -> bool {
+                OPENVINO_ASSERT(node->input_value(0).get_partial_shape().rank().is_static(),
+                    node->get_friendly_name() + " has dynamic rank!");
                 return node->input_value(0).get_partial_shape().rank().get_length() <= 5;
             });
 
@@ -710,8 +708,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::ClampFP16Output>();
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
-        manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
-        manager.register_pass<ov::intel_gpu::ConvertGatherToGatherCompressed>();
+        manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>(device_info.supports_immad);
+        if (device_info.supports_immad) {
+            // For OneDNN, ZP should not be folded for FC. But still, ZP should be folded for Gather.
+            // Therefore, run MarkDequantizationSubgraph again to fold ZP constant.
+            manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8, ov::element::u4, ov::element::i4}, true);
+            manager.register_pass<ov::pass::ConstantFolding>();
+        }
+        manager.register_pass<ov::pass::ConvertGatherToGatherCompressed>();
         manager.register_pass<ov::intel_gpu::RMSFusion>(device_info.max_work_group_size);
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
         manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
