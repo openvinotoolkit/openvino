@@ -82,7 +82,9 @@ jobs:
 
     steps:
       - name: Set apt retries
-        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+        run: |
+          echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+          echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' >/etc/apt/apt.conf.d/01keep-debs
 
       - name: Install git
         run: |
@@ -133,7 +135,7 @@ jobs:
         run: |
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
           # default-jdk - Java API
-          apt install --assume-yes --no-install-recommends default-jdk
+          apt-get install --assume-yes --no-install-recommends default-jdk
 
       - name: System info
         uses: ./openvino/.github/actions/system_info
