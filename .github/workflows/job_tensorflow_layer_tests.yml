@@ -29,7 +29,7 @@ jobs:
     container: ${{ fromJSON(inputs.container) }}
     defaults:
       run:
-        shell: bash
+        shell: ${{ inputs.runner.os == 'Windows' && 'pwsh' || 'bash' }}
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       OPENVINO_REPO: ${{ github.workspace }}/openvino
