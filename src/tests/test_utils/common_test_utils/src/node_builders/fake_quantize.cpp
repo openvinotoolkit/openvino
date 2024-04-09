@@ -20,10 +20,10 @@ std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& in,
                                              const std::vector<float>& inputHighData,
                                              const std::vector<float>& outputLowData,
                                              const std::vector<float>& outputHighData) {
-    auto inputLowNode = deprecated::make_constant(type, constShapes, inputLowData, inputLowData.empty());
-    auto inputHighNode = deprecated::make_constant(type, constShapes, inputHighData, inputHighData.empty());
-    auto outputLowNode = deprecated::make_constant(type, constShapes, outputLowData, outputLowData.empty());
-    auto outputHighNode = deprecated::make_constant(type, constShapes, outputHighData, outputHighData.empty());
+    auto inputLowNode = make_constant_from_data_or_random(type, constShapes, inputLowData);
+    auto inputHighNode = make_constant_from_data_or_random(type, constShapes, inputHighData);
+    auto outputLowNode = make_constant_from_data_or_random(type, constShapes, outputLowData);
+    auto outputHighNode = make_constant_from_data_or_random(type, constShapes, outputHighData);
 
     auto fq = std::make_shared<ov::op::v0::FakeQuantize>(in,
                                                          inputLowNode,

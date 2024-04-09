@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/core/preprocess/color_format.hpp"
 
 namespace ov {
 namespace test {
@@ -210,6 +211,8 @@ std::string generateTestFilePrefix();
 size_t getVmSizeInKB();
 
 size_t getVmRSSInKB();
+
+std::vector<uint8_t> color_test_image(size_t height, size_t width, int b_step, ov::preprocess::ColorFormat format);
 }  // namespace utils
 }  // namespace test
 }  // namespace ov

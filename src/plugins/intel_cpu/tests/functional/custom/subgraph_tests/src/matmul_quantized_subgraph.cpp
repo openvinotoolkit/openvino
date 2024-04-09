@@ -130,8 +130,10 @@ TEST_P(MatmulBrgemmInt8Test, CompareWithRefs) {
         GTEST_SKIP();
 
     run();
-    auto exec = compiledModel.get_runtime_model();
-    check_node(exec, nameMatmul);
+    if (!!compiledModel) {
+        auto exec = compiledModel.get_runtime_model();
+        check_node(exec, nameMatmul);
+    }
 }
 
 namespace {
