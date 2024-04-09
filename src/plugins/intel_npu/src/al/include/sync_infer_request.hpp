@@ -121,10 +121,24 @@ public:
     }
 
     /**
+     * @return The names used by the shape variables in the order registered inside the model.
+     */
+    std::vector<std::string> get_shape_names() {
+        return _metadata.shapeNames;
+    }
+
+    /**
      * @return A map holding references towards all tensors used by the current inference request object.
      */
     std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& get_all_tensors() {
         return _allTensors;
+    }
+
+    /**
+     * @return A map holding references towards all shapes tensors used by the current inference request object.
+     */
+    std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& get_shapes_tensors() {
+        return _shapesTensors;
     }
 
 protected:
@@ -149,6 +163,11 @@ protected:
     virtual void check_network_precision(const ov::element::Type_t precision) = 0;
 
     /**
+     * @brief Indicates a kind of provided tensor. Marks special tensors, used for internal implementation
+     */
+    enum class TensorType { InputOrOutput, Shape, State };
+
+    /**
      * @brief Allocates a tensor on host and stores the reference inside the "_allTensors" attribute. If a buffer
      * address is provided, then the tensor is built upon it and no additional data buffer is allocated.
      * @param tensorName The name by which the tensor shall be identified
@@ -159,11 +178,12 @@ protected:
      */
     void allocate_tensor(std::string tensorName,
                          const IONodeDescriptor& descriptor,
-                         const bool isState,
+                         TensorType tensorType = TensorType::InputOrOutput,
                          const ov::Allocator& allocator = {});
 
     // Mutable to return reference to ov::Tensor
     mutable std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> _allTensors;
+    mutable std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> _shapesTensors;
     // A copy of each tensor is needed to maintain the original L0 memory allocation in case the user provides another
     // memory area for the tensor.
     std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> _copyAllTensors;

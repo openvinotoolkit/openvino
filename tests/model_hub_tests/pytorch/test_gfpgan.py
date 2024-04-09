@@ -8,6 +8,8 @@ import tempfile
 
 import pytest
 import torch
+import torchvision
+from packaging import version
 
 from torch_utils import TestTorchConvertModel
 from openvino import convert_model
@@ -76,6 +78,7 @@ class TestGFPGANConvertModel(TestTorchConvertModel):
         # remove all downloaded files from cache
         self.repo_dir.cleanup()
 
-    @pytest.mark.nightly
+    @pytest.mark.skipif(version.parse(torchvision.__version__) >= version.parse("0.17"),
+                        reason="torchvision==0.17 have removed module torchvision.transforms.functional_tensor which is required by GFPGAN")
     def test_convert_model(self, ie_device):
         self.run("GFPGAN", None, ie_device)
