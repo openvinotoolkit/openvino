@@ -381,12 +381,7 @@ int get_current_socket_id() {
 
 int get_memory_numa_node_id(const int numa_node_id) {
     CPU& cpu = cpu_info();
-    auto iter = cpu._numaid_mapping_table.find(numa_node_id);
-    if (iter != cpu._numaid_mapping_table.end()) {
-        return cpu._hbm_enabled ? (iter->second == 0 ? cpu._numa_nodes : iter->second) : iter->second;
-        return iter->second;
-    }
-    return -1;
+    return cpu._hbm_enabled ? (numa_node_id == 0 ? numa_node_id + 2 : numa_node_id) : numa_node_id;
 };
 #    else
 int get_current_socket_id() {

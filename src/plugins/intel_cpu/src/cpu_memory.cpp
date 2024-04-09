@@ -616,7 +616,7 @@ static long mbind(void* start,
 
 #if defined(__linux__)
 bool mbind_move(void* data, size_t size, int targetNode) {
-    int realNode = ov::get_org_numa_id(targetNode);
+    int realNode = get_memory_numa_node_id(ov::get_org_numa_id(targetNode));
     auto pagesize = getpagesize();
     auto page_count = (size + pagesize - 1) / pagesize;
     char* pages = reinterpret_cast<char*>((((uintptr_t)data) & ~((uintptr_t)(pagesize - 1))));
