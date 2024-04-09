@@ -174,5 +174,5 @@ class TestDeformableConvolution(PytorchLayerTest):
     def test_deformable_convolution2d(self, params, bias, mask, ie_device, precision, ir_version):
         self._test(*self.create_model(**params, bias=bias, mask=mask),
                    ie_device, precision, ir_version, trace_model=True,
-                   dynamic_shapes=False if ie_device == "GPU" else True
+                   dynamic_shapes=ie_device != "GPU"
                    )

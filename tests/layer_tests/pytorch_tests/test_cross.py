@@ -64,7 +64,7 @@ class TestLinalgCross(PytorchLayerTest):
                                      "y_shape": y_shape,
                                      "out": out,
                                      'dtype': dtype},
-            dynamic_shapes=False if ie_device == "GPU" else True)
+            dynamic_shapes=ie_device != "GPU")
 
 
 class TestCross(PytorchLayerTest):
@@ -127,4 +127,4 @@ class TestCross(PytorchLayerTest):
                                             "y_shape": y_shape,
                                             "out": out,
                                             "dtype": dtype},
-                   dynamic_shapes=False if ie_device == "GPU" else True)
+                   dynamic_shapes=ie_device != "GPU")
