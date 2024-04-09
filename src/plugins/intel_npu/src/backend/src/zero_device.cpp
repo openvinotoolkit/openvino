@@ -19,9 +19,6 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
     device_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
     zeroUtils::throwOnFail("zeDeviceGetProperties",
                            zeDeviceGetProperties(_initStructs->getDevice(), &device_properties));
-    driver_properties.stype = ZE_STRUCTURE_TYPE_DRIVER_PROPERTIES;
-    zeroUtils::throwOnFail("zeDriverGetProperties",
-                           zeDriverGetProperties(_initStructs->getDriver(), &driver_properties));
 
     std::vector<ze_command_queue_group_properties_t> command_group_properties;
     uint32_t command_queue_group_count = 0;
@@ -87,10 +84,6 @@ IDevice::Uuid ZeroDevice::getUuid() const {
     std::copy(std::begin(device_properties.uuid.id), std::end(device_properties.uuid.id), std::begin(uuid.uuid));
 
     return uuid;
-}
-
-uint32_t ZeroDevice::getDriverVersion() const {
-    return driver_properties.driverVersion;
 }
 
 uint32_t ZeroDevice::getSubDevId() const {
