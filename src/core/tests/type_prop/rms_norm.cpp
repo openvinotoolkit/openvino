@@ -10,10 +10,12 @@
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/op/constant.hpp"
 
-using namespace ov;
-using namespace testing;
+namespace ov {
+namespace test {
+
 using ov::op::v0::Constant;
 using ov::op::v0::Parameter;
+using testing::HasSubstr;
 
 TEST(type_prop, rms_norm_default_ctor) {
     const auto op = std::make_shared<op::v14::RMSNorm>();
@@ -188,7 +190,7 @@ TEST(type_prop, rms_norm_incorrect_axes_val) {
 }
 
 using RMSNormTestParam = std::tuple<PartialShape, PartialShape>;
-class RMSNormTest : public TypePropOpTest<ov::op::v14::RMSNorm>, public WithParamInterface<RMSNormTestParam> {
+class RMSNormTest : public TypePropOpTest<ov::op::v14::RMSNorm>, public testing::WithParamInterface<RMSNormTestParam> {
 protected:
     void SetUp() override {
         std::tie(shape_data, shape_scale) = GetParam();
@@ -198,21 +200,21 @@ protected:
 
 INSTANTIATE_TEST_SUITE_P(type_prop_rms_scale_shape,
                          RMSNormTest,
-                         Values(std::make_tuple(PartialShape{-1, 3, 1, 2}, PartialShape{-1}),
-                                std::make_tuple(PartialShape{-1, 3, 1, 2}, PartialShape{}),
-                                std::make_tuple(PartialShape{-1, 3, 1, 2}, PartialShape{1}),
-                                std::make_tuple(PartialShape{-1, 3, 1, 2}, PartialShape{2}),
-                                std::make_tuple(PartialShape{-1, 3, 1, 2}, PartialShape{1, 1}),
-                                std::make_tuple(PartialShape{-1, 3, 1, 2}, PartialShape{1, 2}),
-                                std::make_tuple(PartialShape{-1, 3, 1, 2}, PartialShape{3, 1, 2}),
-                                std::make_tuple(PartialShape{-1, 4, 8, 6}, PartialShape{1, 4, 1, 1}),
-                                std::make_tuple(PartialShape{2, 4, 8, 6}, PartialShape{2, 4, 8, 6}),
-                                std::make_tuple(PartialShape{2, 4, 8, 6}, PartialShape{1, 4, 1, 1}),
-                                std::make_tuple(PartialShape{2, 4, 8, 6}, PartialShape{1, 1, 1, 1}),
-                                std::make_tuple(PartialShape{2, 4, 8, 6}, PartialShape::dynamic()),
-                                std::make_tuple(PartialShape::dynamic(), PartialShape{1}),
-                                std::make_tuple(PartialShape::dynamic(), PartialShape::dynamic())),
-                         PrintToStringParamName());
+                         testing::Values(std::make_tuple(PartialShape{-1, 3, 1, 2}, PartialShape{-1}),
+                                         std::make_tuple(PartialShape{-1, 3, 1, 2}, PartialShape{}),
+                                         std::make_tuple(PartialShape{-1, 3, 1, 2}, PartialShape{1}),
+                                         std::make_tuple(PartialShape{-1, 3, 1, 2}, PartialShape{2}),
+                                         std::make_tuple(PartialShape{-1, 3, 1, 2}, PartialShape{1, 1}),
+                                         std::make_tuple(PartialShape{-1, 3, 1, 2}, PartialShape{1, 2}),
+                                         std::make_tuple(PartialShape{-1, 3, 1, 2}, PartialShape{3, 1, 2}),
+                                         std::make_tuple(PartialShape{-1, 4, 8, 6}, PartialShape{1, 4, 1, 1}),
+                                         std::make_tuple(PartialShape{2, 4, 8, 6}, PartialShape{2, 4, 8, 6}),
+                                         std::make_tuple(PartialShape{2, 4, 8, 6}, PartialShape{1, 4, 1, 1}),
+                                         std::make_tuple(PartialShape{2, 4, 8, 6}, PartialShape{1, 1, 1, 1}),
+                                         std::make_tuple(PartialShape{2, 4, 8, 6}, PartialShape::dynamic()),
+                                         std::make_tuple(PartialShape::dynamic(), PartialShape{1}),
+                                         std::make_tuple(PartialShape::dynamic(), PartialShape::dynamic())),
+                         testing::PrintToStringParamName());
 
 TEST_P(RMSNormTest, scale_shape) {
     const auto data = std::make_shared<Parameter>(element::f16, shape_data);
@@ -243,3 +245,6 @@ TEST(type_prop, rms_norm_scale_incompatible_shape) {
                         HasSubstr("Scale input shape must be broadcastable to the shape of the data input"));
     }
 }
+
+}  // namespace test
+}  // namespace ov
