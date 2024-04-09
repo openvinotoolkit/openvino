@@ -87,7 +87,6 @@ jobs:
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/json
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gtest
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gflags
-            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/open_model_zoo
           popd
 
       - name: Clone vcpkg
