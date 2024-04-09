@@ -197,7 +197,7 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op,
         groupNum = weightDims[0];
         IC = groupNum * weightDims[1];
         OC = groupNum * weightDims[2];
-        expectedBiasDims  = {OC * groupNum};
+        expectedBiasDims  = {OC};
         withGroups = groupNum > 1;
         isDW = withGroups && groupNum == OC && groupNum == IC;
 
