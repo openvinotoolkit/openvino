@@ -43,6 +43,8 @@ class TestRound(PytorchLayerTest):
     @pytest.mark.parametrize("out", [True, False])
     @pytest.mark.parametrize("dtype", ["float32", "float64", "int32", "int64"])
     def test_round(self, out, dtype, ie_device, precision, ir_version):
+        if ie_device == "GPU" and dtype not in ["float32", "float64"]:
+            pytest.xfail(reason="square is not supported on GPU for integer types")
         self._test(*self.create_model(out), ie_device, precision, ir_version, kwargs_to_prepare_input={"out": out, "dtype": dtype})
 
 
@@ -82,6 +84,8 @@ class TestRoundScalar(PytorchLayerTest):
     @pytest.mark.parametrize("input_type", ["int", "float"])
     def test_round(self, input_type, ie_device, precision, ir_version):
         if input_type == "int":
+            if ie_device == "GPU":
+                pytest.xfail(reason="round is not supported on GPU for integer types")
             self._prepare_input = self._prepare_input_int
         else:
             self._prepare_input = self._prepare_input_float

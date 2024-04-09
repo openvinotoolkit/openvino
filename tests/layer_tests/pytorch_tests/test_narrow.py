@@ -10,36 +10,30 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestNarrow(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.input_tensor, self.dim, self.start, self.length)
+        return (np.random.randn(*self.input_shape).astype(np.float32),)
 
-    def create_model(self):
+    def create_model(self, dim, start, length):
 
         class aten_narrow(torch.nn.Module):
+            def __init__(self, dim, start, length):
+                super().__init__()
+                self.dim = dim
+                self.start = start
+                self.length = length
 
-            def forward(self, input_tensor, dim: int, start, length: int):
-                return torch.narrow(input_tensor, dim=dim, start=start, length=length)
+            def forward(self, input_tensor):
+                return torch.narrow(input_tensor, dim=self.dim, start=self.start, length=self.length)
 
-        ref_net = None
-
-        return aten_narrow(), ref_net, "aten::narrow"
+        return aten_narrow(dim, start, length), None, "aten::narrow"
 
     @pytest.mark.parametrize("input_shape", [
         [3, 3], [3, 4, 5]
     ])
-    @pytest.mark.parametrize("dim", [
-        np.array(0).astype(np.int32), np.array(1).astype(np.int32), np.array(-1).astype(np.int32)
-    ])
-    @pytest.mark.parametrize("start", [
-        np.array(0).astype(np.int32), np.array(1).astype(np.int32)
-    ])
-    @pytest.mark.parametrize("length", [
-        np.array(1).astype(np.int32), np.array(2).astype(np.int32)
-    ])
+    @pytest.mark.parametrize("dim", [0, 1, -1])
+    @pytest.mark.parametrize("start", [0, 1])
+    @pytest.mark.parametrize("length", [1, 2])
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_narrow(self, input_shape, dim, start, length, ie_device, precision, ir_version):
-        self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
-        self.dim = dim
-        self.start = start
-        self.length = length
-        self._test(*self.create_model(), ie_device, precision, ir_version)
+        self.input_shape = input_shape
+        self._test(*self.create_model(dim, start, length), ie_device, precision, ir_version)

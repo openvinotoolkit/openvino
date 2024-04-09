@@ -54,13 +54,14 @@ class TestLinalgCross(PytorchLayerTest):
         ((4, 3), (1, 3), 1),
         ((3, 5), (3, 5), 0),
         ((2, 3, 4), (2, 3, 4), 1)
-        ])
+    ])
     @pytest.mark.parametrize('dtype', ['float32', 'float64'])
     @pytest.mark.parametrize("out", [True, False])
     def test_linalg_cross(self, x_shape, y_shape, dim, out, dtype, ie_device, precision, ir_version):
         self._test(
-            *self.create_model(dim, out), ie_device, precision, ir_version, use_convert_model=True, 
-            kwargs_to_prepare_input={"x_shape":x_shape, "y_shape": y_shape, "out": out, 'dtype': dtype})
+            *self.create_model(dim, out), ie_device, precision, ir_version, use_convert_model=True,
+            kwargs_to_prepare_input={"x_shape": x_shape, "y_shape": y_shape, "out": out, 'dtype': dtype},
+            dynamic_shapes=False if ie_device == "GPU" else True)
 
 
 class TestCross(PytorchLayerTest):
@@ -119,4 +120,5 @@ class TestCross(PytorchLayerTest):
     def test_linalg_cross(self, x_shape, y_shape, dim, out, dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(dim, out, x_shape), ie_device, precision, ir_version, 
                    use_convert_model=True, 
-                   kwargs_to_prepare_input={"x_shape":x_shape, "y_shape": y_shape, "out": out, "dtype": dtype})
+                   kwargs_to_prepare_input={"x_shape":x_shape, "y_shape": y_shape, "out": out, "dtype": dtype},
+                   dynamic_shapes=False if ie_device == "GPU" else True)

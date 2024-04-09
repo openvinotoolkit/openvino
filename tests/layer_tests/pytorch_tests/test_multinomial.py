@@ -90,6 +90,8 @@ class TestMultinomial(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_multinomial(self, input, num_samples, replacement, out, test_type, ie_device, precision, ir_version):
+        if ie_device == "GPU":
+            pytest.xfail(reason="multinomial with num_samples is unsupported on GPU")
         self._test(
             *self.create_model(replacement, out, test_type),
             ie_device,

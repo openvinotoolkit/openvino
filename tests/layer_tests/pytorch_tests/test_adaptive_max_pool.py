@@ -52,6 +52,8 @@ class TestAdaptiveMaxPool3D(PytorchLayerTest):
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_adaptive_max_pool3d(self, ie_device, precision, ir_version, input_shape, output_size, return_indices):
+        if ie_device == "GPU" and len(input_shape) < 5:
+            pytest.xfail(reason="Unsupported shape for adaptive pool on GPU")
         self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
         self._test(*self.create_model(output_size, return_indices), ie_device, precision, ir_version)
 
