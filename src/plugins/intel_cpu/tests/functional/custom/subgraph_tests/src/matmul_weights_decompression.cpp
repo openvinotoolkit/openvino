@@ -192,8 +192,9 @@ protected:
         if (decompression_subtract_type != DecompressionSubtractType::empty) {
             auto subtract_shape = decompression_subtract_type == DecompressionSubtractType::full ? scaleshift_const_shape : Shape({});
             auto shift_const_tensor =
-                ov::test::utils::create_and_fill_tensor(weights_precision, transformed_weights_shape, ov::test::utils::InputGenerateData(1, up_to));
+                ov::test::utils::create_and_fill_tensor(weights_precision, subtract_shape, ov::test::utils::InputGenerateData(1, up_to));
             auto shift_const = std::make_shared<ov::op::v0::Constant>(shift_const_tensor);
+
             std::shared_ptr<ov::Node> shift_convert = std::make_shared<ov::op::v0::Convert>(shift_const, decompression_precision);
             if (reshape_on_decompression_constant) {
                 auto subtract_target_shape = decompression_subtract_type == DecompressionSubtractType::full
