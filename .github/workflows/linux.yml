@@ -135,6 +135,9 @@ jobs:
           # default-jdk - Java API
           apt install --assume-yes --no-install-recommends default-jdk
 
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.4
         with:
