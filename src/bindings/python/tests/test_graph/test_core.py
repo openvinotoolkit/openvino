@@ -391,3 +391,22 @@ def test_discrete_type_info():
     assert n1.get_type_info().name >= n3.get_type_info().name
     assert n3.get_type_info().name < n1.get_type_info().name
     assert n3.get_type_info().name <= n1.get_type_info().name
+
+
+@pytest.mark.parametrize("shape_type", [Shape, PartialShape])
+def test_shape_negative_index(shape_type):
+    shape = shape_type([1, 2, 3, 4, 5])
+    assert shape[-1] == 5
+    assert shape[-3] == 3
+    assert shape[-5] == 1
+
+
+@pytest.mark.parametrize("shape_type", [Shape, PartialShape])
+def test_shape_slicing_step(shape_type):
+    shape = shape_type([1, 2, 3, 4, 5])
+    assert list(shape[0:2]) == [1, 2]
+    assert list(shape[0:3:2]) == [1, 3]
+    assert list(shape[::2]) == [1, 3, 5]
+    assert list(shape[1::2]) == [2, 4]
+    assert list(shape[::-1]) == [5, 4, 3, 2, 1]
+    assert list(shape[::-2]) == [5, 3, 1]
