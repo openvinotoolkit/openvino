@@ -58,6 +58,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           sparse-checkout: '.github'
+          lfs: true
 
       - name: Install deps
         run: pip3 install PyGithub==2.2.0 requests==2.31.0
