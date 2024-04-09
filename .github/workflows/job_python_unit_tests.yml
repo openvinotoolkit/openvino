@@ -235,13 +235,6 @@ jobs:
           TEST_PRECISION: FP32
           PYTORCH_TRACING_MODE: TORCHFX
 
-      - name: TensorFlow Lite Layer Tests - TFL FE
-        if: fromJSON(inputs.affected-components).TFL_FE.test
-        run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_lite_tests/ --junitxml=${INSTALL_TEST_DIR}/TEST-tfl_fe.xml
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP16
-
       - name: ONNX Layer Tests
         if: fromJSON(inputs.affected-components).ONNX_FE.test
         run: |
@@ -257,6 +250,13 @@ jobs:
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/jax_tests/ -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-jax.xml
         env:
           TEST_DEVICE: CPU
+
+      - name: TensorFlow Lite Layer Tests - TFL FE
+        if: fromJSON(inputs.affected-components).TFL_FE.test
+        run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_lite_tests/ --junitxml=${INSTALL_TEST_DIR}/TEST-tfl_fe.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
 
       - name: Clone API snippets
         if: runner.os != 'macOS'
