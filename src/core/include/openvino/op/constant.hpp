@@ -680,7 +680,7 @@ private:
         case Type_t::u4:
             write_lp_buffer<Type_t::u4>(source);
             break;
-        case element::Type_t::u6:
+        case Type_t::u6:
             write_lp_buffer<Type_t::u6>(source);
             break;
         case Type_t::u8:
@@ -707,8 +707,8 @@ private:
         case Type_t::string:
             write_buffer<Type_t::string>(source);
             break;
-        case element::Type_t::undefined:
-        case element::Type_t::dynamic:
+        case Type_t::undefined:
+        case Type_t::dynamic:
             OPENVINO_THROW("unsupported type");
         }
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
