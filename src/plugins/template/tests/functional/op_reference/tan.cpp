@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,6 +33,7 @@ struct TanParams {
 class ReferenceTanLayerTest : public testing::TestWithParam<TanParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params.pshape, params.inType);
         inputData = {params.inputData};

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,6 +41,7 @@ struct FloorModParams {
 class ReferenceFloorModLayerTest : public testing::TestWithParam<FloorModParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params.pshape1, params.pshape2, params.inType, params.outType);
         inputData = {params.inputData1, params.inputData2};

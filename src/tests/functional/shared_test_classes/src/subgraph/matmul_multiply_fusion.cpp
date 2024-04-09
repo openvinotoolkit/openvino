@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -114,6 +114,9 @@ void QuantizedMatMulMultiplyFusion::SetUp() {
         ASSERT_FALSE(functions_equal);
     } else {
         ASSERT_TRUE(functions_equal);
+    }
+    if (precision == element::f32) {
+        abs_threshold = 4e-7;
     }
 }
 

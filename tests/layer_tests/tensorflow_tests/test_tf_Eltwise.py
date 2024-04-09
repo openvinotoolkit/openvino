@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -35,7 +35,7 @@ class TestEltwise(CommonTFLayerTest):
     for operation in ['sum', 'max', 'mul']:
         test_data.extend([dict(shape=[1, 224], operation=operation),
                           pytest.param(dict(shape=[1, 224, 224], operation=operation),
-                                       marks=pytest.mark.precommit_tf_fe),
+                                       marks=pytest.mark.precommit),
                           dict(shape=[1, 3, 224, 224], operation=operation)])
 
     @pytest.mark.parametrize("params", test_data)

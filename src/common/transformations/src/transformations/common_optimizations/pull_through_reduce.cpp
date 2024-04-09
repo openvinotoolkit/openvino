@@ -15,7 +15,7 @@
 #include "openvino/op/util/reduction_base.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "sequnce_generator.hpp"
+#include "sequence_generator.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {

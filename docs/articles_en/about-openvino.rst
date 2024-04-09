@@ -8,11 +8,11 @@ About OpenVINO
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_performance_benchmarks
-   compatibility_and_support
-   system_requirements
-   Release Notes <openvino_release_notes>
-   Additional Resources <resources>
+   about-openvino/performance-benchmarks
+   about-openvino/compatibility-and-support
+   about-openvino/system-requirements
+   Release Notes <about-openvino/release-notes-openvino>
+   Additional Resources <about-openvino/additional-resources>
 
 OpenVINO is a toolkit for simple and efficient deployment of various deep learning models.
 In this section you will find information on the product itself, as well as the software
@@ -24,39 +24,39 @@ OpenVINO (Open Visual Inference and Neural network Optimization) is an open-sour
 Features
 ##############################################################
 
-One of the main purposes of OpenVINO is to streamline the deployment of deep learning models in user applications. It optimizes and accelerates model inference, which is crucial for such domains as Generative AI, Large Language models, and use cases like object detection, classification, segmentation, and many others. 
+One of the main purposes of OpenVINO is to streamline the deployment of deep learning models in user applications. It optimizes and accelerates model inference, which is crucial for such domains as Generative AI, Large Language models, and use cases like object detection, classification, segmentation, and many others.
 
-* :doc:`Model Optimization <openvino_docs_model_optimization_guide>`
+* :doc:`Model Optimization <openvino-workflow/model-optimization>`
 
 OpenVINO provides multiple optimization methods for both the training and post-training stages, including weight compression for Large Language models and Intel Optimum integration with Hugging Face.
 
-* :doc:`Model Conversion and Framework Compatibility <openvino_docs_model_processing_introduction>`
+* :doc:`Model Conversion and Framework Compatibility <openvino-workflow/model-preparation>`
 
-Supported models can be loaded directly or converted to the OpenVINO format to achieve better performance. Supported frameworks include ONNX, PyTorch, TensorFlow, TensorFlow Lite, Keras, and PaddlePaddle. 
+Supported models can be loaded directly or converted to the OpenVINO format to achieve better performance. Supported frameworks include ONNX, PyTorch, TensorFlow, TensorFlow Lite, Keras, and PaddlePaddle.
 
-* :doc:`Model Inference <openvino_docs_OV_UG_OV_Runtime_User_Guide>`
+* :doc:`Model Inference <openvino-workflow/running-inference>`
 
 OpenVINO accelerates deep learning models on various hardware platforms, ensuring real-time, efficient inference.
 
 * `Deployment on a server <https://github.com/openvinotoolkit/model_server>`__
 
-A model can be deployed either locally using OpenVINO Runtime or on a model server. Runtime is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions. The model server enables quick model inference using external resources. 
+A model can be deployed either locally using OpenVINO Runtime or on a model server. Runtime is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions. The model server enables quick model inference using external about-openvino/additional-resources.
 
 Architecture
 ##############################################################
 
 To learn more about how OpenVINO works, read the Developer documentation on its `architecture <https://github.com/openvinotoolkit/openvino/blob/master/src/docs/architecture.md>`__ and `core components <https://github.com/openvinotoolkit/openvino/blob/master/src/README.md>`__.
 
-OpenVINO Ecosystem 
+OpenVINO Ecosystem
 ##############################################################
 
 Along with the primary components of model optimization and runtime, the toolkit also includes:
 
 * `Neural Network Compression Framework (NNCF) <https://github.com/openvinotoolkit/nncf>`__ - a tool for enhanced OpenVINO™ inference to get performance boost with minimal accuracy drop.
-* :doc:`Openvino Notebooks <tutorials>`- Jupyter Python notebook tutorials, which demonstrate key features of the toolkit.
+* :doc:`Openvino Notebooks <learn-openvino/interactive-tutorials-python>`- Jupyter Python notebook, which demonstrate key features of the toolkit.
 * `OpenVINO Model Server <https://github.com/openvinotoolkit/model_server>`__ - a server that enables scalability via a serving microservice.
-* :doc:`OpenVINO Training Extensions  <ote_documentation>` – a convenient environment to train Deep Learning models and convert them using the OpenVINO™ toolkit for optimized inference.
-* :doc:`Dataset Management Framework (Datumaro) <datumaro_documentation>` - a tool to build, transform, and analyze datasets.
+* :doc:`OpenVINO Training Extensions  <documentation/openvino-ecosystem/openvino-training-extensions>` – a convenient environment to train Deep Learning models and convert them using the OpenVINO™ toolkit for optimized inference.
+* :doc:`Dataset Management Framework (Datumaro) <documentation/openvino-ecosystem/datumaro>` - a tool to build, transform, and analyze datasets.
 
 Community
 ##############################################################
@@ -66,7 +66,7 @@ OpenVINO community plays a vital role in the growth and development of the open-
 * `OpenVINO GitHub issues, discussions and pull requests <https://github.com/openvinotoolkit/openvino>`__
 * `OpenVINO Blog <https://blog.openvino.ai/>`__
 * `Community Forum <https://community.intel.com/t5/Intel-Distribution-of-OpenVINO/bd-p/distribution-openvino-toolkit>`__
-* `OpenVINO video tutorials <https://www.youtube.com/watch?v=_Jnjt21ZDS8&list=PLg-UKERBljNxdIQir1wrirZJ50yTp4eHv>`__
+* `OpenVINO video <https://www.youtube.com/watch?v=_Jnjt21ZDS8&list=PLg-UKERBljNxdIQir1wrirZJ50yTp4eHv>`__
 * `Support Information <https://www.intel.com/content/www/us/en/support/products/96066/software/development-software/openvino-toolkit.html>`__
 
 Case Studies

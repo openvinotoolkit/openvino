@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,6 +46,7 @@ struct BucketizeParams {
 class ReferenceBucketizeLayerTest : public testing::TestWithParam<BucketizeParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params.input_type,
                                   params.input_pshape,

@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/runtime/threading/istreams_executor.hpp"
 
 #include <algorithm>
+#include <future>
 #include <string>
 #include <thread>
 #include <vector>
@@ -32,7 +33,7 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
         if (key == ov::num_streams) {
             auto streams = value.as<ov::streams::Num>();
             if (streams == ov::streams::NUMA) {
-                _streams = 1;
+                _streams = get_num_numa_nodes();
             } else if (streams == ov::streams::AUTO) {
                 // bare minimum of streams (that evenly divides available number of cores)
                 _streams = get_default_num_streams();
@@ -114,29 +115,11 @@ IStreamsExecutor::Config IStreamsExecutor::Config::make_default_multi_threaded(
         return streamConfig;
     }
 
-    const auto numa_nodes = proc_type_table.size() > 1 ? proc_type_table.size() - 1 : proc_type_table.size();
-    const bool latency_case = static_cast<size_t>(streamConfig._streams) <= numa_nodes;
+    int num_cores = proc_type_table[0][ALL_PROC];
 
-    // by default, do not use the hyper-threading (to minimize threads synch overheads)
-    int num_cores = !latency_case && numa_nodes == 1
-                        ? proc_type_table[0][ALL_PROC]
-                        : proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
-
-    // additional latency-case logic for hybrid processors:
     if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && proc_type_table[0][MAIN_CORE_PROC] > 0) {
         if (streamConfig._thread_preferred_core_type == IStreamsExecutor::Config::ANY) {
-            // by default the latency case uses (faster) Big cores only, depending on the compute ratio
-            const bool big_only = proc_type_table[0][MAIN_CORE_PROC] > (proc_type_table[0][EFFICIENT_CORE_PROC] / 2);
-            // selecting the preferred core type
-            if (big_only) {
-                streamConfig._thread_preferred_core_type = IStreamsExecutor::Config::PreferredCoreType::BIG;
-                const int hyper_threading_threshold =
-                    2;  // min #cores, for which the hyper-threading becomes useful for the latency case
-                // additionally selecting the #cores to use in the "Big-only" case
-                num_cores = (proc_type_table[0][MAIN_CORE_PROC] <= hyper_threading_threshold)
-                                ? proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][HYPER_THREADING_PROC]
-                                : proc_type_table[0][MAIN_CORE_PROC];
-            }
+            num_cores = proc_type_table[0][ALL_PROC];
         } else if (streamConfig._thread_preferred_core_type == IStreamsExecutor::Config::BIG) {
             num_cores = proc_type_table[0][MAIN_CORE_PROC];
         } else if (streamConfig._thread_preferred_core_type == IStreamsExecutor::Config::LITTLE) {
@@ -321,10 +304,13 @@ void IStreamsExecutor::Config::update_executor_config() {
     // Recaculate _streams, _threads and _threads_per_stream by _streams_info_table
     int num_streams = 0;
     _threads = 0;
+    _sub_streams = 0;
     for (size_t i = 0; i < _streams_info_table.size(); i++) {
         if (_streams_info_table[i][NUMBER_OF_STREAMS] > 0) {
             num_streams += _streams_info_table[i][NUMBER_OF_STREAMS];
             _threads += _streams_info_table[i][NUMBER_OF_STREAMS] * _streams_info_table[i][THREADS_PER_STREAM];
+        } else if (_streams_info_table[i][NUMBER_OF_STREAMS] == -1) {
+            _sub_streams += 1;
         }
     }
     _threads_per_stream = _streams_info_table[0][THREADS_PER_STREAM];
@@ -362,6 +348,33 @@ void IStreamsExecutor::Config::set_config_zero_stream() {
     }
     _streams_info_table.push_back({1, core_type, 1, numa_id, socket_id});
     _cpu_reservation = false;
+}
+
+void IStreamsExecutor::run_sub_stream_and_wait(const std::vector<Task>& tasks) {
+    std::vector<std::packaged_task<void()>> packagedTasks;
+    std::vector<std::future<void>> futures;
+    for (std::size_t i = 0; i < tasks.size(); ++i) {
+        packagedTasks.emplace_back([&tasks, i] {
+            tasks[i]();
+        });
+        futures.emplace_back(packagedTasks.back().get_future());
+    }
+    for (std::size_t i = 0; i < tasks.size(); ++i) {
+        run_sub_stream(
+            [&packagedTasks, i] {
+                packagedTasks[i]();
+            },
+            static_cast<int>(i));
+    }
+    // std::future::get will rethrow exception from task.
+    // We should wait all tasks before any exception is thrown.
+    // So wait() and get() for each future moved to separate loops
+    for (auto&& future : futures) {
+        future.wait();
+    }
+    for (auto&& future : futures) {
+        future.get();
+    }
 }
 
 }  // namespace threading

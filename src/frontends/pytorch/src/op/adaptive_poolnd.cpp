@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,7 +45,7 @@ OutputVector translate_adaptive_avg_pool_base(const NodeContext& context,
     num_inputs_check(context, 2, 2);
 
     auto input_tensor = context.get_input(0);
-    auto given_shape = context.get_input(1);
+    auto given_shape = get_input_as_i32(context, 1);
     Output<Node> tile_input;
     Output<Node> output_shape;
     std::tie(tile_input, output_shape) =
@@ -61,7 +61,7 @@ OutputVector translate_adaptive_max_pool_base(const NodeContext& context,
     num_inputs_check(context, 2, 2);
 
     auto input_tensor = context.get_input(0);
-    auto given_shape = context.get_input(1);
+    auto given_shape = get_input_as_i32(context, 1);
     Output<Node> tile_input;
     Output<Node> output_shape;
     std::tie(tile_input, output_shape) =

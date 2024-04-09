@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,6 +64,7 @@ class ReferenceExperimentalGPLayerTest : public testing::TestWithParam<Experimen
                                          public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params);
         inputData = {params.imageSizeInfoData, params.anchorsData, params.deltasData, params.scoresData};

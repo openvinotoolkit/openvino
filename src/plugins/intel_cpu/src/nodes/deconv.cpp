@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -467,8 +467,8 @@ void Deconvolution::getSupportedDescriptors() {
     }
     VectorDims inDims, outDims;
     std::tie(inDims, outDims) = makeDummyInOutShape();
-    inShape = Shape(inDims);
-    Shape outShape(outDims);
+    inShape  = Shape(inDims);
+    outShape = Shape(outDims);
     initPaddingR(inShape, outShape);
 
 #if defined(OV_CPU_WITH_ACL)
@@ -477,34 +477,39 @@ void Deconvolution::getSupportedDescriptors() {
     config.outConfs.resize(getOriginalOutputsNumber());
 
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-    for (size_t i = 0; i < getParentEdges().size(); ++i) {
-        auto checkDesc = [&](LayoutType format) -> bool {
-            NodeConfig config;
-            config.inConfs.resize(getParentEdges().size());
-            config.outConfs.resize(getOriginalOutputsNumber());
+    auto checkDesc = [&](LayoutType format, LayoutType weights_format = LayoutType::ncsp) -> bool {
+        NodeConfig config;
+        config.inConfs.resize(getParentEdges().size());
+        config.outConfs.resize(getOriginalOutputsNumber());
+        // ACL use same precision for all inputs
+        config.inConfs[0].setMemDesc(
+                creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(0), getInputShapeAtPort(0)));
+        config.inConfs[1].setMemDesc(
+                creatorsMap.at(weights_format)->createSharedDesc(getOriginalInputPrecisionAtPort(0), getInputShapeAtPort(1)));
+        for (size_t i = 2; i < getParentEdges().size(); ++i) {
+            config.inConfs[i].setMemDesc(
+                    creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(0), getInputShapeAtPort(i)));
+        }
 
-            for (size_t i = 0; i < getParentEdges().size(); ++i) {
-                //force f32 precision to avoid reference inference (CVS-114087)
-                config.inConfs[i].setMemDesc(
-                        creatorsMap.at(format)->createSharedDesc(ov::element::f32, getInputShapeAtPort(i)));
-            }
-            //force f32 precision to avoid reference inference (CVS-114087)
-            config.outConfs[0].setMemDesc(
-                    creatorsMap.at(format)->createSharedDesc(ov::element::f32, getOutputShapeAtPort(0)));
+        for (size_t i = 0; i < getChildEdges().size(); ++i) {
+            config.outConfs[i].setMemDesc(
+                    creatorsMap.at(format)->createSharedDesc(getOriginalOutputPrecisionAtPort(0), getOutputShapeAtPort(i)));
+        }
 
-            std::vector<MemoryDescPtr> srcMemoryDescs;
-            for (size_t i = 0; i < config.inConfs.size(); i++) {
-                srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
-            }
-            std::vector<MemoryDescPtr> dstMemoryDescs;
-            for (size_t i = 0; i < config.outConfs.size(); i++) {
-                dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
-            }
+        std::vector<MemoryDescPtr> srcMemoryDescs;
+        srcMemoryDescs.push_back(config.inConfs[0].getMemDesc()->cloneWithNewDims(inDims));
+        for (size_t i = 1; i < config.inConfs.size(); i++) {
+            srcMemoryDescs.push_back(config.inConfs[i].getMemDesc()->clone());
+        }
+        std::vector<MemoryDescPtr> dstMemoryDescs;
+        dstMemoryDescs.push_back(config.outConfs[0].getMemDesc()->cloneWithNewDims(outDims));
+        for (size_t i = 1; i < config.outConfs.size(); i++) {
+            dstMemoryDescs.push_back(config.outConfs[i].getMemDesc()->clone());
+        }
 
-            return AclDeconvExecutorBuilder::customIsSupported(deconvAttrs, srcMemoryDescs, dstMemoryDescs);
-        };
-        useACL = checkDesc(LayoutType::nspc) || checkDesc(LayoutType::ncsp);
-    }
+        return AclDeconvExecutorBuilder::customIsSupported(deconvAttrs, srcMemoryDescs, dstMemoryDescs);
+    };
+    useACL = checkDesc(LayoutType::nspc) || checkDesc(LayoutType::ncsp);
     if (useACL) return;
 #endif
 
@@ -876,6 +881,10 @@ void Deconvolution::prepareParams() {
         OPENVINO_THROW("Preferable primitive descriptor is not set for node ", getName(), ".");
 
     if (useACL) {
+        if (isDynamicNode()) {
+            initPaddingR(getParentEdgeAt(0)->getMemory().getDescPtr()->getShape(),
+                         getChildEdgeAt(0)->getMemory().getDescPtr()->getShape());
+        }
         std::vector<MemoryDescPtr> srcMemoryDescs;
         for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
             srcMemoryDescs.push_back(getParentEdgeAt(i)->getMemory().getDescWithType<DnnlMemoryDesc>());
@@ -1218,35 +1227,50 @@ void Deconvolution::initSupportedPrimitiveDescriptors() {
         return;
     }
 
+    VectorDims inDims, outDims;
+    std::tie(inDims, outDims) = makeDummyInOutShape();
+    auto tmpInShape  = Shape(inDims);
+    auto tmpOutShape = Shape(outDims);
+    initPaddingR(tmpInShape, tmpOutShape);
+
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-    auto pushDesc = [&](LayoutType format) {
+    auto pushDesc = [&](LayoutType format, LayoutType weights_format = LayoutType::ncsp) {
         NodeConfig config;
         config.inConfs.resize(getParentEdges().size());
         config.outConfs.resize(getOriginalOutputsNumber());
 
-        for (size_t i = 0; i < getParentEdges().size(); ++i) {
+        config.inConfs[0].setMemDesc(
+                creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(0), getInputShapeAtPort(0)));
+        config.inConfs[1].setMemDesc(
+                creatorsMap.at(weights_format)->createSharedDesc(getOriginalInputPrecisionAtPort(0), getInputShapeAtPort(1)));
+
+        for (size_t i = 2; i < getParentEdges().size(); ++i) {
             config.inConfs[i].setMemDesc(
-                // force f32 precision to avoid reference inference (CVS-114087)
-                creatorsMap.at(format)->createSharedDesc(ov::element::f32, getInputShapeAtPort(i)));
+                    creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(0), getInputShapeAtPort(i)));
         }
-        config.outConfs[0].setMemDesc(
-                // force f32 precision to avoid reference inference (CVS-114087)
-                creatorsMap.at(format)->createSharedDesc(ov::element::f32, getOutputShapeAtPort(0)));
+
+        for (size_t i = 0; i < getChildEdges().size(); ++i) {
+            config.outConfs[i].setMemDesc(
+                    creatorsMap.at(format)->createSharedDesc(getOriginalOutputPrecisionAtPort(0), getOutputShapeAtPort(i)));
+        }
 
         std::vector<MemoryDescPtr> srcMemoryDescs;
-        for (size_t i = 0; i < config.inConfs.size(); i++) {
-            srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
+        srcMemoryDescs.push_back(config.inConfs[0].getMemDesc()->cloneWithNewDims(tmpInShape.getDims()));
+        for (size_t i = 1; i < config.inConfs.size(); i++) {
+            srcMemoryDescs.push_back(config.inConfs[i].getMemDesc()->clone());
         }
         std::vector<MemoryDescPtr> dstMemoryDescs;
-        for (size_t i = 0; i < config.outConfs.size(); i++) {
-            dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
+        dstMemoryDescs.push_back(config.outConfs[0].getMemDesc()->cloneWithNewDims(tmpOutShape.getDims()));
+        for (size_t i = 1; i < config.outConfs.size(); i++) {
+            dstMemoryDescs.push_back(config.outConfs[i].getMemDesc()->clone());
         }
 
         auto factory = std::make_shared<DeconvExecutorFactory>(deconvAttrs, srcMemoryDescs, dstMemoryDescs,
                                                                std::make_shared<ExecutorContext>(context, getImplPriority()));
 
-        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::acl, factory);
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::gemm_acl, factory);
     };
+    pushDesc(LayoutType::nspc);
     pushDesc(LayoutType::ncsp);
 }
 

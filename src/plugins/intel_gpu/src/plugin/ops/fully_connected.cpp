@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,19 +26,21 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::shared_ptr<op::FullyConnectedCompressed>& op) {
-    validate_inputs_count(op, {3, 4});
+    validate_inputs_count(op, {4, 5});
     auto inputs = p.GetInputInfo(op);
     std::string primitive_name = layer_type_name_ID(op);
 
+    const int INPUT_CNT_WITH_ZP = 5;
     auto input_name = inputs[0].pid;
     auto weights_name = inputs[1].pid;
-    auto scale_name = inputs[2].pid;
-    auto zp_name = inputs.size() == 4 ? inputs[3].pid : "";
+    auto bias_name = inputs[2].pid;
+    auto scale_name = inputs[3].pid;
+    auto zp_name = inputs.size() == INPUT_CNT_WITH_ZP ? inputs[4].pid : "";
 
     float zp_value = 0.0f;
     bool has_scalar_zp = false;
-    if (op->get_input_size() == 4) {
-        auto zp_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(3));
+    if (op->get_input_size() == INPUT_CNT_WITH_ZP) {
+        auto zp_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(INPUT_CNT_WITH_ZP-1));
         if (zp_const && ov::shape_size(zp_const->get_output_shape(0)) == 1) {
             has_scalar_zp = true;
             zp_value = zp_const->cast_vector<float>()[0];
@@ -47,7 +49,7 @@ static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::share
     auto fc = cldnn::fully_connected(primitive_name,
                                      cldnn::input_info(input_name),
                                      weights_name,
-                                     "",
+                                     bias_name,
                                      scale_name,
                                      has_scalar_zp ? "" : zp_name,
                                      cldnn::element_type_to_data_type(op->get_output_element_type(0)),
@@ -63,12 +65,13 @@ static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::share
 }
 
 static void CreateFullyConnectedOp(ProgramBuilder& p, const std::shared_ptr<op::FullyConnected>& op) {
-    validate_inputs_count(op, {2});
+    validate_inputs_count(op, {3});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     auto input_name = inputs[0].pid;
     auto weights_name = inputs[1].pid;
+    auto bias_name = inputs[2].pid;
 
     auto shape_a = op->get_input_partial_shape(0);
     auto shape_b = op->get_input_partial_shape(1);
@@ -79,7 +82,7 @@ static void CreateFullyConnectedOp(ProgramBuilder& p, const std::shared_ptr<op::
     auto fcPrim = cldnn::fully_connected(layerName,
                                          cldnn::input_info(input_name),
                                          weights_name,
-                                         "",
+                                         bias_name,
                                          cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                          cldnn::padding(),
                                          rank_a,

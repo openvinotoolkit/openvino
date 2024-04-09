@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,7 @@ OutputVector translate_set_item(const NodeContext& context) {
     auto idx_unsqueezed = context.mark_node(std::make_shared<v0::Unsqueeze>(idx, zero));
     auto value = context.get_input(2);
     auto value_unsqueezed = context.mark_node(std::make_shared<v0::Unsqueeze>(value, zero));
+    value_unsqueezed = context.mark_node(std::make_shared<v1::ConvertLike>(value_unsqueezed, input));
     auto res = context.mark_node(std::make_shared<v3::ScatterUpdate>(input, idx_unsqueezed, value_unsqueezed, zero));
     context.mutate_input(0, res);
     return {res};

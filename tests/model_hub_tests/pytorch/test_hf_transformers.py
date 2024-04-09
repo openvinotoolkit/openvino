@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -424,6 +424,13 @@ class TestTransformersModel(TestTorchConvertModel):
             pad_token_id = model.generation_config.pad_token_id
             example["decoder_input_ids"] = torch.ones(
                 (inputs.input_ids.shape[0] * model.decoder.num_codebooks, 1), dtype=torch.long) * pad_token_id
+        elif 'kosmos-2' in mi.tags:
+            from transformers import AutoProcessor
+            processor = AutoProcessor.from_pretrained(name)
+
+            prompt = "<grounding>An image of"
+            inputs = processor(text=prompt, images=self.image, return_tensors="pt")
+            example = dict(inputs)
         else:
             try:
                 if auto_model == "AutoModelForCausalLM":
@@ -530,6 +537,9 @@ class TestTransformersModel(TestTorchConvertModel):
             else:
                 example = (torch.randint(1, 1000, [1, 100]),)
         self.example = filter_example(model, example)
+        if "vit_mae" in mi.tags:
+            # vit-mae by default will generate random noise
+            self.example["noise"] = torch.rand(1, 192)
         model.eval()
         # do first inference
         if isinstance(self.example, dict):
@@ -563,5 +573,4 @@ class TestTransformersModel(TestTorchConvertModel):
                              process_pytest_marks(os.path.join(os.path.dirname(__file__), "hf_transformers_models")))
     @pytest.mark.nightly
     def test_convert_model_all_models(self, name, ie_device):
-        self.mode = "export"
         self.run(model_name=name, model_link=None, ie_device=ie_device)

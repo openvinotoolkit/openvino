@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import csv
@@ -53,12 +53,14 @@ def parse_arguments():
     gtest_filter_helper = "Specify gtest filter to apply for a test run. E.g. *Add*:*BinaryConv*. The default value is None"
     ov_config_path_helper = "Specify path to a plugin config file as `.lst` file. Default value is ``"
     special_mode_help = "Specify shape mode (`static`, `dynamic` or ``) for Opset conformance or API scope type (`mandatory` or ``). Default value is ``"
-    entity_help = "Specify validation entity: `Inference`, `ImportExport` or `QueryModel` for `OP` or "\
+    entity_help = "Specify validation entity: `Inference`, `ImportExport`, `QueryModel` or `OpImpl` for `OP` or "\
         "`ov_compiled_model`, `ov_infer_request` or `ov_plugin` for `API`. Default value is ``(all)"
     parallel_help = "Parallel over HW devices. For example run tests over GPU.0 and GPU.1 in case when device are the same"
     expected_failures_help = "Excepted failures list file path as csv"
     cache_path_help = "Path to the cache file with test_name list sorted by execution time as `.lst` file!"
     expected_failures_update_help = "Overwrite expected failures list in case same failures were fixed"
+    disable_rerun_help = "Disable re-run of interapted/lost tests. Default value is `False`"
+    timeout_help = "Set a custom timeout per worker in s"
 
     parser.add_argument("-d", "--device", help=device_help, type=str, required=False, default="CPU")
     parser.add_argument("-t", "--type", help=type_help, type=str, required=False, default=constants.OP_CONFORMANCE)
@@ -78,6 +80,8 @@ def parse_arguments():
     parser.add_argument("-u", "--expected_failures_update", help=expected_failures_update_help, required=False,
                         default=False, action='store_true')
     parser.add_argument("--cache_path", help=cache_path_help, type=str, required=False, default="")
+    parser.add_argument("-r", "--disable_rerun", help=disable_rerun_help, required=False, default=False, type=bool)
+    parser.add_argument("--timeout", help=timeout_help, required=False, default=-1, type=int)
 
     return parser.parse_args()
 
@@ -86,7 +90,7 @@ class Conformance:
     def __init__(self, device: str, model_path: os.path, ov_path: os.path, type: str, workers: int,
                  gtest_filter: str, working_dir: os.path, ov_config_path: os.path, special_mode: str,
                  entity:str, cache_path: str, parallel_devices: bool, expected_failures_file: str,
-                 expected_failures_update: bool):
+                 expected_failures_update: bool, disable_is_rerun: bool, timeout: int):
         self._device = device
         self._model_path = model_path
         if os.path.isdir(ov_path):
@@ -101,7 +105,7 @@ class Conformance:
         self._cache_path = cache_path if os.path.isfile(cache_path) else ""
         self.__entity = ""
         if type == constants.OP_CONFORMANCE:
-            if entity == "Inference" or entity == "QueryModel" or entity == "ImportExport" or entity == "":
+            if entity == "Inference" or entity == "QueryModel" or entity == "ImportExport" or entity == "" or entity == "OpImpl":
                 self.__entity = entity
             else:
                 logger.error(f'Incorrect value to set entity type: {special_mode}. Please check `help` to get possible values')
@@ -111,7 +115,7 @@ class Conformance:
             else:
                 logger.error(f'Incorrect value to set shape mode: {special_mode}. Please check `help` to get possible values')
                 exit(-1)
-            self._gtest_filter = f"*{self.__entity}*{gtest_filter}*"#:*OpImpl*"
+            self._gtest_filter = f"*{self.__entity}*{gtest_filter}*{'' if self.__entity == 'OpImpl' else ':-*OpImpl*'}"
         elif type == constants.API_CONFORMANCE:
             if entity == "ov_compiled_model" or entity == "ov_plugin" or entity == "ov_infer_request" or entity == "":
                 self.__entity = entity
@@ -147,6 +151,8 @@ class Conformance:
         self._expected_failures_update = expected_failures_update
 
         self.is_successful_run = False
+        self._is_rerun = not disable_is_rerun
+        self._timeout = timeout
 
     def __download_models(self, url_to_download, path_to_save):
         _, file_name = os.path.split(urlparse(url_to_download).path)
@@ -212,17 +218,11 @@ class Conformance:
             failures_file.close()
         return failures
 
-    def __check_expected_failures(self):
+    def __update_expected_failures(self):
         this_failures_file = os.path.join(self._working_dir, f"{self._device}_logs", "logs", "fix_priority.csv")
         if not os.path.isfile(this_failures_file):
             return
         this_run_failures = self.__get_failed_test_from_csv(this_failures_file)
-
-        diff = this_run_failures.difference(self._expected_failures)
-        if len(diff) > 0:
-            logger.error(f"Unexpected failures: {diff}")
-            self._unexpected_failures = diff
-            self.is_successful_run = False
 
         # we do not want to update the expected failures file if there are failures that were not present
         # in the passed expected failures file, i.e. if len(self._unexpected_failures) > 0
@@ -269,14 +269,15 @@ class Conformance:
                                          working_dir=logs_dir,
                                          cache_path=self._cache_path,
                                          split_unit=constants.TEST_UNIT_NAME,
-                                         repeat_failed=1,
+                                         repeat_failed=self._is_rerun,
                                          is_parallel_devices=self._is_parallel_over_devices,
-                                         excluded_tests=self._expected_failures if not self._expected_failures_update else set())
+                                         excluded_tests=self._expected_failures if not self._expected_failures_update else set(),
+                                         timeout=self._timeout)
         conformance.run()
         self.is_successful_run = conformance.postprocess_logs()
 
         if os.path.isfile(self._expected_failures_file):
-            self.__check_expected_failures()
+            self.__update_expected_failures()
 
         final_report_name = f'report_{self._type.lower()}'
         merge_xml([parallel_report_dir], report_dir, final_report_name, self._type, True)
@@ -323,6 +324,8 @@ class Conformance:
         logger.info(f"[ARGUMENTS] --cache_path = {self._cache_path}")
         logger.info(f"[ARGUMENTS] --expected_failures = {self._expected_failures_file}")
         logger.info(f"[ARGUMENTS] --expected_failures_update = {self._expected_failures_update}")
+        logger.info(f"[ARGUMENTS] --disable_rerun = {not self._is_rerun}")
+        logger.info(f"[ARGUMENTS] --timeout = {self._timeout}")
 
         if self._type == constants.OP_CONFORMANCE:
             if file_utils.is_url(self._model_path):
@@ -355,7 +358,8 @@ if __name__ == "__main__":
                               args.working_dir, args.ov_config_path,
                               args.special_mode, args.entity,
                               args.cache_path, args.parallel_devices,
-                              args.expected_failures, args.expected_failures_update)
+                              args.expected_failures, args.expected_failures_update,
+                              args.disable_rerun, args.timeout)
     conformance.run(args.dump_graph)
     if not conformance.is_successful_run:
         exit(-1)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -365,16 +365,6 @@ size_t layout::get_linear_size() const {
     } else if (this->format == cldnn::format::os_is_yx_isa8_osv16_isv4 && (!(is_aligned_to(sizes[0], 16)) || !(is_aligned_to(sizes[1], 32)))) {
         sizes[0] = align_to(sizes[0], 16);
         sizes[1] = align_to(sizes[1], 32);
-    } else if (this->format == cldnn::format::os_is_yx_isa8_osv8_isv4_swizzled_by_4 && (!(is_aligned_to(sizes[0], 32)) || !(is_aligned_to(sizes[1], 32)))) {
-        sizes[0] = align_to(sizes[0], 32);
-        sizes[1] = align_to(sizes[1], 32);
-    } else if (this->format == cldnn::format::is_o32_yx_isv32_swizzled_by_4 && (!is_aligned_to(sizes[1], 32) || !(is_aligned_to(sizes[0], 32)))) {
-        sizes[0] = align_to(sizes[0], 32);
-        sizes[1] = align_to(sizes[1], 32);
-    } else if (this->format == cldnn::format::os_is_y_x8_osv8_isv4 || this->format == cldnn::format::os_is_y_x8_osv8_isv4_swizzled_by_4) {
-        sizes[1] = align_to(sizes[1], 4);
-        sizes[0] = align_to(sizes[0], 8);
-        sizes[2] = align_to(sizes[2], 8);
     } else if (this->format == cldnn::format::image_2d_rgba) {
         sizes[1] = 4;
     } else if (this->format == cldnn::format::gs_oi_yxs_gsv4_yxsv4 ||
@@ -394,10 +384,8 @@ size_t layout::get_linear_size() const {
     } else if (this->format == cldnn::format::i_yxs_os_yxsv2_osv16 || this->format == cldnn::format::gi_yxs_os_yxsv2_osv16) {
         sizes[3] = align_to(sizes[2] * sizes[3], 2);
         sizes[2] = 1;
-    } else if (this->format == cldnn::format::os_i_yxs_osv4_yxsv4) {
-        sizes[3] = align_to(sizes[2] * sizes[3], 4);
-        sizes[2] = 1;
     }
+
     size_t total = std::accumulate(
         sizes.begin(),
         sizes.end(),
