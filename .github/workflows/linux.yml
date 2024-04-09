@@ -86,6 +86,10 @@ jobs:
           echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
           echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/01keep-debs
           echo 'APT::Clean-Installed "false";' >> /etc/apt/apt.conf
+          echo 'APT::Archives::MaxAge "30";' > /etc/apt/apt.conf.d/20archive
+          echo 'APT::Archives::MinAge "2";' >> /etc/apt/apt.conf.d/20archive
+          echo 'APT::Archives::MaxSize "500";' >> /etc/apt/apt.conf.d/20archive
+
 
       - name: Install git
         run: |
