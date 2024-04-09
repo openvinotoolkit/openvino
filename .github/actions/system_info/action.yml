@@ -19,7 +19,7 @@ runs:
 
         # apt cache:
         apt-config dump
-        # ls -la /var/cache/apt/archives
+        ls -la /var/cache/apt/archives
 
     - if: runner.os == 'macOS'
       shell: bash
