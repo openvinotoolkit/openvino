@@ -168,7 +168,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
-          name: test-results-python
+          name: test-results-python-tf-layers
           path: |
             ${{ env.INSTALL_TEST_DIR }}/TEST*.html
             ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
