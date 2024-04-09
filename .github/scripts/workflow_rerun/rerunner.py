@@ -18,8 +18,7 @@ if __name__ == '__main__':
     gh_repo = github.get_repo(full_name_or_id=repository_name)
     run = gh_repo.get_workflow_run(id_=run_id)
     
-    LOGGER.info(f'CHECKING IF RERUN IS NEEDED FOR {run_id} RUN IN {repository_name}')
-    LOGGER.info(f'FULL RUN URL: {run.html_url}')
+    LOGGER.info(f'CHECKING IF RERUN IS NEEDED FOR {run.html_url} RUN IN {repository_name}.')
     
     # Check if the run has already been retriggered more than once
     # we do not want to fall into a loop with retriggers
@@ -42,13 +41,13 @@ if __name__ == '__main__':
     
     if log_analyzer.found_matching_error:
         LOGGER.info(f'FOUND MATCHING ERROR, RETRIGGERING {run.html_url}')
-        status = run.rerun()
-        if status:
-            LOGGER.info(f'RUN RETRIGGERED SUCCESSFULLY: {run.html_url}')
-        else:
-            LOGGER.info(f'RUN WAS NOT RETRIGGERED, SEE ABOVE')
+        # status = run.rerun()
+        # if status:
+        #     LOGGER.info(f'RUN RETRIGGERED SUCCESSFULLY: {run.html_url}')
+        # else:
+        #     LOGGER.info(f'RUN WAS NOT RETRIGGERED, SEE ABOVE')
         
-        # "status" is True (which is 1) if everything is ok, False (which is 0) otherwise
-        sys.exit(not status)
+        # # "status" is True (which is 1) if everything is ok, False (which is 0) otherwise
+        # sys.exit(not status)
     else:
         LOGGER.info(f'NO ERROR WAS FOUND, NOT RETRIGGERING')

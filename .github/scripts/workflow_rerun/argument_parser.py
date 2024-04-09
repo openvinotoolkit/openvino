@@ -12,7 +12,7 @@ def get_arguments() -> argparse.Namespace:
                         type=int, 
                         required=True,
                         help='Workflow Run ID')
-    parser.add_argument('--error-to-look-for-file', 
+    parser.add_argument('--errors-to-look-for-file', 
                         type=str, 
                         required=False,
                         help='.json file with the errors to look for in logs',
