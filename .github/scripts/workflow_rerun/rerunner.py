@@ -41,13 +41,13 @@ if __name__ == '__main__':
     
     if log_analyzer.found_matching_error:
         LOGGER.info(f'FOUND MATCHING ERROR, RETRIGGERING {run.html_url}')
-        # status = run.rerun()
-        # if status:
-        #     LOGGER.info(f'RUN RETRIGGERED SUCCESSFULLY: {run.html_url}')
-        # else:
-        #     LOGGER.info(f'RUN WAS NOT RETRIGGERED, SEE ABOVE')
+        status = run.rerun()
+        if status:
+            LOGGER.info(f'RUN RETRIGGERED SUCCESSFULLY: {run.html_url}')
+        else:
+            LOGGER.info(f'RUN WAS NOT RETRIGGERED, SEE ABOVE')
         
-        # # "status" is True (which is 1) if everything is ok, False (which is 0) otherwise
-        # sys.exit(not status)
+        # "status" is True (which is 1) if everything is ok, False (which is 0) otherwise
+        sys.exit(not status)
     else:
         LOGGER.info(f'NO ERROR WAS FOUND, NOT RETRIGGERING')
