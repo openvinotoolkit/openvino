@@ -1145,11 +1145,6 @@ public:
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
 
-        // TODO: enable unittest for unsupported case
-        if (engine.get_device_info().supports_immad && is_dynamic)
-            GTEST_SKIP();
-
-
         long int ifm_num = 256;
         long int ofm_num = 256;
 
@@ -1210,13 +1205,12 @@ public:
 
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
-        if (is_dynamic) {
+        // Impl is selected only when it is running from cldnn
+        if (is_dynamic && !engine.get_device_info().supports_immad) {
             auto inst = network->get_primitive("fc_prim");
             auto impl = inst->get_impl();
-            size_t num_kernels = engine.get_device_info().dev_type == device_type::discrete_gpu ?
-                1 :
-                2; // Two shape-agnostic kernels
-            ASSERT_EQ(impl->get_kernels().size(), num_kernels);
+            ASSERT_TRUE(impl != NULL);
+            ASSERT_EQ(impl->get_kernels().size(), 2);
         }
 
         network->set_input_data("input", input_mem);
