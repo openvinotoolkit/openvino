@@ -33,14 +33,6 @@ jobs:
     runs-on: aks-linux-2-cores-8gb
 
     steps:
-      - name: Export Workflow Trace to Honeycomb
-        uses: inception-health/otel-export-trace-action@7eabc7de1f4753f0b45051b44bb0ba46d05a21ef
-        with:
-          otlpEndpoint: grpc://api.honeycomb.io:443/
-          otlpHeaders: ${{ secrets.OTLP_HEADERS }}
-          githubToken: ${{ secrets.GITHUB_TOKEN }}
-          runId: ${{ github.event.workflow_run.id }}
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -62,8 +54,7 @@ jobs:
           PGPASSWORD: ${{ secrets.METRICS_DATABASE_PASSWORD }}
           PGDATABASE: ${{ secrets.METRICS_DATABASE_NAME }}
           PGPORT: 5432
-          # LOGLEVEL: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
-          LOGLEVEL: DEBUG
+          LOGLEVEL: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
         run: |
           python3 .github/scripts/collect_github_metrics.py \
           --run-id ${{ github.event.workflow_run.id }} \
