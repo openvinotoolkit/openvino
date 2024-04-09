@@ -158,11 +158,11 @@ struct DetectionOutputParams {
 
     ov::op::v0::DetectionOutput::Attributes attrs;
     ov::op::v8::DetectionOutput::Attributes attrs_v8;
-    ov::Shape locShape;
-    ov::Shape confShape;
-    ov::Shape priorBoxesShape;
-    ov::Shape auxLocShape;
-    ov::Shape auxConfShape;
+    ov::PartialShape locShape;
+    ov::PartialShape confShape;
+    ov::PartialShape priorBoxesShape;
+    ov::PartialShape auxLocShape;
+    ov::PartialShape auxConfShape;
     ov::element::Type inType;
     ov::Tensor locData;
     ov::Tensor confData;
