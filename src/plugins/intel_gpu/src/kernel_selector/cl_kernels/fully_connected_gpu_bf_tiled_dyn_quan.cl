@@ -155,7 +155,9 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     __global OUTPUT_TYPE* output,
     const __global FILTER_TYPE* weights
 #if USE_SLM
-    , __local DQ_TYPE* dq_wei_local_mem
+    // [Packing weight]
+    // , __local DQ_TYPE* dq_wei_local_mem
+    , __local int* dq_wei_local_mem
 #endif
 #if BIAS_TERM
     , const __global BIAS_TYPE* biases
@@ -289,10 +291,6 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
             input_offset_tmp += (TILE_IN_B_PITCH * 2);
         }
 
-        for (uint bi = 0; bi < TILE_B/2; ++bi) {
-            max[bi] = fmax(fmax(fabs(tiled_input_0[bi][0]), fabs(tiled_input_0[bi][1])), fmax(fabs(tiled_input_0[bi][2]), fabs(tiled_input_0[bi][3])));
-        }
-
         // Load input.
 #if 0
         #define LOAD_IN_0(bi) do {                                    \
@@ -323,6 +321,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
             MAKE_VECTOR_TYPE(INPUT0_TYPE, 4) quantize_scale = 1;
             MAKE_VECTOR_TYPE(INPUT0_TYPE, 4) dq_max_input;
             unroll_for (uint bi = 0; bi < TILE_B/2; ++bi) {
+                max[bi] = fmax(fmax(fabs(tiled_input_0[bi][0]), fabs(tiled_input_0[bi][1])), fmax(fabs(tiled_input_0[bi][2]), fabs(tiled_input_0[bi][3])));
                 dq_max_input[bi] = sub_group_reduce_max(max[bi]);
             }
             quantize_scale = 128 / dq_max_input;
@@ -362,12 +361,16 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
             //     }
             // }
 
-            __local DQ_SLM_FILTER_VEC* char_slm_weight = (__local DQ_SLM_FILTER_VEC*)dq_wei_local_mem;
+            // [Packing weight]
+            // __local DQ_SLM_FILTER_VEC* char_slm_weight = (__local DQ_SLM_FILTER_VEC*)dq_wei_local_mem;
+            __local int* char_slm_weight = (__local int*)dq_wei_local_mem;
 
             uint weights_idx = weights_offset + local_id * SIMD * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE;
-            uint wei_local_idx = local_id * SIMD * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE + sglid * 4;
+            // uint wei_local_idx = local_id * SIMD * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE + sglid * 4;
+            // [Packing weight]
+            uint wei_local_idx = local_id * SIMD * FILTER_LOAD_ITERS * (FILTER_LOAD_BLOCK_SIZE/2) + sglid * 2;
             // [Weight along local_id]
-            // uint wei_local_idx = sglid * FILTER_LOAD_BLOCK_SIZE * FILTER_LOAD_ITERS * 8 + local_id * 4;
+            // uint wei_local_idx = sglid * (FILTER_LOAD_BLOCK_SIZE/2) * FILTER_LOAD_ITERS * 8 + local_id * 2;
 
             // Temporally block : use cpp code
             #if 0
@@ -465,12 +468,12 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 //         // const uint offset_ofm = out_f + fi * 16 + sglid;
                 //         // const uint offset_ifm = ni * 2 * 16 + local_id * 1 * 4 + load_iter * 4 + kii;
                 //         half ds = 1.0h;
-
                 //         half dzp = as_float(0x0);
                 //         dq_w[w_idx] = (dq_w[w_idx] - convert_char_sat(dzp));
                 //     }
                 // }
 
+                /*
                 // char_slm_weight[wei_local_idx] = dq_wei_unpacked.s01;
                 // wei_local_idx += 16;
                 // char_slm_weight[wei_local_idx] = dq_wei_unpacked.s23;
@@ -486,8 +489,17 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 char_slm_weight[wei_local_idx+3] = dq_wei_unpacked.s67;
                 weights_idx += 16 * 4;
                 wei_local_idx += 16 * 4;
+                */
+
+                // [Packing weight]
+                char4 wei_1 = {dq_wei_unpacked.s01, dq_wei_unpacked.s23};
+                char_slm_weight[wei_local_idx] = as_int(wei_1);
+                char4 wei_2 = {dq_wei_unpacked.s45, dq_wei_unpacked.s67};
+                char_slm_weight[wei_local_idx+1] = as_int(wei_2);
+                weights_idx += 16 * 4;
+                wei_local_idx += 16 * 2;
                 // [Weight along local_id]
-                // wei_local_idx += 8 * 4;
+                // wei_local_idx += 8 * 2;
             }
             #endif
 
@@ -496,12 +508,19 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
             barrier(CLK_LOCAL_MEM_FENCE);
         #endif  // USE_SLM : Restore compressed weight
 
-        #if 1
-        wei_local_idx = sglid * 4;
+        #if 0
+        // wei_local_idx = sglid * 4;
+        // [Packing weight]
+        wei_local_idx = sglid * 2;
         // [Weight along local_id]
-        // wei_local_idx = sglid * 4 * 8;
+        // wei_local_idx = sglid * 2 * 8;
         __attribute__((opencl_unroll_hint)) for (uint ki = 0; ki < (2 * 16) / 4; ++ki) {
             char4 input_val = as_char4(_sub_group_shuffle(packed_in_0[0], ki));
+            // char4 first_weight = ((char4 *)(&char_slm_weight[wei_local_idx]))[0];
+            // char4 second_weight = ((char4 *)(&char_slm_weight[wei_local_idx+2]))[0];
+            // [Packing weight]
+            char4 first_weight = as_char4(((__local int *)(&char_slm_weight[wei_local_idx]))[0]);
+            char4 second_weight = as_char4(((__local int *)(&char_slm_weight[wei_local_idx+1]))[0]);
             __attribute__((opencl_unroll_hint)) for (uint bi = 0; bi < 8; ++bi) {
                 // [TEMP]
                 // ((int *)(&acc_tmp[bi]))[0] = imad_SW(((int *)(&acc_tmp[bi]))[0],
@@ -520,12 +539,8 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 //                                         ((char4 *)(&char_slm_weight[wei_local_idx+2]))[0]);
 
                 // SW pipeline
-                acc_tmp[0][bi] = imad_SW(acc_tmp[0][bi],
-                                                        input_val,
-                                                        ((char4 *)(&char_slm_weight[wei_local_idx]))[0]);
-                acc_tmp[1][bi] = imad_SW(acc_tmp[1][bi],
-                                                        input_val,
-                                                        ((char4 *)(&char_slm_weight[wei_local_idx+2]))[0]);
+                acc_tmp[0][bi] = imad_SW(acc_tmp[0][bi], input_val, first_weight);
+                acc_tmp[1][bi] = imad_SW(acc_tmp[1][bi], input_val, second_weight);
                 input_val = as_char4(_sub_group_shuffle(packed_in_0[(bi+1) / 2], ((bi+1) % 2) * 8 + ki));
 
                 // if (get_group_id(0) == 0 && get_group_id(0) == 0 && bi == 0 && sglid == 0) {
@@ -535,12 +550,27 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 // }
             }
 
-            wei_local_idx += 16 * 4;
+            // wei_local_idx += 16 * 4;
+            // [Packing weight]
+            wei_local_idx += 16 * 2;
             // [Weight along local_id]
-            // wei_local_idx += 4;
+            // wei_local_idx += 2;
         }  // ki < (TILE_IFM * SIMD) / TILE_K
-        weights_offset += 4 * 16 * (8);
+        #else
+        wei_local_idx = sglid * 2;
+        for (uint ki = 0; ki < (2 * 16) / 4; ++ki) {
+            char4 input_val = as_char4(_sub_group_shuffle(packed_in_0[0], ki));
+            char4 first_weight = as_char4(((__local int *)(&char_slm_weight[wei_local_idx]))[0]);
+            char4 second_weight = as_char4(((__local int *)(&char_slm_weight[wei_local_idx+1]))[0]);
+            __attribute__((opencl_unroll_hint)) for (uint bi = 0; bi < 8; ++bi) {
+                acc_tmp[0][bi] = imad_SW(acc_tmp[0][bi], input_val, first_weight);
+                acc_tmp[1][bi] = imad_SW(acc_tmp[1][bi], input_val, second_weight);
+                input_val = as_char4(_sub_group_shuffle(packed_in_0[(bi+1) / 2], ((bi+1) % 2) * 8 + ki));
+            }
+            wei_local_idx += 16 * 2;
+        }
         #endif
+        weights_offset += 4 * 16 * (8);
 
         // Get accumulated value
         #if 0
@@ -890,7 +920,9 @@ KERNEL(fc)(
 #endif
 ) {
 #if USE_SLM
-    __local DQ_TYPE dq_wei_local_mem[TILE_IFM * SIMD * TILE_OFM * SIMD];
+    // [Packing weight]
+    // __local DQ_TYPE dq_wei_local_mem[TILE_IFM * SIMD * TILE_OFM * SIMD];
+    __local int dq_wei_local_mem[SIMD * TILE_OFM * SIMD];
 #endif
 
     FUNC_CALL(fc_bf_tiled_kernel_default)(
