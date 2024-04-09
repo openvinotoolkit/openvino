@@ -28,6 +28,12 @@ ov::OutputVector average_pool(const ov::frontend::onnx::Node& node) {
 }
 }  // namespace set_10
 
+namespace set_11 {
+ov::OutputVector average_pool(const ov::frontend::onnx::Node& node) {
+    return pooling::PoolingFactory(node).make_avg_pool();
+}
+}  // namespace set_11
+
 namespace set_19 {
 ov::OutputVector average_pool(const ov::frontend::onnx::Node& node) {
     return pooling::PoolingFactory(node).make_avg_pool();

@@ -43,6 +43,17 @@ ov::OutputVector average_pool(const ov::frontend::onnx::Node& node);
 
 }  // namespace set_10
 
+namespace set_11 {
+/// \brief Convert ONNX AveragePool operation to an OV node.
+///
+/// \param node   The ONNX node object representing this operation.
+///
+/// \return The vector containing OV nodes producing output of ONNX AveragePool
+///        operation.
+ov::OutputVector average_pool(const ov::frontend::onnx::Node& node);
+
+}  // namespace set_11
+
 namespace set_19 {
 /// \brief Convert ONNX AveragePool operation to an OV node.
 ///
