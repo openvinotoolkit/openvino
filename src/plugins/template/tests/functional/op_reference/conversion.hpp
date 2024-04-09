@@ -23,7 +23,7 @@ static std::map<ConversionTypes, std::string> conversionNames = {{ConversionType
 struct ConvertParams {
     template <class IT, class OT>
     ConvertParams(ConversionTypes convType,
-                  const ov::Shape& shape,
+                  const ov::PartialShape& shape,
                   const ov::element::Type& iType,
                   const ov::element::Type& oType,
                   const std::vector<IT>& iValues,
@@ -32,10 +32,10 @@ struct ConvertParams {
           pshape(shape),
           inType(iType),
           outType(oType),
-          inputData(CreateTensor(shape, iType, iValues)),
-          refData(CreateTensor(shape, oType, oValues)) {}
+          inputData(CreateTensor(shape.get_shape(), iType, iValues)),
+          refData(CreateTensor(shape.get_shape(), oType, oValues)) {}
     ConversionTypes conversionType;
-    ov::Shape pshape;
+    ov::PartialShape pshape;
     ov::element::Type inType;
     ov::element::Type outType;
     ov::Tensor inputData;
@@ -63,7 +63,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<ov::Model> CreateFunction(const ov::Shape& input_shape,
+    static std::shared_ptr<ov::Model> CreateFunction(const ov::PartialShape& input_shape,
                                                      const ov::element::Type& input_type,
                                                      const ov::element::Type& expected_output_type,
                                                      const ConversionTypes& conversion_type) {
