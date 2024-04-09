@@ -231,6 +231,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"MaxPool", CreatorFunction(translate_max_pool_op)},
         {"MaxPoolV2", CreatorFunction(translate_max_pool_op)},
         {"MaxPool3D", CreatorFunction(translate_max_pool_op)},
+        {"MatrixSetDiagV3", CreatorFunction(translate_translate_matrix_set_diag_v3_op)},
         {"MaxPoolWithArgmax", CreatorFunction(translate_max_pool_with_argmax)},
         {"Merge", CreatorFunction(translate_merge_op)},
         {"MirrorPad", CreatorFunction(translate_mirror_pad_op)},
