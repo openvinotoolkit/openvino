@@ -25,7 +25,7 @@ TEST(StaticShapeInferenceTest, RMSNormStaticShapeInferenceTestDefaultCtor) {
     int32_t axis_val = -1;
     const auto const_data = std::unordered_map<size_t, Tensor>{{1, {element::i32, Shape{1}, &axis_val}}};
     const auto static_output_shapes = shape_inference(op.get(), static_input_shapes, const_data);
-    ASSERT_EQ(static_output_shapes[0], StaticShape({2, 3, 8, 6}));
+    EXPECT_EQ(static_output_shapes[0], StaticShape({2, 3, 8, 6}));
 }
 
 TEST(StaticShapeInferenceTest, RMSNormStaticShapeInferenceTest2ins) {
@@ -39,7 +39,7 @@ TEST(StaticShapeInferenceTest, RMSNormStaticShapeInferenceTest2ins) {
     int32_t axis_val = -1;
     const auto const_data = std::unordered_map<size_t, Tensor>{{1, {element::i32, Shape{1}, &axis_val}}};
     const auto static_output_shapes = shape_inference(op.get(), static_input_shapes, const_data);
-    ASSERT_EQ(static_output_shapes[0], StaticShape({2, 3, 8, 6}));
+    EXPECT_EQ(static_output_shapes[0], StaticShape({2, 3, 8, 6}));
 }
 
 TEST(StaticShapeInferenceTest, RMSNormStaticShapeInferenceTest3ins) {
@@ -54,7 +54,7 @@ TEST(StaticShapeInferenceTest, RMSNormStaticShapeInferenceTest3ins) {
     int32_t axis_val = -1;
     const auto const_data = std::unordered_map<size_t, Tensor>{{1, {element::i32, Shape{1}, &axis_val}}};
     const auto static_output_shapes = shape_inference(op.get(), static_input_shapes, const_data);
-    ASSERT_EQ(static_output_shapes[0], StaticShape({2, 3, 8, 6}));
+    EXPECT_EQ(static_output_shapes[0], StaticShape({2, 3, 8, 6}));
 }
 
 TEST(StaticShapeInferenceTest, RMSNormIncorrectAxisValParam) {
