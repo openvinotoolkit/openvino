@@ -107,4 +107,3 @@ class TestInverse(PytorchLayerTest):
         else:
             self._test(aten_inverse_out(), None, "aten::linalg_inv",
                     ie_device, precision, ir_version, trace_model=True, freeze_model=False, kwargs_to_prepare_input={"out": out})
-

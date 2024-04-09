@@ -98,5 +98,3 @@ class TestAdaptiveAvgPool1D(PytorchLayerTest):
     def test_adaptive_avg_pool1d(self, ie_device, precision, ir_version, input_shape, output_size):
         self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
         self._test(*self.create_model(output_size), ie_device, precision, ir_version)
-
-

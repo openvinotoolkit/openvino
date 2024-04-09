@@ -32,10 +32,10 @@ class TestLinalgCross(PytorchLayerTest):
 
             def forward(self, x, y):
                 return torch.linalg.cross(x, y, dim=self.dim)
-    
+
             def forward_out(self, x, y, out):
                 return torch.linalg.cross(x, y, dim=self.dim, out=out), out
-    
+
             def forward_no_dim_out(self, x, y, out):
                 return torch.linalg.cross(x, y, out=out), out
 
@@ -60,7 +60,10 @@ class TestLinalgCross(PytorchLayerTest):
     def test_linalg_cross(self, x_shape, y_shape, dim, out, dtype, ie_device, precision, ir_version):
         self._test(
             *self.create_model(dim, out), ie_device, precision, ir_version, use_convert_model=True,
-            kwargs_to_prepare_input={"x_shape": x_shape, "y_shape": y_shape, "out": out, 'dtype': dtype},
+            kwargs_to_prepare_input={"x_shape": x_shape,
+                                     "y_shape": y_shape,
+                                     "out": out,
+                                     'dtype': dtype},
             dynamic_shapes=False if ie_device == "GPU" else True)
 
 
@@ -88,10 +91,10 @@ class TestCross(PytorchLayerTest):
 
             def forward(self, x, y):
                 return torch.cross(x, y, dim=self.dim)
-    
+
             def forward_out(self, x, y, out):
                 return torch.cross(x, y, dim=self.dim, out=out), out
-    
+
             def forward_no_dim_out(self, x, y, out):
                 x = torch.reshape(x, self.shape)
                 return torch.cross(x, y, out=out), out
@@ -114,11 +117,14 @@ class TestCross(PytorchLayerTest):
         ((3, 1), (3, 4), None),
         ((4, 3), (4, 3), None),
         ((2, 3, 4), (2, 3, 4), None),
-        ])
+    ])
     @pytest.mark.parametrize("out", [True, False])
     @pytest.mark.parametrize('dtype', ['float32', 'float64'])
     def test_linalg_cross(self, x_shape, y_shape, dim, out, dtype, ie_device, precision, ir_version):
-        self._test(*self.create_model(dim, out, x_shape), ie_device, precision, ir_version, 
-                   use_convert_model=True, 
-                   kwargs_to_prepare_input={"x_shape":x_shape, "y_shape": y_shape, "out": out, "dtype": dtype},
+        self._test(*self.create_model(dim, out, x_shape), ie_device, precision, ir_version,
+                   use_convert_model=True,
+                   kwargs_to_prepare_input={"x_shape": x_shape,
+                                            "y_shape": y_shape,
+                                            "out": out,
+                                            "dtype": dtype},
                    dynamic_shapes=False if ie_device == "GPU" else True)
