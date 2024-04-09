@@ -24,3 +24,4 @@ torchvision
 transformers
 wheel
 PyYAML
+kornia
