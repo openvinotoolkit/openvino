@@ -18,7 +18,8 @@ runs:
         echo "MEMORY Info: "; df -h
 
         # apt cache:
-        ls -la /var/cache/apt/archives
+        apt-config dump | grep -i cache
+        # ls -la /var/cache/apt/archives
 
     - if: runner.os == 'macOS'
       shell: bash
