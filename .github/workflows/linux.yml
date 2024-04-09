@@ -817,7 +817,7 @@ jobs:
         run: |
           $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -c=gpu -y
 
-          apt-get update && apt-get install -y wget software-properties-common ocl-icd-libopencl1 ca-certificates gpg-agent tzdata
+          apt-get update && apt-get install -y wget software-properties-common ca-certificates gpg-agent tzdata
         env:
           DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
           TZ: "Europe/London" # to prevent tzdata from waiting user input
