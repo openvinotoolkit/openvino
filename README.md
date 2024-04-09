@@ -33,7 +33,7 @@ OpenVINO™ is an open-source toolkit for optimizing and deploying AI inference.
  - Reduce resource demands and efficiently deploy on a range of Intel® platforms from edge to cloud
 
 
-This open-source version includes several components: namely [OpenVINO Model Converter (OVC)], [OpenVINO™ Runtime], as well as CPU, GPU, multi device and heterogeneous plugins to accelerate deep learning inference on Intel® CPUs and Intel® Processor Graphics.
+This open-source version includes several components: namely [OpenVINO Model Converter (OVC)], [OpenVINO™ Runtime], as well as CPU, GPU, NPU, multi device and heterogeneous plugins to accelerate deep learning inference on Intel® CPUs and Intel® Processor Graphics.
 It supports pre-trained models from [Open Model Zoo], along with 100+ open
 source and public models in popular formats such as TensorFlow, ONNX, PaddlePaddle, MXNet, Caffe, Kaldi.
 
@@ -81,6 +81,12 @@ The OpenVINO™ Runtime can infer models on different hardware devices. This sec
             <td><a href="https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/gpu-device.html">Intel GPU</a></td>
             <td><b><i><a href="./src/plugins/intel_gpu">openvino_intel_gpu_plugin</a></i></b></td>
             <td>Intel Processor Graphics, including Intel HD Graphics and Intel Iris Graphics</td>
+        </tr>
+        <tr>
+            <td>NPU</td>
+            <td><a href="https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/npu-device.html">Intel NPU</a></td>
+            <td><b><i><a href="./src/plugins/intel_npu">openvino_intel_npu_plugin</a></i></b></td>
+            <td>Intel® Core™ Ultra Processors</td>
         </tr>
     </tbody>
 </table>

@@ -23,7 +23,7 @@ public:
                  bool isGraphQuantized,
                  ov::threading::IStreamsExecutor::Ptr streamExecutor = nullptr)
         : config(config),
-          weightsCache(w_cache),
+          weightsCache(std::move(w_cache)),
           isGraphQuantizedFlag(isGraphQuantized),
           streamExecutor(streamExecutor) {
         rtParamsCache = std::make_shared<MultiCache>(config.rtCacheCapacity);

@@ -201,7 +201,6 @@ class TestScatterReduce(PytorchLayerTest):
     @pytest.mark.parametrize(["inplace", "has_out"], [(True, False), (False, True), (False, False)])
     @pytest.mark.parametrize("reduce", ["sum", "prod", "mean", "amax", "amin"])
     @pytest.mark.parametrize("include_self", [True, False])
-    @pytest.mark.xfail(reason="accuracy validation failed")
     def test_scatter_reduce(self, dim, index, src, dtype, inplace, has_out, reduce,  include_self, ie_device, precision, ir_version):
         if isinstance(src, torch.Tensor):
             src = src.to(getattr(torch, dtype))
@@ -213,13 +212,16 @@ class TestScatterReduce(PytorchLayerTest):
             pytest.skip(
                 "Cannot test reduce parameters with empty indexes due to issues with empty constant tensor or issues with prim::GetAttr str inputs."
             )
+        kwargs = dict(kwargs_to_prepare_input={"dtype": dtype, "out": has_out}, freeze_model=freeze)
+        if reduce == "mean" and dtype in ["int32", "int64"]:
+            # rounding can be different on torch vs ov
+            kwargs["custom_eps"] = 1.
         self._test(
             *self.create_model(dim, index, src, inplace, reduce, include_self, has_out),
             ie_device,
             precision,
             ir_version,
-            kwargs_to_prepare_input={"dtype": dtype, "out": has_out},
-            freeze_model=freeze
+            **kwargs
         )
 
 class TestScatterAdd(PytorchLayerTest):
