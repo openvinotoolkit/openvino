@@ -8,8 +8,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include "backends.hpp"
 #include "npu.hpp"
-#include "npu_backends.hpp"
 #include "npu_private_properties.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
@@ -33,7 +33,8 @@ public:
     std::string GetBackendName() const;
     uint64_t GetDeviceAllocMemSize(const std::string& specifiedDeviceName) const;
     uint64_t GetDeviceTotalMemSize(const std::string& specifiedDeviceName) const;
-    uint32_t GetDriverVersion(const std::string& specifiedDeviceName) const;
+    uint32_t GetDriverVersion() const;
+    uint32_t GetDriverExtVersion() const;
 
     std::vector<ov::PropertyName> GetCachingProperties() const;
     std::vector<ov::PropertyName> GetInternalSupportedProperties() const;
