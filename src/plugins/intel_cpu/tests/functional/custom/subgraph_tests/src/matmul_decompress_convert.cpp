@@ -213,12 +213,12 @@ protected:
         }
 
         std::string cpuNodeType = "FullyConnected";
-        selectedType = makeSelectedTypeStr(selectedType, outType);
+        selectedType = makeSelectedTypeStr(selectedType, get_default_imp_precision_type(outType, configuration));
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inShapeA)};
         std::shared_ptr<ov::Node> inputB =
             ov::test::utils::deprecated::make_constant<float>(weiConstElemType, inShapeB.get_shape(), {}, true);
-        if (weiConstElemType == ElementType::f16) {
+        if (weiConstElemType == ElementType::f16 && weiConstElemType != convertOutType) {
             inputB = std::make_shared<ov::op::v0::Convert>(inputB, convertOutType);
             mark_as_decompression(inputB);
         }
@@ -412,7 +412,7 @@ const auto testParams3D_runtime_FP16_smoke = ::testing::Combine(::testing::Value
 INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_runtime_FP16,
                          MatMulDecompressConvertTest_FP16,
                          testParams3D_runtime_FP16_smoke,
-                         MatMulDecompressConvertTest::getTestCaseName);
+                         MatMulDecompressConvertTest_FP16::getTestCaseName);
 
 
 }  // namespace
