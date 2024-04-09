@@ -9,6 +9,8 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/subtract.hpp"
 
 namespace ov {
 namespace test {
@@ -173,20 +175,52 @@ TEST_F(TypePropRMSNormTest, incompatible_axes_shape) {
     }
 }
 
+TEST_F(TypePropRMSNormTest, constant_axes_val_data_dyn_rank) {
+    const auto data = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
+    const auto eps = 1e-5;
+    const auto axes = std::make_shared<Constant>(element::i32, Shape{}, 1);
+    const auto op = make_op(data, axes, eps);
+
+    EXPECT_EQ(op->get_output_element_type(0), element::f16);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape::dynamic()));
+}
+
+TEST_F(TypePropRMSNormTest, constant_axes_val_data_static_rank) {
+    const auto data = std::make_shared<Parameter>(element::f16, PartialShape{2, 3, 8});
+    const auto eps = 1e-5;
+    const auto axes = std::make_shared<Constant>(element::i32, Shape{}, 1);
+    const auto op = make_op(data, axes, eps);
+
+    EXPECT_EQ(op->get_output_element_type(0), element::f16);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 8}));
+}
+
+TEST_F(TypePropRMSNormTest, axes_val_as_shape_of) {
+    const auto data = std::make_shared<Parameter>(element::f16, PartialShape{2, 3, 8});
+    const auto eps = 1e-5;
+    const auto data_rank = std::make_shared<op::v3::ShapeOf>(std::make_shared<op::v3::ShapeOf>(data));
+    const auto axes =
+        std::make_shared<op::v1::Subtract>(data_rank, std::make_shared<Constant>(element::i64, Shape{}, 1));
+    const auto op = make_op(data, axes, eps);
+
+    EXPECT_EQ(op->get_output_element_type(0), element::f16);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 8}));
+}
+
 TEST_F(TypePropRMSNormTest, incorrect_axes_val) {
     const auto data = std::make_shared<Parameter>(element::f16, PartialShape{2, 3, 8});
     const auto eps = 1e-5;
     {
         const auto axes = std::make_shared<Constant>(element::i32, Shape{}, 3);
         OV_EXPECT_THROW(std::ignore = make_op(data, axes, eps),
-                        ov::Exception,
-                        HasSubstr("Accessing out-of-range dimension"));
+                        ov::NodeValidationFailure,
+                        HasSubstr("Parameter axis 3 out of the tensor rank range [-3, 2]"));
     }
     {
         const auto axes = std::make_shared<Constant>(element::i32, Shape{}, -4);
         OV_EXPECT_THROW(std::ignore = make_op(data, axes, eps),
-                        ov::Exception,
-                        HasSubstr("Accessing out-of-range dimension"));
+                        ov::NodeValidationFailure,
+                        HasSubstr("Parameter axis -4 out of the tensor rank range [-3, 2]"));
     }
 }
 

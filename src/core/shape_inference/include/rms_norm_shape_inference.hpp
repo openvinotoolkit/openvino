@@ -34,7 +34,7 @@ std::vector<TRShape> shape_infer(const RMSNorm* op,
     }
 
     if (axes_shape.rank().is_static()) {
-        const bool has_axes_compatible = axes_shape[0].is_dynamic() || axes_shape.size() == 0 ||
+        const bool has_axes_compatible = axes_shape.size() == 0 || axes_shape[0].is_dynamic() ||
                                          cmp::ge(data_rank.get_length(), axes_shape.get_shape()[0]);
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
