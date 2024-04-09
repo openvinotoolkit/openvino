@@ -49,6 +49,7 @@ Table of Contents
 * :doc:`Constant <../operation-specs/infrastructure/constant-1>`
 * :doc:`Convert <../operation-specs/type/convert-1>`
 * :doc:`ConvertLike <../operation-specs/type/convert-like-1>`
+* :doc:`ConvertPromoteTypes <../operation-specs/type/convert-promote-types-14>`
 * :doc:`Convolution <../operation-specs/convolution/convolution-1>`
 * :doc:`ConvolutionBackpropData <../operation-specs/convolution/convolution-backprop-data-1>`
 * :doc:`Cos <../operation-specs/arithmetic/cos-1>`
@@ -102,7 +103,7 @@ Table of Contents
 * :doc:`I420toRGB <../operation-specs/image/i420-to-rgb-8>`
 * :doc:`If <../operation-specs/condition/if-8>`
 * :doc:`Interpolate <../operation-specs/image/interpolate-11>`
-* :doc:`Inverse <../operation-specs/matrix/Inverse_14>`
+* :doc:`Inverse <../operation-specs/matrix/inverse-14>`
 * :doc:`IRDFT <../operation-specs/signals/irdft-9>`
 * :doc:`IsInf <../operation-specs/comparison/isinf-10>`
 * :doc:`IsNaN <../operation-specs/comparison/isnan-10>`

@@ -147,10 +147,20 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
         const auto& expr = entry_port->get_expr();
         const auto port_idx = entry_port->get_index();
         const auto node = expr->get_node();
-        const auto& parent_expr_output = expr->get_input_port_connector(port_idx)->get_source();
-        const auto& parent_expr = parent_expr_output.get_expr();
-        const auto parent_port = parent_expr_output.get_index();
-        const auto parent = parent_expr->get_node();
+        auto parent_expr_output = expr->get_input_port_connector(port_idx)->get_source();
+        auto parent_expr = parent_expr_output.get_expr();
+        bool has_shape_infer_parent = false;
+        auto top_shape_infer_expr = expr;
+        // parent before shape infer ops is used to determine if buffer needed according loopInfo
+        const auto& shape_infer_parents = utils::get_first_parent_shape_infer_expr_seq(parent_expr);
+        if (!shape_infer_parents.empty()) {
+            parent_expr_output = shape_infer_parents.back()->get_input_port_connector(0)->get_source();
+            has_shape_infer_parent = true;
+            top_shape_infer_expr = shape_infer_parents.back();
+            parent_expr = parent_expr_output.get_expr();
+        }
+        const auto& parent_port = parent_expr_output.get_index();
+        const auto& parent = parent_expr->get_node();
         if (ov::is_type<op::Buffer>(parent) ||
             ov::is_type<op::VectorBuffer>(parent) ||
             ov::is_type<ov::op::v0::Parameter>(parent) ||
@@ -178,7 +188,8 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
                                                                    parent_expr_output,
                                                                    m_buffer_allocation_rank);
             const auto buffer = std::make_shared<op::IntermediateMemoryBuffer>(parent->output(parent_port), allocation_shape);
-            linear_ir.insert_node(buffer, std::vector<ExpressionPort>{ parent_expr_output }, buffer_loop_ids, false, pos, { *entry_port });
+            const auto buffer_consumer = has_shape_infer_parent ? top_shape_infer_expr->get_input_port(0)  : *entry_port;
+            linear_ir.insert_node(buffer, std::vector<ExpressionPort>{ parent_expr_output }, buffer_loop_ids, false, pos, { buffer_consumer  });
         }
     }
 

@@ -52,7 +52,7 @@ public:
     // TODO: int due to base class uses it, but naturally it should be size_t for PT
     Output<Node> get_input(int index) const override {
         size_t index_ = static_cast<size_t>(index);
-        FRONT_END_GENERAL_CHECK(!input_is_none(index_), "Input doesn't exist with index: ", index);
+        FRONT_END_GENERAL_CHECK(!m_decoder->input_is_none(index_), "Input doesn't exist with index: ", index);
         auto input = m_decoder_inputs.at(index);
         if (input == 0) {
             // Case when input can be inlined (possible only for fx decoder)
@@ -97,9 +97,7 @@ public:
         return m_decoder->get_input_type(index);
     }
 
-    bool input_is_none(size_t index) const {
-        return index >= m_inputs_is_none.size() || m_inputs_is_none.at(index);
-    }
+    bool input_is_none(size_t index) const;
 
     Any get_output_type(size_t index) const {
         return m_decoder->get_output_type(index);

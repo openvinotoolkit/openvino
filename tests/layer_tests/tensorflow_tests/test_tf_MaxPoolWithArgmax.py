@@ -59,7 +59,7 @@ class TestMaxPoolWithArgmax(CommonTFLayerTest):
     @pytest.mark.parametrize("with_second_output", [
         True, False
     ])
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.xfail(condition=platform.system() in ('Linux', 'Darwin') and platform.machine() in ('arm', 'armv7l',
                                                                                                      'aarch64',
