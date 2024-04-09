@@ -43,7 +43,7 @@ std::vector<TRShape> shape_infer(const RMSNorm* op,
     }
 
     if (has_scale_input) {  // Validate scale input
-        auto scale_shape = input_shapes[2];
+        TRShape scale_shape = input_shapes[2];
         const bool is_scale_shape_broadcastable =
             TRShape::broadcast_merge_into(scale_shape, data_shape, ov::op::AutoBroadcastType::NUMPY);
         NODE_SHAPE_INFER_CHECK(op,

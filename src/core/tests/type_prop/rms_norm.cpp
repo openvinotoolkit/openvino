@@ -8,9 +8,11 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
+#include "openvino/op/constant.hpp"
 
 using namespace ov;
 using namespace testing;
+using ov::op::v0::Constant;
 using ov::op::v0::Parameter;
 
 TEST(type_prop, rms_norm_default_ctor) {
@@ -165,6 +167,23 @@ TEST(type_prop, rms_norm_incompatible_axes_shape) {
         OV_EXPECT_THROW(std::ignore = std::make_shared<op::v14::RMSNorm>(data, axes, scale, eps, compute_type),
                         ov::NodeValidationFailure,
                         HasSubstr("Number of the axes can't be higher than the rank of the data shape"));
+    }
+}
+
+TEST(type_prop, rms_norm_incorrect_axes_val) {
+    const auto data = std::make_shared<Parameter>(element::f16, PartialShape{2, 3, 8});
+    const auto eps = 1e-5;
+    {
+        const auto axes = std::make_shared<Constant>(element::i32, Shape{}, 3);
+        OV_EXPECT_THROW(std::ignore = std::make_shared<op::v14::RMSNorm>(data, axes, eps),
+                        ov::Exception,
+                        HasSubstr("Accessing out-of-range dimension"));
+    }
+    {
+        const auto axes = std::make_shared<Constant>(element::i32, Shape{}, -4);
+        OV_EXPECT_THROW(std::ignore = std::make_shared<op::v14::RMSNorm>(data, axes, eps),
+                        ov::Exception,
+                        HasSubstr("Accessing out-of-range dimension"));
     }
 }
 
