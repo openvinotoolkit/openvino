@@ -52,7 +52,7 @@ RMS
 
 * **1**: ``data`` - Input data to be normalized. A tensor of type *T* and arbitrary shape. **Required.**
 
-* **2**: ``axes`` - 1D tensor which specifies indices of dimensions in ``data`` that define normalization slices. Allowed range of axes is ``[-r; r-1]`` where ``r = rank(data)``, the order can be not sorted. Negative value means counting dimensions from the back. Type *T_AXES*. **Required.**
+* **2**: ``axes`` - 1D or scalar tensor which specifies indices of dimensions in ``data`` that define normalization slices. Allowed range of axes is ``[-r; r-1]`` where ``r = rank(data)``, the order can be not sorted. Negative value means counting dimensions from the back. Type *T_AXES*. **Required.**
 
 * **3**: ``scale`` - A tensor of type *T* containing the scale values for . The shape should be broadcastable to the shape of ``data`` tensor. **Optional.**
 
