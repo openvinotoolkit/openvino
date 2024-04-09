@@ -33,3 +33,6 @@ class LogCollectorTest(unittest.TestCase):
         log_archive_path = Path(tempfile.NamedTemporaryFile(suffix='.zip').name)
         collect_logs_for_run(run=self.wf_run, log_archive_path=log_archive_path)
         self.assertTrue(Path(log_archive_path).exists())
+
+    def tearDown(self) -> None:
+        self.github.close()
