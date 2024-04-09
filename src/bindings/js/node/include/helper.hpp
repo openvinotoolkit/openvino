@@ -140,6 +140,9 @@ ov::Tensor get_request_tensor(ov::InferRequest& infer_request, const size_t idx)
 /** @brief Creates ov::tensor from TensorWrap Object */
 ov::Tensor cast_to_tensor(const Napi::Value& value);
 
+/** @brief Creates ov::tensor from Napi::CallbackInfo value at specified index. */
+ov::Tensor cast_to_tensor(const Napi::CallbackInfo& info, int index);
+
 /** @brief Creates ov::tensor from TypedArray using given shape and element type*/
 ov::Tensor cast_to_tensor(const Napi::TypedArray& data, const ov::Shape& shape, const ov::element::Type_t& type);
 
