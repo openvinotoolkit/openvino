@@ -110,10 +110,8 @@ bool ConvolutionKernel_bfyx_GEMMLike::Validate(const Params& p) const {
         return false;
     }
 
-    // Limit filter_x_size to 32 becasue...
-    // 1. convolution_gpu_bfyx_gemm_like_fp16.cl has vecter data type of "typedef CAT( half, FILTER_SIZE_X ) half_t;"
-    //    OpenCL supports up to half32
-    // 2. convolution ref kernel is faster than GEMMLike kernel when filter size is bigger
+    // Limit filter_x_size to 32 becasue convolution ref kernel is faster than GEMMLike kernel when filter size is bigger.
+    // 32 is chosen from filter size of customer model. May need to more measurement to pick optimal value
     const size_t acceptable_filter_x_size = 32;
     if (params.filterSize.x > acceptable_filter_x_size) {
         return false;
