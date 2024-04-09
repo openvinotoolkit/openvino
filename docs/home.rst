@@ -65,72 +65,118 @@ OpenVINO 2024
       :align: center
 
 
+
 .. raw:: html
 
    <h2>Places to Begin</h2>
+
+.. grid:: 2 2 3 3
+   :class-container: homepage_begin_container
+
+   .. grid-item-card:: Installation
+      :img-top: ./_static/images/home_begin_tile_01.png
+      :class-card: homepage_begin_tile
+      
+      This guide introduces installation and learning materials for Intel® Distribution of OpenVINO™ toolkit.
+
+      .. button-link:: get-started/install-openvino.html
+         :color: primary
+         :outline:
+
+         Get Started
+
+   .. grid-item-card:: Performance Benchmarks
+      :img-top: ./_static/images/home_begin_tile_02.png
+      :class-card: homepage_begin_tile
+      
+      See latest benchmark numbers for OpenVINO and OpenVINO Model Server.
+
+      .. button-link:: about-openvino/performance-benchmarks.html
+         :color: primary
+         :outline:
+
+         View data
+
+   .. grid-item-card:: Framework Compatibility
+      :img-top: ./_static/images/home_begin_tile_03.png
+      :class-card: homepage_begin_tile
+      
+      Load models directly (for TensorFlow, ONNX, PaddlePaddle) or convert to OpenVINO format.
+
+      .. button-link:: openvino-workflow/model-preparation.html
+         :color: primary
+         :outline:
+
+         Load your model
+
+   .. grid-item-card:: Easy Deployment
+      :img-top: ./_static/images/home_begin_tile_04.png
+      :class-card: homepage_begin_tile
+      
+      Get started in just a few lines of code.
+
+      .. button-link:: openvino-workflow/running-inference.html
+         :color: primary
+         :outline:
+
+         Run Inference
    
-   <div id="homepage_begin_container">
-      <div class="homepage_begin_tiles">
-         <img src="./_static/images/home_begin_tile_01.png"/>
-         <p>Installation</p>
-         <p>This guide introduces installation and learning materials for Intel® Distribution of OpenVINO™ toolkit.</p>
-         <a href="get-started/install-openvino.html">Get started</a>
-      </div>
-      <div class="homepage_begin_tiles">
-         <img src="./_static/images/home_begin_tile_02.png"/>
-         <p>Performance Benchmarks</p>
-         <p>See latest benchmark numbers for OpenVINO and OpenVINO Model Server.</p>
-         <a href="about-openvino/performance-benchmarks.html">View data</a>
-      </div>
-      <div class="homepage_begin_tiles">
-         <img src="./_static/images/home_begin_tile_03.png"/>
-         <p>Framework Compatibility</p>
-         <p>Load models directly (for TensorFlow, ONNX, PaddlePaddle) or convert to OpenVINO format.</p>
-         <a href="openvino-workflow/model-preparation.html">Load your model</a>
-      </div>
-      <div class="homepage_begin_tiles">
-         <img src="./_static/images/home_begin_tile_04.png"/>
-         <p>Easy Deployment</p>
-         <p>Get started in just a few lines of code.</p>
-         <a href="openvino-workflow/running-inference.html">Run Inference</a>
-      </div>
-      <div class="homepage_begin_tiles">
-         <img src="./_static/images/home_begin_tile_05.png"/>
-         <p>Serving at scale</p>
-         <p>Cloud-ready deployments for microservice applications.</p>
-         <a href="ovms_what_is_openvino_model_server.html">Try it out</a>
-      </div>
-      <div class="homepage_begin_tiles">
-         <img src="./_static/images/home_begin_tile_06.png"/>
-         <p>Model Compression</p>
-         <p>Reach for performance with post-training and training-time compression with NNCF.</p>
-         <a href="openvino-workflow/model-optimization.html">Optimize now</a>
-      </div>
-   </div>
+   .. grid-item-card:: Serving at scale
+      :img-top: ./_static/images/home_begin_tile_05.png
+      :class-card: homepage_begin_tile
+      
+      Cloud-ready deployments for microservice applications.
+
+      .. button-link:: openvino-workflow/running-inference.html
+         :color: primary
+         :outline:
+
+         Try it out
+
+   .. grid-item-card:: Model Compression
+      :img-top: ./_static/images/home_begin_tile_06.png
+      :class-card: homepage_begin_tile
+      
+      Reach for performance with post-training and training-time compression with NNCF.
+
+      .. button-link:: openvino-workflow/model-optimization.html
+         :color: primary
+         :outline:
+
+         Optimize now
+
+
+
+.. raw:: html
 
  <h2>Key Features</h2>
 
-   <div id="homepage_key_container">
-      <div class="homepage_key_features">
-         <img src="./_static/images/home_key_feature_01.png"/>
-         <p>You can either link directly with OpenVINO Runtime to run inference locally or use OpenVINO Model Server to serve model inference from a separate server or within Kubernetes environment.</p>
-      </div>
-      <div class="homepage_key_features">
-         <img src="./_static/images/home_key_feature_02.png"/>
-         <p>Fast & Scalable Deployment</p>
-         <p>Write an application once, deploy it anywhere, achieving maximum performance from hardware. Automatic device discovery allows for superior deployment flexibility. OpenVINO Runtime supports Linux, Windows and MacOS and provides Python, C++ and C API. Use your preferred language and OS.</p>
-      </div>
-      <div class="homepage_key_features">
-         <img src="./_static/images/home_key_feature_03.png"/>
-         <p>Lighter Deployment</p>
-         <p>Designed with minimal external dependencies reduces the application footprint, simplifying installation and dependency management. Popular package managers enable application dependencies to be easily installed and upgraded. Custom compilation for your specific model(s) further reduces final binary size.</p>
-      </div>
-      <div class="homepage_key_features">
-         <img src="./_static/images/home_key_feature_04.png"/>
-         <p>Enhanced App Start-Up Time</p>
-         <p>In applications where fast start-up is required, OpenVINO significantly reduces first-inference latency by using the CPU for initial inference and then switching to another device once the model has been compiled and loaded to memory. Compiled models are cached, improving start-up time even more.</p>
-      </div>
-   </div>
+.. grid:: 2 2 2 2
+   :class-container: homepage_begin_container
+
+   .. grid-item-card:: Model Compression
+      :img-top: ./_static/images/home_key_feature_01.png
+      :class-card: homepage_begin_key
+      
+      You can either link directly with OpenVINO Runtime to run inference locally or use OpenVINO Model Server to serve model inference from a separate server or within Kubernetes environment.
+
+   .. grid-item-card:: Fast & Scalable Deployment
+      :img-top: ./_static/images/home_key_feature_02.png
+      :class-card: homepage_begin_key
+      
+      Write an application once, deploy it anywhere, achieving maximum performance from hardware. Automatic device discovery allows for superior deployment flexibility. OpenVINO Runtime supports Linux, Windows and MacOS and provides Python, C++ and C API. Use your preferred language and OS.
+   
+   .. grid-item-card:: Lighter Deployment
+      :img-top: ./_static/images/home_key_feature_03.png
+      :class-card: homepage_begin_key
+      
+      Designed with minimal external dependencies reduces the application footprint, simplifying installation and dependency management. Popular package managers enable application dependencies to be easily installed and upgraded. Custom compilation for your specific model(s) further reduces final binary size.
+
+   .. grid-item-card:: Enhanced App Start-Up Time
+      :img-top: ./_static/images/home_key_feature_04.png
+      :class-card: homepage_begin_key
+      
+      In applications where fast start-up is required, OpenVINO significantly reduces first-inference latency by using the CPU for initial inference and then switching to another device once the model has been compiled and loaded to memory. Compiled models are cached, improving start-up time even more.
 
 
 .. toctree::
