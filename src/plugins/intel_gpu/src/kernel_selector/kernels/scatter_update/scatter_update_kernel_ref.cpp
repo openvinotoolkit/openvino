@@ -250,6 +250,10 @@ JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params
             if (!input.is_dynamic())
                 tensor_idx--;
         }
+        for (auto fused_op : params.fused_ops) {
+            if (!fused_op.output_tensor.is_dynamic())
+                tensor_idx--;
+        }
         pitches = GetDynamicPitches(output.GetDims(), tensor_idx);
     } else {
         pitches = GetPlanarPitches(output.GetDims());
