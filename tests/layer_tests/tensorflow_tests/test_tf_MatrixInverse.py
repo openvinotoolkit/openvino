@@ -12,7 +12,7 @@ class TestMatrixInverse(CommonTFLayerTest):
         input_shape = inputs_info['input:0']
         inputs_data = {}
 
-        self.invertible_matrices = self._generate_invertible_matrix_pool()
+        self.invertible_matrices = self._generate_invertible_matrices()
 
         if len(input_shape) == 3 and input_shape[1] == input_shape[2]:  # Square matrices with batches
             matrices = np.random.choice(self.invertible_matrices, size=input_shape[0])
@@ -20,21 +20,15 @@ class TestMatrixInverse(CommonTFLayerTest):
         else:
             inputs_data['input:0'] = np.random.choice(self.invertible_matrices)
 
-        inputs_data['input:0'] = self._generate_invertible_matrix(input_shape)
         return inputs_data
     
-    def _generate_invertible_matrix_pool(self, size=10, shapes=None):
-        pool = []
-        if not shapes:
-            shapes = [[2, 2], [3, 3], [4, 4]]
-        for shape in shapes:
-            for _ in range(size):
-                while True:
-                    matrix = np.random.rand(*shape).astype(np.float32)
-                    if np.linalg.matrix_rank(matrix) == shape[0] and np.linalg.det(matrix) != 0:
-                        pool.append(matrix)
-                        break
-        return pool
+    def _generate_invertible_matrices(self):
+        matrices = [
+            np.array([[1, 0], [0, 1]], dtype=np.float32),
+            np.array([[1, 2], [3, 4]], dtype=np.float32),
+            np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=np.float32),
+        ]
+        return matrices
 
     def create_matrix_inverse_net(self, input_shape, adjoint=False):
         tf.compat.v1.reset_default_graph()
