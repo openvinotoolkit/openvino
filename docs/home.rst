@@ -1,23 +1,17 @@
 ============================
-OpenVINO 2024
+OpenVINO 2024.0
 ============================
 
 .. meta::
    :google-site-verification: _YqumYQ98cmXUTwtzM_0WIIadtDc6r_TMYGbmGgNvrk
+  
+**OpenVINO is an open-source toolkit** for optimizing and deploying deep learning models from cloud 
+to edge. It accelerates deep learning inference across various use cases, such as generative AI, video, 
+audio, and language with models from popular frameworks like PyTorch, TensorFlow, ONNX, and more. 
+Convert and optimize models, and deploy across a mix of Intel® hardware and environments, on-premises 
+and on-device, in the browser or in the cloud.
 
-.. raw:: html
-
-   <link rel="stylesheet" type="text/css" href="_static/css/homepage_style.css">
-
-.. container::
-   :name: ov-homepage-title
-
-   .. raw:: html
-
-      <div><span class="ov-homepage-title">OpenVINO 2024.0</span>
-      <p><b>OpenVINO is an open-source toolkit</b> for optimizing and deploying deep learning models from cloud to edge. It accelerates deep learning inference across various use cases, such as generative AI, video, audio, and language with models from popular frameworks like PyTorch, TensorFlow, ONNX, and more. Convert and optimize models, and deploy across a mix of Intel® hardware and environments, on-premises and on-device, in the browser or in the cloud.</p>
-      <p>Check out the <a href="https://docs.openvino.ai/2024/_static/download/OpenVINO_Quick_Start_Guide.pdf">OpenVINO Cheat Sheet.</a></p>
-      </div>
+Check out the `OpenVINO Cheat Sheet. <https://docs.openvino.ai/2024/_static/download/OpenVINO_Quick_Start_Guide.pdf>`__
 
 
 .. container::
@@ -25,6 +19,7 @@ OpenVINO 2024
 
    .. raw:: html
 
+      <link rel="stylesheet" type="text/css" href="_static/css/homepage_style.css">
       <div class="line-block">
          <section class="splide" aria-label="Splide Banner Carousel">
            <div class="splide__track">
@@ -59,26 +54,27 @@ OpenVINO 2024
          </section>
       </div>
 
-.. rst-class:: openvino-diagram
+|
+|
 
-   .. image:: _static/images/openvino-overview-diagram.jpg
-      :align: center
+.. image:: _static/images/openvino-overview-diagram.jpg
+   :align: center
+   :alt: openvino diagram
 
+|
 
-
-.. raw:: html
-
-   <h2>Places to Begin</h2>
+Places to Begin
+++++++++++++++++++++++++++++
 
 .. grid:: 2 2 3 3
-   :class-container: homepage_begin_container
+   :class-container: ov-homepage-higlight-grid
 
    .. grid-item-card:: Installation
       :img-top: ./_static/images/home_begin_tile_01.png
       :class-card: homepage_begin_tile
       
       This guide introduces installation and learning materials for Intel® Distribution of OpenVINO™ toolkit.
-
+      
       .. button-link:: get-started/install-openvino.html
          :color: primary
          :outline:
@@ -145,11 +141,11 @@ OpenVINO 2024
 
          Optimize now
 
+|
 
+Key Features
+++++++++++++++++++++++++++++
 
-.. raw:: html
-
- <h2>Key Features</h2>
 
 .. grid:: 2 2 2 2
    :class-container: homepage_begin_container
