@@ -50,6 +50,7 @@ breathe_projects = {
 }
 
 myst_enable_extensions = ["colon_fence"]
+suppress_warnings = ['misc.highlighting_failure']
 
 source_suffix = {
     '.rst': 'restructuredtext',
