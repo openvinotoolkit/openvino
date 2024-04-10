@@ -38,5 +38,5 @@ jobs:
         env:
           GITHUB_TOKEN: "${{ secrets.EXTERNAL_LABELLER_TOKEN }}"
         run: |
-          python3 ${{ github.workspace }}/.github/scripts/external_pr_labeller/labeller.py \
+          python3 ${{ github.workspace }}/.github/scripts/external_pr_labeller.py \
           --repository-name ${GITHUB_REPOSITORY} --pr-number ${{ github.event.number }}

@@ -44,10 +44,12 @@ if __name__ == '__main__':
     gh_repo = github.get_repo(full_name_or_id=repository_name)
 
     pr = gh_repo.get_pull(number=pr_number)
+    
+    LOGGER.info(f'CONTEXT: PR #{pr_number}. USER: {pr.user.login}. ALL PR LABELS: {list(pr.get_labels())}')
 
     if not gh_repo.has_in_collaborators(pr.user.login):
         LOGGER.info(f'THE {pr.user.login} IS NOT COLLABORATOR')
-        LOGGER.info(f'ALL PR LABELS: {list(pr.get_labels())}')
+        
         for label in pr.get_labels():
             if label.name == EXTERNAL_PR_LABEL_NAME:
                 LOGGER.info(f'THE PR ALREADY HAS THE "{EXTERNAL_PR_LABEL_NAME}" LABEL')
