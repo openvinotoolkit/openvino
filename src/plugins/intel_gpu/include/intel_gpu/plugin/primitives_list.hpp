@@ -264,6 +264,9 @@ REGISTER_FACTORY(v12, ScatterElementsUpdate);
 // ------------------------------ Supported v13 ops ----------------------------- //
 REGISTER_FACTORY(v13, Multinomial);
 
+// ------------------------------ Supported v14 ops ----------------------------- //
+REGISTER_FACTORY(v14, ROIAlignRotated);
+
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
 REGISTER_FACTORY(internal, GenerateProposalsIEInternal);
