@@ -262,6 +262,9 @@ jobs:
           if-no-files-found: 'error'
 
   CC_Build:
+    strategy:
+      matrix:
+        number: [1, 2, 3, 4]
     name: Conditional Compilation
     needs: [Build, Smart_CI]
     defaults:
