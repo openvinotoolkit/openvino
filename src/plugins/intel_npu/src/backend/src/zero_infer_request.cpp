@@ -70,10 +70,20 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
       _profiling_query(0,
                        _executor->getInitStructs()->getDevice(),
                        _executor->getInitStructs()->getProfilingDdiTable()) {
-    const std::unordered_map<std::string, ZeroExecutor::ArgumentDescriptor>& executorInputDescriptors =
+    const std::unordered_map<std::string, ZeroExecutor::ArgumentDescriptor>& executorInputDescriptor =
         _executor->inputs_desc_map();
-    const std::unordered_map<std::string, ZeroExecutor::ArgumentDescriptor>& executorOutputDescriptors =
+    const std::unordered_map<std::string, ZeroExecutor::ArgumentDescriptor>& executorOutputDescriptor =
         _executor->outputs_desc_map();
+
+    std::unordered_map<std::string, ZeroExecutor::ArgumentDescriptor> executorInputDescriptors;
+    std::unordered_map<std::string, ZeroExecutor::ArgumentDescriptor> executorOutputDescriptors;
+
+    for (const auto& [name, descriptor] : executorInputDescriptor) {
+        executorInputDescriptors[_legacyNameToNodeName[name]] = descriptor;
+    }
+    for (const auto& [name, descriptor] : executorOutputDescriptor) {
+        executorOutputDescriptors[_legacyNameToNodeName[name]] = descriptor;
+    }
 
     auto proftype = config.get<PROFILING_TYPE>();
     if (proftype == ov::intel_npu::ProfilingType::INFER) {
@@ -174,7 +184,10 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
     }
 
     /// Construct pipepline
-    _pipeline = makePipeline(_executorPtr, _config, _profiling_pool, _profiling_query, _npu_profiling, _copyAllTensors);
+    _pipeline = makePipeline(
+        _executorPtr, _config, _profiling_pool, _profiling_query, _npu_profiling, _copyAllTensors,
+        _legacyNameToNodeName
+    );
 }
 
 void ZeroInferRequest::infer() {

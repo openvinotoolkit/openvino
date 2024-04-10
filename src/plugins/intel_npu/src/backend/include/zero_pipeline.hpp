@@ -34,5 +34,7 @@ std::unique_ptr<Pipeline> makePipeline(const std::shared_ptr<const IExecutor>& e
                                        zeroProfiling::ProfilingPool& profiling_pool,
                                        zeroProfiling::ProfilingQuery& profiling_query,
                                        std::shared_ptr<zeroProfiling::NpuInferProfiling> npu_profiling,
-                                       std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& tensors);
+                                       std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& tensors,
+                                       const std::unordered_map<std::string, std::string>& legacyNameToCurrentName);
+
 }  // namespace intel_npu
