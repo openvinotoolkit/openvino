@@ -666,6 +666,14 @@ jobs:
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
           if-no-files-found: 'error'
 
+  Python_TensorFlow_Layer_Tests_JOB:
+    name: Python TensorFlow Layer unit tests
+    needs: [ Build, Smart_CI, Openvino_tokenizers ]
+    uses: ./.github/workflows/job_tensorflow_layer_tests.yml
+    with:
+      runner: 'aks-win-8-cores-16gb'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+
   Python_TensorFlow_Layer_Tests:
     name: Python TensorFlow Layer unit tests
     needs: [ Build, Smart_CI, Openvino_tokenizers ]
@@ -1087,7 +1095,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_windows
-    needs: [ Smart_CI, Build, Samples, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests, Openvino_tokenizers ]
+    needs: [ Smart_CI, Build, Samples, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests, Openvino_tokenizers, Python_TensorFlow_Layer_Tests ]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

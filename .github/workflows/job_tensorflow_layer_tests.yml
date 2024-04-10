@@ -102,7 +102,9 @@ jobs:
       #
 
       - name: Install OpenVINO Python wheels
+        if: runner.os != 'Windows'
         run: |
+          if [ "$RUNNER_OS" != "Windows" ]; then
           # Install the core OV wheel
           python3 -m pip install ${INSTALL_DIR}/tools/openvino-*.whl
 
@@ -122,12 +124,32 @@ jobs:
             python3 -m pip install $ov_dev_wheel_name[$extras_to_install]
           popd
 
+      - name: Install OpenVINO Python wheels
+        if: runner.os == 'Windows'
+        run: |
+          # Find and install the core OV wheel
+          $ovCoreWheelPath=Get-ChildItem -Path "${{ env.INSTALL_DIR }}\tools" -Filter openvino-*.whl | % { $_.FullName }
+          python3 -m pip install "$ovCoreWheelPath"
+
+          # Find and install the core OV Tokenizers wheel
+          $ovCoreWheelPath=Get-ChildItem -Path "${{ env.INSTALL_DIR }}" -Filter openvino_tokenizers-*.whl | % { $_.FullName }
+          python3 -m pip install "$ovCoreWheelPath"
+
+          # Find and install the dev OV wheel
+          $ovDevWheelPath=Get-ChildItem -Path "${{ env.INSTALL_DIR }}\tools" -Filter openvino_dev*.whl | % { $_.FullName }
+          python3 -m pip install "$ovDevWheelPath[mxnet,caffe,kaldi,tensorflow2]"
+
       - name: Install Python Layer tests dependencies
         run: |
+          # For getting rid of SSL issues during model downloading for unit tests
+          python3 -m pip install certifi
           # To enable pytest parallel features
           python3 -m pip install pytest-xdist[psutil]
           # layer test requirements
-          python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
+          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
+
+      - name: Set SSL_CERT_FILE for model downloading for unit tests
+        run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
 
       #
       # Tests
@@ -136,9 +158,14 @@ jobs:
       - name: TensorFlow 1 Layer Tests - TF FE
         if: fromJSON(inputs.affected-components).TF_FE.test
         run: |
-          # requires 'unit_tests' from 'mo'
-          export PYTHONPATH=${INSTALL_TEST_DIR}/mo
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/ -m precommit -n logical --junitxml=${INSTALL_TEST_DIR}/TEST-tf_fe.xml
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            :: requires 'unit_tests' from 'tools/mo'
+            set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\mo;%PYTHONPATH%
+          else
+            # requires 'unit_tests' from 'mo'
+            export PYTHONPATH=${INSTALL_TEST_DIR}/mo
+          fi
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/ -n logical -m precommit  --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_fe.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -146,10 +173,9 @@ jobs:
       - name: TensorFlow 2 Layer Tests - TF FE
         if: fromJSON(inputs.affected-components).TF_FE.test && runner.os != 'macOS' # Ticket: 123322
         run: |
-          # requires 'unit_tests' from 'mo'
-          export PYTHONPATH=${INSTALL_TEST_DIR}/mo
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/ -n logical -m precommit_tf_fe --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_fe.xml
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/ -n logical -m precommit_tf_fe --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_fe.xml
         env:
+          PYTHONPATH: ${{ env.INSTALL_TEST_DIR }}/mo
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
 
