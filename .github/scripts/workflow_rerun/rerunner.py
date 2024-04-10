@@ -20,7 +20,7 @@ if __name__ == '__main__':
     
     LOGGER.info(f'CHECKING IF RERUN IS NEEDED FOR {run.html_url} RUN IN {repository_name}.')
     
-    # Check if the run has already been retriggered more than once
+    # Check if the run has already been retriggered
     # we do not want to fall into a loop with retriggers
     if run.run_attempt > 1:
         LOGGER.info(f'THERE ARE {run.run_attempt} ATTEMPTS ALREADY. NOT CHECKING LOGS AND NOT RETRIGGERING. EXITING')
