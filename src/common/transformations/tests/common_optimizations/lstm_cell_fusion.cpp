@@ -108,3 +108,105 @@ TEST_P(LSTMCellFusionTestSuite, SubgraphFusedToLSTMCell) {
 INSTANTIATE_TEST_SUITE_P(LSTMCellFusion,
                          LSTMCellFusionTestSuite,
                          testing::Combine(testing::Values(false, true), testing::Values(1, 2), testing::Values(1, -1)));
+
+using LSTMCellKerasFusionParam = std::tuple<bool>;  // true if second input to matmul is transposed
+
+class LSTMCellKerasFusionTestSuite : public testing::WithParamInterface<LSTMCellKerasFusionParam>,
+                                     public TransformationTestsF {
+public:
+    static std::string get_test_name(const ::testing::TestParamInfo<LSTMCellKerasFusionParam>& obj) {
+        bool weights_transposed = std::get<0>(obj.param);
+        std::ostringstream test_name;
+        test_name << "weights_transposed=" << weights_transposed;
+        return test_name.str();
+    }
+};
+
+namespace {
+std::shared_ptr<ov::op::v0::Constant> create_f32_const(const ov::Shape& shape, bool reverse_shape) {
+    Shape const_shape = shape;
+    if (reverse_shape)
+        std::reverse(const_shape.begin(), const_shape.end());
+    std::vector<float> values(shape_size(const_shape));
+    return op::v0::Constant::create(element::f32, const_shape, values);
+}
+}  // namespace
+
+TEST_P(LSTMCellKerasFusionTestSuite, SubgraphFusedKerasToLSTMCell) {
+    const auto& param = GetParam();
+    bool weights_transposed = std::get<0>(param);
+
+    size_t batch_size = 220;
+    size_t input_size = 600;
+    size_t hidden_size = 1;
+    {
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, input_size});
+        auto C = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, hidden_size});
+
+        auto W = create_f32_const(Shape{4 * hidden_size, input_size}, !weights_transposed);
+        auto H = create_f32_const(Shape{batch_size, hidden_size}, false);
+        auto R = create_f32_const(Shape{4 * hidden_size, hidden_size}, !weights_transposed);
+
+        auto xw_matmul = std::make_shared<op::v0::MatMul>(X, W, false, weights_transposed);
+        auto hr_matmul = std::make_shared<op::v0::MatMul>(H, R, false, weights_transposed);
+
+        auto while_add = std::make_shared<op::v1::Add>(xw_matmul, hr_matmul);
+
+        auto bias = create_f32_const(Shape{4 * hidden_size}, false);
+        auto bias_add = std::make_shared<op::v1::Add>(while_add, bias);
+
+        auto axis = op::v0::Constant::create(element::i32, Shape{}, Shape{1});
+        auto split = std::make_shared<op::v1::Split>(bias_add, axis, 4);
+
+        auto it = std::make_shared<op::v0::Sigmoid>(split->output(0));
+        auto ft = std::make_shared<op::v0::Sigmoid>(split->output(1));
+        auto ct = std::make_shared<op::v0::Tanh>(split->output(2));
+        auto ot = std::make_shared<op::v0::Sigmoid>(split->output(3));
+
+        auto mul = std::make_shared<op::v1::Multiply>(it, ct);
+        auto mul1 = std::make_shared<op::v1::Multiply>(ft, C);
+
+        auto Co = std::make_shared<op::v1::Add>(mul, mul1);
+        auto Co_pre_result = std::make_shared<op::v0::Abs>(Co);
+        auto CoResult = std::make_shared<op::v0::Result>(Co_pre_result);
+
+        auto Co_activation = std::make_shared<op::v0::Tanh>(Co);
+        auto Ho = std::make_shared<op::v1::Multiply>(Co_activation, ot);
+        auto Ho_pre_result = std::make_shared<op::v0::Abs>(Ho);
+        auto HoResult = std::make_shared<op::v0::Result>(Ho_pre_result);
+
+        model = std::make_shared<Model>(ResultVector{CoResult, HoResult}, ParameterVector{X, C});
+        manager.register_pass<ov::pass::LSTMCellTfKerasFusion>();
+    }
+
+    {
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, input_size});
+        auto C = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, hidden_size});
+
+        auto W = create_f32_const(Shape{4 * hidden_size, input_size}, false);
+        auto H = create_f32_const(Shape{batch_size, hidden_size}, false);
+        auto R = create_f32_const(Shape{4 * hidden_size, hidden_size}, false);
+        auto bias = create_f32_const(Shape{4 * hidden_size}, false);
+
+        auto lstm_cell = std::make_shared<op::v4::LSTMCell>(X,
+                                                            H,
+                                                            C,
+                                                            W,
+                                                            R,
+                                                            bias,
+                                                            hidden_size,
+                                                            std::vector<std::string>{"sigmoid", "tanh", "tanh"});
+
+        auto Ho_pre_result = std::make_shared<op::v0::Abs>(lstm_cell->output(0));
+        auto HoResult = std::make_shared<op::v0::Result>(Ho_pre_result);
+        auto Co_pre_result = std::make_shared<op::v0::Abs>(lstm_cell->output(1));
+        auto CoResult = std::make_shared<op::v0::Result>(Co_pre_result);
+
+        model_ref = std::make_shared<Model>(ResultVector{CoResult, HoResult}, ParameterVector{X, C});
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(LSTMCellKerasFusion,
+                         LSTMCellKerasFusionTestSuite,
+                         testing::Combine(testing::Values(false, true)),
+                         LSTMCellKerasFusionTestSuite::get_test_name);
