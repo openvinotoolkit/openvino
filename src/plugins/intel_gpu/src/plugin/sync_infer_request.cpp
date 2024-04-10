@@ -142,7 +142,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
 
     OPENVINO_ASSERT(tensor != nullptr, "[GPU] Failed to set empty tensor to port with index: \'", port_index, "\'");
     OPENVINO_ASSERT(port.get_element_type() == tensor->get_element_type(),
-                    "[GPU] Mismtach tensor and port type: ", port.get_element_type(), " vs ", tensor->get_element_type());
+                    "[GPU] Mismatch tensor and port type: ", port.get_element_type(), " vs ", tensor->get_element_type());
     OPENVINO_ASSERT(shape.compatible(ov::PartialShape(tensor->get_shape())) || tensor->get_shape() == ov::Shape {0} || port.get_partial_shape().is_dynamic(),
                     "[GPU] The tensor size is not equal to model, can't set input tensor with index: ",
                     port_index,

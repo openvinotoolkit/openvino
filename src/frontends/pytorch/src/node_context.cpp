@@ -23,7 +23,7 @@ OutputVector NodeContext::as_constant() const {
     auto dtype = m_decoder->get_output_type(0);
     if (dtype.is<type::Str>()) {
         // Cannot represent string as Constant, creating FrameworkNode
-        auto str = m_decoder->as_string();
+        const auto& str = m_decoder->as_string();
         auto fw_node = std::make_shared<PtFrameworkNode>(m_decoder, OutputVector{});
         auto attrs = fw_node->get_attrs();
         attrs["string_value"] = str;
@@ -145,6 +145,16 @@ std::shared_ptr<ov::Model> NodeContext::convert_subgraph(size_t index) const {
         }
     }
     return model;
+}
+
+bool NodeContext::input_is_none(size_t index) const {
+    bool res = index >= m_inputs_is_none.size() || m_inputs_is_none.at(index);
+    if (!res) {
+        // check case when input is from outside body
+        auto input = get_input_from_visible_context(index);
+        res = is_none_node(input);
+    }
+    return res;
 }
 
 namespace {

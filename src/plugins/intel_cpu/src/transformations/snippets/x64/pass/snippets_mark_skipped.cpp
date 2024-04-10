@@ -414,9 +414,6 @@ bool isSuitableMatMulWithConstantPath(const std::shared_ptr<Node>& node) {
            !ov::is_type<ov::opset1::Constant>(node->get_input_node_shared_ptr(1)) &&
            ov::op::util::is_on_constant_path(node->input_value(1));
 }
-bool isSuitableGatherWithConstantPath(const std::shared_ptr<Node>& node) {
-    return is_gather_with_compressed_weights(node);
-}
 // Continue fusing chain of the passed type if the node has one child
 // Otherwise mark node as FusedTerminator (Fused, but fusing chain is interrupted)
 void PropagateIfHasOnlyChild(const std::shared_ptr<Node> &node, NodeFusingType nodeType) {
@@ -493,14 +490,7 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
             };
             std::unordered_set<Node*> visited;
             ov::op::util::visit_constant_path(node->get_input_node_ptr(1), visited, markup_func);
-        } else if (isSuitableGatherWithConstantPath(node)) {
-            auto markup_func = [](Node* node) {
-                SetSnippetsNodeType(node->shared_from_this(), snippets::pass::SnippetsNodeType::SkippedByPlugin);
-            };
-            std::unordered_set<Node*> visited;
-            ov::op::util::visit_constant_path(node->get_input_node_ptr(0), visited, markup_func);
         }
-
         if (isSuitableConvolutionParent(node)) {
             // Initiate fusing chain
             SetNodeFusingType(node, NodeFusingType::FusedWithConvolution);

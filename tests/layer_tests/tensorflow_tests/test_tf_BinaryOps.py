@@ -109,7 +109,7 @@ class TestBinaryOps(CommonTFLayerTest):
 
     test_data_precommits = [dict(x_shape=[2, 3, 4], y_shape=[2, 3, 4]),
                             pytest.param(dict(x_shape=[2, 3, 4, 5], y_shape=[2, 3, 4, 5]),
-                                         marks=pytest.mark.precommit_tf_fe)]
+                                         marks=pytest.mark.precommit)]
 
     @pytest.mark.parametrize("params", test_data_precommits)
     @pytest.mark.parametrize("op_type",

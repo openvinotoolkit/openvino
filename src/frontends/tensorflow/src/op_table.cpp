@@ -204,6 +204,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         // Separate translators:
         {"AddN", CreatorFunction(translate_add_n_op)},
         {"AdjustContrastv2", CreatorFunction(translate_adjust_contrast_op)},
+        {"Angle", CreatorFunction(translate_angle_op)},
         {"ArgMax", CreatorFunction(translate_arg_max_op)},
         {"ArgMin", CreatorFunction(translate_arg_min_op)},
         {"Assert", CreatorFunction(translate_no_op)},
@@ -421,6 +422,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"AssignVariableOp", CreatorFunction(translate_assignvariable_op)},
         {"AssignAddVariableOp", CreatorFunction(translate_add_variable_op)},
         {"AssignSubVariableOp", CreatorFunction(translate_sub_variable_op)},
+        {"ApproximateEqual", CreatorFunction(translate_approximate_equal_op)},
         {"IsVariableInitialized", CreatorFunction(translate_varisinitialized_op)},
         {"MergeV2Checkpoints", CreatorFunction(translate_identity_op)},
         {"ReadVariableOp", CreatorFunction(translate_readvariable_op)},
@@ -456,6 +458,15 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"WriteFile", CreatorFunction(translate_write_file)},
     };
 };
+
+const std::vector<std::string> get_supported_ops_via_tokenizers() {
+    return {"RaggedTensorToSparse",
+            "RaggedTensorToTensor",
+            "StaticRegexReplace",
+            "StringLower",
+            "StringSplitV2",
+            "StringToHashBucketFast"};
+}
 }  // namespace op
 }  // namespace tensorflow
 }  // namespace frontend
