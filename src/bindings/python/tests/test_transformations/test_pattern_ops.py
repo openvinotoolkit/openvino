@@ -22,7 +22,7 @@ from tests.test_transformations.utils.utils import expect_exception
 
 
 def test_wrap_type_pattern_type():
-    last_opset_number = 14
+    last_opset_number = 15
     for i in range(1, last_opset_number + 1):
         WrapType(f"opset{i}.Parameter")
         WrapType(f"opset{i}::Parameter")
