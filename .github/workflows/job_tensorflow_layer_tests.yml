@@ -62,6 +62,7 @@ jobs:
 
       # Needed as ${{ github.workspace }} is not working correctly when using Docker
       - name: Setup Variables
+        if: runner.os != 'Windows'
         run: |
           echo "OPENVINO_REPO=$GITHUB_WORKSPACE/openvino" >> "$GITHUB_ENV"
           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
