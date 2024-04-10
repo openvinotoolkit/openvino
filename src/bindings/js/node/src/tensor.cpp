@@ -132,35 +132,36 @@ Napi::Value TensorWrap::get_data(const Napi::CallbackInfo& info) {
     }
 }
 
-void TensorWrap::set_data(const Napi::CallbackInfo& info, const Napi::Value& value) {
-    if (!value.IsTypedArray()) {
-        OPENVINO_THROW(std::string("Passed argument must be of type Array or TypedArray."));
-    }
-    Napi::TypedArray buf;
-    napi_typedarray_type type = value.As<Napi::TypedArray>().TypedArrayType();
+std::map<napi_typedarray_type, ov::element::Type> corresponding_ov_type{
+    {napi_int8_array, ov::element::Type_t::i8},
+    {napi_uint8_array, ov::element::Type_t::u8},
+    {napi_int16_array, ov::element::Type_t::i16},
+    {napi_uint16_array, ov::element::Type_t::u16},
+    {napi_int32_array, ov::element::Type_t::i32},
+    {napi_uint32_array, ov::element::Type_t::u32},
+    {napi_float32_array, ov::element::Type_t::f32},
+    {napi_float64_array, ov::element::Type_t::f64},
+    {napi_bigint64_array, ov::element::Type_t::i64},
+    {napi_biguint64_array, ov::element::Type_t::u64}};
 
-    switch (type) {
-    case napi_float32_array: {
-        buf = value.As<Napi::Float32Array>();
+void TensorWrap::set_data(const Napi::CallbackInfo& info, const Napi::Value& value) {
+    try {
+        if (!value.IsTypedArray()) {
+            OPENVINO_THROW(std::string("Passed argument must be of type Array or TypedArray."));
+        }
+        Napi::TypedArray buf = value.As<Napi::TypedArray>();
+        napi_typedarray_type type = buf.TypedArrayType();
+
         if (_tensor.get_byte_size() != buf.ByteLength()) {
             OPENVINO_THROW("Passed array must have the same size as the Tensor!");
         }
-        if (_tensor.get_element_type() != ov::element::Type_t::f32) {
+        if (_tensor.get_element_type() != corresponding_ov_type[type]) {
             OPENVINO_THROW("Passed array must have the same element type as the Tensor!");
         }
-        auto data_ptr = static_cast<float*>(buf.ArrayBuffer().Data());
 
-        // auto data = _tensor.data<float>();
-        // for (size_t i = 0; i < _tensor.get_size(); ++i) {
-        //     data[i] = data_ptr[i];
-        // }
-        std::memcpy(_tensor.data(), data_ptr, _tensor.get_byte_size());
-
-        break;
-    }
-    default: {
-        reportError(info.Env(), "Failed to set tensor data.");
-    }
+        std::memcpy(_tensor.data(), buf.ArrayBuffer().Data(), _tensor.get_byte_size());
+    } catch (std::exception& e) {
+        reportError(info.Env(), e.what());
     }
 }
 
