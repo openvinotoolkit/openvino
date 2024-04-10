@@ -45,10 +45,6 @@ constexpr T logical_or(const T a, const T b) {
     return static_cast<bool>(a) || static_cast<bool>(b);
 }
 
-template <class T>
-constexpr T copy(const T a, const T b) {
-    return a;
-}
 }  // namespace func
 
 template <typename T>
@@ -66,7 +62,7 @@ reduction_function<T> reduction_functor_for(Reduction reduction_type) {
         return func::subtract<T>;
     case Reduction::NONE:
     default:
-        return func::copy<T>;
+        return nullptr;
     }
 }
 
@@ -83,7 +79,7 @@ reduction_function<char> reduction_functor_for<char>(const Reduction reduction_t
         return func::logical_xor<char>;
     case Reduction::NONE:
     default:
-        return func::copy<char>;
+        return nullptr;
     }
 }
 
@@ -129,11 +125,15 @@ void scatterNdUpdate(const dataType* const inputData,
         const auto update_data = updates + i * update_el_number;
         OPENVINO_ASSERT(out_index >= 0 && out_index + update_el_number <= shape_size(dataShape),
                         "Index is out of bounds");
-        std::transform(outBuf + out_index,
-                       outBuf + out_index + update_el_number,
-                       update_data,
-                       outBuf + out_index,
-                       reduction);
+        if (reduction) {
+            std::transform(outBuf + out_index,
+                           outBuf + out_index + update_el_number,
+                           update_data,
+                           outBuf + out_index,
+                           reduction);
+        } else {
+            std::memcpy(outBuf + out_index, update_data, update_el_number * sizeof(dataType));
+        }
     }
 }
 }  // namespace reference
