@@ -473,6 +473,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             std::string msg;
             return !node::RNN::isSupportedOperation(node, msg);
         },
+        // TODO: check if needed
+        //ov::pass::RNNCellFusion,
         ov::pass::LSTMCellFusion);
 
     CPU_SET_CALLBACK_COMMON(manager,

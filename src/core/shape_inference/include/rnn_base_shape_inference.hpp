@@ -70,14 +70,14 @@ std::vector<TRShape> cell_base_shape_infer(const op::util::RNNCellBase* op,
         if (input_shapes[i].rank().is_static()) {
             NODE_VALIDATION_CHECK(op,
                                   DimType::merge(merged_hidden_size, merged_hidden_size, input_shapes[i][1]),
-                                  "Dimension `hidden_size` is not matched between inputs.");
+                                  "");
         }
     }
 
     if (r_pshape.rank().is_static()) {
         NODE_VALIDATION_CHECK(op,
                               DimType::merge(merged_hidden_size, merged_hidden_size, r_pshape[1]),
-                              "Dimension `hidden_size` is not matched between inputs.");
+                              "1 Dimension `hidden_size` is not matched between inputs.");
     }
 
     // Validate dimensions related to hidden_size for W, R, B inputs
@@ -119,7 +119,7 @@ std::vector<TRShape> cell_base_shape_infer(const op::util::RNNCellBase* op,
                 NODE_VALIDATION_CHECK(
                     op,
                     DimType::merge(merged_hidden_size, merged_hidden_size, input_shapes[i][0] / num_gates),
-                    "Dimension `hidden_size` is not matched between inputs.");
+                    "2 Dimension `hidden_size` is not matched between inputs.");
             }
         }
     }
@@ -176,14 +176,14 @@ std::vector<TRShape> seq_base_shape_infer(const op::util::RNNCellBase* op,
         if (input_shapes[i].rank().is_static()) {
             NODE_VALIDATION_CHECK(op,
                                   DimType::merge(merged_hidden_size, merged_hidden_size, input_shapes[i][2]),
-                                  "Dimension `hidden_size` is not matched between inputs.");
+                                  "3 Dimension `hidden_size` is not matched between inputs.");
         }
     }
 
     if (r_pshape.rank().is_static()) {
         NODE_VALIDATION_CHECK(op,
                               DimType::merge(merged_hidden_size, merged_hidden_size, r_pshape[2]),
-                              "Dimension `hidden_size` is not matched between inputs.");
+                              "4 Dimension `hidden_size` is not matched between inputs.");
     }
 
     // Validate num_directions dimension across all inputs
@@ -255,7 +255,7 @@ std::vector<TRShape> seq_base_shape_infer(const op::util::RNNCellBase* op,
                 NODE_VALIDATION_CHECK(
                     op,
                     DimType::merge(merged_hidden_size, merged_hidden_size, input_shapes[i][1] / num_gates),
-                    "Dimension `hidden_size` is not matched between inputs.");
+                    "5 Dimension `hidden_size` is not matched between inputs.");
             }
         }
     }

@@ -17,6 +17,9 @@
 #include "utils/denormals.hpp"
 #include "weights_cache.hpp"
 
+#include "openvino/pass/visualize_tree.hpp"
+#include "openvino/pass/manager.hpp"
+
 #if defined(__linux__)
 #    include <signal.h>
 #    include <sys/auxv.h>
@@ -288,6 +291,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     transformations.PostLpt();
     transformations.Snippets();
+
+    ov::pass::Manager manager;
+
+    manager.register_pass<ov::pass::VisualizeTree>("./before.png"); // DEBUG
+    manager.run_passes(cloned_model);
 
     transformations.CpuSpecificOpSet();
     DEBUG_LOG(PrintableModel(*cloned_model, "cpu_"));
