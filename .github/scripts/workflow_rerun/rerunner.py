@@ -22,7 +22,7 @@ if __name__ == '__main__':
     
     # Check if the run has already been retriggered more than once
     # we do not want to fall into a loop with retriggers
-    if run.run_attempt > 3:
+    if run.run_attempt > 1:
         LOGGER.info(f'THERE ARE {run.run_attempt} ATTEMPTS ALREADY. NOT CHECKING LOGS AND NOT RETRIGGERING. EXITING')
         sys.exit(0)
         
