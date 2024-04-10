@@ -18,7 +18,7 @@ else()
     ov_option(USE_BUILD_TYPE_SUBFOLDER "Create dedicated sub-folder per build type for output binaries" ON)
 endif()
 
-if(DEFINED ENV{CI_BUILD_NUMBER} AND NOT CMAKE_CROSSCOMPILING)
+if(DEFINED ENV{CI_BUILD_NUMBER})
     set(CMAKE_COMPILE_WARNING_AS_ERROR_DEFAULT ON)
 else()
     set(CMAKE_COMPILE_WARNING_AS_ERROR_DEFAULT OFF)

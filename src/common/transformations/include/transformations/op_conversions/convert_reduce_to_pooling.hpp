@@ -27,7 +27,7 @@ class TRANSFORMATIONS_API ConvertReduceSumToPooling;
 class ConvertReduceBase : public ov::pass::MatcherPass {
 public:
     template <class T>
-    ov::matcher_pass_callback convert_reduce_to_pooling();
+    __attribute__((visibility("default"))) ov::matcher_pass_callback convert_reduce_to_pooling();
 };
 
 class ov::pass::ConvertReduceMeanToPooling : public ConvertReduceBase {

@@ -98,7 +98,7 @@ bool scalar_or_single_element(const Shape& s) {
 }  // namespace
 
 template <typename Data_t, typename Index_t, typename Count_t = int64_t>
-UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
+__attribute__((visibility("default"))) UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
                                                       const Shape& data_shape,
                                                       std::unique_ptr<int64_t> axis,
                                                       const bool sorted) {

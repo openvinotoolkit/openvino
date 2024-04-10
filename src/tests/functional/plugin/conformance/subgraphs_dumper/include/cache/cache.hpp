@@ -46,7 +46,11 @@ public:
     bool is_model_large_to_store_const(const std::shared_ptr<ov::Model>& model) {
         auto model_bytesize = model->get_graph_size();
         size_t gb_8 = 1;
+#ifdef OPENVINO_ARCH_64_BIT
         gb_8 <<= 33;
+#else
+        gb_8 = 0xFFFFFFFFU;
+#endif
         if (mem_size <= model_bytesize * 4 || model_bytesize >= gb_8) {
             return true;
         }

@@ -71,7 +71,7 @@ void NonZero::initSupportedPrimitiveDescriptors() {
 }
 
 template <typename T>
-std::vector<size_t> NonZero::getNonZeroElementsCount(const T* src, const Shape& inShape) {
+__attribute__((visibility("default"))) std::vector<size_t> NonZero::getNonZeroElementsCount(const T* src, const Shape& inShape) {
     T zero = 0;
     std::vector<size_t> counts;
     size_t inSize = inShape.getElementsCount();
@@ -133,7 +133,7 @@ void NonZero::execute(dnnl::stream strm) {
               OV_CASE(ov::element::u8, uint8_t))
 }
 template <typename T>
-void NonZero::executeSpecified() {
+__attribute__((visibility("default"))) void NonZero::executeSpecified() {
     const T zero = 0;
     const T *src = getSrcDataAtPortAs<T>(0);
     auto dstMemPtr = getDstMemoryAtPort(0);
