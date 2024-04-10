@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "compiler.hpp"
+
 #include "intel_npu/al/config/compiler.hpp"
 #include "intel_npu/al/itt.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "npu_compiler.hpp"
-#include "npu_private_properties.hpp"  // AL
+#include "npu_private_properties.hpp"
 
 #ifdef ENABLE_DRIVER_COMPILER_ADAPTER
-#    include "npu_driver_compiler_adapter.hpp"
+#    include "driver_compiler_adapter.hpp"
 #endif
 
 #include <memory>
