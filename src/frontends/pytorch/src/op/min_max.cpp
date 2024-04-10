@@ -222,9 +222,7 @@ OutputVector translate_aminmax(const NodeContext& context) {
     auto amin = context.mark_node(std::make_shared<v1::ReduceMin>(input, dim, keep_dims));
     auto amax = context.mark_node(std::make_shared<v1::ReduceMax>(input, dim, keep_dims));
 
-    if (!context.input_is_none(3)) {
-        OPENVINO_ASSERT(false, "out argument is not supported in this conversion");
-    }
+    PYTORCH_OP_CONVERSION_CHECK(context.input_is_none(3), "out argument is not supported for aten::aminmax");
 
     return {amin, amax};
 }
