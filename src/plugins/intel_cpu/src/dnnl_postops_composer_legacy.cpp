@@ -156,8 +156,7 @@ bool DnnlPostOpsComposerLegacy::appendScale(const std::vector<float>& scale, boo
         // prelu(x)*s = prelu(x*s)
         if (ops.len() == 1) {
             auto& cur_op = ops.get()->entry_[0];
-            if ((cur_op.kind == dnnl::impl::primitive_kind::eltwise && cur_op.eltwise.alg == dnnl_eltwise_relu) ||
-                (cur_op.kind == dnnl::impl::primitive_kind::binary && cur_op.binary.alg == dnnl_binary_prelu)) {
+            if (cur_op.is_relu(false, false) || cur_op.is_prelu()) {
                 fuseIntoWeiScale = true;
             }
         }
