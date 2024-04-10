@@ -19,9 +19,6 @@ SyncInferRequest::SyncInferRequest(const std::shared_ptr<const ICompiledModel>& 
     const std::vector<ov::Output<const ov::Node>>& inputs = get_inputs();
     const std::vector<ov::Output<const ov::Node>>& outputs = get_outputs();
 
-    if (inputs.empty()) {
-        OPENVINO_THROW("Inference request creation: no input found for network " + _metadata.name);
-    }
     if (outputs.empty()) {
         OPENVINO_THROW("Inference request creation: no output found for network " + _metadata.name);
     }
