@@ -83,10 +83,10 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           pushd ${{ env.INSTALL_DIR }}
-            Expand-Archive openvino_package.zip -DestinationPath "${{ env.INSTALL_DIR }}"
+            Expand-Archive openvino_package.zip -DestinationPath ${{ env.INSTALL_DIR }}
           popd
           pushd ${{ env.INSTALL_TEST_DIR }}
-            Expand-Archive openvino_tests.zip -DestinationPath "${{ env.INSTALL_DIR }}"
+            Expand-Archive openvino_tests.zip -DestinationPath ${{ env.INSTALL_DIR }}
           popd
 
       - name: Install OpenVINO dependencies (Linux)
@@ -139,15 +139,15 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           # Find and install the core OV wheel
-          $ovCoreWheelPath=Get-ChildItem -Path "${{ env.INSTALL_DIR }}\tools" -Filter openvino-*.whl | % { $_.FullName }
+          $ovCoreWheelPath=Get-ChildItem -Path ${{ env.INSTALL_DIR }}\tools -Filter openvino-*.whl | % { $_.FullName }
           python3 -m pip install "$ovCoreWheelPath"
 
           # Find and install the core OV Tokenizers wheel
-          $ovCoreWheelPath=Get-ChildItem -Path "${{ env.INSTALL_DIR }}" -Filter openvino_tokenizers-*.whl | % { $_.FullName }
+          $ovCoreWheelPath=Get-ChildItem -Path ${{ env.INSTALL_DIR }} -Filter openvino_tokenizers-*.whl | % { $_.FullName }
           python3 -m pip install "$ovCoreWheelPath"
 
           # Find and install the dev OV wheel
-          $ovDevWheelPath=Get-ChildItem -Path "${{ env.INSTALL_DIR }}\tools" -Filter openvino_dev*.whl | % { $_.FullName }
+          $ovDevWheelPath=Get-ChildItem -Path ${{ env.INSTALL_DIR }}\tools -Filter openvino_dev*.whl | % { $_.FullName }
           python3 -m pip install "$ovDevWheelPath[mxnet,caffe,kaldi,tensorflow2]"
 
       - name: Install Python Layer tests dependencies
