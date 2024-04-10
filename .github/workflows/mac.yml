@@ -269,7 +269,7 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
 
   TensorFlow_Layer_Tests:
-    name: Python TensorFlow Layer unit tests
+    name: TensorFlow Layer Tests
     needs: [ Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_tensorflow_layer_tests.yml
     with:
