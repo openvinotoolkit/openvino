@@ -104,7 +104,6 @@ jobs:
       - name: Install OpenVINO Python wheels
         if: runner.os != 'Windows'
         run: |
-          if [ "$RUNNER_OS" != "Windows" ]; then
           # Install the core OV wheel
           python3 -m pip install ${INSTALL_DIR}/tools/openvino-*.whl
 
@@ -158,15 +157,9 @@ jobs:
       - name: TensorFlow 1 Layer Tests - TF FE
         if: fromJSON(inputs.affected-components).TF_FE.test
         run: |
-          if [ "$RUNNER_OS" == "Windows" ]; then
-            :: requires 'unit_tests' from 'tools/mo'
-            set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\mo;%PYTHONPATH%
-          else
-            # requires 'unit_tests' from 'mo'
-            export PYTHONPATH=${INSTALL_TEST_DIR}/mo
-          fi
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/ -n logical -m precommit  --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_fe.xml
         env:
+          PYTHONPATH: ${{ env.INSTALL_TEST_DIR }}/mo
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
 
