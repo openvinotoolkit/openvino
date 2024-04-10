@@ -268,7 +268,7 @@ jobs:
       runner: 'macos-13'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
 
-  Python_TensorFlow_Layer_Tests:
+  TensorFlow_Layer_Tests:
     name: Python TensorFlow Layer unit tests
     needs: [ Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_tensorflow_layer_tests.yml
