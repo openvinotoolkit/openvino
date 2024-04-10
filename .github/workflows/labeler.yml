@@ -17,7 +17,7 @@ jobs:
         dot: 'true'
         non-matching-label: 'no-match-files'
   
-  external_pr_labeler:
+  external_pr_labeller:
     name: Label External PR
     runs-on: ubuntu-latest
     steps:
