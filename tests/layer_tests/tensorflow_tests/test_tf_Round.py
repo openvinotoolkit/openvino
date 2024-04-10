@@ -24,6 +24,8 @@ class TestRound(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_round_basic(self, input_shape, input_type, ie_device, precision,
                         ir_version, temp_dir, use_legacy_frontend):
+        if ie_device == 'GPU' and input_type in [tf.int32, tf.int64]:
+            pytest.skip("GPU error: Requested activation is not supported for integer type")
         self._test(*self.create_tf_round_net(input_shape, input_type),
                 ie_device, precision, ir_version, temp_dir=temp_dir,
                 use_legacy_frontend=use_legacy_frontend)
