@@ -23,36 +23,67 @@ namespace ov {
 namespace reference {
 using Reduction = ov::op::v14::ScatterNDUpdate::Reduction;
 template <typename T>
-void reduction_functor_for(T* arg0, const T* arg1, size_t count, const Reduction reduction_type) {
+using reduction_function = T (*)(const T, const T);
+
+namespace func {
+template <class T>
+constexpr T add(const T a, const T b) {
+    return a + b;
+}
+template <class T>
+constexpr T subtract(const T a, const T b) {
+    return a - b;
+}
+
+template <class T>
+constexpr T logical_and(const T a, const T b) {
+    return static_cast<bool>(a) && static_cast<bool>(b);
+}
+
+template <class T>
+constexpr T logical_or(const T a, const T b) {
+    return static_cast<bool>(a) || static_cast<bool>(b);
+}
+
+template <class T>
+constexpr T copy(const T a, const T b) {
+    return a;
+}
+}  // namespace func
+
+template <typename T>
+reduction_function<T> reduction_functor_for(Reduction reduction_type) {
     switch (reduction_type) {
     case Reduction::MAX:
-        return maximum<T>(arg0, arg1, arg0, count);
+        return func::max<T>;
     case Reduction::MIN:
-        return minimum<T>(arg0, arg1, arg0, count);
+        return func::min<T>;
     case Reduction::PROD:
-        return multiply<T>(arg0, arg1, arg0, count);
+        return func::multiply<T>;
     case Reduction::SUM:
-        return add<T>(arg0, arg1, arg0, count);
+        return func::add<T>;
     case Reduction::SUB:
-        return subtract<T>(arg0, arg1, arg0, count);
+        return func::subtract<T>;
+    case Reduction::NONE:
     default:
-        OPENVINO_THROW("No functor available for this type of reduction");
+        return func::copy<T>;
     }
 }
 
 template <>
-void reduction_functor_for(char* arg0, const char* arg1, size_t count, const Reduction reduction_type) {
+reduction_function<char> reduction_functor_for<char>(const Reduction reduction_type) {
     switch (reduction_type) {
     case Reduction::MIN:
     case Reduction::PROD:
-        return logical_and<char>(arg0, arg1, arg0, count);
+        return func::logical_and<char>;
     case Reduction::SUM:
     case Reduction::MAX:
-        return logical_or<char>(arg0, arg1, arg0, count);
+        return func::logical_or<char>;
     case Reduction::SUB:
-        return logical_xor<char>(arg0, arg1, arg0, count);
+        return func::logical_xor<char>;
+    case Reduction::NONE:
     default:
-        OPENVINO_THROW("No functor available for this type of reduction");
+        return func::copy<char>;
     }
 }
 
@@ -77,9 +108,8 @@ void scatterNdUpdate(const dataType* const inputData,
         };
         return padding;
     }();
-
+    const auto reduction = reduction_functor_for<dataType>(reduction_type);
     std::vector<indicesType> indicesCopy(indices, indices + shape_size(indicesShape));
-
     const auto num_of_updates = shape_size(span(indicesShape).drop_back(1));
     for (size_t i = 0; i != num_of_updates; ++i) {
         const auto indices_coord = indicesCopy.data() + i * indicesShape.back();
@@ -99,12 +129,11 @@ void scatterNdUpdate(const dataType* const inputData,
         const auto update_data = updates + i * update_el_number;
         OPENVINO_ASSERT(out_index >= 0 && out_index + update_el_number <= shape_size(dataShape),
                         "Index is out of bounds");
-        if (reduction_type == Reduction::NONE) {
-            const auto update_mem_size = update_el_number * sizeof(dataType);
-            std::memcpy(outBuf + out_index, update_data, update_mem_size);
-        } else {
-            reduction_functor_for<dataType>(outBuf + out_index, update_data, update_el_number, reduction_type);
-        }
+        std::transform(outBuf + out_index,
+                       outBuf + out_index + update_el_number,
+                       update_data,
+                       outBuf + out_index,
+                       reduction);
     }
 }
 }  // namespace reference
