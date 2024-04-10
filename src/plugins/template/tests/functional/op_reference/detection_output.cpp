@@ -12,7 +12,7 @@ using namespace reference_tests;
 using namespace ov;
 
 namespace {
-size_t get_K(const size_t num_images,
+size_t get_k(const size_t num_images,
              const size_t num_prior_boxes,
              const size_t num_classes,
              const int top_k,
@@ -83,8 +83,8 @@ struct DetectionOutputParams {
                                     attrs.variance_encoded_in_target ? 1UL : 2UL,
                                     num_prior_boxes * prior_box_size};
 
-        const auto K = get_K(num_images, num_prior_boxes, num_classes, top_k, keep_top_k);
-        const auto output_shape = Shape{1, 1, K, 7};
+        const auto k = get_k(num_images, num_prior_boxes, num_classes, top_k, keep_top_k);
+        const auto output_shape = Shape{1, 1, k, 7};
         refData = CreateTensor(output_shape, iType, oValues);
     }
 
@@ -151,8 +151,8 @@ struct DetectionOutputParams {
         auxLocShape = locShape;
         auxConfShape = confShape;
 
-        const auto K = get_K(num_images, num_prior_boxes, num_classes, top_k, keep_top_k);
-        const auto output_shape = Shape{1, 1, K, 7};
+        const auto k = get_k(num_images, num_prior_boxes, num_classes, top_k, keep_top_k);
+        const auto output_shape = Shape{1, 1, k, 7};
         refData = CreateTensor(output_shape, iType, oValues);
     }
 
