@@ -48,7 +48,7 @@ if __name__ == '__main__':
     LOGGER.info(f'CONTEXT: PR #{pr_number}. USER: {pr.user.login}. ALL PR LABELS: {list(pr.get_labels())}')
 
     if not gh_repo.has_in_collaborators(pr.user.login):
-        LOGGER.info(f'THE {pr.user.login} IS NOT COLLABORATOR')
+        LOGGER.info(f'THE {pr.user.login} IS NOT A COLLABORATOR')
         
         for label in pr.get_labels():
             if label.name == EXTERNAL_PR_LABEL_NAME:
