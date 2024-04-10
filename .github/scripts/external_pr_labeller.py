@@ -61,3 +61,5 @@ if __name__ == '__main__':
         LOGGER.info(
             f'THE {pr.user.login} IS A COLLABORATOR, NO NEED TO ADD THE "{EXTERNAL_PR_LABEL_NAME}" LABEL'
         )
+
+    github.close()
