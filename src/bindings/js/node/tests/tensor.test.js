@@ -50,18 +50,18 @@ describe('Tensor data', () => {
   });
 
   it('Test set tensor.data [1,2,3]', () => {
-    const hello123 = Float32Array.from([1,2,3] );
-    const tensor = new ov.Tensor(ov.element.f32, [1,3]);
-    tensor.data = hello123;
-    assert.deepStrictEqual(tensor.getData(), hello123);
+    const float32_data = Float32Array.from([1, 2, 3] );
+    const tensor = new ov.Tensor(ov.element.f32, [1, 3]);
+    tensor.data = float32_data;
+    assert.deepStrictEqual(tensor.getData(), float32_data);
   });
 
   it('Test set tensor.data throws', () => {
-    const hello123 = Float64Array.from([1,2,3] );
-    const tensor = new ov.Tensor(ov.element.f32, [1,3]);
+    const float64_data = Float64Array.from([1, 2, 3] );
+    const tensor = new ov.Tensor(ov.element.f32, [1, 3]);
     assert.throws(() => {
-        tensor.data = hello123;
-    })
+      tensor.data = float64_data;
+    });
   });
 
   it('Test set tensor.data', () => {
