@@ -1,3 +1,4 @@
 -c ../../../bindings/python/constraints.txt
 numpy
 tensorflow
+h5py~=3.10.0 # w/a for Linux arm64, 3.11 version failed
