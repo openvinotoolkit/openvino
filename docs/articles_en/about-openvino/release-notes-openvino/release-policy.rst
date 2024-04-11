@@ -56,7 +56,8 @@ Long-Term Support Policy
 Nightly Packages
 ###########################
 
-OpenVINO nightly packages are released every workday.
+OpenVINO nightly packages are released every workday. They are the first source of priority bug
+fixes reported for the previous versions. 
 The following package distributions are available for installation:
 
 .. tab-set::
