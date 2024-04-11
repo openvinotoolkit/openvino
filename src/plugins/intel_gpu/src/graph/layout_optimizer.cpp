@@ -687,7 +687,7 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(const layout& input_layout,
     return false;
 }
 
-static bool has_rank3_mvn_user(const program_node& node, size_t cur_depth, size_t max_depth, u_int64_t reorder_size_threshold = 0) {
+static bool has_rank3_mvn_user(const program_node& node, size_t cur_depth, size_t max_depth, uint64_t reorder_size_threshold = 0) {
     // MVN with rank size 3 always requires Reorder and Reshape. Due to this pattern, too many Reorder may occur when used with Convolution,
     // which may performance degradation. It stand out in Stable-Diffusion Unet and Decoder.
     if (cur_depth > max_depth) return false;
