@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/reference/convert.hpp"
+
 #include "evaluate_node.hpp"
 #include "openvino/core/type/element_iterator.hpp"
-#include "openvino/reference/convert.hpp"
 
 namespace convert {
 template <ov::element::Type_t ti, ov::element::Type_t to>

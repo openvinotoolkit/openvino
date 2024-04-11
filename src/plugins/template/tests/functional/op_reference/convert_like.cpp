@@ -153,6 +153,14 @@ INSTANTIATE_TEST_SUITE_P(
                       ov::element::f16,
                       std::vector<uint8_t>{0, 10, 15, 20, 43, 56, 78, 99, 102, 130, 142},
                       std::vector<float16>{0, 10, 15, 20, 43, 56, 78, 99, 102, 130, 142}),
+        ConvertParams(ConversionTypes::CONVERT_LIKE,
+                      ov::PartialShape{4},
+                      ov::element::nf4,
+                      ov::element::f16,
+                      std::vector<uint8_t>{0xE1, 0x1F},
+                      std::vector<float16>{-0.6961928009986877f, 0.7229568362236023f, 1.0f, -0.6961928009986877f},
+                      4,
+                      4),
 
         // destination f32
         ConvertParams(ConversionTypes::CONVERT_LIKE,

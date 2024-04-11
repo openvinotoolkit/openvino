@@ -62,7 +62,7 @@ struct Evaluate : public element::NoAction<bool> {
     static result_type visit(const Tensor& arg, Tensor& out, const size_t count) {
         using namespace ov::element;
         return IF_TYPE_OF(Convert_out,
-                          OV_PP_ET_LIST(nf4),
+                          OV_PP_ET_LIST(f16, nf4),
                           EvalByOutputType,
                           out.get_element_type(),
                           iterator<ET_IN>(reinterpret_cast<const TI*>(arg.data())),
@@ -170,7 +170,7 @@ bool Convert::has_evaluate() const {
     OV_OP_SCOPE(v0_Convert_has_evaluate);
 
     const auto is_to_nf4_supported = [](const element::Type& from, const element::Type& to) {
-        return (from == element::f16 || from == element::nf4) && (to == element::nf4);
+        return (from == element::f16 || from == element::nf4) && (to == element::f16 || to == element::nf4);
     };
 
     const auto is_valid_type = [](const element::Type& et) -> bool {

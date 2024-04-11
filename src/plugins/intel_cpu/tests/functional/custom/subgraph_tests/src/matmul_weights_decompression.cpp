@@ -145,6 +145,21 @@ protected:
             return result_shape;
         };
 
+        const auto make_decompress_node = [](const std::shared_ptr<ov::Node>& node,
+                                             const element::Type& decompress_precision) {
+            using ov::op::v0::Convert;
+            if (node->get_element_type() == element::nf4) {
+                // decompress NF4 via f16 to decompress precision
+                auto decompress_node = std::make_shared<Convert>(node, element::f16);
+                if (decompress_precision != element::f16) {
+                    decompress_node = std::make_shared<Convert>(decompress_node, decompress_precision);
+                }
+                return decompress_node;
+            } else {
+                return std::make_shared<Convert>(node, decompress_precision);
+            }
+        };
+
         const bool group_decompression = group_size != -1;
         // Weights has shape [I, O], where
         // I - input channels
@@ -168,7 +183,7 @@ protected:
         auto up_to = weights_precision == ov::element::i4 ? 7 : 15;
         auto weights = ov::test::utils::deprecated::make_constant<int8_t>(weights_precision, transformed_weights_shape, {}, true, up_to);
         weights->set_friendly_name("Compressed_weights");
-        auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, decompression_precision);
+        auto weights_convert = make_decompress_node(weights, decompression_precision);
 
         std::shared_ptr<ov::Node> mul_parent = weights_convert;
         auto output_channels = *weights_shape.rbegin();
@@ -190,7 +205,7 @@ protected:
         if (decompression_subtract_type != DecompressionSubtractType::empty) {
             auto subtract_shape = decompression_subtract_type == DecompressionSubtractType::full ? scaleshift_const_shape : Shape({});
             auto shift_const = ov::test::utils::deprecated::make_constant<uint8_t>(weights_precision, subtract_shape, {}, true, up_to);
-            std::shared_ptr<ov::Node> shift_convert = std::make_shared<ov::op::v0::Convert>(shift_const, decompression_precision);
+            std::shared_ptr<ov::Node> shift_convert = make_decompress_node(shift_const, decompression_precision);
             if (reshape_on_decompression_constant) {
                 auto subtract_target_shape = decompression_subtract_type == DecompressionSubtractType::full
                     ? scaleshift_target_shape : ov::Shape(scaleshift_const_shape.size(), 1);
@@ -340,7 +355,10 @@ std::vector<ov::AnyMap> filter_additional_config_amx() {
 }
 
 const std::vector<ov::test::ElementType> decompression_precisions = {ov::element::f32};
-const std::vector<ov::test::ElementType> weights_precisions = {ov::element::u8, ov::element::u4, ov::element::i4};
+const std::vector<ov::test::ElementType> weights_precisions = {ov::element::u8,
+                                                               ov::element::u4,
+                                                               ov::element::i4,
+                                                               element::nf4};
 
 const std::vector<ShapeParams> input_shapes_basic = {
     {{{-1, -1, -1}, {{1, 4, 16}, {10, 16, 16}}}, {16, 32}},
