@@ -879,7 +879,7 @@ jobs:
           du -sh $GITHUB_WORKSPACE
 
           pushd $GITHUB_WORKSPACE
-            find . -name "*" -exec rm -rf "{}" \;
+            find . -name "*" -maxdepth 0 -exec rm -rf "{}" \;
           popd
 
   Overall_Status:
