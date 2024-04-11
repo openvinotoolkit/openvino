@@ -400,10 +400,14 @@ if(ENABLE_TESTS)
             DESTINATION tests/pyopenvino
             COMPONENT tests
             EXCLUDE_FROM_ALL)
-    install(FILES ${OpenVINO_SOURCE_DIR}/layer-tests.pdm.lock
-            DESTINATION tests/layer_tests
+    install(DIRECTORY pdm-custom-plugins
+            DESTINATION tests/pyopenvino
             COMPONENT tests
             EXCLUDE_FROM_ALL)
+    # install(FILES ${OpenVINO_SOURCE_DIR}/layer-tests.pdm.lock
+    #         DESTINATION tests/layer_tests
+    #         COMPONENT tests
+    #         EXCLUDE_FROM_ALL)
     install(FILES src/openvino/preprocess/torchvision/requirements.txt
             DESTINATION tests/python/preprocess/torchvision
             COMPONENT tests
