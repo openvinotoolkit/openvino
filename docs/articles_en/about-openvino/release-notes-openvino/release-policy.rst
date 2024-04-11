@@ -11,7 +11,7 @@ each targeting a different use case.
 * Dynamically developed solutions, benefiting from the newest technologies.
 * Products requiring frequent changes in supported hardware, libraries, operating systems, and models.
 
-| :ref:`Long-Term Support (LTS) <long-term-support-policy>` :
+| `Long-Term Support (LTS) <long-term-support-policy>`__:
 |    Each year’s final release becomes a Long-Term Support version, which continues to be supported
      with bug fixes and security updates, even after newer versions are published. Therefore,
      LTS is advised for production environments where:
