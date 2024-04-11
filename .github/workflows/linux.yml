@@ -875,6 +875,8 @@ jobs:
           # The github.workspace folder is mounted outside the Docker
           # So we need to clean it up after the pipeline so that
           # the host vm is cleaned as well
+          
+          echo $GITHUB_WORKSPACE
 
           du -sh $GITHUB_WORKSPACE
 
