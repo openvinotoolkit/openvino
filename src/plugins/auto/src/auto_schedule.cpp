@@ -143,12 +143,6 @@ void AutoSchedule::init() {
                 m_compile_context[CPU].m_device_info.config[ov::hint::performance_mode.name()] = ov::hint::PerformanceMode::LATENCY;
                 m_compile_context[CPU].m_worker_name = "CPU_HELP";
                 LOG_INFO_TAG("will load CPU for accelerator");
-                if (m_compile_context[ACTUALDEVICE].m_device_info.device_name.find("GPU") != std::string::npos) {
-                    m_compile_context[ACTUALDEVICE]
-                        .m_device_info.config[ov::intel_gpu::hint::host_task_priority.name()] =
-                        ov::hint::Priority::HIGH;
-                    m_compile_context[ACTUALDEVICE].m_device_info.config[ov::compilation_num_threads.name()] = 2;
-                }
             } else {
                 m_compile_context[CPU].m_is_enabled = false;
             }
@@ -269,24 +263,19 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
     bool cur_dev_is_gpu = (device.find("GPU") != std::string::npos);
     {
         std::lock_guard<std::mutex> lock(m_context->m_mutex);
+        // user does not set the compiling threads
+        // limit the threads num for compiling
         if (cur_dev_is_gpu && m_compile_context[CPU].m_is_enabled) {
-            // user does not set the compiling threads
-            // limit the threads num for compiling
-            int max_threads = 0;
-            try {
-                max_threads = m_context->m_ov_core->get_property(device, ov::compilation_num_threads);
-            } catch (const ov::Exception&) {
-                LOG_DEBUG_TAG("cannot get MAX_NUM_THREADS from GPU");
-            }
-            if (max_threads == static_cast<int>(std::thread::hardware_concurrency())) {
-                int thread_num = max_threads / 2;
-                device_config.insert(ov::compilation_num_threads(thread_num));
-                LOG_DEBUG_TAG("gpu streams number for compiling: %d", thread_num);
-            } else {
-                // user set the compiling threads num
-                // use the user's val anyway
-                LOG_DEBUG_TAG("user defined compiling threads: %d", max_threads);
-            }
+            device_config.insert(ov::intel_gpu::hint::host_task_priority(ov::hint::Priority::HIGH));
+            auto proc_type_table = get_org_proc_type_table();
+            int compilation_num_threads = proc_type_table[0][MAIN_CORE_PROC] != 0
+                                              ? proc_type_table[0][MAIN_CORE_PROC]
+                                              : proc_type_table[0][EFFICIENT_CORE_PROC];
+            if (device_config.insert(ov::compilation_num_threads(compilation_num_threads)).second)
+                LOG_DEBUG_TAG("gpu streams number for compiling: %d", compilation_num_threads);
+            else
+                LOG_DEBUG_TAG("user defined compiling threads: %d",
+                              device_config[ov::compilation_num_threads.name()].as<int32_t>());
         }
     }
     try {
