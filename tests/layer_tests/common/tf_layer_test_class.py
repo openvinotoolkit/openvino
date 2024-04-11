@@ -6,7 +6,9 @@ from common.utils.tf_utils import summarize_graph
 
 from common.utils.tflite_utils import get_tflite_results, save_pb_to_tflite
 from common.utils.tf_utils import save_to_pb
+from common.layer_utils import import_openvino_tokenizers
 
+import_openvino_tokenizers()
 
 class CommonTFLayerTest(CommonLayerTest):
     def prepare_tf_inputs(self, inputs_dict):
