@@ -8,7 +8,6 @@ each targeting a different use case.
 |    OpenVINO™ is published multiple times a year. Each regular release is supported until the
      next version arrives, making it suitable for:
 
-* Dynamically developed solutions, benefiting from the newest technologies.
 * Products requiring frequent changes in supported hardware, libraries, operating systems, and models.
 
 | `Long-Term Support (LTS) <long-term-support-policy>`__:
