@@ -65,7 +65,7 @@ The following package distributions are available for installation:
    .. tab-item:: Downloadable Archives
       :sync: archives-s3
 
-      1. Go to `OpenVINO Nightly Packages on S3 <https://storage.openvinotoolkit.org/repositories/openvino/packages/nightly/>`__.
+      1. Go to `OpenVINO Nightly Packages <https://storage.openvinotoolkit.org/repositories/openvino/packages/nightly/>`__.
       2. Select a package you want to install.
       3. Download the archive for your platform.
       4. Unpack the archive in a convenient location.
