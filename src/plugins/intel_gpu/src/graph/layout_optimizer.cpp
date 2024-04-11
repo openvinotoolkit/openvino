@@ -49,15 +49,6 @@
 
 using namespace cldnn;
 
-int get_env(std::string key, int &val);
-int get_env(std::string key, int &val) {
-        if (const auto env_var = std::getenv(key.c_str())) {
-            val = std::atoi(env_var);
-            return true;
-        }
-        return false;
-}
-
 static size_t get_post_ops_count(const program_node& node) {
     size_t onednn_post_ops_count = 0;
     for (auto& fo : node.get_fused_primitives()) {
@@ -696,6 +687,35 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(const layout& input_layout,
     return false;
 }
 
+static bool has_rank3_mvn_user(const program_node& node, size_t cur_depth, size_t max_depth, u_int64_t reorder_size_threshold = 0) {
+    // MVN with rank size 3 always requires Reorder and Reshape. Due to this pattern, too many Reorder may occur when used with Convolution,
+    // which may performance degradation. It stand out in Stable-Diffusion Unet and Decoder.
+    if (cur_depth > max_depth) return false;
+    if (node.is_type<reorder>()) {
+        for (auto& reorder_user : node.get_users()) {
+            if (reorder_user->is_type<reshape>()) {
+                for (auto& reshape_user : reorder_user->get_users()) {
+                    if (reshape_user->is_type<mvn>()) {
+                        if (reorder_size_threshold == 0) {
+                            return true;
+                        } else {
+                            if (node.get_output_layout().get_linear_size() > reorder_size_threshold) {
+                                GPU_DEBUG_LOG << node.id() << ": " << node.get_output_layout().to_short_string() << " -> heavy reorder" << std::endl;
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    bool res = false;
+    for (const auto& usr : node.get_users()) {
+        res |= has_rank3_mvn_user(*usr, cur_depth + 1, max_depth);
+    }
+    return res;
+}
+
 bool layout_optimizer::should_select_b_fs_yx_fsv16_layout(convolution_node const& node, layout const& weights_layout) {
     auto prim = node.get_primitive();
     auto input_layout = node.get_input_layout(0);
@@ -1123,35 +1143,6 @@ bool layout_optimizer::is_mixed_layout(program_node& prev, program_node& next, b
     }
 
     return false;
-}
-
-static bool has_rank3_mvn_user(const program_node& node, size_t cur_depth, size_t max_depth, int64_t reorder_size_threshold = 0) {
-    // MVN with rank size 3 always requires Reorder and Reshape. Due to this pattern, too many Reorder may occur when used with Convolution,
-    // which may performance degradation. It stand out in Stable-Diffusion Unet and Decoder.
-    if (cur_depth > max_depth) return false;
-    if (node.is_type<reorder>()) {
-        for (auto& reorder_user : node.get_users()) {
-            if (reorder_user->is_type<reshape>()) {
-                for (auto& reshape_user : reorder_user->get_users()) {
-                    if (reshape_user->is_type<mvn>()) {
-                        if (reorder_size_threshold == 0) {
-                            return true;
-                        } else {
-                            if (node.get_output_layout().get_linear_size() > reorder_size_threshold) {
-                                GPU_DEBUG_LOG << node.id() << ": " << node.get_output_layout().to_short_string() << " -> heavy reorder" << std::endl;
-                                return true;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    bool res = false;
-    for (const auto& usr : node.get_users()) {
-        res |= has_rank3_mvn_user(*usr, cur_depth + 1, max_depth);
-    }
-    return res;
 }
 
 format layout_optimizer::get_expected_format(convolution_node const& node) {
@@ -1849,84 +1840,7 @@ format layout_optimizer::get_preferred_format(program_node& node) {
     if (!_forcing_map.empty() && _forcing_map.count(node.id()) != 0) {
         expected = _forcing_map.at(node.id()).first;
     } else if (node.is_type<convolution>()) {
-        int val = 0;
-        get_env("CONV_TEST_PREVIEW", val);
-        if (val) {
-            expected = get_expected_format(node.as<convolution>());
-            // my padding test
-            if (expected == format::fs_b_yx_fsv32) {
-                auto conv = node.as<convolution>().get_primitive();
-
-                auto& conv_input_node = node.get_dependency(0);
-                // convolution have only one input primitive
-                auto prev_prim_output_layout = conv_input_node.get_output_layout();
-                auto conv_layout = node.get_output_layout();
-
-                // Calculating input padding needed for convolution
-                auto& filter_node = node.as<convolution>().weights();
-                auto filter_prim = filter_node.get_primitive();
-
-                layout filter_layout = filter_node.get_output_layout().convert_to_weights_layout(conv->grouped_weights_shape);
-
-                // Compute initial required paddings for primitive used as input for convolution.
-                auto padding_begin = conv->padding_begin;
-                auto padding_end = conv->padding_end;
-                auto stride = conv->stride;
-                auto dilation = conv->dilation;
-                uint32_t stride_z = stride.size() >= 3 ? static_cast<uint32_t>(stride[stride.size() - 3]) : 1;
-                uint32_t stride_y = stride.size() >= 2 ? static_cast<uint32_t>(stride[stride.size() - 2]) : 1;
-                uint32_t stride_x = stride.size() >= 1 ? static_cast<uint32_t>(stride[stride.size() - 1]) : 1;
-
-                uint32_t dilation_z = dilation.size() >= 3 ? static_cast<uint32_t>(dilation[dilation.size() - 3]) : 1;
-                uint32_t dilation_y = dilation.size() >= 2 ? static_cast<uint32_t>(dilation[dilation.size() - 2]) : 1;
-                uint32_t dilation_x = dilation.size() >= 1 ? static_cast<uint32_t>(dilation[dilation.size() - 1]) : 1;
-
-                tensor::value_type pad_z = padding_begin.size() >= 3 ? padding_begin[padding_begin.size() - 3] : 0;
-                tensor::value_type pad_y = padding_begin.size() >= 2 ? padding_begin[padding_begin.size() - 2] : 0;
-                tensor::value_type pad_x = padding_begin.size() >= 1 ? padding_begin[padding_begin.size() - 1] : 0;
-
-                tensor::value_type padding_begin_x, padding_begin_y, padding_begin_z;
-                tensor::value_type padding_end_x, padding_end_y, padding_end_z;
-
-                if (node.is_dynamic() && node.as<convolution>().use_explicit_padding()) {
-                    padding_begin_x = std::max(pad_x, 0);
-                    padding_begin_y = std::max(pad_y, 0);
-                    padding_begin_z = std::max(pad_z, 0);
-
-                    pad_z = padding_end.size() >= 3 ? padding_end[padding_end.size() - 3] : 0;
-                    pad_y = padding_end.size() >= 2 ? padding_end[padding_end.size() - 2] : 0;
-                    pad_x = padding_end.size() >= 1 ? padding_end[padding_end.size() - 1] : 0;
-
-                    padding_end_x = std::max(pad_x, 0);
-                    padding_end_y = std::max(pad_y, 0);
-                    padding_end_z = std::max(pad_z, 0);
-                } else {
-                    auto input_limit_x = -pad_x + (conv_layout.spatial(0) - 1) * stride_x +
-                                        (filter_layout.spatial(0) - 1) * dilation_x + 1;
-                    auto input_limit_y = -pad_y + (conv_layout.spatial(1) - 1) * stride_y +
-                                        (filter_layout.spatial(1) - 1) * dilation_y + 1;
-                    auto input_limit_z = -pad_z + (conv_layout.spatial(2) - 1) * stride_z +
-                                        (filter_layout.spatial(2) - 1) * dilation_z + 1;
-
-                    padding_begin_x = std::max(pad_x, 0);
-                    padding_begin_y = std::max(pad_y, 0);
-                    padding_begin_z = std::max(pad_z, 0);
-                    padding_end_x = std::max<tensor::value_type>(input_limit_x - prev_prim_output_layout.spatial(0), 0);
-                    padding_end_y = std::max<tensor::value_type>(input_limit_y - prev_prim_output_layout.spatial(1), 0);
-                    padding_end_z = std::max<tensor::value_type>(input_limit_z - prev_prim_output_layout.spatial(2), 0);
-                }
-
-                cldnn::padding needed_padding({0, 0, padding_begin_x, padding_begin_y, padding_begin_z},
-                                                {0, 0, padding_end_x, padding_end_y, padding_end_z}, 0);
-                needed_padding = padding::max(prev_prim_output_layout.data_padding, needed_padding);
-                GPU_DEBUG_INFO << node.id() << ": " << static_cast<bool>(needed_padding) << std::endl;
-                if (!static_cast<bool>(needed_padding)) {
-                    expected = format::bfyx;
-                }
-            }
-        } else {
-            expected = get_expected_format(node.as<convolution>());
-        }
+        expected = get_expected_format(node.as<convolution>());
     } else if (node.is_type<quantize>()) {
         expected = get_expected_format(node.as<quantize>());
     } else if (node.is_type<reorder>() || node.is_type<input_layout>()) {
