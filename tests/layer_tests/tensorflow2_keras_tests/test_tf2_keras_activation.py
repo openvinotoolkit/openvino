@@ -14,6 +14,7 @@ class TestKerasActivation(CommonTF2LayerTest):
             # pytest-xdist can't execute the tests in parallel because workers can't compare tests scopes before run
             # tf.nn.<activation> operation have no "==" operation to be compared
             "elu": tf.nn.elu,
+            "gelu": tf.nn.gelu,
             "relu": tf.nn.relu,
             "sigmoid": tf.nn.sigmoid,
             "softmax": tf.nn.softmax,
@@ -39,6 +40,8 @@ class TestKerasActivation(CommonTF2LayerTest):
 
     test_data_float32 = [
         dict(activation_func="elu", input_names=["x1"], input_shapes=[[5, 4]],
+             input_type=tf.float32),
+        dict(activation_func="gelu", input_names=["x1"], input_shapes=[[5, 4]],
              input_type=tf.float32),
         dict(activation_func="relu", input_names=["x1"], input_shapes=[[5, 4, 8]],
              input_type=tf.float32),
