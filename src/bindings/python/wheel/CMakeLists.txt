@@ -101,7 +101,7 @@ if(pip_version VERSION_GREATER_EQUAL 22.0)
             --no-deps
             --wheel-dir ${openvino_wheels_output_dir}
             # --build-option is deprecated, see https://github.com/pypa/pip/issues/11859
-            --config-settings="--build-number=${WHEEL_BUILD} --build-option --plat-name=${PLATFORM_TAG}"
+            --config-settings="--build-option=--build-number=${WHEEL_BUILD} --plat-name=${PLATFORM_TAG}"
             "${CMAKE_CURRENT_SOURCE_DIR}")
 else()
     set(wheel_build_command
