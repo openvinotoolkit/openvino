@@ -1,6 +1,9 @@
 Release Policy
 =============================================================================
 
+OpenVINO offers releases of three different types: Regular, Long-Term Support, and Nightly,
+each targeting a different use case. 
+
 | **Regular release** :
 |    OpenVINO™ is published with a cadence of around one month. Each release is supported only until
      the next version arrives. This makes regular releases suitable only for:
