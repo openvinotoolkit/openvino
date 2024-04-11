@@ -1,4 +1,5 @@
 -c ../../../bindings/python/constraints.txt
 numpy
 tensorflow
-h5py<3.11.0 # w/a for Linux arm64, 3.11 version failed
+# limit h5py version for Linux arm64, 3.11 version failed
+h5py~=3.10.0; sys_platform == 'linux' and platform_machine == 'aarch64'
