@@ -28,6 +28,9 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
     using DimType = typename T::value_type;
 
     const auto number_of_inputs = input_shapes.size();
+    if (number_of_inputs == 1) {
+        OPENVINO_THROW("OV doesn't support Squeeze node with inputs num equal 1");
+    }
     OPENVINO_ASSERT(!input_shapes.empty());
 
     const auto& arg_shape = input_shapes[0];
@@ -37,9 +40,7 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
 
     std::unique_ptr<std::set<int64_t>> unique_axes;
 
-    if (number_of_inputs == 1) {
-        unique_axes.reset(new std::set<int64_t>());
-    } else if (number_of_inputs == 2) {
+    if (number_of_inputs == 2) {
         const auto& axes_shape = input_shapes[1];
         NODE_VALIDATION_CHECK(op,
                               axes_shape.is_dynamic() || ov::util::is_rank_compatible_any_of(axes_shape.rank(), {0, 1}),
