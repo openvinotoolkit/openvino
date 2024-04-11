@@ -20,7 +20,7 @@ class TestAtan2(PytorchLayerTest):
             "int64": torch.int64,
             "int32": torch.int32,
             "int16": torch.int16,
-            "uint8": torch.uint8,
+            "uint8":     torch.uint8,
             "int8": torch.int8,
             }
     
@@ -61,7 +61,7 @@ class TestAtan2(PytorchLayerTest):
     @pytest.mark.parametrize("use_out", [False, True])
     def test_atan2_with_out(self, dtype1, dtype2, use_out, y, x, ie_device, precision, ir_version):
         self._test(
-            *self.create_model(dtype=dtype1, use_out=use_out),
+            *self.create_model(dtype2=dtype2, dtype1=dtype1, use_out=use_out),
             ie_device,
             precision,
             ir_version,
