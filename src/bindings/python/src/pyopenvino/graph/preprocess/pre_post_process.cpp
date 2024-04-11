@@ -177,7 +177,7 @@ static void regclass_graph_PreProcessSteps(py::module m) {
            const std::vector<int>& pads_end,
            float value,
            ov::preprocess::PaddingMode mode) {
-            return &self.pad(pads_begin;, pads_end, value, mode);
+            return &self.pad(pads_begin, pads_end, value, mode);
         },
         py::arg("pads_begin"),
         py::arg("pads_end"),
