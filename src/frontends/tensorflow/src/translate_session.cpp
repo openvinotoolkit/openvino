@@ -388,7 +388,8 @@ TranslateSession::TranslateSession(const ov::frontend::InputModel::Ptr& input_mo
       m_translator_map(translator_map),
       m_model_name(model_name),
       m_ov_model(nullptr),
-      m_cached_body_models(std::make_shared<CachedBodyModelsType>()) {}
+      m_cached_body_models(std::make_shared<CachedBodyModelsType>()),
+      m_variables_map(std::make_shared<VariableMap>()) {}
 
 std::shared_ptr<ov::Model> TranslateSession::get_converted_model() {
     if (m_ov_model) {
@@ -401,7 +402,7 @@ std::shared_ptr<ov::Model> TranslateSession::get_converted_model() {
 void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& input_model,
                                        std::shared_ptr<ov::Model>& ov_model) {
     NameTensorMapPtr ov_tensors_map = std::make_shared<NameTensorMap>();
-    VariableMap::Ptr ov_variables_map = std::make_shared<VariableMap>();
+    VariableMap::Ptr ov_variables_map = get_variable_map();
     ControlDepsMap control_deps_map;
     std::vector<std::shared_ptr<LoopCond>> loop_cond_ops;
     std::vector<std::shared_ptr<Enter>> enter_ops;
