@@ -868,6 +868,14 @@ jobs:
           name: test-results-${{ matrix.TEST_TYPE }}-gpu
           path: ${{ env.INSTALL_TEST_DIR }}/gpu_${{ matrix.TEST_TYPE }}_tests
           if-no-files-found: 'error'
+      
+      - name: Cleanup
+        if: always()
+        run: |
+          # The github.workspace folder is mounted outside the Docker
+          # So we need to clean it up after the pipeline so that
+          # the host vm is cleaned as well  
+          rm -rf ${{ github.workspace }}/*
 
   Overall_Status:
     name: ci/gha_overall_status
