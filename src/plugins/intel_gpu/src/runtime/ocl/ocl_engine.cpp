@@ -131,8 +131,10 @@ bool ocl_engine::check_allocatable(const layout& layout, allocation_type type) {
     bool exceed_allocatable_mem_size = (layout.bytes_count() > get_device_info().max_alloc_mem_size);
 
     // When dynamic shape upper bound makes bigger buffer, then return false.
-    if (exceed_allocatable_mem_size && layout.is_dynamic() && layout.has_upper_bound())
+    if (exceed_allocatable_mem_size && layout.is_dynamic()) {
+        OPENVINO_ASSERT(layout.has_upper_bound(), "[GPU] Dynamic shape without upper bound tries to allocate");
         return false;
+    }
 
     OPENVINO_ASSERT(!exceed_allocatable_mem_size,
                     "[GPU] Exceeded max size of memory object allocation: ",
@@ -144,8 +146,11 @@ bool ocl_engine::check_allocatable(const layout& layout, allocation_type type) {
     auto exceed_available_mem_size = (layout.bytes_count() + used_mem > get_max_memory_size());
 
     // When dynamic shape upper bound makes bigger buffer, then return false.
-    if (exceed_available_mem_size && layout.is_dynamic() && layout.has_upper_bound())
+    if (exceed_available_mem_size && layout.is_dynamic()) {
+        OPENVINO_ASSERT(layout.has_upper_bound(), "[GPU] Dynamic shape without upper bound tries to allocate");
         return false;
+    }
+
 #ifdef __unix__
     // Prevent from being killed by Ooo Killer of Linux
     OPENVINO_ASSERT(!exceed_available_mem_size,
