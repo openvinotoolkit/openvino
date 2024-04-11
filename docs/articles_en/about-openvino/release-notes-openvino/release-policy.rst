@@ -20,7 +20,7 @@ each targeting a different use case.
 * There is no need for frequent changes in hardware or model support.
 * Upgrading is challenging, e.g., due to high software complexity.
 
-| :ref:`Nightly packages <nightly-packages>` :
+| `Nightly packages <nightly-packages>`__:
 |    OpenVINO also offers nightly packages, as a preview of most recent changes. Due to potential
      stability and performance issues, these should never be used for production purposes.
      Instead, they may serve:
