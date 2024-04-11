@@ -74,7 +74,7 @@ The following package distributions are available for installation:
    .. tab-item:: OV Wheels on S3
       :sync: wheels-s3
 
-      PyPI repository deployed on AWS S3 (more details `here <https://peps.python.org/pep-0503/>`__ )
+      PyPI repository deployed on AWS S3 (more details `here <https://peps.python.org/pep-0503/>`__)
       allow usage of a regular PyPI without renaming wheels. Installation commands vary depending
       on the branch:
 
