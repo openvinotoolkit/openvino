@@ -3,7 +3,7 @@
 Release Policy
 =============================================================================
 
-| **Monthly release** :
+| **Regular release** :
 |    OpenVINO™ is published with a cadence of around one month. Each release is supported only until
      the next version arrives. This makes regular releases suitable only for:
 
