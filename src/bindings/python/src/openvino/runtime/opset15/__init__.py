@@ -4,4 +4,4 @@
 
 # Inlcudes new operators added in Opset15
 
-# TODO (ticket 138273): Add previous opset operators the end of the opset15 development
+# TODO (ticket 138273): Add previous opset operators at the end of opset15 development

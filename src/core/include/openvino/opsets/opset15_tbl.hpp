@@ -7,4 +7,9 @@
 #    define _OPENVINO_OP_REG(x, y)
 #endif
 
+// Previous opsets operators
+_OPENVINO_OP_REG(Parameter, ov::op::v0)
+_OPENVINO_OP_REG(Constant, ov::op::v0)
+_OPENVINO_OP_REG(ShapeOf, ov::op::v3)
+
 // New operations added in opset15
