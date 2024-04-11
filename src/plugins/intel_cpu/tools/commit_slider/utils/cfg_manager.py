@@ -3,7 +3,7 @@
 
 import json
 import os
-
+from utils.helpers import multistepStrFormat
 
 class CfgManager():
     def __init__(self, cfg) -> None:
@@ -17,6 +17,8 @@ class CfgManager():
         fullCfg = {}
         if tmplName == "bm_simple":
             fullCfg = self.generatebmSimpleTemplate()
+        elif tmplName == "e2e":
+            fullCfg = self.generateE2ETemplate()
         else:
             raise Exception(
                 "Unknown template '{}'".format(tmplName)
@@ -42,4 +44,29 @@ class CfgManager():
             raise("No 'appcmd' in template")
         if devParam in tmpl:
             tmpJSON["runConfig"][devParam] = tmpl[devParam]
+        return tmpJSON
+
+def generateE2ETemplate(self):
+        tmpl = self.cfg["template"]
+        tmpJSON = self.readJsonTmpl("e2e_for_CI.json")
+
+        if "errorPattern" in tmpl and\
+            "precommitPath" in tmpl and\
+            "testCmd" in tmpl:
+            tmpJSON["runConfig"]["stopPattern"] = tmpl["errorPattern"]
+            tmpJSON["dlbConfig"]["commonPath"] = tmpl["precommitPath"]
+            tmpJSON["cachedPathConfig"]["commonPath"] = tmpl["precommitPath"]
+            tmpJSON["appCmd"] = multistepStrFormat(
+                tmpJSON["appCmd"],
+                tmpl["appCmd"],
+                "testCmd"
+            )
+        else:
+            raise("Template is incomplete.")
+        subPath = "private_linux_manylinux2014_release/"
+        if "subPath" in tmpl:
+            subPath = tmpl["subPath"]
+        tmpJSON["dlbConfig"]["subPath"] = subPath
+        tmpJSON["cachedPathConfig"]["subPath"] = subPath
+
         return tmpJSON
