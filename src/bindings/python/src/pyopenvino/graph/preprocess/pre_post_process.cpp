@@ -179,7 +179,10 @@ static void regclass_graph_PreProcessSteps(py::module m) {
            ov::preprocess::PaddingMode mode) {
             return &self.pad(pads_begin;, pads_end, value, mode);
         },
-        py::arg("pads_begin", "pads_end", "value", "mode"));
+        py::arg("pads_begin"),
+        py::arg("pads_end"),
+        py::arg("value"),
+        py::arg("mode"));
 
     steps.def(
         "pad",
@@ -190,7 +193,10 @@ static void regclass_graph_PreProcessSteps(py::module m) {
            ov::preprocess::PaddingMode mode) {
             return &self.pad(pads_begin, pads_end, values, mode);
         },
-        py::arg("pads_begin", "pads_end", "value", "mode"));
+        py::arg("pads_begin"),
+        py::arg("pads_end"),
+        py::arg("value"),
+        py::arg("mode"));
 }
 
 static void regclass_graph_PostProcessSteps(py::module m) {
