@@ -26,7 +26,8 @@ template <typename T>
 using reduction_function = T (*)(const T, const T);
 
 namespace func {
-// TODO move this functions to other reference implementations to reduce binary size. Binary for ScatterElementsUpdate-12 can also be updated. Ticket: CVS-138266
+// TODO move this functions to other reference implementations to reduce binary size. Binary for
+// ScatterElementsUpdate-12 can also be updated. Ticket: CVS-138266
 template <class T>
 constexpr T add(const T a, const T b) {
     return a + b;
