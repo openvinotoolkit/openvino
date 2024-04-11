@@ -15,9 +15,9 @@
 
 namespace {
 
-std::shared_ptr<ov::Model> create_v14_model(const ov::op::RoundingType rounding_type) {
-    const auto input = std::make_shared<ov::opset14::Parameter>(ov::element::f32, ov::Shape{1, 3, 64, 64});
-    const ov::Strides strides{1, 1}, dilations{1, 1};
+std::shared_ptr<ov::Model> create_v14_model(const ov::op::RoundingType rounding_type, const ov::Shape input_shape) {
+    const auto input = std::make_shared<ov::opset14::Parameter>(ov::element::f32, input_shape);
+    const ov::Strides strides{2, 2}, dilations{1, 1};
     const ov::Shape pads_begin{1, 1}, pads_end{1, 1}, kernel{2, 2};
 
     const auto max_pool_v14 = std::make_shared<ov::opset14::MaxPool>(input,
@@ -38,7 +38,7 @@ std::shared_ptr<ov::Model> create_v14_model(const ov::op::RoundingType rounding_
 
 std::shared_ptr<ov::Model> create_v8_model(const ov::op::RoundingType rounding_type) {
     const auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 64, 64});
-    const ov::Strides strides{1, 1}, dilations{1, 1};
+    const ov::Strides strides{2, 2}, dilations{1, 1};
     const ov::Shape pads_begin{1, 1}, pads_end{1, 1}, kernel{2, 2};
 
     const auto max_pool_v8 = std::make_shared<ov::opset8::MaxPool>(input,
@@ -58,8 +58,8 @@ std::shared_ptr<ov::Model> create_v8_model(const ov::op::RoundingType rounding_t
 }
 
 std::shared_ptr<ov::Model> create_ceil_torch_workaround_model(const ov::op::RoundingType rounding_type) {
-    const auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 64, 64});
-    const ov::Strides strides{1, 1}, dilations{1, 1};
+    const auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 65, 65});
+    const ov::Strides strides{2, 2}, dilations{1, 1};
     ov::Shape pads_begin{1, 1}, pads_end{1, 1}, kernel{2, 2};
 
     const auto padding_begin_node =
@@ -135,7 +135,6 @@ TEST_F(TransformationTestsF, ConvertMaxPool8ToMaxPool1) {
         ov::Shape pads_begin{0}, pads_end{0}, kernel{1};
         auto maxpool_8 = std::make_shared<ov::opset8::MaxPool>(data, strides, dilations, pads_begin, pads_end, kernel);
         auto result = std::make_shared<ov::opset1::Result>(maxpool_8->output(0));
-
         model = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{data});
         manager.register_pass<ov::pass::ConvertMaxPool8ToMaxPool1>();
     }
@@ -146,13 +145,12 @@ TEST_F(TransformationTestsF, ConvertMaxPool8ToMaxPool1) {
         ov::Shape pads_begin{0}, pads_end{0}, kernel{1};
         auto maxpool_1 = std::make_shared<ov::opset1::MaxPool>(data, strides, pads_begin, pads_end, kernel);
         auto result = std::make_shared<ov::opset1::Result>(maxpool_1->output(0));
-
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{data});
     }
 }
 
 TEST_F(TransformationTestsF, ConvertMaxPool14ToMaxPool8_ceil_torch_to_ceil) {
-    model = create_v14_model(ov::op::RoundingType::CEIL_TORCH);
+    model = create_v14_model(ov::op::RoundingType::CEIL_TORCH, ov::Shape{1, 3, 65, 65});
     model_ref = create_ceil_torch_workaround_model(ov::op::RoundingType::CEIL);
     manager.register_pass<ov::pass::ConvertMaxPool14ToMaxPool8>();
     comparator.disable(FunctionsComparator::CmpValues::ACCURACY);
@@ -161,14 +159,14 @@ TEST_F(TransformationTestsF, ConvertMaxPool14ToMaxPool8_ceil_torch_to_ceil) {
 
 TEST_F(TransformationTestsF, ConvertMaxPool14ToMaxPool8_ceil_to_ceil) {
     manager.register_pass<ov::pass::ConvertMaxPool14ToMaxPool8>();
-    model = create_v14_model(ov::op::RoundingType::CEIL);
+    model = create_v14_model(ov::op::RoundingType::CEIL, ov::Shape{1, 3, 64, 64});
     model_ref = create_v8_model(ov::op::RoundingType::CEIL);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, ConvertMaxPool14ToMaxPool8_floor_to_floor) {
-    model = create_v14_model(ov::op::RoundingType::FLOOR);
+    model = create_v14_model(ov::op::RoundingType::FLOOR, ov::Shape{1, 3, 64, 64});
     manager.register_pass<ov::pass::ConvertMaxPool14ToMaxPool8>();
     model_ref = create_v8_model(ov::op::RoundingType::FLOOR);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
