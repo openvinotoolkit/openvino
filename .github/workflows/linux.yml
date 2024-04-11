@@ -882,6 +882,8 @@ jobs:
             find . -name "*" -maxdepth 0 -exec rm -rf "{}" \;
           popd
 
+          du -sh $GITHUB_WORKSPACE
+
   Overall_Status:
     name: ci/gha_overall_status
     needs: [Smart_CI, Build, Debian_Packages, Samples, Conformance, ONNX_Runtime, CXX_Unit_Tests, Python_Unit_Tests,
