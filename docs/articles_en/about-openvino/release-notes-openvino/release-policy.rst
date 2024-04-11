@@ -5,8 +5,10 @@ OpenVINO offers releases of three different types: Regular, Long-Term Support, a
 each targeting a different use case. 
 
 | **Regular release** :
-|    OpenVINO™ is published with a cadence of around one month. Each release is supported only until
-     the next version arrives. This makes regular releases suitable only for:
+|    OpenVINO™ is published when significant new features and bug fixes have been completed
+     and validated. Each regular release is supported until the next version arrives, making
+     it suitable for:
+     
 
 * Dynamically developed solutions, benefiting from the newest technologies.
 * Products requiring frequent changes in supported hardware, libraries, operating systems, and models.
