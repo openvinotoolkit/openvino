@@ -88,8 +88,6 @@ public:
     }
 
     void Execute(const ROIAlignRotatedParams& params) {
-        const bool is_caching_test = false;
-
         // Prepare the network.
         auto stream = get_test_stream_ptr(get_test_default_config(engine_));
 
@@ -97,16 +95,8 @@ public:
         topology.add(input_layout("input", params.input->get_layout()));
         topology.add(input_layout("rois", params.rois->get_layout()));
         topology.add(input_layout("roi_ind", params.roiBatchIdxs->get_layout()));
-        topology.add(
-            reorder("reorder_input", input_info("input"), cldnn::format::bfyx, params.input->get_layout().data_type));
-        topology.add(
-            reorder("reorder_rois", input_info("rois"), cldnn::format::bfyx, params.rois->get_layout().data_type));
-        topology.add(reorder("reorder_ind",
-                             input_info("roi_ind"),
-                             cldnn::format::bfyx,
-                             params.roiBatchIdxs->get_layout().data_type));
         topology.add(roi_align("roi_align",
-                               {input_info("reorder_input"), input_info("reorder_rois"), input_info("reorder_ind")},
+                               {input_info("input"), input_info("rois"), input_info("roi_ind")},
                                params.pooledH,
                                params.pooledW,
                                params.samplingRatio,
@@ -117,13 +107,13 @@ public:
                                params.clockwise));
         topology.add(reorder("out", input_info("roi_align"), cldnn::format::bfyx, data_types::f32));
 
-        cldnn::network::ptr network =
-            get_network(engine_, topology, get_test_default_config(engine_), stream, is_caching_test);
+        cldnn::network::ptr network = get_network(engine_, topology, get_test_default_config(engine_), stream, false);
 
         network->set_input_data("input", params.input);
         network->set_input_data("rois", params.rois);
         network->set_input_data("roi_ind", params.roiBatchIdxs);
 
+        // Run and check results.
         auto outputs = network->execute();
 
         auto output = outputs.at("out").get_memory();
