@@ -876,9 +876,9 @@ jobs:
           # So we need to clean it up after the pipeline so that
           # the host vm is cleaned as well
 
-          du -sh ${{ github.workspace }}
+          du -sh $GITHUB_WORKSPACE
 
-          pushd ${{ github.workspace }}
+          pushd $GITHUB_WORKSPACE
             find . -name "*" -exec rm -rf "{}" \;
           popd
 
