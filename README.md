@@ -17,6 +17,8 @@ Welcome to OpenVINO™, an open-source software toolkit for optimizing and deplo
 - **Broad Platform Compatibility**: Reduce resource demands and efficiently deploy on a range of platforms from edge to cloud.
 - **Community and Ecosystem**: Join an active community contributing to the enhancement of deep learning performance across various domains.
 
+Check out the [OpenVINO Cheat Sheet](https://docs.openvino.ai/2024/_static/download/OpenVINO_Quick_Start_Guide.pdf) for a quick reference.
+
 ## Installation
 
 [Get your preferred distribution of OpenVINO](https://docs.openvino.ai/2024/get-started/install-openvino.html) or use this command for quick installation:
@@ -27,7 +29,7 @@ pip install openvino
 
 Check [system requirements](https://docs.openvino.ai/2024/about-openvino/system-requirements.html) and [supported devices](https://docs.openvino.ai/2024/about-openvino/compatibility-and-support/supported-devices.html) for detailed information.
 
-## Tutorials
+## Tutorials and Examples
 
 [OpenVINO Quickstart example](https://docs.openvino.ai/2024/notebooks/201-vision-monodepth-with-output.html) will walk you through the basics of deploying your first model.
 
@@ -35,6 +37,56 @@ Learn how to optimize and deploy popular models with the [OpenVINO Notebooks](ht
 - [Create an LLM-powered Chatbot using OpenVINO](https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/254-llm-chatbot/254-llm-chatbot.ipynb)
 - [YOLOv8 Optimization](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/230-yolov8-optimization)
 - [Text-to-Image Generation](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/235-controlnet-stable-diffusion)
+
+Here are easy-to-follow code examples demonstrating how to run TensorFlow and PyTorch model inference using OpenVINO:
+
+**TensorFlow Model**
+
+```
+import numpy as np
+import openvino as ov
+import tensorflow as tf
+
+# load TensorFlow model into memory
+model = tf.keras.applications.MobileNetV2(weights='imagenet')
+
+# convert the model into OpenVINO model
+ov_model = ov.convert_model(model)
+
+# compile the model for CPU device
+core = ov.Core()
+compiled_model = core.compile_model(ov_model, 'CPU')
+
+# infer the model on random data
+data = np.random.rand(1, 224, 224, 3)
+output = compiled_model.infer_new_request({0: data})
+```
+
+**PyTorch Model**
+
+```
+import openvino as ov
+import torch
+import torchvision
+
+# load PyTorch model into memory
+model = torch.hub.load("pytorch/vision", "shufflenet_v2_x1_0", weights="DEFAULT")
+
+# convert the model into OpenVINO model
+example = torch.randn(1, 3, 224, 224)
+ov_model = ov.convert_model(model, example_input=(example,))
+
+# compile the model for CPU device
+core = ov.Core()
+compiled_model = core.compile_model(ov_model, 'CPU')
+
+# infer the model on random data
+output = compiled_model.infer_new_request({0: example.numpy()})
+```
+
+OpenVINO also supports CPU, GPU, and NPU devices and works with models in TensorFLow, PyTorch, ONNX, TenforFlow Lite, PaddlePaddle model formats.
+With OpenVINO you can do automatic performance enhancements at runtime customized to your hardware (preserving model accuracy), including:
+asynchronous execution, batch processing, tensor fusion, load balancing, dynamic inference parallelism, automatic BF16 conversion, and more.
 
 ## OpenVINO Ecosystem
 
