@@ -100,7 +100,8 @@ jobs:
           repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
           submodules: 'true'
-          ref: 'master'
+          # ref: 'master'
+          ref: 3eeb2326e0d974f61a83f8e67d37e918ccfa1edd
 
       #
       # Print system info
@@ -123,6 +124,9 @@ jobs:
           # Set gcc-10 as a default one
           update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 30
           update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 30
+
+          # For building the latest h5py
+          apt install --assume-yes --no-install-recommends libhdf5-dev
 
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.4
@@ -172,6 +176,7 @@ jobs:
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
+            -DOV_CPU_AARCH64_USE_MULTI_ISA=OFF \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 

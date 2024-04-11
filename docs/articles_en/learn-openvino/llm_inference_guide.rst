@@ -15,7 +15,7 @@ Large Language Model Inference Guide
 
    LLM Inference with Optimum Intel <llm_inference_guide/llm-inference-hf>
    LLM Inference with OpenVINO API <llm_inference_guide/llm-inference-native-ov>
-
+   OpenVINO Tokenizers <llm_inference_guide/ov-tokenizers>
 
 Large Language Models (LLMs) like GPT are transformative deep learning networks capable of a
 broad range of natural language tasks, from text generation to language translation. OpenVINO
@@ -25,40 +25,19 @@ conversion to advanced use cases.
 
 The advantages of using OpenVINO for LLM deployment:
 
-*	**OpenVINO offers optimized LLM inference**; provides a full C/C++ API, leading to faster
-  operation than Python-based runtimes; includes a Python API for rapid development, with the
-  option for further optimization in C++.
+*	**OpenVINO offers optimized LLM inference**; provides a full C/C++ API, leading to faster operation than Python-based runtimes; includes a Python API for rapid development, with the option for further optimization in C++.
 
-*	**Compatible with diverse hardware**, supports CPUs, GPUs, and neural accelerators across ARM
-  and x86/x64 architectures, integrated Intel® Processor Graphics, discrete Intel® Arc™ A-Series
-  Graphics, and discrete Intel® Data Center GPU Flex Series; features automated optimization to
-  maximize performance on target hardware.
+*	**Compatible with diverse hardware**, supports CPUs, GPUs, and neural accelerators across ARM and x86/x64 architectures, integrated Intel® Processor Graphics, discrete Intel® Arc™ A-Series Graphics, and discrete Intel® Data Center GPU Flex Series; features automated optimization to maximize performance on target hardware.
 
-*	**Requires fewer dependencies** than frameworks like Hugging Face and PyTorch, resulting in a
-  smaller binary size and reduced memory footprint, making deployments easier and updates more
-  manageable.
+*	**Requires fewer dependencies** than frameworks like Hugging Face and PyTorch, resulting in a smaller binary size and reduced memory footprint, making deployments easier and updates more manageable.
 
-*	**Provides compression and precision management techniques** such as 8-bit and 4-bit weight
-  compression, including embedding layers, and storage format reduction. This includes fp16
-  precision for non-compressed models and int8/int4 for compressed models, like GPTQ models from
-  Hugging Face.
+*	**Provides compression and precision management techniques** such as 8-bit and 4-bit weight compression, including embedding layers, and storage format reduction. This includes fp16 precision for non-compressed models and int8/int4 for compressed models, like GPTQ models from Hugging Face.
 
-*	**Supports a wide range of deep learning models and architectures** including text, image, and
-  audio generative models like Llama 2, MPT, OPT, Stable Diffusion, Stable Diffusion XL. This
-  enables the development of multimodal applications, allowing for write-once, deploy-anywhere
-  capabilities.
+*	**Supports a wide range of deep learning models and architectures** including text, image, and audio generative models like Llama 2, MPT, OPT, Stable Diffusion, Stable Diffusion XL. This enables the development of multimodal applications, allowing for write-once, deploy-anywhere capabilities.
 
-*	**Enhances inference capabilities**: fused inference primitives such as Scaled Dot Product
-  Attention, Rotary Positional Embedding, Group Query Attention, and Mixture of Experts. It also
-  offers advanced features like in-place KV-cache, dynamic quantization, KV-cache quantization
-  and encapsulation, dynamic beam size configuration, and speculative sampling.
+*	**Enhances inference capabilities**: fused inference primitives such as Scaled Dot Product Attention, Rotary Positional Embedding, Group Query Attention, and Mixture of Experts. It also offers advanced features like in-place KV-cache, dynamic quantization, KV-cache quantization and encapsulation, dynamic beam size configuration, and speculative sampling.
 
-*	**Provides stateful model optimization**: models from the Hugging Face Transformers are
-  converted into a stateful form, optimizing inference performance and memory usage in long
-  running text generation tasks by managing past KV-cache tensors more efficiently internally.
-  This feature is automatically activated for many supported models, while unsupported ones
-  remain stateless. Learn more about the
-  :doc:`Stateful models and State API <../openvino-workflow/running-inference/stateful-models>`.
+*	**Provides stateful model optimization**: models from the Hugging Face Transformers are converted into a stateful form, optimizing inference performance and memory usage in long-running text generation tasks by managing past KV-cache tensors more efficiently internally. This feature is automatically activated for many supported models, while unsupported ones remain stateless. Learn more about the :doc:`Stateful models and State API <../openvino-workflow/running-inference/stateful-models>`.
 
 OpenVINO offers two main paths for Generative AI use cases:
 
@@ -69,13 +48,13 @@ OpenVINO offers two main paths for Generative AI use cases:
   `custom pipeline code <https://github.com/openvinotoolkit/openvino.genai>`__.
 
 In both cases, the OpenVINO runtime is used for inference, and OpenVINO tools are used for
-optimization. The main differences are in footprint size, ease of use and customizability.
+optimization. The main differences are in footprint size, ease of use, and customizability.
 
 The Hugging Face API is easy to learn, provides a simple interface and hides the complexity of
 model initialization and text generation for a better developer experience. However, it has more
 dependencies, less customization, and cannot be ported to C/C++.
 
-The Native OpenVINO API requires fewer dependencies, mininmizing the application footprint, and
+The Native OpenVINO API requires fewer dependencies, minimizing  the application footprint, and
 enables the use of generative models in C++ applications. However, it requires explicit
 implementation of the text generation loop, tokenization functions, and scheduler functions used
 in a typical LLM pipeline.
@@ -95,9 +74,6 @@ and export models to the OpenVINO model format for use in native API application
 
 The table below summarizes the differences between Hugging Face and the native OpenVINO API
 approaches.
-
-
-The table below summarizes the differences between Hugging Face and the native OpenVINO API approaches:
 
 .. dropdown:: Differences between Hugging Face and the native OpenVINO API
 

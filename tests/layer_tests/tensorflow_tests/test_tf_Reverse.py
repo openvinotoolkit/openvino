@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -25,8 +25,10 @@ class TestReverse(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_reverse_basic(self, params, ie_device, precision, ir_version, temp_dir):
+        if ie_device == 'GPU' and params['shape'] == [1, 2, 4, 3]:
+            pytest.skip("No layout format available for reversesequence:ReverseSequence_8462418 issue on GPU")
         self._test(*self.create_reverse_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir)

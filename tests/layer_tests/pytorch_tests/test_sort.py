@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -78,6 +78,7 @@ class TestSortConstants(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_fx_backend
     def test_sort(self, input_shape, descending, stable, ie_device, precision, ir_version):
         self.input_tensor = []
         if type(input_shape) is list:

@@ -88,7 +88,7 @@ Intel® Neural Processing Unit
    .. tab-item:: Operating Systems for NPU
 
       * Ubuntu 22.04 long-term support (LTS), 64-bit
-      * Windows 11, 64-bit
+      * Windows 11, 64-bit (22H2, 23H2)
 
    .. tab-item:: Additional considerations
 
@@ -96,19 +96,6 @@ Intel® Neural Processing Unit
         that are not included in the Intel® Distribution of OpenVINO™ toolkit package.
       * Users can access the NPU plugin through the OpenVINO archives on
         the :doc:`download page <../get-started/install-openvino>`.
-
-
-Intel® Gaussian & Neural Accelerator
-##########################################
-
-.. tab-set::
-
-   .. tab-item:: Operating Systems for GNA
-
-      * Ubuntu 22.04 long-term support (LTS), 64-bit
-      * Ubuntu 20.04 long-term support (LTS), 64-bit
-      * Windows 10, 64-bit
-      * Windows 11, 64-bit
 
 
 Operating systems and developer environment

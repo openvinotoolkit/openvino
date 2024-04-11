@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -487,7 +487,8 @@ TEST_P(CoreThreadingTestsWithIter, smoke_CompileModel_Accuracy_SingleCore) {
             }
 
             auto getOutputBlob = [&](ov::Core& core) {
-                auto compiled_model = core.compile_model(model, target_device);
+                ov::AnyMap f32_precision_property = {{ov::hint::inference_precision.name(), ov::element::f32.to_string()}};
+                auto compiled_model = core.compile_model(model, target_device, f32_precision_property);
                 auto req = compiled_model.create_infer_request();
                 for (const auto& input : inputs) {
                     req.set_tensor(input.first, input.second);
@@ -530,7 +531,8 @@ TEST_P(CoreThreadingTestsWithIter, smoke_CompileModel_Accuracy_MultipleCores) {
             }
 
             auto getOutputBlob = [&](ov::Core& core) {
-                auto compiled_model = core.compile_model(model, target_device);
+                ov::AnyMap f32_precision_property = {{ov::hint::inference_precision.name(), ov::element::f32.to_string()}};
+                auto compiled_model = core.compile_model(model, target_device, f32_precision_property);
                 auto req = compiled_model.create_infer_request();
                 for (const auto& input : inputs) {
                     req.set_tensor(input.first, input.second);
@@ -567,6 +569,46 @@ TEST_P(CoreThreadingTestsWithIter, smoke_CompileModel_MultipleCores) {
             auto core = ov::test::utils::create_core();;
             core.set_property(target_device, config);
             (void)core.compile_model(models[value % models.size()], target_device);
+        },
+        numIterations,
+        numThreads);
+}
+
+TEST_P(CoreThreadingTestsWithIter, nightly_AsyncInfer_ShareInput) {
+    SetupNetworks();
+    auto model = models[0];
+    ov::Tensor output_ref;
+    std::map<ov::Output<ov::Node>, ov::Tensor> inputs;
+    for (const auto& input : model->inputs()) {
+        auto tensor = ov::test::utils::create_and_fill_tensor_normal_distribution(input.get_element_type(),
+                                                                                  input.get_shape(),
+                                                                                  0.0f,
+                                                                                  0.2f,
+                                                                                  7235346);
+        inputs.insert({input, tensor});
+    }
+
+    runParallel(
+        [&]() {
+            auto core = ov::test::utils::create_core();
+            core.set_property(target_device, config);
+            auto compiled_model = core.compile_model(model, target_device);
+            auto nireq = compiled_model.get_property(ov::optimal_number_of_infer_requests);
+            std::vector<ov::InferRequest> inferReqsQueue;
+            int count = nireq;
+            while (count--) {
+                ov::InferRequest req = compiled_model.create_infer_request();
+                for (const auto& input : inputs) {
+                    req.set_tensor(input.first, input.second);
+                }
+                inferReqsQueue.push_back(req);
+            }
+            for (auto& req : inferReqsQueue) {
+                req.start_async();
+            }
+            for (auto& req : inferReqsQueue) {
+                req.wait();
+            }
         },
         numIterations,
         numThreads);

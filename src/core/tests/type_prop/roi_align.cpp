@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,9 +40,9 @@ TYPED_TEST_P(ROIAlignTest, simple_shape_inference) {
     auto rois_shape = PartialShape{7, 4};
     auto batch_shape = PartialShape{7};
 
-    set_shape_labels(data_shape, 10);
-    set_shape_labels(rois_shape, 20);
-    set_shape_labels(batch_shape, 30);
+    auto data_symbols = set_shape_symbols(data_shape);
+    set_shape_symbols(rois_shape);
+    auto batch_symbols = set_shape_symbols(batch_shape);
 
     const auto data = make_shared<Parameter>(element::f16, data_shape);
     const auto rois = make_shared<Parameter>(element::f16, rois_shape);
@@ -52,7 +52,8 @@ TYPED_TEST_P(ROIAlignTest, simple_shape_inference) {
 
     EXPECT_EQ(op->get_element_type(), element::f16);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({7, 3, 2, 2}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(20, 11, no_label, no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(batch_symbols[0], data_symbols[1], nullptr, nullptr));
 }
 
 TYPED_TEST_P(ROIAlignTest, dynamic_channels_dim) {
@@ -60,8 +61,8 @@ TYPED_TEST_P(ROIAlignTest, dynamic_channels_dim) {
     auto rois_shape = PartialShape{7, 4};
     auto batch_shape = PartialShape{7};
 
-    set_shape_labels(data_shape, 10);
-    set_shape_labels(batch_shape, 30);
+    auto data_symbols = set_shape_symbols(data_shape);
+    auto batch_symbols = set_shape_symbols(batch_shape);
 
     const auto data = make_shared<Parameter>(element::f64, data_shape);
     const auto rois = make_shared<Parameter>(element::f64, rois_shape);
@@ -71,7 +72,8 @@ TYPED_TEST_P(ROIAlignTest, dynamic_channels_dim) {
 
     EXPECT_EQ(op->get_element_type(), element::f64);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({7, -1, 3, 4}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(30, 11, no_label, no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(batch_symbols[0], data_symbols[1], nullptr, nullptr));
 }
 
 TYPED_TEST_P(ROIAlignTest, num_rois_from_batch_indices) {
@@ -83,7 +85,7 @@ TYPED_TEST_P(ROIAlignTest, num_rois_from_batch_indices) {
 
     EXPECT_EQ(op->get_element_type(), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({9, 3, 4, 2}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TYPED_TEST_P(ROIAlignTest, all_inputs_dynamic_rank) {
@@ -95,7 +97,7 @@ TYPED_TEST_P(ROIAlignTest, all_inputs_dynamic_rank) {
 
     EXPECT_EQ(op->get_element_type(), element::bf16);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({-1, -1, 40, 12}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TYPED_TEST_P(ROIAlignTest, all_inputs_static_rank_dynamic_dims) {
@@ -103,9 +105,9 @@ TYPED_TEST_P(ROIAlignTest, all_inputs_static_rank_dynamic_dims) {
     auto rois_shape = PartialShape::dynamic(2);
     auto batch_shape = PartialShape::dynamic(1);
 
-    set_shape_labels(data_shape, 10);
-    set_shape_labels(rois_shape, 20);
-    set_shape_labels(batch_shape, 30);
+    auto data_symbols = set_shape_symbols(data_shape);
+    set_shape_symbols(rois_shape);
+    auto batch_symbols = set_shape_symbols(batch_shape);
 
     const auto data = make_shared<Parameter>(element::f16, data_shape);
     const auto rois = make_shared<Parameter>(element::f16, rois_shape);
@@ -115,7 +117,8 @@ TYPED_TEST_P(ROIAlignTest, all_inputs_static_rank_dynamic_dims) {
 
     EXPECT_EQ(op->get_element_type(), element::f16);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({-1, -1, 8, 8}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(20, 11, no_label, no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(batch_symbols[0], data_symbols[1], nullptr, nullptr));
 }
 
 TYPED_TEST_P(ROIAlignTest, interval_shapes) {
@@ -123,9 +126,9 @@ TYPED_TEST_P(ROIAlignTest, interval_shapes) {
     auto rois_shape = PartialShape{{2, 10}, {2, -1}};
     auto batch_shape = PartialShape{{3, 6}};
 
-    set_shape_labels(data_shape, 10);
-    set_shape_labels(rois_shape, 20);
-    set_shape_labels(batch_shape, 30);
+    auto data_symbols = set_shape_symbols(data_shape);
+    set_shape_symbols(rois_shape);
+    auto batch_symbols = set_shape_symbols(batch_shape);
 
     const auto data = make_shared<Parameter>(element::f32, data_shape);
     const auto rois = make_shared<Parameter>(element::f32, rois_shape);
@@ -135,7 +138,8 @@ TYPED_TEST_P(ROIAlignTest, interval_shapes) {
 
     EXPECT_EQ(op->get_element_type(), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({{3, 6}, {2, 4}, 8, 18}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(20, 11, no_label, no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(batch_symbols[0], data_symbols[1], nullptr, nullptr));
 }
 
 TYPED_TEST_P(ROIAlignTest, incompatible_num_rois) {

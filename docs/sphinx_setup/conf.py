@@ -50,13 +50,15 @@ breathe_projects = {
 }
 
 myst_enable_extensions = ["colon_fence"]
+myst_heading_anchors = 4
+suppress_warnings = ['misc.highlighting_failure']
 
 source_suffix = {
     '.rst': 'restructuredtext',
     '.md': 'markdown',
 }
 
-html_baseurl = 'https://docs.openvino.ai/canonical/'
+html_baseurl = ''
 
 # -- Sitemap configuration ---------------------------
 
