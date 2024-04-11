@@ -106,15 +106,12 @@ void numpy_broadcast_binop(const T* arg0,
                            const Shape& arg0_shape,
                            const Shape& arg1_shape,
                            Functor f) {
-    // We'll be using CoordinateTransformBasic to handle the broadcasting. The general
-    // procedure is as follows:
+    // We'll be using CoordinateTransformBasic to handle the broadcasting. The general procedure is as follows:
     //
     // (1) Left pad the shorter of the two shapes with ones.
-    // (2) Squeeze (remove ones from) both shapes, and record the squeezed axis
-    //     indices.
-    // (3) Using CoordinateTransformBasic, broadcast both args to the final output
-    //     shape. The "broadcasted axes" will be those that were squeezed in step
-    //     2.
+    // (2) Squeeze (remove ones from) both shapes, and record the squeezed axis indices.
+    // (3) Using CoordinateTransformBasic, broadcast both args to the final output shape. The "broadcasted axes" will be
+    //     those that were squeezed in step 2.
     //
     // Example:
     //
@@ -226,18 +223,14 @@ void pdpd_broadcast_binop(const T* arg0,
                           const Shape& arg1_shape,
                           int64_t axis,
                           Functor f) {
-    // We'll be using CoordinateTransformBasic to handle the broadcasting. No need to
-    // process arg0 and output shape will be the same as arg0. We need to process
-    // arg1 and the general procedure is as follows:
+    // We'll be using CoordinateTransformBasic to handle the broadcasting. No need to process arg0 and output shape will
+    // be the same as arg0. We need to process arg1 and the general procedure is as follows:
     //
     // (1) Trim trailing ones from arg1 shape.
-    // (2) Left and right pad arg1 to match arg0 shape. Axis is the index start
-    //     to align between arg0 and arg1.
-    // (3) Squeeze (remove ones from) arg1 shape, and record the squeezed axis
-    //     indices.
-    // (3) Using CoordinateTransformBasic, broadcast arg1 to the final output
-    //     shape. The "broadcasted axes" will be those that were squeezed in step
-    //     23.
+    // (2) Left and right pad arg1 to match arg0 shape. Axis is the index start to align between arg0 and arg1.
+    // (3) Squeeze (remove ones from) arg1 shape, and record the squeezed axis indices.
+    // (3) Using CoordinateTransformBasic, broadcast arg1 to the final output shape. The "broadcasted axes" will be
+    //     those that were squeezed in step 23.
     //
     // Example:
     //
@@ -296,19 +289,16 @@ void pdpd_broadcast_binop(const T* arg0,
  *
  * @tparam T Element type of the input tensors.
  * @tparam U Element type of the output tensor.
- * @tparam Functor Type of the functor for the elementwise operation. Must support
- *                 operator()(T,T), and operator()(T,T) must return a value of type
- *                 U.
+ * @tparam Functor Type of the functor for the elementwise operation. Must support operator()(T,T), and operator()(T,T)
+ *         must return a value of type U.
  *
  * @param arg0 Pointer to the buffer for left operand input tensor.
  * @param arg1 Pointer to the buffer for right operand input tensor.
- * @param out Pointer to the buffer for output tensor. This must be pre-allocated by
- *            the caller, and must be large enough to hold a tensor of the correct
- *            shape.
+ * @param out Pointer to the buffer for output tensor. This must be pre-allocated by the caller, and must be large
+ *            enough to hold a tensor of the correct shape.
  * @param broadcast_spec Specification of the auto-broadcasting scheme.
- * @param elementwise_functor Functor implementing the elementwise operation to be
- *                            applied across the input tensors. Must accept two
- *                            arguments of type T, and return a value of type U.
+ * @param elementwise_functor Functor implementing the elementwise operation to be applied across the input tensors.
+ *                            Must accept two arguments of type T, and return a value of type U.
  */
 template <typename T, typename U, typename Functor>
 void autobroadcast_binop(const T* arg0,
@@ -338,20 +328,17 @@ void autobroadcast_binop(const T* arg0,
  * \brief Helper function to implement auto broadcasting elementwise ternary op references.
  * \tparam U Element type of the selector tensor.
  * \tparam T Element type of the input tensors.
- * \tparam Functor Type of the functor for the elementwise operation. Must support
- *                 operator()(U,T,T), and operator()(U,T,T) must return a value of type
- *                 T.
+ * \tparam Functor Type of the functor for the elementwise operation. Must support operator()(U,T,T), and
+ * operator()(U,T,T) must return a value of type T.
+ *
  * \param arg0 Pointer to the buffer for selector tensor.
  * \param arg1 Pointer to the buffer for left operand input tensor.
  * \param arg2 Pointer to the buffer for right operand input tensor.
- * \param out Pointer to the buffer for output tensor. This must be pre-allocated by
- *            the caller, and must be large enough to hold a tensor of the correct
- *            shape.
+ * \param out  Pointer to the buffer for output tensor. This must be pre-allocated by the caller, and must be large
+ *             enough to hold a tensor of the correct shape.
  * \param broadcast_spec Specification of the auto-broadcasting scheme.
- * \param elementwise_functor Functor implementing the elementwise operation to be
- *                            applied across the input tensors. Must accept an argument
- *                            of
- *                            type U and two of type T, and return a value of type T.
+ * \param elementwise_functor Functor implementing the elementwise operation to be applied across the input tensors Must
+ *                            accept an argument of type U and two of type T, and return a value of type T.
  */
 template <typename T, typename U, typename Functor>
 void autobroadcast_select(const U* arg0,
