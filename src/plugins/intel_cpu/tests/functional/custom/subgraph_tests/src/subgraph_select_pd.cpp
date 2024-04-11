@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/node_builders/constant.hpp"
 #include "openvino/opsets/opset8.hpp"
-#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "test_utils/cpu_test_utils.hpp"
+#include "utils/cpu_test_utils.hpp"
 
 namespace ov {
 namespace test {
@@ -71,18 +71,18 @@ protected:
                                                          ov::opset8::Constant::create(element::i64, Shape{}, {1}),
                                                          ov::element::i64);
         auto create_conv = [](const std::shared_ptr<ov::Node>& input_node) {
-            auto conv =
-                std::make_shared<ov::opset8::Convolution>(input_node,
-                                                          ngraph::builder::makeConstant(ov::element::f16,
-                                                                                        Shape{1, CONST1 / 2, 3, 3},
-                                                                                        std::vector<float>{},
-                                                                                        true,
-                                                                                        0.1f,
-                                                                                        0.9f),
-                                                          Strides{1, 1},
-                                                          CoordinateDiff{0, 0},
-                                                          CoordinateDiff{0, 0},
-                                                          Strides{1, 1});
+            auto conv = std::make_shared<ov::opset8::Convolution>(
+                input_node,
+                ov::test::utils::deprecated::make_constant(ov::element::f16,
+                                                           Shape{1, CONST1 / 2, 3, 3},
+                                                           std::vector<float>{},
+                                                           true,
+                                                           0.1f,
+                                                           0.9f),
+                Strides{1, 1},
+                CoordinateDiff{0, 0},
+                CoordinateDiff{0, 0},
+                Strides{1, 1});
             conv->get_rt_info() =
                 CPUTestUtils::CPUTestsBase::makeCPUInfo({CPUTestUtils::nhwc}, {CPUTestUtils::nhwc}, {});
             return conv;
