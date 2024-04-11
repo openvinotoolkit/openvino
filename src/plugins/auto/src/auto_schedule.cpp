@@ -143,6 +143,12 @@ void AutoSchedule::init() {
                 m_compile_context[CPU].m_device_info.config[ov::hint::performance_mode.name()] = ov::hint::PerformanceMode::LATENCY;
                 m_compile_context[CPU].m_worker_name = "CPU_HELP";
                 LOG_INFO_TAG("will load CPU for accelerator");
+                if (m_compile_context[ACTUALDEVICE].m_device_info.device_name.find("GPU") != std::string::npos) {
+                    m_compile_context[ACTUALDEVICE]
+                        .m_device_info.config[ov::intel_gpu::hint::host_task_priority.name()] =
+                        ov::hint::Priority::HIGH;
+                    m_compile_context[ACTUALDEVICE].m_device_info.config[ov::compilation_num_threads.name()] = 2;
+                }
             } else {
                 m_compile_context[CPU].m_is_enabled = false;
             }
