@@ -97,7 +97,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
             input_types.append(input_data.type())
             input_shapes.append(input_data.size())
 
-        decoder = TorchFXPythonDecoder(gm, gm, input_shapes=input_shapes, input_types=input_types)
+        decoder = TorchFXPythonDecoder(gm, input_shapes=input_shapes, input_types=input_types)
 
         im = fe.load(decoder)
 

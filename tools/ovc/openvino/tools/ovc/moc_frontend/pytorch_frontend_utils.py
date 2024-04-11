@@ -48,7 +48,7 @@ def get_pytorch_decoder(model, example_inputs, args):
             if version.parse(torch.__version__) >= version.parse("2.2"):
                 model = model.run_decompositions()
             gm = model.module()
-            decoder = TorchFXPythonDecoder(gm, gm)
+            decoder = TorchFXPythonDecoder(gm)
         else:
             decoder = TorchScriptPythonDecoder(
                 model,
