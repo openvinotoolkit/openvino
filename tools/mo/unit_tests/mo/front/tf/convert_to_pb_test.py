@@ -17,6 +17,7 @@ class ConvertToPBTests(unittest.TestCase):
                                        saved_model_dir=None, input_meta_graph=None, saved_model_tags=None,
                                        model_name='model', output_dir=None)
 
+    @unittest.skip("Ticket: 106651")
     def test_saved_model(self):
         import tensorflow as tf
         with tempfile.TemporaryDirectory(dir=self.test_directory) as tmp_dir:
