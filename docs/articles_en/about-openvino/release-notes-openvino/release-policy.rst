@@ -56,12 +56,6 @@ Long-Term Support Policy
 * Components not directly connected to the OpenVINO™ workflow, such as: Samples, demos, and Jupyter notebooks.
 * Code samples used in component testing.
 
-**LTS Testing**
-
-* **No regression allowed:** each user issue must be covered with the corresponding regression test.
-* **White-box:** Unit, behavior, and functional tests.
-* **Black-box:** Performance, backward compatibility, load (7x24) and stress testing.
-* **Security:** Code coverage, static analysis, BDBA scans, and others.
 
 Nightly Packages
 ###########################
