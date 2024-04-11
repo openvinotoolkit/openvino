@@ -28,7 +28,8 @@ each targeting a different use case.
 * Early integration testing.
 * Previewing newest features/improvements.
 
-**Regular release information**
+Regular release information
+########################################
 
 Regular releases are published when significant new features and bug fixes have been completed
 and validated. This results in the cadence of around one or two months. The target changes are:
