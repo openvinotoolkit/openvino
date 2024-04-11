@@ -1244,25 +1244,24 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
                 return res;
             };
 
-            std::function<bool(const program_node&, size_t, size_t)> planar_friendly_user = [&](const program_node& node, size_t cur_depth, size_t max_depth) {
+            std::function<bool(const program_node&, size_t, size_t)> has_rank3_mvn_user = [&](const program_node& node, size_t cur_depth, size_t max_depth) {
                 if (cur_depth > max_depth) return false;
-                if (node.get_users().empty()) return false;
-                auto first_user = node.get_users().front();
-                if (first_user->is_type<fully_connected>() || first_user->is_type<gemm>() || first_user->is_type<mvn>()) {
-                    return true;
-                } else {
-                    return planar_friendly_user(*first_user, cur_depth + 1, max_depth);
+                if (node.is_type<reorder>()) {
+                    for (auto& reorder_user : node.get_users()) {
+                        if (reorder_user->is_type<reshape>()) {
+                            for (auto& reshape_user : reorder_user->get_users()) {
+                                if (reshape_user->is_type<mvn>()) {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
                 }
-            };
-            std::function<bool(const program_node&, size_t, size_t)> planar_friendly_dep = [&](const program_node& node, size_t cur_depth, size_t max_depth) {
-                if (cur_depth > max_depth) return false;
-                if (node.get_dependencies().empty()) return false;
-                auto first_dep = node.get_dependencies()[0].first;
-                if (first_dep->is_type<fully_connected>() || first_dep->is_type<gemm>() || first_dep->is_type<mvn>()) {
-                    return true;
-                } else {
-                    return planar_friendly_dep(*first_dep, cur_depth + 1, max_depth);
+                bool res = false;
+                for (const auto& usr : node.get_users()) {
+                    res |= has_rank3_mvn_user(*usr, cur_depth + 1, max_depth);
                 }
+                return res;
             };
             if (val == 1) {
                 if (!static_cast<bool>(prepare_padding::get_convolution_needed_padding(node)))
@@ -1272,30 +1271,17 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
                     expected_format = format::bfyx;
                 }
             } else if (val == 3) {
+                int val_user = 4;
+                get_env("CONV_TEST_U", val_user);
                 if (!static_cast<bool>(prepare_padding::get_convolution_needed_padding(node))
-                    && user_is_reorder(reinterpret_cast<program_node const&>(node), 0, 3)) {
+                    && user_is_reorder(reinterpret_cast<program_node const&>(node), 0, val_user)) {
                     expected_format = format::bfyx;
                 }
             } else if (val == 4) {
-                // user and depednecy are bfyx friendly primitive. test depth 3
-                // w/o padding input
-                int val_user = 5;
-                int val_dep = 5;
+                int val_user = 3;
                 get_env("CONV_TEST_U", val_user);
-                get_env("CONV_TEST_D", val_dep);
 
-                // GPU_DEBUG_COUT << node.id() << "  start!!!" << std::endl;
-                // auto aa = planar_friendly_user(reinterpret_cast<program_node const&>(*node.get_users().front()), 0, val_user);
-                // auto bb = planar_friendly_dep(reinterpret_cast<program_node const&>(*node.get_dependencies()[0].first), 0, val_dep);
-                // auto cc = static_cast<bool>(prepare_padding::get_convolution_needed_padding(node));
-                // GPU_DEBUG_COUT << node.id() << "  result: " << aa << ", " << bb << ", " << cc << std::endl;
-
-                // ": " << planar_friendly_user(reinterpret_cast<program_node const&>(*node.get_users().front()), 0, val_user)
-                //                 << ", " << planar_friendly_dep(reinterpret_cast<program_node const&>(*node.get_dependencies()[0].first), 0, val_dep)
-                //                 << ", " << static_cast<bool>(prepare_padding::get_convolution_needed_padding(node)) << std::endl;
-
-                if ((planar_friendly_user(reinterpret_cast<program_node const&>(*node.get_users().front()), 0, val_user) ||
-                     planar_friendly_dep(reinterpret_cast<program_node const&>(*node.get_dependencies()[0].first), 0, val_dep)) &&
+                if (has_rank3_mvn_user(reinterpret_cast<program_node const&>(*node.get_users().front()), 0, val_user) &&
                      !static_cast<bool>(prepare_padding::get_convolution_needed_padding(node))) {
                     expected_format = format::bfyx;
                 }
