@@ -53,8 +53,6 @@ Long-Term Support Policy
 * **Black-box:** Performance, backward compatibility, load (7x24) and stress testing.
 * **Security:** Code coverage, static analysis, BDBA scans, and others.
 
-.. _nightly-packages:
-
 Nightly Packages
 ###########################
 
