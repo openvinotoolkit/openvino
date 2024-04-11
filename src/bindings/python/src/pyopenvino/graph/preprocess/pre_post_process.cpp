@@ -170,23 +170,27 @@ static void regclass_graph_PreProcessSteps(py::module m) {
         return &self.reverse_channels();
     });
 
-    steps.def("pad",
-              [](ov::preprocess::PreProcessSteps& self,
-                 const std::vector<int>& pads_begin,
-                 const std::vector<int>& pads_end,
-                 float value,
-                 ov::preprocess::PaddingMode mode) {
-                  return &self.pad(pads_begin, pads_end, value, mode);
-              });
+    steps.def(
+        "pad",
+        [](ov::preprocess::PreProcessSteps& self,
+           const std::vector<int>& pads_begin,
+           const std::vector<int>& pads_end,
+           float value,
+           ov::preprocess::PaddingMode mode) {
+            return &self.pad(pads_begin;, pads_end, value, mode);
+        },
+        py::arg("pads_begin", "pads_end", "value", "mode"));
 
-    steps.def("pad",
-              [](ov::preprocess::PreProcessSteps& self,
-                 const std::vector<int>& pads_begin,
-                 const std::vector<int>& pads_end,
-                 const std::vector<float>& values,
-                 ov::preprocess::PaddingMode mode) {
-                  return &self.pad(pads_begin, pads_end, values, mode);
-              });
+    steps.def(
+        "pad",
+        [](ov::preprocess::PreProcessSteps& self,
+           const std::vector<int>& pads_begin,
+           const std::vector<int>& pads_end,
+           const std::vector<float>& values,
+           ov::preprocess::PaddingMode mode) {
+            return &self.pad(pads_begin, pads_end, values, mode);
+        },
+        py::arg("pads_begin", "pads_end", "value", "mode"));
 }
 
 static void regclass_graph_PostProcessSteps(py::module m) {
@@ -487,6 +491,14 @@ static void regenum_graph_ResizeAlgorithm(py::module m) {
         .export_values();
 }
 
+static void regenum_graph_PaddingMode(py::module m) {
+    py::enum_<ov::preprocess::PaddingMode>(m, "PaddingMode")
+        .value("CONSTANT", ov::preprocess::PaddingMode::CONSTANT)
+        .value("REFLECT", ov::preprocess::PaddingMode::REFLECT)
+        .value("SYMMETRIC", ov::preprocess::PaddingMode::SYMMETRIC)
+        .export_values();
+}
+
 void regclass_graph_PrePostProcessor(py::module m) {
     regclass_graph_PreProcessSteps(m);
     regclass_graph_PostProcessSteps(m);
@@ -498,6 +510,7 @@ void regclass_graph_PrePostProcessor(py::module m) {
     regclass_graph_OutputModelInfo(m);
     regenum_graph_ColorFormat(m);
     regenum_graph_ResizeAlgorithm(m);
+    regenum_graph_PaddingMode(m);
     py::class_<ov::preprocess::PrePostProcessor, std::shared_ptr<ov::preprocess::PrePostProcessor>> proc(
         m,
         "PrePostProcessor");
