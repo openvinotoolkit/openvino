@@ -7,7 +7,7 @@ import paddle
 from save_model import exportModel
 
 '''
-test: simple conditiona_block pair + select_input without input to conditional_block.
+test: simple conditional_block pair + select_input without input to conditional_block.
 '''
 x = np.full(shape=[1], dtype='float32', fill_value=0.1)
 y = np.full(shape=[1], dtype='float32', fill_value=0.23)
@@ -92,7 +92,7 @@ exportModel('conditional_block_2inputs_dyn', test_model_dyn, [a, b], target_dir=
 
 '''
 more than one select_input
-# looks there are bugs in paddle dyngraph to static... failed to generate 2 select_inputs.
+# looks there are bugs in paddle dygraph to static... failed to generate 2 select_inputs.
 '''
 @paddle.jit.to_static
 def test_model_dyn_2outputs(a, b):
@@ -130,7 +130,7 @@ question: how to work with LoDTensorArray ??   """
 """"""""""""""""""""""""""""""""""""""""""""""""""""""
 
 # '''
-# test: only conditiona_block node in the pattern.
+# test: only conditional_block node in the pattern.
 # '''
 # @paddle.jit.to_static
 # def test_model_return_tuple(a, b):

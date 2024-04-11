@@ -43,7 +43,7 @@ jobs:
       - name: Install debian packages & check conflicts
         run: |
           apt-get update -y
-          
+
           if [[ "${{ runner.arch }}" == "X64" ]]; then
             # Install debian packages from previous release
             apt-get install --no-install-recommends -y gnupg wget ca-certificates
@@ -66,21 +66,26 @@ jobs:
         run: |
           /usr/share/openvino/samples/cpp/build_samples.sh
           /usr/share/openvino/samples/c/build_samples.sh
-          
+
           [[ "${{ runner.arch }}" == "X64" ]] && path_by_arch="intel64" || path_by_arch="aarch64"
           ~/openvino_cpp_samples_build/$path_by_arch/Release/hello_query_device
-          
+
+          # check integrity of OpenVINO Python API installation
+          apt-get install python3-pip -y
+          python3 -m pip check
+
           python3 /usr/share/openvino/samples/python/hello_query_device/hello_query_device.py
           python3 -c 'from openvino import Core; Core().get_property("CPU", "AVAILABLE_DEVICES")'
-          
+
           if [[ "${{ runner.arch }}" == "X64" ]]; then
             python3 -c 'from openvino import Core; Core().get_property("GPU", "AVAILABLE_DEVICES")'
           fi
-          
+
           python3 -c 'from openvino import Core; Core().get_property("AUTO", "SUPPORTED_PROPERTIES")'
           python3 -c 'from openvino import Core; Core().get_property("MULTI", "SUPPORTED_PROPERTIES")'
           python3 -c 'from openvino import Core; Core().get_property("HETERO", "SUPPORTED_PROPERTIES")'
           python3 -c 'from openvino import Core; Core().get_property("BATCH", "SUPPORTED_PROPERTIES")'
           python3 -c 'from openvino.frontend import FrontEndManager; assert len(FrontEndManager().get_available_front_ends()) == 6'
           benchmark_app --help
+          opt_in_out --help
           ovc --help

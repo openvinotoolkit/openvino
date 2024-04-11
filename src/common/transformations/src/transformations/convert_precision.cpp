@@ -607,7 +607,11 @@ bool fuse_type_to_parameter(const std::shared_ptr<ov::Node>& node,
             auto convert = std::make_shared<opset4::Convert>(param, to);
             for (auto& input : param_consumers) {
                 const auto consumer = input.get_node();
-                if (ov::is_type<ov::op::v0::Result>(consumer) || ov::is_type<ov::op::v0::Convert>(consumer)) {
+                if (ov::is_type<ov::op::v0::Result>(consumer) || ov::is_type<ov::op::v0::Convert>(consumer) ||
+                    // TODO: refactor after ngraph op defined
+                    // The fourth and fifth inputs are kvcache and should be directly connected to parameters
+                    (consumer->get_type_name() == std::string("PagedAttentionExtension") &&
+                     (input.get_index() == 3 || input.get_index() == 4))) {
                     continue;
                 }
                 input.replace_source_output(convert);
