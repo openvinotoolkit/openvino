@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -277,10 +277,10 @@ bool StridedSlice::evaluate_upper(TensorVector& output_values) const {
            default_upper_bound_evaluator(this, output_values);
 }
 
-bool StridedSlice::evaluate_label(TensorLabelVector& output_labels) const {
+bool StridedSlice::evaluate_symbol(TensorSymbolVector& output_symbols) const {
     return indices_input_has_and_set_bounds(1, get_begin_mask()) &&
            indices_input_has_and_set_bounds(2, get_end_mask()) && get_input_tensor(3).has_and_set_bound() &&
-           default_label_evaluator(this, {0}, output_labels);
+           default_symbol_evaluator(this, {0}, output_symbols);
 }
 
 bool StridedSlice::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {

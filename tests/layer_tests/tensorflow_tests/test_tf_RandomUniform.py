@@ -1,16 +1,11 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
 
 import pytest
 import tensorflow as tf
-from common.layer_test_class import check_ir_version
 from common.tf_layer_test_class import CommonTFLayerTest
-
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array
-from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, connect, \
-    shaped_data, connect_front
 
 
 class TestRandomUniform(CommonTFLayerTest):
@@ -32,50 +27,6 @@ class TestRandomUniform(CommonTFLayerTest):
             tf_net = sess.graph_def
 
         ref_net = None
-        if check_ir_version(10, None, ir_version):
-            const_for_layer_tests = lambda name, value, shape, shape1: {
-                **{name + '_dd': {'kind': 'data', 'value': value, 'shape': shape1}},
-                **{name: {'kind': 'op', 'type': 'Const'}},
-                **shaped_data(name + '_d', shape)}
-
-            connect_const_for_layer_tests = lambda first_tensor_name, second_tensor_name: [
-                *connect_front(first_tensor_name + '_dd', first_tensor_name),
-                *connect(first_tensor_name, second_tensor_name)]
-
-            nodes_attributes = {
-                **regular_op_with_shaped_data('input', x_shape, {'type': 'Parameter'}),
-                **const_for_layer_tests('shape', x_shape, int64_array([len(x_shape)]),
-                                        int64_array([len(x_shape)])),
-                **const_for_layer_tests('min_val', min_val, int64_array([]), int64_array([1])),
-                **const_for_layer_tests('max_val', max_val, int64_array([]), int64_array([1])),
-                **regular_op_with_shaped_data('random_uniform', x_shape, {'type': 'RandomUniform'}),
-                **regular_op_with_shaped_data('convert', x_shape, {'type': 'Convert'}),
-                **regular_op_with_shaped_data('add', x_shape, {'type': 'Add'}),
-                **regular_op_with_shaped_data('result', x_shape, {'type': 'Result'}),
-
-            }
-
-            if precision == 'FP16' and input_type == tf.float32:
-                ref_net = build_graph(nodes_attributes,
-                                      [*connect_const_for_layer_tests('shape', '0:random_uniform'),
-                                       *connect_const_for_layer_tests('min_val',
-                                                                      '1:random_uniform'),
-                                       *connect_const_for_layer_tests('max_val',
-                                                                      '2:random_uniform'),
-                                       *connect('random_uniform', 'convert'),
-                                       *connect('convert', '0:add'),
-                                       *connect('input', '1:add'),
-                                       *connect('add', 'result')])
-            else:
-                ref_net = build_graph(nodes_attributes,
-                                      [*connect_const_for_layer_tests('shape', '0:random_uniform'),
-                                       *connect_const_for_layer_tests('min_val',
-                                                                      '1:random_uniform'),
-                                       *connect_const_for_layer_tests('max_val',
-                                                                      '2:random_uniform'),
-                                       *connect('random_uniform', '0:add'),
-                                       *connect('input', '1:add'),
-                                       *connect('add', 'result')])
 
         return tf_net, ref_net
 
@@ -89,7 +40,7 @@ class TestRandomUniform(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.xfail(platform.machine() in ["aarch64", "arm64", "ARM64"],
                        reason='Ticket - 122716')
     def test_random_uniform_basic(self, params, ie_device, precision, ir_version, temp_dir,

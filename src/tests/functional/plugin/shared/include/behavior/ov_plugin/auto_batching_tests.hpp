@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,12 +65,13 @@ protected:
             }
             ov::AnyMap config;
             if (target_device.find("GPU") != std::string::npos) {
-                config.insert(ov::num_streams(num_streams));
+                config.insert(ov::num_streams(static_cast<int32_t>(num_streams)));
                 config.insert(ov::hint::inference_precision(ov::element::f32));
             }
 
             if (target_device.find("CPU") != std::string::npos) {
-                config.insert(ov::num_streams(num_streams));
+                config.insert(ov::num_streams(static_cast<int32_t>(num_streams)));
+                config.insert(ov::hint::inference_precision(ov::element::f32));
             }
             // minimize timeout to reduce test time
             config.insert(ov::auto_batch_timeout(1));

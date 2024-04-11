@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,7 @@
 #include "openvino/runtime/tensor.hpp"
 
 using OVTensorTest = ::testing::Test;
+using testing::_;
 
 const size_t string_size = ov::element::string.size();
 
@@ -186,14 +187,47 @@ struct OVMockAllocator {
 };
 
 TEST_F(OVTensorTest, canCreateTensorUsingMockAllocator) {
+    constexpr size_t exp_size = 24;
     ov::Shape shape = {1, 2, 3};
     OVMockAllocator allocator;
 
-    EXPECT_CALL(*allocator.impl, allocate(::testing::_, ::testing::_))
-        .WillRepeatedly(testing::Return(reinterpret_cast<void*>(1)));
-    EXPECT_CALL(*allocator.impl, deallocate(::testing::_, ::testing::_, ::testing::_)).Times(1);
+    EXPECT_CALL(*allocator.impl, allocate(exp_size, _)).WillRepeatedly(testing::Return(reinterpret_cast<void*>(1)));
+    EXPECT_CALL(*allocator.impl, deallocate(_, exp_size, _)).Times(1);
 
     { ov::Tensor t{ov::element::f32, shape, allocator}; }
+}
+
+TEST_F(OVTensorTest, canCreateTensorU2UsingMockAllocator) {
+    constexpr size_t exp_size = 2;
+    ov::Shape shape = {1, 2, 3};
+    OVMockAllocator allocator;
+
+    EXPECT_CALL(*allocator.impl, allocate(exp_size, _)).WillRepeatedly(testing::Return(reinterpret_cast<void*>(1)));
+    EXPECT_CALL(*allocator.impl, deallocate(_, exp_size, _)).Times(1);
+
+    { ov::Tensor t{ov::element::u2, shape, allocator}; }
+}
+
+TEST_F(OVTensorTest, canCreateTensorU3UsingMockAllocator) {
+    constexpr size_t exp_size = 3;
+    ov::Shape shape = {1, 2, 3};
+    OVMockAllocator allocator;
+
+    EXPECT_CALL(*allocator.impl, allocate(exp_size, _)).WillRepeatedly(testing::Return(reinterpret_cast<void*>(1)));
+    EXPECT_CALL(*allocator.impl, deallocate(_, exp_size, _)).Times(1);
+
+    { ov::Tensor t{ov::element::u3, shape, allocator}; }
+}
+
+TEST_F(OVTensorTest, canCreateTensorU6UsingMockAllocator) {
+    constexpr size_t exp_size = 6;
+    ov::Shape shape = {1, 2, 3};
+    OVMockAllocator allocator;
+
+    EXPECT_CALL(*allocator.impl, allocate(exp_size, _)).WillRepeatedly(testing::Return(reinterpret_cast<void*>(1)));
+    EXPECT_CALL(*allocator.impl, deallocate(_, exp_size, _)).Times(1);
+
+    { ov::Tensor t{ov::element::u6, shape, allocator}; }
 }
 
 TEST_F(OVTensorTest, canAccessExternalData) {

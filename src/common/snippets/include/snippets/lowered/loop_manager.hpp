@@ -7,10 +7,11 @@
 #include <openvino/core/node.hpp>
 #include <openvino/opsets/opset1.hpp>
 
-#include "linear_ir.hpp"
-#include "pass/iter_handler.hpp"
-#include "pass/pass.hpp"
-#include "port_descriptor.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/pass/iter_handler.hpp"
+#include "snippets/lowered/pass/pass.hpp"
+#include "snippets/lowered/port_descriptor.hpp"
+#include "snippets/utils.hpp"
 
 namespace ov {
 namespace snippets {
@@ -28,6 +29,8 @@ public:
         friend bool operator==(const LoopPort& lhs, const LoopPort& rhs);
         friend bool operator!=(const LoopPort& lhs, const LoopPort& rhs);
         friend bool operator<(const LoopPort& lhs, const LoopPort& rhs);
+
+        bool is_dynamic() const;
 
         std::shared_ptr<ExpressionPort> expr_port = {};
         // True if after each Loop iteration the corresponding data pointer should be incremented.
@@ -51,9 +54,9 @@ public:
                                       lowered::pass::PassPipeline main_body_handlers,
                                       lowered::pass::PassPipeline last_iter_handlers);
 
-            const lowered::pass::PassPipeline& get_first_iter_handelrs() const;
-            const lowered::pass::PassPipeline& get_main_iter_handelrs() const;
-            const lowered::pass::PassPipeline& get_last_iter_handelrs() const;
+            const lowered::pass::PassPipeline& get_first_iter_handlers() const;
+            const lowered::pass::PassPipeline& get_main_iter_handlers() const;
+            const lowered::pass::PassPipeline& get_last_iter_handlers() const;
             static SpecificIterationHandlers merge_handlers(const SpecificIterationHandlers& lhs, const SpecificIterationHandlers& rhs);
 
             template <HandlerType Type,
@@ -211,7 +214,7 @@ public:
                      const std::vector<T>& entries,
                      const std::vector<T>& exits,
                      bool set_default_handlers = true) {
-        const auto normalized_increment = std::min(increment, work_amount);
+        const auto normalized_increment = utils::is_dynamic_value(work_amount) || work_amount == 0 ? increment : std::min(increment, work_amount);
         const auto handlers = set_default_handlers
                                   ? LoopInfo::SpecificIterationHandlers(work_amount, normalized_increment)
                                   : LoopInfo::SpecificIterationHandlers();
@@ -242,7 +245,7 @@ public:
                      const std::vector<T>& entries,
                      const std::vector<T>& exits,
                      bool set_default_handlers = true) {
-        const auto normalized_increment = std::min(increment, work_amount);
+        const auto normalized_increment = utils::is_dynamic_value(work_amount) || work_amount == 0 ? increment : std::min(increment, work_amount);
         const auto handlers = set_default_handlers
                                   ? LoopInfo::SpecificIterationHandlers(work_amount, normalized_increment)
                                   : LoopInfo::SpecificIterationHandlers();

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -292,7 +292,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
     manager.register_pass<ov::frontend::tensorflow_lite::pass::Rfft2dSimplifier>();
     manager.register_pass<ov::pass::TransposeSinking>();
     manager.register_pass<ov::pass::TransposeSinkingGeneral>();
-    manager.register_pass<ov::pass::ResolveNameCollisions>();
+    manager.register_pass<ov::pass::ResolveNameCollisions>(true);
     manager.run_passes(function);
 }
 

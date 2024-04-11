@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -179,6 +179,38 @@ static std::string name_of_subgraph_file(const std::shared_ptr<ov::Node> op,
     return file_name;
 }
 
+static void collect_symbol_print_values(const std::shared_ptr<ov::Model>& m,
+                                        std::unordered_map<std::shared_ptr<ov::Symbol>, size_t>& symbol_to_number) {
+    size_t n = symbol_to_number.size() + 1;
+    for (const auto& node : m->get_ops()) {
+        if (auto multi_subgraph_op = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node))
+            for (size_t i = 0; i < multi_subgraph_op->get_internal_subgraphs_size(); ++i)
+                if (const auto& sub_graph = multi_subgraph_op->get_function(i))
+                    collect_symbol_print_values(sub_graph, symbol_to_number);
+
+        for (const auto& output : node->outputs()) {
+            const auto& shape = output.get_partial_shape();
+            if (shape.rank().is_dynamic())
+                continue;
+            for (const auto& dim : shape)
+                if (auto symbol = dim.get_symbol()) {
+                    const auto& root = ov::symbol::ancestor_of(symbol);
+                    if (symbol_to_number.count(root))
+                        continue;
+                    symbol_to_number[root] = n++;
+                }
+            const auto& value_symbols = output.get_tensor().get_value_symbol();
+            for (const auto& value_symbol : value_symbols)
+                if (value_symbol) {
+                    const auto& root = ov::symbol::ancestor_of(value_symbol);
+                    if (symbol_to_number.count(root))
+                        continue;
+                    symbol_to_number[root] = n++;
+                }
+        }
+    }
+}
+
 bool ov::pass::VisualizeTree::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_MODEL_SCOPE(VisualizeTree);
     std::unordered_map<Node*, HeightMap> height_maps;
@@ -192,6 +224,8 @@ bool ov::pass::VisualizeTree::run_on_model(const std::shared_ptr<ov::Model>& f) 
     }
 
     auto nodes = topological_sort(f->get_ops());
+
+    collect_symbol_print_values(f, m_symbol_to_name);
 
     for (auto it = nodes.rbegin(); it != nodes.rend(); ++it) {
         auto& node = *it;
@@ -298,10 +332,32 @@ std::string ov::pass::VisualizeTree::add_attributes(std::shared_ptr<Node> node) 
     return rc;
 }
 
-static std::string pretty_partial_shape(const ov::PartialShape& shape) {
-    std::stringstream ss;
-    ss << shape;
-    return ss.str();
+static std::string pretty_partial_shape(
+    const ov::PartialShape& shape,
+    const std::unordered_map<std::shared_ptr<ov::Symbol>, size_t>& symbol_map = {}) {
+    std::stringstream str;
+    if (shape.rank().is_static()) {
+        str << "[";
+        bool first = true;
+        for (auto& d : shape) {
+            if (!first) {
+                str << ",";
+            }
+            if (const auto& symbol = d.get_symbol()) {
+                const auto& root = ov::symbol::ancestor_of(symbol);
+                if (symbol_map.count(root))
+                    str << "<" << symbol_map.at(root) << ">";
+                else
+                    str << "<?>";
+            }
+            str << d;
+            first = false;
+        }
+        str << "]";
+    } else {
+        str << "[...]";
+    }
+    return str.str();
 }
 
 template <typename T>
@@ -373,7 +429,10 @@ static std::string get_value(const std::shared_ptr<ov::op::v0::Constant>& consta
     case ov::element::Type_t::undefined:
     case ov::element::Type_t::dynamic:
     case ov::element::Type_t::u1:
+    case ov::element::Type_t::u2:
+    case ov::element::Type_t::u3:
     case ov::element::Type_t::u4:
+    case ov::element::Type_t::u6:
     case ov::element::Type_t::nf4:
     case ov::element::Type_t::i4:
     case ov::element::Type_t::f8e4m3:
@@ -414,23 +473,41 @@ static std::string get_value(const std::shared_ptr<ov::op::v0::Constant>& consta
     return ss.str();
 }
 
-static std::string get_bounds_and_label_info(const ov::Output<ov::Node> output) {
+static std::string pretty_symbol_value(const ov::TensorSymbol& symbols,
+                                       const std::unordered_map<std::shared_ptr<ov::Symbol>, size_t>& symbol_map = {}) {
+    std::vector<size_t> mapped_symbols;
+    for (const auto& symbol : symbols) {
+        if (symbol) {
+            const auto& root = ov::symbol::ancestor_of(symbol);
+            if (symbol_map.count(root)) {
+                mapped_symbols.push_back(symbol_map.at(root));
+                continue;
+            }
+        }
+        mapped_symbols.push_back(0);
+    }
+    return pretty_value(mapped_symbols);
+}
+
+static std::string get_bounds_and_label_info(
+    const ov::Output<ov::Node> output,
+    const std::unordered_map<std::shared_ptr<ov::Symbol>, size_t>& symbol_map = {}) {
     const auto& tensor = output.get_tensor();
     const auto& lower = tensor.get_lower_value();
     const auto& upper = tensor.get_upper_value();
-    const auto& value_label = tensor.get_value_label();
+    const auto& value_symbol = tensor.get_value_symbol();
 
-    if (!lower && !upper && value_label.empty())
+    if (!lower && !upper && value_symbol.empty())
         return "";
 
     std::stringstream label;
-    size_t size = lower ? lower.get_size() : upper ? upper.get_size() : value_label.size();
+    size_t size = lower ? lower.get_size() : upper ? upper.get_size() : value_symbol.size();
     if (size == 0) {
         label << "empty";
     } else {
         label << " lower: " << (lower ? get_value(std::make_shared<ov::op::v0::Constant>(lower), true) : "NONE");
         label << " upper: " << (upper ? get_value(std::make_shared<ov::op::v0::Constant>(upper), true) : "NONE");
-        label << " label: " << (value_label.empty() ? "NONE" : pretty_value(value_label));
+        label << " symbl: " << (value_symbol.empty() ? "NONE" : pretty_symbol_value(value_symbol, symbol_map));
     }
     return label.str();
 }
@@ -438,7 +515,7 @@ static std::string get_bounds_and_label_info(const ov::Output<ov::Node> output) 
 std::string ov::pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> node, size_t max_elements) {
     std::stringstream ss;
     ss << "{" << node->get_element_type().to_string() << "}";
-    ss << pretty_partial_shape(node->get_output_partial_shape(0));
+    ss << pretty_partial_shape(node->get_output_partial_shape(0), m_symbol_to_name);
 
     if (const auto& constant = ov::as_type_ptr<ov::op::v0::Constant>(node)) {
         std::string value;
@@ -483,7 +560,7 @@ std::string ov::pass::VisualizeTree::get_attributes(std::shared_ptr<Node> node) 
                     if (nvtot)
                         label << "{" << input.get_element_type().to_string() << "}";
                     if (nvtos)
-                        label << pretty_partial_shape(input.get_partial_shape());
+                        label << pretty_partial_shape(input.get_partial_shape(), m_symbol_to_name);
                     label << ": " << node->get_input_node_ptr(input.get_index())->get_name() << ": out"
                           << input.get_source_output().get_index();
 
@@ -498,13 +575,13 @@ std::string ov::pass::VisualizeTree::get_attributes(std::shared_ptr<Node> node) 
                 if (nvtot)
                     label << "{" << output.get_element_type().to_string() << "}";
                 if (nvtos)
-                    label << pretty_partial_shape(output.get_partial_shape());
+                    label << pretty_partial_shape(output.get_partial_shape(), m_symbol_to_name);  // TODO
 
                 if (nvtrti) {
                     label << get_attribute_values(output.get_rt_info());
                 }
                 if (ovpvl)
-                    label << get_bounds_and_label_info(output);
+                    label << get_bounds_and_label_info(output, m_symbol_to_name);  // TODO
             }
         }
 

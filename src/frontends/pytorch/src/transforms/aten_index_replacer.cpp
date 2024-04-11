@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -261,8 +261,6 @@ AtenIndexToSelect::AtenIndexToSelect() {
             replace_node(index_op, gather);
             return true;
         }
-        add_exception_to_fw_node(index_op, "Unsupported case of aten::index.");
-        return false;
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(index_op, "ov::frontend::pytorch::pass::AtenIndexToSelect");
