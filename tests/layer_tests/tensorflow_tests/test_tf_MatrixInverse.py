@@ -12,23 +12,28 @@ class TestMatrixInverse(CommonTFLayerTest):
         input_shape = inputs_info['input:0']
         inputs_data = {}
 
-        self.invertible_matrices = self._generate_invertible_matrices()
-
-        if len(input_shape) == 3 and input_shape[1] == input_shape[2]:  # Square matrices with batches
-            matrices = np.random.choice(self.invertible_matrices, size=input_shape[0])
-            inputs_data['input:0'] = np.stack(matrices, axis=0)
-        else:
-            inputs_data['input:0'] = np.random.choice(self.invertible_matrices)
+        self.invertible_matrices = self._generate_invertible_matrices(input_shape)
+        inputs_data['input:0'] = np.stack(self.invertible_matrices, axis=0)
 
         return inputs_data
     
-    def _generate_invertible_matrices(self):
+    def _generate_invertible_matrices(self, input_shape):
         matrices = [
-            np.array([[1, 0], [0, 1]], dtype=np.float32),
-            np.array([[1, 2], [3, 4]], dtype=np.float32),
-            np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=np.float32),
+            np.arange(4).reshape(2, 2),
+            np.arange(9).reshape(3, 3),
+            np.arange(16).reshape(4, 4),
+            [np.arange(16).reshape(4, 4), np.arange(16, 32).reshape(4, 4)],
         ]
-        return matrices
+        if len(input_shape) == 2:
+            if len(input_shape[0]) == 2:
+                matrix = matrices[0]
+            elif len(input_shape[0]) == 3:
+                matrix = matrices[1]
+            elif len(input_shape[0]) == 4:
+                matrix = matrices[2]
+        else:
+            matrix = matrix[3]
+        return matrix
 
     def create_matrix_inverse_net(self, input_shape, adjoint=False):
         tf.compat.v1.reset_default_graph()
@@ -48,6 +53,7 @@ class TestMatrixInverse(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
+    @pytest.mark.parametrize("adjoint", [True, False])
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_matrix_inverse_basic(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
