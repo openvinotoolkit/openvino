@@ -712,32 +712,12 @@ bool layout_optimizer::should_select_b_fs_yx_fsv16_layout(convolution_node const
     auto current_conv_partially_supports_layout = convolution_b_fs_yx_fsv16_opt(input_layout, output_layout, weights_layout, prim, true);
     auto may_use_weak_restrictions = is_prev_conv_node_supports_layout || weak_restriction_cond;
 
-    std::function<bool(const program_node&, size_t, size_t)> need_heavy_reorder = [&](const program_node& node, size_t cur_depth, size_t max_depth) {
-        if (cur_depth > max_depth) return false;
-        if (node.is_type<reorder>()) {
-            for (auto& reorder_user : node.get_users()) {
-                if (reorder_user->is_type<reshape>()) {
-                    for (auto& reshape_user : reorder_user->get_users()) {
-                        // Meteor Lake showed planar format Convolution without Reorder is better than
-                        // blocked format Convolution in case Reorder is larger than [1, 512, 128, 128].
-                        if (reshape_user->is_type<mvn>() && node.get_output_layout().get_linear_size() > 8300000) {
-                            GPU_DEBUG_LOG << node.id() << ": " << node.get_output_layout().to_short_string() << " -> heavy reorder" << std::endl;
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-        bool res = false;
-        for (const auto& usr : node.get_users()) {
-            res |= need_heavy_reorder(*usr, cur_depth + 1, max_depth);
-        }
-        return res;
-    };
-
     return (((_optimization_attributes.b_fs_yx_fsv16_network) &&
             (current_conv_supports_layout || (may_use_weak_restrictions && current_conv_partially_supports_layout))) ||
-           input_layout.format == format::b_fs_yx_fsv16) && !need_heavy_reorder(reinterpret_cast<program_node const&>(node), 0, 3);
+           input_layout.format == format::b_fs_yx_fsv16) &&
+           !has_rank3_mvn_user(reinterpret_cast<program_node const&>(node), 0, 3, 8300000);
+            // Decoder in Stable-Diffusion showed planar format Convolution without Reorder is better than
+            // blocked format Convolution in case Reorder is larger than [1, 512, 128, 128].
 }
 
 bool layout_optimizer::convolution_b_fs_zyx_fsv16_opt(const layout& input_layout,
@@ -1145,6 +1125,35 @@ bool layout_optimizer::is_mixed_layout(program_node& prev, program_node& next, b
     return false;
 }
 
+static bool has_rank3_mvn_user(const program_node& node, size_t cur_depth, size_t max_depth, int64_t reorder_size_threshold = 0) {
+    // MVN with rank size 3 always requires Reorder and Reshape. Due to this pattern, too many Reorder may occur when used with Convolution,
+    // which may performance degradation. It stand out in Stable-Diffusion Unet and Decoder.
+    if (cur_depth > max_depth) return false;
+    if (node.is_type<reorder>()) {
+        for (auto& reorder_user : node.get_users()) {
+            if (reorder_user->is_type<reshape>()) {
+                for (auto& reshape_user : reorder_user->get_users()) {
+                    if (reshape_user->is_type<mvn>()) {
+                        if (reorder_size_threshold == 0) {
+                            return true;
+                        } else {
+                            if (node.get_output_layout().get_linear_size() > reorder_size_threshold) {
+                                GPU_DEBUG_LOG << node.id() << ": " << node.get_output_layout().to_short_string() << " -> heavy reorder" << std::endl;
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    bool res = false;
+    for (const auto& usr : node.get_users()) {
+        res |= has_rank3_mvn_user(*usr, cur_depth + 1, max_depth);
+    }
+    return res;
+}
+
 format layout_optimizer::get_expected_format(convolution_node const& node) {
     auto prim = node.get_primitive();
     auto input_layout = node.get_input_layout(0);
@@ -1213,79 +1222,14 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
                   || (_optimized_conv_count.at({format::fs_b_yx_fsv32, false}) * cond_denom > 0.8f)) &&
                   convolution_fs_b_yx_fsv32_opt(input_layout,
                                                 output_layout,
-                                                weights_layout, prim, true))))) {
+                                                weights_layout, prim, true)))) &&
+                 !(has_rank3_mvn_user(reinterpret_cast<program_node const&>(*node.get_users().front()), 0, 3) &&
+                     !static_cast<bool>(prepare_padding::get_convolution_needed_padding(node)))) {
             // Chose fs_b_yx_fsv32 layout in two cases: 1-st: the current conv primitive totally supports fs_b_yx_fsv32 layout
             //                                          2-nd: the previous conv primitive supports fs_b_yx_fsv32 layout and
             //                                                current conv primitives supports this one with weak restrictions -
             //                                                that should be cheaper than reordering data to another layout
             expected_format = format::fs_b_yx_fsv32;
-
-            int val = 4;
-            get_env("CONV_TEST", val);
-
-            std::function<bool(const program_node&, size_t, size_t)> user_is_reorder = [&](const program_node& node, size_t cur_depth, size_t max_depth) {
-                if (cur_depth > max_depth) return false;
-                if (node.is_type<reorder>()) {
-                    for (auto& reorder_user : node.get_users()) {
-                        if (reorder_user->is_type<reshape>()) {
-                            for (auto& reshape_user : reorder_user->get_users()) {
-                                if (reshape_user->is_type<mvn>()) {
-                                    GPU_DEBUG_LOG << node.id() << ": " << node.get_output_layout().to_short_string() << " -> reorder pattern!" << std::endl;
-                                    return true;
-                                }
-                            }
-                        }
-                    }
-                }
-                bool res = false;
-                for (const auto& usr : node.get_users()) {
-                    res |= user_is_reorder(*usr, cur_depth + 1, max_depth);
-                }
-                return res;
-            };
-
-            std::function<bool(const program_node&, size_t, size_t)> has_rank3_mvn_user = [&](const program_node& node, size_t cur_depth, size_t max_depth) {
-                if (cur_depth > max_depth) return false;
-                if (node.is_type<reorder>()) {
-                    for (auto& reorder_user : node.get_users()) {
-                        if (reorder_user->is_type<reshape>()) {
-                            for (auto& reshape_user : reorder_user->get_users()) {
-                                if (reshape_user->is_type<mvn>()) {
-                                    return true;
-                                }
-                            }
-                        }
-                    }
-                }
-                bool res = false;
-                for (const auto& usr : node.get_users()) {
-                    res |= has_rank3_mvn_user(*usr, cur_depth + 1, max_depth);
-                }
-                return res;
-            };
-            if (val == 1) {
-                if (!static_cast<bool>(prepare_padding::get_convolution_needed_padding(node)))
-                    expected_format = format::bfyx;
-            } else if (val == 2) {
-                if (user_is_reorder(reinterpret_cast<program_node const&>(node), 0, 3)) {
-                    expected_format = format::bfyx;
-                }
-            } else if (val == 3) {
-                int val_user = 4;
-                get_env("CONV_TEST_U", val_user);
-                if (!static_cast<bool>(prepare_padding::get_convolution_needed_padding(node))
-                    && user_is_reorder(reinterpret_cast<program_node const&>(node), 0, val_user)) {
-                    expected_format = format::bfyx;
-                }
-            } else if (val == 4) {
-                int val_user = 3;
-                get_env("CONV_TEST_U", val_user);
-
-                if (has_rank3_mvn_user(reinterpret_cast<program_node const&>(*node.get_users().front()), 0, val_user) &&
-                     !static_cast<bool>(prepare_padding::get_convolution_needed_padding(node))) {
-                    expected_format = format::bfyx;
-                }
-            }
         } else if (should_select_b_fs_yx_fsv16_layout(node, weights_layout)) {
             expected_format = cldnn::format::b_fs_yx_fsv16;
         } else if (output_layout.data_type == data_types::f16 &&
