@@ -266,7 +266,7 @@ void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& pr
 
                 // We don't take into account constant edges since reorders on them will be executed on load network stage
                 if (ignoreConstInputs && j > 0 && parentPtr->isConstant()) {
-                    equalsLocalFormatCount++;
+                    equalsLocalFormatCount += 100;
                     continue;
                 }
 
@@ -282,8 +282,44 @@ void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& pr
 
                     const bool isCompatible = curDesc->isCompatible(*parentDesc);
 
-                    if (isCompatible) {
-                        equalsLocalFormatCount++;
+                    /*
+                    Heuristics:
+                    SShape=Shape(all elements = 1 or only 1 position is not 1)
+                    Reorder is inserted after the SShape node, and such reorder have less cost of calculation.
+                    If multiple inputs of a node have different layouts, try to have the reorder occur on the SShape
+                    node.
+
+                    Select Alogrithm:
+                    Condition 1: Precision and shape keep same.
+                    Condition 2: Static shape.
+                    1: Compatible + not SShape:  score=100
+                    2: Compatible + SShape:      score=2
+                    3: Not Compatible + SShape:  score=1
+                    4: Others:                   score=0
+                    */
+                    if ((curDesc->getPrecision() == parentDesc->getPrecision()) && curDesc->getShape().isStatic() &&
+                        parentDesc->getShape().isStatic() && curDesc->getShape() == parentDesc->getShape()) {
+                        bool isSShape = false;
+                        auto curDims = curDesc->getShape().getDims();
+                        size_t noneOneNum = 0;
+                        for (size_t d = 0; d < curDims.size(); d++) {
+                            if (curDims[d] != 1u) {
+                                noneOneNum++;
+                            }
+                        }
+                        isSShape = (noneOneNum == 1u) || (noneOneNum == 0);
+
+                        if (isCompatible && (!isSShape)) {
+                            equalsLocalFormatCount += 100;
+                        } else if (isCompatible && isSShape) {
+                            equalsLocalFormatCount += 2;
+                        } else if (!isCompatible && isSShape) {
+                            equalsLocalFormatCount += 1;
+                        }
+                    } else {
+                        if (isCompatible) {
+                            equalsLocalFormatCount += 100;
+                        }
                     }
 
                     DEBUG_LOG(getName(), " pd[", i, "].inConfs[", j, "]"
