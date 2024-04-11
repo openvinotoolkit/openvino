@@ -18,7 +18,7 @@ each targeting a different use case.
 
 * The highest level of security and stability is required.
 * There is no need for frequent changes in hardware or model support.
-* Upgrading is challenging, e.g., due to a high software complexity.
+* Upgrading is challenging, e.g., due to high software complexity.
 
 | :ref:`Nightly packages <nightly-packages>` :
 |    OpenVINO also offers nightly packages, as a preview of most recent changes. Due to potential
