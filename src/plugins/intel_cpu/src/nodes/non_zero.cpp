@@ -11,6 +11,12 @@
 #include <utils/bfloat16.hpp>
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 
+#if defined(__GNUC__) && (__GNUC__ >= 4) || defined(__clang__)
+#    define VISIBILITY_DEFAULT __attribute__((visibility("default")))
+#else
+#    define VISIBILITY_DEFAULT
+#endif
+
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -71,7 +77,7 @@ void NonZero::initSupportedPrimitiveDescriptors() {
 }
 
 template <typename T>
-__attribute__((visibility("default"))) std::vector<size_t> NonZero::getNonZeroElementsCount(const T* src, const Shape& inShape) {
+VISIBILITY_DEFAULT std::vector<size_t> NonZero::getNonZeroElementsCount(const T* src, const Shape& inShape) {
     T zero = 0;
     std::vector<size_t> counts;
     size_t inSize = inShape.getElementsCount();
@@ -133,7 +139,7 @@ void NonZero::execute(dnnl::stream strm) {
               OV_CASE(ov::element::u8, uint8_t))
 }
 template <typename T>
-__attribute__((visibility("default"))) void NonZero::executeSpecified() {
+VISIBILITY_DEFAULT void NonZero::executeSpecified() {
     const T zero = 0;
     const T *src = getSrcDataAtPortAs<T>(0);
     auto dstMemPtr = getDstMemoryAtPort(0);
