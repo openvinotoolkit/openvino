@@ -1732,10 +1732,13 @@ void ScaledDotProductAttention::updateBeamTable(const MemoryPtr& mem_beam_idx, s
 
 // Update pastkv using cur_k, cur_v, simply append cur_k, cur_v to the end of pastkv in the state.
 void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const MemoryPtr& mem_cur_v) {
+    // L, B, H, S -> [2, 0, 1, 3] -> B, H, L, S
     std::vector<size_t> order = {0, 1, 2, 3};
     if (!m_config.config.permute_axes.empty()) {
         order = m_config.config.permute_axes;
     }
+    // order aims to pemute input to B, H, L, S, but the real layout of past key value here is L, B, H, S
+    std::vector<size_t> real_order = {order[2], order[0], order[1], order[3]};
     PlainTensor cur_k, past_k;
     PlainTensor cur_v, past_v;
     cur_k.reset(mem_cur_k);
@@ -1768,10 +1771,11 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
     bool need_redefine = true;
     if (B * H * (L0 + L1) * S > m_k_state->internal_state_max_size()) {
         auto new_shape = {B, H, (L0 + L1) * 2, S};
+        auto real_shape = {(L0 + L1) * 2, B, H, S};
         auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(kvcache_precision,
             Shape(reverse(new_shape)),
-            new_shape,
-            order);
+            real_shape,
+            real_order);
 
         auto new_internal_mem_k = std::make_shared<Memory>(getEngine(), mem_desc);
         auto new_internal_mem_v = std::make_shared<Memory>(getEngine(), mem_desc);
@@ -1794,8 +1798,8 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
         past_v = new_pastv;
         m_k_state->assign_internal_state(new_internal_mem_k);
         m_v_state->assign_internal_state(new_internal_mem_v);
-        m_k_state->assign_internal_state_max_size(B * H * (L0 + L1) * 2 * S);
-        m_v_state->assign_internal_state_max_size(B * H * (L0 + L1) * 2 * S);
+        m_k_state->assign_internal_state_max_size(2 * (L0 + L1) * B * H * S);
+        m_v_state->assign_internal_state_max_size(2 * (L0 + L1) * B * H * S);
         if (kvcache_precision == ov::element::u8) {
             auto& old_scale_zp_k = m_k_state->get_scale_zp();
             auto& old_scale_zp_v = m_v_state->get_scale_zp();
@@ -1819,19 +1823,21 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
         }
     } else if (is_reset) {
         // when reset and not resize, just reset the desc
+        // std::cout << "going to reset" << std::endl;
         need_redefine = false;
         auto size = m_k_state->internal_state_max_size();
         auto max_l = size / (B * H * S);
         VectorDims strides(4);
-        strides[0] = H * max_l * S;
-        strides[1] = max_l * S;
+        strides[0] = H * B * S;
+        strides[1] = H * S;
         strides[2] = S;
         strides[3] = 1;
         auto new_shape = {B, H, (L0 + L1), S};
+        auto real_shape = {(L0 + L1), B, H, S};
         auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(kvcache_precision,
             Shape(reverse(new_shape)),
-            new_shape,
-            order,
+            real_shape,
+            real_order,
             0,
             VectorDims{},
             strides);
@@ -1849,10 +1855,11 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
     }
     if (need_redefine) {
         auto new_shape = {B, H, (L0 + L1), S};
+        auto real_shape = {(L0 + L1), B, H, S};
         auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(kvcache_precision,
             Shape(reverse(new_shape)),
-            new_shape,
-            order,
+            real_shape,
+            real_order,
             0,
             VectorDims{},
             internal_mem_k->getDescWithType<BlockedMemoryDesc>()->getStrides());
