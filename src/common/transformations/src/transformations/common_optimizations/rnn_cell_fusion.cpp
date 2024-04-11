@@ -45,19 +45,19 @@ ov::pass::RNNCellTfKerasFusion::RNNCellTfKerasFusion() {
     auto Ht_label = pattern::any_input();
     auto R_label = pattern::any_input();
     //think to check if R is transposed
-    auto matmul_label_1 = pattern::wrap_type<op::v0::MatMul>({Ht_label, R_label});
+    auto matmul1_label = pattern::wrap_type<op::v0::MatMul>({Ht_label, R_label});
 
     // B is Wb + Rb probably or something else combined
     auto B_label = pattern::any_input(); //?
-    auto add_label_1 = pattern::wrap_type<op::v1::Add>({B_label, matmul_label_1});
+    auto add_label_1 = pattern::wrap_type<op::v1::Add>({B_label, matmul1_label});
 
     //left
     auto X_label = pattern::any_input();
     auto W_label = pattern::any_input();
     //think to check if W is transposed
-    auto matmul_label_2 = pattern::wrap_type<op::v0::MatMul>({X_label, W_label});
+    auto matmul2_label = pattern::wrap_type<op::v0::MatMul>({X_label, W_label});
 
-    auto add_label_2 = pattern::wrap_type<op::v1::Add>({add_label_1, matmul_label_2});
+    auto add_label_2 = pattern::wrap_type<op::v1::Add>({add_label_1, matmul2_label});
 
     auto activation_func_label = pattern::wrap_type<op::v0::Relu, op::v0::Sigmoid, op::v0::Tanh>({add_label_2});
 
@@ -76,7 +76,21 @@ ov::pass::RNNCellTfKerasFusion::RNNCellTfKerasFusion() {
         const auto& X = pattern_map.at(X_label);
         const auto& Ht = pattern_map.at(Ht_label);
         const auto& W = pattern_map.at(W_label);
+        auto matmul_2 = ov::as_type_ptr<op::v0::MatMul>(pattern_map.at(matmul1_label).get_node_shared_ptr());
+        bool is_W_transposed = matmul_2->get_transpose_b();
+        if (is_W_transposed) {
+            std::cout << "W transposed" << std::endl;
+        } else {
+            std::cout << "W not transposed" << std::endl;
+        }
         const auto& R = pattern_map.at(R_label);
+        auto matmul_1 = ov::as_type_ptr<op::v0::MatMul>(pattern_map.at(matmul2_label).get_node_shared_ptr());
+        bool is_R_transposed = matmul_1->get_transpose_b();
+        if (is_R_transposed) {
+            std::cout << "R transposed" << std::endl;
+        } else {
+            std::cout << "R not transposed" << std::endl;
+        }
         const auto& B = pattern_map.at(B_label);
 
         // As I understood, this is num of RNN cells
