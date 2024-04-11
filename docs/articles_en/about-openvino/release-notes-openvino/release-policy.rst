@@ -62,7 +62,7 @@ The following package distributions are available for installation:
 
 .. tab-set::
 
-   .. tab-item:: OV Archives on S3
+   .. tab-item:: Downloadable Archives
       :sync: archives-s3
 
       1. Go to `OpenVINO Nightly Packages on S3 <https://storage.openvinotoolkit.org/repositories/openvino/packages/nightly/>`__.
