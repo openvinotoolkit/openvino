@@ -28,8 +28,6 @@ each targeting a different use case.
 * Early integration testing.
 * Previewing newest features/improvements.
 
-.. _long-term-support-policy:
-
 Long-Term Support Policy
 ###########################
 
