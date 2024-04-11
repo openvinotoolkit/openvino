@@ -874,8 +874,13 @@ jobs:
         run: |
           # The github.workspace folder is mounted outside the Docker
           # So we need to clean it up after the pipeline so that
-          # the host vm is cleaned as well  
-          rm -rf ${{ github.workspace }}/*
+          # the host vm is cleaned as well
+
+          du -sh ${{ github.workspace }}
+
+          pushd ${{ github.workspace }}
+            find . -name "*" -exec rm -rf "{}" \;
+          popd
 
   Overall_Status:
     name: ci/gha_overall_status
