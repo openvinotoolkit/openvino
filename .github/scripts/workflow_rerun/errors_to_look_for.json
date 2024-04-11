@@ -34,5 +34,9 @@
     {
         "error_text": "fatal error: downloading",
         "ticket": 131424
+    },
+    {
+        "error_text": "Failure when receiving data from the peer",
+        "ticket": 137121
     }
 ]
