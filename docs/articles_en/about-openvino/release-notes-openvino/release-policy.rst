@@ -101,9 +101,6 @@ The following package distributions are available for installation:
    .. tab-item:: OV Wheels on PyPi (not recommended)
       :sync: wheels-pypi
 
-      .. warning::
-
-         Python users should use the **OV Wheels on S3** package.
 
       Install OV Wheels from PyPI:
 
