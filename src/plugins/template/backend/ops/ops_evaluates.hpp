@@ -19,6 +19,10 @@ extern template bool evaluate_node<ov::op::v0::Ceiling>(std::shared_ptr<ov::Node
                                                         ov::TensorVector& outputs,
                                                         const ov::TensorVector& inputs);
 
+extern template bool evaluate_node<ov::op::v0::Convert>(std::shared_ptr<ov::Node> node,
+                                                        ov::TensorVector& outputs,
+                                                        const ov::TensorVector& inputs);
+
 extern template bool evaluate_node<ov::op::v0::CTCGreedyDecoder>(std::shared_ptr<ov::Node> node,
                                                                  ov::TensorVector& outputs,
                                                                  const ov::TensorVector& inputs);
