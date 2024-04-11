@@ -880,7 +880,7 @@ jobs:
 
           du -sh $GITHUB_WORKSPACE
 
-          rm -rf $GITHUB_WORKSPACE/*
+          find $GITHUB_WORKSPACE/* -name "*" -prune -exec rm -rf {} \;
 
           du -sh $GITHUB_WORKSPACE
 
