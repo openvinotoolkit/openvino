@@ -83,14 +83,20 @@ JitConstants ConvolutionKernelBase::GetJitConstants(const convolution_params& pa
         }
     }
 
+    return mem_consts;
+}
+
+JitConstants ConvolutionKernelBase::GetJitConstantsWithLoopUnroll(const convolution_params& params, const DispatchData& dispatchData) const {
+    JitConstants mem_consts = ConvolutionKernelBase::GetJitConstants(params, dispatchData);
+
     std::vector<uint32_t> unrollLoopParams{params.filterSize.x,
-                                           params.filterSize.y,
-                                           (uint32_t)dispatchData.gemmStyle.globalWorkSizeDX,
-                                           (uint32_t)dispatchData.gemmStyle.globalWorkSizeDY,
-                                           (uint32_t)dispatchData.gemmStyle.globalWorkSizeDZ,
-                                           (uint32_t)dispatchData.gemmStyle.subBlockDimM,
-                                           (uint32_t)dispatchData.gemmStyle.subBlockDimK,
-                                           (uint32_t)dispatchData.gemmStyle.subBlockDimN};
+                                        params.filterSize.y,
+                                        (uint32_t)dispatchData.gemmStyle.globalWorkSizeDX,
+                                        (uint32_t)dispatchData.gemmStyle.globalWorkSizeDY,
+                                        (uint32_t)dispatchData.gemmStyle.globalWorkSizeDZ,
+                                        (uint32_t)dispatchData.gemmStyle.subBlockDimM,
+                                        (uint32_t)dispatchData.gemmStyle.subBlockDimK,
+                                        (uint32_t)dispatchData.gemmStyle.subBlockDimN};
 
     auto loopCount = *std::max_element(unrollLoopParams.begin(), unrollLoopParams.end());
 
