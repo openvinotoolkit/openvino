@@ -74,6 +74,8 @@ Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
                                              : _core.read_model(args->model_str, args->weight_tensor);
         delete args;
 
+        std::cout << "CORE REF: '" << &_core << "' <<" << std::endl;
+
         return ModelWrap::wrap(info.Env(), model);
     } catch (std::runtime_error& err) {
         reportError(info.Env(), err.what());
@@ -85,7 +87,7 @@ Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
 Napi::Value CoreWrap::read_model_async(const Napi::CallbackInfo& info) {
     try {
         ReadModelArgs* args = new ReadModelArgs(info);
-        ReaderWorker* _readerWorker = new ReaderWorker(info.Env(), args);
+        ReaderWorker* _readerWorker = new ReaderWorker(info.Env(), _core, args);
         _readerWorker->Queue();
 
         return _readerWorker->GetPromise();

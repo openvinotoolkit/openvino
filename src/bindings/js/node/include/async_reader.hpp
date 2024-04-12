@@ -14,11 +14,13 @@ public:
      * @brief Constructs ReaderWorker class that is responisible for reading the model asynchronously.
      * @param info contains passed arguments. Can be empty.
      */
-    ReaderWorker(const Napi::Env& env, ReadModelArgs* args)
+    ReaderWorker(const Napi::Env& env, ov::Core& core, ReadModelArgs* args)
         : Napi::AsyncWorker{env, "ReaderWorker"},
           _deferred{env},
+          _core{core},
           _args{args},
           _model{} {
+        // OPENVINO_ASSERT(_core, "Invalid pointer to Core.");
         OPENVINO_ASSERT(_args, "Invalid pointer to ReadModelArgs.");
     }
 
@@ -37,4 +39,5 @@ private:
     Napi::Promise::Deferred _deferred;
     ReadModelArgs* _args;
     std::shared_ptr<ov::Model> _model;
+    ov::Core& _core;
 };
