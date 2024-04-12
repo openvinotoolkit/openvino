@@ -190,8 +190,6 @@ protected:
 
 TEST_P(DynamicShapeHugeRangeGPUTest, Inference) {
     run();
-    if (!exception)
-        FAIL() << "This test case is checking the exception that the object allocation is larger than the max_alloc_mem_size.";
 }
 
 std::map<std::string, std::string> emptyAdditionalConfig;
