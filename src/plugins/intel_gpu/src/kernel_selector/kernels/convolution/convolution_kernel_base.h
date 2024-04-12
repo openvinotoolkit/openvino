@@ -36,10 +36,8 @@ public:
             size_t globalWorkSizeDZ;
         };
 
-        union {
-            CLDNNStyle cldnnStyle;
-            GEMMStyle gemmStyle;
-        };
+        CLDNNStyle cldnnStyle;
+        GEMMStyle gemmStyle;
     };
 
     std::string GetAutoTuneOptions(int autoTuneIndex) const;
@@ -53,6 +51,7 @@ protected:
     virtual bool NeedPaddedInput() const { return false; }
     bool Validate(const Params& p) const override;
     using WeightBiasKernelBase::GetJitConstants;
+    JitConstants GetJitConstantsWithLoopUnroll(const convolution_params& params, const DispatchData& dispatchData) const;
     virtual JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const;
     virtual JitConstants GetFusedPrimitivesJitConstants(const convolution_params& params, const DispatchData& dispatchData) const;
     virtual DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const;
