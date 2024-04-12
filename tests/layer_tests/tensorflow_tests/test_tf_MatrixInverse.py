@@ -28,15 +28,15 @@ class TestMatrixInverse(CommonTFLayerTest):
                              [9, 10, 11, 12],
                              [13, 14, 15, 16]], dtype=np.float32)
         elif input_shape == [2, 4, 4]:
-            return np.array([[[1, 2, 3, 4],
-                              [5, 6, 7, 8],
+            return np.array([[[10, 2, 3, 4],
+                              [5, 10, 7, 8],
                               [9, 10, 11, 12],
                               [13, 14, 15, 16]],
-                             [[17, 18, 19, 20],
-                              [21, 22, 23, 24],
-                              [25, 26, 27, 28],
-                              [29, 30, 31, 32]]
-                            ], dtype=np.float32)
+                              [[1, 2, 3, 4],
+                               [5, 6, 7, 8],
+                               [9, 10, 6, 12],
+                               [13, 14, 15, 10]]
+                               ], dtype=np.float32)
                              
     def create_matrix_inverse_net(self, input_shape, adjoint):
         self.input_shape = input_shape
