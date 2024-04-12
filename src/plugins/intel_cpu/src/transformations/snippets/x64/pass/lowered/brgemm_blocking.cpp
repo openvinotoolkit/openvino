@@ -120,14 +120,19 @@ bool BrgemmBlocking::run(LinearIR& linear_ir, LinearIR::constExprIt begin, Linea
             const auto copy_b = brgemm_cpu->get_brgemm_copy();
             copy_b_expr = linear_ir.get_expr_by_node(copy_b);
 
-            auto copy_b_subtensor = copy_b_expr->get_input_port_descriptor(0)->get_subtensor();
-            *copy_b_subtensor.rbegin() = block_size_n;
-            *++copy_b_subtensor.rbegin() = block_size_k;
+            auto data_repacking_subtensor = copy_b_expr->get_input_port_descriptor(0)->get_subtensor();
+            *data_repacking_subtensor.rbegin() = block_size_n;
+            *++data_repacking_subtensor.rbegin() = block_size_k;
 
-            copy_b_expr->get_input_port_descriptor(0)->set_subtensor(copy_b_subtensor);
-            copy_b_expr->get_output_port_descriptor(0)->set_subtensor(copy_b_subtensor);
-            if (copy_b->is_with_compensations())
-                copy_b_expr->get_output_port_descriptor(1)->set_subtensor(copy_b_subtensor);
+            copy_b_expr->get_input_port_descriptor(0)->set_subtensor(data_repacking_subtensor);
+            copy_b_expr->get_output_port_descriptor(0)->set_subtensor(data_repacking_subtensor);
+            if (copy_b->is_with_compensations()) {
+                auto compensations_subtensor = copy_b_expr->get_output_port_descriptor(1)->get_subtensor();
+                // Compensations are computed by N dimension
+                *compensations_subtensor.rbegin() = block_size_n;
+                *++compensations_subtensor.rbegin() = 1;
+                copy_b_expr->get_output_port_descriptor(1)->set_subtensor(compensations_subtensor);
+            }
         }
 
         auto mark_m_blocking = [&]() {

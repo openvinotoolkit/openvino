@@ -78,9 +78,9 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa, const ov
 
     init_in_scheduling_params(input_0_desc);
     if (brgemm_node->is_with_data_repacking()) {
-        const auto comp_shape = brgemm_node->get_brgemm_copy()->get_compensations_buffer_shape();
-        OV_CPU_JIT_EMITTER_ASSERT(!comp_shape.empty(), "Buffer compensations allocation shape mustn't be empty");
-        leading_dimensions.push_back(comp_shape.back());
+        const auto repacking_buffer_shape = brgemm_node->get_brgemm_copy()->get_repacking_buffer_shape();
+        OV_CPU_JIT_EMITTER_ASSERT(!repacking_buffer_shape.empty(), "Repacking buffer shape mustn't be empty");
+        leading_dimensions.push_back(repacking_buffer_shape.back());
     } else {
         init_in_scheduling_params(input_1_desc);
     }

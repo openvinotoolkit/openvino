@@ -37,11 +37,17 @@ private:
                         const void* src, const void* dst, const void* comp, size_t N, size_t K);
 
     std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t> m_kernel;
-
     ov::element::Type m_brg_weight_etype;
-    size_t m_N_blk, m_inner_N_block, m_inner_N_tail;
-    size_t m_K_blk;
-    size_t m_brgemmVNNIFactor;
+
+    // Block size which is set by snippets: it is usually shared between brgemm and brgemm_copy_b nodes
+    size_t m_N_blk = 0lu;
+    // Block size which is used by the internal OneDNN implementation.
+    // It is used in snippets emitter to iterate through input/output data and call OneDNN kernel
+    size_t m_inner_N_block = 0lu;
+    size_t m_inner_N_tail = 0lu;
+
+    size_t m_K_blk = 0lu;
+    size_t m_brgemmVNNIFactor = 0lu;
 
     size_t m_in_offset = 0lu;
     size_t m_out_offset = 0lu;

@@ -76,9 +76,10 @@ private:
 
     size_t m_K_blk = 0;
     size_t m_N_blk = 0;
+    // OneDNN implementation requirement: BrgemmCopyB oneDNN implementation repacks data by m_brgemmVNNIFactor * m_inner_n_block blocks.
+    // Consequently, in snippets emitter, we need to invoke the oneDNN kernel iterating accordingly to this block
+    size_t m_inner_n_block = 0;
     size_t m_brgemmVNNIFactor = 1;
-    // OneDNN implementation requirement
-    constexpr static size_t m_inner_n_block = 64;
 };
 
 } // namespace intel_cpu

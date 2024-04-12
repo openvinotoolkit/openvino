@@ -46,25 +46,33 @@ jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h, cpu_isa_t
         leading_dimension = jit_brgemm_emitter::get_in_leading_dim(original_shape, layout);
     }
 
-    const auto& subtensor = in_desc->get_subtensor();
-    for (const auto& out_desc : expr->get_output_port_descriptors()) {
-        OV_CPU_JIT_EMITTER_ASSERT(out_desc->get_subtensor() == subtensor, "all subtensors must be equal");
-    }
-    m_N_blk = *subtensor.rbegin();
-    m_K_blk = *++subtensor.rbegin();
-
+    const auto& in_subtensor = in_desc->get_subtensor();
+    m_N_blk = *in_subtensor.rbegin();
+    m_K_blk = *++in_subtensor.rbegin();
+    OV_CPU_JIT_EMITTER_ASSERT(m_N_blk <= *transposed_shape.rbegin() && m_K_blk <= *++transposed_shape.rbegin(),
+                              "BrgemmCopyB has incompatible subtensor dimensions");
     m_inner_N_block = brgemm_repack->get_n_inner_block_size();
     m_inner_N_tail = m_N_blk % m_inner_N_block;
 
-    const auto LDB = m_brg_weight_etype == ov::element::f32 ? leading_dimension : brgemm_repack->get_compensations_buffer_shape()[0];
+    OV_CPU_JIT_EMITTER_ASSERT(expr->get_output_port_descriptor(0)->get_subtensor() == in_subtensor, "output and input subtensors must be equal");
+    if (m_with_comp) {
+        const auto& compensations_subtensor = expr->get_output_port_descriptor(1)->get_subtensor();
+        OV_CPU_JIT_EMITTER_ASSERT(
+            *compensations_subtensor.rbegin() == m_N_blk && *++compensations_subtensor.rbegin() == 1,
+            "compensations subtensor must be {1, m_N_blk}");
+    }
+
+    OV_CPU_JIT_EMITTER_ASSERT(!one_of(m_brg_weight_etype, element::bf16, element::i8), "doesn't support precision ", m_brg_weight_etype);
+    const auto repacking_buffer_shape = brgemm_repack->get_repacking_buffer_shape();
+    OV_CPU_JIT_EMITTER_ASSERT(!repacking_buffer_shape.empty(), "Repacking buffer shape mustn't be empty");
+    const auto& LDB = repacking_buffer_shape.back();
 
     const auto& brg_src_etype = brgemm_repack->get_src_element_type();
     m_brg_weight_etype = brgemm_repack->get_input_element_type(0);
     m_brgemmVNNIFactor = brgemm_repack->get_brgemm_vnni_factor();
 
-    const auto& N = *transposed_shape.rbegin();
-    const auto& K = *++transposed_shape.rbegin();
-    const auto use_amx = mayiuse(avx512_core_amx) && brg_src_etype != ov::element::f32 && (K % m_brgemmVNNIFactor == 0) && (N % m_brgemmVNNIFactor == 0);
+    const auto use_amx = mayiuse(avx512_core_amx) && brg_src_etype != ov::element::f32 &&
+                         (m_K_blk % m_brgemmVNNIFactor == 0) && (m_N_blk % m_brgemmVNNIFactor == 0);
 
     const auto src_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(brg_src_etype));
     const auto wei_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(m_brg_weight_etype));
