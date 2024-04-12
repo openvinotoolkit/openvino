@@ -156,13 +156,6 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
         const std::string not_divisible_k = "(" + leftover_k + "!=0)";
         const std::string full_iteration_k = "(" + k_size + "/" + std::to_string(tuning_data.tile_k_size) + ")";
 
-        bool tile_k_may_have_leftover = false;
-        if (k_size.find("shape_info") == std::string::npos) {
-            tile_k_may_have_leftover = ((std::stoi(k_size) % tuning_data.tile_k_size) != 0);
-        } else {
-            tile_k_may_have_leftover = true;
-        }
-
         bool tile_n_may_have_leftover = false;
         if (n_size.find("shape_info") == std::string::npos) {
             tile_n_may_have_leftover = ((std::stoi(n_size) % tuning_data.tile_n_size) != 0);
@@ -182,8 +175,7 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
             MakeJitConstant("TILE_N", tuning_data.tile_n_size),
             MakeJitConstant("K_FULL_ITERATIONS", full_iteration_k),
             MakeJitConstant("TILE_M_NOT_DIVISIBLE", not_divisible_m),
-            MakeJitConstant("TILE_K_NOT_DIVISIBLE", tile_k_may_have_leftover),
-            MakeJitConstant("TILE_K_NOT_DIVISIBLE_CALC", not_divisible_k),
+            MakeJitConstant("TILE_K_NOT_DIVISIBLE", not_divisible_k),
             MakeJitConstant("TILE_N_NOT_DIVISIBLE", tile_n_may_have_leftover),
             MakeJitConstant("TILE_N_NOT_DIVISIBLE_CALC", not_divisible_n),
             MakeJitConstant("TILE_M_LEFTOVER", leftover_m),
@@ -369,7 +361,7 @@ KernelsData GemmKernelTiledOpt::GetKernelsData(const Params& params) const {
     auto cldnn_jit = GetJitConstants(prim_params);
     if (params.is_shape_agnostic) {
         for (auto& jit_def : cldnn_jit.GetDefinitions()) {
-            if (jit_def.first.compare("TILE_K_NOT_DIVISIBLE_CALC") == 0) {
+            if (jit_def.first.compare("TILE_K_NOT_DIVISIBLE") == 0) {
                 auto prim_params = std::dynamic_pointer_cast<kernel_selector::gemm_params>(k_data.params);
                 prim_params->not_divisible_k = jit_def.second;
                 break;
@@ -378,11 +370,11 @@ KernelsData GemmKernelTiledOpt::GetKernelsData(const Params& params) const {
     }
     for (size_t i = 0; i < num_kernels; i++) {
         if (params.is_shape_agnostic) {
-            cldnn_jit.RemoveConstant("TILE_K_NOT_DIVISIBLE_CALC");
+            cldnn_jit.RemoveConstant("TILE_K_NOT_DIVISIBLE");
             if (i == 0) {
-                cldnn_jit.AddConstant(MakeJitConstant("TILE_K_NOT_DIVISIBLE_CALC", "0"));
+                cldnn_jit.AddConstant(MakeJitConstant("TILE_K_NOT_DIVISIBLE", "0"));
             } else {
-                cldnn_jit.AddConstant(MakeJitConstant("TILE_K_NOT_DIVISIBLE_CALC", "1"));
+                cldnn_jit.AddConstant(MakeJitConstant("TILE_K_NOT_DIVISIBLE", "1"));
             }
         }
         auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params, i);
