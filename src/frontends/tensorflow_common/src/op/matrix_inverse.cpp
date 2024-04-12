@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/inverse.hpp"
 #include "common_op_table.hpp"
+#include "openvino/op/inverse.hpp"
 
 using namespace std;
 using namespace ov::op;
