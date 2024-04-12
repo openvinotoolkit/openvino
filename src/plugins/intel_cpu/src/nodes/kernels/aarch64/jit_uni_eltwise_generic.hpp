@@ -178,7 +178,7 @@ private:
     // 14      | aux
     // 15      | aux
     // 16      | aux
-    // 17      | src
+    // 17      | aux
     // 18      | src
     // 19      | src
     // 20      | src
@@ -194,18 +194,18 @@ private:
         if (idx > MAX_ELTWISE_INPUTS) {
             OPENVINO_THROW("source vector register " + std::to_string(idx) + " is not supported");
         }
-        return TReg(17 + idx);
+        return TReg(18 + idx);
     }
 
     inline SReg get_scl_reg(const uint32_t idx) {
         if (idx > MAX_ELTWISE_INPUTS) {
             OPENVINO_THROW("source scalar register " + std::to_string(idx) + " is not supported");
         }
-        return SReg(17 + idx);
+        return SReg(18 + idx);
     }
 
     inline TReg get_aux_vmm(const uint32_t idx) {
-        if (idx > 6) {
+        if (idx > 7) {
             OPENVINO_THROW("aux vector register " + std::to_string(idx) + " is not supported");
         }
         return TReg(10 + idx);

@@ -147,6 +147,16 @@ std::shared_ptr<ov::Model> NodeContext::convert_subgraph(size_t index) const {
     return model;
 }
 
+bool NodeContext::input_is_none(size_t index) const {
+    bool res = index >= m_inputs_is_none.size() || m_inputs_is_none.at(index);
+    if (!res) {
+        // check case when input is from outside body
+        auto input = get_input_from_visible_context(index);
+        res = is_none_node(input);
+    }
+    return res;
+}
+
 namespace {
 std::shared_ptr<v0::Constant> get_constant_at_input(const NodeContext& ctx, size_t index, bool allow_empty = true) {
     FRONT_END_GENERAL_CHECK(!ctx.input_is_none(index), "Input with index: ", index, " is none.");
