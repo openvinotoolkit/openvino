@@ -313,6 +313,12 @@ INSTANTIATE_TEST_SUITE_P(
                 vector<float>{0.5f, 1.5f, 0.5f, 2.5f, 1.5f, 0.5f, 3.5f, 2.5f, 0.5f, 0.5f, 2.5f, 0.5f, 0.5f, 0.5f, 1.5f},
             std::vector<
                 float>{0.5f, 1.5f, 0.5f, 2.5f, 1.5f, 0.5f, 3.5f, 2.5f, 0.5f, 0.5f, 2.5f, 0.5f, 0.5f, 0.5f, 1.5f}),
+        ConvertParams(ConversionTypes::CONVERT_LIKE,
+                      ov::PartialShape{4},
+                      ov::element::nf4,
+                      ov::element::f32,
+                      std::vector<uint8_t>{0xE1, 0x1F},
+                      std::vector<float>{-0.6961928009986877f, 0.7229568362236023f, 1.0f, -0.6961928009986877f}),
         // destination i4
         ConvertParams(ConversionTypes::CONVERT_LIKE,
                       ov::PartialShape{4},

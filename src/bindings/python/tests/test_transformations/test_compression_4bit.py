@@ -20,12 +20,8 @@ def test_float_to_nf4_convert(ov_type, numpy_dtype):
 
     # Compress data to NF4
     compressed_const = opset.constant(data, dtype=ov.Type.nf4, name="nf4_constant")
-
-    # get decompressed data as f16
-    decompressed = opset.convert(compressed_const, ov.Type.f16)
-    # add additional convert if user type is not f16
-    if (ov_type != ov.Type.f16):
-        decompressed = opset.convert(decompressed, data.dtype)
+    # get decompressed data as tested OV type
+    decompressed = opset.convert(compressed_const, ov_type)
 
     parameter = opset.parameter(ov.PartialShape([-1]), ov_type)
     output = opset.add(parameter, decompressed)

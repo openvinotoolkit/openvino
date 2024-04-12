@@ -55,14 +55,14 @@ struct Evaluate : public element::NoAction<bool> {
                           count);
     }
 
-    // convert form NF4 to NF4
+    // convert form NF4
     template <element::Type_t ET_IN,
               class TI = fundamental_type_for<ET_IN>,
               typename std::enable_if<ET_IN == element::nf4>::type* = nullptr>
     static result_type visit(const Tensor& arg, Tensor& out, const size_t count) {
         using namespace ov::element;
         return IF_TYPE_OF(Convert_out,
-                          OV_PP_ET_LIST(f16, nf4),
+                          OV_PP_ET_LIST(f16, f32, nf4),
                           EvalByOutputType,
                           out.get_element_type(),
                           iterator<ET_IN>(reinterpret_cast<const TI*>(arg.data())),
@@ -170,7 +170,7 @@ bool Convert::has_evaluate() const {
     OV_OP_SCOPE(v0_Convert_has_evaluate);
 
     const auto is_to_nf4_supported = [](const element::Type& from, const element::Type& to) {
-        return (from == element::f16 || from == element::nf4) && (to == element::f16 || to == element::nf4);
+        return (from == element::nf4) && (to == element::f16 || to == element::f32 || to == element::nf4);
     };
 
     const auto is_valid_type = [](const element::Type& et) -> bool {
