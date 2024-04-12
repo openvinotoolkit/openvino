@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 import torch
 from typing import Dict
+import os
 
 from pytorch_layer_test_class import PytorchLayerTest
 
@@ -46,6 +47,7 @@ class TestDictParam(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.skipif(os.getenv("GITHUB_ACTIONS") == 'true', reason="Ticket - 115085")
     def test_dict_param(self, ie_device, precision, ir_version):
         self._test(aten_dict_with_types(), None, "aten::__getitem__", ie_device, precision,
                    ir_version, trace_model=True)
