@@ -34,7 +34,7 @@ namespace test {
                           Result
     The Subgraph node have 3 inputs: they don't have same layout.
     Expected: Reorder is inserted after VariadicSplit[0] and VariadicSplit[1], not inserted after MVN.
-    Because VariadicSplit's output layout is [1,64,1,1], it' reorder almost have calculation.
+    Because VariadicSplit's output layout is [1,64,1,1], it' reorder almost have no calculation.
 */
 
 class SubgraphSelectPD : virtual public SubgraphBaseStaticTest {
