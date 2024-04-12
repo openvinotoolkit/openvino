@@ -19,7 +19,10 @@ using ov::op::v0::Constant;
 using ov::op::v0::Parameter;
 using testing::HasSubstr;
 
-class TypePropRMSNormTest : public TypePropOpTest<op::v14::RMSNorm> {};
+class TypePropRMSNormTest : public TypePropOpTest<op::v14::RMSNorm> {
+public:
+    double eps = 1e-5;
+};
 
 TEST_F(TypePropRMSNormTest, default_ctor) {
     const auto op = make_op();
@@ -39,7 +42,6 @@ TEST_F(TypePropRMSNormTest, default_ctor) {
 TEST_F(TypePropRMSNormTest, no_scale_no_compute_type) {
     const auto data = std::make_shared<Parameter>(element::f32, PartialShape{2, 3, 8, 6});
     const auto axes = std::make_shared<Parameter>(element::i32, PartialShape{1});
-    const auto eps = 1e-5;
 
     const auto op = make_op(data, axes, eps);
     EXPECT_EQ(op->get_input_size(), 2);
@@ -53,7 +55,6 @@ TEST_F(TypePropRMSNormTest, scale_no_compute_type) {
     const auto data = std::make_shared<Parameter>(element::f16, PartialShape{2, 3, 8, 6});
     const auto axes = std::make_shared<Parameter>(element::i32, PartialShape{1});
     const auto scale = std::make_shared<Parameter>(element::f16, PartialShape{});
-    const auto eps = 1e-5;
 
     const auto op = make_op(data, axes, scale, eps);
     EXPECT_EQ(op->get_input_size(), 3);
@@ -67,7 +68,6 @@ TEST_F(TypePropRMSNormTest, scale_compute_type) {
     const auto data = std::make_shared<Parameter>(element::f16, PartialShape{2, 3, 8, 6});
     const auto axes = std::make_shared<Parameter>(element::i32, PartialShape{1});
     const auto scale = std::make_shared<Parameter>(element::f16, PartialShape{});
-    const auto eps = 1e-5;
     const auto compute_type = element::f32;
 
     const auto op = make_op(data, axes, scale, eps, compute_type);
@@ -82,7 +82,6 @@ TEST_F(TypePropRMSNormTest, scale_compute_type) {
 TEST_F(TypePropRMSNormTest, scale_compute_type_no_scale) {
     const auto data = std::make_shared<Parameter>(element::f16, PartialShape{2, 3, 8, 6});
     const auto axes = std::make_shared<Parameter>(element::i32, PartialShape{1});
-    const auto eps = 1e-5;
     const auto compute_type = element::f32;
 
     const auto op = make_op(data, axes, eps, compute_type);
@@ -95,7 +94,6 @@ TEST_F(TypePropRMSNormTest, dynamic_data_shape) {
     const auto data = std::make_shared<Parameter>(element::f16, PartialShape{-1, {3, 4}, {8, -1}, 6});
     const auto axes = std::make_shared<Parameter>(element::i32, PartialShape{1});
     const auto scale = std::make_shared<Parameter>(element::f16, PartialShape{});
-    const auto eps = 1e-5;
     const auto compute_type = element::f32;
 
     const auto op = make_op(data, axes, scale, eps, compute_type);
@@ -107,7 +105,6 @@ TEST_F(TypePropRMSNormTest, dynamic_data_shape_rank) {
     const auto data = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
     const auto axes = std::make_shared<Parameter>(element::i32, PartialShape{1});
     const auto scale = std::make_shared<Parameter>(element::f16, PartialShape{});
-    const auto eps = 1e-5;
     const auto compute_type = element::f32;
 
     const auto op = make_op(data, axes, scale, eps, compute_type);
@@ -123,7 +120,6 @@ TEST_F(TypePropRMSNormTest, propagate_symbols) {
     const auto data = std::make_shared<Parameter>(element::f16, data_shape);
     const auto axes = std::make_shared<Parameter>(element::i32, PartialShape{1});
     const auto scale = std::make_shared<Parameter>(element::f16, PartialShape{});
-    const auto eps = 1e-5;
     const auto compute_type = element::f32;
 
     const auto op = make_op(data, axes, scale, eps, compute_type);
@@ -134,7 +130,6 @@ TEST_F(TypePropRMSNormTest, incorrect_input_type) {
     const auto data = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
     const auto axes = std::make_shared<Parameter>(element::i32, PartialShape{1});
     const auto scale = std::make_shared<Parameter>(element::f16, PartialShape{});
-    const auto eps = 1e-5;
     const auto compute_type = element::f32;
     {
         const auto data_int = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
@@ -159,7 +154,6 @@ TEST_F(TypePropRMSNormTest, incorrect_input_type) {
 TEST_F(TypePropRMSNormTest, incompatible_axes_shape) {
     const auto data = std::make_shared<Parameter>(element::f16, PartialShape{2, 3, 8});
     const auto scale = std::make_shared<Parameter>(element::f16, PartialShape{});
-    const auto eps = 1e-5;
     const auto compute_type = element::f32;
     {
         const auto axes = std::make_shared<Parameter>(element::i32, PartialShape{1, 2});
@@ -177,7 +171,6 @@ TEST_F(TypePropRMSNormTest, incompatible_axes_shape) {
 
 TEST_F(TypePropRMSNormTest, constant_axes_val_data_dyn_rank) {
     const auto data = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
-    const auto eps = 1e-5;
     const auto axes = std::make_shared<Constant>(element::i32, Shape{}, 1);
     const auto op = make_op(data, axes, eps);
 
@@ -187,7 +180,6 @@ TEST_F(TypePropRMSNormTest, constant_axes_val_data_dyn_rank) {
 
 TEST_F(TypePropRMSNormTest, constant_axes_val_data_static_rank) {
     const auto data = std::make_shared<Parameter>(element::f16, PartialShape{2, 3, 8});
-    const auto eps = 1e-5;
     const auto axes = std::make_shared<Constant>(element::i32, Shape{}, 1);
     const auto op = make_op(data, axes, eps);
 
@@ -197,7 +189,6 @@ TEST_F(TypePropRMSNormTest, constant_axes_val_data_static_rank) {
 
 TEST_F(TypePropRMSNormTest, axes_val_as_shape_of) {
     const auto data = std::make_shared<Parameter>(element::f16, PartialShape{2, 3, 8});
-    const auto eps = 1e-5;
     const auto data_rank = std::make_shared<op::v3::ShapeOf>(std::make_shared<op::v3::ShapeOf>(data));
     const auto axes =
         std::make_shared<op::v1::Subtract>(data_rank, std::make_shared<Constant>(element::i64, Shape{}, 1));
@@ -209,7 +200,6 @@ TEST_F(TypePropRMSNormTest, axes_val_as_shape_of) {
 
 TEST_F(TypePropRMSNormTest, incorrect_axes_val) {
     const auto data = std::make_shared<Parameter>(element::f16, PartialShape{2, 3, 8});
-    const auto eps = 1e-5;
     {
         const auto axes = std::make_shared<Constant>(element::i32, Shape{}, 3);
         OV_EXPECT_THROW(std::ignore = make_op(data, axes, eps),
@@ -254,7 +244,6 @@ INSTANTIATE_TEST_SUITE_P(type_prop_rms_scale_shape,
 TEST_P(TypePropRMSNormTestP, scale_shape) {
     const auto data = std::make_shared<Parameter>(element::f16, shape_data);
     const auto axes = std::make_shared<Parameter>(element::i32, PartialShape{1});
-    const auto eps = 1e-5;
 
     const auto scale = std::make_shared<Parameter>(element::f16, shape_scale);
     const auto op = make_op(data, axes, scale, eps);
@@ -265,7 +254,6 @@ TEST_P(TypePropRMSNormTestP, scale_shape) {
 TEST_F(TypePropRMSNormTest, scale_incompatible_shape) {
     const auto data = std::make_shared<Parameter>(element::f16, PartialShape{-1, 3, 8, 6});
     const auto axes = std::make_shared<Parameter>(element::i32, PartialShape{1});
-    const auto eps = 1e-5;
     const auto compute_type = element::f32;
     {
         const auto scale = std::make_shared<Parameter>(element::f16, PartialShape{8});
