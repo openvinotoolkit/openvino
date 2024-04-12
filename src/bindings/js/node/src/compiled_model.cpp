@@ -96,6 +96,12 @@ Napi::Value CompiledModelWrap::get_inputs(const Napi::CallbackInfo& info) {
     return js_inputs;
 }
 
+/*
+Parameters:
+- ()
+- (tensor_name: string)
+- (index: nuber) // Int32Value
+*/
 Napi::Value CompiledModelWrap::get_node(
     const Napi::CallbackInfo& info,
     const ov::Output<const ov::Node>& (ov::CompiledModel::*func)() const,
