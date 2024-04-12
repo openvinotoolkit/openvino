@@ -198,7 +198,7 @@ void prepare_padding::run(program& p) {
     }
 }
 
-cldnn::padding prepare_padding::get_convolution_needed_padding(convolution_node const& node) {
+cldnn::padding prepare_padding::get_convolution_needed_padding(convolution_node& node) {
     auto conv = node.get_primitive();
     auto conv_layout = node.get_output_layout();
 

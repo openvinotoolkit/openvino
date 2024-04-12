@@ -711,7 +711,7 @@ static bool has_rank3_mvn_user(const program_node& node, size_t cur_depth, size_
     }
     bool res = false;
     for (const auto& usr : node.get_users()) {
-        res |= has_rank3_mvn_user(*usr, cur_depth + 1, max_depth);
+        res |= has_rank3_mvn_user(*usr, cur_depth + 1, max_depth, reorder_size_threshold);
     }
     return res;
 }
@@ -1214,8 +1214,8 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
                   convolution_fs_b_yx_fsv32_opt(input_layout,
                                                 output_layout,
                                                 weights_layout, prim, true)))) &&
-                 !(has_rank3_mvn_user(reinterpret_cast<program_node const&>(*node.get_users().front()), 0, 3) &&
-                     !static_cast<bool>(prepare_padding::get_convolution_needed_padding(node)))) {
+                 !(has_rank3_mvn_user(reinterpret_cast<program_node const&>(*node.get_users().front()), 0, 3, 160000) &&
+                     !static_cast<bool>(prepare_padding::get_convolution_needed_padding(const_cast<convolution_node&>(node))))) {
             // Chose fs_b_yx_fsv32 layout in two cases: 1-st: the current conv primitive totally supports fs_b_yx_fsv32 layout
             //                                          2-nd: the previous conv primitive supports fs_b_yx_fsv32 layout and
             //                                                current conv primitives supports this one with weak restrictions -
