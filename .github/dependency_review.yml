@@ -1,5 +1,5 @@
-fail-on-severity: 'low'
-allow-licenses:
+fail_on_severity: 'low'
+allow_licenses:
   - 'BSD-2-Clause'
   - 'BSD-3-Clause'
   - 'BSD-2-Clause AND BSD-3-Clause'
@@ -10,12 +10,12 @@ allow-licenses:
   - 'BlueOak-1.0.0'
   - '0BSD'
   - 'Python-2.0'
-fail-on-scopes:
+fail_on_scopes:
   - 'runtime'
   - 'development'
   - 'unknown'
-license-check: true
-vulnerability-check: true
+license_check: true
+vulnerability_check: true
 allow_dependencies_licenses:
   - 'pkg:pypi/PyGithub'
   - 'pkg:pypi/psycopg2-binary'
