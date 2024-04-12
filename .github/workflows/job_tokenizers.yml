@@ -27,7 +27,7 @@ jobs:
     timeout-minutes: 25
     defaults:
       run:
-        shell: bash
+        shell: ${{ inputs.runner.os == 'Windows' && 'pwsh' || 'bash' }}
     runs-on: ${{ inputs.runner }}
     container: ${{ fromJSON(inputs.container) }}
     env:
@@ -81,7 +81,6 @@ jobs:
 
       - name: Extract OpenVINO packages (Windows)
         if: runner.os == 'Windows'
-        shell: pwsh
         run: |
           pushd ${{ env.INSTALL_DIR }}
             Expand-Archive openvino_package.zip -DestinationPath "${{ env.INSTALL_DIR }}"
@@ -116,7 +115,6 @@ jobs:
 
       - name: Build tokenizers wheel (Windows)
         if: runner.os == 'Windows'
-        shell: pwsh
         run: |
           . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           python3 -m build --wheel --outdir ${env:EXTENSION_BUILD_DIR} ${env:OPENVINO_TOKENIZERS_REPO}
