@@ -27,7 +27,7 @@ jobs:
     timeout-minutes: 25
     defaults:
       run:
-        shell: ${{ inputs.runner.os == 'Windows' && 'pwsh' || 'bash' }}
+        shell: ${{ env.RUNNER_OS == 'Windows' && 'pwsh' || 'bash' }}
     runs-on: ${{ inputs.runner }}
     container: ${{ fromJSON(inputs.container) }}
     env:
