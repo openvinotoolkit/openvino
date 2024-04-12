@@ -38,24 +38,29 @@ static std::size_t get_hidden_size_from_bias_shape(const ov::Shape& shape) {
     return shape.at(0);
 }
 
+static std::shared_ptr<ov::Node> transpose_input(const std::shared_ptr<ov::Node>& node, bool transposed) {
+   std::shared_ptr<ov::Node> tail = node;
+   if (!transposed) {
+       auto transpose_order = std::make_shared<ov::op::v0::Constant>(ov::element::u32, ov::Shape{2}, ov::Shape{1, 0});
+       tail = std::make_shared<ov::op::v1::Transpose>(tail, transpose_order);
+   }
+
+   return tail;
+}
+
 ov::pass::RNNCellTfKerasFusion::RNNCellTfKerasFusion() {
     MATCHER_SCOPE(RNNCellTfKerasFusion);
 
-    //right
-    auto Ht_label = pattern::any_input();
-    auto R_label = pattern::any_input();
-    //think to check if R is transposed
-    auto matmul1_label = pattern::wrap_type<op::v0::MatMul>({Ht_label, R_label});
-
-    // B is Wb + Rb probably or something else combined
-    auto B_label = pattern::any_input(); //?
-    auto add_label_1 = pattern::wrap_type<op::v1::Add>({B_label, matmul1_label});
-
-    //left
     auto X_label = pattern::any_input();
     auto W_label = pattern::any_input();
-    //think to check if W is transposed
-    auto matmul2_label = pattern::wrap_type<op::v0::MatMul>({X_label, W_label});
+    auto matmul1_label = pattern::wrap_type<op::v0::MatMul>({X_label, W_label});
+
+    auto B_label = pattern::any_input();
+    auto add_label_1 = pattern::wrap_type<op::v1::Add>({matmul1_label, B_label});
+
+    auto Ht_label = pattern::any_input();
+    auto R_label = pattern::any_input();
+    auto matmul2_label = pattern::wrap_type<op::v0::MatMul>({Ht_label, R_label});
 
     auto add_label_2 = pattern::wrap_type<op::v1::Add>({add_label_1, matmul2_label});
 
@@ -65,63 +70,64 @@ ov::pass::RNNCellTfKerasFusion::RNNCellTfKerasFusion() {
         std::cout << "__________MATCHED__________" << std::endl;
         const auto& pattern_map = m.get_pattern_value_map();
 
-        //right
-        // const auto& matmul_1 = pattern_map.at(matmul_label_1);
-        // const auto& add_1 = pattern_map.at(add_label_1);
+        const auto& matmul_1 = pattern_map.at(matmul1_label);
+        const auto& add_1 = pattern_map.at(add_label_1);
 
-        //left
-        // const auto& matmul_2 = pattern_map.at(matmul_label_2);
-        // const auto& add_2 = pattern_map.at(add_label_2);
+        const auto& matmul_2 = pattern_map.at(matmul2_label);
+        const auto& add_2 = pattern_map.at(add_label_2);
 
         const auto& X = pattern_map.at(X_label);
         const auto& Ht = pattern_map.at(Ht_label);
         const auto& W = pattern_map.at(W_label);
-        auto matmul_2 = ov::as_type_ptr<op::v0::MatMul>(pattern_map.at(matmul1_label).get_node_shared_ptr());
-        bool is_W_transposed = matmul_2->get_transpose_b();
-        if (is_W_transposed) {
-            std::cout << "W transposed" << std::endl;
-        } else {
-            std::cout << "W not transposed" << std::endl;
-        }
         const auto& R = pattern_map.at(R_label);
-        auto matmul_1 = ov::as_type_ptr<op::v0::MatMul>(pattern_map.at(matmul2_label).get_node_shared_ptr());
-        bool is_R_transposed = matmul_1->get_transpose_b();
-        if (is_R_transposed) {
-            std::cout << "R transposed" << std::endl;
-        } else {
-            std::cout << "R not transposed" << std::endl;
-        }
         const auto& B = pattern_map.at(B_label);
-
-        // As I understood, this is num of RNN cells
-        std::size_t hidden_size = get_hidden_size_from_bias_shape(B.get_shape()); //TODO find out what this is
-
+        std::size_t hidden_size = get_hidden_size_from_bias_shape(B.get_shape());
         auto act_func = pattern_map.at(activation_func_label);
+
+        bool is_W_transposed = ov::as_type_ptr<op::v0::MatMul>(matmul_1.get_node_shared_ptr())->get_transpose_b();
+        std::shared_ptr<Node> W_input = transpose_input(W.get_node_shared_ptr(), is_W_transposed);
+
+        bool is_R_transposed = ov::as_type_ptr<op::v0::MatMul>(matmul_2.get_node_shared_ptr())->get_transpose_b();
+        std::shared_ptr<Node> R_input = transpose_input(R.get_node_shared_ptr(), is_R_transposed);
+
         const std::string& act_func_name = get_activation_name(act_func.get_node_shared_ptr());
-
-        //TODO: check for transpose
-
-        std::cout << "Hidden size : " << hidden_size << std::endl;
 
         auto rnn_cell = std::make_shared<ov::op::v0::RNNCell>(
             X,
             Ht,
-            W,
-            R,
+            W_input,
+            R_input,
             B,
             hidden_size,
             std::vector<std::string>{act_func_name}
         );
 
-        //Ask about it
         rnn_cell->set_friendly_name(m.get_match_root()->get_friendly_name());
         act_func.replace(rnn_cell->output(0));
 
-        // What is it?
         if (transformation_callback(rnn_cell)) {
             std::cout << "transformation_callback() == false" << std::endl;
             return false;
         }
+
+        ov::copy_runtime_info(
+            {
+                X.get_node_shared_ptr(),
+                Ht.get_node_shared_ptr(),
+                W.get_node_shared_ptr(),
+                R.get_node_shared_ptr(),
+                B.get_node_shared_ptr(),
+                matmul_1.get_node_shared_ptr(),
+                matmul_2.get_node_shared_ptr(),
+                add_1.get_node_shared_ptr(),
+                add_2.get_node_shared_ptr(),
+            },
+            {
+                W_input,
+                R_input,
+                rnn_cell
+            }
+        );
 
         return true;
     };

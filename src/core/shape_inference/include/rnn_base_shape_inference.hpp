@@ -60,7 +60,7 @@ std::vector<TRShape> cell_base_shape_infer(const op::util::RNNCellBase* op,
                               DimType::merge(merged_batch_size,
                                              merged_batch_size,
                                              input_shapes[i].rank().is_static() ? input_shapes[i][0] : DimType()),
-                              "Dimension `batch_size` is not matched between inputs.");
+                              "*Dimension `batch_size` is not matched between inputs.");
     }
 
     // Merge hidden_size dimension across all inputs to evaluate output dimension
@@ -85,7 +85,7 @@ std::vector<TRShape> cell_base_shape_infer(const op::util::RNNCellBase* op,
         if (w_pshape.rank().is_static()) {
             NODE_VALIDATION_CHECK(op,
                                   w_pshape[0].compatible(merged_hidden_size * num_gates),
-                                  "First dimension of W input shape is required to be compatible with ",
+                                  "~First dimension of W input shape is required to be compatible with ",
                                   merged_hidden_size * num_gates,
                                   ". Got shape: ",
                                   w_pshape[0],
@@ -165,7 +165,7 @@ std::vector<TRShape> seq_base_shape_infer(const op::util::RNNCellBase* op,
         if (input_shapes[i].rank().is_static()) {
             NODE_VALIDATION_CHECK(op,
                                   DimType::merge(merged_batch_size, merged_batch_size, input_shapes[i][0]),
-                                  "Dimension `batch_size` is not matched between inputs.");
+                                  "@Dimension `batch_size` is not matched between inputs.");
         }
     }
 
