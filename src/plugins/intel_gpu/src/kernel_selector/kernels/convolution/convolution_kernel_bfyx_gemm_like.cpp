@@ -44,7 +44,7 @@ std::string ConvolutionKernel_bfyx_GEMMLike::GetKernelName(const convolution_par
 
 JitConstants ConvolutionKernel_bfyx_GEMMLike::GetJitConstants(const convolution_params& params,
                                                               const DispatchData& dispatchData) const {
-    JitConstants jit = Parent::GetJitConstants(params, dispatchData);
+    JitConstants jit = Parent::GetJitConstantsWithLoopUnroll(params, dispatchData);
 
     jit.AddConstants({
         MakeJitConstant("ALIGNED_OFM_PER_GROUP", RoundUp(params.outputs[0].Feature().v / params.groups, dispatchData.gemmStyle.subBlockDimN)),
