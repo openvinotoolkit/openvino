@@ -124,16 +124,10 @@ jobs:
             python3 -m pip install ${INSTALL_DIR}/openvino_tokenizers-*.whl
           fi
 
-          extras_to_install="caffe,kaldi,tensorflow2"
-
-          if [[ "${{ runner.arch }}" != "ARM64" ]]; then
-            extras_to_install="mxnet,$extras_to_install"
-          fi
-
           # Find and install OV dev wheel
           pushd ${INSTALL_DIR}/tools
             ov_dev_wheel_name=$(find . -name 'openvino_dev*.whl')
-            python3 -m pip install $ov_dev_wheel_name[$extras_to_install]
+            python3 -m pip install $ov_dev_wheel_name[tensorflow2]
           popd
 
       - name: Install OpenVINO Python wheels
@@ -150,7 +144,7 @@ jobs:
 
           # Find and install the dev OV wheel
           $ovDevWheelPath=Get-ChildItem -Path ${{ env.INSTALL_DIR }}\tools -Filter openvino_dev*.whl | % { $_.FullName }
-          python3 -m pip install "$ovDevWheelPath[mxnet,caffe,kaldi,tensorflow2]"
+          python3 -m pip install "$ovDevWheelPath[tensorflow2]"
 
       - name: Install Python Layer tests dependencies
         run: |
