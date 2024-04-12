@@ -52,6 +52,7 @@ void get_cur_stream_info(const int stream_id,
     } else if (core_type == HYPER_THREADING_PROC) {
         max_threads_per_core = 2;
     }
+    max_threads_per_core = 1;
 
 #if defined(__APPLE__)
     cpu_reserve = false;
