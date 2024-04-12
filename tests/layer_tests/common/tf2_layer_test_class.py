@@ -7,6 +7,8 @@ from common.layer_test_class import CommonLayerTest
 from common.utils.tflite_utils import get_tflite_results, save_tf2_saved_model_to_tflite
 from common.layer_utils import import_openvino_tokenizers
 
+import_openvino_tokenizers()
+
 def save_to_tf2_savedmodel(tf2_model, path_to_saved_tf2_model):
     import tensorflow as tf
     assert int(tf.__version__.split('.')[0]) >= 2, "TensorFlow 2 must be used for this suite validation"
@@ -18,9 +20,6 @@ def save_to_tf2_savedmodel(tf2_model, path_to_saved_tf2_model):
 
 class CommonTF2LayerTest(CommonLayerTest):
     input_model_key = "saved_model_dir"
-
-    def __init__(self):
-        import_openvino_tokenizers()
 
     def produce_model_path(self, framework_model, save_path):
         if not getattr(self, 'tflite', False):
