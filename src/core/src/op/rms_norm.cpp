@@ -4,7 +4,6 @@
 
 #include "openvino/op/rms_norm.hpp"
 
-#include "compare.hpp"
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/op.hpp"
