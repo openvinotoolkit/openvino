@@ -12,8 +12,7 @@ class TestMatrixInverse(CommonTFLayerTest):
         input_shape = inputs_info['input:0']
         inputs_data = {}
 
-        self.invertible_matrices = self._generate_invertible_matrices(input_shape)
-        inputs_data['input:0'] = np.stack(self.invertible_matrices, axis=0)
+        inputs_data['input:0'] = self._generate_invertible_matrices(input_shape)
 
         return inputs_data
     
