@@ -368,6 +368,11 @@ OutputTensorInfo& OutputTensorInfo::set_layout(const Layout& layout) {
     return *this;
 }
 
+OutputTensorInfo& OutputTensorInfo::set_names_compatibility_mode(const bool compatibility_mode) {
+    m_impl->set_names_compatibility_mode(compatibility_mode);
+    return *this;
+}
+
 // --------------------- OutputModelInfo ------------------
 OutputModelInfo::OutputModelInfo() : m_impl(std::unique_ptr<OutputModelInfoImpl>(new OutputModelInfoImpl())) {}
 OutputModelInfo::~OutputModelInfo() = default;

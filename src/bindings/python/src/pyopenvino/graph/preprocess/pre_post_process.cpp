@@ -370,6 +370,18 @@ static void regclass_graph_OutputTensorInfo(py::module m) {
             :param layout: layout to be set
             :type layout: Union[str, openvino.runtime.Layout]
         )");
+
+    info.def(
+        "_set_names_compatibility_mode",
+        [](ov::preprocess::OutputTensorInfo& self, const bool compatibility_mode) {
+            return &self.set_names_compatibility_mode(compatibility_mode);
+        },
+        py::arg("compatibility_mode"),
+        R"(
+            Set keep names compatibility mode
+            :param compatibility_mode: Mode to be set: True enable compatiblity, False disable
+            :type layout: Boolean
+        )");
 }
 
 static void regclass_graph_InputInfo(py::module m) {

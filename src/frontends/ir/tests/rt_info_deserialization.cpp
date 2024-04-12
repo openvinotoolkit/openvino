@@ -148,11 +148,10 @@ TEST_F(RTInfoDeserialization, node_v10) {
         auto convert_param = std::make_shared<ov::op::v0::Convert>(param, ov::element::f16);
 
         auto round = std::make_shared<ov::op::v5::Round>(convert_param, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
-        round->get_output_tensor(0).set_names({"Round", "output_tensor"});
 
         auto convert_result = std::make_shared<ov::op::v0::Convert>(round, type);
-        convert_result->set_friendly_name("Round.0");
-        convert_result->get_output_tensor(0).set_names({"Round", "output_tensor"});
+        convert_result->set_friendly_name("Round");
+        convert_result->get_output_tensor(0).set_names({"output_tensor", convert_result->get_friendly_name()});
 
         auto result = std::make_shared<ov::op::v0::Result>(convert_result);
         result->set_friendly_name("output");
@@ -368,12 +367,11 @@ TEST_F(RTInfoDeserialization, input_and_output_v10) {
         param->get_output_tensor(0).set_names({"input_tensor", param->get_friendly_name()});
 
         auto sum = std::make_shared<ov::op::v1::Add>(param, param);
-        sum->get_output_tensor(0).set_names({"sum", "output_tensor"});
 
         // TODO: No guarantee that exactly 'convert' will be added by post-processing
         auto convert_result = std::make_shared<ov::op::v0::Convert>(sum, ov::element::i32);
-        convert_result->set_friendly_name("sum.0");
-        convert_result->get_output_tensor(0).set_names({"sum", "output_tensor"});
+        convert_result->set_friendly_name("sum");
+        convert_result->get_output_tensor(0).set_names({"output_tensor", convert_result->get_friendly_name()});
 
         auto result = std::make_shared<ov::op::v0::Result>(convert_result);
         result->set_friendly_name("output");

@@ -325,6 +325,11 @@ void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
     std::shared_ptr<opset8::Result> result;
     auto node = m_output_node;
     auto start_out_node_names = node.get_tensor().get_names();
+    auto is_compatiblity_mode = get_tensor_data()->get_names_compatibility_mode();
+    if (is_compatiblity_mode) {
+        node.get_tensor().set_names({});
+    }
+
     result = std::dynamic_pointer_cast<opset8::Result>(node.get_node_shared_ptr());
     // Set result layout from 'model' information
     if (get_model_data()->is_layout_set()) {
@@ -365,17 +370,40 @@ void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
         node = std::get<0>(action_result);
         post_processing_applied = true;
     }
-    // Restore tensor names
-    node.get_tensor().set_names(start_out_node_names);
-    auto orig_parent = result->get_input_source_output(0).get_node_shared_ptr();
-    if (!post_processing_applied) {
-        return;
-    }
 
-    if (node.get_node_shared_ptr() != orig_parent) {
+    auto orig_parent = result->get_input_source_output(0).get_node_shared_ptr();
+    if (is_compatiblity_mode) {
+        // Restore tensor names
+        node.get_tensor().set_names(start_out_node_names);
+
+        if (!post_processing_applied) {
+            return;
+        }
+
+        if (orig_parent->get_output_size() == 1) {
+            node.get_node_shared_ptr()->set_friendly_name(orig_parent->get_friendly_name());
+
+            // Reset friendly name of input node to avoid names collision
+            // when there is at a new node inserted by post-processing steps
+            // If no new nodes are inserted by post-processing, then we need to preserve friendly name of input
+            // as it's required for old API correct work
+            result->get_input_source_output(0).get_node_shared_ptr()->set_friendly_name("");
+        } else if (node.get_node_shared_ptr() != orig_parent) {
+            // Result node is changed - add ".<idx>" suffix
+            node.get_node_shared_ptr()->set_friendly_name(
+                orig_parent->get_friendly_name() + "." +
+                std::to_string(result->get_input_source_output(0).get_index()));
+        }
+    } else if (node.get_node_shared_ptr() != orig_parent) {
         // Result node is changed - add ".<idx>" suffix
-        node.get_node_shared_ptr()->set_friendly_name(orig_parent->get_friendly_name() + "." +
-                                                      std::to_string(result->get_input_source_output(0).get_index()));
+        const auto suffix = std::string(".") + std::to_string(result->get_input_source_output(0).get_index());
+        node.get_node_shared_ptr()->set_friendly_name(orig_parent->get_friendly_name() + suffix);
+
+        std::unordered_set<std::string> new_node_names;
+        for (const auto& name : start_out_node_names) {
+            new_node_names.insert(new_node_names.end(), name + suffix);
+        }
+        node.get_tensor().set_names(new_node_names);
     }
 
     OPENVINO_SUPPRESS_DEPRECATED_START
