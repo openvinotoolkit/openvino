@@ -51,14 +51,7 @@ class TestMatrixInverse(CommonTFLayerTest):
 
         return tf_net, None
 
-    test_data_basic = [
-        dict(input_shape=[2, 2]),
-        dict(input_shape=[3, 3]),
-        dict(input_shape=[4, 4]),
-        dict(input_shape=[2, 4, 4]),
-    ]
-
-    @pytest.mark.parametrize("input_shape", test_data_basic)
+    @pytest.mark.parametrize("input_shape", [[2, 2], [3, 3], [2, 4, 4]])
     @pytest.mark.parametrize("adjoint", [True, False])
     @pytest.mark.precommit
     @pytest.mark.nightly
