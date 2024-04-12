@@ -785,6 +785,22 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       GTEST_PARALLEL_SCRIPT: ${{ github.workspace }}/gtest_parallel.py
     steps:
+
+      - name: Pre-Cleanup
+        if: always()
+        run: |
+          # The github.workspace folder is mounted outside the Docker
+          # So we need to clean it up after the pipeline so that
+          # the host vm is cleaned as well
+          
+          echo $GITHUB_WORKSPACE
+
+          du -sh $GITHUB_WORKSPACE
+
+          pushd $GITHUB_WORKSPACE
+            find . -mindepth 1 -prune -exec rm -rf {} \;
+          popd
+
       - name: Download OpenVINO package
         uses: actions/download-artifact@v4
         with:
@@ -879,9 +895,9 @@ jobs:
 
           du -sh $GITHUB_WORKSPACE
 
-          find $GITHUB_WORKSPACE/ -name "*" -prune -exec rm -rf {} \;
-
-          du -sh $GITHUB_WORKSPACE
+          pushd $GITHUB_WORKSPACE
+            find . -mindepth 1 -prune -exec rm -rf {} \;
+          popd
 
   Overall_Status:
     name: ci/gha_overall_status
