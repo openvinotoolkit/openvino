@@ -1,4 +1,4 @@
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -46,9 +46,9 @@ class TestKerasAvgPool2D(CommonTF2LayerTest):
         dict(pool_size=(5, 5), strides=None, padding='same', data_format='channels_last',
              input_names=["x1"],
              input_shapes=[[3, 4, 5, 6]], input_type=tf.float32),
-        pytest.param(dict(pool_size=(5, 5), strides=(3, 3), padding='valid', data_format='channels_last',
-                          input_names=["x1"],
-                          input_shapes=[[3, 7, 6, 5]], input_type=tf.float32), marks=pytest.mark.precommit_tf_fe)]
+        dict(pool_size=(5, 5), strides=(3, 3), padding='valid', data_format='channels_last',
+             input_names=["x1"],
+             input_shapes=[[3, 7, 6, 5]], input_type=tf.float32)]
 
     @pytest.mark.parametrize("params", test_data_extended_float32)
     @pytest.mark.nightly

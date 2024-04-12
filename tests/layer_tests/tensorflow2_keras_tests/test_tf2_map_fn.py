@@ -1,4 +1,4 @@
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -131,10 +131,11 @@ class TestMapFN(CommonTF2LayerTest):
                           fn_output_signature=(tf.int32, tf.int32, tf.int32), back_prop=True,
                           input_names=["x1", "x2", "x3"],
                           input_shapes=[[2, 1, 3, 4], [2, 1, 3, 4], [2, 1, 3, 4]]),
-                     marks=[pytest.mark.xfail(reason="61587"), pytest.mark.precommit_tf_fe])
+                     marks=pytest.mark.xfail(reason="61587"))
     ]
 
     @pytest.mark.parametrize("params", test_multiple_inputs_outputs_int32)
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_multiple_inputs_outputs_int32(self, params, ie_device, precision, ir_version, temp_dir,
                                            use_legacy_frontend):

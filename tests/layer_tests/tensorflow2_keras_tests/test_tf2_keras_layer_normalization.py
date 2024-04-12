@@ -1,4 +1,4 @@
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -47,11 +47,12 @@ class TestKerasLayerNormalization(CommonTF2LayerTest):
         dict(input_names=["x"], input_shapes=[[2, 3, 8]], input_type=tf.float32, axis=2,
              epsilon=1e-6,
              center=False, scale=True),
-        pytest.param(dict(input_names=["x"], input_shapes=[[2, 2, 3, 5]], input_type=tf.float32, axis=(1, 2, 3),
-                          epsilon=1e-5,
-                          center=True, scale=True), marks=pytest.mark.precommit_tf_fe)]
+        dict(input_names=["x"], input_shapes=[[2, 2, 3, 5]], input_type=tf.float32, axis=(1, 2, 3),
+             epsilon=1e-5,
+             center=True, scale=True)]
 
     @pytest.mark.parametrize("params", test_data_float32)
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_keras_dense_float32(self, params, ie_device, precision, temp_dir, ir_version):
         self._test(*self.create_keras_lnorm_net(**params, ir_version=ir_version),
