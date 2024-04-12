@@ -30,6 +30,7 @@ struct gemm_params : public base_params {
     bool indirect_input0 = false;
     bool indirect_input1 = false;
     QuantizationType quantization = QuantizationType::NONE;
+    std::string not_divisible_k = "";
 
     ParamsKey GetParamsKey() const override {
         ParamsKey k = base_params::GetParamsKey();

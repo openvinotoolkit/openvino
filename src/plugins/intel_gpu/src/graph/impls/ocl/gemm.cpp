@@ -10,6 +10,9 @@
 #include "gemm/gemm_kernel_base.h"
 #include "gemm/gemm_kernel_selector.h"
 
+#include <algorithm>
+#include <stack>
+
 namespace cldnn {
 namespace ocl {
 
@@ -50,6 +53,161 @@ struct gemm_impl : multi_stage_primitive<gemm> {
                 bt_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[indirect_gemm]);
             }
         }
+    }
+
+    // Evaluate boolean expression
+    //  e.g. shape_info[7] % 16 == 0, (shape_info[13] + (shape_info[1] + shape_infop[10])) % 32 == 0
+    // Current supported operators are +, -, *, /, %, ==, != and array accessor.
+    // Symbol names cannot start with a number.
+    int32_t evaluateJIT(const std::string& expression, const int32_t* shape_info_ptr) {
+        enum TokenType {
+            NUM,    // number
+            SYM     // symbol (currently, only one symbol `shape_info`)
+        };
+
+        struct JitToken {
+            TokenType type;
+            int32_t value;
+        };
+
+        std::stack<struct JitToken> tokens;
+        std::stack<char> ops;
+
+        auto opPrecedence = [](char op) -> int32_t {
+            switch (op) {
+                case '*':
+                case '/':
+                case '%':
+                    return 1;
+                case '+':
+                case '-':
+                    return 2;
+                case '=':
+                case '!':
+                    return 3;
+                default:
+                    return 4;
+            }
+        };
+
+        auto calcSingleOp = [&ops, &tokens]() {
+            char op = ops.top();
+            auto Rval = tokens.top();
+            if (Rval.type != TokenType::NUM) {
+                std::cout << "[GPU] evaluateJIT - incorrect R-value: " << Rval.type << ": " << Rval.value << std::endl;
+            }
+            tokens.pop();
+            auto Lval = tokens.top();
+            if (Lval.type != TokenType::NUM) {
+                std::cout << "[GPU] evaluateJIT - incorrect L-value: " << Lval.type << ": " << Lval.value << std::endl;
+            }
+            tokens.pop();
+            switch (op) {
+                case '+':
+                    tokens.push({TokenType::NUM, (Lval.value + Rval.value)}); break;
+                case '-':
+                    tokens.push({TokenType::NUM, (Lval.value - Rval.value)}); break;
+                case '*':
+                    tokens.push({TokenType::NUM, (Lval.value * Rval.value)}); break;
+                case '/':
+                    tokens.push({TokenType::NUM, (Lval.value / Rval.value)}); break;
+                case '%':
+                    tokens.push({TokenType::NUM, (Lval.value % Rval.value)}); break;
+                case '=':
+                    tokens.push({TokenType::NUM, (Lval.value == Rval.value)}); break;
+                case '!':
+                    tokens.push({TokenType::NUM, (Lval.value != Rval.value)}); break;
+            }
+            ops.pop();
+        };
+
+        for (size_t i = 0; i < expression.length(); i++) {
+            const char& ch = expression[i];
+
+            switch (ch) {
+                case ' ':
+                    continue;
+                case '(':
+                case '[':
+                    ops.push(ch);
+                    break;
+                case ')':
+                    while (!ops.empty() && ops.top() != '(') {
+                        calcSingleOp();
+                    }
+                    if(!ops.empty() && ops.top() == '(')
+                        ops.pop();
+                    break;
+                case ']':
+                    while (!ops.empty() && ops.top() != '[') {
+                        calcSingleOp();
+                    }
+                    if(!ops.empty() && ops.top() == '[') {
+                        auto index = tokens.top();
+                        if (index.type != TokenType::NUM) {
+                            std::cout << "[GPU] evaluateJIT - incorrect array index type: " << expression << std::endl;
+                            break;
+                        }
+                        tokens.pop();
+                        auto symbol = tokens.top();
+                        if (symbol.type != TokenType::SYM) {
+                            std::cout << "[GPU] evaluateJIT - incorrect array name: " << expression << std::endl;
+                            break;
+                        }
+                        tokens.pop();
+                        tokens.push({TokenType::NUM, shape_info_ptr[index.value]});
+                        ops.pop();
+                    }
+                    break;
+                case '+':
+                case '-':
+                case '*':
+                case '/':
+                case '%':
+                    while (!ops.empty() && (opPrecedence(ops.top()) <= opPrecedence(ch))) {
+                        calcSingleOp();
+                    }
+                    ops.push(ch);
+                    break;
+                case '=':
+                case '!':
+                    if (expression[i + 1] == '=') {
+                        while (!ops.empty() && (opPrecedence(ops.top()) <= opPrecedence(ch))) {
+                            calcSingleOp();
+                        }
+                        ops.push(ch);
+                        i += 1;
+                    } else {
+                        std::cout << "[GPU] evaluateJIT - unsupported operator: " << expression[i] << expression[i + 1] << std::endl;
+                        break;
+                    }
+                    break;
+                default:
+                    if (isdigit(ch)) {
+                        int32_t value = 0;
+                        while(i < expression.length() && isdigit(expression[i])) {
+                            value = (value * 10) + (expression[i] - '0');
+                            i += 1;
+                        }
+                        tokens.push({TokenType::NUM, value});
+                    } else {
+                        if (expression.substr(i, 10).compare("shape_info") == 0) {
+                            i += 10;
+                            tokens.push({TokenType::SYM, 0});
+                        } else {
+                            std::cout << "[GPU] evaluateJIT - unrecognized symbol name: " << expression << std::endl;
+                            break;
+                        }
+                    }
+                    i -= 1;
+            };
+        }
+
+        while (!ops.empty()) {
+            calcSingleOp();
+        }
+
+        return tokens.top().value;
     }
 
 protected:
@@ -95,15 +253,22 @@ protected:
         for (size_t s = 0; s < stage; s++) {
             kernel_offset += _kernels_data[s].kernels.size();
         }
+        bool not_divisible_k = true;
+        if (is_dynamic()) {
+            auto prim_params = std::dynamic_pointer_cast<kernel_selector::gemm_params>(_kernels_data[stage].params);
+            auto _shape_info_memory = instance.shape_info_memory_ptr();
+            mem_lock<int32_t> lock(_shape_info_memory, stream);
+            auto shape_info_ptr = lock.data();
+            not_divisible_k = evaluateJIT(prim_params->not_divisible_k, shape_info_ptr);
+        }
         for (size_t kd_idx = 0; kd_idx < _kernels_data[stage].kernels.size(); ++kd_idx) {
             if (_kernels_data[stage].kernels[kd_idx].skip_execution)
                 continue;
 
             if (is_dynamic()) {
-                auto pshape = instance.get_impl_params()->get_input_layout(0).get_partial_shape();
-                if (pshape[pshape.size()-1].get_max_length() % 16 == 0 && kd_idx == 1) {
+                if (not_divisible_k && kd_idx != 1) {
                     continue;
-                } else if (pshape[pshape.size()-1].get_max_length() % 16 != 0 && kd_idx == 0) {
+                } else if (!not_divisible_k && kd_idx != 0) {
                     continue;
                 }
             }

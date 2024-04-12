@@ -367,6 +367,15 @@ KernelsData GemmKernelTiledOpt::GetKernelsData(const Params& params) const {
     KernelData k_data = KernelData::Default<gemm_params>(params, num_kernels);
     GetUpdateDispatchDataFunc(k_data);
     auto cldnn_jit = GetJitConstants(prim_params);
+    if (params.is_shape_agnostic) {
+        for (auto& jit_def : cldnn_jit.GetDefinitions()) {
+            if (jit_def.first.compare("TILE_K_NOT_DIVISIBLE_CALC") == 0) {
+                auto prim_params = std::dynamic_pointer_cast<kernel_selector::gemm_params>(k_data.params);
+                prim_params->not_divisible_k = jit_def.second;
+                break;
+            }
+        }
+    }
     for (size_t i = 0; i < num_kernels; i++) {
         if (params.is_shape_agnostic) {
             cldnn_jit.RemoveConstant("TILE_K_NOT_DIVISIBLE_CALC");
