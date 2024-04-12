@@ -859,7 +859,6 @@ jobs:
             test_filter='*smoke*'
           fi
           python3 ${GTEST_PARALLEL_SCRIPT} ${INSTALL_TEST_DIR}/ov_gpu_${{ matrix.TEST_TYPE }}_tests --dump_json_test_results=${INSTALL_TEST_DIR}/gpu_${{ matrix.TEST_TYPE }}_tests/ov_gpu_${{ matrix.TEST_TYPE }}_tests.json -- --report_unique_name --gtest_filter=$test_filter
-          
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
@@ -880,7 +879,7 @@ jobs:
 
           du -sh $GITHUB_WORKSPACE
 
-          find $GITHUB_WORKSPACE/ -name "*" -maxdepth 0 -prune -exec rm -rf {} \;
+          find $GITHUB_WORKSPACE/ -name "*" -prune -exec rm -rf {} \;
 
           du -sh $GITHUB_WORKSPACE
 
