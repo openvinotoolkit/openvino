@@ -408,6 +408,7 @@ jobs:
     uses: ./.github/workflows/job_tokenizers.yml
     with:
       runner: 'aks-win-4-cores-8gb'
+      shell: pwsh
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
     if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
 

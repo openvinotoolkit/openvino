@@ -684,6 +684,7 @@ jobs:
     uses: ./.github/workflows/job_tokenizers.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
+      shell: bash
       container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"]}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
     if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
