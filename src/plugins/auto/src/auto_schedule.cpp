@@ -18,7 +18,7 @@ bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
         get_execution_devices = [&](const std::string& device_name) {
             std::string real_device_name;
             bool is_cpuhelp = false;
-                m_compile_context[FALLBACKDEVICE].m_model_precision = m_context->m_model_precision;
+            m_compile_context[FALLBACKDEVICE].m_model_precision = m_context->m_model_precision;
             if (device_name == "CPU_HELP") {
                 // if infer failed in CPU_HELP, we will remove CPU from m_device_priorities
                 // and re-run infer request when m_compile_context[ACTUALDEVICE] is ready
@@ -49,8 +49,8 @@ bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
             m_compile_context[FALLBACKDEVICE].m_is_reload_success = false;
             m_compile_context[FALLBACKDEVICE].m_device_info =
                 m_plugin->select_device(m_context->m_device_priorities,
-                                                        m_compile_context[FALLBACKDEVICE].m_model_precision,
-                                                        m_context->m_model_priority);
+                                        m_compile_context[FALLBACKDEVICE].m_model_precision,
+                                        m_context->m_model_priority);
             try {
                 m_compile_context[FALLBACKDEVICE].m_task();
                 // FALLBACKDEVICE need to be load again if infer failed, so reset promise here
@@ -165,9 +165,9 @@ void AutoSchedule::init() {
         // so use executor as a member of AutoSchedule.
         m_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(
                     ov::threading::IStreamsExecutor::Config{"AutoDeviceAsyncCompile",
-                    static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
-                    0 /*default threads per stream, workaround for ticket 62376*/,
-                    ov::threading::IStreamsExecutor::ThreadBindingType::NONE});
+                static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
+                0 /*default threads per stream, workaround for ticket 62376*/,
+                ov::threading::IStreamsExecutor::ThreadBindingType::NONE});
         for (auto&& device : m_context->m_device_priorities) {
             // initialize containers before run async task
             m_idle_worker_requests[device.device_name];
@@ -206,6 +206,8 @@ void AutoSchedule::init() {
                         cpuhelp_all_end_times.splice(cpuhelp_all_end_times.end(), worker.second->m_end_times);
                     });
                 }
+                std::chrono::duration<double, std::milli> first_infer_time =
+                    cpuhelp_all_end_times.front() - cpuhelp_all_start_times.front();
                 INFO_RUN([this, &cpuhelp_all_start_times, &cpuhelp_all_end_times]() {
                     cpuhelp_all_start_times.sort(std::less<Time>());
                     cpuhelp_all_end_times.sort(std::less<Time>());
@@ -214,15 +216,16 @@ void AutoSchedule::init() {
                 });
                 if (destroynum == m_worker_requests["CPU_HELP"].size()) {
                     std::lock_guard<std::mutex> lock(m_context->m_mutex);
-                    INFO_RUN([this, &cpuhelp_all_start_times, &cpuhelp_all_end_times, &destroynum]() {
+                    INFO_RUN([this, first_infer_time, &cpuhelp_all_start_times, &cpuhelp_all_end_times, &destroynum]() {
                         m_cpuhelp_release_time = std::chrono::steady_clock::now();
                         if (cpuhelp_all_start_times.size() >= destroynum + 1) {
-                            //remove last worksize num requests, so the fps will be more accuracy
+                            // remove last worksize num requests, so the fps will be more accuracy
                             cpuhelp_all_start_times.resize(m_cpuhelp_infer_count - destroynum);
                             cpuhelp_all_end_times.resize(m_cpuhelp_infer_count - destroynum);
                             std::chrono::duration<double, std::milli> durtation =
                                 cpuhelp_all_end_times.back() - cpuhelp_all_start_times.front();
                             m_cpuhelp_fps = cpuhelp_all_start_times.size() * 1000 / durtation.count();
+                            LOG_INFO_TAG("CPU_HELP: first inference time:%lf ms", first_infer_time.count());
                             LOG_INFO_TAG("CPU_HELP:infer:%ld", m_cpuhelp_infer_count);
                             LOG_INFO_TAG("CPU_HELP:fps:%lf", m_cpuhelp_fps);
                         }
@@ -279,12 +282,19 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
         }
     }
     try {
+        auto compile_start_time = std::chrono::high_resolution_clock::now();
         if (!(m_context->m_model_path.empty())) {
-            context.m_compiled_model = m_context->m_ov_core->compile_model(m_context->m_model_path, device, device_config);
+            context.m_compiled_model =
+                m_context->m_ov_core->compile_model(m_context->m_model_path, device, device_config);
         } else {
             context.m_compiled_model = m_context->m_ov_core->compile_model(model, device, device_config);
         }
         context.m_is_load_success = true;
+        auto compile_end_time = std::chrono::high_resolution_clock::now();
+        auto compiled_time =
+            std::chrono::duration_cast<std::chrono::nanoseconds>(compile_end_time - compile_start_time).count() *
+            0.000001;
+        LOG_INFO_TAG("Device: [%s]: Compile model took %lf ms", device.c_str(), compiled_time);
     } catch (const ov::Exception& e) {
         context.m_err_message += device + ":" + e.what();
         context.m_is_load_success = false;
@@ -450,7 +460,7 @@ AutoSchedule::~AutoSchedule() {
     }
     if (m_plugin)
         m_plugin->unregister_priority(m_context->m_model_priority,
-            m_compile_context[ACTUALDEVICE].m_device_info.unique_name);
+                                      m_compile_context[ACTUALDEVICE].m_device_info.unique_name);
     if (m_context) {
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
         m_context->m_device_priorities.clear();
