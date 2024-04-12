@@ -1,11 +1,9 @@
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
 import tensorflow as tf
-from common.layer_test_class import check_ir_version
 from common.tf2_layer_test_class import CommonTF2LayerTest
-from unit_tests.utils.graph import build_graph
 
 
 class TestKerasSWish(CommonTF2LayerTest):
@@ -25,26 +23,6 @@ class TestKerasSWish(CommonTF2LayerTest):
 
         # create reference IR net
         ref_net = None
-
-        if check_ir_version(10, None, ir_version):
-            # convert NHWC to NCHW layout if tensor rank greater 3
-            converted_input_shape = input_shapes[0].copy()
-            if len(converted_input_shape) > 3:
-                converted_input_shape[1] = input_shapes[0][-1]
-                converted_input_shape[2:] = input_shapes[0][1:-1]
-            nodes_attributes = {
-                'input1': {'kind': 'op', 'type': 'Parameter'},
-                'input1_data': {'shape': converted_input_shape, 'kind': 'data'},
-                'swish': {'kind': 'op', 'type': 'Swish'},
-                'swish_data': {'shape': converted_input_shape, 'kind': 'data'},
-                'result': {'kind': 'op', 'type': 'Result'}
-            }
-
-            ref_net = build_graph(nodes_attributes,
-                                  [('input1', 'input1_data'),
-                                   ('input1_data', 'swish', {'in': 0}),
-                                   ('swish', 'swish_data'),
-                                   ('swish_data', 'result')])
 
         return tf2_net, ref_net
 
