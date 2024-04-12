@@ -36,7 +36,7 @@ class TestMatrixInverse(CommonTFLayerTest):
                               [5, 6, 7, 8],
                               [9, 10, 6, 12],
                               [13, 14, 15, 10]]
-                             ], dtype=np.float32)
+                            ], dtype=np.float32)
                              
     def create_matrix_inverse_net(self, input_shape, adjoint):
         self.input_shape = input_shape
