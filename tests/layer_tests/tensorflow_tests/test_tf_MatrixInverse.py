@@ -17,16 +17,19 @@ class TestMatrixInverse(CommonTFLayerTest):
     def _generate_invertible_matrices(self, input_shape):
         if input_shape == [2, 2]:
             return np.array([[1, 2],
-                             [3, 1]], dtype=np.float32)
+                             [3, 1]
+                            ], dtype=np.float32)
         elif input_shape == [3, 3]:
             return np.array([[1, 2, 3],
                              [4, 5, 6],
-                             [7, 8, 9]], dtype=np.float32)
+                             [7, 8, 1]
+                            ], dtype=np.float32)
         elif input_shape == [4, 4]:
             return np.array([[1, 2, 3, 4],
                              [5, 6, 7, 8],
-                             [9, 10, 11, 12],
-                             [13, 14, 15, 16]], dtype=np.float32)
+                             [9, 10, 2, 1],
+                             [13, 14, 2, 1]
+                            ], dtype=np.float32)
         elif input_shape == [2, 4, 4]:
             return np.array([[[10, 2, 3, 4],
                               [5, 10, 7, 8],
