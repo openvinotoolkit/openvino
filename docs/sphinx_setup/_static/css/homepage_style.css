@@ -6,10 +6,6 @@ h1 {
     font-size: 60px !important;
 }
 
-.homepage-begin-container {
-    padding: 0px;
-}
-
 #ov-homepage-banner {
     border-bottom: 0px;
 }
@@ -21,7 +17,7 @@ h1 {
 
 .ov-homepage-slide-title {
     color: white !important;
-    font-size: 22px !important;
+    font-size: 27px !important;
     font-weight: lighter !important;
 }
 
@@ -36,31 +32,26 @@ h1 {
 }
 
 #ov-homepage-banner #splide01-slide01 {
-    background-color: #070862;
     background-image: linear-gradient(350deg, #004CA9 0%, #381965 50%, #070862 100%);
     padding: 32px 48px !important;
 }
 
 #ov-homepage-banner #splide01-slide02 {
-    background-color: #034CAA;
     background-image: linear-gradient(270deg, #034CAA 00%, #4B9D77 50%, #034CAA 100%);
     padding: 32px 48px !important;
 }
 
 #ov-homepage-banner #splide01-slide03 {
-    background-color: #030B5E;
     background-image: linear-gradient(230deg, #030B5E 0%, #285455 40%, #030B5E 100%);
     padding: 32px 48px !important;
 }
 
 #ov-homepage-banner #splide01-slide04 {
-    background-color: #214DA4;
     background-image: linear-gradient(110deg, #214DA4 0%, #03aadd 100%);
     padding: 32px 48px !important;
 }
 
 #ov-homepage-banner #splide01-slide05 {
-    background-color: #034CAA;
     background-image: linear-gradient(350deg, #034CAA 20%, #034CAA 30%, #4B9D77 100%);
     padding: 32px 48px !important;
 }
@@ -69,6 +60,15 @@ h1 {
     p {
         margin: 0.4rem 0 1.2rem 0;
     }
+}
+.splide__pagination>li {
+    padding-right: 6px;
+}
+.is-active{
+    color: white !important;
+}
+.homepage-begin-container {
+    padding: 0px;
 }
 
 #ov-homepage-banner p:first-of-type {
@@ -89,12 +89,8 @@ h1 {
     color: white;
 }
 
-#splide01-track {
-    height: calc(180px) !important;
-}
-
 .ov-homepage-banner-btn {
-    font-size: 14px !important;
+    font-size: 12px !important;
     font-weight: bold !important;
     color: #ffffff !important;
     border: 1px solid white;
@@ -172,7 +168,6 @@ h1 {
 
 .homepage-begin-tile {
     border-radius: 0;
-    /* margin: 20px !important; */
     margin-bottom: 5px;
     position: relative;
     border-width: 0.2cqb;
