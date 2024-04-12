@@ -9,10 +9,8 @@ from common.tf_layer_test_class import CommonTFLayerTest
 class TestMatrixInverse(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         assert 'input:0' in inputs_info
-        input_shape = inputs_info['input:0']
         inputs_data = {}
-
-        inputs_data['input:0'] = self._generate_invertible_matrices(input_shape)
+        inputs_data['input:0'] = self._generate_invertible_matrices(self.input_shape)
 
         return inputs_data
     
