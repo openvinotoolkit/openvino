@@ -16,17 +16,18 @@ std::vector<TRShape> shape_infer(const RMSNorm* op,
                                  const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
     const auto inputs_count = input_shapes.size();
     const auto has_scale_input = inputs_count == 3;
-    NODE_VALIDATION_CHECK(op, inputs_count == 2 || has_scale_input);
+    NODE_SHAPE_INFER_CHECK(op, input_shapes, inputs_count == 2 || has_scale_input);
 
     const auto& data_shape = input_shapes[0];
     const auto& data_rank = data_shape.rank();
     const auto& axes_shape = input_shapes[1];
     const auto& axes_rank = axes_shape.rank();
 
-    NODE_VALIDATION_CHECK(op,
-                          axes_rank.compatible(0) || axes_rank.compatible(1),
-                          "Axes input must be a scalar or 1D input. Got: ",
-                          axes_shape);
+    NODE_SHAPE_INFER_CHECK(op,
+                           input_shapes,
+                           axes_rank.compatible(0) || axes_rank.compatible(1),
+                           "Axes input must be a scalar or 1D input. Got: ",
+                           axes_shape);
 
     // Further validation requires data rank to be static
     if (data_rank.is_dynamic()) {
