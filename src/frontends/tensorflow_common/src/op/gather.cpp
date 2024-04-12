@@ -96,10 +96,7 @@ OutputVector translate_gather_v2_op(const NodeContext& node) {
         auto complex_gather = make_shared<ComplexTypeMark>(gather, complex_type_mark->get_complex_part_type());
         return {complex_gather->output(0)};
     }
-    // Update batch_dims if negative
-    auto updated_batch_dims = batch_dims < 0 ? make_shared<v1::Add>(batch_dims, params_rank) : batch_dims;
-
-    return translate_basic_gather_op(node, axis, batch_dims, updated_batch_dims);
+    return translate_basic_gather_op(node, axis, batch_dims);
 }
 
 OutputVector translate_gather_nd_op(const NodeContext& node) {
