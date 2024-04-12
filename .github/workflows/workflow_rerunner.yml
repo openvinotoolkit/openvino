@@ -33,7 +33,7 @@ jobs:
           sparse-checkout: '.github/scripts/workflow_rerun'
 
       - name: Install deps
-        run: pip3 install PyGithub==2.2.0 requests==2.31.0
+        run: pip3 install ${{ github.workspace }}/.github/scripts/workflow_rerun/requirements.txt
 
       - name: Dump GitHub context
         env:
@@ -61,7 +61,7 @@ jobs:
           lfs: true
 
       - name: Install deps
-        run: pip3 install PyGithub==2.2.0 requests==2.31.0
+        run: pip3 install ${{ github.workspace }}/.github/scripts/workflow_rerun/requirements.txt
 
       - name: Test Rerunner
         env:
