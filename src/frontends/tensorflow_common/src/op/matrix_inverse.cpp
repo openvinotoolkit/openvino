@@ -20,7 +20,7 @@ OutputVector translate_matrix_inverse_op(const NodeContext& node) {
     // handle optional 'adjoint' attribute (default is false)
     bool adjoint = node.get_attribute<bool>("adjoint", false);
 
-    auto inverse_op = make_shared<ov::op::v14::Inverse>(input, false);
+    auto inverse_op = make_shared<ov::op::v14::Inverse>(input, adjoint);
     set_node_name(node.get_name(), inverse_op);
 
     return {inverse_op};
