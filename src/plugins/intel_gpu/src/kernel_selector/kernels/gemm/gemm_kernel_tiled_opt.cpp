@@ -348,7 +348,6 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
 }
 
 KernelsData GemmKernelTiledOpt::GetKernelsData(const Params& params) const {
-    // return GetCommonKernelsData(params);
     if (!Validate(params)) {
         return KernelsData();
     }
