@@ -41,6 +41,7 @@ class TestMatrixInverse(CommonTFLayerTest):
                             ], dtype=np.float32)
                              
     def create_matrix_inverse_net(self, input_shape, adjoint):
+        self.input_shape = input_shape
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
             input_tensor = tf.compat.v1.placeholder(np.float32, input_shape, 'input')
