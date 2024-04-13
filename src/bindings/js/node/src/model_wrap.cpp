@@ -5,7 +5,7 @@
 
 #include "node/include/addon.hpp"
 #include "node/include/errors.hpp"
-#include "node/include/node_output.hpp"
+#include "node/include/helper.hpp"
 
 ModelWrap::ModelWrap(const Napi::CallbackInfo& info)
     : Napi::ObjectWrap<ModelWrap>(info),
@@ -133,16 +133,16 @@ Napi::Value ModelWrap::is_dynamic(const Napi::CallbackInfo& info) {
 Napi::Value ModelWrap::get_output_shape(const Napi::CallbackInfo& info) {
     if (info.Length() != 1 || !info[0].IsNumber()) {
         reportError(info.Env(), "Invalid argument. Expected a single number.");
-        return Napi::Undefined();
+        return info.Env().Undefined();
     }
 
     auto idx = info[0].As<Napi::Number>().Int32Value();
     auto cm_outputs = _model->outputs();  // Output<Node>
 
     try {
-        return cpp_to_js<ov::Shape, Napi::Array>(info, cm_outputs.get_output_shape(idx));
+        return cpp_to_js<ov::Shape, Napi::Array>(info, cm_outputs[idx].get_shape());
     } catch (const std::exception& e) {
         reportError(info.Env(), e.what());
-        return Napi::Undefined();
+        return info.Env().Undefined();
     }
 }
