@@ -287,6 +287,12 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 
             unroll_for(uint load_iter = 0; load_iter < FILTER_LOAD_ITERS; ++load_iter) {
                 SLM_FILTER_PACKED_VEC wei_packed = BLOCK_READN(FILTER_TYPE, FILTER_LOAD_BLOCK_SIZE, weights, weights_idx);
+                #if TILE_K == 4 && COMPRESSED_WEIGHTS_INT4
+                    // TODO: fix
+                    uchar tmp = wei_packed[1];
+                    wei_packed[1] = wei_packed[2];
+                    wei_packed[2] = tmp;
+                #endif
                 SLM_FILTER_UNPACKED_VEC wei_unpacked = UNPACK_INT4x2(ACCUMULATOR_TYPE, *((INT4_PACKED_TYPE_PRELOAD*)&wei_packed));
 
                 ACCUMULATOR_TYPE* w = (ACCUMULATOR_TYPE*)(&wei_unpacked);
