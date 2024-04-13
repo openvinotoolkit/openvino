@@ -154,7 +154,7 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
                 if (iter != stream_conditions[j].end()) {
                     // process the situation of proc_type = ALL_PROC
                     if (stream_conditions[j].size() > 1) {
-                        int idx = iter - stream_conditions[j].begin();
+                        size_t idx = iter - stream_conditions[j].begin();
                         threads_status[j][idx]++;
                         if (threads_status[j][idx] >= stream_conditions[j][idx].second) {
                             stream_conditions[j][idx] = std::make_pair("", 0);
