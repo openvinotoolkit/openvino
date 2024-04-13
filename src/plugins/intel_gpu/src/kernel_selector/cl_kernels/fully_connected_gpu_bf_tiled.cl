@@ -186,11 +186,11 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 #endif
 
 #if COMPRESSED_WEIGHTS_INT4
-#if TILE_OFM == 1
-    uint weights_offset = (( (int) (out_f / 32/*OSV*/) )* 32) * (INPUT_ELEMENTS_COUNT / 2) + 16 * (((int)(out_f / 16)) & 0x1);
-#else
+    #if TILE_OFM == 1 && FILTER_LAYOUT_OS_IYX_OSV32
+    uint weights_offset = (( (int) (out_f / 32) )* 32) * (INPUT_ELEMENTS_COUNT / 2) + SIMD * (((int)(out_f / SIMD)) & 0x1);
+    #else
     uint weights_offset = out_f * (INPUT_ELEMENTS_COUNT / 2);
-#endif
+    #endif
 #else
     uint weights_offset = out_f * INPUT_ELEMENTS_COUNT;
 #endif
@@ -441,42 +441,30 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
                     INPUT0_TYPE in_val = _sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[total_k / SIMD], total_k % SIMD);
                     unroll_for (uint fi = 0; fi < TILE_OFM; ++fi) {
+                    #if COMPRESSED_WEIGHTS_INT4
+                    int weight_idx = fi * TILE_K + kii;
+                    #else
+                    int weight_idx = kii * TILE_OFM + fi;
+                    #endif
 #if DECOMPRESSION_SCALE_POST_OP
+                    half weight = ((ACCUMULATOR_TYPE*)(&wei))[weight_idx];
                     #if TILE_OFM > 1
-                        #if COMPRESSED_WEIGHTS_INT4
-                        half weight = ((ACCUMULATOR_TYPE*)(&wei))[fi * TILE_K + kii];
-                        #else
-                        half weight = ((ACCUMULATOR_TYPE*)(&wei))[kii * TILE_OFM + fi];
-                        #endif
                         ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] += in_val * weight;
                     #else
-                        #if COMPRESSED_WEIGHTS_INT4
-                        half weight = ((ACCUMULATOR_TYPE*)(&wei))[fi * TILE_K + kii];
-                        #else
-                        half weight = ((ACCUMULATOR_TYPE*)(&wei))[kii * TILE_OFM + fi];
-                        #endif
                         acc_tmp[bi] += in_val * weight;
                     #endif
 #else
                     #if TILE_OFM > 1
-                        #if COMPRESSED_WEIGHTS_INT4
-                        ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[fi * TILE_K + kii];
-                        #else
-                        ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[kii * TILE_OFM + fi];
-                        #endif
+                        ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[weight_idx];
                     #else
-                        #if COMPRESSED_WEIGHTS_INT4
-                        acc[bi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[fi * TILE_K + ki];
-                        #else
-                        acc[bi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[kii * TILE_OFM + fi];
-                        #endif
+                        acc[bi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[weight_idx];
                     #endif
 #endif
                     }
                 }
             }
-            #if TILE_OFM == 1
-            weights_offset += TILE_K_OFM_PACKED /*1*/ * 2/*because osv32*/ * SIMD;
+            #if TILE_OFM == 1 && FILTER_LAYOUT_OS_IYX_OSV32
+            weights_offset += TILE_K_OFM_PACKED * 2 * SIMD;
             #else
             weights_offset += TILE_K_OFM_PACKED * SIMD;
             #endif
