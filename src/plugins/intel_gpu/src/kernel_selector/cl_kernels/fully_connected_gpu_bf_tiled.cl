@@ -576,7 +576,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                     }
                 }
             #endif
-            #if TILE_OFM == 1
+            #if TILE_OFM == 1 && FILTER_LAYOUT_OS_IYX_OSV32
             weights_offset += TILE_K_OFM_PACKED * SIMD * 2;
             #else
             weights_offset += TILE_K_OFM_PACKED * SIMD;
