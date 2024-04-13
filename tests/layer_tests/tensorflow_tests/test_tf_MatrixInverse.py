@@ -53,7 +53,7 @@ class TestMatrixInverse(CommonTFLayerTest):
         return tf_net, None
 
     @pytest.mark.parametrize("input_shape", [[2, 2], [3, 3], [2, 4, 4]])
-    @pytest.mark.parametrize("adjoint", [None, False])
+    @pytest.mark.parametrize("adjoint", [None, False, True])
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_matrix_inverse_basic(self, input_shape, adjoint, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
