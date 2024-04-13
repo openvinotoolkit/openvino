@@ -459,6 +459,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 uchar4 wei_packed = as_uchar4(_sub_group_block_read_uc4((const __global uchar *)(weights) + (weights_idx)));
 
                 char8 dq_wei_unpacked = unpack_mixed_to_char(*((uint4x8_t *)&wei_packed));
+                dq_wei_unpacked -= (char8)8;
                 char *dq_w = (char *)(&dq_wei_unpacked);
 
                 // Dynamic Quantizing should use DECOMPRESSION_SCALE_POST_OP
@@ -519,8 +520,14 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
             // char4 first_weight = ((char4 *)(&char_slm_weight[wei_local_idx]))[0];
             // char4 second_weight = ((char4 *)(&char_slm_weight[wei_local_idx+2]))[0];
             // [Packing weight]
-            char4 first_weight = as_char4(((__local int *)(&char_slm_weight[wei_local_idx]))[0]);
-            char4 second_weight = as_char4(((__local int *)(&char_slm_weight[wei_local_idx+1]))[0]);
+            #if 1  // optimization of ~2ms for 3k input
+            char8 weight = vload8(1, (__local char *)(&char_slm_weight[offset + 16*2*ki]));
+            char4 first_weight = weight.s0123;
+            char4 second_weight = weight.s4567;
+            #else
+            char4 first_weight = as_char4(((__local int *)(&char_slm_weight[wei_offset + 16*2*ki]))[0]);
+            char4 second_weight = as_char4(((__local int *)(&char_slm_weight[wei_offset + 16*2*ki + 1]))[0]);
+            #endif
             __attribute__((opencl_unroll_hint)) for (uint bi = 0; bi < 8; ++bi) {
                 // [TEMP]
                 // ((int *)(&acc_tmp[bi]))[0] = imad_SW(((int *)(&acc_tmp[bi]))[0],
@@ -694,7 +701,15 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 
                 #if DECOMPRESSION_SCALE_GROUPS_NUM > 1
                     const uint scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH + ni_offset;
+#if 0
                     ACCUMULATOR_TYPE ds = decompression_scale[scale_offset];
+#else
+                    const uint __offset_ofm = out_f + fi * SIMD;
+                    const uint __scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) *
+                                                DECOMPRESSION_SCALE_BATCH_PITCH +
+                                                ni_offset;
+                    ACCUMULATOR_TYPE ds = BLOCK_READN(INPUT0_TYPE, 1, decompression_scale, __scale_offset);
+#endif
                 #else
                     ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
                 #endif

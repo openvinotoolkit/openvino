@@ -380,8 +380,8 @@ KernelsPriority FullyConnected_bf_tiled_dyn_quan::GetKernelsPriority(const Param
     else if (output_b > 1 && fc_params.inputs[0].GetDType() == Datatype::F16)
         estimated_time = FORCE_PRIORITY_4;
 
-    if (fc_params.inputs[0].Y().v == 4096 && fc_params.inputs[0].Batch().v == 3136 &&
-        fc_params.outputs[0].Y().v == 27392 && fc_params.outputs[0].Batch().v == 3136)
+    if (fc_params.inputs[0].Y().v == 4096 && fc_params.inputs[0].Batch().v > 10 &&
+        fc_params.outputs[0].Y().v == 27392)
         estimated_time = FORCE_PRIORITY_1;
 
     // if (fc_params.inputs[0].Y().v == 4096 && fc_params.inputs[0].Batch().v == 1 &&
