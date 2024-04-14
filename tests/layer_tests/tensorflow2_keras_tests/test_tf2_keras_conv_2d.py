@@ -50,7 +50,7 @@ class TestKerasConv2D(CommonTF2LayerTest):
              input_type=tf.float32),
         dict(conv_params=dict(filters=10, kernel_size=5, padding="same", dilation_rate=4,
                               use_bias=True),
-             input_names=["x"], input_shapes=[[3, 9, 7, 8]], nput_type=tf.float32)
+             input_names=["x"], input_shapes=[[3, 9, 7, 8]], input_type=tf.float32)
     ]
 
     @pytest.mark.parametrize("params", test_data_float32)

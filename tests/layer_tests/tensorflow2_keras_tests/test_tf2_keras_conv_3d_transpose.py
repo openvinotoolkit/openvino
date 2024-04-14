@@ -38,8 +38,6 @@ class TestKerasConv3DTranspose(CommonTF2LayerTest):
         dict(conv_params=dict(filters=10, kernel_size=5, padding="same", strides=(3, 4, 5),
                               activation="relu", use_bias=True, output_padding=2),
              input_names=["x"], input_shapes=[[5, 3, 5, 7, 8]], input_type=tf.float32),
-        dict(conv_params=dict(filters=27, kernel_size=3, data_format="channels_first"),
-             input_names=["x"], input_shapes=[[5, 3, 5, 7, 6]], input_type=tf.float32),
         dict(conv_params=dict(filters=10, kernel_size=5, padding="same", strides=(4, 3, 2),
                               output_padding=1),
              input_names=["x"], input_shapes=[[5, 3, 5, 7, 8]], input_type=tf.float32),

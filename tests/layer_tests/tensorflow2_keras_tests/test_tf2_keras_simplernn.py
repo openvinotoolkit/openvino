@@ -44,12 +44,10 @@ class TestKerasSimpleRNN(CommonTF2LayerTest):
              units=3, activation='elu', use_bias=True, dropout=0.0, recurrent_dropout=0.0,
              return_sequences=False,
              return_state=False, go_backwards=False, stateful=False, unroll=False),
-        pytest.param(
-            dict(input_names=["x1"], input_shapes=[[5, 1, 3]], input_type=tf.float32,
-                 units=3, activation='selu', use_bias=True, dropout=0.0, recurrent_dropout=0.0,
-                 return_sequences=False,
-                 return_state=False, go_backwards=False, stateful=False, unroll=False),
-            marks=pytest.mark.xfail(reason="49512")),
+        dict(input_names=["x1"], input_shapes=[[5, 1, 3]], input_type=tf.float32,
+             units=3, activation='selu', use_bias=True, dropout=0.0, recurrent_dropout=0.0,
+             return_sequences=False,
+             return_state=False, go_backwards=False, stateful=False, unroll=False),
     ]
 
     @pytest.mark.parametrize("params", test_data_different_activations)
