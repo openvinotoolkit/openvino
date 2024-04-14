@@ -73,14 +73,17 @@ class TestSegmentSum(CommonTFLayerTest):
 class TestSegmentSumComplex(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         rng = np.random.default_rng()
-        assert "data:0" in inputs_info
+        assert "data_real:0" in inputs_info
+        assert "data_imag:0" in inputs_info
         assert "segment_ids:0" in inputs_info
-        data_shape = inputs_info["data:0"]
+        data_real_shape = inputs_info["data_real:0"]
+        data_imag_shape = inputs_info["data_imag:0"]
         segment_ids_shape = inputs_info["segment_ids:0"]
         inputs_data = {}
-        inputs_data["data:0"] = rng.random(data_shape).astype(np.float32)
+        inputs_data["data_real:0"] = rng.random(data_real_shape).astype(np.float32)
+        inputs_data["data_imag:0"] = rng.random(data_imag_shape).astype(np.float32)
         inputs_data["segment_ids:0"] = rng.integers(
-            low=0, high=data_shape[0], size=segment_ids_shape
+            low=0, high=data_real_shape[0], size=segment_ids_shape
         ).astype(np.int32)
         return inputs_data
 
@@ -88,11 +91,13 @@ class TestSegmentSumComplex(CommonTFLayerTest):
         tf.compat.v1.reset_default_graph()
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            data = tf.compat.v1.placeholder(np.float32, data_shape, "data")
+            data_real = tf.compat.v1.placeholder(tf.float32,data_shape,'data_real')
+            data_imag = tf.compat.v1.placeholder(tf.float32,data_shape,'data_imag')
+            data = tf.raw_ops.Complex(real=data_real,imag=data_imag)
             segment_ids = tf.compat.v1.placeholder(
                 np.int32, segment_ids_shape, "segment_ids"
             )
-            tf.math.segment_sum(data, segment_ids)
+            tf.raw_ops.segment_sum(data, segment_ids)
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
