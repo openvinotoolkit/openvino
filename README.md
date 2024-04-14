@@ -64,7 +64,7 @@ output = compiled_model.infer_new_request({0: data})
 
 **PyTorch Model**
 
-```
+```python
 import openvino as ov
 import torch
 import torchvision
