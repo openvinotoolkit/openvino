@@ -29,6 +29,7 @@ ov::pass::InsertConvertAfterExtension::InsertConvertAfterExtension(bool convert_
                 auto convert = std::make_shared<op::v0::Convert>(output, ov::element::i32);
 
                 for (const auto& targetInput : targetInputs) {
+                    // Keep the original output element type if required.
                     if (!convert_output_precision && is_type<op::v0::Result>(targetInput.get_node())) {
                         continue;
                     }

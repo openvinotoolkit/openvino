@@ -7,22 +7,21 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 
-
-//       -------------
-//      |  PARAMETER  |
-//       -------------
-//         |        |
-//  -----------   -----------
-// |  Ext_I64  | |  Ext_I64  |
-//  -----------   -----------
+//       ---------------
+//      |   PARAMETER   |
+//       ---------------
+//         |         |
+//  -----------    ----------
+// |  Ext_I64  |  |  OP_I32  |
+//  -----------    ----------
+//       |            |
+//  ----------    -----------
+// |  OP_I32  |  |  Ext_I64  |
+//  ----------    -----------
 //       |            |
 //  ----------    ----------
-// |  OP_I32  |  |  Result  |
+// |  Result  |  |  Result  |
 //  ----------    ----------
-//       |
-//  ----------
-// |  Result  |
-//  ----------
 
 using namespace ov::test;
 using namespace CPUTestUtils;
@@ -40,29 +39,26 @@ public:
 
     CustomOpI64() = default;
 
-    CustomOpI64(const ov::OutputVector& args) : Op(args) {
+    CustomOpI64(const Output<Node>& arg) : Op({arg}) {
         constructor_validate_and_infer_types();
     }
 
     void validate_and_infer_types() override {
         const auto& inputs_count = input_values().size();
-        OPENVINO_ASSERT(inputs_count == 1,
-                        "Input count must be 1, Got: ",
-                        inputs_count);
-        OPENVINO_ASSERT(get_input_element_type(0) == element::i32 || get_input_element_type(0) == element::i64,
-                        "The input must be i32 or i64.");
+        OPENVINO_ASSERT(inputs_count == 1, "Input count must be 1, Got: ", inputs_count);
+        OPENVINO_ASSERT(get_input_element_type(0) == element::i32, "The input must be i32.");
         set_output_size(2);
 
         auto in_shape = get_input_partial_shape(0);
 
-        set_output_type(0, get_input_element_type(0), in_shape);
+        set_output_type(0, element::i64, in_shape);
         set_output_type(1, element::i32, in_shape);
     }
 
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override {
         OPENVINO_ASSERT(new_args.size() == 1, "Incorrect number of new arguments");
 
-        return std::make_shared<CustomOpI64>(new_args);
+        return std::make_shared<CustomOpI64>(new_args[0]);
     }
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override {
@@ -71,23 +67,17 @@ public:
 
     bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override {
         const auto& in = inputs[0];
-        auto& out_0 = outputs[0];
-        auto& out_1 = outputs[1];
+        auto& out0 = outputs[0];
+        auto& out1 = outputs[1];
 
-        memcpy(out_0.data(), in.data(), out_0.get_byte_size());
+        auto inData = in.data<int32_t>();
 
-        if (get_input_element_type(0) == element::i32) {
-            memcpy(out_1.data(), in.data(), out_1.get_byte_size());
-        } else if (get_input_element_type(0) == element::i64) {
-            auto in_data = in.data<int64_t>();
-
-            auto out_data_1 = out_1.data<int32_t>();
-            for (size_t i = 0lu; i < in.get_size(); i++) {
-                out_data_1[i] = static_cast<int32_t>(in_data[i]);
-            }
-        } else {
-            OPENVINO_THROW("Upexpected input element type: ", get_input_element_type(0));
+        auto outData0 = out0.data<int64_t>();
+        for (size_t i = 0lu; i < in.get_size(); i++) {
+            outData0[i] = static_cast<int64_t>(inData[i]);
         }
+
+        memcpy(out1.data(), inData, out1.get_byte_size());
 
         return true;
     }
@@ -118,32 +108,28 @@ public:
 
 protected:
     void SetUp() override {
-        targetDevice = ov::test::utils::DEVICE_CPU;
+        targetDevice = test::utils::DEVICE_CPU;
 
         const auto& params = this->GetParam();
-        m_in_el_type = std::get<0>(params);
+        const auto& in_el_type = std::get<0>(params);
         const auto& in_shape = std::get<1>(params);
 
         init_input_shapes({in_shape});
-        ov::ParameterVector in_params;
-        ov::OutputVector params_outs;
-        for (auto&& shape : inputDynamicShapes) {
-            auto param = std::make_shared<op::v0::Parameter>(m_in_el_type, shape);
-            in_params.push_back(param);
-            params_outs.push_back(param);
-        }
-        auto custom_op_0 = std::make_shared<CustomOpI64>(params_outs);
-        auto custom_op_1 = std::make_shared<CustomOpI64>(params_outs);
-        auto logical_op = std::make_shared<op::v1::LogicalNot>(custom_op_0);
+        auto param = std::make_shared<op::v0::Parameter>(in_el_type, inputDynamicShapes[0]);
 
-        ov::ResultVector results{
-                std::make_shared<op::v0::Result>(logical_op),
-                std::make_shared<op::v0::Result>(custom_op_0->output(1)),
-                std::make_shared<op::v0::Result>(custom_op_1->output(0)),
-                std::make_shared<op::v0::Result>(custom_op_1->output(1)),
+        auto custom_op_0 = std::make_shared<CustomOpI64>(param);
+        auto i32_op_0 = std::make_shared<op::v1::LogicalNot>(custom_op_0->output(0));
+        auto i32_op_1 = std::make_shared<op::v1::LogicalNot>(param);
+        auto custom_op_1 = std::make_shared<CustomOpI64>(i32_op_1);
+
+        OutputVector results{
+                i32_op_0->output(0),
+                custom_op_0->output(1),
+                custom_op_1->output(0),
+                custom_op_1->output(1)
             };
 
-        function = std::make_shared<ov::Model>(results, in_params, "customOpI64Test");
+        function = std::make_shared<ov::Model>(results, ParameterVector{param}, "customOpI64Test");
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
@@ -167,14 +153,45 @@ protected:
             }
         }
     }
-
-    ElementType m_in_el_type;
 };
 
 TEST_P(CustomOpConvertI64CPUTest, CompareWithRefs) {
     run();
 
-    CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "Convert", m_in_el_type == element::i32 ? 0 : 3);
+    size_t cvt_i64_i32_num = 0lu;
+    size_t cvt_i32_i64_num = 0lu;
+    size_t res_i64_num = 0lu;
+    size_t res_i32_num = 0lu;
+
+    for (const auto& node : compiledModel.get_runtime_model()->get_ops()) {
+        auto rt_info = node->get_rt_info();
+        auto it = rt_info.find(exec_model_info::LAYER_TYPE);
+        OPENVINO_ASSERT(rt_info.end() != it);
+
+        if (it->second.as<std::string>() == "Convert") {
+            if (node->get_output_element_type(0) == element::i64) {
+                cvt_i32_i64_num++;
+            } else if (node->get_output_element_type(0) == element::i32) {
+                cvt_i64_i32_num++;
+            } else {
+                OPENVINO_THROW("Unexpected convertion type: ", node->get_output_element_type(0));
+            }
+        }
+        if (it->second.as<std::string>() == "Output") {
+            if (node->get_output_element_type(0) == element::i64) {
+                res_i64_num++;
+            } else if (node->get_output_element_type(0) == element::i32) {
+                res_i32_num++;
+            } else {
+                OPENVINO_THROW("Unexpected Result type: ", node->get_output_element_type(0));
+            }
+        }
+    }
+
+    ASSERT_EQ(cvt_i32_i64_num, 1lu) << "Unexpected number of the Convert i32->i64 nodes.";
+    ASSERT_EQ(cvt_i64_i32_num, 1lu) << "Unexpected number of the Convert i64->i32 nodes.";
+    ASSERT_EQ(res_i64_num, 2lu) << "Unexpected number of the Result nodes with type i64.";
+    ASSERT_EQ(res_i32_num, 2lu) << "Unexpected number of the Result nodes with type i32.";
 }
 
 const InputShape inputShapes = {
@@ -184,9 +201,8 @@ const InputShape inputShapes = {
 INSTANTIATE_TEST_SUITE_P(smoke_CustomOp,
                          CustomOpConvertI64CPUTest,
                          ::testing::Combine(
-                                ::testing::Values(ElementType::i32, ElementType::i64),
+                                ::testing::Values(ElementType::i32),
                                 ::testing::Values(inputShapes)),
                          CustomOpConvertI64CPUTest::getTestCaseName);
-
 }  // namespace test
 }  // namespace ov

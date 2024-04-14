@@ -585,9 +585,8 @@ ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputIn
     } else if (type == ov::element::boolean) {
         return create_tensor_random<uint8_t, uint32_t>(inputInfo.second, 0, 1);
     } else if (type == ov::element::string) {
-        auto in_info = inputInfo.second;
-        size_t tensor_size =
-            std::accumulate(in_info.dataShape.begin(), in_info.dataShape.end(), 1lu, std::multiplies<size_t>());
+        const auto& in_info = inputInfo.second;
+        const auto tensor_size = ov::shape_size(in_info.dataShape);
         auto tensor = ov::Tensor(in_info.type, in_info.dataShape);
         auto data = tensor.data<std::string>();
 
