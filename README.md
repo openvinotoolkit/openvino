@@ -84,7 +84,7 @@ compiled_model = core.compile_model(ov_model, 'CPU')
 output = compiled_model.infer_new_request({0: example.numpy()})
 ```
 
-OpenVINO also supports CPU, GPU, and NPU devices and works with models in TensorFLow, PyTorch, ONNX, TenforFlow Lite, PaddlePaddle model formats.
+OpenVINO also supports CPU, GPU, and NPU devices and works with models in TensorFlow, PyTorch, ONNX, TensorFlow Lite, PaddlePaddle model formats.
 With OpenVINO you can do automatic performance enhancements at runtime customized to your hardware (preserving model accuracy), including:
 asynchronous execution, batch processing, tensor fusion, load balancing, dynamic inference parallelism, automatic BF16 conversion, and more.
 
