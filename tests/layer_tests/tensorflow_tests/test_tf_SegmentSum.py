@@ -106,10 +106,10 @@ class TestSegmentSumComplex(CommonTFLayerTest):
         return tf_net, 
 
     test_data_basic = [
-        dict(data_shape=[2, 3],segment_ids_shape=[2],data_type=np.float32,segment_ids_type=np.int32),
-        dict(data_shape=[3, 2],segment_ids_shape=[3],data_type=np.float32,segment_ids_type=np.int32),
-        dict(data_shape=[3, 1, 2],segment_ids_shape=[3],data_type=np.float32,segment_ids_type=np.int32),
-        dict(data_shape=[4, 2, 1],segment_ids_shape=[4],data_type=np.float32,segment_ids_type=np.int32),
+        dict(data_shape=[2, 3], segment_ids_shape=[2], data_type=np.float32, segment_ids_type=np.int32),
+        dict(data_shape=[3, 2], segment_ids_shape=[3], data_type=np.float32, segment_ids_type=np.int32),
+        dict(data_shape=[3, 1, 2], segment_ids_shape=[3], data_type=np.float32, segment_ids_type=np.int32),
+        dict(data_shape=[4, 2, 1], segment_ids_shape=[4], data_type=np.float32, segment_ids_type=np.int32),
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
