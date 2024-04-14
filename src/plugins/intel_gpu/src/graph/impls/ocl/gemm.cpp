@@ -40,6 +40,16 @@ struct gemm_impl : multi_stage_primitive<gemm> {
         this->can_reuse_memory = true;
     }
 
+    void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
+        if (is_dynamic()) {
+            for (auto& kd : _kernels_data) {
+                auto prim_params = std::dynamic_pointer_cast<kernel_selector::gemm_params>(kd.params);
+                ob << prim_params->not_divisible_k;
+            }
+        }
+    }
+
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
         if (is_dynamic()) {
@@ -49,6 +59,11 @@ struct gemm_impl : multi_stage_primitive<gemm> {
             if (_kernels_data.size() == 2) {
                 auto bt_kernel_impl = kernel_selector.GetImplementation(_kernels_data[indirect_gemm].kernelName);
                 bt_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[indirect_gemm]);
+            }
+            for (auto& kd : _kernels_data) {
+                auto prim_params = std::make_shared<kernel_selector::gemm_params>();
+                ib >> prim_params->not_divisible_k;
+                kd.params = std::move(prim_params);
             }
         }
     }
