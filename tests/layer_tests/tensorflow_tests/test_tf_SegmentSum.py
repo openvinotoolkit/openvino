@@ -97,7 +97,7 @@ class TestSegmentSumComplex(CommonTFLayerTest):
             segment_ids = tf.compat.v1.placeholder(
                 np.int32, segment_ids_shape, "segment_ids"
             )
-            tf.raw_ops.segment_sum(data, segment_ids)
+            tf.raw_ops.SegmentSum(data=data, segment_ids=segment_ids)
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
