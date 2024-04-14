@@ -54,7 +54,6 @@ OutputVector translate_segment_sum_op(const NodeContext& node) {
         set_node_name(node.get_name(), emb_segment_sum_complex);
         return {emb_segment_sum_complex_output};
     }
-    
     auto emb_segment_sum = make_shared<v3::EmbeddingSegmentsSum>(data, indices, segment_ids, num_segments);
     set_node_name(node.get_name(), emb_segment_sum);
     return {emb_segment_sum};
