@@ -50,8 +50,9 @@ OutputVector translate_segment_sum_op(const NodeContext& node) {
     if (complex_type_mark) {
         data = complex_type_mark->input_value(0);
         auto emb_segment_sum_complex = make_shared<v3::EmbeddingSegmentsSum>(data, indices, segment_ids, num_segments);
+        auto emb_segment_sum_complex_output = make_shared<ComplexTypeMark>(emb_segment_sum_complex->output(0)); 
         set_node_name(node.get_name(), emb_segment_sum_complex);
-        return {emb_segment_sum_complex->output(0)};
+        return {emb_segment_sum_complex_output};
     }
     
     auto emb_segment_sum = make_shared<v3::EmbeddingSegmentsSum>(data, indices, segment_ids, num_segments);
