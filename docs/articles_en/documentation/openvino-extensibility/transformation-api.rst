@@ -18,23 +18,23 @@ Overview of Transformations API
    transformation-api/graph-rewrite-pass
 
 OpenVINO Transformation mechanism allows to develop transformation passes to modify ``ov::Model``. You can use this mechanism to apply additional optimizations to the original Model or transform unsupported subgraphs and operations to new operations which are supported by the plugin.
-This guide contains all necessary information that you need to start implementing OpenVINO™ transformations.
+This guide contains all the necessary information that you need to start implementing OpenVINO™ transformations.
 
 Working with Model
 ##################
 
-Before the moving to transformation part it is needed to say several words about functions which allow to modify ``ov::Model``.
+Before the moving to transformation part, we need to say a few words about functions which allow to modify ``ov::Model``.
 This chapter extends the :doc:`model representation guide <../../openvino-workflow/running-inference/integrate-openvino-with-your-application/model-representation>` and shows an API that allows us to manipulate with ``ov::Model``.
 
 Working with node input and output ports
 ++++++++++++++++++++++++++++++++++++++++
 
-First of all let's talk about ``ov::Node`` input/output ports. Each OpenVINO™ operation has input and output ports except cases when operation has ``Parameter`` or ``Constant`` type.
+First of all let's talk about ``ov::Node`` input/output ports. Each OpenVINO™ operation has input and output ports except for ``Parameter`` and ``Constant`` types.
+Throughout the tutorial, you will encounter words ``node`` and ``operation``. In fact, in OpenVINO™ we use ``node`` and ``operation`` interchangeably, but we will try to be consistent in this article.
 
-Every port belongs to its node, so using a port we can access parent node, get shape and type for particular input/output, get all consumers in case of output port, and get producer node in case of input port.
-With output port we can set inputs for newly created operations.
+Every port belongs to a node, so using the port we may access the node it belongs to, get its shape, type, get all consumers in case of output port, and get a producer node in case of input port.
 
-Lets look at the code example.
+Take a look at the code example.
 
 .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.cpp
    :language: cpp
@@ -47,7 +47,7 @@ OpenVINO™ provides two ways for node replacement: via OpenVINO™ helper funct
 
 Let's start with OpenVINO™ helper functions. The most popular function is ``ov::replace_node(old_node, new_node)``.
 
-We will review real replacement case where Negative operation is replaced with Multiply.
+We will review a real replacement case where Negative operation is replaced with Multiply.
 
 .. image:: ../../assets/images/ov_replace_node.png
 
@@ -55,7 +55,7 @@ We will review real replacement case where Negative operation is replaced with M
    :language: cpp
    :fragment: [ov:replace_node]
 
-``ov::replace_node`` has a constraint that number of output ports for both of ops must be the same; otherwise, it raises an exception.
+``ov::replace_node`` has a constraint that number of output ports for both Nodes must be the same. Otherwise, the attempt to replace would an exception.
 
 The alternative way to do the same replacement is the following:
 
@@ -63,7 +63,7 @@ The alternative way to do the same replacement is the following:
    :language: cpp
    :fragment: [ov:manual_replace]
 
-Another transformation example is insertion.
+Another transformation example is insertion. Let's insert an additional Relu node.
 
 .. image:: ../../assets/images/ov_insert_node.png
 
@@ -71,7 +71,7 @@ Another transformation example is insertion.
    :language: cpp
    :fragment: [ov:insert_node]
 
-The alternative way to the insert operation is to make a node copy and use ``ov::replace_node()``:
+The alternative way of inserting a node is to make a node copy and use ``ov::replace_node()``:
 
 .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.cpp
    :language: cpp
@@ -80,15 +80,15 @@ The alternative way to the insert operation is to make a node copy and use ``ov:
 Node elimination
 ++++++++++++++++
 
-Another type of node replacement is its elimination.
+Another type of node replacement is elimination of a node.
 
-To eliminate operation, OpenVINO™ has special method that considers all limitations related to OpenVINO™ Runtime.
+To eliminate a node, OpenVINO™ has a special method that considers all the limitations of OpenVINO™ Runtime.
 
 .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.cpp
    :language: cpp
    :fragment: [ov:eliminate_node]
 
-``ov::replace_output_update_name()`` in case of successful replacement it automatically preserves friendly name and runtime info.
+In case of successful replacement ``ov::replace_output_update_name()`` automatically preserves friendly name and runtime info.
 
 .. _transformations_types:
 
@@ -99,7 +99,7 @@ OpenVINO™ Runtime has three main transformation types:
 
 * :doc:`Model pass <transformation-api/model-pass>` - straightforward way to work with ``ov::Model`` directly
 * :doc:`Matcher pass <transformation-api/matcher-pass>` - pattern-based transformation approach
-* :doc:`Graph rewrite pass <transformation-api/graph-rewrite-pass>` - container for matcher passes needed for efficient execution
+* :doc:`Graph rewrite pass <transformation-api/graph-rewrite-pass>` - container for matcher passes used for efficient execution
 
 .. image:: ../../assets/images/transformations_structure.png
 
@@ -116,36 +116,36 @@ Transformation library has two internal macros to support conditional compilatio
 Transformation writing essentials
 #################################
 
-When developing a transformation, you need to follow these transformation rules:
+When you're developing a transformation, you need to follow these transformation rules:
 
 1. Friendly Names
 +++++++++++++++++
 
-Each ``ov::Node`` has an unique name and a friendly name. In transformations we care only about friendly name because it represents the name from the model.
-To avoid losing friendly name when replacing node with other node or subgraph, set the original friendly name to the latest node in replacing subgraph. See the example below.
+Each ``ov::Node`` has a unique name and a friendly name. In transformations we only care about friendly name because it represents the name from the model point of view.
+To avoid losing friendly name when replacing node with another one or a subgraph, we set the original friendly name to the last node in the replacing subgraph. See the example below.
 
 .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.cpp
    :language: cpp
    :fragment: [ov:replace_friendly_name]
 
-In more advanced cases, when replaced operation has several outputs and we add additional consumers to its outputs, we make a decision how to set friendly name by arrangement.
+In more complicated cases, if a replaced operation has several outputs and we add additional consumers to its outputs, we decide how to set friendly name by an agreement.
 
 2. Runtime Info
 +++++++++++++++
 
-Runtime info is a map ``std::map<std::string, ov::Any>`` located inside ``ov::Node`` class. It represents additional attributes in ``ov::Node``.
-These attributes can be set by users or by plugins and when executing transformation that changes ``ov::Model`` we need to preserve these attributes as they will not be automatically propagated.
+Runtime info is a map ``std::map<std::string, ov::Any>`` located inside ``ov::Node`` class. It represents additional attributes of ``ov::Node``.
+These attributes can be set by users or plugins. When we execute a transformation that changes ``ov::Model``, we need to preserve these attributes as they will not be automatically propagated.
 In most cases, transformations have the following types: 1:1 (replace node with another node), 1:N (replace node with a sub-graph), N:1 (fuse sub-graph into a single node), N:M (any other transformation).
-Currently, there is no mechanism that automatically detects transformation types, so we need to propagate this runtime information manually. See the examples below.
+Currently, there is no mechanism that automatically detects transformation types, so we need to propagate this runtime information manually. See the example below:
 
 
 .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.cpp
    :language: cpp
    :fragment: [ov:copy_runtime_info]
 
-When transformation has multiple fusions or decompositions, ``ov::copy_runtime_info`` must be called multiple times for each case.
+When a transformation has multiple fusions or decompositions, ``ov::copy_runtime_info`` must be called multiple times for each case.
 
-.. note:: ``copy_runtime_info`` removes ``rt_info`` from destination nodes. If you want to keep it, you need to specify them in source nodes like this: ``copy_runtime_info({a, b, c}, {a, b})``
+.. note:: ``copy_runtime_info`` removes ``rt_info`` from destination nodes. If you want to keep it, you need to specify them in source nodes as following: ``copy_runtime_info({a, b, c}, {a, b})``
 
 3. Constant Folding
 +++++++++++++++++++
@@ -172,20 +172,20 @@ Common mistakes in transformations
 
 In transformation development process:
 
-* Do not use deprecated OpenVINO™ API. Deprecated methods has the ``OPENVINO_DEPRECATED`` macros in its definition.
-* Do not pass ``shared_ptr<Node>`` as an input for other node if type of node is unknown or it has multiple outputs. Use explicit output port.
-* If you replace node with another node that produces different shape, remember that new shape will not be propagated until the first ``validate_nodes_and_infer_types`` call for ``ov::Model``. If you are using ``ov::pass::Manager``, it will automatically call this method after each transformation execution.
+* Do not use deprecated OpenVINO™ API. Deprecated methods are marked with ``OPENVINO_DEPRECATED`` macro in their definition.
+* Do not pass ``shared_ptr<Node>`` as an input for another one if a type of the node is unknown or it has multiple outputs. Use explicit output port.
+* If you replace node with another one that produces different shape, remember that new shape will not be propagated until the first ``validate_nodes_and_infer_types`` call for ``ov::Model``. If you are using ``ov::pass::Manager``, it will automatically call this method after each transformation execution.
 * Do not forget to call the ``ov::pass::ConstantFolding`` pass if your transformation creates constant subgraphs.
 * Use latest OpSet if you are not developing downgrade transformation pass.
-* When developing a callback for ``ov::pass::MatcherPass``,  do not change nodes that come after the root node in topological order.
+* When developing a callback for ``ov::pass::MatcherPass``, do not change nodes that come after the root node in the topological order.
 
 .. _using_pass_manager:
 
 Using pass manager
 ##################
 
-``ov::pass::Manager`` is a container class that can store the list of transformations and execute them. The main idea of this class is to have high-level representation for grouped list of transformations.
-It can register and apply any `transformation pass <#transformations_types>`__ on model.
+``ov::pass::Manager`` is a container class that can store a list of transformations and execute them. The main idea of this class is to have a high-level representation for grouped list of transformations.
+It can register and apply any `transformation pass <#transformations_types>`__ on a model.
 In addition, ``ov::pass::Manager`` has extended debug capabilities (find more information in the `how to debug transformations <#how_to_debug_transformations>`__ section).
 
 The example below shows basic usage of ``ov::pass::Manager``
