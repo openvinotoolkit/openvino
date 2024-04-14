@@ -42,7 +42,7 @@ Here are easy-to-follow code examples demonstrating how to run TensorFlow and Py
 
 **TensorFlow Model**
 
-```
+```python
 import numpy as np
 import openvino as ov
 import tensorflow as tf
