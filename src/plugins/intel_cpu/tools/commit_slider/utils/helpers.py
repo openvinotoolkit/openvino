@@ -292,7 +292,8 @@ def fetchAppOutput(cfg, commit):
                 {"src": cfg["appPath"], "dst": "appPath"},
                 {"src": sys.executable, "dst": "py"},
                 # for AC case
-                {"src": cfg["dlbConfig"]["appCmd"], "dst": "appCmd"}
+                {"src": cfg["dlbConfig"]["appCmd"], "dst": "appCmd"},
+                {"src": cfg["dlbConfig"]["toolPath"], "dst": "toolPath"}
                 ]:
             appCmd = multistepStrFormat(
                 appCmd,
