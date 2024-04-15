@@ -789,9 +789,7 @@ void jit_store_emitter::store_bytes(const Xbyak::Reg64 &reg, int offset, int sto
     };
 
     auto store_one_byte = [&](int start_bytes, int bytes_offset, int gpr_idx) {
-        bool ext8bit = false;
-        if (one_of(gpr_idx, Operand::RSP, Operand::RBP, Operand::RSI, Operand::RDI))
-            ext8bit = true;
+        auto ext8bit = one_of(gpr_idx, Operand::RSP, Operand::RBP, Operand::RSI, Operand::RDI);
         h->mov(addr(start_bytes + bytes_offset), Reg8(gpr_idx, ext8bit));
     };
 
