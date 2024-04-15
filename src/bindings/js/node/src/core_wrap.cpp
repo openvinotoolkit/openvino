@@ -27,7 +27,6 @@ std::tuple<ov::AnyMap, std::string> try_get_set_property_parameters(const Napi::
     validate_set_property_args(info);
 
     std::string device_name;
-    ov::AnyMap properties;
 
     const size_t args_length = info.Length();
 
@@ -35,16 +34,7 @@ std::tuple<ov::AnyMap, std::string> try_get_set_property_parameters(const Napi::
         device_name = info[0].ToString();
 
     const size_t parameters_position_index = device_name.empty() ? 0 : 1;
-    Napi::Object parameters = info[parameters_position_index].ToObject();
-    const auto& keys = parameters.GetPropertyNames();
-
-    for (uint32_t i = 0; i < keys.Length(); ++i) {
-        auto property_name = static_cast<Napi::Value>(keys[i]).ToString().Utf8Value();
-
-        ov::Any any_value = js_to_any(info.Env(), parameters.Get(property_name));
-
-        properties.insert(std::make_pair(property_name, any_value));
-    }
+    const auto& properties = to_anyMap(info.Env(), info[parameters_position_index]);
 
     return std::make_tuple(properties, device_name);
 }
