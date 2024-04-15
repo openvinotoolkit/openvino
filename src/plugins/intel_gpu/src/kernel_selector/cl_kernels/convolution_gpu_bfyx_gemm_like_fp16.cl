@@ -110,7 +110,6 @@ KERNEL(convolution_f16)(
         _result.se = mad( _rowA, sub_group_broadcast( colB, 14 ), _result.se );  \
         _result.sf = mad( _rowA, sub_group_broadcast( colB, 15 ), _result.sf );  \
     }
-    typedef CAT( half, FILTER_SIZE_X ) half_t;
     // Walk DOWN src0 (patch 0, 1, 2, ...) and DOWN src1.
     // Inner loop loads and FMADs one row (FILTER_SIZE_X) of each input patch
     // and FILTER_SIZE_X/2 rows of interleaved filter.
@@ -158,6 +157,7 @@ KERNEL(convolution_f16)(
             #elif !defined(INPUT_BUFFER_WIDTH_PADDED) && !defined(INPUT_BUFFER_HEIGHT_PADDED)
             // TODO: Fixed vload issue in this path.
             #pragma error
+            typedef CAT( half, FILTER_SIZE_X ) half_t;
             half_t blockA00;
             half*  pblockA00 = (half*)(&blockA00);
             #if (PADDING_SIZE_X == 1) && (INPPUT_PADDING_Y == 1) && (FILTER_SIZE_X == 3) && (FILTER_SIZE_Y == 3)

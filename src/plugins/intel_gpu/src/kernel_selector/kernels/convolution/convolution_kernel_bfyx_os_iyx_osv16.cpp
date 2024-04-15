@@ -226,7 +226,7 @@ JitConstants ConvolutionKernel_bfyx_os_iyx_osv16::GetJitConstants(const convolut
     const size_t of_threads_per_batch = RoundUp(of_maps_per_group, sub_group_size);
     size_t leftovers = of_threads_per_batch - of_maps_per_group;
 
-    auto jit = Parent::GetJitConstants(params, dispatchData);
+    auto jit = Parent::GetJitConstantsWithLoopUnroll(params, dispatchData);
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetUnitType(params);
