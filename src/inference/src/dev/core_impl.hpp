@@ -66,6 +66,7 @@ private:
         struct CacheConfig {
             std::string _cacheDir;
             std::shared_ptr<ov::ICacheManager> _cacheManager;
+            bool _unsetCacheDir;
 
             static CacheConfig create(const std::string& dir);
         };
