@@ -617,8 +617,6 @@ jobs:
         if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
         shell: cmd
         run: |
-          :: requires 'unit_tests' from 'tools/mo'
-          set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\mo;%PYTHONPATH%
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/ -n logical -m precommit  --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_fe.xml
         env:
           TEST_DEVICE: CPU
@@ -628,9 +626,6 @@ jobs:
         if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
         shell: cmd
         run: |
-          :: requires 'unit_tests' from 'tools/mo'
-          set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\mo;%PYTHONPATH%
-
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/ -m precommit_tf_fe --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_fe.xml
         env:
           TEST_DEVICE: CPU

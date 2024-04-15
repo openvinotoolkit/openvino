@@ -94,6 +94,9 @@ protected:
     /** @brief Returns devices available for inference. */
     Napi::Value get_available_devices(const Napi::CallbackInfo& info);
 
+    /** @brief Returns versions of the specified device. */
+    Napi::Value get_versions(const Napi::CallbackInfo& info);
+
 private:
     ov::Core _core;
 };

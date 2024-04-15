@@ -37,6 +37,8 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 || impl_params->get_input_layout(0).get_partial_shape()[axis] == impl_params->get_input_layout(1).get_partial_shape()[0]) {
                 // May be skipepd
                 node.can_be_optimized(true);
+                // Set runtime skippable only when the node is set as can_be_optimized finally.
+                node.set_runtime_skippable(true);
                 GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
             }
         });
@@ -56,6 +58,8 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 if (node.have_user_with_type<concatenation>() && node.get_users().size() == 1)
                     return;
                 node.can_be_optimized(true);
+                // Set runtime skippable only when the node is set as can_be_optimized finally.
+                node.set_runtime_skippable(true);
                 GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
             }
         });
@@ -94,6 +98,8 @@ void mark_runtime_skippable_nodes::run(program& p) {
             if (!end.empty() && !is_valid)
                 return;
             node.can_be_optimized(true);
+            // Set runtime skippable only when the node is set as can_be_optimized finally.
+            node.set_runtime_skippable(true);
             GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
         });
         program_helpers::do_for_types<broadcast>(*node, [](broadcast_node& node){
@@ -132,6 +138,8 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 }
 
                 node.can_be_optimized(true);
+                // Set runtime skippable only when the node is set as can_be_optimized finally.
+                node.set_runtime_skippable(true);
                 GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
             }
         });
