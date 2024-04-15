@@ -68,7 +68,7 @@ InterpolateEvalHelper::InfoForGenericLinearONNXMode InterpolateEvalHelper::get_i
     if (channel_last)
         num_channels = input_shape[input_shape.size() - 1];
     else
-        num_channels = input_shape[0];
+        num_channels = input_shape[1];
 
     std::size_t spatial_rank = input_shape.size() - 2;
 
