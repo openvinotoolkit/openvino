@@ -3,11 +3,18 @@
 
 import json
 import os
-from utils.helpers import multistepStrFormat
+
 
 class CfgManager():
     def __init__(self, cfg) -> None:
         self.cfg = cfg
+
+    @staticmethod
+    def multistepStrFormat(input: str, placeholder: str, substitution: str):
+        return input.replace(
+            '{}{}{}'.format('{', placeholder, '}'),
+            substitution
+        )
 
     def applyTemplate(self):
         if not "template" in self.cfg:
@@ -56,7 +63,7 @@ def generateE2ETemplate(self):
             tmpJSON["runConfig"]["stopPattern"] = tmpl["errorPattern"]
             tmpJSON["dlbConfig"]["commonPath"] = tmpl["precommitPath"]
             tmpJSON["cachedPathConfig"]["commonPath"] = tmpl["precommitPath"]
-            tmpJSON["appCmd"] = multistepStrFormat(
+            tmpJSON["appCmd"] = CfgManager.multistepStrFormat(
                 tmpJSON["appCmd"],
                 tmpl["appCmd"],
                 "testCmd"
