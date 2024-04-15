@@ -10,7 +10,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 class TestSetItem(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
-        return [np.random.randn(10).astype(np.int32).tolist()]
+        return [np.random.randint(-10, 10, [10]).tolist()]
 
     def create_model(self, idx):
         import torch
