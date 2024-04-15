@@ -39,13 +39,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
                                             ::testing::ValuesIn(multiConfigs)),
                          OVCompiledGraphImportExportTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
-                         OVCompiledGraphImportExportTest,
-                         ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(ov::test::utils::DEVICE_HETERO),
-                                            ::testing::ValuesIn(heteroConfigs)),
-                         OVCompiledGraphImportExportTest::getTestCaseName);
-
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassImportExportTestP,
                          OVClassCompiledModelImportExportTestP,
                          ::testing::Values("HETERO:TEMPLATE"));

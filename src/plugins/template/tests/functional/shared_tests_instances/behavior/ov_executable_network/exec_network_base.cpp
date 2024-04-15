@@ -30,12 +30,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
                                             ::testing::ValuesIn(swPluginConfigs)),
                          OVCompiledModelBaseTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
-                         OVCompiledModelBaseTest,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_HETERO),
-                                            ::testing::ValuesIn(swPluginConfigs)),
-                         OVCompiledModelBaseTest::getTestCaseName);
-
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVCompiledModelBaseTestOptional,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
@@ -51,12 +45,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
                          OVCompiledModelBaseTestOptional,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                            ::testing::ValuesIn(swPluginConfigs)),
-                         OVCompiledModelBaseTestOptional::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
-                         OVCompiledModelBaseTestOptional,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_HETERO),
                                             ::testing::ValuesIn(swPluginConfigs)),
                          OVCompiledModelBaseTestOptional::getTestCaseName);
 }  // namespace

@@ -17,7 +17,6 @@ const std::vector<ov::AnyMap> inproperties = {
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVPropertiesIncorrectTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_TEMPLATE,
-                                                              ov::test::utils::DEVICE_HETERO,
                                                               ov::test::utils::DEVICE_MULTI,
                                                               ov::test::utils::DEVICE_BATCH),
                                             ::testing::ValuesIn(inproperties)),
@@ -43,11 +42,6 @@ const std::vector<ov::AnyMap> properties = {
     {ov::device::id(0)},
 };
 
-const std::vector<ov::AnyMap> hetero_properties = {
-    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::enable_profiling(true)},
-    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::device::id(0)},
-};
-
 const std::vector<ov::AnyMap> multi_properties = {
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::enable_profiling(true)},
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::device::id(0)},
@@ -62,12 +56,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVPropertiesTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
                                             ::testing::ValuesIn(properties)),
-                         OVPropertiesTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
-                         OVPropertiesTests,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_HETERO),
-                                            ::testing::ValuesIn(hetero_properties)),
                          OVPropertiesTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,

@@ -11,6 +11,7 @@ ov_add_test_target(
             mock_engine
             openvino_hetero_plugin
         LINK_LIBRARIES
+            openvino::funcSharedTests
             openvino::runtime::dev
             gtest
             gtest_main

@@ -38,8 +38,6 @@ std::vector<ov::element::Type> prcs = {
 
 const std::vector<ov::AnyMap> emptyConfigs = {{}};
 
-const std::vector<ov::AnyMap> HeteroConfigs = {{ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE)}};
-
 const std::vector<ov::AnyMap> Multiconfigs = {{ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
@@ -47,13 +45,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          ::testing::Combine(::testing::ValuesIn(prcs),
                                             ::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
                                             ::testing::ValuesIn(emptyConfigs)),
-                         OVInferRequestCheckTensorPrecision::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
-                         OVInferRequestCheckTensorPrecision,
-                         ::testing::Combine(::testing::ValuesIn(prcs),
-                                            ::testing::Values(ov::test::utils::DEVICE_HETERO),
-                                            ::testing::ValuesIn(HeteroConfigs)),
                          OVInferRequestCheckTensorPrecision::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
