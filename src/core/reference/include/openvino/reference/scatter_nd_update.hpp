@@ -46,7 +46,7 @@ constexpr T logical_or(const T a, const T b) {
 
 }  // namespace func
 
-template <typename T>
+template <typename T, typename std::enable_if<!std::is_same<typename std::decay<T>::type, char>::value>* = nullptr>
 reduction_function<T> reduction_functor_for(const Reduction reduction_type) {
     switch (reduction_type) {
     case Reduction::MAX:
