@@ -34,12 +34,13 @@ py::buffer_info _get_buffer_info(const ov::op::v0::Constant& c) {
 template <>
 py::buffer_info _get_buffer_info<ov::float16>(const ov::op::v0::Constant& c) {
     ov::Shape shape = c.get_shape();
-    return py::buffer_info(const_cast<void*>(c.get_data_ptr()),              /* Pointer to buffer */
-                           static_cast<size_t>(c.get_element_type().size()), /* Size of one scalar */
-                           std::string(1, 'H'),                              /* Python struct-style format descriptor */
-                           static_cast<size_t>(shape.size()),                /* Number of dimensions */
-                           std::vector<size_t>{shape.begin(), shape.end()},  /* Buffer dimensions */
-                           Common::constant_helpers::_get_byte_strides<ov::float16>(shape) /* Strides (in bytes) for each index */
+    return py::buffer_info(
+        const_cast<void*>(c.get_data_ptr()),                            /* Pointer to buffer */
+        static_cast<size_t>(c.get_element_type().size()),               /* Size of one scalar */
+        std::string(1, 'H'),                                            /* Python struct-style format descriptor */
+        static_cast<size_t>(shape.size()),                              /* Number of dimensions */
+        std::vector<size_t>{shape.begin(), shape.end()},                /* Buffer dimensions */
+        Common::constant_helpers::_get_byte_strides<ov::float16>(shape) /* Strides (in bytes) for each index */
     );
 }
 
@@ -161,8 +162,7 @@ void regclass_graph_op_Constant(py::module m) {
                 py::dtype dst_dtype;
                 if (dtype.is(py::dtype())) {
                     dst_dtype = dtype.cast<py::dtype>();
-                }
-                else {
+                } else {
                     dst_dtype = py::dtype::from_args(dtype);
                 }
                 const auto& ov_type = self.get_element_type();
@@ -171,15 +171,17 @@ void regclass_graph_op_Constant(py::module m) {
                 // casting is NOT required, only check copy flag
                 if (dst_dtype == dtype) {
                     if (copy) {
-                        return Common::array_helpers::array_from_constant_copy(std::forward<ov::op::v0::Constant>(self));
-                    }
-                    else {
-                        return Common::array_helpers::array_from_constant_view(std::forward<ov::op::v0::Constant>(self));
+                        return Common::array_helpers::array_from_constant_copy(
+                            std::forward<ov::op::v0::Constant>(self));
+                    } else {
+                        return Common::array_helpers::array_from_constant_view(
+                            std::forward<ov::op::v0::Constant>(self));
                     }
                 }
                 // Otherwise always copy:
                 else {
-                    return Common::array_helpers::array_from_constant_copy(std::forward<ov::op::v0::Constant>(self), dst_dtype);   
+                    return Common::array_helpers::array_from_constant_copy(std::forward<ov::op::v0::Constant>(self),
+                                                                           dst_dtype);
                 }
             }
             // Copy of data in Constant type:
@@ -195,26 +197,25 @@ void regclass_graph_op_Constant(py::module m) {
         py::arg("dtype") = py::none(),
         py::arg("copy") = false,
         R"(
-            Access to Constant's data - creates a copy of data.
+            Access to Constant's data. Returns numpy array with corresponding shape.
 
-            If `dtype` parameter is applied, function is casting data to
-            desired dtype.
+            Function tries to return a view by default, if not possible due
+            to types mismatch (between the Constant's type and `dtype`)
+            or when `copy=True`, then make a copy of data.
+
             If `dtype` is not specified, it's inherited from Constant itself.
-            If `copy` is enabled, `dtype` and Constant's element type must
-            match to create a view.
-            If `copy` is disabled and `dtype` and Constant's element type
-            do not match -- copy is forced by default.
 
-            Returns numpy array with corresponding shape and dtype.
-            For Constants with openvino specific element type, such as u1,
-            it returns linear array, with uint8 / int8 numpy dtype.
+            For Constants with OpenVINO specific element type, such as u1,
+            it returns linear array (as view) with uint8 / int8 numpy dtype.
+            In such cases if `dtype` is used, function also creates a copy and
+            unpacks the data.
 
             Note: can be used to upcast BF16 data type to float32 or float64. 
 
             :param dtype: Targeted data type.
             :type dtype: numpy.dtype, optional, keyword-only
             :param copy: Enable or disable copy of data.
-            :type copy: numpy.dtype, optional, keyword-only
+            :type copy: bool, optional, keyword-only
             :rtype: numpy.array
         )");
 

@@ -638,6 +638,8 @@ def test_get_data_casting_bool(src_dtype, copy_flag):
 @pytest.mark.parametrize(
     ("dst_dtype"),
     [
+        (None),
+        (np.float16),
         (np.float32),
         (np.float64),
     ],
@@ -655,5 +657,60 @@ def test_get_data_casting_bf16(src_dtype, dst_dtype, copy_flag):
 
     arr = ov_const.get_data(dtype=dst_dtype, copy=copy_flag)
 
-    assert arr.flags["OWNDATA"] is True
-    assert np.array_equal(arr, np.array([1.0, 0.0, 1012.0, 0.5, 2.0]))
+    expected_result = np.array([1.0, 0.0, 1012.0, 0.5, 2.0], dtype=np.float32)
+
+    if dst_dtype is None and copy_flag is False:
+        assert arr.flags["OWNDATA"] is False
+        assert arr.dtype == np.float16
+        assert np.array_equal(arr.view(np.int16), expected_result.view(np.int16)[1::2])
+    elif dst_dtype == np.float16 and copy_flag is False:
+        assert arr.flags["OWNDATA"] is False
+        assert np.array_equal(arr.view(np.int16), expected_result.view(np.int16)[1::2])
+    else:  # copy_flag is True
+        assert arr.flags["OWNDATA"] is True
+        if dst_dtype in [None, np.float16]:
+            assert np.array_equal(arr.view(np.int16), expected_result.view(np.int16)[1::2])
+        else:  # up-casting to np.float32 or np.float64
+            assert np.array_equal(arr, expected_result)
+
+
+@pytest.mark.parametrize(
+    ("src_dtype"),
+    [
+        (np.int8),
+    ],
+)
+@pytest.mark.parametrize(
+    ("ov_type"),
+    [
+        (Type.u1),
+    ],
+)
+@pytest.mark.parametrize(
+    ("dst_dtype"),
+    [
+        (None),
+        (np.int8),
+    ],
+)
+@pytest.mark.parametrize(
+    ("copy_flag"),
+    [
+        (True),
+        (False),
+    ],
+)
+def test_get_data_casting_packed(src_dtype, ov_type, dst_dtype, copy_flag):
+    data = np.array([[0, 0, 0, 0, 1, 0, 0, 1], [0, 0, 0, 0, 0, 0, 0, 1]], dtype=src_dtype)
+    ov_const = ops.constant(data, dtype=ov_type)
+    arr = ov_const.get_data(dtype=dst_dtype, copy=copy_flag)
+
+    if dst_dtype is None:
+        if copy_flag:
+            assert arr.flags["OWNDATA"] is True
+        else:
+            assert arr.flags["OWNDATA"] is False
+        assert np.array_equal(arr, np.packbits(data))
+    else:
+        assert arr.flags["OWNDATA"] is True
+        assert np.array_equal(arr, data)

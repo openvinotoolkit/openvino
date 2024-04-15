@@ -121,7 +121,8 @@ std::vector<size_t> _get_byte_strides(const ov::Shape& s) {
 }
 
 std::vector<size_t> _get_strides(const ov::op::v0::Constant& self);
-}
+
+}; // namespace constant_helpers
 
 // Helpers for shapes
 namespace shape_helpers {
