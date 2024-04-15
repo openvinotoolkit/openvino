@@ -13,6 +13,7 @@
 #include "openvino/opsets/opset12.hpp"
 #include "openvino/opsets/opset13.hpp"
 #include "openvino/opsets/opset14.hpp"
+#include "openvino/opsets/opset15.hpp"
 #include "openvino/opsets/opset2.hpp"
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset4.hpp"
@@ -73,7 +74,8 @@ INSTANTIATE_TEST_SUITE_P(opset,
                                          OpsetTestParams{ov::get_opset11, 177},
                                          OpsetTestParams{ov::get_opset12, 178},
                                          OpsetTestParams{ov::get_opset13, 186},
-                                         OpsetTestParams{ov::get_opset14, 188}),
+                                         OpsetTestParams{ov::get_opset14, 188},
+                                         OpsetTestParams{ov::get_opset15, 3}),
                          OpsetTestNameGenerator{});
 
 class MyOpOld : public ov::op::Op {
