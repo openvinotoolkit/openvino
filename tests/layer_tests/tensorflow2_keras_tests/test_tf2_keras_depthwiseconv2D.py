@@ -43,7 +43,7 @@ class TestKerasDepthwiseConv2D(CommonTF2LayerTest):
              data_format='channels_last',
              dilation_rate=(2, 2), activation=None, use_bias=False),
         dict(input_names=["x"], input_shapes=[[5, 16, 8, 4]], input_type=tf.float32,
-             kernel_size=(2, 2), strides=(3, 3), padding='same', depth_multiplier=54,
+             kernel_size=(2, 2), strides=(3, 3), padding='same', depth_multiplier=4,
              data_format='channels_first',
              dilation_rate=1, activation=None, use_bias=False),
     ]
@@ -69,7 +69,7 @@ class TestKerasDepthwiseConv2D(CommonTF2LayerTest):
              data_format='channels_last',
              dilation_rate=(2, 2), activation=None, use_bias=True),
         dict(input_names=["x"], input_shapes=[[5, 16, 8, 4]], input_type=tf.float32,
-             kernel_size=(2, 2), strides=(3, 3), padding='same', depth_multiplier=54,
+             kernel_size=(2, 2), strides=(3, 3), padding='same', depth_multiplier=4,
              data_format='channels_first',
              dilation_rate=1, activation=None, use_bias=True),
     ]
@@ -95,7 +95,7 @@ class TestKerasDepthwiseConv2D(CommonTF2LayerTest):
              data_format='channels_last',
              dilation_rate=(2, 2), activation='linear', use_bias=True),
         dict(input_names=["x"], input_shapes=[[5, 16, 8, 4]], input_type=tf.float32,
-             kernel_size=(2, 2), strides=(3, 3), padding='same', depth_multiplier=54,
+             kernel_size=(2, 2), strides=(3, 3), padding='same', depth_multiplier=4,
              data_format='channels_first',
              dilation_rate=1, activation='tanh', use_bias=True),
     ]

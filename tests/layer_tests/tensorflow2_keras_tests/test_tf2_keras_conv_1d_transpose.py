@@ -15,6 +15,7 @@ class TestKerasConv1DTranspose(CommonTF2LayerTest):
             # tf.nn.<activation> operation have no "==" operation to be compared
             "relu": tf.nn.relu
         }
+        params = params.copy()
         if "activation" in params:
             params["activation"] = activation_func_structure[params["activation"]]
 
