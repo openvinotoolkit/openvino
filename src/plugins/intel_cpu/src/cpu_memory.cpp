@@ -636,6 +636,7 @@ bool mbind_move(void* data, size_t size, int targetNode) {
     auto rc = mbind(pages, page_count * pagesize, MPOL_BIND, &mask, sizeof(mask) * 8, flags);
     if (rc < 0) {
         DEBUG_LOG("mbind failed: ", strerror(errno));
+        return false;
     }
     return true;
 }
