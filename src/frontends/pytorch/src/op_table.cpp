@@ -24,6 +24,7 @@ OP_CONVERTER(translate_adaptive_max_pool2d);
 OP_CONVERTER(translate_adaptive_max_pool1d);
 OP_CONVERTER(translate_add);
 OP_CONVERTER(translate_add_);
+OP_CONVERTER(translate_aminmax);
 OP_CONVERTER(translate_mul);
 OP_CONVERTER(translate_mul_);
 OP_CONVERTER(translate_addcmul);
@@ -352,6 +353,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::all", op::translate_all},
         {"aten::amax", op::translate_amax},
         {"aten::amin", op::translate_amin},
+        {"aten::aminmax", op::translate_aminmax},
         // aten::append - Supported in limited set of patterns
         {"aten::arange", op::translate_arange},
         {"aten::argmax", op::translate_argmax},
