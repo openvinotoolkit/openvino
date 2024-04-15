@@ -41,7 +41,7 @@ std::tuple<ov::AnyMap, std::string> try_get_set_property_parameters(const Napi::
     for (uint32_t i = 0; i < keys.Length(); ++i) {
         auto property_name = static_cast<Napi::Value>(keys[i]).ToString().Utf8Value();
 
-        ov::Any any_value = js_to_any(info, parameters.Get(property_name));
+        ov::Any any_value = js_to_any(info.Env(), parameters.Get(property_name));
 
         properties.insert(std::make_pair(property_name, any_value));
     }
@@ -274,10 +274,6 @@ Napi::Value CoreWrap::get_available_devices(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value CoreWrap::import_model(const Napi::CallbackInfo& info) {
-    if (info.Length() != 2) {
-        reportError(info.Env(), "Invalid number of arguments -> " + std::to_string(info.Length()));
-        return info.Env().Undefined();
-    }
     if (!info[0].IsBuffer()) {
         reportError(info.Env(), "The first argument must be of type Buffer.");
         return info.Env().Undefined();
@@ -291,7 +287,22 @@ Napi::Value CoreWrap::import_model(const Napi::CallbackInfo& info) {
     std::stringstream _stream;
     _stream << model_stream;
 
-    const auto& compiled = _core.import_model(_stream, std::string(info[1].ToString()));
+    ov::CompiledModel compiled;
+    switch (info.Length()) {
+    case 2: {
+        compiled = _core.import_model(_stream, std::string(info[1].ToString()));
+        break;
+    }
+    case 3: {
+        compiled = _core.import_model(_stream, std::string(info[1].ToString()), to_anyMap(info.Env(), info[2]));
+        break;
+    }
+    default: {
+        reportError(info.Env(), "Invalid number of arguments -> " + std::to_string(info.Length()));
+        return info.Env().Undefined();
+    }
+    }
+
     return CompiledModelWrap::wrap(info.Env(), compiled);
 }
 
