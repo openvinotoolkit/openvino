@@ -110,7 +110,8 @@ const std::map<std::string, std::function<const ov::OpSet&()>>& ov::get_availabl
                                                                                        _OPENVINO_REG_OPSET(opset11),
                                                                                        _OPENVINO_REG_OPSET(opset12),
                                                                                        _OPENVINO_REG_OPSET(opset13),
-                                                                                       _OPENVINO_REG_OPSET(opset14)};
+                                                                                       _OPENVINO_REG_OPSET(opset14),
+                                                                                       _OPENVINO_REG_OPSET(opset15)};
 #undef _OPENVINO_REG_OPSET
     return opset_map;
 }
@@ -264,6 +265,17 @@ const ov::OpSet& ov::get_opset14() {
     std::call_once(flag, [&]() {
 #define _OPENVINO_OP_REG(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
 #include "openvino/opsets/opset14_tbl.hpp"
+#undef _OPENVINO_OP_REG
+    });
+    return opset;
+}
+
+const ov::OpSet& ov::get_opset15() {
+    static OpSet opset;
+    static std::once_flag flag;
+    std::call_once(flag, [&]() {
+#define _OPENVINO_OP_REG(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
+#include "openvino/opsets/opset15_tbl.hpp"
 #undef _OPENVINO_OP_REG
     });
     return opset;
