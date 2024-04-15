@@ -9,7 +9,7 @@ from common.utils.tflite_utils import get_tflite_results, save_tf2_saved_model_t
 from common.layer_utils import import_openvino_tokenizers
 
 # do not import openvino_tokenizers in legacy tests
-if not pytest.Config.getoption('use_legacy_frontend'):
+if not pytest.Config.getoption('--use_legacy_frontend'):
     import_openvino_tokenizers()
 
 def save_to_tf2_savedmodel(tf2_model, path_to_saved_tf2_model):

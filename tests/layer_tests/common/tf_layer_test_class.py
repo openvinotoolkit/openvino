@@ -10,7 +10,7 @@ from common.utils.tf_utils import save_to_pb
 from common.layer_utils import import_openvino_tokenizers
 
 # do not import openvino_tokenizers in legacy tests
-if not pytest.Config.getoption('use_legacy_frontend'):
+if not pytest.Config.getoption('--use_legacy_frontend'):
     import_openvino_tokenizers()
 
 class CommonTFLayerTest(CommonLayerTest):
