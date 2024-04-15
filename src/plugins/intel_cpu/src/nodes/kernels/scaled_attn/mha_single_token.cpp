@@ -1169,20 +1169,39 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
     if (is_pagedattn) {
         // if present_key is true, it means q*k is already computed in the caller
         if (present_key) {
-            parallel_for3d_dynamic(B, beams.m_dims[1], h_group_num, [&](size_t b, size_t pk_in_blocks, size_t h_group) {
-                auto context_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
-                // kv_len must be valid
-                auto pk = pk_in_blocks * block_size;
-                if (pk < context_len) {
-                    auto block_number = beams.ptr<int32_t>(b)[pk_in_blocks];
-                    for (size_t pq = 0; pq < q_len; pq++) {
-                        for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
-                            dot_product_block(query.ptr<T>(b, h, pq), present_key.ptr<T2>(block_number, h_group),
-                                buf_attn_w.ptr<float>(b, h, pq) + pk, S, std::min(block_size, context_len - pk));
+            if (B >= static_cast<size_t>(nthr)) {
+                parallel_for2d_dynamic(B, beams.m_dims[1], [&](size_t b, size_t pk_in_blocks) {
+                    auto context_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
+                    // kv_len must be valid
+                    auto pk = pk_in_blocks * block_size;
+                    if (pk < context_len) {
+                        auto block_number = beams.ptr<int32_t>(b)[pk_in_blocks];
+                        for (size_t h_group = 0; h_group < h_group_num; h_group++) {
+                            for (size_t pq = 0; pq < q_len; pq++) {
+                                for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
+                                    dot_product_block(query.ptr<T>(b, h, pq), present_key.ptr<T2>(block_number, h_group),
+                                        buf_attn_w.ptr<float>(b, h, pq) + pk, S, std::min(block_size, context_len - pk));
+                                }
+                            }
                         }
                     }
-                }
-            });
+                });
+            } else {
+                parallel_for3d_dynamic(B, beams.m_dims[1], h_group_num, [&](size_t b, size_t pk_in_blocks, size_t h_group) {
+                    auto context_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
+                    // kv_len must be valid
+                    auto pk = pk_in_blocks * block_size;
+                    if (pk < context_len) {
+                        auto block_number = beams.ptr<int32_t>(b)[pk_in_blocks];
+                        for (size_t pq = 0; pq < q_len; pq++) {
+                            for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
+                                dot_product_block(query.ptr<T>(b, h, pq), present_key.ptr<T2>(block_number, h_group),
+                                    buf_attn_w.ptr<float>(b, h, pq) + pk, S, std::min(block_size, context_len - pk));
+                            }
+                        }
+                    }
+                });
+            }
         }
 
         _attn = ov::intel_cpu::profilerManagerInstance.startProfile("t1pg_softmax");

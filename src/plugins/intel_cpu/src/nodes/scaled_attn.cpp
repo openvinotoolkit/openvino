@@ -969,7 +969,7 @@ struct MHASingleToken {
         }
 #endif
         if (!fastpath_valid) {
-            m_attn_w.resize<float>({B, H, q_len, kv_len});
+            m_attn_w.resize<float>({B, H, q_len, (kv_len + 15) / 16 * 16});
         }
         mha_single_token(query, fastpath_valid ? PlainTensor() : present_key, present_value, alibi_mask, attention_mask, beams, max_context_len,
             context_lens, output_emb, m_attn_w, m_temp, has_out_transpose, auto_causal, d_scale, k_scale_zp, v_scale_zp, m_head_sum);
