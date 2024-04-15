@@ -29,6 +29,7 @@
 #include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
 
 #include <openvino/opsets/opset5.hpp>
+#include "emitters/snippets/cpu_kernel_executor_table.hpp"
 
 #ifdef SNIPPETS_DEBUG_CAPS
 #include "emitters/snippets/x64/jit_perf_count_chrono_emitters.hpp"
@@ -153,8 +154,10 @@ public:
     void generate() override {}
 };
 
-intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t host_isa)
-    : TargetMachine(), h(new jit_snippet()), isa(host_isa) {
+intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t host_isa,
+                                              const ov::intel_cpu::MultiCachePtr& cache)
+    : TargetMachine(), h(new jit_snippet()), isa(host_isa), compiled_kernel_cache(cache) {
+    kernel_executor_table = std::make_shared<ov::snippets::KernelExecutorTable>();
     // data movement
     jitters[op::v0::Parameter::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
     jitters[op::v0::Result::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
@@ -239,7 +242,10 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
     jitters[snippets::op::LoopBeginDynamic::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_begin_dynamic_emitter);
     jitters[snippets::op::LoopEndStatic::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_end_static_emitter);
     jitters[snippets::op::LoopEndDynamic::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_end_dynamic_emitter);
-    jitters[intel_cpu::BrgemmCPU::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_brgemm_emitter);
+    // Note: jit_brgemm_emitter supports runtime recompilation, so its constructor takes additional arguments
+    jitters[intel_cpu::BrgemmCPU::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_brgemm_emitter,
+                                                                                    kernel_executor_table,
+                                                                                    compiled_kernel_cache);
     jitters[intel_cpu::BrgemmCopyB::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_brgemm_copy_b_emitter);
     jitters[snippets::op::ReduceMax::get_type_info_static()] = CREATE_UNDEFINED_EMITTER({{ov::element::f32}});
     jitters[snippets::op::ReduceSum::get_type_info_static()] = CREATE_UNDEFINED_EMITTER({{ov::element::f32}});
@@ -276,6 +282,10 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
     jitters[intel_cpu::tpp::op::ReduceSum::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(ReduceTppEmitter);
     jitters[intel_cpu::tpp::op::Scalar::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(ScalarTppEmitter);
 #endif
+}
+
+std::shared_ptr<snippets::TargetMachine> intel_cpu::CPUTargetMachine::clone() const {
+    return std::make_shared<intel_cpu::CPUTargetMachine>(isa, compiled_kernel_cache);
 }
 
 size_t intel_cpu::CPUTargetMachine::get_lanes() const {
@@ -321,13 +331,16 @@ bool intel_cpu::CompiledSnippetCPU::empty() const {
     return get_code_size() == 0;
 }
 
-intel_cpu::CPUGenerator::CPUGenerator(dnnl::impl::cpu::x64::cpu_isa_t isa_) : Generator(std::make_shared<CPUTargetMachine>(isa_)) {
+intel_cpu::CPUGenerator::CPUGenerator(dnnl::impl::cpu::x64::cpu_isa_t isa_,  const ov::intel_cpu::MultiCachePtr& cache) :
+    Generator(std::make_shared<CPUTargetMachine>(isa_, cache)) {
+}
+intel_cpu::CPUGenerator::CPUGenerator(const std::shared_ptr<CPUTargetMachine>& target) : Generator(target) {
 }
 
 std::shared_ptr<snippets::Generator> intel_cpu::CPUGenerator::clone() const {
-    const auto& cpu_target_machine = std::dynamic_pointer_cast<CPUTargetMachine>(target);
+    const auto& cpu_target_machine = std::dynamic_pointer_cast<CPUTargetMachine>(target->clone());
     OPENVINO_ASSERT(cpu_target_machine, "Failed to clone CPUGenerator: the instance contains incompatible TargetMachine type");
-    return std::make_shared<CPUGenerator>(cpu_target_machine->get_isa());
+    return std::make_shared<CPUGenerator>(cpu_target_machine);
 }
 
 ov::snippets::RegType intel_cpu::CPUGenerator::get_specific_op_out_reg_type(const ov::Output<ov::Node>& out) const {
