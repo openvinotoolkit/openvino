@@ -270,15 +270,11 @@ KERNEL(gemm_tiled_opt)(
                 b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
                 #else // B_VEC_SIZE == 1
                     #if TILE_N_NOT_DIVISIBLE
-                if (TILE_N_NOT_DIVISIBLE_CALC) {
-                    unroll_for (uint b_elem = 0; b_elem < B_VEC_SIZE; ++b_elem) {
-                        b_tile[b_load_id][b_elem] = b_ptr[sglid + SIMD_WIDTH * b_elem];
-                    }
-                } else {
-                    b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
-                }
+                        unroll_for (uint b_elem = 0; b_elem < B_VEC_SIZE; ++b_elem) {
+                            b_tile[b_load_id][b_elem] = b_ptr[sglid + SIMD_WIDTH * b_elem];
+                        }
                     #else // TILE_N_NOT_DIVISIBLE
-                b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
+                        b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
                     #endif // TILE_N_NOT_DIVISIBLE
                 #endif // B_VEC_SIZE == 1
                 b_ptr += input1_offset;
@@ -511,15 +507,11 @@ KERNEL(gemm_tiled_opt)(
                     b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
                 #else // B_VEC_SIZE == 1
                     #if TILE_N_NOT_DIVISIBLE
-                    if (TILE_N_NOT_DIVISIBLE_CALC) {
                         unroll_for (uint b_elem = 0; b_elem < B_VEC_SIZE; ++b_elem) {
                             b_tile[b_load_id][b_elem] = b_ptr[sglid + SIMD_WIDTH * b_elem];
                         }
-                    } else {
-                        b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
-                    }
                     #else
-                    b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
+                        b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
                     #endif // TILE_N_NOT_DIVISIBLE
                 #endif // B_VEC_SIZE == 1
                     b_ptr += input1_offset;

@@ -46,6 +46,7 @@ struct gemm_impl : multi_stage_primitive<gemm> {
             for (auto& kd : _kernels_data) {
                 auto prim_params = std::dynamic_pointer_cast<kernel_selector::gemm_params>(kd.params);
                 ob << prim_params->not_divisible_k;
+                ob << prim_params->not_divisible_n;
             }
         }
     }
@@ -63,6 +64,7 @@ struct gemm_impl : multi_stage_primitive<gemm> {
             for (auto& kd : _kernels_data) {
                 auto prim_params = std::make_shared<kernel_selector::gemm_params>();
                 ib >> prim_params->not_divisible_k;
+                ib >> prim_params->not_divisible_n;
                 kd.params = std::move(prim_params);
             }
         }
@@ -114,12 +116,22 @@ protected:
         size_t kd_idx = 0;
         if (is_dynamic()) {
             bool not_divisible_k = true;
+            bool not_divisible_n = true;
             auto prim_params = std::dynamic_pointer_cast<kernel_selector::gemm_params>(_kernels_data[stage].params);
             auto _shape_info_memory = instance.shape_info_memory_ptr();
             mem_lock<int32_t> lock(_shape_info_memory, stream);
             auto shape_info_ptr = lock.data();
             not_divisible_k = evaluateJIT(prim_params->not_divisible_k, shape_info_ptr);
-            kd_idx = not_divisible_k ? 1 : 0;
+            not_divisible_n = evaluateJIT(prim_params->not_divisible_n, shape_info_ptr);
+            if (not_divisible_k == false && not_divisible_n == false) {
+                kd_idx = 0;
+            } else if (not_divisible_k == false && not_divisible_n == true) {
+                kd_idx = 1;
+            } else if (not_divisible_k == true && not_divisible_n == false) {
+                kd_idx = 2;
+            } else if (not_divisible_k == true && not_divisible_n == true) {
+                kd_idx = 3;
+            }
         }
 
         if (_kernels_data[stage].kernels[kd_idx].skip_execution == false) {
