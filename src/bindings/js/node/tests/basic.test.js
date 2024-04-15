@@ -14,10 +14,10 @@ const compiledModel = core.compileModelSync(model, 'CPU');
 const modelLike = [[model],
   [compiledModel]];
 
-it('Core.getAvailableDevices()', () => {    
-    const devices = core.getAvailableDevices();
-    
-    assert.ok(devices.includes('CPU'));
+it('Core.getAvailableDevices()', () => {
+  const devices = core.getAvailableDevices();
+
+  assert.ok(devices.includes('CPU'));
 });
 
 it('CompiledModel type', () => {
@@ -187,16 +187,25 @@ describe('Input class for ov::Input<const ov::Node>', () => {
 
 });
 
-it('Test exportModel()/importModel()', () => {
+describe('Test exportModel()/importModel()', () => {
   const userStream = compiledModel.exportModelSync();
-  const newCompiled = core.importModelSync(userStream, 'CPU');
   const epsilon = 0.5;
   const tensor = Float32Array.from({ length: 3072 }, () => (Math.random() + epsilon));
-
   const inferRequest = compiledModel.createInferRequest();
   const res1 = inferRequest.infer([tensor]);
-  const newInferRequest = newCompiled.createInferRequest();
-  const res2 = newInferRequest.infer([tensor]);
+  it('Test importModel(stream, device)', () => {
+    const newCompiled = core.importModelSync(userStream, 'CPU');
+    const newInferRequest = newCompiled.createInferRequest();
+    const res2 = newInferRequest.infer([tensor]);
 
-  assert.deepStrictEqual(res1['fc_out'].data[0], res2['fc_out'].data[0]);
+    assert.deepStrictEqual(res1['fc_out'].data[0], res2['fc_out'].data[0]);
+  });
+
+  it('Test importModel(stream, device, config)', () => {
+    const newCompiled = core.importModelSync(userStream, 'CPU', { 'NUM_STREAMS': 1 });
+    const newInferRequest = newCompiled.createInferRequest();
+    const res2 = newInferRequest.infer([tensor]);
+    
+    assert.deepStrictEqual(res1['fc_out'].data[0], res2['fc_out'].data[0]);
+  });
 });
