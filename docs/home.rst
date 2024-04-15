@@ -45,7 +45,7 @@ Check out the `OpenVINO Cheat Sheet. <https://docs.openvino.ai/2024/_static/down
                   <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2024/learn-openvino/interactive-tutorials-python.html">Check out our new notebooks</a>
                   </li>
                   <li id="ov-homepage-slide5" id class="splide__slide">
-                     <p class="ov-homepage-slide-title">Boost your AI deep learning inference performance.</p>
+                     <p class="ov-homepage-slide-title">Boost your AI deep-learning inference performance.</p>
                      <p class="ov-homepage-slide-subtitle">Use Intel's open-source OpenVINO toolkit for optimizing and deploying deep learning models.</p>
                      <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2024/openvino-workflow/running-inference/integrate-openvino-with-your-application.html">Learn more</a>
                   </li>
