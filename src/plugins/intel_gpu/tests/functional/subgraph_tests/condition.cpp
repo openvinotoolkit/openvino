@@ -609,6 +609,7 @@ protected:
 };
 
 TEST_P(StaticConditionLayerGPUTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
 }
 

@@ -36,6 +36,7 @@ struct GrnParams {
 class ReferenceGrnLayerTest : public testing::TestWithParam<GrnParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params.bias, params.pshape, params.inType);
         inputData = {params.inputData};

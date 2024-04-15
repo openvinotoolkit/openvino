@@ -114,13 +114,17 @@ std::vector<std::string> GemmKernelBase::GetTransposedDims(const std::vector<int
             break;
         case 6:
             if (is_tiled_opt) {
-                dim_ids.push_back("(y+write_id)");
+                dim_ids.push_back("(y+y_write_id)");
             } else {
                 dim_ids.push_back("y");
             }
             break;
         case 7:
-            dim_ids.push_back("x");
+            if (is_tiled_opt) {
+                dim_ids.push_back("(x+x_write_id)");
+            } else {
+                dim_ids.push_back("x");
+            }
             break;
         default:
             break;

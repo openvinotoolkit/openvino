@@ -123,6 +123,19 @@ std::vector<size_t> _get_byte_strides(const ov::Shape& s) {
 std::vector<size_t> _get_strides(const ov::op::v0::Constant& self);
 }
 
+// Helpers for shapes
+namespace shape_helpers {
+
+template <typename T>
+void get_slice(T& result, const T& shape, size_t start, const size_t step, const size_t slicelength) {
+    for (size_t i = 0; i < slicelength; ++i) {
+        result[i] = shape[start];
+        start += step;
+    }
+}
+
+}; // namespace shape_helpers
+
 template <typename T>
 T create_copied(py::array& array);
 

@@ -179,8 +179,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_TopK/TopKLayerTest.Inference.*_k=21_.*_sort=value_modelType=f16_trgDev=CPU.*)",
         // Issue: 121812
         R"(.*ConvertCPULayerTest.*outFmts=(nhwc|nChw8c|nChw16c).*)",
-        // Issue: 122321
-        R"(.*smoke_ConvertCPULayerTest_BOOL.*)",
         // Need to generate sequence exactly in the i64 data type. Enable in scope of i64 enabling.
         R"(.*RandomUniformLayerTestCPU.*OutPrc=i64.*)",
         // Issue: 123321
@@ -197,9 +195,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_LPT/InterpolateTransformation.*)",
         // Issue: 129931
         R"(smoke_LPT/ConvolutionTransformation.CompareWithRefImpl/f32_\[.*,3,16,16\]_CPU_f32_rank=4D_fq_on_data=\{level=256_shape=\[1\]_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ .*18.7 \}_output_high\{ 18.8 \}_precision=\}_fq_on_weights=\{_255_\[6,1,1,1\]_\{ .*1.52806e.*39, .*0.2, .*0.3, .*0.3, .*0.2, .*0.1 \}_\{ 1.52806e.*39, 0.2, 0.3, 0.3, 0.2, 0.1 \}\})",
-        // Issue: 132494
-        R"(.*smoke_Inverse.*bf16.*)",
-        // Issue: CVS-133173
+        // Issue: 133173
         R"(.*smoke_ScaledAttn_CPU/ScaledAttnLayerCPUTest.CompareWithRefs/netPRC=bf16.*has_scale=0.*)",
         R"(.*smoke_LPT_4D/ConvolutionBackpropDataTransformation.CompareWithRefImpl/f32_\[1,8,16,16\]_CPU_f32_\[16,16\]_level=256_shape=\[.*\]_input_low=\{ 0 \}_input_high=\{ 25.5 \}_output_low=\{ 0 \}_output_high\{ 25.5 \}_precision=__255_\[.*\]_\{ -12.7 \}_\{ 12.7 \}_\{\}.*)",
         R"(.*smoke_LPT_4D/ConvolutionBackpropDataTransformation.CompareWithRefImpl/f32_\[1,8,16,16\]_CPU_f32_\[16,16\]_level=256_shape=\[1,1,1,1\]_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ -12.7 \}_output_high\{ 12.8 \}_precision=.*)",
@@ -310,6 +306,8 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*Extension.OnnxModelWithExtensionFromDSO.*)");
         retVector.emplace_back(R"(.*ONNXQuantizedModels/QuantizedModelsTests.MaxPool.*)");
         retVector.emplace_back(R"(.*ONNXQuantizedModels/QuantizedModelsTests.Convolution.*)");
+        // Ticket: 134601
+        retVector.emplace_back(R"(.*smoke_GroupNormalization.*)");
         // by calc abs_threshold with expected value
         retVector.emplace_back(
             R"(.*smoke_Interpolate_Basic_Down_Sample_Tail/InterpolateLayerTest.Inference.*InterpolateMode=(linear|linear_onnx)_ShapeCalcMode=scales_CoordinateTransformMode=half_pixel.*PE=\(0.0.0.0\).*netType=f32.*)");

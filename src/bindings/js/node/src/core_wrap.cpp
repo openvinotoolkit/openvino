@@ -61,6 +61,7 @@ Napi::Function CoreWrap::get_class(Napi::Env env) {
                         InstanceMethod("getAvailableDevices", &CoreWrap::get_available_devices),
                         InstanceMethod("importModelSync", &CoreWrap::import_model),
                         InstanceMethod("getAvailableDevices", &CoreWrap::get_available_devices),
+                        InstanceMethod("getVersions", &CoreWrap::get_versions),
                         InstanceMethod("setProperty", &CoreWrap::set_property),
                         InstanceMethod("getProperty", &CoreWrap::get_property)});
 }
@@ -271,6 +272,31 @@ Napi::Value CoreWrap::get_available_devices(const Napi::CallbackInfo& info) {
         js_devices[i++] = dev;
 
     return js_devices;
+}
+
+Napi::Value CoreWrap::get_versions(const Napi::CallbackInfo& info) {
+    if (info.Length() == 0) {
+        reportError(info.Env(), "getVersions() method expects 1 argument of string type.");
+        return info.Env().Undefined();
+    }
+    auto device_arg = info[0];
+    if (!device_arg.IsString()) {
+        reportError(info.Env(), "The argument in getVersions() method must be a string or convertible to a string.");
+        return info.Env().Undefined();
+    }
+    const auto& devices_map = _core.get_versions(device_arg.ToString());
+    Napi::Object versions_object = Napi::Object::New(info.Env());
+
+    for (const auto& dev : devices_map) {
+        Napi::Object device_properties = Napi::Object::New(info.Env());
+
+        device_properties.Set("buildNumber", Napi::String::New(info.Env(), dev.second.buildNumber));
+        device_properties.Set("description", Napi::String::New(info.Env(), dev.second.description));
+
+        versions_object.Set(dev.first, device_properties);
+    }
+
+    return versions_object;
 }
 
 Napi::Value CoreWrap::import_model(const Napi::CallbackInfo& info) {

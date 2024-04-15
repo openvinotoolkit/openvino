@@ -19,13 +19,13 @@ if paddle.__version__ >= '2.0.0':
     x1 = paddle.static.data(name='inputX1', shape=[
                             1, 1, -1, -1], dtype='float32')
 
-    adative_pool2d = paddle.nn.functional.adaptive_avg_pool2d(
+    adaptive_pool2d = paddle.nn.functional.adaptive_avg_pool2d(
         x=x1,
         output_size=[3, 3])
 else:
     x1 = fluid.data(name='inputX1', shape=[1, 1, -1, -1], dtype='float32')
 
-    adative_pool2d = paddle.fluid.layers.adaptive_pool2d(
+    adaptive_pool2d = paddle.fluid.layers.adaptive_pool2d(
         input=x1,
         pool_size=[3, 3],
         pool_type='avg',
@@ -38,7 +38,7 @@ exe.run(paddle.static.default_startup_program())
 
 outs = exe.run(
     feed={'inputX1': inp_blob1},
-    fetch_list=[adative_pool2d])
+    fetch_list=[adaptive_pool2d])
 
-saveModel("pool2d_dyn_hw", exe, feedkeys=['inputX1'], fetchlist=adative_pool2d, inputs=[
+saveModel("pool2d_dyn_hw", exe, feedkeys=['inputX1'], fetchlist=adaptive_pool2d, inputs=[
           inp_blob1], outputs=outs, target_dir=sys.argv[1])

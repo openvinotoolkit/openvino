@@ -558,36 +558,6 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
                     tensor = ov::make_tensor(model_prec, tensor_shape);
                 }
                 ov::ISyncInferRequest::set_tensor(port, tensor);
-            } else {
-                const auto& tensor_shape = tensor->get_shape();
-                const bool isDynamic = port_shape.is_dynamic();
-                // Static shape case is enough information that shapes are incompatible to throw exception
-                // but in dynamic shape case we also need to handle following corner case:
-                // on tensor initialization stage we create empty tensor with dimensions equal 0
-                // so if we have tensor with all zero dimension we mustn't throw exception
-                if (!port_shape.compatible(ov::PartialShape(tensor_shape)) &&
-                    (!isDynamic || static_cast<int64_t>(tensor_shape.size()) != port_shape.rank().get_length() ||
-                     std::any_of(tensor_shape.begin(), tensor_shape.end(), [](const size_t& dims) {
-                         return dims != 0;
-                     }))) {
-                    OPENVINO_THROW("ParameterMismatch: model input and output use the same index: ",
-                                   port_index,
-                                   ", but expect tensors with different shapes. Input shape: ",
-                                   ov::PartialShape(tensor_shape),
-                                   ", output shape: ",
-                                   port_shape);
-                }
-
-                const auto netOutPrc = port.get_element_type();
-                if (netOutPrc != tensor->get_element_type()) {
-                    OPENVINO_THROW("ParameterMismatch: model input and output use the same index: ",
-                                   port_index,
-                                   " but expect tensor with different precision: ",
-                                   tensor->get_element_type(),
-                                   " for input and ",
-                                   netOutPrc,
-                                   " for output.");
-                }
             }
             m_outputs[port_index] = tensor;
             if (!port_shape.is_dynamic() && !m_output_external_ptr.count(port_index)) {
