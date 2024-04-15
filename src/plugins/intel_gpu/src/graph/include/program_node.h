@@ -303,7 +303,7 @@ public:
 
     // check/set if the node is runtime skippable
     bool is_runtime_skippable() const { return runtime_skippable; }
-    void is_runtime_skippable(bool skippable) { runtime_skippable = skippable; }
+    void set_runtime_skippable(bool skippable) { runtime_skippable = skippable; }
 
     // check/set if the node's buffer can be shared during the memory pool optimization
     bool can_share_buffer() const { return share_buffer; }

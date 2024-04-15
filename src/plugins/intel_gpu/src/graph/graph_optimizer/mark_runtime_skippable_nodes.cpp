@@ -38,7 +38,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 // May be skipepd
                 node.can_be_optimized(true);
                 // Set runtime skippable only when the node is set as can_be_optimized finally.
-                node.is_runtime_skippable(true);
+                node.set_runtime_skippable(true);
                 GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
             }
         });
@@ -59,7 +59,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
                     return;
                 node.can_be_optimized(true);
                 // Set runtime skippable only when the node is set as can_be_optimized finally.
-                node.is_runtime_skippable(true);
+                node.set_runtime_skippable(true);
                 GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
             }
         });
@@ -99,7 +99,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 return;
             node.can_be_optimized(true);
             // Set runtime skippable only when the node is set as can_be_optimized finally.
-            node.is_runtime_skippable(true);
+            node.set_runtime_skippable(true);
             GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
         });
         program_helpers::do_for_types<broadcast>(*node, [](broadcast_node& node){
@@ -139,7 +139,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
 
                 node.can_be_optimized(true);
                 // Set runtime skippable only when the node is set as can_be_optimized finally.
-                node.is_runtime_skippable(true);
+                node.set_runtime_skippable(true);
                 GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
             }
         });
