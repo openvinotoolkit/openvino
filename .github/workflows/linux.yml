@@ -511,10 +511,7 @@ jobs:
     with:
       runner: 'aks-linux-8-cores-16gb'
       model_scope: 'precommit'
-      container:
-        image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
-        volumes:
-          - /mount:/mount
+      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"]}'
 
   TensorFlow_Models_Tests_Nightly_TF_HUB:
     name: TensorFlow TF Hub Models tests
@@ -524,10 +521,7 @@ jobs:
     with:
       runner: 'aks-linux-8-cores-32gb'
       model_scope: 'nightly_tf_hub'
-      container:
-        image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
-        volumes:
-          - /mount:/mount
+      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"]}'
 
   TensorFlow_Models_Tests_Nightly_HF:
     name: TensorFlow Hugging Face Models tests
@@ -537,10 +531,7 @@ jobs:
     with:
       runner: 'aks-linux-8-cores-32gb'
       model_scope: 'nightly_hf'
-      container:
-        image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
-        volumes:
-          - /mount:/mount
+      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"]}'
 
   # TODO: Switch back to self-hosted runners
   # container:
