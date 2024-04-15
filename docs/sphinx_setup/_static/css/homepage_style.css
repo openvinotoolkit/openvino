@@ -1,25 +1,74 @@
-/* overrides */
-.switcher-set, .prev-next-bottom, .bd-toc {display: none!important;}
-#openvino-documentation > h1 {
-    display: none;
+.bd-toc {
+    display: none !important;
 }
 
 h1 {
-    /*font-size: var(--pst-font-size-h2);*/
-    /*margin-bottom: 3rem;*/
-    display: none!important;
-}
-
-
-#ov-homepage-banner, .openvino-diagram, .ov-homepage-higlight-grid {
-    margin-bottom: 90px!important;
+    font-size: 60px !important;
 }
 
 #ov-homepage-banner {
-    padding: 2rem;
-    background-color: #76CEFF;
-    background-image: linear-gradient(346deg, #728EFA 0%, #76CEFF 50%, #BBE8BD 100%);
-    border-bottom: 5px solid #0068b5;
+    border-bottom: 0px;
+}
+
+.ov-homepage-label {
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.ov-homepage-slide-title {
+    color: white !important;
+    font-size: 27px !important;
+    font-weight: lighter !important;
+}
+
+.ov-homepage-slide-subtitle {
+    color: white !important;
+    font-size: 18px !important;
+    font-weight: lighter !important;
+}
+
+.splide__pagination {
+    bottom: .8em !important;
+}
+
+#ov-homepage-banner #splide01-slide01 {
+    background-image: linear-gradient(350deg, #004CA9 0%, #381965 50%, #070862 100%);
+    padding: 32px 48px !important;
+}
+
+#ov-homepage-banner #splide01-slide02 {
+    background-image: linear-gradient(270deg, #034CAA 00%, #4B9D77 50%, #034CAA 100%);
+    padding: 32px 48px !important;
+}
+
+#ov-homepage-banner #splide01-slide03 {
+    background-image: linear-gradient(230deg, #030B5E 0%, #285455 40%, #030B5E 100%);
+    padding: 32px 48px !important;
+}
+
+#ov-homepage-banner #splide01-slide04 {
+    background-image: linear-gradient(110deg, #214DA4 0%, #03aadd 100%);
+    padding: 32px 48px !important;
+}
+
+#ov-homepage-banner #splide01-slide05 {
+    background-image: linear-gradient(350deg, #034CAA 20%, #034CAA 30%, #4B9D77 100%);
+    padding: 32px 48px !important;
+}
+
+#ov-homepage-banner {
+    p {
+        margin: 0.4rem 0 1.2rem 0;
+    }
+}
+.splide__pagination>li {
+    padding-right: 6px;
+}
+.is-active{
+    color: white !important;
+}
+.homepage-begin-container {
+    padding: 0px;
 }
 
 #ov-homepage-banner p:first-of-type {
@@ -37,100 +86,142 @@ h1 {
 #ov-homepage-banner .line-block {
     line-height: 1.5;
     text-align: left;
-    color: #000000;
+    color: white;
 }
 
 .ov-homepage-banner-btn {
-    transition: 0.7s;
-    font-weight: bold;
-    background-color: #0068b5;
+    font-size: 12px !important;
+    font-weight: bold !important;
     color: #ffffff !important;
+    border: 1px solid white;
+    padding: 10px 18px !important;
 }
 
 .ov-homepage-banner-btn:hover {
-    background-color: white!important;
-    color: var(--sd-color-primary)!important;
+    background-color: white !important;
+    color: var(--sd-color-primary) !important;
 }
 
-#ov-homepage-banner > p:nth-child(3) {
+#ov-homepage-banner>p:nth-child(3) {
     margin-bottom: 0;
 }
 
 #ov-homepage-banner a,
 #ov-homepage-banner a:visited {
     text-decoration: none;
-    color: #00A3F6;
+    color: white;
     transition: .7s;
     font-weight: 600;
 }
 
 #ov-homepage-banner a:hover {
-    color: #653171;
+    color: white;
 }
 
-.openvino-diagram {
-    width: 65%;
-    margin-bottom: 3rem;
+#homepage_key_container {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    padding: 0px !important;
 }
 
-@media (max-width: 720px) {
-    .openvino-diagram {
-        width: 90%;
+.homepage-begin-tile {
+    .sd-card-img-top {
+        width: 80px !important;
+        padding: 10px;
     }
+}
+
+.homepage-begin-tile:hover{
+    box-shadow: none !important;
+}
+
+.sd-card-img-top {
+    border-radius: 0;
+}
+
+.sd-card-text {
+    font-size: 0.9rem !important;
+}
+
+.homepage-begin-key {
+    height: 450px;
+    border: 0 !important;
+    .sd-card-body {
+    padding: 0%
+    }
+    .sd-card-img-top {
+        padding: 0px;
+        padding-bottom: 15px;
+    }
+}
+
+.sd-btn-outline-primary {
+    color: #0054AE !important;
+    text-decoration: none !important;
+    background-color: #FFF !important;
+    border-radius: 0;
+    position: absolute;
+    bottom: 20px;
+}
+
+.homepage-begin-tile {
+    border-radius: 0;
+    margin-bottom: 5px;
+    position: relative;
+    border-width: 0.2cqb;
+}
+
+.sd-shadow-sm {
+    box-shadow: none !important;
+}
+
+.homepage-begin-tile:hover {
+    border-color: #0054AE;
+}
+
+.sd-btn-outline-primary:hover {
+    border-color: #0054AE !important;
+    background-color: #0054AE !important;
+}
+
+.sd-btn-outline-primary:hover a {
+    color: #fff !important;
+    background-color: #0054AE !important;
 }
 
 .ov-homepage-higlight-grid {
     padding: 0;
 }
 
-.ov-homepage-higlight-grid > div {
-    justify-content:space-evenly;
-    row-gap: 20px;
+.ov-homepage-higlight-grid>div {
+    justify-content: space-evenly;
+    row-gap: 10px;
 }
 
-.ov-homepage-higlight-grid > div > div.sd-col {
-    width: 230px;
+.ov-homepage-higlight-grid>div>div.sd-col {
+    width: 280px;
     min-height: 300px;
     padding: 0;
-    margin-inline: 5px;
+    margin-inline: 0px;
 }
 
-.ov-homepage-higlight-grid .sd-card {
-    box-shadow: 0 0 20px 5px #f3f3f3!important;
-    transition: 0.5s;
-    overflow: hidden;
-}
 
 .ov-homepage-higlight-grid .sd-card-hover:hover {
-    border-color: var(--sd-color-card-border)!important;
-    transform: scale(1.00)!important;
-}
-
-.ov-homepage-higlight-grid .sd-shadow-sm:hover {
-    box-shadow: 0 0 10px 2px rgba(108,36,240,0.3) !important;
+    border-color: var(--sd-color-card-border) !important;
+    transform: scale(1.00) !important;
+    box-shadow: none !important;
 }
 
 .ov-homepage-higlight-grid .sd-card-title {
-    height: 52.781px;
+    height: 10px;
     margin-bottom: 2rem;
 }
 
 .ov-homepage-higlight-grid .sd-card-text {
-    font-size: 0.9rem;
-}
-
-.ov-homepage-higlight-grid .sd-card::after {
-    align-self: flex-end;
-    display: block;
-    content: "LEARN MORE";
-    width: 100%;
     font-size: 0.8rem;
-    text-align: center;
-    padding-top: 0.8rem;
-    font-weight: 600;
-    color: #00A3F6;
-    height: 3rem;
-    background-color: #CDEDFF;
+    height: 60px;
 }
 
 .ov-homepage-feature-grid .sd-col {
@@ -140,8 +231,7 @@ h1 {
 
 .ov-homepage-feature-grid .sd-card {
     border: none;
-    box-shadow: 0 0 20px 2px #f3f3f3!important;
-    /* box-shadow: none!important; */
+    box-shadow: none!important;
 }
 
 .ov-homepage-feature-grid .sd-row {
@@ -149,25 +239,13 @@ h1 {
     justify-content: center;
 }
 
-
-/* =================================================================== */
-/* @media screen and (min-width: 720px) {
-    main.col-xl-7.bd-content {
-        flex: 0 0 75%!important;
-        max-width: 75%!important;
-    }
-}*/
-
 @media screen and (max-width: 535px) {
     .ov-homepage-feature-grid .sd-row {
         flex-direction: column;
         align-items: center;
     }
+
     .ov-homepage-feature-grid .sd-col {
         max-width: 100%;
     }
-}
-
-.sd-row {
-    --sd-gutter-x: 0rem!important;
 }

@@ -39,14 +39,16 @@ struct GPParams {
           anchorsData(CreateTensor(iType, anchorsValues)),
           deltasData(CreateTensor(iType, deltasValues)),
           scoresData(CreateTensor(iType, scoresValues)),
-          refRoisData(CreateTensor(iType, refRoisValues)),
-          refScoresData(CreateTensor(iType, refScoresValues)),
-          refRoiNumData(CreateTensor(roiNumType, refRoiNumValues)),
           testcaseName(testcaseName) {
         imageSizeInfoShape = Shape{batch, 3};
         anchorsShape = Shape{height, width, number_of_channels, 4};
         deltasShape = Shape{batch, number_of_channels * 4, height, width};
         scoresShape = Shape{batch, number_of_channels, height, width};
+
+        const auto number_of_rois = refScoresValues.size();
+        refRoisData = CreateTensor(Shape{number_of_rois, 4}, iType, refRoisValues);
+        refScoresData = CreateTensor(Shape{number_of_rois}, iType, refScoresValues);
+        refRoiNumData = CreateTensor(Shape{batch}, roiNumType, refRoiNumValues);
     }
 
     Attrs attrs;
@@ -70,13 +72,13 @@ struct GPParams {
 class ReferenceGPLayerTest : public testing::TestWithParam<GPParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params);
         inputData = {params.imageSizeInfoData, params.anchorsData, params.deltasData, params.scoresData};
         refOutData = {params.refRoisData, params.refScoresData, params.refRoiNumData};
     }
     static std::string getTestCaseName(const testing::TestParamInfo<GPParams>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
         result << "imageSizeInfoShape=" << param.imageSizeInfoShape << "_";
         result << "anchorsShape=" << param.anchorsShape << "_";

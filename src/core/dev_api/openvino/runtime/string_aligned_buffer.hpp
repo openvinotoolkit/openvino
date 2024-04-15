@@ -27,7 +27,7 @@ private:
     StringAlignedBuffer& operator=(const StringAlignedBuffer&) = delete;
 
 protected:
-    size_t m_num_elements;
+    size_t m_num_elements{};
 };
 
 /// \brief SharedStringAlignedBuffer class to store pointer to shared pre-allocated buffer with std::string objects
@@ -36,12 +36,7 @@ class OPENVINO_API SharedStringAlignedBuffer : public ov::StringAlignedBuffer {
 public:
     SharedStringAlignedBuffer(char* ptr, size_t size);
 
-    virtual ~SharedStringAlignedBuffer() {
-        m_allocated_buffer = nullptr;
-        m_aligned_buffer = nullptr;
-        m_byte_size = 0;
-        m_num_elements = 0;
-    }
+    virtual ~SharedStringAlignedBuffer();
 };
 
 template <>

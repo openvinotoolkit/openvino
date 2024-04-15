@@ -230,12 +230,14 @@ private:
  * @param model Original model
  * @param transform Transformation pipeline function
  * @param is_node_supported Function returning whether node is supported or not
+ * @param query_model_ratio The percentage of the model can be queried during query model (0 if not query)
  * @return Set of strings which contains supported node names
  */
 OPENVINO_RUNTIME_API std::unordered_set<std::string> get_supported_nodes(
     const std::shared_ptr<const ov::Model>& model,
     std::function<void(std::shared_ptr<ov::Model>&)> transform,
-    std::function<bool(const std::shared_ptr<ov::Node>)> is_node_supported);
+    std::function<bool(const std::shared_ptr<ov::Node>)> is_node_supported,
+    float query_model_ratio = 1.0f);
 
 /**
  * @private

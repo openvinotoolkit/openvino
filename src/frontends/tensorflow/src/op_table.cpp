@@ -302,6 +302,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"MatMul", CreatorFunction(translate_mat_mul_op)},
         {"MatrixBandPart", CreatorFunction(translate_matrix_band_part_op)},
         {"MatrixDiag", CreatorFunction(translate_matrix_diag_op)},
+        {"MatrixInverse", CreatorFunction(translate_matrix_inverse_op)},
         {"MaxPool", CreatorFunction(translate_max_pool_op)},
         {"MaxPoolV2", CreatorFunction(translate_max_pool_op)},
         {"MaxPool3D", CreatorFunction(translate_max_pool_op)},
@@ -459,6 +460,15 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"WriteFile", CreatorFunction(translate_write_file)},
     };
 };
+
+const std::vector<std::string> get_supported_ops_via_tokenizers() {
+    return {"RaggedTensorToSparse",
+            "RaggedTensorToTensor",
+            "StaticRegexReplace",
+            "StringLower",
+            "StringSplitV2",
+            "StringToHashBucketFast"};
+}
 }  // namespace op
 }  // namespace tensorflow
 }  // namespace frontend

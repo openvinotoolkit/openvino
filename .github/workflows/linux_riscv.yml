@@ -61,9 +61,11 @@ jobs:
       OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
       CONAN_USER_HOME: /mount/caches/ccache/ubuntu22_riscv64_master_release/.conan
-      CCACHE_DIR: /mount/caches/ccache/ubuntu22_riscv64_master_release
+      CCACHE_REMOTE_DIR: /mount/caches/ccache/ubuntu22_riscv64
+      CCACHE_DIR: /__w/openvino/openvino/ccache
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
-      CCACHE_MAXSIZE: 50G
+      CCACHE_MAXSIZE: 2G
+
     if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
     steps:
       - name: Set apt retries
@@ -84,6 +86,20 @@ jobs:
       - name: System info
         uses: ./openvino/.github/actions/system_info
 
+      - name: Setup ccache
+        id: ccache_restore
+        uses: ./openvino/.github/actions/cache
+        with:
+          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          cache-size: 10
+          max-cache-size: 50
+          cache-path: ${{ env.CCACHE_REMOTE_DIR }}
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-ccache
+
       - name: Init submodules for non-Conan dependencies
         run: |
           pushd ${OPENVINO_REPO}
@@ -91,6 +107,7 @@ jobs:
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/json
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gtest
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gflags
+            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/telemetry
             git submodule update --init -- ${OPENVINO_REPO}/src/plugins/intel_cpu
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/open_model_zoo
           popd
@@ -162,6 +179,8 @@ jobs:
       #
       # Build
       #
+      - name: Clean ccache stats
+        run: ccache --zero-stats
 
       - name: CMake - Configure
         run: |
@@ -210,6 +229,9 @@ jobs:
           source ${OPENVINO_BUILD_DIR}/dependencies/deactivate_conanbuild.sh
         env:
           CMAKE_TOOLCHAIN_FILE: ${{ env.OPENVINO_BUILD_DIR }}/dependencies/conan_toolchain.cmake
+
+      - name: Clean ccache
+        run: ccache --cleanup
 
   Overall_Status:
     name: ci/gha_overall_status_linux_riscv

@@ -2,8 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/if.hpp"
+
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/util/log.hpp"
 #include "translate_session.hpp"
 #include "utils.hpp"
@@ -13,12 +16,12 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
+using namespace ov::op;
+
 namespace {
 // TODO: Ticket 106627. This is a WA and will work only if both branches of if will eventually go to the operation that
 // will have same output type for both types
-void align_result_types(const NodeContext& context,
-                        std::shared_ptr<opset10::Result> r1,
-                        std::shared_ptr<opset10::Result> r2) {
+void align_result_types(const NodeContext& context, std::shared_ptr<v0::Result> r1, std::shared_ptr<v0::Result> r2) {
     auto r1_tensor = r1->input_value(0);
     auto r2_tensor = r2->input_value(0);
     auto r1_type = r1_tensor.get_element_type();
@@ -28,19 +31,19 @@ void align_result_types(const NodeContext& context,
     element::Type merged_type;
     if (element::Type::merge(merged_type, r1_type, r2_type)) {
         if (r1_type != merged_type) {
-            auto convert1 = std::make_shared<opset10::Convert>(r1_tensor, merged_type);
+            auto convert1 = std::make_shared<v0::Convert>(r1_tensor, merged_type);
             r1->set_argument(0, convert1);
         }
         if (r2_type != merged_type) {
-            auto convert2 = std::make_shared<opset10::Convert>(r2_tensor, merged_type);
+            auto convert2 = std::make_shared<v0::Convert>(r2_tensor, merged_type);
             r2->set_argument(0, convert2);
         }
     } else {
         if (r1_type.bitwidth() >= r2_type.bitwidth()) {
-            auto convert = std::make_shared<opset10::Convert>(r2_tensor, r1_type);
+            auto convert = std::make_shared<v0::Convert>(r2_tensor, r1_type);
             r2->set_argument(0, convert);
         } else {
-            auto convert = std::make_shared<opset10::Convert>(r1_tensor, r2_type);
+            auto convert = std::make_shared<v0::Convert>(r1_tensor, r2_type);
             r1->set_argument(0, convert);
         }
     }
@@ -48,7 +51,7 @@ void align_result_types(const NodeContext& context,
 }  // namespace
 
 OutputVector translate_if(const NodeContext& context) {
-    auto if_node = std::make_shared<opset10::If>(context.get_input(0));
+    auto if_node = std::make_shared<v8::If>(context.get_input(0));
     context.mark_node(if_node);
     auto decoder = context.get_decoder();
     PYTORCH_OP_CONVERSION_CHECK(decoder->get_subgraph_size() == 2, "If must have 2 subgraphs.");
@@ -91,8 +94,8 @@ OutputVector translate_if(const NodeContext& context) {
     }
     OutputVector res;
     const auto num_outs = context.get_output_size();
-    const auto then_results = then_body->get_results();
-    const auto else_results = else_body->get_results();
+    const auto& then_results = then_body->get_results();
+    const auto& else_results = else_body->get_results();
     PYTORCH_OP_CONVERSION_CHECK(then_results.size() >= num_outs && else_results.size() >= num_outs,
                                 "Else or then body have less outputs than prim::If requires.");
     for (size_t i = 0; i < num_outs; i++) {
@@ -100,8 +103,8 @@ OutputVector translate_if(const NodeContext& context) {
         res.push_back(if_node->set_output(then_results[i], else_results[i]));
     }
     // Each body can have mutated outputs that are not included into pytorch node outputs.
-    std::map<size_t, std::shared_ptr<opset10::Result>> extra_then_body_results;
-    std::map<size_t, std::shared_ptr<opset10::Result>> extra_else_body_results;
+    std::map<size_t, std::shared_ptr<v0::Result>> extra_then_body_results;
+    std::map<size_t, std::shared_ptr<v0::Result>> extra_else_body_results;
     std::set<size_t> extra_output_idxs;
     for (size_t i = num_outs; i < then_results.size(); i++) {
         const auto result = then_results[i];
@@ -134,28 +137,43 @@ OutputVector translate_if(const NodeContext& context) {
     for (const auto& output_idx : extra_output_idxs) {
         if (!extra_then_body_results.count(output_idx)) {
             // Need to add Parameter->Result construction in then body
-            auto new_parameter = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic());
-            session->encode_tensor_name(new_parameter->output(0), output_idx);
-            auto new_result = std::make_shared<opset10::Result>(new_parameter);
-            then_body->add_parameters({new_parameter});
+            std::shared_ptr<v0::Parameter> new_parameter;
+            if (inputs_map.count(output_idx) && inputs_map[output_idx][0]) {
+                // parameter already exist in inputs
+                new_parameter = inputs_map[output_idx][0];
+            } else {
+                new_parameter = std::make_shared<v0::Parameter>(element::dynamic, PartialShape::dynamic());
+                session->encode_tensor_name(new_parameter->output(0), output_idx);
+                then_body->add_parameters({new_parameter});
+                PYTORCH_OP_CONVERSION_CHECK(inputs_map.count(output_idx),
+                                            "Input must exist in then body: ",
+                                            output_idx);
+                inputs_map[output_idx][0] = new_parameter;
+            }
+            auto new_result = std::make_shared<v0::Result>(new_parameter);
             then_body->add_results({new_result});
             then_body->validate_nodes_and_infer_types();
-            PYTORCH_OP_CONVERSION_CHECK(inputs_map.count(output_idx), "Input must exist in else body: ", output_idx);
-            inputs_map[output_idx][0] = new_parameter;
             extra_then_body_results[output_idx] = new_result;
             OPENVINO_DEBUG << "Modified then body: " << if_node << '\n';
         } else if (!extra_else_body_results.count(output_idx)) {
             // Need to add Parameter->Result construction in else body
-            auto new_parameter = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic());
-            session->encode_tensor_name(new_parameter->output(0), output_idx);
-            auto new_result = std::make_shared<opset10::Result>(new_parameter);
-            else_body->add_parameters({new_parameter});
+            std::shared_ptr<v0::Parameter> new_parameter;
+            if (inputs_map.count(output_idx) && inputs_map[output_idx][1]) {
+                // parameter already exist in inputs
+                new_parameter = inputs_map[output_idx][1];
+            } else {
+                new_parameter = std::make_shared<v0::Parameter>(element::dynamic, PartialShape::dynamic());
+                session->encode_tensor_name(new_parameter->output(0), output_idx);
+                else_body->add_parameters({new_parameter});
+                PYTORCH_OP_CONVERSION_CHECK(inputs_map.count(output_idx),
+                                            "Input must exist in then body: ",
+                                            output_idx);
+                inputs_map[output_idx][1] = new_parameter;
+            }
+            auto new_result = std::make_shared<v0::Result>(new_parameter);
             else_body->add_results({new_result});
             else_body->validate_nodes_and_infer_types();
-            PYTORCH_OP_CONVERSION_CHECK(inputs_map.count(output_idx), "Input must exist in then body: ", output_idx);
-            inputs_map[output_idx][1] = new_parameter;
             extra_else_body_results[output_idx] = new_result;
-            OPENVINO_DEBUG << "Modified else body: " << if_node << '\n';
         }
     }
     // Create prim::If inputs and outputs

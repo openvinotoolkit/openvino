@@ -246,15 +246,6 @@ jobs:
           TEST_PRECISION: FP32
           PYTORCH_TRACING_MODE: TORCHFX
 
-      - name: PyTorch torch.compile TORCHSCRIPT Layer Tests
-        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.os != 'macOS' && runner.arch != 'ARM64' }} # Ticket: 126287
-        run: |
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit_ts_backend --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP32
-          PYTORCH_TRACING_MODE: TORCHSCRIPT
-
       - name: ONNX Layer Tests
         if: fromJSON(inputs.affected-components).ONNX_FE.test
         run: |
@@ -268,9 +259,7 @@ jobs:
       - name: TensorFlow 1 Layer Tests - TF FE
         if: fromJSON(inputs.affected-components).TF_FE.test
         run: |
-          # requires 'unit_tests' from 'mo'
-          export PYTHONPATH=${INSTALL_TEST_DIR}/mo
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/ -m precommit_tf_fe -n logical --junitxml=${INSTALL_TEST_DIR}/TEST-tf_fe.xml
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/ -m precommit -n logical --junitxml=${INSTALL_TEST_DIR}/TEST-tf_fe.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -278,8 +267,6 @@ jobs:
       - name: TensorFlow 2 Layer Tests - TF FE
         if: fromJSON(inputs.affected-components).TF_FE.test && runner.os != 'macOS' # Ticket: 123322
         run: |
-          # requires 'unit_tests' from 'mo'
-          export PYTHONPATH=${INSTALL_TEST_DIR}/mo
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/ -n logical -m precommit_tf_fe --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_fe.xml
         env:
           TEST_DEVICE: CPU
