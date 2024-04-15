@@ -459,6 +459,49 @@ void LoopManager::sort_loop_ports(LinearIR::constExprIt& loop_begin_pos, LinearI
     loop_info->set_exit_points(exits);
 }
 
+bool LoopManager::blend(const LinearIR& linear_ir, const std::map<size_t, size_t>& loop_id_map) {
+    // If all new IDs are the same as original - nothing to update
+    if (std::all_of(loop_id_map.cbegin(), loop_id_map.cend(), [](const std::pair<size_t, size_t>& p) { return p.first == p.second; })) {
+        return false;
+    }
+
+    // create new sorted map of loop infos
+    std::map<size_t, LoopInfoPtr> new_map;
+    for (const auto& loop_pair : loop_id_map) {
+        new_map[loop_pair.second] = get_loop_info(loop_pair.first);
+    }
+    m_map = std::move(new_map);
+
+    // update Loop IDs for expressions
+    // [ original Loop IDs of the expr -> new Loop IDs of the expr ]
+    std::pair<std::vector<size_t>, std::vector<size_t>> previous_loop_ids;
+    for (const auto& expr : linear_ir) {
+        if (const auto loop_end = ov::as_type_ptr<op::LoopEnd>(expr->get_node())) {
+            const auto current_id = loop_end->get_id();
+            OPENVINO_ASSERT(loop_id_map.count(current_id) > 0, "ID of the LoopEnd has not been found in the map!");
+            loop_end->set_id(loop_id_map.at(loop_end->get_id()));
+        }
+
+        auto expr_loop_ids = expr->get_loop_ids();
+        if (expr_loop_ids.empty())
+            continue;
+        if (expr_loop_ids == previous_loop_ids.first) {
+            expr->set_loop_ids(previous_loop_ids.second);
+            continue;
+        }
+
+        previous_loop_ids.first = expr_loop_ids;
+        std::for_each(expr_loop_ids.begin(), expr_loop_ids.end(), [&loop_id_map](size_t& id) {
+            OPENVINO_ASSERT(loop_id_map.count(id) > 0, "Expression is marked by LoopID that has not been found in the map!");
+            id = loop_id_map.at(id);
+        });
+        expr->set_loop_ids(expr_loop_ids);
+        previous_loop_ids.second = expr_loop_ids;
+    }
+
+    return true;
+}
+
 void LoopManager::insert_loop_id(const ExpressionPtr& expr, size_t new_id, bool before, size_t target_id) {
     OPENVINO_ASSERT(m_map.count(new_id) == 1, "Failed marking expression by Loop ID: the Loop with this ID hasn't registered");
     OPENVINO_ASSERT(!is_loop_id_found(expr, new_id), "Expression cannot have several the same Loop IDs");

@@ -266,6 +266,14 @@ public:
      */
     LoopPort get_loop_port_by_expr_port(const ExpressionPort& expr_port, const size_t loop_id);
 
+    /**
+     * @brief Blend loop map using `loop_id_map` and update LoopIDs of expressions and LoopEnd
+     * @param linear_ir linear IR
+     * @param loop_id_map [ current Loop ID -> new target Loop ID ]
+     * @return True if loops have been mixed up. Otherwise returns False
+     */
+    bool blend(const LinearIR& linear_ir, const std::map<size_t, size_t>& loop_id_map);
+
 private:
     /**
      * @brief Add new Loop Info to the map
