@@ -1,68 +1,83 @@
 Release Policy
 =============================================================================
 
-OpenVINO™ is published multiple times a year. Each regular release, reflected by a corresponding
-branch in GitHub, is supported until the next version arrives, making it suitable for: 
+OpenVINO offers releases of three different types: Regular, Long-Term Support, and Nightly,
+each targeting a different use case.
 
-| `Regular releases <regular-release-information>`__
+| `Regular releases <regular-releases>`__
 |    OpenVINO™ is published multiple times a year. Each regular release is supported until the
      next version arrives, making it suitable for:
 
 * Most typical use cases (the recommended release type).
 * Products requiring frequent changes in supported hardware, libraries, operating systems, and models.
 
-| `Long-Term Support (LTS) <long-term-support-policy>`__:
-|    Each year’s final release becomes a Long-Term Support (LTS) version, which continues to be
-     supported with bug fixes and security updates, even after newer versions are published.
+| `Long-Term Support <long-term-support-policy>`__:
+|    Each year’s final release becomes a Long-Term Support (LTS) version, which continues to
+     receive bug fixes and security updates, even after newer versions are published.
      Therefore, LTS may be used for production environments where:
 
-* The highest level of security and stability is required.
 * There is no need for frequent changes in hardware or model support.
+* New optimizations are not prioritized.
 * Upgrading is challenging, e.g., due to high software complexity.
+* A legacy feature, discontinued in newer OpenVINO versions, is still required.
 
-| `Nightly packages <nightly-packages>`__:
-|    OpenVINO also offers nightly packages, as a preview of most recent changes. Due to potential
-     stability and performance issues, these should never be used for production purposes.
+| `Nightly <nightly-releases>`__:
+|    OpenVINO also offers nightly releases, as a preview of the most recent changes.
+     Since their validation scope is limited, they should never be used for production purposes.
      Instead, they may serve:
 
 * Early integration testing.
-* Previewing newest features/improvements.
+* Community contribution development and integration.
+* Tracking development progress.
 
-Regular release information
-########################################
+Regular releases
+####################
 
 Regular releases are published when significant new features and bug fixes have been completed
-and validated. This results in the cadence of around one or two months. The target changes are:
+and validated. For each of them, a dedicated development branch in GitHub is created.
+Their target changes are:
 
 * New features of gold quality, as well as Beta features, labeled as “preview.”
 * Key bug fixes.
-* Newest HW support.
+* Newest hardware support.
 
 Long-Term Support Policy
 ###########################
 
 **LTS Lifecycle**
 
-* New LTS releases are published at the end of every year cycle.
-* An LTS release receives security updates for the duration of the entire LTS period, which is two years
+* LTS is typically published at the end of every year cycle.
+* LTS uses the branch of the last yearly regular release.
+* LTS aim to receive an update once a year.
+* Security updates are offered for the duration of the entire LTS period, which is two years
   (or until superseded by two consecutive LTS versions).
-* An LTS release receives updates targeting newly recognized bugs for the period of one year.
+* Updates targeting newly discovered bugs are offered for the period of one year.
+
+.. note::
+   LTS releases may offer limited distribution options.
 
 **Components covered by LTS**
 
-* Not all components associated with the OpenVINO™ toolkit are covered by the LTS policy.
-  The following elements are not guaranteed to receive updates:
+Not all components associated with the OpenVINO™ toolkit are covered by the LTS policy.
+The following elements are not guaranteed to receive updates:
+
 * Components in the deprecation period.
+* Preview features (highlighted in the release notes).
 * Components not directly connected to the OpenVINO™ workflow, such as: Samples, demos, and Jupyter notebooks.
+* OpenVINO tools, such as NNCF and OVMS.
 * Code samples used in component testing.
 
 
-Nightly Packages
+Nightly releases
 ###########################
 
-OpenVINO nightly packages are released every workday. They are the first source of priority bug
-fixes reported for the previous versions. 
-The following package distributions are available for installation:
+OpenVINO nightly packages are the first source of newly added features and ofpriority bug fixes
+reported for the previous versions. They are:
+
+* Released every workday.
+* Based on the master branch of the OpenVINO GitHub repository.
+* Not fit for production environments.
+* Offered with limited distribution options:
 
 .. tab-set::
 
@@ -89,18 +104,20 @@ The following package distributions are available for installation:
 
            .. code-block:: py
 
-              pip install --pre openvino --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+              pip install --pre openvino --extra-index-url
+              https://storage.openvinotoolkit.org/simple/wheels/nightly
 
         .. tab-item:: Release
            :sync: release
 
            * This command includes **Release Candidates**.
            * To use ``extra-index-url``, you need to pass a link containing ``simple``.
-           * The ``–pre`` allows the installation of dev-builds.
+           * The ``--pre`` allows the installation of dev-builds.
 
            .. code-block:: py
 
-              pip install --pre openvino --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/pre-release
+              pip install --pre openvino --extra-index-url
+              https://storage.openvinotoolkit.org/simple/wheels/pre-release
 
    .. tab-item:: OV Wheels on PyPi (not recommended)
       :sync: wheels-pypi
@@ -116,7 +133,7 @@ The following package distributions are available for installation:
 Additional Information
 #########################
 
-| **Determining the OpenVINO version**
+| **Determining the OpenVINO Version**
 | If you need to operate on a specific OpenVINO release, and you are not sure which version
   is included in the installed package, you can verify it in one of two ways:
 
