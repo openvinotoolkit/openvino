@@ -187,7 +187,16 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 
 #if COMPRESSED_WEIGHTS_INT4
     #if TILE_OFM == 1 && FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2
-    uint weights_offset = (( (int) (out_f / 32) )* 32) * (INPUT_ELEMENTS_COUNT / 2) + SIMD * (((int)(out_f / SIMD)) & 0x1);
+    const int power_of_two_for_simd = 4;
+    const int power_of_two_for_osv = 5;
+    const uint osv32_weight_base = (( (int) (out_f >> power_of_two_for_osv) ) << power_of_two_for_osv);
+    const uint osv_weight_stride = (INPUT_ELEMENTS_COUNT >> 1);
+    const uint out_f_offset = (int)((out_f >> power_of_two_for_simd) & 0x1) << power_of_two_for_simd;
+    // out_f(32) : 32 + osv_weight_stride + 0;
+    // out_f(48) : 32 + osv_weight_stride + 16;
+    // out_f(64) : 64 + osv_weight_stride + 0;
+    // ...
+    uint weights_offset =  osv32_weight_base * osv_weight_stride + out_f_offset;
     #else
     uint weights_offset = out_f * (INPUT_ELEMENTS_COUNT / 2);
     #endif
