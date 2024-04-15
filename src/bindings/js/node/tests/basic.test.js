@@ -193,6 +193,7 @@ describe('Test exportModel()/importModel()', () => {
   const tensor = Float32Array.from({ length: 3072 }, () => (Math.random() + epsilon));
   const inferRequest = compiledModel.createInferRequest();
   const res1 = inferRequest.infer([tensor]);
+
   it('Test importModel(stream, device)', () => {
     const newCompiled = core.importModelSync(userStream, 'CPU');
     const newInferRequest = newCompiled.createInferRequest();
@@ -205,7 +206,21 @@ describe('Test exportModel()/importModel()', () => {
     const newCompiled = core.importModelSync(userStream, 'CPU', { 'NUM_STREAMS': 1 });
     const newInferRequest = newCompiled.createInferRequest();
     const res2 = newInferRequest.infer([tensor]);
-    
+
     assert.deepStrictEqual(res1['fc_out'].data[0], res2['fc_out'].data[0]);
+  });
+
+  it('Test importModel(stream, device)', () => {
+    assert.throws(
+      () => core.importModelSync(epsilon, 'CPU'),
+      /The first argument must be of type Buffer./
+    );
+  });
+
+  it('Test importModel(stream, device)', () => {
+    assert.throws(
+      () => core.importModelSync(userStream, tensor),
+      /The second argument must be of type String./
+    );
   });
 });

@@ -264,36 +264,38 @@ Napi::Value CoreWrap::get_available_devices(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value CoreWrap::import_model(const Napi::CallbackInfo& info) {
-    if (!info[0].IsBuffer()) {
-        reportError(info.Env(), "The first argument must be of type Buffer.");
-        return info.Env().Undefined();
-    }
-    if (!info[1].IsString()) {
-        reportError(info.Env(), "The second argument must be of type String.");
-        return info.Env().Undefined();
-    }
-    const auto& model_data = info[0].As<Napi::Buffer<uint8_t>>();
-    const auto model_stream = std::string(reinterpret_cast<char*>(model_data.Data()), model_data.Length());
-    std::stringstream _stream;
-    _stream << model_stream;
+    try {
+        if (!info[0].IsBuffer()) {
+            OPENVINO_THROW("The first argument must be of type Buffer.");
+        }
+        if (!info[1].IsString()) {
+            OPENVINO_THROW("The second argument must be of type String.");
+        }
+        const auto& model_data = info[0].As<Napi::Buffer<uint8_t>>();
+        const auto model_stream = std::string(reinterpret_cast<char*>(model_data.Data()), model_data.Length());
+        std::stringstream _stream;
+        _stream << model_stream;
 
-    ov::CompiledModel compiled;
-    switch (info.Length()) {
-    case 2: {
-        compiled = _core.import_model(_stream, std::string(info[1].ToString()));
-        break;
-    }
-    case 3: {
-        compiled = _core.import_model(_stream, std::string(info[1].ToString()), to_anyMap(info.Env(), info[2]));
-        break;
-    }
-    default: {
-        reportError(info.Env(), "Invalid number of arguments -> " + std::to_string(info.Length()));
+        ov::CompiledModel compiled;
+        switch (info.Length()) {
+        case 2: {
+            compiled = _core.import_model(_stream, std::string(info[1].ToString()));
+            break;
+        }
+        case 3: {
+            compiled = _core.import_model(_stream, std::string(info[1].ToString()), to_anyMap(info.Env(), info[2]));
+            break;
+        }
+        default: {
+            OPENVINO_THROW("Invalid number of arguments -> " + std::to_string(info.Length()));
+        }
+        }
+        return CompiledModelWrap::wrap(info.Env(), compiled);
+
+    } catch (std::exception& e) {
+        reportError(info.Env(), e.what());
         return info.Env().Undefined();
     }
-    }
-
-    return CompiledModelWrap::wrap(info.Env(), compiled);
 }
 
 Napi::Value CoreWrap::set_property(const Napi::CallbackInfo& info) {
