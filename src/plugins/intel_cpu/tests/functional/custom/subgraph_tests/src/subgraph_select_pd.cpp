@@ -44,16 +44,16 @@ protected:
         abs_threshold = 1e-2;
 
         auto type = element::f32;
-#define CONST1 128
-        auto input1 = std::make_shared<ov::opset8::Parameter>(type, Shape{1, CONST1 / 2, 32, 32});
+        constexpr int const1 = 128;
+        auto input1 = std::make_shared<ov::opset8::Parameter>(type, Shape{1, const1 / 2, 32, 32});
         input1->set_friendly_name("input1");
-        auto input2 = std::make_shared<ov::opset8::Parameter>(ov::element::f16, Shape{1, CONST1, 1, 1});
+        auto input2 = std::make_shared<ov::opset8::Parameter>(ov::element::f16, Shape{1, const1, 1, 1});
         input2->set_friendly_name("input2");
 
         auto variadicSplit = std::make_shared<ov::op::v1::VariadicSplit>(
             input2,
             ov::opset8::Constant::create(element::i64, Shape{1}, {1}),
-            ov::opset8::Constant::create(element::i64, Shape{2}, {CONST1 / 2, CONST1 / 2}));
+            ov::opset8::Constant::create(element::i64, Shape{2}, {const1 / 2, const1 / 2}));
         variadicSplit->set_friendly_name("variadicSplit");
 
         auto add1 = std::make_shared<ov::opset8::Add>(variadicSplit->output(0),
@@ -74,7 +74,7 @@ protected:
             auto conv = std::make_shared<ov::opset8::Convolution>(
                 input_node,
                 ov::test::utils::deprecated::make_constant(ov::element::f16,
-                                                           Shape{1, CONST1 / 2, 3, 3},
+                                                           Shape{1, const1 / 2, 3, 3},
                                                            std::vector<float>{},
                                                            true,
                                                            0.1f,
