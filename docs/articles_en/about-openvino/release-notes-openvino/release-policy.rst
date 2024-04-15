@@ -12,9 +12,9 @@ branch in GitHub, is supported until the next version arrives, making it suitabl
 * Products requiring frequent changes in supported hardware, libraries, operating systems, and models.
 
 | `Long-Term Support (LTS) <long-term-support-policy>`__:
-|    Each year’s final release becomes a Long-Term Support version, which continues to be supported
-     with bug fixes and security updates, even after newer versions are published. Therefore,
-     LTS is advised for production environments where:
+|    Each year’s final release becomes a Long-Term Support (LTS) version, which continues to be
+     supported with bug fixes and security updates, even after newer versions are published.
+     Therefore, LTS may be used for production environments where:
 
 * The highest level of security and stability is required.
 * There is no need for frequent changes in hardware or model support.
