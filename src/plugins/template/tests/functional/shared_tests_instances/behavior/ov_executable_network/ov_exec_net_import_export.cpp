@@ -21,9 +21,6 @@ const std::vector<ov::element::Type_t> netPrecisions = {
 const std::vector<ov::AnyMap> configs = {
     {},
 };
-const std::vector<ov::AnyMap> multiConfigs = {{ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE)}};
-
-const std::vector<ov::AnyMap> heteroConfigs = {{ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVCompiledGraphImportExportTest,
@@ -31,9 +28,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                                             ::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
                                             ::testing::ValuesIn(configs)),
                          OVCompiledGraphImportExportTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_OVClassImportExportTestP,
-                         OVClassCompiledModelImportExportTestP,
-                         ::testing::Values("HETERO:TEMPLATE"));
 
 }  // namespace

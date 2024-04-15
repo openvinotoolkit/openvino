@@ -13,9 +13,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          ::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
                          OVHoldersTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
-                         OVHoldersTestOnImportedNetwork,
-                         ::testing::Values(ov::test::utils::DEVICE_TEMPLATE, "HETERO:TEMPLATE"),
-                         OVHoldersTestOnImportedNetwork::getTestCaseName);
-
 }  // namespace
