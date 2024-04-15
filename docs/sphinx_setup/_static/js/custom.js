@@ -257,18 +257,17 @@ function addFooter() {
 }
 
 function initSplide() {
-  const slides = $('.splide__slide');
-  const height = (slides.length > 4) ? 96 + ((slides.length - 4) * 16) : 96
+
   var splide = new Splide('.splide', {
-    direction         : 'ttb',
-    type              : 'loop',
-    height            : `${height}px`,
+    type              : 'fade',
+    autoHeight        : true,
     perPage           : 1,
     autoplay          : true,
     arrows            : false,
     waitForTransition : true,
     wheel             : true,
     wheelSleep        : 250,
+    interval          : 3000,
   });
   splide.mount();
 }
