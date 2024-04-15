@@ -29,10 +29,8 @@ class TestSetItem(PytorchLayerTest):
 
         return aten_set_item(idx), ref_net, "aten::_set_item"
 
-    @pytest.mark.parametrize("idx", [0, 1, pytest.param(-1, marks=pytest.mark.xfail(reason="103748 ov scatter do not support negative indices"))])
+    @pytest.mark.parametrize("idx", [0, 1, -1])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() in ('x64', 'x86_64'),
-                       reason='Ticket - 132747')
     def test_set_item_list(self, idx, ie_device, precision, ir_version):
         self._test(*self.create_model(idx), ie_device, precision, ir_version)

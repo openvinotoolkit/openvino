@@ -22,11 +22,14 @@ OutputVector translate_set_item(const NodeContext& context) {
     auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
     auto input = context.get_input(0);
     auto idx = context.get_input(1);
-    auto idx_unsqueezed = context.mark_node(std::make_shared<v0::Unsqueeze>(idx, zero));
+    auto rank = std::get<1>(get_shape_rank(context, input));
+    rank = context.mark_node(std::make_shared<v1::ConvertLike>(rank, idx));
+    // ScatterUpdate-3 doesn't support negative indices
+    idx = normalize_axis(context, idx, rank);
     auto value = context.get_input(2);
     auto value_unsqueezed = context.mark_node(std::make_shared<v0::Unsqueeze>(value, zero));
     value_unsqueezed = context.mark_node(std::make_shared<v1::ConvertLike>(value_unsqueezed, input));
-    auto res = context.mark_node(std::make_shared<v3::ScatterUpdate>(input, idx_unsqueezed, value_unsqueezed, zero));
+    auto res = context.mark_node(std::make_shared<v3::ScatterUpdate>(input, idx, value_unsqueezed, zero));
     context.mutate_input(0, res);
     return {res};
 };
