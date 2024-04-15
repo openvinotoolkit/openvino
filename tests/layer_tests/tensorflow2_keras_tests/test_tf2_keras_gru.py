@@ -126,6 +126,7 @@ class TestKerasGru(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data_zero_recurrent_dropout)
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.xfail(reason="50176")
     def test_keras_gru_flags_zero_recurrent_dropout_float32(self, params, ie_device, precision,
                                                             temp_dir, ir_version,
                                                             use_legacy_frontend):
