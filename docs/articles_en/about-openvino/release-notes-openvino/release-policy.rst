@@ -4,14 +4,14 @@ Release Policy
 OpenVINO offers releases of three different types: Regular, Long-Term Support, and Nightly,
 each targeting a different use case.
 
-| `Regular releases <regular-releases>`__
+| `Regular releases <#regular-releases>`__
 |    OpenVINO™ is published multiple times a year. Each regular release is supported until the
      next version arrives, making it suitable for:
 
 * Most typical use cases (the recommended release type).
 * Products requiring frequent changes in supported hardware, libraries, operating systems, and models.
 
-| `Long-Term Support <long-term-support-policy>`__:
+| `Long-Term Support <#long-term-support-policy>`__:
 |    Each year’s final release becomes a Long-Term Support (LTS) version, which continues to
      receive bug fixes and security updates, even after newer versions are published.
      Therefore, LTS may be used for production environments where:
@@ -21,7 +21,7 @@ each targeting a different use case.
 * Upgrading is challenging, e.g., due to high software complexity.
 * A legacy feature, discontinued in newer OpenVINO versions, is still required.
 
-| `Nightly <nightly-releases>`__:
+| `Nightly <#nightly-releases>`__:
 |    OpenVINO also offers nightly releases, as a preview of the most recent changes.
      Since their validation scope is limited, they should never be used for production purposes.
      Instead, they may serve:
