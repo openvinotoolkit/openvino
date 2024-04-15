@@ -7,6 +7,10 @@ on:
         description: 'Machine on which the tests would run'
         type: string
         required: true
+      shell:
+        description: "shell to override the default shell settings in the runner's operating system."
+        type: string
+        required: true
       container:
         description: 'JSON to be converted to the value of the "container" configuration for the job'
         type: string
@@ -29,7 +33,7 @@ jobs:
     container: ${{ fromJSON(inputs.container) }}
     defaults:
       run:
-        shell: bash
+        shell: ${{ inputs.shell }}
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       OPENVINO_REPO: ${{ github.workspace }}/openvino
@@ -81,7 +85,6 @@ jobs:
 
       - name: Extract OpenVINO packages (Windows)
         if: runner.os == 'Windows'
-        shell: pwsh
         run: |
           pushd ${{ env.INSTALL_DIR }}
             Expand-Archive openvino_package.zip -DestinationPath ${{ env.INSTALL_DIR }}
@@ -132,7 +135,6 @@ jobs:
 
       - name: Install OpenVINO Python wheels
         if: runner.os == 'Windows'
-        shell: pwsh
         run: |
           # Find and install the core OV wheel
           $ovCoreWheelPath=Get-ChildItem -Path ${{ env.INSTALL_DIR }}\tools -Filter openvino-*.whl | % { $_.FullName }
@@ -167,7 +169,6 @@ jobs:
         run: |
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/ -n logical -m precommit  --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_fe.xml
         env:
-          PYTHONPATH: ${{ env.INSTALL_TEST_DIR }}/mo # requires 'unit_tests' from 'tools/mo'
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
 
@@ -176,7 +177,6 @@ jobs:
         run: |
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/ -n logical -m precommit_tf_fe --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_fe.xml
         env:
-          PYTHONPATH: ${{ env.INSTALL_TEST_DIR }}/mo # requires 'unit_tests' from 'tools/mo'
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
 
