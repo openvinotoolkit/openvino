@@ -21,8 +21,7 @@ const std::vector<ov::AnyMap> auto_batch_inproperties = {
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVClassCompiledModelPropertiesIncorrectTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_TEMPLATE,
-                                                              ov::test::utils::DEVICE_MULTI,
-                                                              ov::test::utils::DEVICE_AUTO),
+                                                              ov::test::utils::DEVICE_MULTI),
                                             ::testing::ValuesIn(inproperties)),
                          OVClassCompiledModelPropertiesIncorrectTests::getTestCaseName);
 

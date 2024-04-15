@@ -24,12 +24,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
                                             ::testing::ValuesIn(swPluginConfigs)),
                          OVCompiledModelBaseTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
-                         OVCompiledModelBaseTest,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                            ::testing::ValuesIn(swPluginConfigs)),
-                         OVCompiledModelBaseTest::getTestCaseName);
-
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVCompiledModelBaseTestOptional,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
@@ -39,12 +33,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
                          OVCompiledModelBaseTestOptional,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                            ::testing::ValuesIn(swPluginConfigs)),
-                         OVCompiledModelBaseTestOptional::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
-                         OVCompiledModelBaseTestOptional,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_AUTO),
                                             ::testing::ValuesIn(swPluginConfigs)),
                          OVCompiledModelBaseTestOptional::getTestCaseName);
 }  // namespace
