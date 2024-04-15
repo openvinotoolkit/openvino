@@ -1,4 +1,4 @@
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -24,16 +24,14 @@ class TestKerasCropping2D(CommonTF2LayerTest):
         return tf2_net, ref_net
 
     test_data_float32 = [
-        pytest.param(
-            dict(cropping=2, input_names=["x"], input_shapes=[[3, 5, 7, 5]], input_type=tf.float32),
-            marks=pytest.mark.precommit),
-
+        dict(cropping=2, input_names=["x"], input_shapes=[[3, 5, 7, 5]], input_type=tf.float32),
         dict(cropping=(1, 2), input_names=["x"], input_shapes=[[2, 3, 7, 5]],
              input_type=tf.float32),
-        pytest.param(dict(cropping=((2, 1), (3, 2)), input_names=["x"], input_shapes=[[5, 7, 9, 7]],
-                          input_type=tf.float32), marks=pytest.mark.precommit_tf_fe)]
+        dict(cropping=((2, 1), (3, 2)), input_names=["x"], input_shapes=[[5, 7, 9, 7]],
+             input_type=tf.float32)]
 
     @pytest.mark.parametrize("params", test_data_float32)
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_keras_cropping_2d_float32(self, params, ie_device, precision, ir_version, temp_dir,
                                        use_legacy_frontend):
