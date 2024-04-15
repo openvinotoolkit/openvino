@@ -116,7 +116,7 @@ jobs:
       # Tests
       #
 
-      - name: Install OpenVINO Python wheels
+      - name: Install OpenVINO Python wheels (Linux and macOS)
         if: runner.os != 'Windows'
         run: |
           # Install the core OV wheel
@@ -132,7 +132,7 @@ jobs:
             python3 -m pip install $ov_dev_wheel_name[tensorflow2]
           popd
 
-      - name: Install OpenVINO Python wheels
+      - name: Install OpenVINO Python wheels (Windows)
         if: runner.os == 'Windows'
         run: |
           # Find and install the core OV wheel
