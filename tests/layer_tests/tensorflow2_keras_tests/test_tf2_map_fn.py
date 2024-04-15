@@ -1,4 +1,4 @@
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -6,36 +6,46 @@ import tensorflow as tf
 
 from common.tf2_layer_test_class import CommonTF2LayerTest
 
+
 def fn_1(x):
     return (x[0] * x[1] + x[2])
+
 
 def fn_2(x):
     return (x[0] + x[1] + x[2], x[0] - x[2] + x[1], 2 + x[2])
 
+
 def fn_3(x):
     return (x[0] * x[1])
+
 
 def fn_4(x):
     return (x[0] * x[1] + 2 * x[2])
 
+
 def fn_5(x):
     return (x[0] * x[1], x[0] + x[1])
+
 
 def fn_6(x):
     return (x[0] * x[1] + x[2], x[0] + x[2] * x[1], 2 * x[2])
 
+
 def fn_7(x):
     return (x[0] * x[1] + x[2])
+
 
 def fn_8(x):
     return (x[0] + x[1] + x[2], x[0] - x[2] + x[1], 2 + x[2])
 
+
 list_fns = [fn_1, fn_2, fn_3, fn_4, fn_5, fn_6, fn_7, fn_8]
+
 
 class MapFNLayer(tf.keras.layers.Layer):
     def __init__(self, fn, input_type, fn_output_signature, back_prop):
         super(MapFNLayer, self).__init__()
-        self.fn = list_fns[fn-1]
+        self.fn = list_fns[fn - 1]
         self.input_type = input_type
         self.fn_output_signature = fn_output_signature
         self.back_prop = back_prop
@@ -44,6 +54,7 @@ class MapFNLayer(tf.keras.layers.Layer):
         return tf.map_fn(self.fn, x, dtype=self.input_type,
                          fn_output_signature=self.fn_output_signature,
                          back_prop=self.back_prop)
+
 
 class TestMapFN(CommonTF2LayerTest):
     def create_map_fn_net(self, fn, input_type, fn_output_signature, back_prop,
@@ -66,12 +77,11 @@ class TestMapFN(CommonTF2LayerTest):
         dict(fn=1, input_type=tf.float32,
              fn_output_signature=tf.float32, back_prop=False,
              input_names=["x1", "x2", "x3"], input_shapes=[[2, 3, 4], [2, 3, 4], [2, 3, 4]]),
-        pytest.param(dict(fn=2,
-                          input_type=tf.float32,
-                          fn_output_signature=(tf.float32, tf.float32, tf.float32), back_prop=True,
-                          input_names=["x1", "x2", "x3"],
-                          input_shapes=[[2, 1, 3, 4], [2, 1, 3, 4], [2, 1, 3, 4]]),
-                     marks=pytest.mark.xfail(reason="61587"))
+        dict(fn=2,
+             input_type=tf.float32,
+             fn_output_signature=(tf.float32, tf.float32, tf.float32), back_prop=True,
+             input_names=["x1", "x2", "x3"],
+             input_shapes=[[2, 1, 3, 4], [2, 1, 3, 4], [2, 1, 3, 4]]),
     ]
 
     @pytest.mark.parametrize("params", test_basic)
@@ -126,15 +136,15 @@ class TestMapFN(CommonTF2LayerTest):
              fn_output_signature=tf.int32, back_prop=True,
              input_names=["x1", "x2", "x3"],
              input_shapes=[[2, 1, 3], [2, 1, 3], [2, 1, 3]]),
-        pytest.param(dict(fn=8,
-                          input_type=tf.int32,
-                          fn_output_signature=(tf.int32, tf.int32, tf.int32), back_prop=True,
-                          input_names=["x1", "x2", "x3"],
-                          input_shapes=[[2, 1, 3, 4], [2, 1, 3, 4], [2, 1, 3, 4]]),
-                     marks=[pytest.mark.xfail(reason="61587"), pytest.mark.precommit_tf_fe])
+        dict(fn=8,
+             input_type=tf.int32,
+             fn_output_signature=(tf.int32, tf.int32, tf.int32), back_prop=True,
+             input_names=["x1", "x2", "x3"],
+             input_shapes=[[2, 1, 3, 4], [2, 1, 3, 4], [2, 1, 3, 4]]),
     ]
 
     @pytest.mark.parametrize("params", test_multiple_inputs_outputs_int32)
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_multiple_inputs_outputs_int32(self, params, ie_device, precision, ir_version, temp_dir,
                                            use_legacy_frontend):

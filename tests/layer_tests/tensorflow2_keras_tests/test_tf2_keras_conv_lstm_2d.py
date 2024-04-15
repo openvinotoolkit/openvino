@@ -1,4 +1,4 @@
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -60,7 +60,7 @@ class TestKerasConvLSTM2D(CommonTF2LayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_keras_conv_lstm_2d_basic(self, params, ie_device, precision, ir_version, temp_dir,
                                       use_legacy_frontend):
