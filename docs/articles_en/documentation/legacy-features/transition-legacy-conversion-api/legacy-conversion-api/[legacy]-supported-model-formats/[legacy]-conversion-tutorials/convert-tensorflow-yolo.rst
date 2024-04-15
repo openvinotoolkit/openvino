@@ -58,11 +58,18 @@ This section explains how to convert the YOLOv4 Keras model from the `repository
         python keras-YOLOv3-model-set/tools/model_converter/convert.py <path_to_cfg_file>/yolov4-tiny.cfg <path_to_weights>/yolov4-tiny.weights <saved_model_dir>
 
 
-4. Run model conversion for from the TensorFlow 2 format to an IR:
+4. Run model conversion from the TensorFlow 2 to an IR format:
 
    .. note::
 
       Before you run the conversion, make sure you have installed all the model conversion API dependencies for TensorFlow 2.
+
+      If you get errors, you may need to add the additional step to divide the input by 255:
+
+      .. code-block:: sh
+
+         --scale_values=image_input[255]
+
 
    .. code-block:: sh
 

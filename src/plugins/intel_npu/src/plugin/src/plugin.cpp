@@ -329,7 +329,7 @@ Plugin::Plugin()
          {true,
           ov::PropertyMutability::RO,
           [&](const Config& config) {
-              return _metrics->GetDriverVersion(get_specified_device_name(config));
+              return _metrics->GetDriverVersion();
           }}},
         // NPU Private
         // =========

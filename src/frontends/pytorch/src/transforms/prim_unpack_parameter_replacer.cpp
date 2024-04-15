@@ -86,7 +86,7 @@ bool DecomposeUnpackParameters::run_on_model(const std::shared_ptr<Model>& model
             std::set<Input<Node>> inputs;
 
             for (const auto& outputs : consumer_outputs) {
-                auto output = outputs[i];
+                const auto& output = outputs[i];
                 OPENVINO_ASSERT(PartialShape::merge_into(ps, output.get_partial_shape()),
                                 "Consumers for unpack op have incompatible shape");
                 OPENVINO_ASSERT(element::Type::merge(et, et, output.get_element_type()),
@@ -98,7 +98,7 @@ bool DecomposeUnpackParameters::run_on_model(const std::shared_ptr<Model>& model
             auto new_parameter = std::make_shared<ov::op::v0::Parameter>(et, ps);
 
             for (auto& input : inputs) {
-                auto names = input.get_tensor().get_names();
+                const auto& names = input.get_tensor().get_names();
                 input.replace_source_output(new_parameter->output(0));
                 new_parameter->output(0).add_names(names);
             }
