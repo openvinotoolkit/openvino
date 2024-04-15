@@ -136,7 +136,7 @@ def test_fake_quantize_prefix(op_name):
         d_arr,
         e_arr,
         levels,
-        name=op_name
+        name=op_name,
     )
 
     # Check if node was created correctly

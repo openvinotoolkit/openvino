@@ -5,7 +5,7 @@
 """Functions related to converting between Python and numpy types and openvino types."""
 
 import logging
-from typing import List, Union
+from typing import List, Union, Optional
 
 import numpy as np
 

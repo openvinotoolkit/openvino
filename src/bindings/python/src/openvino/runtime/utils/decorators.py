@@ -4,7 +4,7 @@
 
 from functools import wraps
 from inspect import getfullargspec
-from typing import Any, Callable, List
+from typing import Any, Callable, List, Optional
 
 from openvino.runtime import Node, Output
 from openvino.runtime.utils.types import NodeInput, as_node, as_nodes
