@@ -2,28 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
-#include "openvino/util/common_util.hpp"
 
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
-#include "intel_gpu/graph/serialization/layout_serializer.hpp"
-#include "intel_gpu/graph/serialization/string_serializer.hpp"
-#include "intel_gpu/graph/serialization/utils.hpp"
-#include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/async_infer_request.hpp"
 
-#include <fstream>
-#include <utility>
 #include <sys/types.h>
-#include <chrono>
-#include <cmath>
-#include <algorithm>
 
 namespace ov {
 namespace intel_gpu {
