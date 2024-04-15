@@ -1,8 +1,8 @@
 Release Policy
 =============================================================================
 
-OpenVINO offers releases of three different types: Regular, Long-Term Support, and Nightly,
-each targeting a different use case. 
+OpenVINO™ is published multiple times a year. Each regular release, reflected by a corresponding
+branch in GitHub, is supported until the next version arrives, making it suitable for: 
 
 | `Regular releases <regular-release-information>`__
 |    OpenVINO™ is published multiple times a year. Each regular release is supported until the
