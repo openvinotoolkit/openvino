@@ -593,11 +593,11 @@ ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputIn
         std::mt19937 str_len_gen(0);
         uniformDistribution<uint32_t> len_distribution(20, 50);
         std::mt19937 char_val_gen(0);
-        uniformDistribution<char> char_distribution(0, 127);
+        uniformDistribution<uint32_t> char_distribution(0, 127);
         for (size_t i = 0; i < tensor_size; i++) {
             data[i].resize(len_distribution(str_len_gen));
             for (size_t j = 0lu; j < data[i].size(); j++) {
-                data[i][j] = char_distribution(char_val_gen);
+                data[i][j] = static_cast<char>(char_distribution(char_val_gen));
             }
         }
 

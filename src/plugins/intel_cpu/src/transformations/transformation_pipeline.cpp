@@ -407,6 +407,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     // element type propagation. This transformation is called before the ConvertPrecision pass to align the actual precisions with the list of supported ones.
     const bool convert_input_output_precision = false;
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::InsertConvertAfterExtension, convert_input_output_precision);
+    // Do not insert pass::Validate between pass::InsertConvertAfterExtension and pass::ConvertPrecision.
+    // This may result in the loss of the original Element type of the Output .
     // element type convert is disabled.
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, precisions, type_to_fuse, false, convert_input_output_precision);
 
