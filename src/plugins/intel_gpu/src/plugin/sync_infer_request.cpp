@@ -6,8 +6,6 @@
 #include "openvino/core/preprocess/input_tensor_info.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/op/util/op_types.hpp"
-#include "transformations/utils/utils.hpp"
 
 #include "intel_gpu/primitives/kv_cache.hpp"
 #include "intel_gpu/plugin/usm_host_tensor.hpp"
