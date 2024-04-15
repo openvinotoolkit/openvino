@@ -54,9 +54,6 @@ struct InputGenerateData {
 
 // Pre-defaned eps based on mantissa bit depth
 inline double get_eps_by_ov_type(const ov::element::Type& elem_type) {
-    if (elem_type.is_integral() || elem_type == ov::element::undefined) {
-        return 0.f;
-    }
     switch (elem_type) {
     case ov::element::f64:
         return 1e-8;
@@ -69,7 +66,7 @@ inline double get_eps_by_ov_type(const ov::element::Type& elem_type) {
     case ov::element::nf4:
         return 1e-1;
     default:
-        throw std::runtime_error("Incorrect element type to get epsilon!");
+        return 0.f;
     }
 }
 

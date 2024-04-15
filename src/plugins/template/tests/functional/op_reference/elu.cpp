@@ -23,8 +23,8 @@ struct EluParams {
           pshape(shape),
           inType(iType),
           outType(iType),
-          inputData(CreateTensor(iType, iValues)),
-          refData(CreateTensor(iType, oValues)) {}
+          inputData(CreateTensor(shape.get_shape(), iType, iValues)),
+          refData(CreateTensor(shape.get_shape(), iType, oValues)) {}
 
     double alpha = 0;
 
@@ -38,13 +38,13 @@ struct EluParams {
 class ReferenceEluLayerTest : public testing::TestWithParam<EluParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params.pshape, params.inType, params.outType, params.alpha);
         inputData = {params.inputData};
         refOutData = {params.refData};
     }
     static std::string getTestCaseName(const testing::TestParamInfo<EluParams>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
         result << "shape=" << param.pshape << "_";
         result << "iType=" << param.inType << "_";
