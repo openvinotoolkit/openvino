@@ -438,7 +438,7 @@ public:
         return *this;
     }
 
-    Iterator<ET, T> operator+(const difference_type& n) {
+    Iterator<ET, T> operator+(const difference_type& n) const {
         auto tmp(*this);
         tmp += n;
         return tmp;
@@ -495,7 +495,7 @@ public:
         return *this;
     }
 
-    Iterator<ET, T> operator-(const difference_type& n) {
+    Iterator<ET, T> operator-(const difference_type& n) const {
         auto tmp(*this);
         tmp -= n;
         return tmp;
@@ -576,5 +576,15 @@ template <Type_t ET, class T = typename std::add_const<ov::fundamental_type_for<
 constexpr auto iterator(const void* ptr) -> decltype(iterator<ET, T>(reinterpret_cast<T*>(ptr))) {
     return iterator<ET, T>(reinterpret_cast<T*>(ptr));
 }
+
+/**
+ * @brief Gets size of N elements of given precision in bytes.
+ *
+ * @param type  Element precision.
+ * @param n     Number of elements.
+ *
+ * @return Elements size in bytes.
+ */
+OPENVINO_API size_t get_byte_size(const element::Type& type, const size_t n);
 }  // namespace element
 }  // namespace ov

@@ -8,6 +8,7 @@
 
 #include <memory>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
@@ -15,6 +16,16 @@
 
 using namespace ov;
 using namespace std;
+
+using testing::ElementsAre;
+
+struct TestDType {
+    operator float() const {
+        return value;
+    }
+
+    float value;
+};
 
 //
 // boolean
@@ -289,7 +300,7 @@ TEST(constant, int4_string_broadcast_negative_number) {
 
     const auto p = c.get_data_ptr<uint8_t>();
     EXPECT_EQ(0xFF, p[0]);
-    EXPECT_EQ(0xF0, p[1] & 0xF0);
+    EXPECT_EQ(0x0F, p[1] & 0x0F);
 
     EXPECT_EQ(std::vector<std::string>(3, "-1"), c.get_value_strings());
 }
@@ -305,7 +316,7 @@ TEST(constant, int4_string_broadcast_positive_number) {
 
     const auto p = c.get_data_ptr<uint8_t>();
     EXPECT_EQ(0x11, p[0]);
-    EXPECT_EQ(0x10, p[1] & 0xF0);
+    EXPECT_EQ(0x01, p[1] & 0x0F);
 
     EXPECT_EQ(std::vector<std::string>(3, "1"), c.get_value_strings());
 }
@@ -349,7 +360,7 @@ TEST(constant, int4_vector_broadcast_negative_number) {
 
     const auto p = c.get_data_ptr<uint8_t>();
     EXPECT_EQ(0xFF, p[0]);
-    EXPECT_EQ(0xF0, p[1] & 0xF0);
+    EXPECT_EQ(0x0F, p[1] & 0x0F);
 }
 
 TEST(constant, int4_vector_broadcast_positive_number) {
@@ -363,7 +374,7 @@ TEST(constant, int4_vector_broadcast_positive_number) {
 
     const auto p = c.get_data_ptr<uint8_t>();
     EXPECT_EQ(0x33, p[0]);
-    EXPECT_EQ(0x30, p[1] & 0xF0);
+    EXPECT_EQ(0x03, p[1] & 0x0F);
 }
 
 TEST(constant, int4_input_value_validation) {
@@ -381,6 +392,16 @@ TEST(constant, int4_input_value_validation) {
     EXPECT_THROW(ov::op::v0::Constant c(element::i4, shape, std::vector<std::string>{"8", "1"}), ::ov::AssertFailure);
 }
 
+TEST(constant, int4_write_then_cast_custom_type) {
+    Shape shape{3};
+    std::vector<TestDType> input{{1.0f}, {-2.0f}, {7.0f}};
+    ov::op::v0::Constant c(element::i4, shape, input);
+
+    auto v = c.cast_vector<int8_t>();
+
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_THAT(v, ElementsAre(1, -2, 7));
+}
 //
 // int8
 //
@@ -740,7 +761,7 @@ TEST(constant, uint1_string) {
     EXPECT_EQ(v[3], 0);
 
     const auto p = c.get_data_ptr<uint8_t>();
-    EXPECT_EQ(p[0], 0b10100000);
+    EXPECT_EQ(p[0] & 0xF0, 0b10100000);
 
     EXPECT_EQ(input, c.get_value_strings());
 
@@ -802,6 +823,17 @@ TEST(constant, uint1_vector_broadcast) {
 
     const auto p = c.get_data_ptr<uint8_t>();
     EXPECT_EQ(0xE0, p[0] & 0xE0);
+}
+
+TEST(constant, uint1_write_then_cast_custom_type) {
+    Shape shape{3};
+    std::vector<TestDType> input{{1.0f}, {0.0f}, {12.0f}};
+    ov::op::v0::Constant c(element::u1, shape, input);
+
+    auto v = c.cast_vector<int8_t>();
+
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_THAT(v, ElementsAre(1, 0, 1));
 }
 
 //
@@ -871,9 +903,9 @@ TEST(constant, uint4_vector_broadcast) {
 
     const auto p = c.get_data_ptr<uint8_t>();
     const auto first_byte = p[0];
-    const auto second_byte = p[1] & 0xF0;
+    const auto second_byte = p[1] & 0x0F;
     EXPECT_EQ(0x11, first_byte);
-    EXPECT_EQ(0x10, second_byte);
+    EXPECT_EQ(0x01, second_byte);
 }
 
 TEST(constant, uint4_input_value_validation) {
@@ -889,6 +921,17 @@ TEST(constant, uint4_input_value_validation) {
 
     EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, std::vector<std::string>{"-1", "1"}), ::ov::AssertFailure);
     EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, std::vector<std::string>{"16", "1"}), ::ov::AssertFailure);
+}
+
+TEST(constant, uint4_write_then_cast_custom_type) {
+    Shape shape{3};
+    std::vector<TestDType> input{{1.0f}, {3.0f}, {12.0f}};
+    ov::op::v0::Constant c(element::u4, shape, input);
+
+    auto v = c.cast_vector<int8_t>();
+
+    ASSERT_EQ(v.size(), shape_size(shape));
+    EXPECT_THAT(v, ElementsAre(1, 3, 12));
 }
 
 //
@@ -1230,6 +1273,20 @@ TEST(constant, uint64_string_max) {
     for (unsigned i = 0; i != input.size(); ++i) {
         EXPECT_EQ(input[i], c.convert_value_to_string(i));
     }
+}
+
+//
+// nf4
+//
+TEST(constant, nf4_write_custom_type) {
+    Shape shape{3};
+    std::vector<TestDType> input{{-1.1f}, {-.5f}, {2.0f}};
+    ov::op::v0::Constant c(element::nf4, shape, input);
+
+    auto p = c.get_data_ptr<uint8_t>();
+
+    EXPECT_EQ(p[0], 0x20);
+    EXPECT_EQ(p[1] & 0x0f, 0x0f);
 }
 
 //
