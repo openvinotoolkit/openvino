@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-import pytest
 
+from layer_tests.conftest import use_legacy_frontend
 from common.layer_test_class import CommonLayerTest
 from common.utils.tf_utils import summarize_graph
 
@@ -10,7 +10,7 @@ from common.utils.tf_utils import save_to_pb
 from common.layer_utils import import_openvino_tokenizers
 
 # do not import openvino_tokenizers in legacy tests
-if not pytest.Config.getoption('--use_legacy_frontend'):
+if not use_legacy_frontend:
     import_openvino_tokenizers()
 
 class CommonTFLayerTest(CommonLayerTest):
