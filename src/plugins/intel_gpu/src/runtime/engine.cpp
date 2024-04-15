@@ -261,6 +261,9 @@ void engine::subtract_memory_used(uint64_t bytes, allocation_type type) {
 std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_types runtime_type, const device::ptr device) {
     std::shared_ptr<cldnn::engine> ret;
     switch (engine_type) {
+    case engine_types::sycl:
+        ret = ocl::create_sycl_engine(device, runtime_type);
+        break;
     case engine_types::ocl:
         ret = ocl::create_ocl_engine(device, runtime_type);
         break;

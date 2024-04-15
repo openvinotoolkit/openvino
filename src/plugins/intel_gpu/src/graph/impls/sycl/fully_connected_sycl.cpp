@@ -4,9 +4,9 @@
 
 #include "fully_connected_inst.h"
 #include "intel_gpu/primitives/reorder.hpp"
-#include "ocl/ocl_engine.hpp"
 #include "ocl/ocl_event.hpp"
-#include "ocl/ocl_stream.hpp"
+#include "ocl/sycl_engine.hpp"
+#include "ocl/sycl_stream.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "primitive_sycl_base.h"
 #include "implementation_map.hpp"
@@ -48,11 +48,13 @@ template<> struct AccumulatorType<::sycl::half, int8_t> {
 };
 
 template<typename AType, typename WType, typename ZPType, typename ScaleType, typename DType>
-::sycl::event run_fc_int4_woq(::sycl::queue& queue, const AType* a, const WType* w, const ZPType* zp, const ScaleType* s, DType* dst,
+::sycl::event run_fc_int4_woq(::sycl::queue& queue, bool enqueue_barrier, const AType* a, const WType* w, const ZPType* zp, const ScaleType* s, DType* dst,
                               size_t M, size_t N, size_t K, size_t group_size, size_t groups_num, const ov::Shape& out_shape, optional_value<float> dzp_s) {
-    queue.submit([=](::sycl::handler& cgh) {
-        cgh.ext_oneapi_barrier();
-    });
+    if (enqueue_barrier) {
+        queue.submit([=](::sycl::handler& cgh) {
+            cgh.ext_oneapi_barrier();
+        });
+    }
 
     bool has_value = dzp_s.has_value();
     float dzp_value = dzp_s.value_or(0.0f);
@@ -90,11 +92,13 @@ template<typename AType, typename WType, typename ZPType, typename ScaleType, ty
 }
 
 template<typename AType, typename WType, typename ZPType, typename ScaleType, typename DType>
-::sycl::event run_fc_int8_woq(::sycl::queue& queue, const AType* a, const WType* w, const ZPType* zp, const ScaleType* s, DType* dst,
+::sycl::event run_fc_int8_woq(::sycl::queue& queue, bool enqueue_barrier, const AType* a, const WType* w, const ZPType* zp, const ScaleType* s, DType* dst,
                      size_t M, size_t N, size_t K, size_t group_size, size_t groups_num, const ov::Shape& out_shape, optional_value<float> dzp_s) {
-    queue.submit([=](::sycl::handler& cgh) {
-        cgh.ext_oneapi_barrier();
-    });
+    if (enqueue_barrier) {
+        queue.submit([=](::sycl::handler& cgh) {
+            cgh.ext_oneapi_barrier();
+        });
+    }
 
     bool has_value = dzp_s.has_value();
     float dzp_value = dzp_s.value_or(0.0f);
@@ -132,16 +136,6 @@ struct fully_connected_sycl : typed_primitive_sycl_impl<fully_connected> {
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::sycl::fully_connected_sycl)
 
-private:
-    static std::vector<int64_t> reshape_to_2d(const ov::PartialShape& shape, int64_t feature) {
-        auto staticShape = shape.to_shape();
-        size_t total =
-            std::accumulate(staticShape.begin(), staticShape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
-        std::vector<int64_t> reshapeSize = { static_cast<int64_t>(total) / feature, feature };
-        return reshapeSize;
-    }
-
-public:
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<fully_connected_sycl>(*this);
     }
@@ -152,10 +146,15 @@ public:
         const bool print = false;
 
         auto start = std::chrono::high_resolution_clock::now();
-        auto& stream = dynamic_cast<ocl::ocl_stream&>(network.get_stream());
-        auto& engine = dynamic_cast<ocl::ocl_engine&>(network.get_engine());
-        ::sycl::context sycl_context = ::sycl::make_context<::sycl::backend::opencl>(engine.get_cl_context().get());
-        ::sycl::queue sycl_queue = ::sycl::make_queue<::sycl::backend::opencl>(stream.get_cl_queue().get(), sycl_context);
+        // auto& stream = dynamic_cast<ocl::ocl_stream&>(network.get_stream());
+        // auto& engine = dynamic_cast<ocl::ocl_engine&>(network.get_engine());
+        // ::sycl::context sycl_context = ::sycl::make_context<::sycl::backend::opencl>(engine.get_cl_context().get());
+        // ::sycl::queue sycl_queue = ::sycl::make_queue<::sycl::backend::opencl>(stream.get_cl_queue().get(), sycl_context);
+
+        auto& stream = downcast<ocl::sycl_stream>(network.get_stream());
+        auto& engine = downcast<ocl::sycl_engine>(network.get_engine());
+        ::sycl::context sycl_context = engine.get_sycl_context();
+        ::sycl::queue& sycl_queue = stream.get_sycl_queue();
         auto end = std::chrono::high_resolution_clock::now();
 
         if (print)
@@ -227,6 +226,8 @@ public:
 
         auto dzp_scalar = desc->decompression_zero_point_scalar;
 
+        bool barrier = stream.get_queue_type() == QueueTypes::out_of_order;
+
         #define CASE(InputType, WeightsType, ZPType, ScaleType, DstType) \
             in_t == ov::element::InputType && \
             wei_t == ov::element::WeightsType && \
@@ -241,7 +242,7 @@ public:
             const float* ds = static_cast<const float*>(inputs[1]->buffer_ptr());
             const float* dzp = inputs.size() == 3 ? static_cast<const float*>(inputs[2]->buffer_ptr()) : nullptr;
 
-            return to_ocl_event(stream, run_fc_int4_woq(sycl_queue, in, wei, dzp, ds, out, M, N, K, group_size, groups_num, out_shape, dzp_scalar));
+            return to_ocl_event(stream, run_fc_int4_woq(sycl_queue, barrier, in, wei, dzp, ds, out, M, N, K, group_size, groups_num, out_shape, dzp_scalar));
         } else if ((CASE(f16, u4, f16, f16, f16)) || (CASE(f16, u4, undefined, f16, f16))) {
             const ::sycl::half* in = static_cast<const ::sycl::half*>(inputs[0]->buffer_ptr());
             const uint8_t* wei = static_cast<const uint8_t*>(weights->buffer_ptr());
@@ -250,7 +251,7 @@ public:
             const ::sycl::half* dzp = inputs.size() == 3 ? static_cast<const ::sycl::half*>(inputs[2]->buffer_ptr()) : nullptr;
 
 
-            return to_ocl_event(stream, run_fc_int4_woq(sycl_queue, in, wei, dzp, ds, out, M, N, K, group_size, groups_num, out_shape, dzp_scalar));
+            return to_ocl_event(stream, run_fc_int4_woq(sycl_queue, barrier, in, wei, dzp, ds, out, M, N, K, group_size, groups_num, out_shape, dzp_scalar));
         } else if ((CASE(f16, u4, f16, f16, f32)) || (CASE(f16, u4, undefined, f16, f32))) {
             const ::sycl::half* in = static_cast<const ::sycl::half*>(inputs[0]->buffer_ptr());
             const uint8_t* wei = static_cast<const uint8_t*>(weights->buffer_ptr());
@@ -259,7 +260,7 @@ public:
             const ::sycl::half* dzp = inputs.size() == 3 ? static_cast<const ::sycl::half*>(inputs[2]->buffer_ptr()) : nullptr;
 
 
-            return to_ocl_event(stream, run_fc_int4_woq(sycl_queue, in, wei, dzp, ds, out, M, N, K, group_size, groups_num, out_shape, dzp_scalar));
+            return to_ocl_event(stream, run_fc_int4_woq(sycl_queue, barrier, in, wei, dzp, ds, out, M, N, K, group_size, groups_num, out_shape, dzp_scalar));
         } else if ((CASE(f32, u8, f32, f32, f32)) || (CASE(f32, u8, undefined, f32, f32))) {
             const float* in = static_cast<const float*>(inputs[0]->buffer_ptr());
             const uint8_t* wei = static_cast<const uint8_t*>(weights->buffer_ptr());
@@ -267,7 +268,7 @@ public:
             const float* ds = static_cast<const float*>(inputs[1]->buffer_ptr());
             const float* dzp = inputs.size() == 3 ? static_cast<const float*>(inputs[2]->buffer_ptr()) : nullptr;
 
-            return to_ocl_event(stream, run_fc_int8_woq(sycl_queue, in, wei, dzp, ds, out, M, N, K, group_size, groups_num, out_shape, dzp_scalar));
+            return to_ocl_event(stream, run_fc_int8_woq(sycl_queue, barrier, in, wei, dzp, ds, out, M, N, K, group_size, groups_num, out_shape, dzp_scalar));
         } else if ((CASE(f16, u8, f16, f16, f16)) || (CASE(f16, u8, undefined, f16, f16))) {
             const ::sycl::half* in = static_cast<const ::sycl::half*>(inputs[0]->buffer_ptr());
             const uint8_t* wei = static_cast<const uint8_t*>(weights->buffer_ptr());
@@ -275,7 +276,7 @@ public:
             const ::sycl::half* ds = static_cast<const ::sycl::half*>(inputs[1]->buffer_ptr());
             const ::sycl::half* dzp = inputs.size() == 3 ? static_cast<const ::sycl::half*>(inputs[2]->buffer_ptr()) : nullptr;
 
-            return to_ocl_event(stream, run_fc_int8_woq(sycl_queue, in, wei, dzp, ds, out, M, N, K, group_size, groups_num, out_shape, dzp_scalar));
+            return to_ocl_event(stream, run_fc_int8_woq(sycl_queue, barrier, in, wei, dzp, ds, out, M, N, K, group_size, groups_num, out_shape, dzp_scalar));
         } else if ((CASE(f16, u8, f16, f16, f32)) || (CASE(f16, u8, undefined, f16, f32))) {
             const ::sycl::half* in = static_cast<const ::sycl::half*>(inputs[0]->buffer_ptr());
             const uint8_t* wei = static_cast<const uint8_t*>(weights->buffer_ptr());
@@ -283,7 +284,7 @@ public:
             const ::sycl::half* ds = static_cast<const ::sycl::half*>(inputs[1]->buffer_ptr());
             const ::sycl::half* dzp = inputs.size() == 3 ? static_cast<const ::sycl::half*>(inputs[2]->buffer_ptr()) : nullptr;
 
-            return to_ocl_event(stream, run_fc_int8_woq(sycl_queue, in, wei, dzp, ds, out, M, N, K, group_size, groups_num, out_shape, dzp_scalar));
+            return to_ocl_event(stream, run_fc_int8_woq(sycl_queue, barrier, in, wei, dzp, ds, out, M, N, K, group_size, groups_num, out_shape, dzp_scalar));
         } else {
             OPENVINO_THROW("No instance for given types found");
         }

@@ -144,7 +144,11 @@ Plugin::Plugin() {
     register_primitives();
 
     // Set OCL runtime which should be always available
+    #ifdef ENABLE_SYCL
+    cldnn::device_query device_query(cldnn::engine_types::sycl, cldnn::runtime_types::ocl);
+    #else
     cldnn::device_query device_query(cldnn::engine_types::ocl, cldnn::runtime_types::ocl);
+    #endif
     m_device_map = device_query.get_available_devices();
 
     // Set default configs for each device

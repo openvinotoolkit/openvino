@@ -36,6 +36,7 @@ $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
 add_sycl_to_target(TARGET ${TARGET_NAME} SOURCES ${SYCL_SOURCES})
 # target_compile_options(${TARGET_NAME} PUBLIC -fsycl-targets=spir64_gen "-Xs -device *") # Native API failed. Native API returns: -46 (PI_ERROR_INVALID_KERNEL_NAME)
 
+target_compile_definitions(${TARGET_NAME} PUBLIC ENABLE_SYCL)
 target_link_libraries(${TARGET_NAME} PUBLIC OpenCL::OpenCL openvino::shape_inference)
 target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_kernels
                                              openvino_intel_gpu_runtime

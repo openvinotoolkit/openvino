@@ -78,12 +78,16 @@ protected:
     }
 
     static event::ptr to_ocl_event(stream& stream, ::sycl::event e) {
-        auto native_events = get_native<::sycl::backend::opencl, ::sycl::event>(e);
-        std::vector<event::ptr> events;
-        for (auto& e : native_events) {
-            events.push_back(std::make_shared<ocl::ocl_event>(cl::Event(e)));
+        if (stream.get_queue_type() == QueueTypes::out_of_order) {
+            auto native_events = get_native<::sycl::backend::opencl, ::sycl::event>(e);
+            std::vector<event::ptr> events;
+            for (auto& e : native_events) {
+                events.push_back(std::make_shared<ocl::ocl_event>(cl::Event(e, true)));
+            }
+            return events.empty() ? stream.create_user_event(true) : stream.group_events(events);
+        } else {
+            return stream.create_user_event(true);
         }
-        return stream.group_events(events);
     }
 
     std::vector<layout> get_internal_buffer_layouts_impl() const override {
