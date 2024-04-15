@@ -301,6 +301,10 @@ public:
     bool can_be_optimized() const { return optimized; }
     void can_be_optimized(bool opt) { optimized = opt; }
 
+    // check/set if the node is runtime skippable
+    bool is_runtime_skippable() const { return runtime_skippable; }
+    void set_runtime_skippable(bool skippable) { runtime_skippable = skippable; }
+
     // check/set if the node's buffer can be shared during the memory pool optimization
     bool can_share_buffer() const { return share_buffer; }
     void can_share_buffer(bool share) { share_buffer = share; }
@@ -484,6 +488,7 @@ protected:
     bool constant = false;
     bool data_flow = false;
     bool in_shape_of_subgraph = false;
+    bool runtime_skippable = false;
 
     std::set<const program_node*> dependant_shape_of_nodes;
 
