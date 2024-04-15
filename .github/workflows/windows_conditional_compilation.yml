@@ -54,13 +54,11 @@ jobs:
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja Multi-Config'
-      CMAKE_CXX_COMPILER_LAUNCHER: sccache
-      CMAKE_C_COMPILER_LAUNCHER: sccache
-      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
-      SCCACHE_SERVER_PORT: 35555
-      SCCACHE_IDLE_TIMEOUT: 0
-      SCCACHE_ERROR_LOG: "${{ github.workspace }}\\openvino\\sccache_log.txt"
-      SCCACHE_LOG: warn
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
+      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CCACHE_REMOTE_DIR: C:\\mount\\caches\\ccache\\windows2022_x86_64_itt_master
+      CCACHE_DIR: ${{ github.workspace }}\\ccache
+      CCACHE_MAXSIZE: 2G
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\tests_install"
@@ -68,7 +66,6 @@ jobs:
       MODELS_PATH: "${{ github.workspace }}\\testdata"
       SELECTIVE_BUILD_STAT_DIR: "${{ github.workspace }}\\selective_build_stat"
       # TODO: specify version of compiler here
-      SCCACHE_AZURE_KEY_PREFIX: windows2022_x86_64_itt_Release
     if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
 
     steps:
@@ -104,10 +101,12 @@ jobs:
           should-setup-pip-paths: 'false'
           self-hosted-runner: 'false'
 
-      - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.4
-        with:
-          version: "v0.7.5"
+      - name: Download and install ccache
+        run: |
+          Invoke-WebRequest -Uri 'https://github.com/ccache/ccache/releases/download/v4.9.1/ccache-4.9.1-windows-x86_64.zip' -OutFile 'ccache.zip'
+          Expand-Archive -Path 'ccache.zip' -DestinationPath 'C:\temp\ccache'
+          Move-Item -Path 'C:\temp\ccache\*' -Destination 'C:\ccache'
+          Add-Content -Path $env:GITHUB_PATH -Value "C:\ccache"
 
       - name: Install build dependencies
         run: |
@@ -137,6 +136,16 @@ jobs:
       #
       # Build
       #
+      - name: Setup ccache
+        uses: ./openvino/.github/actions/cache
+        with:
+          save-always: true # TODO: replace after 1st run
+          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          cache-path: ${{ env.CCACHE_REMOTE_DIR }}
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-ccache
 
       - name: Configure Developer Command Prompt for Microsoft Visual C++
         uses: ilammy/msvc-dev-cmd@v1
@@ -159,29 +168,24 @@ jobs:
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
-      - name: Clean sccache stats
-        run: '& "$Env:SCCACHE_PATH" --zero-stats'
+      - name: Clean ccache stats
+        run: '& ccache --zero-stats'
 
         # to get more information on the issue
         # described in the next step
       - name: Show which network ports are used
         run: netstat -ban
 
-        # the case is the following:
-        # sccache: error: An attempt was made to access a socket in a way forbidden by its access permissions. (os error 10013)
-        # This looks like the attempt to use
-        # a port below 1024 or a port
-        # which is occupied by another app
-      - name: Stop sccache server just in case
-        run: '& "$Env:SCCACHE_PATH" --stop-server'
-
       - name: Cmake build - CC COLLECT
         run: |
           cmake --build ${{ env.BUILD_DIR }} --parallel 8 --config ${{ env.CMAKE_BUILD_TYPE }} && `
           cmake --build ${{ env.BUILD_DIR }} --parallel 8 --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib
 
-      - name: Show sccache stats
-        run: '& "$Env:SCCACHE_PATH" --show-stats'
+      - name: Show ccache stats
+        run: '& ccache --show-stats'
+
+      - name: Cleanup ccache
+        run: '& ccache --cleanup'
 
       - name: Cmake install - OpenVINO
         run: cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
@@ -242,13 +246,6 @@ jobs:
       #
       # Upload build artifacts and logs
       #
-      - name: Upload build logs
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: build_logs
-          path: ${{ env.SCCACHE_ERROR_LOG }}
-          if-no-files-found: 'ignore'
 
       - name: Upload selective build statistics package
         if: ${{ always() }}
@@ -275,16 +272,15 @@ jobs:
     runs-on: aks-win-8-cores-64gb
     env:
       CMAKE_BUILD_TYPE: 'Release'
-      CMAKE_CXX_COMPILER_LAUNCHER: sccache
-      CMAKE_C_COMPILER_LAUNCHER: sccache
-      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
-      SCCACHE_SERVER_PORT: 35555
-      SCCACHE_IDLE_TIMEOUT: 0
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
+      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CCACHE_REMOTE_DIR: C:\\mount\\caches\\ccache\\windows2022_x86_64_cc_master
+      CCACHE_DIR: ${{ github.workspace }}\\ccache
+      CCACHE_MAXSIZE: 2G
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
       MODELS_PATH: "${{ github.workspace }}\\testdata"
       SELECTIVE_BUILD_STAT_DIR: "${{ github.workspace }}\\selective_build_stat"
-      SCCACHE_AZURE_KEY_PREFIX: windows2022_x86_64_cc_Release
     if: "!needs.smart_ci.outputs.skip_workflow"
 
     steps:
@@ -318,10 +314,23 @@ jobs:
           should-setup-pip-paths: 'false'
           self-hosted-runner: 'false'
 
-      - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.4
+      - name: Download and install ccache
+        run: |
+          Invoke-WebRequest -Uri 'https://github.com/ccache/ccache/releases/download/v4.9.1/ccache-4.9.1-windows-x86_64.zip' -OutFile 'ccache.zip'
+          Expand-Archive -Path 'ccache.zip' -DestinationPath 'C:\temp\ccache'
+          Move-Item -Path 'C:\temp\ccache\*' -Destination 'C:\ccache'
+          Add-Content -Path $env:GITHUB_PATH -Value "C:\ccache"
+
+      - name: Setup ccache
+        uses: ./openvino/.github/actions/cache
         with:
-          version: "v0.5.4"
+          save-always: true # TODO: replace after 1st run
+          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          cache-path: ${{ env.CCACHE_REMOTE_DIR }}
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-ccache
 
       - name: CMake configure - CC ON
         run: |
@@ -340,14 +349,17 @@ jobs:
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
-      - name: Clean sccache stats
-        run: '& "$Env:SCCACHE_PATH" --zero-stats'
+      - name: Clean ccache stats
+        run: '& ccache --zero-stats'
 
       - name: Cmake build - CC ON
         run: cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app
 
-      - name: Show sccache stats
-        run: '& "$Env:SCCACHE_PATH" --show-stats'
+      - name: Show ccache stats
+        run: '& ccache --show-stats'
+
+      - name: Cleanup ccache
+        run: '& ccache --cleanup'
 
       - name: List bin files
         shell: cmd
