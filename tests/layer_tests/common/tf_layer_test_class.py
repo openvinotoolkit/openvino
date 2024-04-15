@@ -1,17 +1,12 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from layer_tests.conftest import use_legacy_frontend
 from common.layer_test_class import CommonLayerTest
 from common.utils.tf_utils import summarize_graph
 
 from common.utils.tflite_utils import get_tflite_results, save_pb_to_tflite
 from common.utils.tf_utils import save_to_pb
-from common.layer_utils import import_openvino_tokenizers
 
-# do not import openvino_tokenizers in legacy tests
-if not use_legacy_frontend:
-    import_openvino_tokenizers()
 
 class CommonTFLayerTest(CommonLayerTest):
     def prepare_tf_inputs(self, inputs_dict):

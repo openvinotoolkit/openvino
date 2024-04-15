@@ -3,14 +3,9 @@
 
 import os
 
-from layer_tests.conftest import use_legacy_frontend
 from common.layer_test_class import CommonLayerTest
 from common.utils.tflite_utils import get_tflite_results, save_tf2_saved_model_to_tflite
-from common.layer_utils import import_openvino_tokenizers
 
-# do not import openvino_tokenizers in legacy tests
-if not use_legacy_frontend:
-    import_openvino_tokenizers()
 
 def save_to_tf2_savedmodel(tf2_model, path_to_saved_tf2_model):
     import tensorflow as tf

@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 from common.layer_test_class import get_params
 from common.utils.common_utils import copy_files_by_pattern
-
+from common.layer_utils import import_openvino_tokenizers
 
 def pytest_generate_tests(metafunc):
     test_gen_attrs_names = list(inspect.signature(get_params).parameters)
@@ -32,3 +32,10 @@ def rename_tf_fe_libs(request):
     if request.config.getoption('use_legacy_frontend'):
         log.info('Using legacy frontend...')
         copy_files_by_pattern(openvino_lib_path, tf_fe_lib_names[0], tf_fe_lib_names[1])
+
+@pytest.fixture(scope="session")
+def import_openvino_tokenizers(request):
+     # do not import openvino_tokenizers in legacy tests
+    if not request.config.getoption('use_legacy_frontend'):
+        import_openvino_tokenizers()
+
