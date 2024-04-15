@@ -37,3 +37,12 @@ bool ov::symbol::util::dims_are_equal(const ov::Dimension& lhs, const ov::Dimens
         return true;
     return symbol::are_equal(lhs.get_symbol(), rhs.get_symbol());
 }
+
+bool ov::symbol::util::shapes_are_equal(const ov::PartialShape& lhs, const ov::PartialShape& rhs) {
+    if (lhs.rank().is_dynamic() || rhs.rank().is_dynamic() || lhs.size() != rhs.size())
+        return false;
+    for (size_t i = 0; i < lhs.size(); ++i)
+        if (!ov::symbol::util::dims_are_equal(lhs[i], rhs[i]))
+            return false;
+    return true;
+}

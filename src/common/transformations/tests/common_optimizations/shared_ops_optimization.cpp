@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/ceiling.hpp"
 #include "openvino/op/concat.hpp"
@@ -714,5 +715,35 @@ TEST_F(SharedTransformationTestsF, SharedMaxPool) {
 
         auto concat = std::make_shared<v0::Concat>(OutputVector{op_1, op_1}, 0);
         model_ref = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data});
+    }
+}
+
+TEST_F(SharedTransformationTestsF, SharedShapeOfOnSameLabels) {
+    /* Before:                        After:
+     *       Parameter                      Parameter
+     *       /       \                      /       \
+     *   Relu        ShapeOf             Relu        ShapeOf
+     *     |            |                              | |
+     *  ShapeOf         |                             Concat
+     *       \         /
+     *         Concat
+     * */
+    auto shape = PartialShape::dynamic(2);
+    set_shape_symbols(shape);
+    {
+        auto data = std::make_shared<v0::Parameter>(element::f32, shape);
+        auto shape_of_0 = std::make_shared<v3::ShapeOf>(data, element::i32);
+        auto relu = std::make_shared<v0::Relu>(data);
+        auto shape_of_1 = std::make_shared<v3::ShapeOf>(relu, element::i32);
+        auto concat = std::make_shared<v0::Concat>(OutputVector{shape_of_0, shape_of_1}, 0);
+        model = std::make_shared<ov::Model>(OutputVector{relu, concat}, ParameterVector{data});
+        manager.register_pass<ov::pass::SharedOpOptimization>();
+    }
+    {
+        auto data = std::make_shared<v0::Parameter>(element::f32, shape);
+        auto shape_of_0 = std::make_shared<v3::ShapeOf>(data, element::i32);
+        auto relu = std::make_shared<v0::Relu>(data);
+        auto concat = std::make_shared<v0::Concat>(OutputVector{shape_of_0, shape_of_0}, 0);
+        model_ref = std::make_shared<ov::Model>(OutputVector{relu, concat}, ParameterVector{data});
     }
 }
