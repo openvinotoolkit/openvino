@@ -7,7 +7,7 @@ from openvino.tools.ovc.telemetry_utils import is_optimum, init_mo_telemetry
 import importlib.metadata as importlib_metadata
 
 try:
-    optimum_version = importlib_metadata.version("optimum")
+    optimum_version = importlib_metadata.version("optimum-intel")
 except importlib_metadata.PackageNotFoundError:
     optimum_version = None
 
