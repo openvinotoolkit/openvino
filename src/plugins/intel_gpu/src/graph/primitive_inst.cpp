@@ -103,11 +103,9 @@ bool is_user_cpu(const program_node* user) {
                 return true;
             }
         }
-        // TODO : refactor these as runtime_skippable_nodes
-        // If the user is dynamic && runtime skippable gather or strided slice, we still need to its parents' completion
+        // If the user is dynamic and runtime skippable node, we still need to its parents' completion
         // event even though the user's program_node is can_be_optimized
-        if (!user->is_dynamic() || (!user->is_type<gather>() && !user->is_type<strided_slice>() &&
-                                    !user->is_type<concatenation>() && !user->is_type<reorder>()))
+        if (!user->is_dynamic() || (!user->is_runtime_skippable()))
             return false;
     }
     bool is_cpu = user->get_selected_impl() ? user->get_selected_impl()->is_cpu()
@@ -541,8 +539,7 @@ event::ptr primitive_inst::realloc_if_needed() {
     }
 
     // Clear out memory if if was previously reused, but now primitive can't be optimized
-    if (_node->is_type<gather>() || _node->is_type<permute>() || _node->is_type<reshape>() || _node->is_type<reorder>() ||
-        _node->is_type<strided_slice>() || _node->is_type<broadcast>()) {
+    if (_node->is_runtime_skippable()) {
         if (can_be_optimized()) {
             _max_output_layout_count = _deps[0].first->_max_output_layout_count;
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("can_be_optimized");
