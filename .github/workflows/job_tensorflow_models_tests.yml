@@ -32,6 +32,7 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
+      NUMBER_OF_REPLICAS: 2
     steps:
       - name: Check sudo
         if: ${{ runner.os == 'Linux' }}
