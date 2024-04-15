@@ -23,7 +23,7 @@ struct Evaluate : public element::NoAction<bool> {
                              const Shape& data_shape,
                              const Shape& indices_shape,
                              const Shape& updates_shape,
-                             const v14::ScatterNDUpdate::Reduction reduction = v14::ScatterNDUpdate::Reduction::NONE) {
+                             const v14::ScatterNDUpdate::Reduction reduction) {
         using namespace ov::element;
         return IF_TYPE_OF(sctter_nd_eval_idx_type,
                           OV_PP_ET_LIST(i32, i64),
@@ -44,15 +44,14 @@ private:
         using element::NoAction<bool>::visit;
 
         template <element::Type_t INDICES_ET, class DT, class IT = fundamental_type_for<INDICES_ET>>
-        static result_type visit(
-            const DT* const data,
-            const Tensor& indices,
-            const DT* const updates,
-            DT* const output,
-            const Shape& data_shape,
-            const Shape& indices_shape,
-            const Shape& updates_shape,
-            const v14::ScatterNDUpdate::Reduction reduction = v14::ScatterNDUpdate::Reduction::NONE) {
+        static result_type visit(const DT* const data,
+                                 const Tensor& indices,
+                                 const DT* const updates,
+                                 DT* const output,
+                                 const Shape& data_shape,
+                                 const Shape& indices_shape,
+                                 const Shape& updates_shape,
+                                 const v14::ScatterNDUpdate::Reduction reduction) {
             reference::scatterNdUpdate(data,
                                        indices.data<IT>(),
                                        updates,
@@ -65,18 +64,11 @@ private:
         }
     };
 };
-}  // namespace scatter_nd_update
-namespace v3 {
-std::shared_ptr<Node> ScatterNDUpdate::clone_with_new_inputs(const OutputVector& new_args) const {
-    OV_OP_SCOPE(v3_ScatterNDUpdate_clone_with_new_inputs);
-    check_new_args_count(this, new_args);
-    return std::make_shared<ScatterNDUpdate>(new_args.at(util::ScatterNDBase::INPUTS),
-                                             new_args.at(util::ScatterNDBase::INDICES),
-                                             new_args.at(util::ScatterNDBase::UPDATES));
-}
-
-bool ScatterNDUpdate::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
-    OV_OP_SCOPE(v3_ScatterNDUpdate_evaluate);
+namespace {
+bool evaluate(const op::util::ScatterNDBase* node,
+              TensorVector& outputs,
+              const TensorVector& inputs,
+              const op::v14::ScatterNDUpdate::Reduction reduction) {
     OPENVINO_ASSERT(inputs.size() == 3);
     OPENVINO_ASSERT(outputs.size() == 1);
 
@@ -89,8 +81,8 @@ bool ScatterNDUpdate::evaluate(TensorVector& outputs, const TensorVector& inputs
     const auto& updates_shape = updates.get_shape();
     output.set_shape(data_shape);
     using namespace ov::element;
-    return IF_TYPE_OF_CONVERT_TENSORS(v3_ScatterNDUpdate_evaluate,
-                                      this,
+    return IF_TYPE_OF_CONVERT_TENSORS(scatter_evaluate,
+                                      node,
                                       outputs,
                                       inputs,
                                       OV_PP_ET_LIST(boolean, f32, i32, i64, u32, u64),
@@ -102,13 +94,11 @@ bool ScatterNDUpdate::evaluate(TensorVector& outputs, const TensorVector& inputs
                                       output,
                                       data_shape,
                                       indices_shape,
-                                      updates_shape);
+                                      updates_shape,
+                                      reduction);
 }
-
-bool ScatterNDUpdate::has_evaluate() const {
-    OV_OP_SCOPE(v3_ScatterNDUpdate_has_evaluate);
-
-    switch (get_output_element_type(0)) {
+bool has_evaluate(const op::util::ScatterNDBase* node) {
+    switch (node->get_output_element_type(0)) {
     case element::boolean:
     case element::f16:
     case element::f32:
@@ -120,13 +110,34 @@ bool ScatterNDUpdate::has_evaluate() const {
     default:
         return false;
     }
-    switch (get_input_element_type(1)) {
+    switch (node->get_input_element_type(1)) {
     case element::i32:
     case element::i64:
         return true;
     default:
         return false;
     }
+}
+}  // namespace
+}  // namespace scatter_nd_update
+namespace v3 {
+std::shared_ptr<Node> ScatterNDUpdate::clone_with_new_inputs(const OutputVector& new_args) const {
+    OV_OP_SCOPE(v3_ScatterNDUpdate_clone_with_new_inputs);
+    check_new_args_count(this, new_args);
+    return std::make_shared<ScatterNDUpdate>(new_args.at(util::ScatterNDBase::INPUTS),
+                                             new_args.at(util::ScatterNDBase::INDICES),
+                                             new_args.at(util::ScatterNDBase::UPDATES));
+}
+
+bool ScatterNDUpdate::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
+    OV_OP_SCOPE(v3_ScatterNDUpdate_evaluate);
+    constexpr auto reduction = op::v14::ScatterNDUpdate::Reduction::NONE;
+    return scatter_nd_update::evaluate(this, outputs, inputs, reduction);
+}
+
+bool ScatterNDUpdate::has_evaluate() const {
+    OV_OP_SCOPE(v3_ScatterNDUpdate_has_evaluate);
+    return scatter_nd_update::has_evaluate(this);
 }
 
 bool ScatterNDUpdate::evaluate_lower(TensorVector& output_values) const {
@@ -168,57 +179,12 @@ bool ScatterNDUpdate::visit_attributes(AttributeVisitor& visitor) {
 
 bool ScatterNDUpdate::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v14_ScatterNDUpdate_evaluate);
-    OPENVINO_ASSERT(inputs.size() == 3);
-    OPENVINO_ASSERT(outputs.size() == 1);
-
-    const auto& data = inputs[0];
-    const auto& indices = inputs[1];
-    const auto& updates = inputs[2];
-    auto& output = outputs[0];
-    const auto& data_shape = data.get_shape();
-    const auto& indices_shape = indices.get_shape();
-    const auto& updates_shape = updates.get_shape();
-    output.set_shape(data_shape);
-    using namespace ov::element;
-    return IF_TYPE_OF_CONVERT_TENSORS(v14_ScatterNDUpdate_evaluate,
-                                      this,
-                                      outputs,
-                                      inputs,
-                                      OV_PP_ET_LIST(boolean, f32, i32, i64, u32, u64),
-                                      scatter_nd_update::Evaluate,
-                                      data.get_element_type(),
-                                      data,
-                                      indices,
-                                      updates,
-                                      output,
-                                      data_shape,
-                                      indices_shape,
-                                      updates_shape,
-                                      m_reduction);
+    return scatter_nd_update::evaluate(this, outputs, inputs, m_reduction);
 }
 
 bool ScatterNDUpdate::has_evaluate() const {
     OV_OP_SCOPE(v14_ScatterNDUpdate_has_evaluate);
-
-    switch (get_output_element_type(0)) {
-    case element::boolean:
-    case element::f16:
-    case element::f32:
-    case element::i32:
-    case element::i64:
-    case element::u32:
-    case element::u64:
-        break;
-    default:
-        return false;
-    }
-    switch (get_input_element_type(1)) {
-    case element::i32:
-    case element::i64:
-        return true;
-    default:
-        return false;
-    }
+    return scatter_nd_update::has_evaluate(this);
 }
 
 ScatterNDUpdate::Reduction ScatterNDUpdate::get_reduction() const {
@@ -244,10 +210,10 @@ bool ScatterNDUpdate::evaluate_symbol(TensorSymbolVector& output_symbols) const 
 }
 
 }  // namespace v14
-std::ostream& operator<<(std::ostream& s, const v14::ScatterNDUpdate::Reduction& reduction) {
+}  // namespace op
+std::ostream& operator<<(std::ostream& s, const op::v14::ScatterNDUpdate::Reduction& reduction) {
     return s << as_string(reduction);
 }
-}  // namespace op
 template <>
 OPENVINO_API EnumNames<op::v14::ScatterNDUpdate::Reduction>& EnumNames<op::v14::ScatterNDUpdate::Reduction>::get() {
     static auto enum_names =

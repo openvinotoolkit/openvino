@@ -66,10 +66,11 @@ private:
     Reduction m_reduction = Reduction::NONE;
 };
 }  // namespace v14
-OPENVINO_API
-std::ostream& operator<<(std::ostream& s, const v14::ScatterNDUpdate::Reduction& reduction);
-
 }  // namespace op
+
+OPENVINO_API
+std::ostream& operator<<(std::ostream& s, const op::v14::ScatterNDUpdate::Reduction& reduction);
+
 template <>
 class OPENVINO_API AttributeAdapter<op::v14::ScatterNDUpdate::Reduction>
     : public EnumAttributeAdapterBase<op::v14::ScatterNDUpdate::Reduction> {

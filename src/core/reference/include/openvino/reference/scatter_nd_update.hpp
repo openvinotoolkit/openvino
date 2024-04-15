@@ -7,17 +7,14 @@
 #include <cstring>
 #include <numeric>
 
-#include "add.hpp"
-#include "and.hpp"
-#include "maximum.hpp"
-#include "minimum.hpp"
-#include "multiply.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/op/scatter_nd_update.hpp"
-#include "or.hpp"
+#include "openvino/reference/maximum.hpp"
+#include "openvino/reference/minimum.hpp"
+#include "openvino/reference/multiply.hpp"
+#include "openvino/reference/xor.hpp"
 #include "subtract.hpp"
 #include "utils/span.hpp"
-#include "xor.hpp"
 
 namespace ov {
 namespace reference {
@@ -50,7 +47,7 @@ constexpr T logical_or(const T a, const T b) {
 }  // namespace func
 
 template <typename T>
-reduction_function<T> reduction_functor_for(Reduction reduction_type) {
+reduction_function<T> reduction_functor_for(const Reduction reduction_type) {
     switch (reduction_type) {
     case Reduction::MAX:
         return func::max<T>;

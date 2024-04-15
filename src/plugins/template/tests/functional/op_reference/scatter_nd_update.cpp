@@ -32,7 +32,7 @@ struct ScatterNDUpdateParams {
                           const reference_tests::Tensor& updateTensor,
                           const reference_tests::Tensor& expectedTensor,
                           const Reduction paramReduction,
-                          const std::string& testcaseName = "")
+                          const std::string& testcaseName)
         : dataTensor(dataTensor),
           indexTensor(indexTensor),
           updateTensor(updateTensor),
@@ -50,14 +50,15 @@ struct ScatterNDUpdateParams {
 
 class ReferenceScatterNDUpdateV3LayerTest : public testing::TestWithParam<ScatterNDUpdateParams>,
                                             public CommonReferenceTest {
-public:
+protected:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params);
         inputData = {params.dataTensor.data};
         refOutData = {params.expectedTensor.data};
     }
 
+public:
     static std::string getTestCaseName(const testing::TestParamInfo<ScatterNDUpdateParams>& obj) {
         auto param = obj.param;
         std::ostringstream result;
@@ -93,27 +94,20 @@ private:
 
 class ReferenceScatterNDUpdateV14LayerTest : public testing::TestWithParam<ScatterNDUpdateParams>,
                                              public CommonReferenceTest {
-public:
+protected:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params);
         inputData = {params.dataTensor.data};
         refOutData = {params.expectedTensor.data};
     }
 
+public:
     static std::string getTestCaseName(const testing::TestParamInfo<ScatterNDUpdateParams>& obj) {
-        static std::map<Reduction, std::string> reduction_as_string = {
-            {Reduction::NONE, "none"},
-            {Reduction::SUM, "sum"},
-            {Reduction::SUB, "sub"},
-            {Reduction::PROD, "prod"},
-            {Reduction::MIN, "min"},
-            {Reduction::MAX, "max"},
-        };
         const auto& param = obj.param;
         std::ostringstream result;
         result << ReferenceScatterNDUpdateV3LayerTest::getTestCaseName(obj);
-        result << "_reduction=" << reduction_as_string[param.reduction];
+        result << "_reduction=" << param.reduction;
         return result.str();
     }
 
