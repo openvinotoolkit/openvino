@@ -186,7 +186,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 #endif
 
 #if COMPRESSED_WEIGHTS_INT4
-    #if TILE_OFM == 1 && FILTER_LAYOUT_OS_IYX_OSV32
+    #if TILE_OFM == 1 && FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2
     uint weights_offset = (( (int) (out_f / 32) )* 32) * (INPUT_ELEMENTS_COUNT / 2) + SIMD * (((int)(out_f / SIMD)) & 0x1);
     #else
     uint weights_offset = out_f * (INPUT_ELEMENTS_COUNT / 2);
@@ -246,7 +246,6 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 #endif
     // =====================================================================================================================================
     // Main computation loop
-
     uint iterations = MAIN_LOOP_ELEMENTS_COUNT / (TILE_IFM * SIMD);
     __attribute__((opencl_unroll_hint(1)))
     for (uint ni = 0; ni < iterations; ++ni) {
@@ -263,7 +262,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
         //       but significantly degrades readability and generality of code.
         //       It doesn't also show noticable performance improvement on tested configurations.
         #if DECOMPRESSION_SCALE_POST_OP
-            ACCUMULATOR_VEC_TYPE acc_tmp[TILE_B] = { 0.f };
+            ACCUMULATOR_VEC_TYPE acc_tmp[TILE_B] = { };
         #endif
 
         #if USE_SLM && COMPRESSED_WEIGHTS_INT4
@@ -284,7 +283,6 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
             unroll_for(uint load_iter = 0; load_iter < FILTER_LOAD_ITERS; ++load_iter) {
                 SLM_FILTER_PACKED_VEC wei_packed = BLOCK_READN(FILTER_TYPE, FILTER_LOAD_BLOCK_SIZE, weights, weights_idx);
                 #if TILE_K == 4 && COMPRESSED_WEIGHTS_INT4
-                    // TODO: fix
                     uchar tmp = wei_packed[1];
                     wei_packed[1] = wei_packed[2];
                     wei_packed[2] = tmp;
@@ -384,7 +382,6 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 #else
                     FILTER_PACKED_VEC_TYPE wei_packed = FILTER_BLOCK_READ(weights, weights_offset);
                     #if TILE_K == 4
-                        // TODO : fix this
                             uchar tmp = wei_packed[1];
                             wei_packed[1] = wei_packed[2];
                             wei_packed[2] = tmp;
@@ -463,7 +460,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                     }
                 }
             }
-            #if TILE_OFM == 1 && FILTER_LAYOUT_OS_IYX_OSV32
+            #if TILE_OFM == 1 && FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2
             weights_offset += TILE_K_OFM_PACKED * 2 * SIMD;
             #else
             weights_offset += TILE_K_OFM_PACKED * SIMD;
@@ -476,7 +473,6 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                     const uint offset_ofm = out_f + fi*SIMD + sglid;
 
                     #if DECOMPRESSION_SCALE_GROUPS_NUM > 1
-                    // hits here
                         const uint scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH +
                                                 ((ni*TILE_IFM*SIMD + ki*TILE_K) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
                         ACCUMULATOR_TYPE ds = decompression_scale[scale_offset];
@@ -576,7 +572,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                     }
                 }
             #endif
-            #if TILE_OFM == 1 && FILTER_LAYOUT_OS_IYX_OSV32
+            #if TILE_OFM == 1 && FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2
             weights_offset += TILE_K_OFM_PACKED * SIMD * 2;
             #else
             weights_offset += TILE_K_OFM_PACKED * SIMD;
@@ -590,20 +586,16 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                             INPUT0_TYPE in_val = _sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[total_k / SIMD], total_k % SIMD);
                             #if TILE_OFM > 1
                                 #if COMPRESSED_WEIGHTS_INT4
-//                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[kii * TILE_OFM + fi];
                             ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[fi * TILE_K + kii];
                                 #else
                             ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[kii * TILE_OFM + fi];
                                 #endif
-//                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[fi * TILE_OFM + kii];
                             #else
-//                            acc[bi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[kii * TILE_OFM + fi];
                                 #if COMPRESSED_WEIGHTS_INT4
                             acc[bi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[fi * TILE_K + kii];
                                 #else
                             acc[bi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[kii * TILE_OFM + fi];
                                 #endif
-//                            acc[bi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[fi * TILE_OFM + kii];
                             #endif
                         }
                     }
@@ -655,6 +647,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     // =====================================================================================================================================
     // Write results
     uint output_offset = out_f * TILE_OUT_F_PITCH + out_b * TILE_OUT_B_PITCH + OUTPUT_OFFSET;
+
     if (USE_BLOCK_WRITE && (TILE_OUT_F_NUM % (TILE_OFM * SIMD) == 0 || out_f + (TILE_OFM * SIMD) <= TILE_OUT_F_NUM)) {
 #if IS_DYNAMIC
         #define WRITE_OUTPUT(bi) do {                                       \
@@ -693,6 +686,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
         //CONST_LOOP(TILE_B, WRITE_OUTPUT);
         //#undef WRITE_OUTPUT
         //#undef WRITE_OUTPUT_FEATURE
+
         for (uint bi = 0; bi < TILE_B; ++bi) {
             for (uint fi = 0; fi < TILE_OFM; ++fi) {
                 const bool should_write =

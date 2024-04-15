@@ -544,12 +544,6 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
                                                                 const int autoTuneIndex) const {
     auto& fc_params = static_cast<const fully_connected_params&>(params);
 
-    size_t output_b = fc_params.outputs[0].Batch().v;
-    if (fc_params.outputs[0].GetLayout() == DataLayout::bfyx) {
-        output_b *= fc_params.outputs[0].Feature().v;
-    }
-
-
     if (autoTuneIndex >= 0 && autoTuneIndex < static_cast<int>(auto_tune_params.size())
         && !TuneParamsSelector::VerifyTuneParams(fc_params, auto_tune_params[autoTuneIndex]))
         return {};
@@ -557,10 +551,14 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
     tune_params tparams = GetAutoTuneParams(fc_params, KernelType::ANY, autoTuneIndex);
 
     WeightsLayout weights_layout = WeightsLayout::os_iyx_osv16;
-    if (tparams.tile_ofm * simd == 32 || output_b == 1)
+    if (fc_params.compressed &&
+        (fc_params.weights.GetDType() == WeightsType::INT4 || fc_params.weights.GetDType() == WeightsType::UINT4)) {
+        weights_layout = WeightsLayout::os_is_yx_osv32_isv2;
+    } else if (tparams.tile_ofm * simd == 32) {
         weights_layout = WeightsLayout::os_iyx_osv32;
-    else if (tparams.tile_ofm * simd == 64)
+    } else if (tparams.tile_ofm * simd == 64) {
         weights_layout = WeightsLayout::os_iyx_osv64;
+    }
 
     auto kernels_data = GetCommonKernelsData(params,
                                              fc_params.inputs[0].GetLayout(),
@@ -620,5 +618,4 @@ KernelsData FullyConnected_bf_tiled::GetKernelsData(const Params& params) const 
 
     return res;
 }
-
 }  // namespace kernel_selector
