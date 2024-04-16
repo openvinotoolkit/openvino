@@ -11,13 +11,6 @@
 
 std::vector<std::string> disabledTestPatterns() {
     std::vector<std::string> retVector{
-        // Not Implemented
-        R"(.*(Multi).*Behavior.*OVCompiledModelBaseTest.*CheckExecGraphInfoBeforeExecution.*)",
-        R"(.*(Multi).*Behavior.*OVCompiledModelBaseTest.*CheckExecGraphInfoAfterExecution.*)",
-        R"(.*(Multi).*Behavior.*OVCompiledModelBaseTest.*checkGetExecGraphInfoIsNotNullptr.*)",
-        R"(.*smoke_(Multi)_BehaviorTests.*OVPropertiesTests.*SetCorrectProperties.*)",
-        R"(.*smoke_(Multi)_BehaviorTests.*OVPropertiesTests.*canSetPropertyAndCheckGetProperty.*)",
-        //
         // unsupported metrics
         R"(.*smoke_OVGetMetricPropsTest.*OVGetMetricPropsTest.*(RANGE_FOR_STREAMS|MAX_BATCH_SIZE).*)",
 

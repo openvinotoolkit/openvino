@@ -3,6 +3,7 @@
 //
 
 #include "behavior/compiled_model/properties.hpp"
+
 #include "behavior/compiled_model/properties_hetero.hpp"
 #include "openvino/runtime/properties.hpp"
 
@@ -18,7 +19,6 @@ const std::vector<ov::AnyMap> hetero_properties = {
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::enable_profiling(true)},
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::device::id("0")},
 };
-
 
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
                          OVClassCompiledModelPropertiesIncorrectTests,

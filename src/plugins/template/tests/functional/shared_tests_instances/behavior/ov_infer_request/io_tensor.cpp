@@ -38,19 +38,10 @@ std::vector<ov::element::Type> prcs = {
 
 const std::vector<ov::AnyMap> emptyConfigs = {{}};
 
-const std::vector<ov::AnyMap> Multiconfigs = {{ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE)}};
-
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVInferRequestCheckTensorPrecision,
                          ::testing::Combine(::testing::ValuesIn(prcs),
                                             ::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
                                             ::testing::ValuesIn(emptyConfigs)),
-                         OVInferRequestCheckTensorPrecision::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
-                         OVInferRequestCheckTensorPrecision,
-                         ::testing::Combine(::testing::ValuesIn(prcs),
-                                            ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                            ::testing::ValuesIn(Multiconfigs)),
                          OVInferRequestCheckTensorPrecision::getTestCaseName);
 }  // namespace

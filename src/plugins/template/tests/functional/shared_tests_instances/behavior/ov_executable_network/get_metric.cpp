@@ -14,23 +14,11 @@ namespace {
 // Executable Network GetMetric
 //
 
-std::vector<std::string> devices = {"TEMPLATE", "MULTI:TEMPLATE"};
+std::vector<std::string> devices = {"TEMPLATE"};
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelGetPropertyTest,
                          OVClassCompiledModelGetPropertyTest,
                          ::testing::ValuesIn(devices));
-
-const std::vector<ov::AnyMap> multiModelPriorityConfigs = {{ov::hint::model_priority(ov::hint::Priority::HIGH)},
-                                                           {ov::hint::model_priority(ov::hint::Priority::MEDIUM)},
-                                                           {ov::hint::model_priority(ov::hint::Priority::LOW)},
-                                                           {ov::hint::model_priority(ov::hint::Priority::DEFAULT)}};
-
-const std::vector<ov::AnyMap> multiDevicePriorityConfigs = {{ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE)}};
-
-INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelGetPropertyTest,
-                         OVClassCompiledModelGetPropertyTest_DEVICE_PRIORITY,
-                         ::testing::Combine(::testing::Values("MULTI"),
-                                            ::testing::ValuesIn(multiDevicePriorityConfigs)));
 
 //
 // Executable Network GetConfig / SetConfig
