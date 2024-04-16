@@ -376,6 +376,42 @@ void LoopManager::update_loop_ports(const ExpressionPtr& expr) {
     }
 }
 
+void LoopManager::insert_loop_ports(size_t loop_id, const std::vector<ExpressionPort>& target_ports, bool is_entry) {
+    const auto& loop_info = get_loop_info(loop_id);
+    auto ports = is_entry ? loop_info->get_entry_points() : loop_info->get_exit_points();
+    for (size_t i = 0; i < target_ports.size(); i++) {
+        // if already in loop ports, skip
+        const auto& target_port = target_ports[i];
+        if (is_loop_port(ports, target_port))
+            continue;
+
+        ports.push_back(target_port);
+    }
+    is_entry ? loop_info->set_entry_points(ports) : loop_info->set_exit_points(ports);
+}
+
+void LoopManager::delete_loop_ports(size_t loop_id, const std::vector<ExpressionPort>& target_ports, bool is_entry) {
+    const auto& loop_info = get_loop_info(loop_id);
+    auto ports = is_entry ? loop_info->get_entry_points() : loop_info->get_exit_points();
+    for (size_t i = 0; i < target_ports.size(); i++) {
+        // if not in loop ports, skip
+        const auto& target_port = target_ports[i];
+        auto port_it = std::find_if(ports.begin(), ports.end(),
+                                    [&target_port](const LoopPort& point) { return *point.expr_port.get() == target_port; });
+        if (port_it == ports.end())
+            continue;
+
+        ports.erase(port_it);
+    }
+    is_entry ? loop_info->set_entry_points(ports) : loop_info->set_exit_points(ports);
+}
+
+bool LoopManager::is_loop_port(const std::vector<LoopPort>& loop_ports, const ExpressionPort& target_port) {
+    auto port_it = std::find_if(loop_ports.begin(), loop_ports.end(),
+                                [&](const LoopPort& point) { return *point.expr_port.get() == target_port; });
+    return port_it != loop_ports.end();
+}
+
 void LoopManager::expression_replacement(LinearIR::constExprIt new_expr_begin, LinearIR::constExprIt new_expr_end, const ExpressionPtr& decomposed_expr,
                                          size_t loop_id, const std::vector<ExpressionPort>& entries, const std::vector<ExpressionPort>& exits) {
     for (auto it = new_expr_begin; it!= new_expr_end; ++it) {

@@ -54,6 +54,7 @@
 #include "snippets/lowered/pass/normalize_loop_ids.hpp"
 #include "snippets/lowered/pass/validate_expanded_loops.hpp"
 #include "snippets/lowered/pass/set_load_store_scalar.hpp"
+#include "snippets/lowered/pass/extract_loop_invariants.hpp"
 
 #include "transformations/utils/utils.hpp"
 
@@ -61,6 +62,8 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "openvino/pass/serialize.hpp"
+
+#include "snippets/lowered/pass/serialize_control_flow.hpp"
 
 #include <algorithm>
 #include <memory>
@@ -423,6 +426,12 @@ void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input
 
     manager.register_positioned_passes(backend_passes);
     manager.run_passes(body_ptr());
+
+    // ov::pass::Manager magr;
+    // std::string xmlo = "data_flow.xml";
+    // std::string bino = "data_flow.bin";
+    // magr.register_pass<ov::pass::Serialize>(xmlo, bino);
+    // magr.run_passes(body_ptr());
 }
 
 void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, size_t min_kernel_work_amount,
@@ -459,6 +468,7 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     pipeline.register_pass<lowered::pass::MoveScalarToConsumer>();
     pipeline.register_pass<lowered::pass::InsertBroadcastMove>();
     pipeline.register_pass<lowered::pass::LoadMoveBroadcastToBroadcastLoad>();
+    pipeline.register_pass<lowered::pass::ExtractLoopInvariants>();
     pipeline.register_pass<lowered::pass::ValidateShapes>();
     pipeline.register_pass<lowered::pass::ValidateUnifiedLoops>();
     pipeline.register_pass<lowered::pass::InitLoops>();
@@ -540,6 +550,11 @@ snippets::Schedule Subgraph::generate(const void* compile_params) const {
         shape_dependent_pipeline.register_pass<ov::snippets::lowered::pass::LoadMoveBroadcastToBroadcastLoad>();
         shape_dependent_pipeline.run(linear_ir);
     }
+
+    // std::string xmlo = "LIR_a.xml";
+    // lowered::pass::SerializeControlFlow SerializeLIR(xmlo);
+    // SerializeLIR.run(linear_ir);
+
 
     auto lowering_result = m_generator->generate(linear_ir, compile_params);
 
