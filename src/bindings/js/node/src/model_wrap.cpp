@@ -5,6 +5,7 @@
 
 #include "node/include/addon.hpp"
 #include "node/include/errors.hpp"
+#include "node/include/node_output.hpp"
 #include "node/include/helper.hpp"
 
 ModelWrap::ModelWrap(const Napi::CallbackInfo& info)
