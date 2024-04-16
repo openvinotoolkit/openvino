@@ -201,18 +201,7 @@ std::basic_string<T> get_model_path(const std::basic_string<T>& path, std::ifstr
         // Don't throw error if file isn't opened
         // It may mean that model don't have constants
     } else {
-        std::string model_name = model_file.substr(model_file.find_last_of('/') + 1, model_file.size());
-        auto model_path = model_file + paddle::get_path_sep<T>() + model_name + ".pdmodel";
-        std::ifstream file(model_path);
-        if (file.good()) {
-            model_file = model_path;
-            std::string params_ext = ".pdiparams";
-            std::string weights_file{model_path};
-            weights_file.replace(weights_file.size() - ext.size(), ext.size(), params_ext);
-            weights_stream->open(weights_file, std::ios::binary);
-        } else {
-            model_file += paddle::get_path_sep<T>() + "__model__";
-        }
+        model_file += paddle::get_path_sep<T>() + "__model__";
     }
     return model_file;
 }
@@ -230,18 +219,7 @@ std::basic_string<wchar_t> get_model_path(const std::basic_string<wchar_t>& path
         // Don't throw error if file isn't opened
         // It may mean that model don't have constants
     } else {
-        std::wstring model_name = model_file.substr(model_file.find_last_of(L'/') + 1, model_file.size());
-        auto model_path = model_file + paddle::get_path_sep<wchar_t>() + model_name + L".pdmodel";
-        std::ifstream file(model_path);
-        if (file.good()) {
-            model_file = model_path;
-            std::wstring params_ext = L".pdiparams";
-            std::wstring weights_file{model_path};
-            weights_file.replace(weights_file.size() - ext.size(), ext.size(), params_ext);
-            weights_stream->open(weights_file.c_str(), std::ios::binary);
-        } else {
-            model_file += paddle::get_path_sep<wchar_t>() + L"__model__";
-        }
+        model_file += paddle::get_path_sep<wchar_t>() + L"__model__";
     }
     return model_file;
 }
@@ -420,6 +398,7 @@ InputModel::InputModelImpl::InputModelImpl(const std::basic_string<T>& path,
       m_telemetry(telemetry) {
     std::ifstream weights_stream;
     std::ifstream pb_stream(get_model_path<T>(path, &weights_stream).c_str(), std::ios::in | std::ifstream::binary);
+
     FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(), "Model file doesn't exist");
     FRONT_END_GENERAL_CHECK(m_fw_ptr->ParseFromIstream(&pb_stream), "Model can't be parsed");
     // According to Paddle, the saved model has the framework version
