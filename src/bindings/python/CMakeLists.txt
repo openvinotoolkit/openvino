@@ -319,7 +319,7 @@ if(ENABLE_PYTHON_PACKAGING)
 
     # install OpenVINO Python API
 
-    set(python_package_prefix "${CMAKE_CURRENT_BINARY_DIR}/install_${pyversion}")
+    set(python_package_prefix "${CMAKE_CURRENT_BINARY_DIR}/install_${pyversion}/openvino")
     set(install_lib "${python_package_prefix}/lib/${python_versioned_folder}/${ov_site_packages}")
     set(openvino_meta_info_subdir "openvino-${OpenVINO_VERSION}-py${python_xy}.egg-info")
     set(openvino_meta_info_file "${install_lib}/${openvino_meta_info_subdir}/PKG-INFO")
@@ -349,10 +349,10 @@ if(ENABLE_PYTHON_PACKAGING)
         COMMENT "Create python package with ${openvino_meta_info_subdir} folder")
 
     # Install OpenVINO Telemetry
-
     set(OpenVINO_Telemetry_SOURCE_DIR "${OpenVINO_SOURCE_DIR}/thirdparty/telemetry")
     file(GLOB_RECURSE telemetry_files ${OpenVINO_Telemetry_SOURCE_DIR}/*)
 
+    set(python_package_prefix "${CMAKE_CURRENT_BINARY_DIR}/install_${pyversion}/telemetry")
     set(openvino_telemetry_meta_info_subdir "openvino-telemetry-${OpenVINO_VERSION}-py${python_xy}.egg-info")
     set(openvino_telemetry_meta_info_file "${install_lib}/${openvino_telemetry_meta_info_subdir}/PKG-INFO")
 
@@ -382,7 +382,7 @@ if(ENABLE_PYTHON_PACKAGING)
     # install python package, which will be later packed into DEB | RPM
     ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_OPENVINO}_package_${pyversion} HIDDEN)
 
-    install(DIRECTORY ${python_package_prefix}/
+    install(DIRECTORY ${python_package_prefix}/openvino ${python_package_prefix}/telemetry
             DESTINATION ${CMAKE_INSTALL_PREFIX}
             COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_${pyversion}
             ${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE_EXCLUDE_ALL}
