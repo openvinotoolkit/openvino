@@ -76,26 +76,19 @@ fundamental_type_for<ET> convert_if_in_element_range(const U& value) {
 
 template <element::Type_t ET,
           class U,
-          typename std::enable_if<ET == element::nf4 && std::is_integral<U>::value>::type* = nullptr>
-fundamental_type_for<ET> convert_if_in_element_range(const U& value) {
-    using T = fundamental_type_for<ET>;
-    auto result = static_cast<T>(value);
-    OPENVINO_ASSERT(0 <= result && result <= 15, "assigned value out of range u4 values");
-    return result;
-}
-
-template <element::Type_t ET,
-          class U,
           typename std::enable_if<ET == element::nf4 && !std::is_integral<U>::value>::type* = nullptr>
 float convert_if_in_element_range(const U& value) {
     return static_cast<float>(value);
 }
 
-template <element::Type_t ET, class U, typename std::enable_if<ET == element::u4>::type* = nullptr>
+template <
+    element::Type_t ET,
+    class U,
+    typename std::enable_if<ET == element::u4 || (ET == element::nf4 && std::is_integral<U>::value)>::type* = nullptr>
 fundamental_type_for<ET> convert_if_in_element_range(const U& value) {
     using T = fundamental_type_for<ET>;
     auto result = static_cast<T>(value);
-    OPENVINO_ASSERT(0 <= result && result <= 15, "assigned value out of range u4 values");
+    OPENVINO_ASSERT(0 <= result && result <= 15, "assigned value out of range for u4");
     return result;
 }
 
@@ -103,7 +96,7 @@ template <element::Type_t ET, class U, typename std::enable_if<ET == element::i4
 fundamental_type_for<ET> convert_if_in_element_range(const U& value) {
     using T = fundamental_type_for<ET>;
     auto result = static_cast<T>(value);
-    OPENVINO_ASSERT(-8 <= result && result <= 7, "assigned value out of range for u4");
+    OPENVINO_ASSERT(-8 <= result && result <= 7, "assigned value out of range for i4");
     return result;
 }
 
