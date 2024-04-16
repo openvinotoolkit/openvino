@@ -5,6 +5,7 @@
 #include "openvino/runtime/properties.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "openvino/pass/manager.hpp"
 
 using namespace ov::test;
 
@@ -24,7 +25,7 @@ public:
         ASSERT_TRUE(inferRequest);
     }
 
-    void reset_state() {
+    virtual void reset_state() {
         inferRequest.reset_state();
     }
 
@@ -286,7 +287,6 @@ public:
         targetDevice = GetParam();
         ov::element::Type netPrc = testPrc;
 
-        const ov::Shape inpShape = {1, 1};
         const InputShape input_shape = {{-1, 1}, {{1, 1}, {2, 1}, {4, 1}, {8, 1}, {16, 1}}};
         init_input_shapes({input_shape});
 
@@ -444,7 +444,6 @@ public:
         targetDevice = GetParam();
         ov::element::Type netPrc = testPrc;
 
-        const ov::Shape inpShape = {1, 1};
         const InputShape input_shape = {{1, -1}, {{1, 1}, {1, 2}, {1, 4}, {1, 8}, {1, 16}}};
         init_input_shapes({input_shape, input_shape});
 
@@ -568,6 +567,349 @@ TEST_P(DynamicShapeStatefulModelStateAsInp, smoke_Run_Stateful_Dynamic_State_As_
     run_test();
     reset_state();
     run_test();
+}
+
+class StatefulModelTemplate : public StatefulModelTest {
+protected:
+    struct State {
+        std::vector<float> init_value;
+        std::vector<float> current_value;
+        bool reset = true;
+    };
+
+    struct StatesValues {
+        State variable_1;
+        State variable_2;
+    };
+
+    // Model Template with Loop operation inside
+    //
+    //             ┌─────────────┐
+    //             │  Constant   │
+    //             └─────┬───────┘
+    //┌──────────┐ ┌───────────────┐
+    //│  Param1  │ │OuterReadValue │
+    //└────┬─────┘ └─────┬─────────┘
+    //     │             │
+    //     │             │
+    //     ▼             ▼
+    //┌─────────────────────────────────────────┐
+    //│      Loop operation(num_iterations)     │
+    //│                                         │
+    //│  ┌──────────┐  ┌──────────┐             │
+    //│  │BodyParam1│  │BodyParam2│             │
+    //│  └───┬──────┘  └────┬─────┘             │
+    //│      │              │                   │
+    //│      └─► ┌─────┐◄───┘                   │
+    //│          │ Add │     ┌─────────────────┐│
+    //│          └──┬──┘     │ InnerReadValue  ││
+    //│             │        └─────┬───────────┘│
+    //│             │              │            │
+    //│             ▼              │            │
+    //│          ┌─────┐           │            │
+    //│          │ Add │ ◄─────────┘            │
+    //│          └──┬──┘                        │
+    //│             │                           │
+    //│       ┌─────┴─────────┐                 │
+    //│       │               │                 │
+    //│       ▼               ▼                 │
+    //│ ┌────────────┐   ┌──────────────┐       │
+    //│ │ BobyResult1│   │ InnerAssign  │       │
+    //│ └────────────┘   └──────────────┘       │
+    //│                                         │
+    //└────────────┬────────────────────────────┘
+    //             │
+    //      ┌──────┴───┐   ┌────────────────┐
+    //      │          │   │    Constant    │
+    //      ▼          ▼   └────────┬───────┘
+    // ┌─────────┐  ┌─────┐         │
+    // │ Result1 │  │ Add │◄────────┘
+    // └─────────┘  └──┬──┘
+    //                 │
+    //                 ▼
+    //              ┌──────────────┐
+    //              │ OuterAssign  │
+    //              └──────────────┘
+
+    using read_value_creator = std::function<std::shared_ptr<ov::op::v6::ReadValue>()>;
+    using assign_creator = std::function<std::shared_ptr<ov::op::v6::Assign>(const Output<Node> &)>;
+
+    static std::shared_ptr<ov::Model> create_loop_model(ov::element::Type netPrc,
+                                                 const ov::Shape &inpShape,
+                                                 int number_of_loop_iterations,
+                                                 const read_value_creator &fn_outer_read_value,
+                                                 const assign_creator &fn_outer_assign,
+                                                 const read_value_creator &fn_inner_read_value,
+                                                 const assign_creator &fn_inner_assign) {
+        // Loop Body:
+        auto body_param_1 = std::make_shared<ov::op::v0::Parameter>(netPrc, inpShape);
+        auto body_param_2 = std::make_shared<ov::op::v0::Parameter>(netPrc, inpShape);
+
+        auto body_add_1 = std::make_shared<ov::op::v1::Add>(body_param_1, body_param_2);
+
+        auto body_read_value_1 = fn_inner_read_value();
+
+        auto body_add_2 = std::make_shared<ov::op::v1::Add>(body_add_1, body_read_value_1);
+
+        auto body_result_1 = std::make_shared<ov::op::v0::Result>(body_add_2);
+        auto body_assign = fn_inner_assign(body_add_2);
+        auto body_condition = std::make_shared<ov::op::v0::Constant>(element::boolean, Shape{1}, true);
+
+        auto body = std::make_shared<ov::Model>(OutputVector{body_condition, body_result_1},
+                                                SinkVector{body_assign},
+                                                ParameterVector{body_param_1, body_param_2});
+
+        // Outer Model:
+        auto outer_param = std::make_shared<ov::op::v0::Parameter>(netPrc, inpShape);
+
+        auto trip_count = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{1},
+                                                                 number_of_loop_iterations);
+        auto exec_condition = std::make_shared<ov::op::v0::Constant>(element::boolean, Shape{1}, true);
+
+        auto loop = std::make_shared<ov::op::v5::Loop>(trip_count, exec_condition);
+        loop->set_function(body);
+        loop->set_special_body_ports(ov::op::v5::Loop::SpecialBodyPorts{-1, 0});
+
+        loop->set_invariant_input(body_param_1, outer_param);
+        loop->set_invariant_input(body_param_2, fn_outer_read_value());
+        loop->get_iter_value(body_result_1, -1);
+        loop->validate_and_infer_types();
+
+        auto outer_result = std::make_shared<ov::op::v0::Result>(loop->output(0));
+        auto const_to_add = std::make_shared<ov::op::v0::Constant>(netPrc, Shape{1}, 1);
+        auto outer_add = std::make_shared<ov::op::v1::Add>(loop->output(0), const_to_add);
+        auto outer_assign = fn_outer_assign(outer_add);
+
+        return std::make_shared<ov::Model>(ov::ResultVector({outer_result}),
+                                           ov::SinkVector({outer_assign}),
+                                           ov::ParameterVector({outer_param}));
+    }
+
+    void reset_state() override {
+        inferRequest.reset_state();
+        m_state_values.variable_1.reset = true;
+        m_state_values.variable_2.reset = true;
+    }
+
+    virtual void initialize_state_values() {
+        // init ref values for States
+        if (m_state_values.variable_2.reset) {
+            m_state_values.variable_2.init_value = std::vector<float>{0.f};
+            m_state_values.variable_2.current_value = std::vector<float>{0.f};
+        }
+
+        if (m_state_values.variable_1.reset) {
+            m_state_values.variable_1.init_value = std::vector<float>{2.f};
+            m_state_values.variable_1.current_value = std::vector<float>{0.f};
+        }
+    }
+
+    void run_test() {
+        bool isCurrentTestDisabled = ov::test::utils::current_test_is_disabled();
+
+        ov::test::utils::PassRate::Statuses status = isCurrentTestDisabled ?
+                                                     ov::test::utils::PassRate::Statuses::SKIPPED :
+                                                     ov::test::utils::PassRate::Statuses::CRASHED;
+        summary.setDeviceName(targetDevice);
+        summary.updateOPsStats(function, status, rel_influence_coef);
+
+        if (isCurrentTestDisabled)
+            GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+
+        initialize_state_values();
+
+        auto model_states = inferRequest.query_state();
+        ASSERT_FALSE(model_states.empty());
+
+        auto init_tensor = ov::Tensor{testPrc, ov::Shape{1}};
+        auto init_data = init_tensor.data<ov::element_type_traits<testPrc>::value_type>();
+        init_data[0] = 1;
+
+        const auto& input_vals = get_inputs();
+        for (auto&& shapes : targetStaticShapes) {
+            inputs.clear();
+            const auto &input_shape = shapes.front();
+            const auto& funcInputs = function->inputs();
+            for (auto&& funcInput : funcInputs) {
+                auto tensor = ov::Tensor{testPrc, input_shape};
+                auto input_data = tensor.data<ov::element_type_traits<testPrc>::value_type>();
+                for (size_t i = 0; i < input_shape[0]; ++i) {
+                    input_data[i] = input_vals[i];
+                }
+                inputs.insert({funcInput.get_node_shared_ptr(), tensor});
+            }
+
+            for (const auto& input : inputs) {
+                inferRequest.set_tensor(input.first, input.second);
+            }
+            auto outputTensor1 = inferRequest.get_output_tensor(0);
+            ASSERT_TRUE(outputTensor1);
+
+            inferRequest.infer();
+            auto ref_result = calc_refs(input_vals, m_state_values);
+
+            auto states = inferRequest.query_state();
+            EXPECT_EQ(states.size(), 2);
+
+            std::map<std::string, VariableState> name_to_state;
+            for (const auto& state : states) {
+                name_to_state[state.get_name()] = state;
+            }
+
+            const auto& actual_state_2 = name_to_state.at("variable").get_state();
+            const auto& actual_state_1 = name_to_state.at("variable_2").get_state();
+
+            EXPECT_EQ(m_state_values.variable_2.current_value.size(), actual_state_2.get_size());
+            EXPECT_EQ(m_state_values.variable_1.current_value.size(), actual_state_1.get_size());
+
+            float_compare(m_state_values.variable_2.current_value.data(),
+                          actual_state_2.data<ov::element_type_traits<testPrc>::value_type>(),
+                          m_state_values.variable_2.current_value.size());
+
+            float_compare(m_state_values.variable_1.current_value.data(),
+                          actual_state_1.data<ov::element_type_traits<testPrc>::value_type>(),
+                          m_state_values.variable_1.current_value.size());
+
+            ASSERT_EQ(ref_result.size(), outputTensor1.get_shape()[0]);
+
+            auto actual_res = outputTensor1.data<ov::element_type_traits<testPrc>::value_type>();
+            float_compare(ref_result.data(), actual_res, ref_result.size());
+        }
+    }
+
+    static const std::vector<float>& get_inputs() {
+        static const std::vector<float> input_vals = {1.f};
+        return input_vals;
+    }
+
+    virtual std::vector<float> calc_refs(const std::vector<float>& param_values, StatesValues& states) const = 0;
+
+    int m_loop_iter = 3;
+    StatesValues m_state_values;
+};
+
+// State1 in the outer model (ReadValue1, Assign1)
+// State2 in the inner model (ReadValue2, Assign2)
+// The calculations (val = ...) are relevant for the 1st inference call
+//
+//             ┌─────────────┐
+//             │ Const(val=2)│
+//             └─────┬───────┘
+//┌──────────┐ ┌───────────┐
+//│  Param1  │ │ReadValue1 │
+//└────┬─────┘ └─────┬─────┘
+//     │ val = 1     │   val = 2
+//     │             │
+//     ▼             ▼
+//┌─────────────────────────────────────────┐
+//│      Loop operation(num_iterations = 3) │
+//│                                         │
+//│  ┌──────────┐  ┌──────────┐             │
+//│  │BodyParam1│  │BodyParam2│             │
+//│  └───┬──────┘  └────┬─────┘             │
+//│      │ val = 1      │    val = 2        │
+//│      └─► ┌─────┐◄───┘                   │
+//│          │ Add │     ┌───────────┐      │
+//│          └──┬──┘     │ ReadValue2│      │
+//│             │        └─────┬─────┘      │
+//│             │val = 3       │            │
+//│             ▼              │  val =     │
+//│          ┌─────┐           │  {0;3;6}   │
+//│          │ Add │ ◄─────────┘            │
+//│          └──┬──┘                        │
+//│             │val = {3;6;9}              │
+//│       ┌─────┴─────────┐                 │
+//│       │               │                 │
+//│       ▼               ▼                 │
+//│ ┌────────────┐   ┌─────────┐            │
+//│ │ BobyResult1│   │ Assign2 │            │
+//│ └────────────┘   └─────────┘            │
+//│                                         │
+//└────────────┬────────────────────────────┘
+//             │
+//      ┌──────┴───┐   ┌────────────────┐
+//      │ val=9    │   │  Const(val = 1)│
+//      ▼          ▼   └────────┬───────┘
+// ┌─────────┐  ┌─────┐         │
+// │ Result1 │  │ Add │◄────────┘
+// └─────────┘  └──┬──┘
+//                 │ val = 10
+//                 ▼
+//              ┌────────┐
+//              │ Assign1│
+//              └────────┘
+
+class StatefulModelStateInLoopBody : public StatefulModelTemplate {
+public:
+    void SetUp() override {
+        targetDevice = GetParam();
+        const ov::Shape inpShape = {1};
+        const auto netPrc = testPrc;
+        targetStaticShapes = {{inpShape}};
+
+        const std::string inner_variable_name("variable");
+        auto inner_variable = std::make_shared<ov::op::util::Variable>(
+                ov::op::util::VariableInfo{inpShape, testPrc, inner_variable_name});
+
+        const std::string outer_variable_name("variable_2");
+        auto outer_variable = std::make_shared<ov::op::util::Variable>(
+                ov::op::util::VariableInfo{inpShape, testPrc, outer_variable_name});
+
+        auto create_outer_readvalue = [outer_variable, netPrc, &inpShape]() {
+            auto const_to_read = std::make_shared<ov::op::v0::Constant>(netPrc, inpShape, 2);
+            return std::make_shared<ov::op::v6::ReadValue>(const_to_read, outer_variable);
+        };
+
+        auto create_outer_assign = [outer_variable](const Output<Node>& input) {
+            return std::make_shared<ov::op::v6::Assign>(input, outer_variable);
+        };
+
+        auto create_inner_readvalue = [inner_variable]() {
+            return std::make_shared<ov::op::v6::ReadValue>(inner_variable);
+        };
+
+        auto create_inner_assign = [inner_variable](const Output<Node>& input) {
+            return std::make_shared<ov::op::v6::Assign>(input, inner_variable);
+        };
+        function = create_loop_model(testPrc, inpShape, m_loop_iter, create_outer_readvalue,
+                                     create_outer_assign, create_inner_readvalue, create_inner_assign);
+    }
+
+    std::vector<float> calc_refs(const std::vector<float>& param_values, StatesValues& states) const override {
+        auto num_elements = param_values.size();
+        std::vector<float> result(num_elements);
+        auto& state_1 = states.variable_1;
+        auto& state_2 = states.variable_2;
+
+        for (int num_iter = 0; num_iter < m_loop_iter; ++num_iter) {
+            for (size_t i = 0; i < num_elements; ++i) {
+                auto state_1_val = state_1.reset ? state_1.init_value[i] : state_1.current_value[i];
+                auto state_2_val = state_2.reset ? state_2.init_value[i] : state_2.current_value[i];
+                result[i] = param_values[i] + state_1_val + state_2_val;
+                state_2.current_value[i] = result[i];
+                state_2.reset = false;
+            }
+        }
+
+        for (size_t i = 0; i < num_elements; ++i) {
+            state_1.current_value[i] = result[i] + 1;
+        }
+        state_1.reset = false;
+        return result;
+    }
+};
+
+TEST_P(StatefulModelStateInLoopBody, smoke_Run_StatefulModelStateInLoopBody) {
+    int num_infers = 3;
+
+    prepare();
+    for (int i = 0; i < num_infers; ++i) {
+        run_test();
+    }
+    reset_state();
+    for (int i = 0; i < num_infers; ++i) {
+        run_test();
+    }
 }
 
 } // namespace test
