@@ -402,6 +402,9 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         // Do not use SCALE_POST_OP for SLM kernel, since it demonstrates worse performance
         if (scale_group_size % simd == 0 && !dispatchData.use_slm)
             jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
+        jit.AddConstant(MakeJitConstant("W_IDX", "fi * TILE_K + kii"));
+    } else {
+        jit.AddConstant(MakeJitConstant("W_IDX", "kii * TILE_OFM + fi"));
     }
 
     if (dispatchData.use_slm) {

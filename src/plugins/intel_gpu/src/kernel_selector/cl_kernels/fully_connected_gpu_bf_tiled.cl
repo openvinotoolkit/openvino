@@ -305,11 +305,6 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 ACCUMULATOR_TYPE* w = (ACCUMULATOR_TYPE*)(&wei_unpacked);
                 unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
                     unroll_for(uint kii = 0; kii < FILTER_LOAD_BLOCK_SIZE; ++kii) {
-                        #if COMPRESSED_WEIGHTS_INT4 && FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2
-                        const uint w_idx = fi * TILE_K + kii;
-                        #else
-                        const uint w_idx = kii * TILE_OFM + fi;
-                        #endif
                         const uint offset_ofm = out_f + fi*SIMD + sglid;
                         const uint offset_ifm = ni * TILE_IFM * SIMD + local_id * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE + load_iter * FILTER_LOAD_BLOCK_SIZE + kii;
                         #if !DECOMPRESSION_SCALE_POST_OP
@@ -337,7 +332,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                         #else
                             ACCUMULATOR_TYPE dzp = ACCUMULATOR_VAL_ZERO;
                         #endif
-                        w[w_idx] = (w[w_idx] - dzp) * ds;
+                        w[W_IDX] = (w[W_IDX] - dzp) * ds;
                     }
                 }
 
@@ -404,11 +399,6 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 ACCUMULATOR_TYPE* w = (ACCUMULATOR_TYPE*)(&wei);
                 unroll_for(uint kii = 0; kii < TILE_K; ++kii) {
                     unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
-                        #if COMPRESSED_WEIGHTS_INT4 && FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2
-                        const uint w_idx = fi * TILE_K + kii;
-                        #else
-                        const uint w_idx = kii * TILE_OFM + fi;
-                        #endif
                         const uint offset_ofm = out_f + fi*SIMD + sglid;
                         #if !DECOMPRESSION_SCALE_POST_OP
                             // Apply scales before FMA to avoid FP16 overflow in case of INT8
@@ -436,7 +426,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                         #else
                             ACCUMULATOR_TYPE dzp = ACCUMULATOR_VAL_ZERO;
                         #endif
-                        w[w_idx] = (w[w_idx] - dzp) * ds;
+                        w[W_IDX] = (w[W_IDX] - dzp) * ds;
                     }
                 }
             #endif
@@ -446,13 +436,8 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
                     INPUT0_TYPE in_val = _sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[total_k / SIMD], total_k % SIMD);
                     unroll_for (uint fi = 0; fi < TILE_OFM; ++fi) {
-                    #if COMPRESSED_WEIGHTS_INT4 && FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2
-                    int w_idx = fi * TILE_K + kii;
-                    #else
-                    int w_idx = kii * TILE_OFM + fi;
-                    #endif
 #if DECOMPRESSION_SCALE_POST_OP
-                    half weight = ((ACCUMULATOR_TYPE*)(&wei))[w_idx];
+                    half weight = ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
                     #if TILE_OFM > 1
                         ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] += in_val * weight;
                     #else
@@ -460,9 +445,9 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                     #endif
 #else
                     #if TILE_OFM > 1
-                        ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[w_idx];
+                        ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
                     #else
-                        acc[bi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[w_idx];
+                        acc[bi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
                     #endif
 #endif
                     }
@@ -549,11 +534,6 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 ACCUMULATOR_TYPE* w = (ACCUMULATOR_TYPE*)(&wei);
                 unroll_for(uint kii = 0; kii < TILE_K; ++kii) {
                     unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
-                        #if COMPRESSED_WEIGHTS_INT4 && FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2
-                        const uint w_idx = fi * TILE_K + kii;
-                        #else
-                        const uint w_idx = kii * TILE_OFM + kii;
-                        #endif
                         uint offset_ofm = out_f + fi*SIMD + get_sub_group_local_id();
                         #if DECOMPRESSION_SCALE_GROUPS_NUM > 1
                             const uint scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH +
@@ -576,7 +556,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                         #else
                             ACCUMULATOR_TYPE dzp = ACCUMULATOR_VAL_ZERO;
                         #endif
-                        w[w_idx] = (w[w_idx] - dzp) * ds;
+                        w[W_IDX] = (w[W_IDX] - dzp) * ds;
                     }
                 }
             #endif
@@ -592,15 +572,10 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                         const uint total_k = ki * TILE_K + kii;
                         if (total_k < LEFTOVER_IFM) {
                             INPUT0_TYPE in_val = _sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[total_k / SIMD], total_k % SIMD);
-                            #if COMPRESSED_WEIGHTS_INT4 && FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2
-                                int w_idx = fi * TILE_K + kii;
-                            #else
-                                int w_idx = kii * TILE_OFM + fi;
-                            #endif
                             #if TILE_OFM > 1
-                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[w_idx];
+                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
                             #else
-                            acc[bi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[w_idx];
+                            acc[bi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
                             #endif
                         }
                     }
