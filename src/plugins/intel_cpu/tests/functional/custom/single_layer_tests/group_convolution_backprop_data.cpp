@@ -324,7 +324,7 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice_AMX_BF16(std::vector<CPUSp
 /* COMMON PARAMS */
 std::vector<fusingSpecificParams> fusingParamsSet{
     emptyFusingSpec,
-    fusingScaleShift,
+    fusingAddPerChannel,
 };
 
 const std::vector<std::vector<size_t>> emptyOutputShape = {{}};
