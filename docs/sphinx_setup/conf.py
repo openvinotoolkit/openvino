@@ -40,10 +40,9 @@ breathe_projects = {
 
 myst_enable_extensions = ["colon_fence"]
 myst_heading_anchors = 4
-myst_all_links_external = True
 suppress_warnings = [
     'misc.highlighting_failure',
-    # 'myst.xref_missing'
+    'myst.xref_missing'
     ]
 
 source_suffix = {

@@ -1,8 +1,10 @@
+import re
 import os
 import json
 from pathlib import Path
 import argparse
 import logging
+# from github import Github
 
 def create_mapping(output_dir: Path, doc_dir_name: str):
     mapping = {}
@@ -33,6 +35,28 @@ def connect_jsons(output_dir: Path):
             json.dump(merged_data, f, indent=4) 
     except Exception as e:
         logging.error(f"Couldn't connect .json files. Error: {repr(e)}")
+
+
+# def get_file_list_from_github_repo() -> dict:
+#     username = 'openvinotoolkit'
+#     repository_name = 'model_server'
+#     path = 'docs'
+#     g = Github()
+#     mapping = {}
+#     pattern = r'{#([^#]+?)}'
+#     repo = g.get_repo(f"{username}/{repository_name}")
+#     contents = repo.get_contents(path)
+#     for content in contents:
+#         if content.type == 'file':
+#             try:
+#                 decoded_content = content.decoded_content.decode('utf-8')[:200]
+#                 match = re.search(pattern, decoded_content[:200])
+#                 if match:
+#                     html_name = match.group(1)
+#                     mapping[html_name] = 'ovms/' + content.path
+#             except UnicodeDecodeError:
+#                 pass
+#     return mapping
 
 
 def main():

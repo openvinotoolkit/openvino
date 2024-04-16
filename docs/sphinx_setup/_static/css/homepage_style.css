@@ -12,7 +12,7 @@ h1 {
 
 .ov-homepage-label {
     font-size: 14px;
-    font-weight: bold;
+    font-weight: bold; 
 }
 
 .ov-homepage-slide-title {
@@ -215,14 +215,11 @@ h1 {
 }
 
 .ov-homepage-higlight-grid .sd-card {
-    box-shadow: 0 0 20px 5px #f3f3f3;
     transition: 0.5s;
     overflow: hidden;
 }
 
-.ov-homepage-higlight-grid .sd-shadow-sm:hover {
-    box-shadow: 0 0 10px 2px rgba(108,36,240,0.3)!important;
-}
+
 
 .ov-homepage-higlight-grid .sd-card-title {
     height: 10px;
