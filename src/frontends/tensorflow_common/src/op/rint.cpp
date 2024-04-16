@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/round.hpp"
-
 #include "common_op_table.hpp"
+#include "openvino/op/round.hpp"
 
 using namespace std;
 using namespace ov::op;
