@@ -124,9 +124,8 @@ std::pair<bool, const std::string> validate_args(const Napi::CallbackInfo& info,
 
     builder(s);
 
-    if (info.Length() != s.attributes_validators.size()) {
+    if (info.Length() != s.attributes_validators.size())
         return std::make_pair(false, validation_errors);
-    }
 
     size_t index = 0;
 
