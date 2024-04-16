@@ -9,7 +9,6 @@
 #include "gemm_inst.h"
 #include "gemm/gemm_kernel_base.h"
 #include "gemm/gemm_kernel_selector.h"
-#include "utils.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -99,6 +98,7 @@ protected:
         for (size_t kd_idx = 0; kd_idx < _kernels_data[stage].kernels.size(); ++kd_idx) {
             if (_kernels_data[stage].kernels[kd_idx].skip_execution)
                 continue;
+
             size_t idx_final = kernel_offset + kd_idx;
             // If any user of the prim's users is CPU implementation or network's output, set prim as a output event (event won't be nullptr)
             bool needs_completion_event = instance.needs_completion_event();
