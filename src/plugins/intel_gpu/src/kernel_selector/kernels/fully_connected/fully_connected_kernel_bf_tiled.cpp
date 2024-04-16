@@ -404,10 +404,12 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         // Do not use SCALE_POST_OP for SLM kernel, since it demonstrates worse performance
         if (scale_group_size % simd == 0 && !dispatchData.use_slm)
             jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
-        jit.AddConstant(MakeJitConstant("W_IDX", "fi * TILE_K + kii"));
-    } else {
-        jit.AddConstant(MakeJitConstant("W_IDX", "kii * TILE_OFM + fi"));
     }
+    if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2)
+        jit.AddConstant(MakeJitConstant("W_IDX", "fi * TILE_K + kii"));
+    else
+        jit.AddConstant(MakeJitConstant("W_IDX", "kii * TILE_OFM + fi"));
+
 
     if (dispatchData.use_slm) {
         OPENVINO_ASSERT(dispatchData.tile_n == 2, "[GPU] Unsupported TILE_OFM size for SLM kernel configuration");
@@ -556,8 +558,10 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
     tune_params tparams = GetAutoTuneParams(fc_params, KernelType::ANY, autoTuneIndex);
 
     WeightsLayout weights_layout = WeightsLayout::os_iyx_osv16;
-    if (fc_params.compressed &&
-        (fc_params.weights.GetDType() == WeightsType::INT4 || fc_params.weights.GetDType() == WeightsType::UINT4)) {
+    if (fc_params.compressed && fc_params.inputs[0].GetDType() == Datatype::F16
+        // ioyx => os_is_yx_osv32_isv2 is not supported yet
+        && (fc_params.weights.GetLayout() == WeightsLayout::oiyx || fc_params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2)
+        && (fc_params.weights.GetDType() == WeightsType::INT4 || fc_params.weights.GetDType() == WeightsType::UINT4)) {
         weights_layout = WeightsLayout::os_is_yx_osv32_isv2;
     } else if (tparams.tile_ofm * simd == 32) {
         weights_layout = WeightsLayout::os_iyx_osv32;
