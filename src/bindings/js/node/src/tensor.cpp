@@ -135,7 +135,7 @@ Napi::Value TensorWrap::get_data(const Napi::CallbackInfo& info) {
 void TensorWrap::set_data(const Napi::CallbackInfo& info, const Napi::Value& value) {
     try {
         if (!value.IsTypedArray()) {
-            OPENVINO_THROW(std::string("Passed argument must be of type Array or TypedArray."));
+            OPENVINO_THROW(std::string("Passed argument must be a TypedArray."));
         }
         const auto buf = value.As<Napi::TypedArray>();
 
