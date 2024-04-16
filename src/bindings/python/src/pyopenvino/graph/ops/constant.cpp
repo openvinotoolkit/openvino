@@ -169,7 +169,7 @@ void regclass_graph_op_Constant(py::module m) {
                 const auto dtype = Common::type_helpers::get_dtype(ov_type);
                 // If dtype is the same as Constant type
                 // casting is NOT required, only check copy flag
-                if (dst_dtype == dtype) {
+                if (dst_dtype.is(dtype)) {
                     if (copy) {
                         return Common::array_helpers::array_from_constant_copy(
                             std::forward<ov::op::v0::Constant>(self));
