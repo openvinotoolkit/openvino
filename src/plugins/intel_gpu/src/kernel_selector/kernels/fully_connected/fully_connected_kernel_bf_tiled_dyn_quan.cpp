@@ -380,13 +380,12 @@ KernelsPriority FullyConnected_bf_tiled_dyn_quan::GetKernelsPriority(const Param
     else if (output_b > 1 && fc_params.inputs[0].GetDType() == Datatype::F16)
         estimated_time = FORCE_PRIORITY_4;
 
-    if (fc_params.inputs[0].Y().v == 4096 && fc_params.inputs[0].Batch().v > 10 &&
-        fc_params.outputs[0].Y().v == 27392)
+    auto tparams = GetAutoTuneParams(fc_params, KernelType::ANY);
+    if (tparams.kernel_type == KernelType::SLM &&
+        fc_params.inputs[0].Batch().v > 8 && fc_params.inputs[0].Y().v > 16 &&
+        fc_params.decompression_zero_point.Feature().v == 1) {
         estimated_time = FORCE_PRIORITY_1;
-
-    // if (fc_params.inputs[0].Y().v == 4096 && fc_params.inputs[0].Batch().v == 1 &&
-    //     fc_params.outputs[0].Y().v == 27392 && fc_params.outputs[0].Batch().v == 1)
-    //     estimated_time = FORCE_PRIORITY_1;
+    }
 
     return estimated_time;
 }

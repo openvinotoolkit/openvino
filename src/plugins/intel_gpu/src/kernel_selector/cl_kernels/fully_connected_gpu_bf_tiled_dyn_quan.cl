@@ -509,7 +509,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
             barrier(CLK_LOCAL_MEM_FENCE);
         #endif  // USE_SLM : Restore compressed weight
 
-        #if 0
+        #if 1
         // wei_local_idx = sglid * 4;
         // [Packing weight]
         wei_local_idx = sglid * 2;
@@ -521,7 +521,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
             // char4 second_weight = ((char4 *)(&char_slm_weight[wei_local_idx+2]))[0];
             // [Packing weight]
             #if 1  // optimization of ~2ms for 3k input
-            char8 weight = vload8(1, (__local char *)(&char_slm_weight[offset + 16*2*ki]));
+            char8 weight = vload8(0, (__local char *)(&char_slm_weight[wei_local_idx + 16*2*ki]));
             char4 first_weight = weight.s0123;
             char4 second_weight = weight.s4567;
             #else
@@ -559,7 +559,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 
             // wei_local_idx += 16 * 4;
             // [Packing weight]
-            wei_local_idx += 16 * 2;
+            // wei_local_idx += 16 * 2;
             // [Weight along local_id]
             // wei_local_idx += 2;
         }  // ki < (TILE_IFM * SIMD) / TILE_K
