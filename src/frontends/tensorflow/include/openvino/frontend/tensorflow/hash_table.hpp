@@ -65,7 +65,12 @@ public:
 
     void validate_and_infer_types() override {
         // this is a type of resource so its shape and type is not applicable
+        // its output serves to store a reference to a resource
         set_output_type(0, ov::element::dynamic, ov::PartialShape::dynamic());
+        // these two outputs serves to store keys and values of a resource
+        // keys and values are 1D tensors
+        set_output_type(1, m_key_type, ov::PartialShape::dynamic(1));
+        set_output_type(2, m_value_type, ov::PartialShape::dynamic(1));
     }
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
@@ -81,24 +86,41 @@ public:
         return hash_table_node;
     }
 
-    ov::Output<ov::Node> get_values() const {
-        FRONT_END_GENERAL_CHECK(m_is_initialized,
-                                "[TensorFlow Frontend] internal error: get_values() is called for uninitialized table");
-        return m_values;
-    }
-
-    ov::Output<ov::Node> get_keys() const {
-        FRONT_END_GENERAL_CHECK(m_is_initialized,
-                                "[TensorFlow Frontend] internal error: get_values() is called for uninitialized table");
-        return m_keys;
-    }
-
     ov::Output<ov::Node> get_value() override {
         return output(0);
     }
 
+    ov::Output<ov::Node> get_keys() {
+        if (m_is_initialized) {
+            return m_keys;
+        } else if (m_other_keys.size() > 0) {
+            return *(m_other_keys.begin());
+        }
+
+        return output(1);
+    }
+
+    ov::Output<ov::Node> get_values() {
+        if (m_is_initialized) {
+            return m_values;
+        } else if (m_other_values.size() > 0) {
+            return *(m_other_values.begin());
+        }
+
+        return output(2);
+    }
+
     ov::element::Type get_key_type() const {
         return m_key_type;
+    }
+
+    ov::element::Type get_value_type() const {
+        return m_value_type;
+    }
+
+    void add_other_keys_values(const ov::Output<ov::Node>& other_key, const ov::Output<ov::Node>& other_value) {
+        m_other_keys.insert(other_key);
+        m_other_values.insert(other_value);
     }
 
 private:
@@ -106,6 +128,9 @@ private:
     ov::element::Type m_value_type;
     ov::Output<ov::Node> m_keys;
     ov::Output<ov::Node> m_values;
+
+    std::set<ov::Output<ov::Node>> m_other_keys;
+    std::set<ov::Output<ov::Node>> m_other_values;
 };
 
 }  // namespace tensorflow

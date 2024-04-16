@@ -35,6 +35,7 @@
 #include "transformations/resolve_names_collisions.hpp"
 #include "transformations/switch_merge_resolve.hpp"
 #include "transformations/transpose_sinking/ts_general.hpp"
+#include "transformations/uninitialized_variable_resolve.hpp"
 #include "translate_session.hpp"
 #include "utils.hpp"
 
@@ -439,17 +440,40 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
     if (unsupported_operations.size() > 0) {
         exception_message << "[TensorFlow Frontend] Internal error, no translator found for operation(s): ";
         size_t counter = 0;
+        size_t tokenizer_counter = 0;
+        std::string unsupported_ops_from_tokenizers;
+        const auto& all_tokenizer_ops = ov::frontend::tensorflow::op::get_supported_ops_via_tokenizers();
         for (const auto& unsupported_operation : unsupported_operations) {
             if (counter > 0) {
                 exception_message << ", ";
             }
             exception_message << unsupported_operation;
             ++counter;
+
+            // collect a list of unconverted operations for which openvino-tokenizers provides conversion extensions
+            if (std::find(all_tokenizer_ops.begin(), all_tokenizer_ops.end(), unsupported_operation) !=
+                all_tokenizer_ops.end()) {
+                if (tokenizer_counter > 0) {
+                    unsupported_ops_from_tokenizers += ", ";
+                }
+                unsupported_ops_from_tokenizers += unsupported_operation;
+                ++tokenizer_counter;
+            }
         }
         exception_message
             << "\nTo facilitate the conversion of unsupported operations, refer to Frontend Extension "
                "documentation: "
                "https://docs.openvino.ai/latest/openvino_docs_Extensibility_UG_Frontend_Extensions.html \n";
+
+        // recommend to use openvino-tokenizers if some unconverted operations from tokenizers are met
+        if (unsupported_ops_from_tokenizers.size() > 0) {
+            exception_message
+                << "\nEncountered unconverted operation(s) for which openvino-tokenizers package "
+                   "provides conversion extension(s): "
+                << unsupported_ops_from_tokenizers
+                << ". Refer to OpenVINO Tokenizers documentation: "
+                   "https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/ov-tokenizers.html \n";
+        }
     }
 
     bool is_conversion_successful = ((unsupported_operations.size() == 0) && (failures.size() == 0));
@@ -540,6 +564,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     // so that not extra memory is used for intermediate decompressed constants.
     manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
     manager.register_pass<pass::SavedModelUnusedRemover>();
+    manager.register_pass<pass::UninitializedVariableResolver>();
     manager.register_pass<pass::EmbeddingSegmentSingleFeatureFusion>();
     manager.register_pass<pass::BlockLSTMReplacer>();
     manager.register_pass<pass::GRUBlockCellReplacer>();

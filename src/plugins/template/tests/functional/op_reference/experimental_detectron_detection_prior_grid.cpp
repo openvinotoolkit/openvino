@@ -67,6 +67,7 @@ class ReferenceExperimentalPGGLayerTest : public testing::TestWithParam<Experime
                                           public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params);
         inputData = {params.priorsData, params.featureMapData, params.imageSizeInfoData};
