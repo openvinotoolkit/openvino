@@ -174,11 +174,6 @@ jobs:
       - name: Clean ccache stats
         run: '& ccache --zero-stats'
 
-        # to get more information on the issue
-        # described in the next step
-      - name: Show which network ports are used
-        run: netstat -ban
-
       - name: Cmake build - OpenVINO
         run: cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --verbose
 
