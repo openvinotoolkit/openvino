@@ -9,6 +9,7 @@
 #include "node/include/errors.hpp"
 #include "node/include/helper.hpp"
 #include "node/include/model_wrap.hpp"
+#include "node/include/parameter_validation.hpp"
 #include "node/include/read_model_args.hpp"
 
 void validate_set_property_args(const Napi::CallbackInfo& info) {
@@ -49,104 +50,6 @@ std::tuple<ov::AnyMap, std::string> try_get_set_property_parameters(const Napi::
     return std::make_tuple(properties, device_name);
 }
 
-enum JSType {
-    Boolean,
-    String,
-    Number,
-    Array,
-    Object,
-    Buffer,
-};
-
-class Signature {
-private:
-    std::map<std::string, const std::function<bool(Napi::Value)>&> validators;
-
-public:
-    Signature(const std::function<void(Signature&)>& fn) {
-        fn(*this);
-    }
-
-    // Signature& add(const std::function<void(std::map<std::string, JSType>&)>& fn) {
-    //     fn(params);
-
-    //     return *this;
-    // }
-
-    // Signature& add(bool (*parameterValidator)(Napi::Value value)) {
-    Signature& add(std::string key, JSType expected_type) {
-        validators.insert(std::make_pair(key, [expected_type, this](Napi::Value value) {
-            return validate_parameter(value, expected_type);
-        }));
-
-        return *this;
-    }
-    Signature& add(std::string key, const std::function<bool(Napi::Value)>& validator) {
-        validators.insert(std::make_pair(key, validator));
-
-        return *this;
-    }
-
-    const std::pair<const bool, std::unordered_map<std::string, std::string>> validate(const Napi::CallbackInfo& info) {
-        std::unordered_map<std::string, std::string> validation_errors;
-        size_t index = 0;
-
-        for (const auto& validator : validators) {
-            Napi::Value value = info[index];
-            index++;
-
-            auto field_key = validator.first;
-            auto validation_fn = validator.second;
-
-            try {
-                validation_fn(value);
-            } catch(std::runtime_error& err) {
-                validation_errors.insert(std::make_pair(field_key, "Parameter '" + field_key + "' " + err.what()));
-            }
-        }
-
-        return std::make_pair(!validation_errors.empty(), validation_errors);
-    }
-
-    bool validate_parameter(const Napi::Value value, JSType expected_type) {
-        auto type = value.Type();
-        std::string error_message;
-
-        switch(expected_type) {
-            case JSType::Boolean:
-                if (!value.IsBoolean())
-                    error_message = Signature::get_error_message(napi_boolean, type);
-
-                break;
-            case JSType::String:
-                if (!value.IsString())
-                    error_message = Signature::get_error_message(napi_string, type);
-
-                break;
-            case JSType::Buffer:
-                if (!value.IsBuffer())
-                    error_message = Signature::get_error_message("Buffer", std::to_string(type));
-
-                break;
-            default:
-                error_message = "Parameter with type " + std::to_string(type) + " wasn't recognized";
-
-                break;
-        }
-
-        if (!error_message.empty()) throw std::runtime_error(error_message);
-
-        return false;
-    }
-
-    static std::string get_error_message(napi_valuetype expected, napi_valuetype real) {
-        return Signature::get_error_message(std::to_string(real), std::to_string(expected));
-    }
-    static std::string get_error_message(std::string expected, std::string real) {
-        return "has type '" + real + "', expected '" + expected + "'";
-    }
-};
-
 CoreWrap::CoreWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<CoreWrap>(info), _core{} {}
 
 Napi::Function CoreWrap::get_class(Napi::Env env) {
@@ -160,40 +63,7 @@ Napi::Function CoreWrap::get_class(Napi::Env env) {
                         InstanceMethod("importModelSync", &CoreWrap::import_model),
                         InstanceMethod("getAvailableDevices", &CoreWrap::get_available_devices),
                         InstanceMethod("setProperty", &CoreWrap::set_property),
-                        InstanceMethod("test", &CoreWrap::test),
                         InstanceMethod("getProperty", &CoreWrap::get_property)});
-}
-
-Napi::Value CoreWrap::test(const Napi::CallbackInfo& info) {
-    Signature sign([](Signature& s) {
-        // s.add([](std::map<std::string, JSType>& p) {
-        //     p["buffer"] = JSType::Buffer;
-        //     p["second"] = JSType::String;
-        // });
-
-        s.add("buffer", JSType::Buffer);
-        s.add("weights_path", [](Napi::Value value) {
-            bool is_string = value.IsString();
-
-            if (!is_string) throw std::runtime_error("must be String!");
-
-            return true;
-        });
-    });
-
-    auto result = sign.validate(info);
-
-    if (result.first) {
-        std::string errors;
-
-        for (const auto& pair : result.second) {
-            errors.append(pair.second + '\n');
-        }
-
-        throw std::runtime_error(errors);
-    }
-
-    return info.Env().Undefined();
 }
 
 /*
@@ -279,28 +149,65 @@ Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info,
 }
 
 Napi::Value CoreWrap::compile_model_sync_dispatch(const Napi::CallbackInfo& info) {
+    std::vector<std::string> errors_messages;
+
+    // Allowed signatures list
+    auto path_and_device = create_signature(
+        [](Signature& s) {
+            s.param(&s.string);
+            s.param(&s.string);
+        },
+        errors_messages);
+    auto path_device_and_config = create_signature(
+        [](Signature& s) {
+            s.param(&s.string);
+            s.param(&s.string);
+            s.param(&s.object);
+        },
+        errors_messages);
+    auto model_and_device = create_signature(
+        [](Signature& s) {
+            s.param(&s.object);
+            s.param(&s.string);
+        },
+        errors_messages);
+    auto model_device_and_config = create_signature(
+        [](Signature& s) {
+            s.param(&s.object);
+            s.param(&s.string);
+            s.param(&s.object);
+        },
+        errors_messages);
+
     try {
-        if (info.Length() == 2 && info[0].IsString() && info[1].IsString()) {
+        if (path_and_device(info)) {
             return compile_model_sync(info, info[0].ToString(), info[1].ToString());
-        } else if (info.Length() == 2 && info[0].IsObject() && info[1].IsString()) {
+        } else if (model_and_device(info)) {
             return compile_model_sync(info, info[0].ToObject(), info[1].ToString());
-        } else if (info.Length() == 3 && info[0].IsString() && info[1].IsString()) {
+        } else if (path_device_and_config(info)) {
             const auto& config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2, {napi_object});
+
             return compile_model_sync(info, info[0].ToString(), info[1].ToString(), config);
-        } else if (info.Length() == 3 && info[0].IsObject() && info[1].IsString()) {
+        } else if (model_device_and_config(info)) {
             const auto& config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2, {napi_object});
+
             return compile_model_sync(info, info[0].ToObject(), info[1].ToString(), config);
-        } else if (info.Length() < 2 || info.Length() > 3) {
-            reportError(info.Env(), "Invalid number of arguments -> " + std::to_string(info.Length()));
-            return info.Env().Undefined();
-        } else {
-            reportError(info.Env(), "Error while compiling model.");
-            return info.Env().Undefined();
         }
+
+        std::string attributes_error_message =
+            std::accumulate(errors_messages.begin(),
+                            errors_messages.end(),
+                            std::string(),
+                            [](const std::string& a, const std::string& b) -> std::string {
+                                return a.empty() ? b : a + "\nor\n " + b;
+                            });
+
+        OPENVINO_THROW(attributes_error_message.empty() ? "Invalid number of attributes" : attributes_error_message);
     } catch (std::exception& e) {
         reportError(info.Env(), e.what());
-        return info.Env().Undefined();
     }
+
+    return info.Env().Undefined();
 }
 
 void FinalizerCallbackModel(Napi::Env env, void* finalizeData, TsfnContextModel* context) {
