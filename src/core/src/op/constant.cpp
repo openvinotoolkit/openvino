@@ -12,8 +12,10 @@
 #include "compare.hpp"
 #include "element_visitor.hpp"
 #include "itt.hpp"
+#include "openvino/core/type/element_iterator.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/core/type/nf4.hpp"
+#include "openvino/reference/convert.hpp"
 #include "openvino/reference/utils/type_util.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/string_aligned_buffer.hpp"
@@ -64,6 +66,63 @@ std::vector<T> from_string_vector(const std::vector<std::string>& str_values) {
         return v;
     });
     return values;
+}
+
+template <element::Type_t ET, class U, typename std::enable_if<ET == element::u1>::type* = nullptr>
+fundamental_type_for<ET> convert_if_in_element_range(const U& value) {
+    using T = fundamental_type_for<ET>;
+    return static_cast<T>(static_cast<bool>(value));
+}
+
+template <element::Type_t ET,
+          class U,
+          typename std::enable_if<ET == element::nf4 && std::is_integral<U>::value>::type* = nullptr>
+fundamental_type_for<ET> convert_if_in_element_range(const U& value) {
+    using T = fundamental_type_for<ET>;
+    auto result = static_cast<T>(value);
+    OPENVINO_ASSERT(0 <= result && result <= 15, "assigned value out of range u4 values");
+    return result;
+}
+
+template <element::Type_t ET,
+          class U,
+          typename std::enable_if<ET == element::nf4 && !std::is_integral<U>::value>::type* = nullptr>
+float convert_if_in_element_range(const U& value) {
+    return static_cast<float>(value);
+}
+
+template <element::Type_t ET, class U, typename std::enable_if<ET == element::u4>::type* = nullptr>
+fundamental_type_for<ET> convert_if_in_element_range(const U& value) {
+    using T = fundamental_type_for<ET>;
+    auto result = static_cast<T>(value);
+    OPENVINO_ASSERT(0 <= result && result <= 15, "assigned value out of range u4 values");
+    return result;
+}
+
+template <element::Type_t ET, class U, typename std::enable_if<ET == element::i4>::type* = nullptr>
+fundamental_type_for<ET> convert_if_in_element_range(const U& value) {
+    using T = fundamental_type_for<ET>;
+    auto result = static_cast<T>(value);
+    OPENVINO_ASSERT(-8 <= result && result <= 7, "assigned value out of range i4 values");
+    return result;
+}
+
+template <element::Type_t ET, class T>
+void fill_buffer(void* buffer, const Shape& shape, const T& value) {
+    std::fill_n(element::iterator<ET>(buffer), shape_size(shape), convert_if_in_element_range<ET>(value));
+}
+
+template <element::Type_t ET, class U>
+void cast_buffer(const void* buffer, size_t num_elements, std::vector<U>& output) {
+    const auto first = element::iterator<ET>(buffer);
+    using StorageType = fundamental_type_for<ET>;
+
+    std::transform(first, first + num_elements, std::back_inserter(output), reference::detail::convert<StorageType, U>);
+}
+
+template <element::Type_t ET, class T>
+void write_buffer(const std::vector<T>& source, void* buffer) {
+    std::transform(source.begin(), source.end(), element::iterator<ET>(buffer), convert_if_in_element_range<ET, T>);
 }
 }  // namespace
 
@@ -117,11 +176,12 @@ Constant::Constant(bool memset_allocation, const element::Type& type, const Shap
 void Constant::allocate_buffer(bool memset_allocation) {
     // memset_allocation flag is to switch on initialization of objects in memory for element::string type
     // and set memory to zero for numeric element types
+    const auto num_elements = shape_size(m_shape);
+    const auto byte_size = element::get_byte_size(m_element_type, num_elements);
     if (m_element_type == ov::element::string) {
-        auto num_elements = shape_size(m_shape);
-        m_data = std::make_shared<StringAlignedBuffer>(num_elements, mem_size(), host_alignment(), memset_allocation);
+        m_data = std::make_shared<StringAlignedBuffer>(num_elements, byte_size, host_alignment(), memset_allocation);
     } else {
-        m_data = std::make_shared<AlignedBuffer>(mem_size(), host_alignment());
+        m_data = std::make_shared<AlignedBuffer>(byte_size, host_alignment());
         if (memset_allocation) {
             std::memset(m_data->get_ptr(), 0, m_data->size());
         }
@@ -129,14 +189,21 @@ void Constant::allocate_buffer(bool memset_allocation) {
 }
 
 Constant::Constant(const element::Type& type, const Shape& shape, const void* data) : Constant(false, type, shape) {
+    const auto num_elements = shape_size(m_shape);
     if (m_element_type == ov::element::string) {
-        auto num_elements = shape_size(m_shape);
-        const std::string* src_strings = static_cast<const std::string*>(data);
-        std::string* dst_strings = static_cast<std::string*>(get_data_ptr_nc());
+        const auto src_strings = static_cast<const std::string*>(data);
+        const auto dst_strings = static_cast<std::string*>(get_data_ptr_nc());
         std::uninitialized_copy_n(src_strings, num_elements, dst_strings);
     } else {
-        std::memcpy(get_data_ptr_nc(), data, mem_size());
+        std::memcpy(get_data_ptr_nc(), data, element::get_byte_size(m_element_type, num_elements));
     }
+}
+
+Constant::Constant(const element::Type& type, const Shape& shape, const std::shared_ptr<ov::AlignedBuffer>& data)
+    : m_element_type(type),
+      m_shape(shape),
+      m_data{data} {
+    constructor_validate_and_infer_types();
 }
 
 Constant::Constant(const Constant& other)
@@ -166,27 +233,28 @@ struct ValueToString : ov::element::NotSupported<std::string> {
     using ov::element::NotSupported<std::string>::visit;
 
     template <ov::element::Type_t ET, typename std::enable_if<ET == element::f64>::type* = nullptr>
-    static result_type visit(const Constant* const c, const size_t index) {
-        return to_cpp_string(c->get_element_value<ET>(index));
+    static result_type visit(const void* const ptr, const size_t index) {
+        return to_cpp_string(element::iterator<ET>(ptr)[index]);
     }
 
     template <ov::element::Type_t ET,
               typename std::enable_if<ov::is_floating_point<fundamental_type_for<ET>>() && ET != element::f64>::type* =
                   nullptr>
-    static result_type visit(const Constant* const c, const size_t index) {
-        return to_cpp_string<float>(c->get_element_value<ET>(index));
+    static result_type visit(const void* const ptr, const size_t index) {
+        const auto it = element::iterator<ET>(ptr);
+        return element::is_byte_type(ET) ? to_cpp_string<float>(it[index]) : to_cpp_string<float>(*(it + index));
     }
 
     template <ov::element::Type_t ET,
               typename std::enable_if<std::is_integral<ov::fundamental_type_for<ET>>::value>::type* = nullptr>
-    static result_type visit(const Constant* const c, const size_t index) {
-        return std::to_string(c->get_element_value<ET>(index));
+    static result_type visit(const void* const ptr, const size_t index) {
+        const auto it = element::iterator<ET>(ptr) + index;
+        return std::to_string(static_cast<typename ov::fundamental_type_for<ET>>(*it));
     }
 
-    template <ov::element::Type_t ET,
-              typename std::enable_if<std::is_same<fundamental_type_for<ET>, std::string>::value>::type* = nullptr>
-    static result_type visit(const Constant* const c, const size_t index) {
-        return c->get_element_value<ET>(index);
+    template <ov::element::Type_t ET, typename std::enable_if<ET == element::string>::type* = nullptr>
+    static result_type visit(const void* const ptr, const size_t index) {
+        return element::iterator<ET>(ptr)[index];
     }
 };
 
@@ -211,7 +279,7 @@ std::string Constant::convert_value_to_string(size_t index) const {
                     nf4,
                     f8e4m3,
                     f8e5m2,
-                    string>::apply<ValueToString>(get_element_type(), this, index);
+                    string>::apply<ValueToString>(get_element_type(), get_data_ptr(), index);
 }
 
 size_t Constant::get_byte_size() const {
@@ -234,33 +302,24 @@ struct ValuesToString : ov::element::NotSupported<void> {
     template <ov::element::Type_t ET,
               class T = fundamental_type_for<ET>,
               typename std::enable_if<ov::is_floating_point<T>()>::type* = nullptr>
-    static result_type visit(const Constant* const c, std::vector<std::string>& strs) {
-        for (auto&& v : c->get_vector<T>()) {
-            strs.push_back(to_cpp_string<double>(v));
-        }
+    static result_type visit(const void* const ptr, const size_t num_elements, std::vector<std::string>& strs) {
+        const auto first = element::iterator<ET>(ptr);
+        std::transform(first, first + num_elements, std::back_inserter(strs), to_cpp_string<double>);
     }
 
     template <ov::element::Type_t ET,
               class T = fundamental_type_for<ET>,
-              typename std::enable_if<std::is_integral<T>::value && !std::is_same<T, int8_t>::value>::type* = nullptr>
-    static result_type visit(const Constant* const c, std::vector<std::string>& strs) {
-        for (auto&& v : c->get_vector<T>()) {
-            strs.push_back(std::to_string(v));
-        }
+              typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
+    static result_type visit(const void* const ptr, const size_t num_elements, std::vector<std::string>& strs) {
+        const auto first = element::iterator<ET>(ptr);
+        std::transform(first, first + num_elements, std::back_inserter(strs), [](const T v) {
+            return std::to_string(v);
+        });
     }
 
-    template <ov::element::Type_t ET,
-              typename std::enable_if<std::is_same<fundamental_type_for<ET>, int8_t>::value>::type* = nullptr>
-    static result_type visit(const Constant* const c, std::vector<std::string>& strs) {
-        for (auto&& v : c->cast_vector<int8_t>()) {
-            strs.push_back(std::to_string(v));
-        }
-    }
-
-    template <ov::element::Type_t ET,
-              typename std::enable_if<std::is_same<fundamental_type_for<ET>, std::string>::value>::type* = nullptr>
-    static result_type visit(const Constant* const c, std::vector<std::string>& strs) {
-        strs = c->cast_vector<std::string>();
+    template <ov::element::Type_t ET, typename std::enable_if<ET == element::string>::type* = nullptr>
+    static result_type visit(const void* const ptr, const size_t num_elements, std::vector<std::string>& strs) {
+        std::copy_n(element::iterator<ET>(ptr), num_elements, std::back_inserter(strs));
     }
 };
 
@@ -268,7 +327,7 @@ std::vector<std::string> Constant::get_value_strings() const {
     std::vector<std::string> out;
     using namespace ov::element;
     IfTypeOf<boolean, bf16, f16, f32, f64, i4, i8, i16, i32, i64, u1, u4, u8, u16, u32, u64, nf4, string>::apply<
-        ValuesToString>(get_element_type(), this, out);
+        ValuesToString>(get_element_type(), get_data_ptr(), shape_size(m_shape), out);
     return out;
 }
 
@@ -359,6 +418,10 @@ void Constant::update_identical_flags(bool is_checked, bool identical_value) con
     m_all_elements_bitwise_identical = identical_value;
 }
 
+void Constant::validate_and_infer_types() {
+    set_output_type(0, m_element_type, m_shape);
+}
+
 bool Constant::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v0_Constant_visit_attributes);
     const auto prev_shape = m_shape;
@@ -367,22 +430,18 @@ bool Constant::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("shape", m_shape);
 
     const auto need_to_reallocate = (m_shape != prev_shape) || (prev_type != m_element_type);
+    const auto is_string_constant = (m_element_type == element::string);
     if (m_alloc_buffer_on_visit_attributes && need_to_reallocate) {
-        if (m_element_type == ov::element::string) {
-            // string objects initialization is required
-            allocate_buffer(true);
-        } else {
-            // Filling in a fresh constant
-            allocate_buffer(false);
-        }
+        // string objects initialization is required, others filling in a fresh constant
+        allocate_buffer(is_string_constant);
     }
 
-    if (m_element_type == ov::element::string) {
+    if (is_string_constant) {
         if (auto string_aligned_buffer = std::dynamic_pointer_cast<ov::StringAlignedBuffer>(m_data)) {
             visitor.on_attribute("value", string_aligned_buffer);
         } else if (auto shared_string_tensor = std::dynamic_pointer_cast<ov::SharedBuffer<ov::Tensor>>(m_data)) {
             auto shared_string_buffer =
-                std::make_shared<ov::SharedStringAlignedBuffer>(static_cast<char*>(shared_string_tensor->get_ptr()),
+                std::make_shared<ov::SharedStringAlignedBuffer>(shared_string_tensor->get_ptr<char>(),
                                                                 shared_string_tensor->size());
             visitor.on_attribute("value", shared_string_buffer);
         } else {
@@ -396,6 +455,17 @@ bool Constant::visit_attributes(AttributeVisitor& visitor) {
     }
     update_identical_flags(false, false);
     return true;
+}
+
+bool Constant::get_all_data_elements_bitwise_identical() const {
+    if (!m_all_elements_bitwise_identical_checked) {
+        update_identical_flags(true, are_all_data_elements_bitwise_identical());
+    }
+    return m_all_elements_bitwise_identical;
+}
+
+void Constant::alloc_buffer_on_visit_attributes(bool val) {
+    m_alloc_buffer_on_visit_attributes = val;
 }
 
 bool Constant::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
@@ -429,9 +499,318 @@ bool Constant::evaluate_upper(TensorVector& outputs) const {
     return evaluate(outputs, {});
 }
 
-uint8_t Constant::quantize_nf4(float x) {
-    return ConvertNF4::quantize(x);
+bool Constant::constant_fold(OutputVector&, const OutputVector&) {
+    return false;
 }
+
+template <>
+Constant::LPBuffer<element::u1>::LPBuffer(void* ptr)
+    : iter{std::make_shared<lp_iter>(reinterpret_cast<ov::fundamental_type_for<element::u1>*>(ptr))} {}
+
+template <>
+Constant::LPBuffer<element::u4>::LPBuffer(void* ptr)
+    : iter{std::make_shared<lp_iter>(reinterpret_cast<ov::fundamental_type_for<element::u4>*>(ptr))} {}
+
+template <>
+Constant::LPBuffer<element::i4>::LPBuffer(void* ptr)
+    : iter{std::make_shared<lp_iter>(reinterpret_cast<ov::fundamental_type_for<element::i4>*>(ptr))} {}
+
+template <>
+Constant::LPBuffer<element::nf4>::LPBuffer(void* ptr)
+    : iter{std::make_shared<lp_iter>(reinterpret_cast<ov::fundamental_type_for<element::nf4>*>(ptr))} {}
+
+template <>
+void Constant::LPBuffer<element::u1>::write(const float value) {
+    iter->operator*() = convert_if_in_element_range<element::u1>(value);
+}
+
+template <>
+void Constant::LPBuffer<element::u4>::write(const float value) {
+    iter->operator*() = convert_if_in_element_range<element::u4>(value);
+}
+
+template <>
+void Constant::LPBuffer<element::i4>::write(const float value) {
+    iter->operator*() = convert_if_in_element_range<element::i4>(value);
+}
+
+template <>
+void Constant::LPBuffer<element::nf4>::write(const float value) {
+    iter->operator*() = convert_if_in_element_range<element::nf4>(value);
+}
+
+template <>
+ov::fundamental_type_for<element::u1> Constant::LPBuffer<element::u1>::read() const {
+    return iter->operator*();
+}
+
+template <>
+ov::fundamental_type_for<element::u4> Constant::LPBuffer<element::u4>::read() const {
+    return iter->operator*();
+}
+
+template <>
+ov::fundamental_type_for<element::i4> Constant::LPBuffer<element::i4>::read() const {
+    return iter->operator*();
+}
+
+template <>
+ov::fundamental_type_for<element::nf4> Constant::LPBuffer<element::nf4>::read() const {
+    return iter->operator*();
+}
+
+template <>
+Constant::LPBuffer<element::u1>& Constant::LPBuffer<element::u1>::operator++() {
+    iter->operator++();
+    return *this;
+}
+
+template <>
+Constant::LPBuffer<element::u4>& Constant::LPBuffer<element::u4>::operator++() {
+    iter->operator++();
+    return *this;
+}
+
+template <>
+Constant::LPBuffer<element::i4>& Constant::LPBuffer<element::i4>::operator++() {
+    iter->operator++();
+    return *this;
+}
+
+template <>
+Constant::LPBuffer<element::nf4>& Constant::LPBuffer<element::nf4>::operator++() {
+    iter->operator++();
+    return *this;
+}
+
+#define CONSTANT_FILL_DATA(ET, SRC_TYPE)                                      \
+    template <>                                                               \
+    void Constant::fill_lp_data<element::Type_t::ET>(const SRC_TYPE& value) { \
+        ov::op::fill_buffer<element::ET>(get_data_ptr_nc(), m_shape, value);  \
+    }
+
+CONSTANT_FILL_DATA(u1, bool)
+CONSTANT_FILL_DATA(u1, char)
+CONSTANT_FILL_DATA(u1, signed char)
+CONSTANT_FILL_DATA(u1, unsigned char)
+CONSTANT_FILL_DATA(u1, short)
+CONSTANT_FILL_DATA(u1, unsigned short)
+CONSTANT_FILL_DATA(u1, int)
+CONSTANT_FILL_DATA(u1, unsigned int)
+CONSTANT_FILL_DATA(u1, long)
+CONSTANT_FILL_DATA(u1, unsigned long)
+CONSTANT_FILL_DATA(u1, long long)
+CONSTANT_FILL_DATA(u1, unsigned long long)
+CONSTANT_FILL_DATA(u1, float8_e4m3)
+CONSTANT_FILL_DATA(u1, float8_e5m2)
+CONSTANT_FILL_DATA(u1, float16)
+CONSTANT_FILL_DATA(u1, bfloat16)
+CONSTANT_FILL_DATA(u1, float)
+CONSTANT_FILL_DATA(u1, double)
+
+CONSTANT_FILL_DATA(u4, bool)
+CONSTANT_FILL_DATA(u4, char)
+CONSTANT_FILL_DATA(u4, signed char)
+CONSTANT_FILL_DATA(u4, unsigned char)
+CONSTANT_FILL_DATA(u4, short)
+CONSTANT_FILL_DATA(u4, unsigned short)
+CONSTANT_FILL_DATA(u4, int)
+CONSTANT_FILL_DATA(u4, unsigned int)
+CONSTANT_FILL_DATA(u4, long)
+CONSTANT_FILL_DATA(u4, unsigned long)
+CONSTANT_FILL_DATA(u4, long long)
+CONSTANT_FILL_DATA(u4, unsigned long long)
+CONSTANT_FILL_DATA(u4, float8_e4m3)
+CONSTANT_FILL_DATA(u4, float8_e5m2)
+CONSTANT_FILL_DATA(u4, float16)
+CONSTANT_FILL_DATA(u4, bfloat16)
+CONSTANT_FILL_DATA(u4, float)
+CONSTANT_FILL_DATA(u4, double)
+
+CONSTANT_FILL_DATA(i4, bool)
+CONSTANT_FILL_DATA(i4, char)
+CONSTANT_FILL_DATA(i4, signed char)
+CONSTANT_FILL_DATA(i4, unsigned char)
+CONSTANT_FILL_DATA(i4, short)
+CONSTANT_FILL_DATA(i4, unsigned short)
+CONSTANT_FILL_DATA(i4, int)
+CONSTANT_FILL_DATA(i4, unsigned int)
+CONSTANT_FILL_DATA(i4, long)
+CONSTANT_FILL_DATA(i4, unsigned long)
+CONSTANT_FILL_DATA(i4, long long)
+CONSTANT_FILL_DATA(i4, unsigned long long)
+CONSTANT_FILL_DATA(i4, float8_e4m3)
+CONSTANT_FILL_DATA(i4, float8_e5m2)
+CONSTANT_FILL_DATA(i4, float16)
+CONSTANT_FILL_DATA(i4, bfloat16)
+CONSTANT_FILL_DATA(i4, float)
+CONSTANT_FILL_DATA(i4, double)
+
+CONSTANT_FILL_DATA(nf4, bool)
+CONSTANT_FILL_DATA(nf4, char)
+CONSTANT_FILL_DATA(nf4, signed char)
+CONSTANT_FILL_DATA(nf4, unsigned char)
+CONSTANT_FILL_DATA(nf4, short)
+CONSTANT_FILL_DATA(nf4, unsigned short)
+CONSTANT_FILL_DATA(nf4, int)
+CONSTANT_FILL_DATA(nf4, unsigned int)
+CONSTANT_FILL_DATA(nf4, long)
+CONSTANT_FILL_DATA(nf4, unsigned long)
+CONSTANT_FILL_DATA(nf4, long long)
+CONSTANT_FILL_DATA(nf4, unsigned long long)
+CONSTANT_FILL_DATA(nf4, float8_e4m3)
+CONSTANT_FILL_DATA(nf4, float8_e5m2)
+CONSTANT_FILL_DATA(nf4, float16)
+CONSTANT_FILL_DATA(nf4, bfloat16)
+CONSTANT_FILL_DATA(nf4, float)
+CONSTANT_FILL_DATA(nf4, double)
+
+#undef CONSTANT_FILL_DATA
+
+#define CONSTANT_CAST_VECTOR(ET, DST_TYPE)                                                              \
+    template <>                                                                                         \
+    void Constant::cast_lp_vector<element::Type_t::ET, DST_TYPE>(std::vector<DST_TYPE> & output_vector, \
+                                                                 size_t num_elements) const {           \
+        ov::op::cast_buffer<element::ET>(get_data_ptr(), num_elements, output_vector);                  \
+    }
+
+CONSTANT_CAST_VECTOR(u1, bool)
+CONSTANT_CAST_VECTOR(u1, char)
+CONSTANT_CAST_VECTOR(u1, signed char)
+CONSTANT_CAST_VECTOR(u1, unsigned char)
+CONSTANT_CAST_VECTOR(u1, short)
+CONSTANT_CAST_VECTOR(u1, unsigned short)
+CONSTANT_CAST_VECTOR(u1, int)
+CONSTANT_CAST_VECTOR(u1, unsigned int)
+CONSTANT_CAST_VECTOR(u1, long)
+CONSTANT_CAST_VECTOR(u1, unsigned long)
+CONSTANT_CAST_VECTOR(u1, long long)
+CONSTANT_CAST_VECTOR(u1, unsigned long long)
+CONSTANT_CAST_VECTOR(u1, float16)
+CONSTANT_CAST_VECTOR(u1, bfloat16)
+CONSTANT_CAST_VECTOR(u1, float)
+CONSTANT_CAST_VECTOR(u1, double)
+
+CONSTANT_CAST_VECTOR(u4, bool)
+CONSTANT_CAST_VECTOR(u4, char)
+CONSTANT_CAST_VECTOR(u4, signed char)
+CONSTANT_CAST_VECTOR(u4, unsigned char)
+CONSTANT_CAST_VECTOR(u4, short)
+CONSTANT_CAST_VECTOR(u4, unsigned short)
+CONSTANT_CAST_VECTOR(u4, int)
+CONSTANT_CAST_VECTOR(u4, unsigned int)
+CONSTANT_CAST_VECTOR(u4, long)
+CONSTANT_CAST_VECTOR(u4, unsigned long)
+CONSTANT_CAST_VECTOR(u4, long long)
+CONSTANT_CAST_VECTOR(u4, unsigned long long)
+CONSTANT_CAST_VECTOR(u4, float16)
+CONSTANT_CAST_VECTOR(u4, bfloat16)
+CONSTANT_CAST_VECTOR(u4, float)
+CONSTANT_CAST_VECTOR(u4, double)
+
+CONSTANT_CAST_VECTOR(i4, bool)
+CONSTANT_CAST_VECTOR(i4, char)
+CONSTANT_CAST_VECTOR(i4, signed char)
+CONSTANT_CAST_VECTOR(i4, unsigned char)
+CONSTANT_CAST_VECTOR(i4, short)
+CONSTANT_CAST_VECTOR(i4, unsigned short)
+CONSTANT_CAST_VECTOR(i4, int)
+CONSTANT_CAST_VECTOR(i4, unsigned int)
+CONSTANT_CAST_VECTOR(i4, long)
+CONSTANT_CAST_VECTOR(i4, unsigned long)
+CONSTANT_CAST_VECTOR(i4, long long)
+CONSTANT_CAST_VECTOR(i4, unsigned long long)
+CONSTANT_CAST_VECTOR(i4, float16)
+CONSTANT_CAST_VECTOR(i4, bfloat16)
+CONSTANT_CAST_VECTOR(i4, float)
+CONSTANT_CAST_VECTOR(i4, double)
+
+#undef CONSTANT_CAST_VECTOR
+
+#define CONSTANT_WRITE_BUFFER(ET, SRC_TYPE)                                                    \
+    template <>                                                                                \
+    void Constant::write_lp_buffer<element::Type_t::ET>(const std::vector<SRC_TYPE>& source) { \
+        ov::op::write_buffer<element::ET>(source, get_data_ptr_nc());                          \
+    }
+
+CONSTANT_WRITE_BUFFER(u1, bool)
+CONSTANT_WRITE_BUFFER(u1, char)
+CONSTANT_WRITE_BUFFER(u1, signed char)
+CONSTANT_WRITE_BUFFER(u1, unsigned char)
+CONSTANT_WRITE_BUFFER(u1, short)
+CONSTANT_WRITE_BUFFER(u1, unsigned short)
+CONSTANT_WRITE_BUFFER(u1, int)
+CONSTANT_WRITE_BUFFER(u1, unsigned int)
+CONSTANT_WRITE_BUFFER(u1, long)
+CONSTANT_WRITE_BUFFER(u1, unsigned long)
+CONSTANT_WRITE_BUFFER(u1, long long)
+CONSTANT_WRITE_BUFFER(u1, unsigned long long)
+CONSTANT_WRITE_BUFFER(u1, float8_e4m3)
+CONSTANT_WRITE_BUFFER(u1, float8_e5m2)
+CONSTANT_WRITE_BUFFER(u1, float16)
+CONSTANT_WRITE_BUFFER(u1, bfloat16)
+CONSTANT_WRITE_BUFFER(u1, float)
+CONSTANT_WRITE_BUFFER(u1, double)
+
+CONSTANT_WRITE_BUFFER(u4, bool)
+CONSTANT_WRITE_BUFFER(u4, char)
+CONSTANT_WRITE_BUFFER(u4, signed char)
+CONSTANT_WRITE_BUFFER(u4, unsigned char)
+CONSTANT_WRITE_BUFFER(u4, short)
+CONSTANT_WRITE_BUFFER(u4, unsigned short)
+CONSTANT_WRITE_BUFFER(u4, int)
+CONSTANT_WRITE_BUFFER(u4, unsigned int)
+CONSTANT_WRITE_BUFFER(u4, long)
+CONSTANT_WRITE_BUFFER(u4, unsigned long)
+CONSTANT_WRITE_BUFFER(u4, long long)
+CONSTANT_WRITE_BUFFER(u4, unsigned long long)
+CONSTANT_WRITE_BUFFER(u4, float8_e4m3)
+CONSTANT_WRITE_BUFFER(u4, float8_e5m2)
+CONSTANT_WRITE_BUFFER(u4, float16)
+CONSTANT_WRITE_BUFFER(u4, bfloat16)
+CONSTANT_WRITE_BUFFER(u4, float)
+CONSTANT_WRITE_BUFFER(u4, double)
+
+CONSTANT_WRITE_BUFFER(i4, bool)
+CONSTANT_WRITE_BUFFER(i4, char)
+CONSTANT_WRITE_BUFFER(i4, signed char)
+CONSTANT_WRITE_BUFFER(i4, unsigned char)
+CONSTANT_WRITE_BUFFER(i4, short)
+CONSTANT_WRITE_BUFFER(i4, unsigned short)
+CONSTANT_WRITE_BUFFER(i4, int)
+CONSTANT_WRITE_BUFFER(i4, unsigned int)
+CONSTANT_WRITE_BUFFER(i4, long)
+CONSTANT_WRITE_BUFFER(i4, unsigned long)
+CONSTANT_WRITE_BUFFER(i4, long long)
+CONSTANT_WRITE_BUFFER(i4, unsigned long long)
+CONSTANT_WRITE_BUFFER(i4, float8_e4m3)
+CONSTANT_WRITE_BUFFER(i4, float8_e5m2)
+CONSTANT_WRITE_BUFFER(i4, float16)
+CONSTANT_WRITE_BUFFER(i4, bfloat16)
+CONSTANT_WRITE_BUFFER(i4, float)
+CONSTANT_WRITE_BUFFER(i4, double)
+
+CONSTANT_WRITE_BUFFER(nf4, bool)
+CONSTANT_WRITE_BUFFER(nf4, char)
+CONSTANT_WRITE_BUFFER(nf4, signed char)
+CONSTANT_WRITE_BUFFER(nf4, unsigned char)
+CONSTANT_WRITE_BUFFER(nf4, short)
+CONSTANT_WRITE_BUFFER(nf4, unsigned short)
+CONSTANT_WRITE_BUFFER(nf4, int)
+CONSTANT_WRITE_BUFFER(nf4, unsigned int)
+CONSTANT_WRITE_BUFFER(nf4, long)
+CONSTANT_WRITE_BUFFER(nf4, unsigned long)
+CONSTANT_WRITE_BUFFER(nf4, long long)
+CONSTANT_WRITE_BUFFER(nf4, unsigned long long)
+CONSTANT_WRITE_BUFFER(nf4, float8_e4m3)
+CONSTANT_WRITE_BUFFER(nf4, float8_e5m2)
+CONSTANT_WRITE_BUFFER(nf4, float16)
+CONSTANT_WRITE_BUFFER(nf4, bfloat16)
+CONSTANT_WRITE_BUFFER(nf4, float)
+CONSTANT_WRITE_BUFFER(nf4, double)
+
+#undef CONSTANT_WRITE_BUFFER
+
 }  // namespace v0
 }  // namespace op
 }  // namespace ov
