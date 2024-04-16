@@ -350,17 +350,6 @@ KernelsData GemmKernelTiledOpt::GetKernelsData(const Params& params) const {
     KernelData k_data = KernelData::Default<gemm_params>(params, num_kernels);
     GetUpdateDispatchDataFunc(k_data);
     auto cldnn_jit = GetJitConstants(prim_params);
-    if (params.is_shape_agnostic) {
-        for (auto& jit_def : cldnn_jit.GetDefinitions()) {
-            if (jit_def.first.compare("TILE_K_NOT_DIVISIBLE") == 0) {
-                auto prim_params = std::dynamic_pointer_cast<kernel_selector::gemm_params>(k_data.params);
-                prim_params->not_divisible_k = jit_def.second;
-            } else if (jit_def.first.compare("TILE_N_NOT_DIVISIBLE") == 0) {
-                auto prim_params = std::dynamic_pointer_cast<kernel_selector::gemm_params>(k_data.params);
-                prim_params->not_divisible_n = jit_def.second;
-            }
-        }
-    }
     for (size_t i = 0; i < num_kernels; i++) {
         if (params.is_shape_agnostic) {
             cldnn_jit.RemoveConstant("TILE_K_NOT_DIVISIBLE");
@@ -445,5 +434,65 @@ bool GemmKernelTiledOpt::Validate(const Params& params) const {
             return false;
 
     return true;
+}
+
+void GemmKernelTiledOpt::GetUpdateDispatchDataFunc(KernelData& kd) const {
+    if (kd.kernels.size() == 1) {
+        Parent::GetUpdateDispatchDataFunc(kd);
+    } else {
+        kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+            const auto& prim_params = static_cast<const gemm_params&>(params);
+
+            auto getTensorValue = [](const DataTensor& t, const int64_t dim_idx) -> size_t {
+                switch (dim_idx) {
+                    case 1:
+                        return t.Feature().v;
+                    case 2:
+                        return t.U().v;
+                    case 3:
+                        return t.V().v;
+                    case 4:
+                        return t.W().v;
+                    case 5:
+                        return t.Z().v;
+                    case 6:
+                        return t.Y().v;
+                    case 7:
+                        return t.X().v;
+                    default:
+                        return t.Batch().v;
+                }
+            };
+
+            GemmTuningData tuning_data = SetTuningParams(prim_params);
+            auto input0_dims = ConvTo8dims(prim_params.input0_order);
+            auto input1_dims = ConvTo8dims(prim_params.input1_order);
+            auto k_size = getTensorValue(prim_params.inputs[0], input0_dims[7]);
+            auto n_size = getTensorValue(prim_params.inputs[1], input1_dims[7]);
+            bool not_divisible_k = ((k_size % tuning_data.tile_k_size) != 0);
+            bool not_divisible_n = ((n_size % tuning_data.tile_n_size) != 0);
+            size_t execute_kernel_idx = 0;
+            if (not_divisible_k == false && not_divisible_n == false) {
+                execute_kernel_idx = 0;
+            } else if (not_divisible_k == false && not_divisible_n == true) {
+                execute_kernel_idx = 1;
+            } else if (not_divisible_k == true && not_divisible_n == false) {
+                execute_kernel_idx = 2;
+            } else if (not_divisible_k == true && not_divisible_n == true) {
+                execute_kernel_idx = 3;
+            }
+
+            auto dispatchData = SetDefault(prim_params);
+            for (size_t i = 0; i < kd.kernels.size(); i++) {
+                kd.kernels[i].params.workGroups.global = dispatchData.gws;
+                kd.kernels[i].params.workGroups.local = dispatchData.lws;
+                if (execute_kernel_idx == i) {
+                    kd.kernels[i].skip_execution = KernelData::SkipKernelExecution(prim_params);
+                } else {
+                    kd.kernels[i].skip_execution = true;
+                }
+            }
+        };
+    }
 }
 }  // namespace kernel_selector

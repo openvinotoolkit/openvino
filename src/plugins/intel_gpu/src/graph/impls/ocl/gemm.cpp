@@ -40,17 +40,6 @@ struct gemm_impl : multi_stage_primitive<gemm> {
         this->can_reuse_memory = true;
     }
 
-    void save(BinaryOutputBuffer& ob) const override {
-        parent::save(ob);
-        if (is_dynamic()) {
-            for (auto& kd : _kernels_data) {
-                auto prim_params = std::dynamic_pointer_cast<kernel_selector::gemm_params>(kd.params);
-                ob << prim_params->not_divisible_k;
-                ob << prim_params->not_divisible_n;
-            }
-        }
-    }
-
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
         if (is_dynamic()) {
@@ -60,12 +49,6 @@ struct gemm_impl : multi_stage_primitive<gemm> {
             if (_kernels_data.size() == 2) {
                 auto bt_kernel_impl = kernel_selector.GetImplementation(_kernels_data[indirect_gemm].kernelName);
                 bt_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[indirect_gemm]);
-            }
-            for (auto& kd : _kernels_data) {
-                auto prim_params = std::make_shared<kernel_selector::gemm_params>();
-                ib >> prim_params->not_divisible_k;
-                ib >> prim_params->not_divisible_n;
-                kd.params = std::move(prim_params);
             }
         }
     }
@@ -113,28 +96,9 @@ protected:
         for (size_t s = 0; s < stage; s++) {
             kernel_offset += _kernels_data[s].kernels.size();
         }
-        size_t kd_idx = 0;
-        if (is_dynamic()) {
-            bool not_divisible_k = true;
-            bool not_divisible_n = true;
-            auto prim_params = std::dynamic_pointer_cast<kernel_selector::gemm_params>(_kernels_data[stage].params);
-            auto _shape_info_memory = instance.shape_info_memory_ptr();
-            mem_lock<int32_t> lock(_shape_info_memory, stream);
-            auto shape_info_ptr = lock.data();
-            not_divisible_k = evaluateJIT(prim_params->not_divisible_k, shape_info_ptr);
-            not_divisible_n = evaluateJIT(prim_params->not_divisible_n, shape_info_ptr);
-            if (not_divisible_k == false && not_divisible_n == false) {
-                kd_idx = 0;
-            } else if (not_divisible_k == false && not_divisible_n == true) {
-                kd_idx = 1;
-            } else if (not_divisible_k == true && not_divisible_n == false) {
-                kd_idx = 2;
-            } else if (not_divisible_k == true && not_divisible_n == true) {
-                kd_idx = 3;
-            }
-        }
-
-        if (_kernels_data[stage].kernels[kd_idx].skip_execution == false) {
+        for (size_t kd_idx = 0; kd_idx < _kernels_data[stage].kernels.size(); ++kd_idx) {
+            if (_kernels_data[stage].kernels[kd_idx].skip_execution)
+                continue;
             size_t idx_final = kernel_offset + kd_idx;
             // If any user of the prim's users is CPU implementation or network's output, set prim as a output event (event won't be nullptr)
             bool needs_completion_event = instance.needs_completion_event();
