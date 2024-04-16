@@ -25,7 +25,7 @@ class TestTranspose(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_transpose_basic(self, params, ie_device, precision, ir_version, temp_dir,
                              use_legacy_frontend):
@@ -69,7 +69,7 @@ class TestComplexTranspose(CommonTFLayerTest):
         dict(input_shape=[2, 1, 3, 4], perm_value=[2, 0, 1, 3]),
     ]
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_complex_transpose(self, params, ie_device, precision, ir_version, temp_dir,
                                use_legacy_frontend):

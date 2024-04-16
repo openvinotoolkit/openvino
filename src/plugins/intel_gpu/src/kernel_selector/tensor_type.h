@@ -462,6 +462,10 @@ public:
         return std::any_of(dims.begin(), dims.end(), [](const Dim& d) { return d.is_dynamic; });
     }
 
+    bool has_dynamic_pad() const {
+        return std::any_of(dims.begin(), dims.end(), [](const Dim& d) { return d.pad.is_dynamic; });
+    }
+
     virtual ~TensorBase() = default;
 };
 
@@ -471,8 +475,8 @@ public:
 template <typename DType, typename Layout>
 struct TensorBaseT : public TensorBase {
 protected:
-    DType dtype;
-    Layout layout;
+    DType dtype = DType();
+    Layout layout = Layout();
 
     template <typename ArrayT, typename ChannelName>
     static inline int ChannelIndex(const ArrayT& channelArr, Layout l, ChannelName channelName) {

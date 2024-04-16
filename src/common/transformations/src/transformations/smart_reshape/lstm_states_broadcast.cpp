@@ -7,7 +7,7 @@
 #include <memory>
 
 #include "itt.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/dimension.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -42,9 +42,8 @@ shared_ptr<ov::Node> deduce_outer_source_of_batch_for_inner_lstm_cell(
     const auto& body = ti->get_body();  // body is not nullptr -- we checked earlier
 
     map<ov::op::v0::Parameter*, ov::PartialShape> original_shapes;
-    ov::label_t label = 1;
 
-    // mark all input dimensions with labels and making them dynamic, keeping original shapes
+    // mark all input dimensions with symbols and making them dynamic, keeping original shapes
     for (auto& parameter : body->get_parameters()) {
         auto pshape = parameter->get_partial_shape();
         original_shapes[parameter.get()] = pshape;
@@ -52,34 +51,34 @@ shared_ptr<ov::Node> deduce_outer_source_of_batch_for_inner_lstm_cell(
             continue;
         for (ov::Dimension& n : pshape) {
             n = ov::Dimension::dynamic();
-            ov::DimensionTracker::set_label(n, label++);
+            n.set_symbol(std::make_shared<ov::Symbol>());
         }
         parameter->set_partial_shape(pshape);
     }
 
-    // propagate labels through TI body
+    // propagate symbols through TI body
     body->validate_nodes_and_infer_types();
-    // if lstm first input has undefined rank or if tracked label is zero -- we failed to track batch dimension
+    // if lstm first input has undefined rank or if tracked symbol is zero -- we failed to track batch dimension
     // returning body to initial state
     if (lstm_cell->get_input_partial_shape(0).rank().is_dynamic() ||
-        ov::DimensionTracker::get_label(lstm_cell->get_input_partial_shape(0)[0]) == 0) {
+        !lstm_cell->get_input_partial_shape(0)[0].has_symbol()) {
         for (auto& item : original_shapes)
             item.first->set_partial_shape(item.second);
         body->validate_nodes_and_infer_types();
         return nullptr;
     }
 
-    // batch label was tracked -- finding parameter that delivered it
+    // batch symbol was tracked -- finding parameter that delivered it
     shared_ptr<ov::op::v0::Parameter> batch_delivering_parameter;
     size_t index_of_batch_dim = 0;
 
-    ov::label_t batch_label = ov::DimensionTracker::get_label(lstm_cell->get_input_partial_shape(0)[0]);
+    auto batch_symbol = lstm_cell->get_input_partial_shape(0)[0].get_symbol();
     for (auto& parameter : body->get_parameters()) {
         auto pshape = parameter->get_partial_shape();
         if (pshape.rank().is_dynamic())
             continue;
         for (size_t i = 0; i < pshape.size(); ++i) {
-            if (ov::DimensionTracker::get_label(pshape[i]) == batch_label) {
+            if (pshape[i].get_symbol() == batch_symbol) {
                 batch_delivering_parameter = parameter;
                 index_of_batch_dim = i;
                 break;

@@ -115,6 +115,9 @@ void QuantizedMatMulMultiplyFusion::SetUp() {
     } else {
         ASSERT_TRUE(functions_equal);
     }
+    if (precision == element::f32) {
+        abs_threshold = 4e-7;
+    }
 }
 
 void QuantizedMatMulMultiplyFusion::TearDown() {

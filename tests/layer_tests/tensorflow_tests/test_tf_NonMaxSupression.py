@@ -83,7 +83,7 @@ class TestNonMaxSuppression(CommonTFLayerTest):
     @pytest.mark.parametrize("test_params", test_params)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122716')
     def test_NonMaxSuppression(self, test_params, ie_device, precision, ir_version, temp_dir,
@@ -96,7 +96,7 @@ class TestNonMaxSuppression(CommonTFLayerTest):
     @pytest.mark.parametrize("test_params", test_params)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     def test_NonMaxSuppressionWithScores(self, test_params, ie_device, precision, ir_version, temp_dir,
                                         use_legacy_frontend):
         if ie_device == 'GPU':

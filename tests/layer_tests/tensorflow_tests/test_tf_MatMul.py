@@ -56,7 +56,7 @@ class TestMatMul(CommonTFLayerTest):
                                          'BatchMatMulV3',
                                          'MatMul',
                                          ])
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_matmul_op_precommit(self, params, ie_device, precision, ir_version, temp_dir, op_type,
                                  use_legacy_frontend):

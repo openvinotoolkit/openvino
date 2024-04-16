@@ -42,11 +42,11 @@ TEST_P(ConvertPromoteTypesTest, suite) {
     auto& params = this->GetParam();
     auto in0_shape = params.in0_shape;
     if (!in0_shape.is_dynamic()) {
-        set_shape_labels(in0_shape, 10);
+        set_shape_symbols(in0_shape);
     }
     auto in1_shape = params.in1_shape;
     if (!in1_shape.is_dynamic()) {
-        set_shape_labels(in1_shape, 100);
+        set_shape_symbols(in1_shape);
     }
 
     auto in0 = std::make_shared<ov::op::v0::Parameter>(params.in0_type, in0_shape);
@@ -56,8 +56,8 @@ TEST_P(ConvertPromoteTypesTest, suite) {
     ASSERT_EQ(c->get_output_element_type(0), params.expected_type);
     ASSERT_EQ(c->get_output_partial_shape(0), (in0_shape));
     ASSERT_EQ(c->get_output_partial_shape(1), (in1_shape));
-    ASSERT_EQ(get_shape_labels(c->get_output_partial_shape(0)), get_shape_labels(in0_shape));
-    ASSERT_EQ(get_shape_labels(c->get_output_partial_shape(1)), get_shape_labels(in1_shape));
+    ASSERT_EQ(get_shape_symbols(c->get_output_partial_shape(0)), get_shape_symbols(in0_shape));
+    ASSERT_EQ(get_shape_symbols(c->get_output_partial_shape(1)), get_shape_symbols(in1_shape));
 }
 
 INSTANTIATE_TEST_SUITE_P(type_prop,

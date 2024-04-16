@@ -9,7 +9,7 @@ import numpy as np
 
 from tests.utils.helpers import generate_add_compiled_model, generate_relu_compiled_model
 
-from openvino import Core, Model, Type, Shape, Tensor
+from openvino import Core, Model, Type, Shape, Tensor, PartialShape
 import openvino.runtime.opset13 as ops
 from openvino.runtime.utils.data_helpers import _data_dispatch
 
@@ -49,6 +49,22 @@ def test_scalars_dispatcher_old(device, data_type, input_shape, is_shared):
     assert result.get_shape() == Shape([])
     assert result.get_element_type() == Type(np.float32)
     assert result.data == expected.data
+
+
+def test_scalars_dispacher_dynamic_input(device):
+
+    input_shape = PartialShape([-1])
+    data_type = np.float32
+    test_data = np.array(-1.0, dtype=np.float32)
+    compiled_model = generate_relu_compiled_model(device, input_shape, data_type)
+    assert compiled_model.input(0).partial_shape.is_dynamic
+
+    infer_request = compiled_model.create_infer_request()
+    # the first infer request creates input with Shape([0])
+    assert infer_request.input_tensors[0].get_shape() == Shape([0])
+
+    result = _data_dispatch(infer_request, test_data, is_shared=True)
+    assert result.get_shape() == Shape([1])
 
 
 @pytest.mark.parametrize(("input_data", "input_dtype"), [

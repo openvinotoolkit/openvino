@@ -18,16 +18,22 @@ bool JitEltwiseExecutor::isSupported(
     const float beta,
     const float gamma) {
     const auto is_supported = one_of(algorithm,
+                                     Algorithm::EltwiseAbs,
                                      Algorithm::EltwiseAdd,
                                      Algorithm::EltwiseClamp,
                                      Algorithm::EltwiseDivide,
+                                     Algorithm::EltwiseEqual,
+                                     Algorithm::EltwiseExp,
                                      Algorithm::EltwiseMultiply,
                                      Algorithm::EltwiseMulAdd,
                                      Algorithm::EltwisePowerStatic,
                                      Algorithm::EltwisePrelu,
                                      Algorithm::EltwiseRelu,
                                      Algorithm::EltwiseSelect,
-                                     Algorithm::EltwiseSubtract);
+                                     Algorithm::EltwiseSigmoid,
+                                     Algorithm::EltwiseSubtract,
+                                     Algorithm::EltwiseSwish,
+                                     Algorithm::EltwiseTanh);
     if (!is_supported) {
         return false;
     }

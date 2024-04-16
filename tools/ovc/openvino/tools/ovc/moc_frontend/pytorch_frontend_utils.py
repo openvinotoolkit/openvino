@@ -8,24 +8,25 @@ import numpy as np
 # pylint: disable=no-name-in-module,import-error
 from openvino.runtime import Tensor, PartialShape
 from openvino.tools.ovc.error import Error
-from openvino.frontend.pytorch.module_extension import ModuleExtension
 
-
-def extract_module_extensions(args):
-    extensions = args.get('extension', [])
-    if not isinstance(extensions, (list, tuple)):
-        extensions = [extensions]
-    return {extension.module: extension for extension in extensions if isinstance(extension, ModuleExtension)}
 
 
 def get_pytorch_decoder(model, example_inputs, args):
     try:
         from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
         from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+        from openvino.frontend.pytorch.module_extension import ModuleExtension
         import torch
     except Exception as e:
         log.error("PyTorch frontend loading failed")
         raise e
+    
+    def extract_module_extensions(args):
+        extensions = args.get('extension', []) or []
+        if not isinstance(extensions, (list, tuple)):
+            extensions = [extensions]
+        return {extension.module: extension for extension in extensions if isinstance(extension, ModuleExtension)}
+
     if 'nncf' in sys.modules:
         is_good_version = True
         try:
@@ -43,7 +44,11 @@ def get_pytorch_decoder(model, example_inputs, args):
     inputs = prepare_torch_inputs(example_inputs)
     if not isinstance(model, (TorchScriptPythonDecoder, TorchFXPythonDecoder)):
         if hasattr(torch, "export") and isinstance(model, (torch.export.ExportedProgram)):
-            raise RuntimeError("Models received from torch.export are not yet supported by convert_model.")
+            from packaging import version
+            if version.parse(torch.__version__) >= version.parse("2.2"):
+                model = model.run_decompositions()
+            gm = model.module()
+            decoder = TorchFXPythonDecoder(gm)
         else:
             decoder = TorchScriptPythonDecoder(
                 model,

@@ -140,6 +140,9 @@ ov::Tensor get_request_tensor(ov::InferRequest& infer_request, const size_t idx)
 /** @brief Creates ov::tensor from TensorWrap Object */
 ov::Tensor cast_to_tensor(const Napi::Value& value);
 
+/** @brief Creates ov::tensor from Napi::CallbackInfo value at specified index. */
+ov::Tensor cast_to_tensor(const Napi::CallbackInfo& info, int index);
+
 /** @brief Creates ov::tensor from TypedArray using given shape and element type*/
 ov::Tensor cast_to_tensor(const Napi::TypedArray& data, const ov::Shape& shape, const ov::element::Type_t& type);
 
@@ -166,3 +169,9 @@ ov::Tensor value_to_tensor(const Napi::Value& value, ov::InferRequest& infer_req
 napi_types napiType(const Napi::Value& val);
 
 bool acceptableType(const Napi::Value& val, const std::vector<napi_types>& acceptable);
+
+Napi::Value any_to_js(const Napi::CallbackInfo& info, ov::Any value);
+
+ov::Any js_to_any(const Napi::CallbackInfo& info, Napi::Value value);
+
+bool is_napi_value_int(const Napi::CallbackInfo& info, Napi::Value& num);

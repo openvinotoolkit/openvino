@@ -57,6 +57,7 @@ class ReferencePriorBoxClusteredLayerTest : public testing::TestWithParam<PriorB
                                             public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params);
         inputData = {};

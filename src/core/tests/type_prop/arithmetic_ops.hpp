@@ -6,8 +6,9 @@
 
 #include <vector>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/symbol.hpp"
 #include "openvino/op/util/attr_types.hpp"
 
 using namespace ov;
@@ -250,11 +251,23 @@ TYPED_TEST_P(ArithmeticOperator, incompatible_element_types) {
     ASSERT_THROW(const auto unused = std::make_shared<TypeParam>(A, B), ov::NodeValidationFailure);
 }
 
-TYPED_TEST_P(ArithmeticOperator, incompatible_boolean_type) {
-    auto A = std::make_shared<ov::op::v0::Parameter>(element::boolean, Shape{2, 2, 3, 3});
-    auto B = std::make_shared<ov::op::v0::Parameter>(element::boolean, Shape{2, 2, 3, 3});
+TYPED_TEST_P(ArithmeticOperator, unsupported_element_type) {
+    {
+        auto A = std::make_shared<ov::op::v0::Parameter>(element::boolean, Shape{2, 2, 3, 3});
+        auto B = std::make_shared<ov::op::v0::Parameter>(element::boolean, Shape{2, 2, 3, 3});
 
-    ASSERT_THROW(const auto unused = std::make_shared<TypeParam>(A, B), ov::NodeValidationFailure);
+        OV_EXPECT_THROW(std::ignore = std::make_shared<TypeParam>(A, B),
+                        NodeValidationFailure,
+                        HasSubstr("This operation does not support inputs with element type: boolean"));
+    }
+    {
+        auto A = std::make_shared<ov::op::v0::Parameter>(element::string, Shape{2});
+        auto B = std::make_shared<ov::op::v0::Parameter>(element::string, Shape{2});
+
+        OV_EXPECT_THROW(std::ignore = std::make_shared<TypeParam>(A, B),
+                        NodeValidationFailure,
+                        HasSubstr("This operation does not support inputs with element type: string"));
+    }
 }
 
 TYPED_TEST_P(ArithmeticOperator, shape_inference_1D_x_1D_incompatible) {
@@ -501,15 +514,18 @@ TYPED_TEST_P(ArithmeticOperator, dynamic_shape_intervals_broadcast_pdpd) {
     }
 }
 
-TYPED_TEST_P(ArithmeticOperator, labels_a_dynamic_mixed_dims_broadcast_numpy) {
-    // All dimensions of A have labels, B without labels
+TYPED_TEST_P(ArithmeticOperator, symbols_a_dynamic_mixed_dims_broadcast_numpy) {
+    // All dimensions of A have symbols, B without symbols
     ov::PartialShape pshape_A{ov::Dimension(-1), ov::Dimension(3), ov::Dimension(1), ov::Dimension(2, 128)};
     ov::PartialShape pshape_B{ov::Dimension(-1), ov::Dimension(3), ov::Dimension(2, 224), ov::Dimension(1)};
 
     ov::PartialShape expected_shape = {-1, 3, ov::Dimension(2, 224), ov::Dimension(2, 128)};
 
-    set_shape_labels(pshape_A, {10, 11, 12, 13});
-    set_shape_labels(expected_shape, {10, 11, 0, 13});
+    auto A = std::make_shared<ov::Symbol>(), B = std::make_shared<ov::Symbol>(), C = std::make_shared<ov::Symbol>(),
+         D = std::make_shared<ov::Symbol>();
+
+    set_shape_symbols(pshape_A, {A, B, C, D});
+    set_shape_symbols(expected_shape, {A, B, nullptr, D});
 
     auto param_A = std::make_shared<ov::op::v0::Parameter>(element::f32, pshape_A);
     auto param_B = std::make_shared<ov::op::v0::Parameter>(element::f32, pshape_B);
@@ -519,18 +535,21 @@ TYPED_TEST_P(ArithmeticOperator, labels_a_dynamic_mixed_dims_broadcast_numpy) {
     const auto out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), get_shape_labels(expected_shape));
+    EXPECT_EQ(get_shape_symbols(out_shape), get_shape_symbols(expected_shape));
 }
 
-TYPED_TEST_P(ArithmeticOperator, labels_b_dynamic_mixed_dims_broadcast_numpy) {
-    // All dimensions of B have labels, A without labels
+TYPED_TEST_P(ArithmeticOperator, symbols_b_dynamic_mixed_dims_broadcast_numpy) {
+    // All dimensions of B have symbols, A without symbols
     ov::PartialShape pshape_A{ov::Dimension(-1), ov::Dimension(3), ov::Dimension(1), ov::Dimension(2, 128)};
     ov::PartialShape pshape_B{ov::Dimension(-1), ov::Dimension(3), ov::Dimension(2, 224), ov::Dimension(1)};
 
     ov::PartialShape expected_shape = {-1, 3, ov::Dimension(2, 224), ov::Dimension(2, 128)};
 
-    set_shape_labels(pshape_B, {20, 21, 22, 23});
-    set_shape_labels(expected_shape, {20, 21, 22, 0});
+    auto A = std::make_shared<ov::Symbol>(), B = std::make_shared<ov::Symbol>(), C = std::make_shared<ov::Symbol>(),
+         D = std::make_shared<ov::Symbol>();
+
+    set_shape_symbols(pshape_B, {A, B, C, D});
+    set_shape_symbols(expected_shape, {A, B, C, nullptr});
 
     auto param_A = std::make_shared<ov::op::v0::Parameter>(element::f32, pshape_A);
     auto param_B = std::make_shared<ov::op::v0::Parameter>(element::f32, pshape_B);
@@ -540,19 +559,24 @@ TYPED_TEST_P(ArithmeticOperator, labels_b_dynamic_mixed_dims_broadcast_numpy) {
     const auto out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), get_shape_labels(expected_shape));
+    EXPECT_EQ(get_shape_symbols(out_shape), get_shape_symbols(expected_shape));
 }
 
-TYPED_TEST_P(ArithmeticOperator, labels_different_interval_mixed_dims_broadcast_numpy) {
-    // Both params have dimensions with different labels
+TYPED_TEST_P(ArithmeticOperator, symbols_different_interval_mixed_dims_broadcast_numpy) {
+    // Both params have dimensions with different symbols
     ov::PartialShape pshape_A{ov::Dimension(-1), ov::Dimension(3), ov::Dimension(1), ov::Dimension(2, 128)};
     ov::PartialShape pshape_B{ov::Dimension(-1), ov::Dimension(3), ov::Dimension(2, 224), ov::Dimension(1)};
 
     ov::PartialShape expected_shape = {-1, 3, ov::Dimension(2, 224), ov::Dimension(2, 128)};
 
-    set_shape_labels(pshape_A, {10, 11, 12, 13});
-    set_shape_labels(pshape_B, {20, 21, 22, 23});
-    set_shape_labels(expected_shape, {0, 21, 22, 13});
+    auto A = std::make_shared<ov::Symbol>(), B = std::make_shared<ov::Symbol>(), C = std::make_shared<ov::Symbol>(),
+         D = std::make_shared<ov::Symbol>();
+    auto E = std::make_shared<ov::Symbol>(), F = std::make_shared<ov::Symbol>(), G = std::make_shared<ov::Symbol>(),
+         H = std::make_shared<ov::Symbol>();
+
+    set_shape_symbols(pshape_A, {A, B, C, D});
+    set_shape_symbols(pshape_B, {E, F, G, H});
+    set_shape_symbols(expected_shape, {nullptr, B, G, D});
 
     auto param_A = std::make_shared<ov::op::v0::Parameter>(element::f32, pshape_A);
     auto param_B = std::make_shared<ov::op::v0::Parameter>(element::f32, pshape_B);
@@ -562,20 +586,21 @@ TYPED_TEST_P(ArithmeticOperator, labels_different_interval_mixed_dims_broadcast_
     const auto out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), get_shape_labels(expected_shape));
+    EXPECT_EQ(get_shape_symbols(out_shape), get_shape_symbols(expected_shape));
 }
 
-TYPED_TEST_P(ArithmeticOperator, labels_different_interval_b_and_fully_dyn_a_broadcast_numpy) {
-    // Both params have dimension labels, output has label B
+TYPED_TEST_P(ArithmeticOperator, symbols_different_interval_b_and_fully_dyn_a_broadcast_numpy) {
+    // Both params have dimension symbols, output has symbol B
     ov::Dimension dim_0_A = ov::Dimension(-1);
     ov::Dimension dim_0_B = ov::Dimension(2, 4);
 
-    ov::DimensionTracker::set_label(dim_0_A, 10);
-    ov::DimensionTracker::set_label(dim_0_B, 20);
+    auto A = std::make_shared<ov::Symbol>(), B = std::make_shared<ov::Symbol>();
+    dim_0_A.set_symbol(A);
+    dim_0_B.set_symbol(B);
 
     ov::PartialShape pshape_A = {dim_0_A, 3, 224, 1}, pshape_B = {dim_0_B, 3, 1, 224};
     ov::PartialShape expected_shape = {ov::Dimension(2, 4), 3, 224, 224};
-    ov::TensorLabel expected_labels{20, 0, 0, 0};
+    ov::TensorSymbol expected_symbols{B, nullptr, nullptr, nullptr};
 
     auto param_A = std::make_shared<ov::op::v0::Parameter>(element::f32, pshape_A);
     auto param_B = std::make_shared<ov::op::v0::Parameter>(element::f32, pshape_B);
@@ -585,20 +610,21 @@ TYPED_TEST_P(ArithmeticOperator, labels_different_interval_b_and_fully_dyn_a_bro
     const auto out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+    EXPECT_EQ(get_shape_symbols(out_shape), expected_symbols);
 }
 
-TYPED_TEST_P(ArithmeticOperator, labels_different_interval_a_and_fully_dyn_b_broadcast_numpy) {
-    // Both params have dimension labels, output has label A
+TYPED_TEST_P(ArithmeticOperator, symbols_different_interval_a_and_fully_dyn_b_broadcast_numpy) {
+    // Both params have dimension symbols, output has symbol A
     ov::Dimension dim_0_A = ov::Dimension(2, 4);
     ov::Dimension dim_0_B = ov::Dimension(-1);
 
-    ov::DimensionTracker::set_label(dim_0_A, 10);
-    ov::DimensionTracker::set_label(dim_0_B, 20);
+    auto A = std::make_shared<ov::Symbol>(), B = std::make_shared<ov::Symbol>();
+    dim_0_A.set_symbol(A);
+    dim_0_B.set_symbol(B);
 
     ov::PartialShape pshape_A = {dim_0_A, 3, 224, 1}, pshape_B = {dim_0_B, 3, 1, 224};
     ov::PartialShape expected_shape = {ov::Dimension(2, 4), 3, 224, 224};
-    ov::TensorLabel expected_labels{10, 0, 0, 0};
+    ov::TensorSymbol expected_symbols{A, nullptr, nullptr, nullptr};
 
     auto param_A = std::make_shared<ov::op::v0::Parameter>(element::f32, pshape_A);
     auto param_B = std::make_shared<ov::op::v0::Parameter>(element::f32, pshape_B);
@@ -608,19 +634,22 @@ TYPED_TEST_P(ArithmeticOperator, labels_different_interval_a_and_fully_dyn_b_bro
     const auto out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+    EXPECT_EQ(get_shape_symbols(out_shape), expected_symbols);
 }
 
-TYPED_TEST_P(ArithmeticOperator, labels_equal_interval_dims_without_one_broadcast_numpy) {
-    // Both params have dynamic interval dimension the same labels
+TYPED_TEST_P(ArithmeticOperator, symbols_equal_interval_dims_without_one_broadcast_numpy) {
+    // Both params have dynamic interval dimension the same symbols
     ov::PartialShape pshape_A{ov::Dimension(2, 4), ov::Dimension(8, 16), ov::Dimension(8, 16), ov::Dimension(8, 16)};
     ov::PartialShape pshape_B{ov::Dimension(2, 4), ov::Dimension(4, 12), ov::Dimension(10, 12), ov::Dimension(16, 24)};
 
     ov::PartialShape expected_shape = {ov::Dimension(2, 4), ov::Dimension(8, 12), ov::Dimension(10, 12), 16};
 
-    set_shape_labels(pshape_A, {10, 11, 12, 13});
-    set_shape_labels(pshape_B, {10, 11, 12, 13});
-    set_shape_labels(expected_shape, {10, 11, 12, 13});
+    auto A = std::make_shared<ov::Symbol>(), B = std::make_shared<ov::Symbol>(), C = std::make_shared<ov::Symbol>(),
+         D = std::make_shared<ov::Symbol>();
+
+    set_shape_symbols(pshape_A, {A, B, C, D});
+    set_shape_symbols(pshape_B, {A, B, C, D});
+    set_shape_symbols(expected_shape, {A, B, C, D});
 
     auto param_A = std::make_shared<ov::op::v0::Parameter>(element::f32, pshape_A);
     auto param_B = std::make_shared<ov::op::v0::Parameter>(element::f32, pshape_B);
@@ -630,19 +659,22 @@ TYPED_TEST_P(ArithmeticOperator, labels_equal_interval_dims_without_one_broadcas
     const auto out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), get_shape_labels(expected_shape));
+    EXPECT_EQ(get_shape_symbols(out_shape), get_shape_symbols(expected_shape));
 }
 
-TYPED_TEST_P(ArithmeticOperator, labels_different_interval_dims_without_one_broadcast_numpy) {
-    // Both params have dynamic interval dimension different labels
+TYPED_TEST_P(ArithmeticOperator, symbols_different_interval_dims_without_one_broadcast_numpy) {
+    // Both params have dynamic interval dimension different symbols
     ov::PartialShape pshape_A{ov::Dimension(2, 4), ov::Dimension(8, 16), ov::Dimension(8, 16), ov::Dimension(8, 16)};
     ov::PartialShape pshape_B{ov::Dimension(2, 4), ov::Dimension(4, 12), ov::Dimension(10, 12), ov::Dimension(16, 24)};
 
     ov::PartialShape expected_shape = {ov::Dimension(2, 4), ov::Dimension(8, 12), ov::Dimension(10, 12), 16};
-    ov::TensorLabel expected_labels{20, 21, 22, 23};
-
-    set_shape_labels(pshape_A, {10, 11, 12, 13});
-    set_shape_labels(pshape_B, {20, 21, 22, 23});
+    auto A = std::make_shared<ov::Symbol>(), B = std::make_shared<ov::Symbol>(), C = std::make_shared<ov::Symbol>(),
+         D = std::make_shared<ov::Symbol>();
+    auto E = std::make_shared<ov::Symbol>(), F = std::make_shared<ov::Symbol>(), G = std::make_shared<ov::Symbol>(),
+         H = std::make_shared<ov::Symbol>();
+    ov::TensorSymbol expected_symbols{A, B, C, D};
+    set_shape_symbols(pshape_A, {A, B, C, D});
+    set_shape_symbols(pshape_B, {E, F, G, H});
 
     auto param_A = std::make_shared<ov::op::v0::Parameter>(element::f32, pshape_A);
     auto param_B = std::make_shared<ov::op::v0::Parameter>(element::f32, pshape_B);
@@ -652,19 +684,19 @@ TYPED_TEST_P(ArithmeticOperator, labels_different_interval_dims_without_one_broa
     const auto out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+    EXPECT_EQ(get_shape_symbols(out_shape), expected_symbols);
 }
 
-TYPED_TEST_P(ArithmeticOperator, labels_different_interval_batch_without_one_equivalence_table_broadcast_numpy) {
-    // Both params have dynamic interval dimension different labels, use table of equivalence
-    auto table_of_equivalence = std::make_shared<ov::TableOfEquivalence>();
-    ov::DimensionTracker dim_tracker(table_of_equivalence);
+TYPED_TEST_P(ArithmeticOperator, symbols_different_interval_batch_without_one_equivalence_table_broadcast_numpy) {
+    // Both params have dynamic interval dimension different symbols, use table of equivalence
 
     ov::Dimension dim_0_A = ov::Dimension(2, 4);
-    ov::Dimension dim_0_B = ov::Dimension(2, 4);
+    auto A = std::make_shared<ov::Symbol>();
+    dim_0_A.set_symbol(A);
 
-    dim_tracker.set_up_for_tracking(dim_0_A, 10);
-    dim_tracker.set_up_for_tracking(dim_0_B, 20);
+    ov::Dimension dim_0_B = ov::Dimension(2, 4);
+    auto B = std::make_shared<ov::Symbol>();
+    dim_0_B.set_symbol(B);
 
     ov::PartialShape pshape_A = {dim_0_A, 3, 224, 1}, pshape_B = {dim_0_B, 3, 1, 224};
 
@@ -676,27 +708,26 @@ TYPED_TEST_P(ArithmeticOperator, labels_different_interval_batch_without_one_equ
     const auto out_shape = op->get_output_partial_shape(0);
 
     ov::PartialShape expected_shape = {ov::Dimension(2, 4), 3, 224, 224};
-    ov::TensorLabel expected_labels{20, 0, 0, 0};
-
-    auto eq_table = table_of_equivalence->get_equivalence_table();
-    EXPECT_EQ(*eq_table[ov::DimensionTracker::get_label(dim_0_A)], std::set<ov::label_t>({10, 20}));
-    EXPECT_EQ(*eq_table[ov::DimensionTracker::get_label(dim_0_B)], std::set<ov::label_t>({10, 20}));
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+    EXPECT_TRUE(ov::symbol::are_equal(out_shape[0].get_symbol(), A));
+    EXPECT_TRUE(ov::symbol::are_equal(out_shape[0].get_symbol(), B));
+    EXPECT_TRUE(ov::symbol::are_equal(A, B));
 }
 
-TYPED_TEST_P(ArithmeticOperator, labels_different_fully_dynamic_batch_broadcast_numpy) {
-    // Both params have fully dynamic dimension and different labels
+TYPED_TEST_P(ArithmeticOperator, symbols_different_fully_dynamic_batch_broadcast_numpy) {
+    // Both params have fully dynamic dimension and different symbols
     ov::Dimension dim_0_A = ov::Dimension(-1);
-    ov::Dimension dim_0_B = ov::Dimension(-1);
+    auto A = std::make_shared<ov::Symbol>();
+    dim_0_A.set_symbol(A);
 
-    ov::DimensionTracker::set_label(dim_0_A, 10);
-    ov::DimensionTracker::set_label(dim_0_B, 20);
+    ov::Dimension dim_0_B = ov::Dimension(-1);
+    auto B = std::make_shared<ov::Symbol>();
+    dim_0_B.set_symbol(B);
 
     ov::PartialShape pshape_A = {dim_0_A, 3, 224, 1}, pshape_B = {dim_0_B, 3, 1, 224};
     ov::PartialShape expected_shape = {-1, 3, 224, 224};
-    ov::TensorLabel expected_labels{0, 0, 0, 0};
+    ov::TensorSymbol expected_symbols{nullptr, nullptr, nullptr, nullptr};
 
     auto param_A = std::make_shared<ov::op::v0::Parameter>(element::f32, pshape_A);
     auto param_B = std::make_shared<ov::op::v0::Parameter>(element::f32, pshape_B);
@@ -706,20 +737,21 @@ TYPED_TEST_P(ArithmeticOperator, labels_different_fully_dynamic_batch_broadcast_
     const auto out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+    EXPECT_EQ(get_shape_symbols(out_shape), expected_symbols);
 }
 
-TYPED_TEST_P(ArithmeticOperator, labels_equal_fully_dynamic_batch_broadcast_numpy) {
-    // Both params have fully dynamic dimension and the same labels
-    ov::Dimension dim_0_A = ov::Dimension(-1);
-    ov::Dimension dim_0_B = ov::Dimension(-1);
+TYPED_TEST_P(ArithmeticOperator, symbols_equal_fully_dynamic_batch_broadcast_numpy) {
+    // Both params have fully dynamic dimension and the same symbols
+    auto A = std::make_shared<ov::Symbol>();
 
-    ov::DimensionTracker::set_label(dim_0_A, 10);
-    ov::DimensionTracker::set_label(dim_0_B, 10);
+    ov::Dimension dim_0_A = ov::Dimension(-1);
+    dim_0_A.set_symbol(A);
+    ov::Dimension dim_0_B = ov::Dimension(-1);
+    dim_0_B.set_symbol(A);
 
     ov::PartialShape pshape_A = {dim_0_A, 3, 224, 1}, pshape_B = {dim_0_B, 3, 1, 224};
     ov::PartialShape expected_shape = {-1, 3, 224, 224};
-    ov::TensorLabel expected_labels{10, 0, 0, 0};
+    ov::TensorSymbol expected_symbols{A, nullptr, nullptr, nullptr};
 
     auto param_A = std::make_shared<ov::op::v0::Parameter>(element::f32, pshape_A);
     auto param_B = std::make_shared<ov::op::v0::Parameter>(element::f32, pshape_B);
@@ -729,16 +761,17 @@ TYPED_TEST_P(ArithmeticOperator, labels_equal_fully_dynamic_batch_broadcast_nump
     const auto out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+    EXPECT_EQ(get_shape_symbols(out_shape), expected_symbols);
 }
 
-TYPED_TEST_P(ArithmeticOperator, labels_dyn_batch_a_broadcast_numpy) {
+TYPED_TEST_P(ArithmeticOperator, symbols_dyn_batch_a_broadcast_numpy) {
+    auto S = std::make_shared<ov::Symbol>();
     ov::Dimension b = -1;
-    ov::DimensionTracker::set_label(b, 10);
+    b.set_symbol(S);
     ov::PartialShape A = {b, 3, 224, 224}, B = {1, 3, 1, 1};
     ov::PartialShape expected_shape{b, 3, 224, 224};
 
-    ov::TensorLabel expected_labels{10, 0, 0, 0};
+    ov::TensorSymbol expected_symbols{S, nullptr, nullptr, nullptr};
 
     auto param_A = std::make_shared<ov::op::v0::Parameter>(element::f64, A);
     auto param_B = std::make_shared<ov::op::v0::Parameter>(element::f64, B);
@@ -748,16 +781,17 @@ TYPED_TEST_P(ArithmeticOperator, labels_dyn_batch_a_broadcast_numpy) {
     const auto out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+    EXPECT_EQ(get_shape_symbols(out_shape), expected_symbols);
 }
 
-TYPED_TEST_P(ArithmeticOperator, labels_dyn_batch_b_broadcast_numpy) {
+TYPED_TEST_P(ArithmeticOperator, symbols_dyn_batch_b_broadcast_numpy) {
+    auto S = std::make_shared<ov::Symbol>();
     ov::Dimension b = -1;
-    ov::DimensionTracker::set_label(b, 10);
+    b.set_symbol(S);
     ov::PartialShape B = {b, 3, 224, 224}, A = {1, 3, 1, 1};
     ov::PartialShape expected_shape{b, 3, 224, 224};
 
-    ov::TensorLabel expected_labels{10, 0, 0, 0};
+    ov::TensorSymbol expected_symbols{S, nullptr, nullptr, nullptr};
 
     auto param_A = std::make_shared<ov::op::v0::Parameter>(element::f64, A);
     auto param_B = std::make_shared<ov::op::v0::Parameter>(element::f64, B);
@@ -767,18 +801,19 @@ TYPED_TEST_P(ArithmeticOperator, labels_dyn_batch_b_broadcast_numpy) {
     const auto out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+    EXPECT_EQ(get_shape_symbols(out_shape), expected_symbols);
 }
 
-TYPED_TEST_P(ArithmeticOperator, labels_dyn_batch_and_higher_rank_a_broadcast_numpy) {
+TYPED_TEST_P(ArithmeticOperator, symbols_dyn_batch_and_higher_rank_a_broadcast_numpy) {
+    auto S = std::make_shared<ov::Symbol>();
     ov::Dimension b = -1;
-    ov::DimensionTracker::set_label(b, 10);
+    b.set_symbol(S);
 
     ov::PartialShape pshape_A{b, -1, -1, -1};
     ov::PartialShape pshape_B{3, 1, 1};
     ov::PartialShape expected_shape{b, 3, -1, -1};
 
-    ov::TensorLabel expected_labels{10, 0, 0, 0};
+    ov::TensorSymbol expected_symbols{S, nullptr, nullptr, nullptr};
 
     auto param_A = std::make_shared<ov::op::v0::Parameter>(element::f64, pshape_A);
     auto param_B = std::make_shared<ov::op::v0::Parameter>(element::f64, pshape_B);
@@ -788,18 +823,19 @@ TYPED_TEST_P(ArithmeticOperator, labels_dyn_batch_and_higher_rank_a_broadcast_nu
     const auto out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+    EXPECT_EQ(get_shape_symbols(out_shape), expected_symbols);
 }
 
-TYPED_TEST_P(ArithmeticOperator, labels_dyn_batch_and_higher_rank_b_broadcast_numpy) {
+TYPED_TEST_P(ArithmeticOperator, symbols_dyn_batch_and_higher_rank_b_broadcast_numpy) {
+    auto S = std::make_shared<ov::Symbol>();
     ov::Dimension b = -1;
-    ov::DimensionTracker::set_label(b, 10);
+    b.set_symbol(S);
 
     ov::PartialShape pshape_A{3, 1, 1};
     ov::PartialShape pshape_B{b, -1, -1, -1};
     ov::PartialShape expected_shape{b, 3, -1, -1};
 
-    ov::TensorLabel expected_labels{10, 0, 0, 0};
+    ov::TensorSymbol expected_symbols{S, nullptr, nullptr, nullptr};
 
     auto param_A = std::make_shared<ov::op::v0::Parameter>(element::f64, pshape_A);
     auto param_B = std::make_shared<ov::op::v0::Parameter>(element::f64, pshape_B);
@@ -809,19 +845,24 @@ TYPED_TEST_P(ArithmeticOperator, labels_dyn_batch_and_higher_rank_b_broadcast_nu
     const auto out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+    EXPECT_EQ(get_shape_symbols(out_shape), expected_symbols);
 }
 
-TYPED_TEST_P(ArithmeticOperator, labels_different_static_shape_broadcast_numpy) {
-    // Static shape, different labels
+TYPED_TEST_P(ArithmeticOperator, symbols_different_static_shape_broadcast_numpy) {
+    // Static shape, different symbols
     ov::PartialShape pshape_A{ov::Dimension(2), ov::Dimension(1), ov::Dimension(224), ov::Dimension(1)};
     ov::PartialShape pshape_B{ov::Dimension(2), ov::Dimension(1), ov::Dimension(1), ov::Dimension(128)};
     ov::PartialShape expected_shape{2, 1, 224, 128};
 
-    // Different labels
-    set_shape_labels(pshape_A, {10, 11, 12, 13});
-    set_shape_labels(pshape_B, {20, 21, 22, 23});
-    set_shape_labels(expected_shape, {20, 21, 12, 23});
+    // Different symbols
+    auto A = std::make_shared<ov::Symbol>(), B = std::make_shared<ov::Symbol>(), C = std::make_shared<ov::Symbol>(),
+         D = std::make_shared<ov::Symbol>();
+    auto E = std::make_shared<ov::Symbol>(), F = std::make_shared<ov::Symbol>(), G = std::make_shared<ov::Symbol>(),
+         H = std::make_shared<ov::Symbol>();
+
+    set_shape_symbols(pshape_A, {A, B, C, D});
+    set_shape_symbols(pshape_B, {E, F, G, H});
+    set_shape_symbols(expected_shape, {A, F, C, H});
 
     auto param_A = std::make_shared<ov::op::v0::Parameter>(element::f32, pshape_A);
     auto param_B = std::make_shared<ov::op::v0::Parameter>(element::f32, pshape_B);
@@ -830,19 +871,21 @@ TYPED_TEST_P(ArithmeticOperator, labels_different_static_shape_broadcast_numpy) 
     const auto out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), get_shape_labels(expected_shape));
+    EXPECT_EQ(get_shape_symbols(out_shape), get_shape_symbols(expected_shape));
 }
 
-TYPED_TEST_P(ArithmeticOperator, labels_equal_static_shape_broadcast_numpy) {
-    // Static shape, the same labels
+TYPED_TEST_P(ArithmeticOperator, symbols_equal_static_shape_broadcast_numpy) {
+    // Static shape, the same symbols
     ov::PartialShape pshape_A{2, 1, 224, 1};
     ov::PartialShape pshape_B{2, 1, 1, 128};
     ov::PartialShape expected_shape{2, 1, 224, 128};
 
-    // Equal labels
-    set_shape_labels(pshape_A, {30, 31, 32, 33});
-    set_shape_labels(pshape_B, {30, 31, 32, 33});
-    set_shape_labels(expected_shape, {30, 31, 32, 33});
+    // Equal symbols
+    auto A = std::make_shared<ov::Symbol>(), B = std::make_shared<ov::Symbol>(), C = std::make_shared<ov::Symbol>(),
+         D = std::make_shared<ov::Symbol>();
+    set_shape_symbols(pshape_A, {A, B, C, D});
+    set_shape_symbols(pshape_B, {A, B, C, D});
+    set_shape_symbols(expected_shape, {A, B, C, D});
 
     auto param_A = std::make_shared<ov::op::v0::Parameter>(element::f32, pshape_A);
     auto param_B = std::make_shared<ov::op::v0::Parameter>(element::f32, pshape_B);
@@ -851,19 +894,19 @@ TYPED_TEST_P(ArithmeticOperator, labels_equal_static_shape_broadcast_numpy) {
     const auto out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), get_shape_labels(expected_shape));
+    EXPECT_EQ(get_shape_symbols(out_shape), get_shape_symbols(expected_shape));
 }
 
-TYPED_TEST_P(ArithmeticOperator, labels_different_static_shape_broadcast_none) {
+TYPED_TEST_P(ArithmeticOperator, symbols_different_static_shape_broadcast_none) {
     // Static shape
     ov::PartialShape pshape_A{2, 3, 224, 128};
     ov::PartialShape pshape_B{2, 3, 224, 128};
     ov::PartialShape expected_shape{2, 3, 224, 128};
 
-    // Different labels
-    set_shape_labels(pshape_A, {10, 11, 12, 13});
-    set_shape_labels(pshape_B, {20, 21, 22, 23});
-    set_shape_labels(expected_shape, {20, 21, 22, 23});
+    // Different symbols
+    auto symbols = set_shape_symbols(pshape_A);
+    set_shape_symbols(pshape_B);
+    set_shape_symbols(expected_shape, symbols);
 
     auto param_A = std::make_shared<ov::op::v0::Parameter>(element::f32, pshape_A);
     auto param_B = std::make_shared<ov::op::v0::Parameter>(element::f32, pshape_B);
@@ -872,19 +915,21 @@ TYPED_TEST_P(ArithmeticOperator, labels_different_static_shape_broadcast_none) {
     auto out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), get_shape_labels(expected_shape));
+    EXPECT_EQ(get_shape_symbols(out_shape), get_shape_symbols(expected_shape));
 }
 
-TYPED_TEST_P(ArithmeticOperator, labels_equal_static_shape_broadcast_none) {
+TYPED_TEST_P(ArithmeticOperator, symbols_equal_static_shape_broadcast_none) {
     // Static shape
     ov::PartialShape pshape_A{2, 3, 224, 128};
     ov::PartialShape pshape_B{2, 3, 224, 128};
     ov::PartialShape expected_shape{2, 3, 224, 128};
 
-    // Equal labels
-    set_shape_labels(pshape_A, {30, 31, 32, 33});
-    set_shape_labels(pshape_B, {30, 31, 32, 33});
-    set_shape_labels(expected_shape, {30, 31, 32, 33});
+    // Equal symbols
+    auto A = std::make_shared<ov::Symbol>(), B = std::make_shared<ov::Symbol>(), C = std::make_shared<ov::Symbol>(),
+         D = std::make_shared<ov::Symbol>();
+    set_shape_symbols(pshape_A, {A, B, C, D});
+    set_shape_symbols(pshape_B, {A, B, C, D});
+    set_shape_symbols(expected_shape, {A, B, C, D});
 
     auto param_A = std::make_shared<ov::op::v0::Parameter>(element::f32, pshape_A);
     auto param_B = std::make_shared<ov::op::v0::Parameter>(element::f32, pshape_B);
@@ -893,19 +938,19 @@ TYPED_TEST_P(ArithmeticOperator, labels_equal_static_shape_broadcast_none) {
     auto out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), get_shape_labels(expected_shape));
+    EXPECT_EQ(get_shape_symbols(out_shape), get_shape_symbols(expected_shape));
 }
 
-TYPED_TEST_P(ArithmeticOperator, labels_different_dynamic_shape_broadcast_none) {
+TYPED_TEST_P(ArithmeticOperator, symbols_different_dynamic_shape_broadcast_none) {
     // Dynamic shape
     ov::PartialShape pshape_A{ov::Dimension(-1), ov::Dimension(3), ov::Dimension(2, 224), ov::Dimension(1, 128)};
     ov::PartialShape pshape_B{ov::Dimension(-1), ov::Dimension(3), ov::Dimension(2, 224), ov::Dimension(1, 128)};
     ov::PartialShape expected_shape{-1, 3, ov::Dimension(2, 224), ov::Dimension(1, 128)};
 
     // Different labels
-    set_shape_labels(pshape_A, {10, 11, 12, 13});
-    set_shape_labels(pshape_B, {20, 21, 22, 23});
-    set_shape_labels(expected_shape, {20, 21, 22, 23});
+    auto symbols = set_shape_symbols(pshape_A);
+    set_shape_symbols(pshape_B);
+    set_shape_symbols(expected_shape, symbols);
 
     auto param_A = std::make_shared<ov::op::v0::Parameter>(element::f32, pshape_A);
     auto param_B = std::make_shared<ov::op::v0::Parameter>(element::f32, pshape_B);
@@ -914,19 +959,21 @@ TYPED_TEST_P(ArithmeticOperator, labels_different_dynamic_shape_broadcast_none) 
     const auto out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), get_shape_labels(expected_shape));
+    EXPECT_EQ(get_shape_symbols(out_shape), get_shape_symbols(expected_shape));
 }
 
-TYPED_TEST_P(ArithmeticOperator, labels_equal_dynamic_shape_broadcast_none) {
+TYPED_TEST_P(ArithmeticOperator, symbols_equal_dynamic_shape_broadcast_none) {
     // Dynamic shape
     ov::PartialShape pshape_A{ov::Dimension(-1), ov::Dimension(3), ov::Dimension(2, 224), ov::Dimension(1, 128)};
     ov::PartialShape pshape_B{ov::Dimension(-1), ov::Dimension(3), ov::Dimension(2, 224), ov::Dimension(1, 128)};
     ov::PartialShape expected_shape{-1, 3, ov::Dimension(2, 224), ov::Dimension(1, 128)};
 
-    // Equal labels
-    set_shape_labels(pshape_A, {30, 31, 32, 33});
-    set_shape_labels(pshape_B, {30, 31, 32, 33});
-    set_shape_labels(expected_shape, {30, 31, 32, 33});
+    // Equal symbols
+    auto A = std::make_shared<ov::Symbol>(), B = std::make_shared<ov::Symbol>(), C = std::make_shared<ov::Symbol>(),
+         D = std::make_shared<ov::Symbol>();
+    set_shape_symbols(pshape_A, {A, B, C, D});
+    set_shape_symbols(pshape_B, {A, B, C, D});
+    set_shape_symbols(expected_shape, {A, B, C, D});
 
     auto param_A = std::make_shared<ov::op::v0::Parameter>(element::f32, pshape_A);
     auto param_B = std::make_shared<ov::op::v0::Parameter>(element::f32, pshape_B);
@@ -935,7 +982,7 @@ TYPED_TEST_P(ArithmeticOperator, labels_equal_dynamic_shape_broadcast_none) {
     const auto out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), get_shape_labels(expected_shape));
+    EXPECT_EQ(get_shape_symbols(out_shape), get_shape_symbols(expected_shape));
 }
 
 REGISTER_TYPED_TEST_SUITE_P(ArithmeticOperator,
@@ -955,7 +1002,7 @@ REGISTER_TYPED_TEST_SUITE_P(ArithmeticOperator,
                             static_shape_inference_4D_x_4D_pdpd_broadcast,
                             static_shape_inference_4D_x_3D_ax_default_pdpd_broadcast,
                             incompatible_element_types,
-                            incompatible_boolean_type,
+                            unsupported_element_type,
                             shape_inference_1D_x_1D_incompatible,
                             shape_inference_3D_x_3D_incompatible,
                             shape_inference_5D_x_5D_incompatible,
@@ -974,24 +1021,24 @@ REGISTER_TYPED_TEST_SUITE_P(ArithmeticOperator,
                             dynamic_shape_intervals_b_rank_smaller_broadcast_numpy,
                             dynamic_shape_intervals_broadcast_pdpd,
 
-                            // Dimension labels (static and dynamic)
-                            labels_a_dynamic_mixed_dims_broadcast_numpy,
-                            labels_b_dynamic_mixed_dims_broadcast_numpy,
-                            labels_different_interval_mixed_dims_broadcast_numpy,
-                            labels_different_interval_b_and_fully_dyn_a_broadcast_numpy,
-                            labels_different_interval_a_and_fully_dyn_b_broadcast_numpy,
-                            labels_equal_interval_dims_without_one_broadcast_numpy,
-                            labels_different_interval_dims_without_one_broadcast_numpy,
-                            labels_different_interval_batch_without_one_equivalence_table_broadcast_numpy,
-                            labels_different_fully_dynamic_batch_broadcast_numpy,
-                            labels_equal_fully_dynamic_batch_broadcast_numpy,
-                            labels_dyn_batch_a_broadcast_numpy,
-                            labels_dyn_batch_b_broadcast_numpy,
-                            labels_dyn_batch_and_higher_rank_a_broadcast_numpy,
-                            labels_dyn_batch_and_higher_rank_b_broadcast_numpy,
-                            labels_different_static_shape_broadcast_numpy,
-                            labels_equal_static_shape_broadcast_numpy,
-                            labels_different_static_shape_broadcast_none,
-                            labels_equal_static_shape_broadcast_none,
-                            labels_different_dynamic_shape_broadcast_none,
-                            labels_equal_dynamic_shape_broadcast_none);
+                            // Dimension symbols (static and dynamic)
+                            symbols_a_dynamic_mixed_dims_broadcast_numpy,
+                            symbols_b_dynamic_mixed_dims_broadcast_numpy,
+                            symbols_different_interval_mixed_dims_broadcast_numpy,
+                            symbols_different_interval_b_and_fully_dyn_a_broadcast_numpy,
+                            symbols_different_interval_a_and_fully_dyn_b_broadcast_numpy,
+                            symbols_equal_interval_dims_without_one_broadcast_numpy,
+                            symbols_different_interval_dims_without_one_broadcast_numpy,
+                            symbols_different_interval_batch_without_one_equivalence_table_broadcast_numpy,
+                            symbols_different_fully_dynamic_batch_broadcast_numpy,
+                            symbols_equal_fully_dynamic_batch_broadcast_numpy,
+                            symbols_dyn_batch_a_broadcast_numpy,
+                            symbols_dyn_batch_b_broadcast_numpy,
+                            symbols_dyn_batch_and_higher_rank_a_broadcast_numpy,
+                            symbols_dyn_batch_and_higher_rank_b_broadcast_numpy,
+                            symbols_different_static_shape_broadcast_numpy,
+                            symbols_equal_static_shape_broadcast_numpy,
+                            symbols_different_static_shape_broadcast_none,
+                            symbols_equal_static_shape_broadcast_none,
+                            symbols_different_dynamic_shape_broadcast_none,
+                            symbols_equal_dynamic_shape_broadcast_none);

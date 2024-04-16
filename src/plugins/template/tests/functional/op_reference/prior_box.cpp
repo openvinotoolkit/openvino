@@ -92,6 +92,7 @@ struct PriorBoxV8Params {
 class ReferencePriorBoxLayerTest : public testing::TestWithParam<PriorBoxParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params);
         inputData = {};
@@ -123,6 +124,7 @@ private:
 class ReferencePriorBoxV8LayerTest : public testing::TestWithParam<PriorBoxV8Params>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params);
         inputData = {};

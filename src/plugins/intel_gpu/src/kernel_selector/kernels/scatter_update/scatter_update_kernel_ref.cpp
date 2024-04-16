@@ -14,11 +14,11 @@ static size_t GetScatterUpdateChannelIndex(const scatter_update_params& params) 
     const size_t dict_size = params.inputs[0].GetDims().size();
     switch (params.axis) {
         case ScatterUpdateAxis::X:
-            return dict_size - 1;
+            return (size_t)(dict_size - 1);
         case ScatterUpdateAxis::Y:
-            return dict_size - 2;
+            return (size_t)(dict_size - 2);
         case ScatterUpdateAxis::Z:
-            return dict_size - 3;
+            return (size_t)(dict_size - 3);
         case ScatterUpdateAxis::W:
             return 2;
         case ScatterUpdateAxis::FEATURE:
@@ -245,7 +245,16 @@ JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params
     std::vector<std::string> pitches;
     const auto& output = params.outputs[0];
     if (output.is_dynamic()) {
-        pitches = GetDynamicPitches(output.GetDims(), params.inputs.size() + GetFusedPrimitiveInputsCount(params));
+        size_t tensor_idx = params.inputs.size() + GetFusedPrimitiveInputsCount(params);
+        for (auto input : params.inputs) {
+            if (!input.is_dynamic())
+                tensor_idx--;
+        }
+        for (auto fused_op : params.fused_ops) {
+            if (!fused_op.output_tensor.is_dynamic())
+                tensor_idx--;
+        }
+        pitches = GetDynamicPitches(output.GetDims(), tensor_idx);
     } else {
         pitches = GetPlanarPitches(output.GetDims());
     }

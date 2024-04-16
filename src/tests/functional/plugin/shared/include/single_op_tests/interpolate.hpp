@@ -11,6 +11,7 @@ namespace test {
 TEST_P(InterpolateLayerTest, Inference) {
     run();
 }
+
 TEST_P(Interpolate11LayerTest, Inference) {
     run();
 }

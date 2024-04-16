@@ -19,6 +19,7 @@ Napi::Function ModelWrap::get_class(Napi::Env env) {
                        {InstanceMethod("getName", &ModelWrap::get_name),
                         InstanceMethod("output", &ModelWrap::get_output),
                         InstanceMethod("input", &ModelWrap::get_input),
+                        InstanceMethod("isDynamic", &ModelWrap::is_dynamic),
                         InstanceAccessor<&ModelWrap::get_inputs>("inputs"),
                         InstanceAccessor<&ModelWrap::get_outputs>("outputs")});
 }
@@ -116,4 +117,14 @@ Napi::Value ModelWrap::get_outputs(const Napi::CallbackInfo& info) {
         js_outputs[i++] = Output<ov::Node>::wrap(info.Env(), out);
 
     return js_outputs;
+}
+
+Napi::Value ModelWrap::is_dynamic(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    if (info.Length() > 0) {
+        reportError(env, "isDynamic() does not accept any arguments.");
+        return env.Null();
+    }
+    const auto result = _model->is_dynamic();
+    return Napi::Boolean::New(env, result);
 }
