@@ -160,6 +160,7 @@ jobs:
         run: |
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/ -n logical -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_fe.xml
         env:
+          TF_USE_LEGACY_KERAS: 1
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
 
