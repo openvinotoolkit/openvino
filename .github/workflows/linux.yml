@@ -131,6 +131,11 @@ jobs:
             ${{ runner.os }}-${{ runner.arch }}-apt
             ${{ runner.os }}-${{ runner.arch }}-${{ github.event.number }}apt
 
+      - name: Simulate broken apt
+        run: |
+          echo 'Acquire::http::Proxy "http://proxy.com:911";' > /etc/apt/apt.conf.d/proxy.conf
+          echo 'Acquire::http::Proxy "http://proxy.com:912";' >> /etc/apt/apt.conf.d/proxy.conf
+
       - name: Install build dependencies
         run: |
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
@@ -870,7 +875,7 @@ jobs:
           source ${INSTALL_DIR}/setupvars.sh
 
           rm -rf ${INSTALL_TEST_DIR}/gpu_${{ matrix.TEST_TYPE }}_tests && mkdir -p ${INSTALL_TEST_DIR}/gpu_${{ matrix.TEST_TYPE }}_tests
-          
+
           test_filter=''
           if [[ "${{ matrix.TEST_TYPE }}" == "unit" ]]; then
             # Ticket: 138018
@@ -879,7 +884,7 @@ jobs:
             test_filter='*smoke*'
           fi
           python3 ${GTEST_PARALLEL_SCRIPT} ${INSTALL_TEST_DIR}/ov_gpu_${{ matrix.TEST_TYPE }}_tests --dump_json_test_results=${INSTALL_TEST_DIR}/gpu_${{ matrix.TEST_TYPE }}_tests/ov_gpu_${{ matrix.TEST_TYPE }}_tests.json -- --report_unique_name --gtest_filter=$test_filter
-          
+
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
