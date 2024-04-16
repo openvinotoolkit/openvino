@@ -14,9 +14,9 @@ const compiledModel = core.compileModelSync(model, 'CPU');
 const modelLike = [[model],
   [compiledModel]];
 
-it('Core.getAvailableDevices()', () => {    
+it('Core.getAvailableDevices()', () => {
     const devices = core.getAvailableDevices();
-    
+
     assert.ok(devices.includes('CPU'));
 });
 
@@ -50,7 +50,7 @@ describe('Core.compileModelSync()', () => {
   it('compileModelSync(model, device, config) throws when config is a string', () => {
     assert.throws(
       () => core.compileModelSync(model, 'CPU', 'string'),
-      /Cannot convert Napi::Value to std::map<std::string, ov::Any>/
+      /Argument #2 has type 'String', expected 'Object'/
     );
   });
 
@@ -64,7 +64,7 @@ describe('Core.compileModelSync()', () => {
   it('compileModelSync(model) throws if the number of arguments is invalid', () => {
     assert.throws(
       () => core.compileModelSync(model),
-      /Invalid number of arguments/
+      /Invalid number of attributes/
     );
   });
 
