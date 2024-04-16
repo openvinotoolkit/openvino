@@ -345,11 +345,8 @@ void SyncInferRequest::wait() {
             auto output_layout_shape = output_layout.get_shape();
             auto output_tensor_shape = output_tensor->get_shape();
             if (!output_layout_shape.empty() && !output_tensor_shape.empty()) {
-                for (size_t i = 0; i < output_layout_shape.size(); i++) {
-                    if (output_layout_shape[i] != output_tensor_shape[i]) {
-                        need_output_update = true;
-                        break;
-                    }
+                if (output_layout_shape != output_tensor_shape) {
+                    need_output_update = true;
                 }
             }
         }
