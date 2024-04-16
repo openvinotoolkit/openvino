@@ -44,5 +44,5 @@ outs = exe.run(
     feed={'inputX1': inp_blob1},
     fetch_list=[adaptive_pool2d])
 
-saveModel("pool2d_dyn_hw", exe, feed_vars=[x1], fetchlist=adative_pool2d, inputs=[
+saveModel("pool2d_dyn_hw", exe, feed_vars=[x1], fetchlist=adaptive_pool2d, inputs=[
           inp_blob1], outputs=outs, target_dir=sys.argv[1])

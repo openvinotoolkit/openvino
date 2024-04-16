@@ -371,33 +371,52 @@ static const std::vector<std::string> models{
     std::string("multiclass_nms_flipped_coordinates/multiclass_nms_flipped_coordinates.pdmodel"),
     std::string("multiclass_nms_identical_boxes/multiclass_nms_identical_boxes.pdmodel"),
     // default
-    std::string("multiclass_nms_lod_roisnum_multiple_images_default/multiclass_nms_lod_roisnum_multiple_images_default.pdmodel"),
-    std::string("multiclass_nms_lod_roisnum_multiple_images_0_default/multiclass_nms_lod_roisnum_multiple_images_0_default.pdmodel"),
-    std::string("multiclass_nms_lod_roisnum_single_image_default/multiclass_nms_lod_roisnum_single_image_default.pdmodel"),
+    std::string("multiclass_nms_lod_roisnum_multiple_images_default/"
+                "multiclass_nms_lod_roisnum_multiple_images_default.pdmodel"),
+    std::string("multiclass_nms_lod_roisnum_multiple_images_0_default/"
+                "multiclass_nms_lod_roisnum_multiple_images_0_default.pdmodel"),
+    std::string(
+        "multiclass_nms_lod_roisnum_single_image_default/multiclass_nms_lod_roisnum_single_image_default.pdmodel"),
     // background
-    std::string("multiclass_nms_lod_roisnum_multiple_images_background/multiclass_nms_lod_roisnum_multiple_images_background.pdmodel"),
-    std::string("multiclass_nms_lod_roisnum_multiple_images_0_background/multiclass_nms_lod_roisnum_multiple_images_0_background.pdmodel"),
-    std::string("multiclass_nms_lod_roisnum_single_image_background/multiclass_nms_lod_roisnum_single_image_background.pdmodel"),
+    std::string("multiclass_nms_lod_roisnum_multiple_images_background/"
+                "multiclass_nms_lod_roisnum_multiple_images_background.pdmodel"),
+    std::string("multiclass_nms_lod_roisnum_multiple_images_0_background/"
+                "multiclass_nms_lod_roisnum_multiple_images_0_background.pdmodel"),
+    std::string("multiclass_nms_lod_roisnum_single_image_background/"
+                "multiclass_nms_lod_roisnum_single_image_background.pdmodel"),
     // score_threshold
-    std::string("multiclass_nms_lod_roisnum_multiple_images_score_threshold/multiclass_nms_lod_roisnum_multiple_images_score_threshold.pdmodel"),
-    std::string("multiclass_nms_lod_roisnum_multiple_images_0_score_threshold/multiclass_nms_lod_roisnum_multiple_images_0_score_threshold.pdmodel"),
-    std::string("multiclass_nms_lod_roisnum_single_image_score_threshold/multiclass_nms_lod_roisnum_single_image_score_threshold.pdmodel"),
+    std::string("multiclass_nms_lod_roisnum_multiple_images_score_threshold/"
+                "multiclass_nms_lod_roisnum_multiple_images_score_threshold.pdmodel"),
+    std::string("multiclass_nms_lod_roisnum_multiple_images_0_score_threshold/"
+                "multiclass_nms_lod_roisnum_multiple_images_0_score_threshold.pdmodel"),
+    std::string("multiclass_nms_lod_roisnum_single_image_score_threshold/"
+                "multiclass_nms_lod_roisnum_single_image_score_threshold.pdmodel"),
     // nms_top_k
-    std::string("multiclass_nms_lod_roisnum_multiple_images_nms_top_k/multiclass_nms_lod_roisnum_multiple_images_nms_top_k.pdmodel"),
-    std::string("multiclass_nms_lod_roisnum_multiple_images_0_nms_top_k/multiclass_nms_lod_roisnum_multiple_images_0_nms_top_k.pdmodel"),
-    std::string("multiclass_nms_lod_roisnum_single_image_nms_top_k/multiclass_nms_lod_roisnum_single_image_nms_top_k.pdmodel"),
+    std::string("multiclass_nms_lod_roisnum_multiple_images_nms_top_k/"
+                "multiclass_nms_lod_roisnum_multiple_images_nms_top_k.pdmodel"),
+    std::string("multiclass_nms_lod_roisnum_multiple_images_0_nms_top_k/"
+                "multiclass_nms_lod_roisnum_multiple_images_0_nms_top_k.pdmodel"),
+    std::string("multiclass_nms_lod_roisnum_single_image_nms_top_k/"
+                "multiclass_nms_lod_roisnum_single_image_nms_top_k.pdmodel"),
     // keep_top_k
-    std::string("multiclass_nms_lod_roisnum_multiple_images_keep_top_k/multiclass_nms_lod_roisnum_multiple_images_keep_top_k.pdmodel"),
-    std::string("multiclass_nms_lod_roisnum_multiple_images_0_keep_top_k/multiclass_nms_lod_roisnum_multiple_images_0_keep_top_k.pdmodel"),
-    std::string("multiclass_nms_lod_roisnum_single_image_keep_top_k/multiclass_nms_lod_roisnum_single_image_keep_top_k.pdmodel"),
+    std::string("multiclass_nms_lod_roisnum_multiple_images_keep_top_k/"
+                "multiclass_nms_lod_roisnum_multiple_images_keep_top_k.pdmodel"),
+    std::string("multiclass_nms_lod_roisnum_multiple_images_0_keep_top_k/"
+                "multiclass_nms_lod_roisnum_multiple_images_0_keep_top_k.pdmodel"),
+    std::string("multiclass_nms_lod_roisnum_single_image_keep_top_k/"
+                "multiclass_nms_lod_roisnum_single_image_keep_top_k.pdmodel"),
     // normalized
-    std::string("multiclass_nms_lod_roisnum_multiple_images_normalized/multiclass_nms_lod_roisnum_multiple_images_normalized.pdmodel"),
-    std::string("multiclass_nms_lod_roisnum_multiple_images_0_normalized/multiclass_nms_lod_roisnum_multiple_images_0_normalized.pdmodel"),
-    std::string("multiclass_nms_lod_roisnum_single_image_normalized/multiclass_nms_lod_roisnum_single_image_normalized.pdmodel"),
+    std::string("multiclass_nms_lod_roisnum_multiple_images_normalized/"
+                "multiclass_nms_lod_roisnum_multiple_images_normalized.pdmodel"),
+    std::string("multiclass_nms_lod_roisnum_multiple_images_0_normalized/"
+                "multiclass_nms_lod_roisnum_multiple_images_0_normalized.pdmodel"),
+    std::string("multiclass_nms_lod_roisnum_single_image_normalized/"
+                "multiclass_nms_lod_roisnum_single_image_normalized.pdmodel"),
     std::string("multiclass_nms_not_normalized/multiclass_nms_not_normalized.pdmodel"),
     std::string("multiclass_nms_not_return_indexed/multiclass_nms_not_return_indexed.pdmodel"),
     std::string("multiclass_nms_single_box/multiclass_nms_single_box.pdmodel"),
-    std::string("multiclass_nms_two_batches_two_classes_by_class_id/multiclass_nms_two_batches_two_classes_by_class_id.pdmodel"),
+    std::string("multiclass_nms_two_batches_two_classes_by_class_id/"
+                "multiclass_nms_two_batches_two_classes_by_class_id.pdmodel"),
     // std::string("multiclass_nms_normalized_random/multiclass_nms_normalized_random.pdmodel"),
     // std::string("multiclass_nms_not_normalized_random/multiclass_nms_not_normalized_random.pdmodel"),
     std::string("nearest_downsample_false_0/nearest_downsample_false_0.pdmodel"),
