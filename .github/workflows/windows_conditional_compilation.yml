@@ -46,7 +46,7 @@ jobs:
 
   Build:
     needs: Smart_CI
-    timeout-minutes: 180
+    timeout-minutes: 240 # 4 hours without cache
     defaults:
       run:
         shell: pwsh
