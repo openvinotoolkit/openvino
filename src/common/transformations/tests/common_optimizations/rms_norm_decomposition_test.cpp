@@ -12,6 +12,14 @@
 #include <string>
 #include <transformations/common_optimizations/rms_fusion.hpp>
 #include <transformations/utils/utils.hpp>
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+#include <openvino/pass/manager.hpp>
+#include <string>
+>>>>>>> a68ab5cebb (fixed formating)
+=======
+>>>>>>> 5ccf489bfc (fix code style -3rd attempt)
 
 #include "common_test_utils/ov_test_utils.hpp"
 
@@ -42,8 +50,13 @@ TEST_F(TransformationTestsF, RMSNormFusionTest1) {
     }
     {
         auto input = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{1, 2, 6});
+<<<<<<< HEAD
         auto rms_const = ov::opset10::Constant::create(ov::element::f32,
                                                        ov::Shape{6},
+=======
+        auto rms_const = ov::opset10::Constant::create(ov::element::f32, 
+                                                       ov::Shape{6}, 
+>>>>>>> a68ab5cebb (fixed formating)
                                                        {0.029f, 0.014f, 0.003f, 0.013f, 0.015f, 0.009f});
         auto rms = std::make_shared<ov::op::internal::RMS>(input, rms_const, 1e-5f, ov::element::f16);
 
