@@ -87,7 +87,12 @@ std::vector<ov::PartialShape> shape_infer(const Gemm* op,
     auto shape_b_t = (order_b.size() > 1) ? transpose_pshape(shape_b, order_b) : shape_b;
 
     // broadcast all batch dimensions
-    if (shape_a_t.rank().is_static() && shape_a_t.rank().is_static() && (shape_a_t.size() == shape_b_t.size())) {
+    const auto is_broadcastable = shape_a_t.rank().is_static() &&
+                                  shape_a_t.rank().is_static() &&
+                                  shape_a_t.size() > 1 &&
+                                  shape_b_t.size() > 1 &&
+                                  (shape_a_t.size() == shape_b_t.size());
+    if (is_broadcastable) {
         size_t max_rank = shape_a_t.size();
         for (size_t i = 0; i < max_rank - 2; ++i) {
             if (shape_a_t[i].is_static() && shape_b_t[i].is_static()) {

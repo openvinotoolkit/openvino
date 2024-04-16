@@ -181,7 +181,12 @@ public:
 
         auto input0_pshape = impl_param.input_layouts[0].get_partial_shape();
         auto input1_pshape = impl_param.input_layouts[1].get_partial_shape();
-        if (input0_pshape.rank().is_static() && input1_pshape.rank().is_static() && (primitive->input_rank == primitive->weight_rank)) {
+        const auto is_broadcastable = input0_pshape.rank().is_static() &&
+                                      input1_pshape.rank().is_static() &&
+                                      input0_pshape.size() > 1 &&
+                                      input1_pshape.size() > 1 &&
+                                      (primitive->input_rank == primitive->weight_rank);
+        if (is_broadcastable) {
             auto transpose_pshape = [](const ov::PartialShape pshape, const std::vector<int64_t>& order) {
                 auto transposed_pshape = ov::PartialShape::dynamic(pshape.rank());
                 for (size_t i = 0; i < order.size(); i++) {
