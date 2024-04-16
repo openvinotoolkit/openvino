@@ -171,11 +171,6 @@ jobs:
       - name: Clean ccache stats
         run: '& ccache --zero-stats'
 
-        # to get more information on the issue
-        # described in the next step
-      - name: Show which network ports are used
-        run: netstat -ban
-
       - name: Cmake build - CC COLLECT
         run: |
           cmake --build ${{ env.BUILD_DIR }} --parallel 8 --config ${{ env.CMAKE_BUILD_TYPE }} && `
