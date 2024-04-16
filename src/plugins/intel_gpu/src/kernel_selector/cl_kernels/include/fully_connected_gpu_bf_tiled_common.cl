@@ -131,13 +131,7 @@ inline void (FUNC_NAME)(
         unroll_for(uint ki = 0; ki < (TILE_IFM * SIMD) / TILE_K; ++ki) {
             #if COMPRESSED_WEIGHTS_INT4
                 FILTER_PACKED_VEC_TYPE wei_packed = FILTER_BLOCK_READ(weights, weights_offset);
-                #if TILE_K == 4
-                // TODO : fix
-                    uchar tmp = wei_packed[1];
-                    wei_packed[1] = wei_packed[2];
-                    wei_packed[2] = tmp; 
-                #endif
-                wei = UNPACK_INT4x2(ACCUMULATOR_TYPE, *((INT4_PACKED_TYPE*)&wei_packed));
+                wei = UNPACK_INT4(ACCUMULATOR_TYPE, *((INT4_PACKED_TYPE*)&wei_packed));
             #else
                 wei = TO_FILTER_VEC_TYPE(FILTER_BLOCK_READ(weights, weights_offset));
             #endif
@@ -147,9 +141,9 @@ inline void (FUNC_NAME)(
                 unroll_for(uint kii = 0; kii < TILE_K; ++kii) {
                     unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
                         #if COMPRESSED_WEIGHTS_INT4
-                        const uint w_idx = kii * TILE_OFM + fi;
-                        #else
                         const uint w_idx = fi * TILE_K + kii;
+                        #else
+                        const uint w_idx = kii * TILE_OFM + fi;
                         #endif
                         const uint offset_ofm = out_f + fi*SIMD + sglid;
                         #if !DECOMPRESSION_SCALE_POST_OP
@@ -182,7 +176,11 @@ inline void (FUNC_NAME)(
                     }
                 }
             #endif
+            #if TILE_OFM == 1 && FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2
+            weights_offset += TILE_K_OFM_PACKED * 2 * SIMD;
+            #else
             weights_offset += TILE_K_OFM_PACKED * SIMD;
+            #endif
 
             unroll_for (uint kii = 0; kii < TILE_K; ++kii) {
                 const uint total_k = ki * TILE_K + kii;
@@ -190,14 +188,14 @@ inline void (FUNC_NAME)(
                     INPUT0_TYPE in_val = _sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[total_k / SIMD], total_k % SIMD);
                     unroll_for (uint fi = 0; fi < TILE_OFM; ++fi) {
                         #if COMPRESSED_WEIGHTS_INT4
-                        int weight_idx = fi * TILE_K + kii;
+                        int w_idx = fi * TILE_K + kii;
                         #else
-                        int weight_idx = kii * TILE_OFM + fi;
+                        int w_idx = kii * TILE_OFM + fi;
                         #endif
 #if DECOMPRESSION_SCALE_POST_OP
-                        ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[weight_idx];
+                        ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[w_idx];
 #else
-                        ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[weight_idx];
+                        ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[w_idx];
 #endif
                     }
                 }
@@ -254,7 +252,7 @@ inline void (FUNC_NAME)(
         unroll_for(uint ki = 0; ki < CEIL_DIV(LEFTOVER_IFM, TILE_K); ++ki) {
             #if COMPRESSED_WEIGHTS_INT4
                 FILTER_PACKED_VEC_TYPE wei_packed = FILTER_BLOCK_READ(weights, weights_offset);
-                wei = UNPACK_INT4x2(ACCUMULATOR_TYPE, *((INT4_PACKED_TYPE*)&wei_packed));
+                wei = UNPACK_INT4(ACCUMULATOR_TYPE, *((INT4_PACKED_TYPE*)&wei_packed));
             #else
                 wei = TO_FILTER_VEC_TYPE(FILTER_BLOCK_READ(weights, weights_offset));
             #endif
@@ -263,7 +261,11 @@ inline void (FUNC_NAME)(
                 ACCUMULATOR_TYPE* w = (ACCUMULATOR_TYPE*)(&wei);
                 unroll_for(uint kii = 0; kii < TILE_K; ++kii) {
                     unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
+                        #if COMPRESSED_WEIGHTS_INT4
                         const uint w_idx = kii * TILE_OFM + fi;
+                        #else
+                        const uint w_idx = kii * TILE_OFM + fi;
+                        #endif
                         uint offset_ofm = out_f + fi*SIMD + get_sub_group_local_id();
                         #if DECOMPRESSION_SCALE_GROUPS_NUM > 1
                             const uint scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH +
@@ -290,8 +292,11 @@ inline void (FUNC_NAME)(
                     }
                 }
             #endif
+            #if TILE_OFM == 1 && FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2
+            weights_offset += TILE_K_OFM_PACKED * 2 * SIMD;
+            #else
             weights_offset += TILE_K_OFM_PACKED * SIMD;
-
+            #endif
             unroll_for (uint kii = 0; kii < TILE_K; ++kii) {
                 unroll_for (uint fi = 0; fi < TILE_OFM; ++fi) {
                     unroll_for (uint bi = 0; bi < FORCED_TILE_B; ++bi) {

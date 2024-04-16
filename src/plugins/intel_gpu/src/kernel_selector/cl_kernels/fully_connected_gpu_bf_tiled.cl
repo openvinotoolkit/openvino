@@ -42,8 +42,17 @@
 #   if TILE_K_OFM != TILE_K_OFM_PACKED * 2
 #       error "fully_connected_gpu_bf_tiled.cl - TILE_K_OFM must be divisible by 2 for 4-bit compressed case"
 #   endif
+#   if FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2 && TILE_K != 4 && TILE_K != 2 && TILE_K != 1
+#       error "fully_connected_gpu_bf_tiled.cl - TILE_K must be one of {1, 2, 4}"
+#   endif
 #endif
-
+#if TILE_K == 4 && COMPRESSED_WEIGHTS_INT4 && FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2
+// Data stored in memory : f0k0k1|f16k0k1|f0k2k3|f16k2k3
+// => unpack as f0k0k1|f0k2k3|f16k0k1|f16k2k3 so that the weight access order is preserved 
+#define UNPACK_INT4 UNPACK_INT4x2_OSV32_ISV2
+#else
+#define UNPACK_INT4 UNPACK_INT4x2
+#endif
 // Macros for vectorized types.
 #define INPUT_VEC_TYPE             MAKE_VECTOR_TYPE(INPUT0_TYPE, TILE_IFM)
 #define ACCUMULATOR_VEC_TYPE       MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, TILE_OFM)
@@ -65,6 +74,7 @@
 #define SLM_FILTER_VEC          MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, TILE_OFM)
 #define SLM_FILTER_PACKED_VEC   MAKE_VECTOR_TYPE(FILTER_TYPE, FILTER_LOAD_BLOCK_SIZE)
 #define SLM_FILTER_UNPACKED_VEC MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, FILTER_ELEMENTS_PER_LOAD)
+
 
 // Check alignment restrictions for using block writes on output.
 #define USE_BLOCK_WRITE ((OUTPUT_TYPE_SIZE * TILE_OUT_B_PITCH) % 16 == 0 && (OUTPUT_TYPE_SIZE * OUTPUT_OFFSET) % 16 == 0)
@@ -291,17 +301,11 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 
             unroll_for(uint load_iter = 0; load_iter < FILTER_LOAD_ITERS; ++load_iter) {
                 SLM_FILTER_PACKED_VEC wei_packed = BLOCK_READN(FILTER_TYPE, FILTER_LOAD_BLOCK_SIZE, weights, weights_idx);
-                #if TILE_K == 4 && COMPRESSED_WEIGHTS_INT4
-                    uchar tmp = wei_packed[1];
-                    wei_packed[1] = wei_packed[2];
-                    wei_packed[2] = tmp;
-                #endif
-                SLM_FILTER_UNPACKED_VEC wei_unpacked = UNPACK_INT4x2(ACCUMULATOR_TYPE, *((INT4_PACKED_TYPE_PRELOAD*)&wei_packed));
-
+                SLM_FILTER_UNPACKED_VEC wei_unpacked = UNPACK_INT4(ACCUMULATOR_TYPE, *((INT4_PACKED_TYPE_PRELOAD*)&wei_packed));
                 ACCUMULATOR_TYPE* w = (ACCUMULATOR_TYPE*)(&wei_unpacked);
-                unroll_for(uint kii = 0; kii < FILTER_LOAD_BLOCK_SIZE; ++kii) {
-                    unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
-                        #if COMPRESSED_WEIGHTS_INT4
+                unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
+                    unroll_for(uint kii = 0; kii < FILTER_LOAD_BLOCK_SIZE; ++kii) {
+                        #if COMPRESSED_WEIGHTS_INT4 && FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2
                         const uint w_idx = fi * TILE_K + kii;
                         #else
                         const uint w_idx = kii * TILE_OFM + fi;
@@ -390,12 +394,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                     #undef LOAD_FROM_SLM
                 #else
                     FILTER_PACKED_VEC_TYPE wei_packed = FILTER_BLOCK_READ(weights, weights_offset);
-                    #if TILE_K == 4
-                            uchar tmp = wei_packed[1];
-                            wei_packed[1] = wei_packed[2];
-                            wei_packed[2] = tmp;
-                    #endif
-                    wei = UNPACK_INT4x2(ACCUMULATOR_TYPE, *((INT4_PACKED_TYPE*)&wei_packed));
+                    wei = UNPACK_INT4(ACCUMULATOR_TYPE, *((INT4_PACKED_TYPE*)&wei_packed));
                 #endif
             #else
                 wei = TO_FILTER_VEC_TYPE(FILTER_BLOCK_READ(weights, weights_offset));
@@ -405,7 +404,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 ACCUMULATOR_TYPE* w = (ACCUMULATOR_TYPE*)(&wei);
                 unroll_for(uint kii = 0; kii < TILE_K; ++kii) {
                     unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
-                        #if COMPRESSED_WEIGHTS_INT4
+                        #if COMPRESSED_WEIGHTS_INT4 && FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2
                         const uint w_idx = fi * TILE_K + kii;
                         #else
                         const uint w_idx = kii * TILE_OFM + fi;
@@ -447,13 +446,13 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
                     INPUT0_TYPE in_val = _sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[total_k / SIMD], total_k % SIMD);
                     unroll_for (uint fi = 0; fi < TILE_OFM; ++fi) {
-                    #if COMPRESSED_WEIGHTS_INT4
-                    int weight_idx = fi * TILE_K + kii;
+                    #if COMPRESSED_WEIGHTS_INT4 && FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2
+                    int w_idx = fi * TILE_K + kii;
                     #else
-                    int weight_idx = kii * TILE_OFM + fi;
+                    int w_idx = kii * TILE_OFM + fi;
                     #endif
 #if DECOMPRESSION_SCALE_POST_OP
-                    half weight = ((ACCUMULATOR_TYPE*)(&wei))[weight_idx];
+                    half weight = ((ACCUMULATOR_TYPE*)(&wei))[w_idx];
                     #if TILE_OFM > 1
                         ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] += in_val * weight;
                     #else
@@ -461,9 +460,9 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                     #endif
 #else
                     #if TILE_OFM > 1
-                        ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[weight_idx];
+                        ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[w_idx];
                     #else
-                        acc[bi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[weight_idx];
+                        acc[bi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[w_idx];
                     #endif
 #endif
                     }
@@ -541,7 +540,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 
             #if COMPRESSED_WEIGHTS_INT4
                 FILTER_PACKED_VEC_TYPE wei_packed = FILTER_BLOCK_READ(weights, weights_offset);
-                wei = UNPACK_INT4x2(ACCUMULATOR_TYPE, *((INT4_PACKED_TYPE*)&wei_packed));
+                wei = UNPACK_INT4(ACCUMULATOR_TYPE, *((INT4_PACKED_TYPE*)&wei_packed));
             #else
                 wei = TO_FILTER_VEC_TYPE(FILTER_BLOCK_READ(weights, weights_offset));
             #endif
@@ -550,7 +549,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 ACCUMULATOR_TYPE* w = (ACCUMULATOR_TYPE*)(&wei);
                 unroll_for(uint kii = 0; kii < TILE_K; ++kii) {
                     unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
-                        #if COMPRESSED_WEIGHTS_INT4
+                        #if COMPRESSED_WEIGHTS_INT4 && FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2
                         const uint w_idx = fi * TILE_K + kii;
                         #else
                         const uint w_idx = kii * TILE_OFM + kii;
@@ -593,18 +592,15 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                         const uint total_k = ki * TILE_K + kii;
                         if (total_k < LEFTOVER_IFM) {
                             INPUT0_TYPE in_val = _sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[total_k / SIMD], total_k % SIMD);
-                            #if TILE_OFM > 1
-                                #if COMPRESSED_WEIGHTS_INT4
-                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[fi * TILE_K + kii];
-                                #else
-                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[kii * TILE_OFM + fi];
-                                #endif
+                            #if COMPRESSED_WEIGHTS_INT4 && FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2
+                                int w_idx = fi * TILE_K + kii;
                             #else
-                                #if COMPRESSED_WEIGHTS_INT4
-                            acc[bi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[fi * TILE_K + kii];
-                                #else
-                            acc[bi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[kii * TILE_OFM + fi];
-                                #endif
+                                int w_idx = kii * TILE_OFM + fi;
+                            #endif
+                            #if TILE_OFM > 1
+                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[w_idx];
+                            #else
+                            acc[bi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[w_idx];
                             #endif
                         }
                     }
