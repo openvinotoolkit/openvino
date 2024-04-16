@@ -242,7 +242,10 @@ void prepare_padding::run(program& p) {
         }
 
         auto& input = node.get_dependency(0);
-        if (node.get_preferred_impl_type() == impl_types::ocl && input.is_type<mvn>()) {
+        // WA to add reorder between MVN and Conv because Conv need input data with padding but MVN opt kernel with default format does not support padding.
+        // TODO: MVN opt kernel should support padding.
+        if (node.get_preferred_impl_type() == impl_types::ocl && input.is_type<mvn>()
+            && format::is_default_format(input.get_output_layout().format)) { // check the allowed format to avoid perf drop by unnecessary reorder addition.
             auto new_reorder = std::make_shared<reorder>(node.id() + "_padding_reorder_for_" + input.id(), input.id(), input.get_output_layout());
             auto& new_reorder_node = p.get_or_create(new_reorder);
             p.add_intermediate(new_reorder_node, node, input);

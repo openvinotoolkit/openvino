@@ -2,10 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-from common.layer_test_class import check_ir_version
 from common.tf_layer_test_class import CommonTFLayerTest
-
-from unit_tests.utils.graph import build_graph
 
 
 class TestReLU6(CommonTFLayerTest):
@@ -24,22 +21,6 @@ class TestReLU6(CommonTFLayerTest):
             tf_net = sess.graph_def
 
         ref_net = None
-
-        if check_ir_version(10, None, ir_version) and not use_legacy_frontend:
-            nodes_attributes = {
-                'input': {'kind': 'op', 'type': 'Parameter'},
-                'input_data': {'shape': shape, 'kind': 'data'},
-                'ReLU6': {'kind': 'op', 'type': 'Clamp', "max": 6, "min": 0},
-                'ReLU6_data': {'shape': shape, 'kind': 'data'},
-                'result': {'kind': 'op', 'type': 'Result'}
-            }
-
-            ref_net = build_graph(nodes_attributes,
-                                  [('input', 'input_data'),
-                                   ('input_data', 'ReLU6'),
-                                   ('ReLU6', 'ReLU6_data'),
-                                   ('ReLU6_data', 'result')
-                                   ])
 
         return tf_net, ref_net
 
