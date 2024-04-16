@@ -210,17 +210,39 @@ describe('Test exportModel()/importModel()', () => {
     assert.deepStrictEqual(res1['fc_out'].data[0], res2['fc_out'].data[0]);
   });
 
-  it('Test importModel(stream, device)', () => {
+  it('Test importModel(stream, device) throws', () => {
     assert.throws(
       () => core.importModelSync(epsilon, 'CPU'),
       /The first argument must be of type Buffer./
     );
   });
 
-  it('Test importModel(stream, device)', () => {
+  it('Test importModel(stream, device) throws', () => {
     assert.throws(
       () => core.importModelSync(userStream, tensor),
       /The second argument must be of type String./
+    );
+  });
+  it('Test importModel(stream, device, config: tensor) throws', () => {
+    assert.throws(
+      () => core.importModelSync(userStream, 'CPU', tensor),
+      /NotFound: Unsupported property 0 by CPU plugin./
+    );
+  });
+
+  it('Test importModel(stream, device, config: string) throws', () => {
+    const testString = 'test';
+    assert.throws(
+      () => core.importModelSync(userStream, 'CPU', testString),
+      /Passed Napi::Value must be an object./
+    );
+  });
+
+  it('Test importModel(stream, device, config: unsupported property) throws', () => {
+    const tmpDir = '/tmp';
+    assert.throws(
+      () => core.importModelSync(userStream, 'CPU', {'CACHE_DIR': tmpDir}),
+      /Unsupported property CACHE_DIR by CPU plugin./
     );
   });
 });

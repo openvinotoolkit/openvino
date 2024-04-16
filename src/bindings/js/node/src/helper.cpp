@@ -544,6 +544,9 @@ bool is_napi_value_int(const Napi::Env& env, const Napi::Value& num) {
 
 ov::AnyMap to_anyMap(const Napi::Env& env, const Napi::Value& val) {
     ov::AnyMap properties;
+    if (!val.IsObject()) {
+        OPENVINO_THROW("Passed Napi::Value must be an object.");
+    }
     const auto& parameters = val.ToObject();
     const auto& keys = parameters.GetPropertyNames();
 
