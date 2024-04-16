@@ -6,8 +6,7 @@
 #include <napi.h>
 
 const std::string get_type_name(napi_valuetype type) {
-    switch (type)
-    {
+    switch (type) {
     case napi_undefined:
         return "Undefined";
 
@@ -81,7 +80,8 @@ public:
     }
 
     static void array(const std::string key, const Napi::Value& value) {
-        if (value.IsArray()) return;
+        if (value.IsArray())
+            return;
 
         std::string error_message = Signature::get_error_message(key, "Array", value.Type());
         throw std::runtime_error(error_message);
@@ -90,20 +90,23 @@ public:
     static void check_type(const napi_valuetype expected_type, const std::string key, const Napi::Value& value) {
         napi_valuetype real_type = value.Type();
 
-        if (real_type == expected_type) return;
+        if (real_type == expected_type)
+            return;
 
         std::string error_message = Signature::get_error_message(key, expected_type, real_type);
         throw std::runtime_error(error_message);
     }
 
-    static std::string get_error_message(std::string key, napi_valuetype expected_type, napi_valuetype real_type) {
+    static const std::string get_error_message(std::string key,
+                                               napi_valuetype expected_type,
+                                               napi_valuetype real_type) {
         std::string expected_type_str = get_type_name(expected_type);
         std::string real_type_str = get_type_name(real_type);
 
         return get_error_message(key, expected_type_str, real_type_str);
     }
 
-    static std::string get_error_message(std::string key, std::string expected, napi_valuetype real_type) {
+    static const std::string get_error_message(std::string key, std::string expected, napi_valuetype real_type) {
         std::string real_type_str = get_type_name(real_type);
 
         return get_error_message(key, expected, real_type_str);
@@ -114,18 +117,24 @@ public:
     }
 };
 
-std::pair<bool, std::string> validate_args(const Napi::CallbackInfo& info, const std::function<void(Signature&)>& builder) {
+std::pair<bool, const std::string> validate_args(const Napi::CallbackInfo& info,
+                                                 const std::function<void(Signature&)>& builder) {
     Signature s = Signature();
     std::string validation_errors;
 
     builder(s);
+
+    if (info.Length() != s.attributes_validators.size()) {
+        return std::make_pair(false, validation_errors);
+    }
+
     size_t index = 0;
 
     for (const auto& validator : s.attributes_validators) {
         try {
             validator(std::to_string(index), info[index]);
-        } catch(std::runtime_error& err) {
-            validation_errors.append(std::string(err.what()) + "\n\t");
+        } catch (std::runtime_error& err) {
+            validation_errors.append("\t" + std::string(err.what()) + "\n");
         }
 
         index++;
@@ -134,4 +143,16 @@ std::pair<bool, std::string> validate_args(const Napi::CallbackInfo& info, const
     bool is_errors_empty = validation_errors.empty();
 
     return std::make_pair(is_errors_empty, validation_errors);
+}
+
+std::function<bool(const Napi::CallbackInfo& info)> create_signature(const std::function<void(Signature&)>& builder,
+                                                                     std::vector<std::string>& error_messages) {
+    return [builder, &error_messages](const Napi::CallbackInfo& info) {
+        auto result = validate_args(info, builder);
+
+        if (!result.first)
+            error_messages.push_back(result.second);
+
+        return result.first;
+    };
 }
