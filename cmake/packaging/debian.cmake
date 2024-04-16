@@ -347,7 +347,7 @@ macro(ov_cpack_settings)
     # Samples
     #
 
-    set(samples_build_deps "cmake, g++, gcc, libc6-dev, make, pkg-config")
+    set(samples_build_deps "cmake, g++, gcc, libc6-dev, make, pkgconf")
     set(samples_build_deps_suggest "libopencv-core-dev, libopencv-imgproc-dev, libopencv-imgcodecs-dev")
     set(samples_opencl_suggest "ocl-icd-opencl-dev, opencl-headers")
 
