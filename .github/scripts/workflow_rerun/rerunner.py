@@ -4,7 +4,6 @@ import tempfile
 from pathlib import Path
 
 from github import Github, Auth
-
 from workflow_rerun.argument_parser import get_arguments
 from workflow_rerun.constants import GITHUB_TOKEN, LOGGER
 from workflow_rerun.log_analyzer import LogAnalyzer

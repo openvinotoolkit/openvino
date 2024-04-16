@@ -32,7 +32,6 @@ class LogAnalyzer:
 
         self._log_files: list[LogFile] = []
         self._collect_log_files()
-
         all_txt_log_files_pretty = '\n'.join(map(lambda item: str(item['path']), self._log_files))
         LOGGER.info(f'ALL .txt LOG FILES: \n{all_txt_log_files_pretty}')
 
@@ -46,9 +45,9 @@ class LogAnalyzer:
             errors_data = json.load(errors_file)
             for error_data in errors_data:
                 self._errors_to_look_for.append(
-                    ErrorData(error_text=error_data['error_text'],
+                    ErrorData(error_text=error_data['error_text'], 
                               ticket=error_data['ticket'])
-                )
+                    )
 
     def _collect_log_files(self) -> None:
         """
