@@ -34,7 +34,6 @@ public:
      * @return A Javascript Model object.
      */
     Napi::Value read_model_sync(const Napi::CallbackInfo& info);
-    Napi::Value test(const Napi::CallbackInfo& info);
 
     /**
      * @brief Asynchronously reads a model.
