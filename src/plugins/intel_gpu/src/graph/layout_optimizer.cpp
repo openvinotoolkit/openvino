@@ -1214,7 +1214,7 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
                   convolution_fs_b_yx_fsv32_opt(input_layout,
                                                 output_layout,
                                                 weights_layout, prim, true)))) &&
-                 !(has_rank3_mvn_user(reinterpret_cast<program_node const&>(*node.get_users().front()), 0, 3, 160000) &&
+                 !(has_rank3_mvn_user(reinterpret_cast<program_node const&>(*node.get_users().front()), 0, 3, 1000000) &&
                      !static_cast<bool>(prepare_padding::get_convolution_needed_padding(const_cast<convolution_node&>(node))))) {
             // Chose fs_b_yx_fsv32 layout in two cases: 1-st: the current conv primitive totally supports fs_b_yx_fsv32 layout
             //                                          2-nd: the previous conv primitive supports fs_b_yx_fsv32 layout and
