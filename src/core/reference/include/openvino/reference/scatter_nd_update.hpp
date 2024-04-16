@@ -46,36 +46,39 @@ constexpr T logical_or(const T a, const T b) {
 
 }  // namespace func
 
-template <typename T, typename std::enable_if<!std::is_same<typename std::decay<T>::type, char>::value>* = nullptr>
+template <typename T,
+          typename std::enable_if<!std::is_same<typename std::decay<T>::type, char>::value>::type* = nullptr>
 reduction_function<T> reduction_functor_for(const Reduction reduction_type) {
+    using U = typename std::decay<T>::type;
     switch (reduction_type) {
     case Reduction::MAX:
-        return func::max<T>;
+        return func::max<U>;
     case Reduction::MIN:
-        return func::min<T>;
+        return func::min<U>;
     case Reduction::PROD:
-        return func::multiply<T>;
+        return func::multiply<U>;
     case Reduction::SUM:
-        return func::add<T>;
+        return func::add<U>;
     case Reduction::SUB:
-        return func::subtract<T>;
+        return func::subtract<U>;
     case Reduction::NONE:
     default:
         return nullptr;
     }
 }
 
-template <>
-reduction_function<char> reduction_functor_for<char>(const Reduction reduction_type) {
+template <typename T, typename std::enable_if<std::is_same<typename std::decay<T>::type, char>::value>::type* = nullptr>
+reduction_function<T> reduction_functor_for(const Reduction reduction_type) {
+    using U = typename std::decay<T>::type;
     switch (reduction_type) {
     case Reduction::MIN:
     case Reduction::PROD:
-        return func::logical_and<char>;
+        return func::logical_and<U>;
     case Reduction::SUM:
     case Reduction::MAX:
-        return func::logical_or<char>;
+        return func::logical_or<U>;
     case Reduction::SUB:
-        return func::logical_xor<char>;
+        return func::logical_xor<U>;
     case Reduction::NONE:
     default:
         return nullptr;
