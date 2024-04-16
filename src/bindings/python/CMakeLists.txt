@@ -357,6 +357,8 @@ if(ENABLE_PYTHON_PACKAGING)
     set(openvino_telemetry_meta_info_file "${install_lib}/${openvino_telemetry_meta_info_subdir}/PKG-INFO")
 
     add_custom_command(OUTPUT ${openvino_telemetry_meta_info_file}
+        COMMAND ${CMAKE_COMMAND} -E remove_directory
+        "${python_package_prefix}"
         COMMAND "${Python3_EXECUTABLE}" "${OpenVINO_Telemetry_SOURCE_DIR}/setup.py"
                     --no-user-cfg
                     --quiet
