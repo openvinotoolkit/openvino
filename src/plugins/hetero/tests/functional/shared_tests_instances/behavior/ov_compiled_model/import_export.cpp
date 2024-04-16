@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "behavior/compiled_model/import_export.hpp"
+
 #include "common_test_utils/test_constants.hpp"
 
 using namespace ov::test::behavior;
