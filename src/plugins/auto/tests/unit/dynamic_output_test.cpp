@@ -116,16 +116,11 @@ TEST_P(DynamicOutputInferenceTest, CanSelectCorrectTargetDeviceandInitizeBlobWit
 TEST_P(DynamicOutputInferenceTest, CanInferWithOutputChangedFromDynamicOnAutoToStaticOnActualDevice) {
     plugin->set_device_name("AUTO");
     // change the tensor shape from dynamic to static for CPU/GPU.0 infer request
-    for (auto& it : inferReqInternalActual->get_outputs()) {
-        if (!it.get_partial_shape().is_dynamic())
-            continue;
-        auto tensor = inferReqInternalActual->get_tensor(it);
-    }
-    // change the tensor shape from dynamic to static for GPU.1 infer request
     for (auto& it : inferReqInternal->get_outputs()) {
         if (!it.get_partial_shape().is_dynamic())
             continue;
         auto tensor = inferReqInternal->get_tensor(it);
+        tensor->set_shape(ov::Shape{2, 3});
     }
     ON_CALL(*mockIExeNet.get(), create_infer_request()).WillByDefault(Return(mockInferrequest));
     ON_CALL(*mockIExeNetActual.get(), create_infer_request()).WillByDefault(InvokeWithoutArgs([this]() {
