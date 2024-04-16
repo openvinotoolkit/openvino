@@ -340,7 +340,7 @@ void SyncInferRequest::wait() {
 
         bool need_output_update = output_layout.bytes_count() == 0 || (output_memory && output_tensor->get_byte_size() != output_memory->size());
 
-        // Check shape is changed when size between output_tensor and ouytput_memory are same.
+        // Check shape is changed when size between output_tensor and output_memory are same.
         if (!need_output_update) {
             auto output_layout_shape = output_layout.get_shape();
             auto output_tensor_shape = output_tensor->get_shape();
