@@ -451,7 +451,7 @@ class TestTransformersModel(TestTorchConvertModel):
                                            ("gpt2", "gpt2"),
                                            ("openai/clip-vit-large-patch14", "clip"),
                                            ("OpenVINO/opt-125m-gptq", "opt"),
-                                           ("facebook/levit-128S")
+                                           ("facebook/levit-128S", "levit")
                                            ])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, type, ie_device):
