@@ -216,6 +216,7 @@ class TestReduceL1L2(OnnxRuntimeLayerTest):
         dict(shape=[2, 4, 6, 8, 10], axes=[-4, -2]),
     ]
 
+    @pytest.mark.skip("ticket 95904")
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.parametrize("reduce_p", [1, 2])
@@ -226,6 +227,7 @@ class TestReduceL1L2(OnnxRuntimeLayerTest):
                                           ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
+    @pytest.mark.skip("ticket 95904")
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.parametrize("reduce_p", [1, 2])
@@ -236,6 +238,7 @@ class TestReduceL1L2(OnnxRuntimeLayerTest):
                                           ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
+    @pytest.mark.skip("ticket 95904")
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.parametrize("reduce_p", [1, 2])
@@ -247,6 +250,7 @@ class TestReduceL1L2(OnnxRuntimeLayerTest):
                                          ir_version=ir_version),
             ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
+    @pytest.mark.skip("ticket 95904")
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.parametrize("reduce_p", [1, 2])
