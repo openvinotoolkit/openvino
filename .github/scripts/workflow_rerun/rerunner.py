@@ -14,6 +14,7 @@ if __name__ == '__main__':
     args = get_arguments()
     run_id = args.run_id
     repository_name = args.repository_name
+    errors_file = args.errors_to_look_for_file
 
     github = Github(auth=Auth.Token(token=GITHUB_TOKEN))
     gh_repo = github.get_repo(full_name_or_id=repository_name)
@@ -36,7 +37,7 @@ if __name__ == '__main__':
 
     log_analyzer = LogAnalyzer(
         path_to_log_archive=log_archive_path,
-        path_to_errors_file=args.error_to_look_for_file,
+        path_to_errors_file=errors_file
     )
     log_analyzer.analyze()
 
