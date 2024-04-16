@@ -285,7 +285,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_RDFT_CPU_4D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\[\?.192.36.64\]_.*_axes=\(\((0|_2._1|_1|1)\)_.*isInverse=false.*)",
         R"(.*smoke_RDFT_CPU_4D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\[\]_TS0=\(\((1.120.64.64|1.120.96.96|\?.\?.\?.\?|1.192.\?.\?|1..2.\?.\?.1..100)\)\).*isInverse=false.*)",
         R"(.*smoke_RDFT_2d/RDFTLayerTest.Inference/IS=\(100.16\)_modelType=f32_Axes=\((0.1|_2._1|1.0)\)_SignalSize=\(\).*)",
-
         // Issue: 138520
         R"(.*smoke_MM_Static/MatMulLayerCPUTest.CompareWithRefs/MatMul_IS=\[\]_\[\]_TS=\(\(55.12\)\)_\(\(12.55\)\)_.*\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)",
         R"(.*smoke_FC_3D_BF16/MatMulLayerCPUTest.CompareWithRefs/FullyConnected_IS=\[\]_\[\]_TS=\(\(1.32.120\)\)_\(\(120.5\)\).*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)",
@@ -298,6 +297,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_MM_Dynamic_Fusing/MatMulLayerCPUTest.CompareWithRefs/MatMul_IS=\[\?.\?\]_\[\?.33\]_TS=\(\(16.12\)_\(33.7\)_\(16.12\)\)_\(\(12.33\)_\(7.33\)_\(12.33\)\)_transpose_a=0_transpose_b=0_secondaryInputType=PARAMETER_.*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)",
         R"(.*(nightly|smoke)_MM_Brgemm_Static/MatMulLayerCPUTest.CompareWithRefs/MatMul_IS=\[\]_\[\]_TS=\(\(55.12\)\)_\(\(12.55\)\)_.*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=brgemm_avx512.*)",
         R"(.*smoke_MM_Brgemm_Dynamic_Fusing/MatMulLayerCPUTest.CompareWithRefs/MatMul_IS=\[\?.\?\]_\[\?.33\]_TS=\(\(16.12\)_\(33.7\)_\(16.12\)\)_\(\(12.33\)_\(7.33\)_\(12.33\)\)_transpose_a=0_transpose_b=0_secondaryInputType=PARAMETER_netPRC=f32_inPRC=undefined_outPRC=undefined_trgDev=CPUconfig=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=brgemm_avx512.*)",
+        // Issue: 134470
+        R"(.*smoke.*StatefulModelStateInLoopBody.*)",
     };
 
 #if defined(OPENVINO_ARCH_X86)

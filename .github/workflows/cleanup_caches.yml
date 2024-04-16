@@ -1,4 +1,4 @@
-name: Cleanup PIP caches
+name: Cleanup caches
 on:
   workflow_dispatch:
   schedule:
@@ -6,7 +6,7 @@ on:
     - cron: '0 0 1 * *'
 
 jobs:
-  Cleanup_PIP_Caches:
+  Cleanup_PIP:
     runs-on: aks-linux-2-cores-8gb
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
@@ -30,3 +30,26 @@ jobs:
         run: |
           echo "Cache info: "
           du -h -d2 ${PIP_CACHE_PATH}
+
+  Cleanup_CCACHE:
+    runs-on: aks-linux-2-cores-8gb
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      volumes:
+        - /mount:/mount
+    env:
+      CCACHE_PATH: /mount/caches/ccache/ubuntu22_riscv64
+
+    steps:
+      - name: Checkout cach action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions/cache
+
+      - name: Cleanup ccache
+        uses: ./.github/actions/cache/cleanup
+        with:
+          cache-size: 10
+          max-cache-size: 50
+          cache-path: ${{ env.CCACHE_PATH }}
+          key: '.'

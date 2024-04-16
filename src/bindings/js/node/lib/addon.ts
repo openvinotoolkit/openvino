@@ -38,6 +38,12 @@ interface Core {
   readModelSync(modelBuffer: Uint8Array, weightsBuffer?: Uint8Array): Model;
   importModelSync(modelStream: Buffer, device: string): CompiledModel;
   getAvailableDevices(): string[];
+  getVersions(deviceName: string): {
+    [deviceName: string]: {
+      buildNumber: string,
+      description: string,
+    },
+  };
   setProperty(props: { [key: string]: string | number | boolean }): void;
   setProperty(
     deviceName: string,
@@ -47,7 +53,8 @@ interface Core {
   getProperty(
     deviceName: string,
     propertyName: string,
-  ): string | number | boolean,
+  ): string | number | boolean;
+  addExtension(libraryPath: string): void;
 }
 interface CoreConstructor {
   new(): Core;
