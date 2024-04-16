@@ -17,6 +17,21 @@ std::shared_ptr<ov::Model> GroupNormalizationFunction::initOriginal() const {
     return std::make_shared<ov::Model>(NodeVector{groupNormalization}, ParameterVector{data, scale, shift});
 }
 
+std::shared_ptr<ov::Model> GroupNormalizationFunction::initReference() const {
+    auto data = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
+    auto scale = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
+    auto shift = std::make_shared<op::v0::Parameter>(precision, input_shapes[2]);
+    auto data_ = std::make_shared<op::v0::Parameter>(precision, data->get_shape());
+    auto scale_ = std::make_shared<op::v0::Parameter>(precision, scale->get_shape());
+    auto shift_ = std::make_shared<op::v0::Parameter>(precision, shift->get_shape());
+    const auto groupNormalization = std::make_shared<ov::op::v12::GroupNormalization>(data_, scale_, shift_, num_groups, epsilon);
+
+    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(NodeVector{data, scale, shift},
+            std::make_shared<ov::Model>(NodeVector{groupNormalization}, ParameterVector{data_, scale_, shift_}));
+
+    return std::make_shared<ov::Model>(NodeVector{subgraph}, ParameterVector{data, scale, shift});
+}
+
 std::shared_ptr<ov::Model> GroupNormalizationFunction::initLowered() const {
     auto data = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     auto scale = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);

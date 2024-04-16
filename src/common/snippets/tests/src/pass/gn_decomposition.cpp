@@ -26,15 +26,13 @@ std::string GNDecompositionTest::getTestCaseName(testing::TestParamInfo<GroupNor
 
 void GNDecompositionTest::SetUp() {
     LoweringTests::SetUp();
-    std::vector<PartialShape> input_shapes;
     PartialShape data_shape;
     size_t num_group;
     float eps;
     std::tie(data_shape, num_group, eps) = this->GetParam();
+    OPENVINO_ASSERT(data_shape.rank().get_length() >= 2, "First input rank for group normalization op should be greater or equal to 2");
     PartialShape scaleShiftShape = PartialShape{data_shape[1]};
-    input_shapes.push_back(data_shape);
-    input_shapes.push_back(scaleShiftShape);
-    input_shapes.push_back(scaleShiftShape);
+    std::vector<PartialShape> input_shapes = { data_shape, scaleShiftShape, scaleShiftShape};
     snippets_model = std::make_shared<GroupNormalizationFunction>(input_shapes, num_group, eps);
 }
 
@@ -46,7 +44,13 @@ TEST_P(GNDecompositionTest, GNDecomposition) {
 
 namespace {
 
-const std::vector<ov::PartialShape> input_shapes{{1, 16, 8, 128}};
+const std::vector<ov::PartialShape> input_shapes{
+    {1, 8},
+    {1, 8, 18},
+    {1, 16, 8, 5},
+    {3, 8, 2, 2, 3},
+    {3, 8, 2, 2, 3, 3}
+};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_GNDecomposition,
                          GNDecompositionTest,

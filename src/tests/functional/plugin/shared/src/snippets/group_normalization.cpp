@@ -49,12 +49,17 @@ void GroupNormalization::SetUp() {
     if (!configuration.count("SNIPPETS_MODE")) {
         configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
+
+    abs_threshold = 1e-5;
 }
 
 InputShape GroupNormalization::ExtractScaleShiftShape(const InputShape& shape) {
     std::vector<ov::Shape> biasShape;
     std::transform(shape.second.cbegin(), shape.second.cend(), std::back_inserter(biasShape),
-                   [](const ov::Shape& s)->ov::Shape { return {s[1]}; });
+        [](const ov::Shape& s)->ov::Shape {
+            OPENVINO_ASSERT(s.size() >= 2, "First input rank for group normalization op should be greater or equal to 2");
+            return {s[1]};
+        });
     InputShape biasInputShape {
         shape.first.is_dynamic() ? ov::PartialShape{shape.first[1]} : shape.first,
         std::move(biasShape)

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "./snippets_helpers.hpp"
+#include "snippets_helpers.hpp"
 
 namespace ov {
 namespace test {
@@ -19,6 +19,7 @@ public:
 
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
+    std::shared_ptr<ov::Model> initReference() const override;
     std::shared_ptr<ov::Model> initLowered() const override;
 
 private:
