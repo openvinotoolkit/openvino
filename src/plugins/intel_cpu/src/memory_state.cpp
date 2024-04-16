@@ -194,9 +194,9 @@ ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
     pastkv = pastkv.permute(actual_internal_order);
     // S should be always the last dimension
     OPENVINO_ASSERT(pastkv.stride(3) == 1 && output.stride(3) == 1);
-    auto B = pastkv.size(0);
-    auto H = pastkv.size(1);
-    auto L0 = pastkv.size(2);
+    auto L0 = pastkv.size(0);
+    auto B = pastkv.size(1);
+    auto H = pastkv.size(2);
     auto S = pastkv.size(3);
     if (pastkv.get_precision() == element::u8) {
         auto nthr = parallel_get_max_threads();
@@ -216,10 +216,10 @@ ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
                         S);
         });
     } else {
-        parallel_for3d(B, H, L0, [&](size_t b, size_t h, size_t m) {
+        parallel_for3d(L0, B, H, [&](size_t m, size_t b, size_t h) {
             auto b_kv = static_cast<size_t>(beam_table.at<int32_t>({b, m}));
-            cpu_convert(pastkv.ptr_v(b_kv, h, m),
-                        output.ptr_v(b, h, m),
+            cpu_convert(pastkv.ptr_v(m, b_kv, h),
+                        output.ptr_v(m, b, h),
                         pastkv.m_dt,
                         output.m_dt,
                         S);
@@ -247,9 +247,9 @@ void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
         internal.reset(m_internal_mem);
         external = external.permute(actual_internal_order);
         internal = internal.permute(actual_internal_order);
-        auto B = internal.size(0);
-        auto H = internal.size(1);
-        auto L0 = internal.size(2);
+        auto L0 = internal.size(0);
+        auto B = internal.size(1);
+        auto H = internal.size(2);
         auto S = internal.size(3);
         auto nthr = parallel_get_max_threads();
         std::vector<PlainTensor> buffers(nthr);
@@ -274,8 +274,8 @@ void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
     auto&& state_dims = dense_internal_desc->getShape().getStaticDims();
     auto&& order = m_dense_internal_desc->getOrder();
 
-    const size_t size_B = state_dims[order.at(0)];
-    const size_t size_L = state_dims[order.at(2)];
+    const size_t size_B = state_dims[order.at(1)];
+    const size_t size_L = state_dims[order.at(0)];
     auto mem_desc =
         std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32, Shape{size_B, size_L});
 
