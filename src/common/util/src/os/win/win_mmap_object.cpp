@@ -113,6 +113,14 @@ private:
                                      0,  // offset_align >> 32,
                                      0,  // offset_align & 0xffffffff,
                                      m_size);
+            
+            WIN32_MEMORY_RANGE_ENTRY memoryRange;
+            memoryRange.VirtualAddress = m_data;
+            memoryRange.NumberOfBytes = m_size;
+
+            HANDLE hProcess = GetCurrentProcess();
+            PrefetchVirtualMemory(hProcess, 1, &memoryRange, 0);
+
             if (!m_data) {
                 throw std::runtime_error("Can not create map view for " + path);
             }
