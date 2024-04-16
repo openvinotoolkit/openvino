@@ -167,17 +167,17 @@ class Box {
 public:
     Box() = default;
 
-    Box(int32_t batchId, int32_t classId, int32_t boxId, Rect rect, float score) {
-        this->batchId = batchId;
-        this->classId = classId;
-        this->boxId = boxId;
+    Box(int32_t batch_id, int32_t class_id, int32_t box_id, Rect rect, float score) {
+        this->batch_id = batch_id;
+        this->class_id = class_id;
+        this->box_id = box_id;
         this->rect = rect;
         this->score = score;
     }
 
-    int32_t batchId;
-    int32_t classId;
-    int32_t boxId;
+    int32_t batch_id;
+    int32_t class_id;
+    int32_t box_id;
     Rect rect;
     float score;
 };
@@ -188,13 +188,12 @@ void convert(fromT* src, toT* dst, size_t size) {
 }
 
 } // namespace
-/*
- * 1: selected_indices - tensor of type T_IND and shape [number of selected boxes, 3] containing information about
- * selected boxes as triplets [batch_index, class_index, box_index]. 2: selected_scores - tensor of type T_THRESHOLDS
- * and shape [number of selected boxes, 3] containing information about scores for each selected box as triplets
- *    [batch_index, class_index, box_score].
- * 3: valid_outputs - 1D tensor with 1 element of type T_IND representing the total number of selected boxes.
- */
+
+// 1: selected_indices - tensor of type T_IND and shape [number of selected boxes, 3] containing information about
+// selected boxes as triplets [batch_index, class_index, box_index]. 2: selected_scores - tensor of type T_THRESHOLDS
+// and shape [number of selected boxes, 3] containing information about scores for each selected box as triplets
+//    [batch_index, class_index, box_score].
+// 3: valid_outputs - 1D tensor with 1 element of type T_IND representing the total number of selected boxes.
 void NmsLayerTest::CompareBBoxes(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) {
     InputTypes input_types;
     InputShapeParams input_shape_params;
@@ -217,30 +216,30 @@ void NmsLayerTest::CompareBBoxes(const std::vector<ov::Tensor>& expected, const 
     size_t num_batches, num_boxes, num_classes;
     std::tie(num_batches, num_boxes, num_classes) = input_shape_params;
 
-    auto iouFunc = [](const Box& boxI, const Box& boxJ) {
-        const Rect& rectI = boxI.rect;
-        const Rect& rectJ = boxJ.rect;
+    auto iou_func = [](const Box& box_i, const Box& box_j) {
+        const Rect& rect_i = box_i.rect;
+        const Rect& rect_j = box_j.rect;
 
-        float areaI = (rectI.y2 - rectI.y1) * (rectI.x2 - rectI.x1);
-        float areaJ = (rectJ.y2 - rectJ.y1) * (rectJ.x2 - rectJ.x1);
+        float area_i = (rect_i.y2 - rect_i.y1) * (rect_i.x2 - rect_i.x1);
+        float area_j = (rect_j.y2 - rect_j.y1) * (rect_j.x2 - rect_j.x1);
 
-        if (areaI <= 0.0f || areaJ <= 0.0f) {
+        if (area_i <= 0.0f || area_j <= 0.0f) {
             return 0.0f;
         }
 
-        float intersection_ymin = std::max(rectI.y1, rectJ.y1);
-        float intersection_xmin = std::max(rectI.x1, rectJ.x1);
-        float intersection_ymax = std::min(rectI.y2, rectJ.y2);
-        float intersection_xmax = std::min(rectI.x2, rectJ.x2);
+        float intersection_ymin = std::max(rect_i.y1, rect_j.y1);
+        float intersection_xmin = std::max(rect_i.x1, rect_j.x1);
+        float intersection_ymax = std::min(rect_i.y2, rect_j.y2);
+        float intersection_xmax = std::min(rect_i.x2, rect_j.x2);
 
         float intersection_area = std::max(intersection_ymax - intersection_ymin, 0.0f) *
                                   std::max(intersection_xmax - intersection_xmin, 0.0f);
 
-        return intersection_area / (areaI + areaJ - intersection_area);
+        return intersection_area / (area_i + area_j - intersection_area);
     };
 
     // Get input bboxes' coords
-    std::vector<std::vector<Rect>> coordList(num_batches, std::vector<Rect>(num_boxes));
+    std::vector<std::vector<Rect>> coord_list(num_batches, std::vector<Rect>(num_boxes));
     {
         const auto& input = inputs[function->get_parameters().at(0)];
         std::vector<double> buffer(input.get_size());
@@ -260,18 +259,18 @@ void NmsLayerTest::CompareBBoxes(const std::vector<ov::Tensor>& expected, const 
                 const int32_t y2 = static_cast<int32_t>(buffer[(i * num_boxes + j) * 4 + 2]);
                 const int32_t x2 = static_cast<int32_t>(buffer[(i * num_boxes + j) * 4 + 3]);
 
-                coordList[i][j] = {std::min(y1, y2), std::min(x1, x2), std::max(y1, y2), std::max(x1, x2)};
+                coord_list[i][j] = {std::min(y1, y2), std::min(x1, x2), std::max(y1, y2), std::max(x1, x2)};
             }
         }
     }
 
-    auto compareBox = [](const Box& boxA, const Box& boxB) {
-        return (boxA.batchId < boxB.batchId) || (boxA.batchId == boxB.batchId && boxA.classId < boxB.classId) ||
-               (boxA.batchId == boxB.batchId && boxA.classId == boxB.classId && boxA.boxId < boxB.boxId);
+    auto compare_box = [](const Box& box_a, const Box& box_b) {
+        return (box_a.batch_id < box_b.batch_id) || (box_a.batch_id == box_b.batch_id && box_a.class_id < box_b.class_id) ||
+               (box_a.batch_id == box_b.batch_id && box_a.class_id == box_b.class_id && box_a.box_id < box_b.box_id);
     };
 
     // Get expected bboxes' index/score
-    std::vector<Box> expectedList;
+    std::vector<Box> expected_list;
     {
         size_t selected_indices_size = expected[0].get_size();
         std::vector<int64_t> selected_indices_data(expected[0].get_size());
@@ -293,21 +292,21 @@ void NmsLayerTest::CompareBBoxes(const std::vector<ov::Tensor>& expected, const 
         }
 
         for (size_t i = 0; i < selected_indices_size; i += 3) {
-            const int32_t batchId = selected_indices_data[i + 0];
-            const int32_t classId = selected_indices_data[i + 1];
-            const int32_t boxId = selected_indices_data[i + 2];
+            const int32_t batch_id = selected_indices_data[i + 0];
+            const int32_t class_id = selected_indices_data[i + 1];
+            const int32_t box_id = selected_indices_data[i + 2];
             const float score = selected_scores_data[i + 2];
-            if (batchId == -1 || classId == -1 || boxId == -1)
+            if (batch_id == -1 || class_id == -1 || box_id == -1)
                 break;
 
-            expectedList.emplace_back(batchId, classId, boxId, coordList[batchId][boxId], score);
+            expected_list.emplace_back(batch_id, class_id, box_id, coord_list[batch_id][box_id], score);
         }
 
-        std::sort(expectedList.begin(), expectedList.end(), compareBox);
+        std::sort(expected_list.begin(), expected_list.end(), compare_box);
     }
 
     // Get actual bboxes' index/score
-    std::vector<Box> actualList;
+    std::vector<Box> actual_list;
     {
         size_t selected_indices_size = actual[0].get_size();
         std::vector<int64_t> selected_indices_data(actual[0].get_size());
@@ -330,63 +329,68 @@ void NmsLayerTest::CompareBBoxes(const std::vector<ov::Tensor>& expected, const 
 
 
         for (size_t i = 0; i < selected_indices_size; i += 3) {
-            const int32_t batchId = selected_indices_data[i + 0];
-            const int32_t classId = selected_indices_data[i + 1];
-            const int32_t boxId = selected_indices_data[i + 2];
+            const int32_t batch_id = selected_indices_data[i + 0];
+            const int32_t class_id = selected_indices_data[i + 1];
+            const int32_t box_id = selected_indices_data[i + 2];
             const float score = selected_scores_data[i + 2];
-            if (batchId == -1 || classId == -1 || boxId == -1)
+            if (batch_id == -1 || class_id == -1 || box_id == -1)
                 break;
 
-            actualList.emplace_back(batchId, classId, boxId, coordList[batchId][boxId], score);
+            actual_list.emplace_back(batch_id, class_id, box_id, coord_list[batch_id][box_id], score);
         }
-        std::sort(actualList.begin(), actualList.end(), compareBox);
+        std::sort(actual_list.begin(), actual_list.end(), compare_box);
     }
 
-    std::vector<Box> intersectionList;
-    std::vector<Box> differenceList;
+    std::vector<Box> intersection_list;
+    std::vector<Box> difference_list;
     {
-        std::list<Box> tempExpectedList(expectedList.size()), tempActualList(actualList.size());
-        std::copy(expectedList.begin(), expectedList.end(), tempExpectedList.begin());
-        std::copy(actualList.begin(), actualList.end(), tempActualList.begin());
-        auto sameBox = [](const Box& boxA, const Box& boxB) {
-            return (boxA.batchId == boxB.batchId) && (boxA.classId == boxB.classId) && (boxA.boxId == boxB.boxId);
+        std::list<Box> tempexpected_list(expected_list.size()), tempActualList(actual_list.size());
+        std::copy(expected_list.begin(), expected_list.end(), tempexpected_list.begin());
+        std::copy(actual_list.begin(), actual_list.end(), tempActualList.begin());
+        auto same_box = [](const Box& box_a, const Box& box_b) {
+            return (box_a.batch_id == box_b.batch_id) && (box_a.class_id == box_b.class_id) && (box_a.box_id == box_b.box_id);
         };
 
         for (auto itA = tempActualList.begin(); itA != tempActualList.end(); ++itA) {
             bool found = false;
-            for (auto itB = tempExpectedList.begin(); itB != tempExpectedList.end(); ++itB) {
-                if (sameBox(*itA, *itB)) {
-                    intersectionList.emplace_back(*itB);
-                    tempExpectedList.erase(itB);
+            for (auto itB = tempexpected_list.begin(); itB != tempexpected_list.end(); ++itB) {
+                if (same_box(*itA, *itB)) {
+                    intersection_list.emplace_back(*itB);
+                    tempexpected_list.erase(itB);
                     found = true;
                     break;
                 }
             }
 
             if (!found) {
-                differenceList.emplace_back(*itA);
+                difference_list.emplace_back(*itA);
             }
         }
-        differenceList.insert(differenceList.end(), tempExpectedList.begin(), tempExpectedList.end());
+        difference_list.insert(difference_list.end(), tempexpected_list.begin(), tempexpected_list.end());
 
-        for (auto& item : differenceList) {
+        for (auto& item : difference_list) {
             if ((item.rect.x1 == item.rect.x2) || (item.rect.y1 == item.rect.y2))
                 continue;
 
-            float maxIou = 0.f;
-            for (auto& refItem : intersectionList) {
-                maxIou = std::max(maxIou, iouFunc(item, refItem));
+            float max_iou = 0.f;
+            // for (auto& refItem : intersection_list) {
+            //     max_iou = std::max(max_iou, iou_func(item, refItem));
 
-                if (maxIou > 0.3f)
-                    break;
-            }
+            //     if (max_iou > 0.3f)
+            //         break;
+            // }
+            std::find_if(intersection_list.begin(), intersection_list.end(),
+                [&](const Box& ref_item) {
+                    max_iou = std::max(max_iou, iou_func(item, ref_item));
+                    return max_iou > 0.3f;
+                });
 
-            ASSERT_TRUE(maxIou > 0.3f) << "MaxIOU: " << maxIou << ", expectedList.size(): " << expectedList.size()
-                                       << ", actualList.size(): " << actualList.size()
-                                       << ", intersectionList.size(): " << intersectionList.size()
-                                       << ", diffList.size(): " << differenceList.size()
-                                       << ", batchId: " << item.batchId << ", classId: " << item.classId
-                                       << ", boxId: " << item.boxId << ", score: " << item.score
+            ASSERT_TRUE(max_iou > 0.3f) << "MaxIOU: " << max_iou << ", expected_list.size(): " << expected_list.size()
+                                       << ", actual_list.size(): " << actual_list.size()
+                                       << ", intersection_list.size(): " << intersection_list.size()
+                                       << ", diffList.size(): " << difference_list.size()
+                                       << ", batch_id: " << item.batch_id << ", class_id: " << item.class_id
+                                       << ", box_id: " << item.box_id << ", score: " << item.score
                                        << ", coord: " << item.rect.x1 << ", " << item.rect.y1 << ", " << item.rect.x2
                                        << ", " << item.rect.y2;
         }
