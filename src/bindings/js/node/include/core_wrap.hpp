@@ -69,6 +69,7 @@ public:
     Napi::Value set_property(const Napi::CallbackInfo& info);
     Napi::Value get_property(const Napi::CallbackInfo& info);
 
+    void add_extension(const Napi::CallbackInfo& info);
 protected:
     Napi::Value compile_model_sync(const Napi::CallbackInfo& info,
                                    const Napi::Object& model,
@@ -93,6 +94,9 @@ protected:
 
     /** @brief Returns devices available for inference. */
     Napi::Value get_available_devices(const Napi::CallbackInfo& info);
+
+    /** @brief Returns versions of the specified device. */
+    Napi::Value get_versions(const Napi::CallbackInfo& info);
 
 private:
     ov::Core _core;

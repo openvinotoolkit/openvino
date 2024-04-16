@@ -20,6 +20,33 @@ it('Core.getAvailableDevices()', () => {
     assert.ok(devices.includes('CPU'));
 });
 
+describe('Core.getVersions()', () => {
+
+  it('getVersions(validDeviceName: string)', () => {    
+    const deviceVersion = core.getVersions('CPU');
+    assert.strictEqual(typeof deviceVersion, 'object');
+    assert.strictEqual(typeof deviceVersion.CPU, 'object');
+    assert.strictEqual(typeof deviceVersion.CPU.buildNumber, 'string');
+    assert.strictEqual(typeof deviceVersion.CPU.description, 'string');
+  });
+
+  it('getVersions() throws if no arguments are passed into the function', () => {
+    assert.throws(
+      () => core.getVersions(),
+      {message: 'getVersions() method expects 1 argument of string type.'}
+    );
+  });
+
+  it('getVersions() throws if non string coercable arguments are passed into the function', () => {
+    assert.throws(
+      () => core.getVersions({ deviceName: 'CPU' }),
+      {message: 'The argument in getVersions() method must be a string or convertible to a string.'}
+    );
+  });
+
+});
+
+
 it('CompiledModel type', () => {
   assert.ok(compiledModel instanceof ov.CompiledModel);
 });

@@ -48,7 +48,7 @@ class TestTextVectorization(CommonTF2LayerTest):
                                              'ОПЕНВИНО', 'здесь', 'там', '你好', '那裡', '檢查']])
     @pytest.mark.parametrize('output_mode', ['int'])
     @pytest.mark.parametrize('output_sequence_length', [32, 64])
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_text_vectorization(self, input_shapes, vocabulary, output_mode, output_sequence_length, strings_dictionary,
                                 ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
