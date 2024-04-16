@@ -343,12 +343,14 @@ static std::string pretty_partial_shape(
             if (!first) {
                 str << ",";
             }
-            if (const auto& symbol = d.get_symbol()) {
-                const auto& root = ov::symbol::ancestor_of(symbol);
-                if (symbol_map.count(root))
-                    str << "<" << symbol_map.at(root) << ">";
-                else
-                    str << "<?>";
+            if (d.is_dynamic()) {
+                if (const auto& symbol = d.get_symbol()) {
+                    const auto& root = ov::symbol::ancestor_of(symbol);
+                    if (symbol_map.count(root))
+                        str << "<" << symbol_map.at(root) << ">";
+                    else
+                        str << "<?>";
+                }
             }
             str << d;
             first = false;
