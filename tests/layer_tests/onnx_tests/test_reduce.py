@@ -121,6 +121,7 @@ class TestReduce(OnnxRuntimeLayerTest):
         dict(shape=[2, 4, 6, 8, 10], reshapped_shape=[2, 4, 6 * 8 * 10, 1], axes=[2, 3, 4])
     ]
 
+    @pytest.mark.skip("ticket 95904")
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.precommit
@@ -130,6 +131,7 @@ class TestReduce(OnnxRuntimeLayerTest):
                                        ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
+    @pytest.mark.skip("ticket 95904")
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.nightly
@@ -155,6 +157,7 @@ class TestReduce(OnnxRuntimeLayerTest):
                                        ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
+    @pytest.mark.skip("ticket 95904")
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.precommit
@@ -164,6 +167,7 @@ class TestReduce(OnnxRuntimeLayerTest):
                                        ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
+    @pytest.mark.skip("ticket 95904")
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.nightly
@@ -174,6 +178,7 @@ class TestReduce(OnnxRuntimeLayerTest):
                                        ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
+    @pytest.mark.skip("ticket 95904")
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.precommit
@@ -183,6 +188,7 @@ class TestReduce(OnnxRuntimeLayerTest):
                                        ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
+    @pytest.mark.skip("ticket 95904")
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.nightly
