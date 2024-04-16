@@ -9,6 +9,7 @@
 
 #include "non_max_suppression.h"
 
+#include "cpu_types.h"
 #include "openvino/core/parallel.hpp"
 #include "utils/general_utils.h"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
@@ -17,8 +18,6 @@
 #include "ov_ops/nms_ie_internal.hpp"
 
 #include <queue>
-
-
 
 namespace ov {
 namespace intel_cpu {
@@ -891,14 +890,14 @@ void NonMaxSuppression::check1DInput(const Shape& shape, const std::string& name
         THROW_CPU_NODE_ERR("has unsupported '", name, "' input rank: ", shape.getRank());
     if (shape.getRank() == 1)
         if (shape.getDims()[0] != 1)
-            THROW_CPU_NODE_ERR("has unsupported '", name, "' input 1st dimension size: ", MemoryDescUtils::dim2str(shape.getDims()[0]));
+            THROW_CPU_NODE_ERR("has unsupported '", name, "' input 1st dimension size: ", dim2str(shape.getDims()[0]));
 }
 
 void NonMaxSuppression::checkOutput(const Shape& shape, const std::string& name, const size_t port) {
     if (shape.getRank() != 2)
         THROW_CPU_NODE_ERR("has unsupported '", name, "' output rank: ", shape.getRank());
     if (shape.getDims()[1] != 3)
-        THROW_CPU_NODE_ERR("has unsupported '", name, "' output 2nd dimension size: ", MemoryDescUtils::dim2str(shape.getDims()[1]));
+        THROW_CPU_NODE_ERR("has unsupported '", name, "' output 2nd dimension size: ", dim2str(shape.getDims()[1]));
 }
 
 bool NonMaxSuppression::isExecutable() const {

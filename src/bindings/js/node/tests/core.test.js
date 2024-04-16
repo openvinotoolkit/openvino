@@ -60,8 +60,10 @@ it('Core.addExtension() with empty parameters', () => {
 });
 
 it('Core.addExtension(\'not_exists\') with non-existed library', () => {
+  const notExistsExt = 'not_exists';
+
   assert.throws(
-    () => core.addExtension('not_exists'),
+    () => core.addExtension(notExistsExt),
     /Cannot load library 'not_exists'/
   );
 });

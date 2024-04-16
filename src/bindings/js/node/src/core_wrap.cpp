@@ -363,18 +363,14 @@ Napi::Value CoreWrap::get_property(const Napi::CallbackInfo& info) {
     return any_to_js(info, value);
 }
 
-Napi::Value CoreWrap::add_extension(const Napi::CallbackInfo& info) {
+void CoreWrap::add_extension(const Napi::CallbackInfo& info) {
     try {
-        if (!info[0].IsString()) {
-            reportError(info.Env(), "addExtension method applies one argument of string type");
+        if (!info[0].IsString())
+            OPENVINO_THROW("addExtension method applies one argument of string type");
 
-            return info.Env().Undefined();
-        }
         std::string library_path = info[0].ToString();
         _core.add_extension(library_path);
     } catch (std::runtime_error& err) {
         reportError(info.Env(), err.what());
     }
-
-    return info.Env().Undefined();
 }
