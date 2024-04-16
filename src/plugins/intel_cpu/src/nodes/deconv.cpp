@@ -311,9 +311,11 @@ bool Deconvolution::canBeExecutedInInt8() const {
 }
 
 bool Deconvolution::canFuse(const NodePtr& node) const {
-    if (canBeExecutedInInt8())
-        return canFuseSimpleOperation(node);
-    return (fusedWith.empty() && node->canBePerformedAsScaleShift(this));
+    // Deconv implement list in onednn has 2 kinds of implements: deconv implement and previous conv_data_backwards implment.
+    // deconv implement can support multiple kinds of post ops,
+    // non-quantized conv_data_backwards implement can only support depthwise legacy post ops for bias fusing.
+    // Usually for most non-quantized models, deconv only has bias no other post ops.
+    return canFuseSimpleOperation(node);
 }
 
 std::pair<VectorDims, VectorDims> Deconvolution::makeDummyInOutShape() {
@@ -553,7 +555,8 @@ void Deconvolution::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dim
     for (size_t i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];
         bool isLastPostOp = (i == (fusedWith.size() - 1));
-
+        // Abandon legacy post-ops invocation in deconv.
+        // @todo: Remove the legacy post-ops implement for conv_backward_data in fork onednn
         if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get())) {
             fakeQuantizeNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType);
             continue;
@@ -1065,8 +1068,9 @@ std::vector<int32_t> Deconvolution::readOutputSpatialDims() const {
 
 bool Deconvolution::canFuseBias() const {
     //ONEDNN deconvolution_fwd_t primitive can support bias fusing.
-    //ONEDNN convolution_data_bwd_t can't support bias fusing.
-    //Current only int8 precision choose deconvolution_fwd_t.
+    //For the brgdeconv implement in the deconv implement list, bias would be implmented via JIT kernel.
+    //For the fall back ref implment entry(previous conv_backward_data), bias would be implmented without JIT support.
+    //In theory, all the deconv with bias should run with brg implment.
     return  (externOutShape ? getParentEdges().size() == 3 : getParentEdges().size() == 2);
 }
 

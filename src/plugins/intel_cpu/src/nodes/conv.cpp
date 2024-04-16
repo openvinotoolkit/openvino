@@ -298,10 +298,10 @@ Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext
         paddingR = groupConvolutionOp->get_pads_end();
         autoPadding = one_of(groupConvolutionOp->get_auto_pad(), ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER);
     }
-    auto inputDataType = DnnlExtensionUtils::ElementTypeToDataType(getOriginalInputPrecisionAtPort(0));
+    // Only apply this heuristic logic on FP32 IR. IC=1 ,OC=1 would disable brgconv on avx2.
     const bool isAvx2FP32 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
                                     !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
-                                    inputDataType == memory::data_type::f32;
+                                    !context->isGraphQuantized();
     avx2DisableBrgconvHeuristic = ((IC == 1 && groupOC * groupNum == 1) && isAvx2FP32);
 }
 
