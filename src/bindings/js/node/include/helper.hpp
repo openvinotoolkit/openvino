@@ -18,6 +18,8 @@ const std::vector<std::string>& get_supported_types();
 
 typedef std::variant<napi_valuetype, napi_typedarray_type, js_type> napi_types;
 
+const std::unordered_map<napi_typedarray_type, ov::element::Type>& get_ov_type();
+
 /**
  * @brief  Template function to convert Javascript data types into C++ data types
  * @tparam TargetType destinated C++ data type

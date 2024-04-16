@@ -132,34 +132,18 @@ Napi::Value TensorWrap::get_data(const Napi::CallbackInfo& info) {
     }
 }
 
-std::map<napi_typedarray_type, ov::element::Type> corresponding_ov_type{
-    {napi_int8_array, ov::element::Type_t::i8},
-    {napi_uint8_array, ov::element::Type_t::u8},
-    {napi_int16_array, ov::element::Type_t::i16},
-    {napi_uint16_array, ov::element::Type_t::u16},
-    {napi_int32_array, ov::element::Type_t::i32},
-    {napi_uint32_array, ov::element::Type_t::u32},
-    {napi_float32_array, ov::element::Type_t::f32},
-    {napi_float64_array, ov::element::Type_t::f64},
-    {napi_bigint64_array, ov::element::Type_t::i64},
-    {napi_biguint64_array, ov::element::Type_t::u64}};
-
 void TensorWrap::set_data(const Napi::CallbackInfo& info, const Napi::Value& value) {
     try {
         if (!value.IsTypedArray()) {
             OPENVINO_THROW(std::string("Passed argument must be of type Array or TypedArray."));
         }
-        Napi::TypedArray buf = value.As<Napi::TypedArray>();
-        napi_typedarray_type type = buf.TypedArrayType();
+        const auto buf = value.As<Napi::TypedArray>();
 
         if (_tensor.get_byte_size() != buf.ByteLength()) {
             OPENVINO_THROW("Passed array must have the same size as the Tensor!");
         }
-        if (_tensor.get_element_type() != corresponding_ov_type[type]) {
-            OPENVINO_THROW("Passed array must have the same element type as the Tensor!");
-        }
-
-        std::memcpy(_tensor.data(), buf.ArrayBuffer().Data(), _tensor.get_byte_size());
+        const auto napi_type = buf.TypedArrayType();
+        std::memcpy(_tensor.data(get_ov_type().at(napi_type)), buf.ArrayBuffer().Data(), _tensor.get_byte_size());
     } catch (std::exception& e) {
         reportError(info.Env(), e.what());
     }
