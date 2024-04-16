@@ -72,7 +72,7 @@ describe('Tensor data', () => {
     const tensor = new ov.Tensor(ov.element.f64, [1, 2]);
     assert.throws(() => {
       tensor.data = testString;},
-    /Passed argument must be of type Array or TypedArray./
+    /Passed argument must be a TypedArray./
     );
   });
 
