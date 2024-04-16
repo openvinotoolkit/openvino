@@ -27,3 +27,4 @@ jax<=0.4.14
 jaxlib<=0.4.14
 torch>=1.13,<2.3
 kornia==0.7.0
+networkx<=3.1.0
