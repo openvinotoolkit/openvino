@@ -259,14 +259,15 @@ function addFooter() {
 function initSplide() {
 
   var splide = new Splide('.splide', {
-    type              : 'loop',
-    height            : `230px`,
+    type              : 'fade',
+    autoHeight        : true,
     perPage           : 1,
     autoplay          : true,
     arrows            : false,
     waitForTransition : true,
     wheel             : true,
     wheelSleep        : 250,
+    interval          : 3000,
   });
   splide.mount();
 }
