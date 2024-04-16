@@ -131,10 +131,10 @@ jobs:
             ${{ runner.os }}-${{ runner.arch }}-apt
             ${{ runner.os }}-${{ runner.arch }}-${{ github.event.number }}apt
 
-      # - name: Simulate broken apt
-      #   run: |
-      #     echo 'Acquire::http::Proxy "http://proxy.com:911";' > /etc/apt/apt.conf.d/proxy.conf
-      #     echo 'Acquire::http::Proxy "http://proxy.com:912";' >> /etc/apt/apt.conf.d/proxy.conf
+      - name: Simulate broken apt
+        run: |
+          echo 'Acquire::http::Proxy "http://proxy.com:911";' > /etc/apt/apt.conf.d/proxy.conf
+          echo 'Acquire::http::Proxy "http://proxy.com:912";' >> /etc/apt/apt.conf.d/proxy.conf
 
       - name: Install build dependencies
         run: |
