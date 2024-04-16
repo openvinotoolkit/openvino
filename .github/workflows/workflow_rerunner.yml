@@ -74,12 +74,3 @@ jobs:
         run: |
           export PYTHONPATH=${{ github.workspace }}/.github/scripts/workflow_rerun:${{ github.workspace }}/.github/scripts:$PYTHONPATH
           python3 -m unittest tests/*_test.py
-      
-      - name: Set vars
-        run: |
-          echo "PIPELINE_RETRIGGERED=true" >> "$GITHUB_ENV"
-          echo "FOUND_ERROR_TICKET=123123" >> "$GITHUB_ENV"
-      
-      - name: Rerun Retriggered (Ticket ${{ env.FOUND_ERROR_TICKET }})
-        if: ${{ env.PIPELINE_RETRIGGERED == 'true' }}
-        run: echo "Rerun retriggered for ${{ github.event.pull_request.number }} with ticket ${{ env.FOUND_ERROR_TICKET }}"
