@@ -22,7 +22,7 @@ it('Core.getAvailableDevices()', () => {
 
 describe('Core.getVersions()', () => {
 
-  it('getVersions(validDeviceName: string)', () => {    
+  it('getVersions(validDeviceName: string)', () => {
     const deviceVersion = core.getVersions('CPU');
     assert.strictEqual(typeof deviceVersion, 'object');
     assert.strictEqual(typeof deviceVersion.CPU, 'object');
@@ -91,7 +91,7 @@ describe('Core.compileModelSync()', () => {
   it('compileModelSync(model) throws if the number of arguments is invalid', () => {
     assert.throws(
       () => core.compileModelSync(model),
-      /Invalid number of attributes/
+      /Invalid number of arguments/
     );
   });
 

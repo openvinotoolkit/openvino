@@ -196,7 +196,7 @@ Napi::Value CoreWrap::compile_model_sync_dispatch(const Napi::CallbackInfo& info
             return compile_model_sync(info, info[0].ToObject(), info[1].ToString(), config);
         }
 
-        std::string attributes_error_message =
+        std::string arguments_error_message =
             std::accumulate(errors_messages.begin(),
                             errors_messages.end(),
                             std::string(),
@@ -204,7 +204,7 @@ Napi::Value CoreWrap::compile_model_sync_dispatch(const Napi::CallbackInfo& info
                                 return a.empty() ? b : a + "\nor\n " + b;
                             });
 
-        OPENVINO_THROW(attributes_error_message.empty() ? "Invalid number of attributes" : attributes_error_message);
+        OPENVINO_THROW(arguments_error_message.empty() ? "Invalid number of arguments" : arguments_error_message);
     } catch (std::exception& e) {
         reportError(info.Env(), e.what());
     }
