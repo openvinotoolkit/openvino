@@ -291,35 +291,35 @@ py::array array_from_constant_copy(ov::op::v0::Constant&& c) {
 
 py::array array_from_constant_copy(ov::op::v0::Constant&& c, py::dtype& dst_dtype) {
     // floating
-    if (dst_dtype == py::dtype("float64")) {
+    if (dst_dtype.is(py::dtype("float64"))) {
         return array_helpers::array_from_constant_cast<double>(std::forward<ov::op::v0::Constant>(c), dst_dtype);
-    } else if (dst_dtype == py::dtype("float32")) {
+    } else if (dst_dtype.is(py::dtype("float32"))) {
         return array_helpers::array_from_constant_cast<float>(std::forward<ov::op::v0::Constant>(c), dst_dtype);
-    } else if (dst_dtype == py::dtype("float16")) {
+    } else if (dst_dtype.is(py::dtype("float16"))) {
         return array_helpers::array_from_constant_cast<ov::float16>(std::forward<ov::op::v0::Constant>(c), dst_dtype);
     }
     // signed
-    else if (dst_dtype == py::dtype("int64")) {
+    else if (dst_dtype.is(py::dtype("int64"))) {
         return array_helpers::array_from_constant_cast<int64_t>(std::forward<ov::op::v0::Constant>(c), dst_dtype);
-    } else if (dst_dtype == py::dtype("int32")) {
+    } else if (dst_dtype.is(py::dtype("int32"))) {
         return array_helpers::array_from_constant_cast<int32_t>(std::forward<ov::op::v0::Constant>(c), dst_dtype);
-    } else if (dst_dtype == py::dtype("int16")) {
+    } else if (dst_dtype.is(py::dtype("int16"))) {
         return array_helpers::array_from_constant_cast<int16_t>(std::forward<ov::op::v0::Constant>(c), dst_dtype);
-    } else if (dst_dtype == py::dtype("int8")) {
+    } else if (dst_dtype.is(py::dtype("int8"))) {
         return array_helpers::array_from_constant_cast<int8_t>(std::forward<ov::op::v0::Constant>(c), dst_dtype);
     }
     // unsigned
-    else if (dst_dtype == py::dtype("uint64")) {
+    else if (dst_dtype.is(py::dtype("uint64"))) {
         return array_helpers::array_from_constant_cast<uint64_t>(std::forward<ov::op::v0::Constant>(c), dst_dtype);
-    } else if (dst_dtype == py::dtype("uint32")) {
+    } else if (dst_dtype.is(py::dtype("uint32"))) {
         return array_helpers::array_from_constant_cast<uint32_t>(std::forward<ov::op::v0::Constant>(c), dst_dtype);
-    } else if (dst_dtype == py::dtype("uint16")) {
+    } else if (dst_dtype.is(py::dtype("uint16"))) {
         return array_helpers::array_from_constant_cast<uint16_t>(std::forward<ov::op::v0::Constant>(c), dst_dtype);
-    } else if (dst_dtype == py::dtype("uint8")) {
+    } else if (dst_dtype.is(py::dtype("uint8"))) {
         return array_helpers::array_from_constant_cast<uint8_t>(std::forward<ov::op::v0::Constant>(c), dst_dtype);
     }
     // other
-    else if (dst_dtype == py::dtype("bool")) {
+    else if (dst_dtype.is(py::dtype("bool"))) {
         const auto& ov_type = c.get_element_type();
         switch (ov_type) {
         case ov::element::f32:
