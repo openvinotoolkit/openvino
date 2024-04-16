@@ -10,7 +10,7 @@
 #include "itt.h"
 #include "memory_state.h"
 #include "nodes/common/cpu_convert.h"
-#include "nodes/common/cpu_memcpy.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
 #include "nodes/memory.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/runtime/make_tensor.hpp"

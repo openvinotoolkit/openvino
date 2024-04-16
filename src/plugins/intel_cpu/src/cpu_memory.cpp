@@ -3,6 +3,7 @@
 //
 
 #include "cpu_memory.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
 #include <common/memory_desc_wrapper.hpp>
 #include "nodes/reorder.h"
 #if defined(__linux__)

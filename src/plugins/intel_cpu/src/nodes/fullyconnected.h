@@ -76,7 +76,6 @@ private:
     FCAttrs attrs;
     PostOps postOps;
     MemoryArgs memory;
-    MemoryPtr emptyMemory;
     ExecutorFactoryPtr<FCAttrs, node::FullyConnected> factory;
     ExecutorPtr executor = nullptr;
     std::string errorPrefix;
