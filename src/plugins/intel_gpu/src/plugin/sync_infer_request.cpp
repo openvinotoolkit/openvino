@@ -6,8 +6,6 @@
 #include "openvino/core/preprocess/input_tensor_info.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/op/util/op_types.hpp"
-#include "transformations/utils/utils.hpp"
 
 #include "intel_gpu/primitives/kv_cache.hpp"
 #include "intel_gpu/plugin/usm_host_tensor.hpp"
@@ -359,7 +357,10 @@ void SyncInferRequest::wait() {
 
                 if (need_reallocate) {
                     std::string internal_name = m_output_names_map.at(port_idx);
-                    auto actual_memory_shape = predict_shape(internal_name, mem_shape, output_tensor->get_element_type(), *m_shape_predictor);
+                    auto actual_memory_shape = predict_shape(internal_name, cldnn::layout(mem_shape,
+                                                                                          output_tensor->get_element_type(),
+                                                                                          cldnn::format::get_default_format(mem_shape.size())),
+                                                             *m_shape_predictor);
                     output_tensor->set_shape(actual_memory_shape);
                 }
             }
@@ -480,7 +481,10 @@ TensorWrapper SyncInferRequest::create_or_share_device_tensor(const TensorWrappe
 
     auto actual_memory_shape = tensor_shape;
     if (is_dynamic) {
-        actual_memory_shape = predict_shape(name, tensor_shape, element_type, *m_shape_predictor);
+        actual_memory_shape = predict_shape(name, cldnn::layout(tensor_shape,
+                                                                element_type,
+                                                                cldnn::format::get_default_format(tensor_shape.size())),
+                                            *m_shape_predictor);
     }
 
     return { create_device_tensor(actual_memory_shape, element_type, need_lockable_mem), TensorOwner::PLUGIN };
@@ -714,7 +718,10 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
         auto device_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(device_tensor_wrapper.ptr);
         if (is_dynamic) {
             if (device_tensor->get_original_memory()->size() < user_tensor->get_byte_size()) {
-                auto actual_shape = predict_shape(internal_name, user_tensor->get_shape(), device_tensor_et, *m_shape_predictor);
+                auto actual_shape = predict_shape(internal_name, cldnn::layout(user_tensor->get_shape(),
+                                                                               element_type,
+                                                                               cldnn::format::get_default_format(user_tensor->get_shape().size())),
+                                                  *m_shape_predictor);
                 GPU_DEBUG_TRACE_DETAIL << "    actual memory shape: " << actual_shape.to_string() << std::endl;
                 auto new_tensor = create_device_tensor(actual_shape, device_tensor_et, false);
                 new_tensor->set_shape(user_tensor->get_shape());
