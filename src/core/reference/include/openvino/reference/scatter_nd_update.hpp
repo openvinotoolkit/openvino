@@ -13,7 +13,6 @@
 #include "openvino/reference/minimum.hpp"
 #include "openvino/reference/multiply.hpp"
 #include "openvino/reference/xor.hpp"
-#include "subtract.hpp"
 #include "utils/span.hpp"
 
 namespace ov {
