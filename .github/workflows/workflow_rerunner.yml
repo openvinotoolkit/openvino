@@ -19,7 +19,7 @@ on:
 jobs:
   rerun:
     name: Rerun Workflow
-    if: ${{ github.event.workflow_run.conclusion == 'failure' }}  # Run only for the completed workflows
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}  # Run only for the failed workflows
     runs-on: aks-linux-2-cores-8gb
     permissions:
       actions: write
@@ -49,6 +49,10 @@ jobs:
           --run-id ${{ github.event.workflow_run.id }} \
           --repository-name ${GITHUB_REPOSITORY}
 
+      - name: Rerun Retriggered (Ticket ${{ env.FOUND_ERROR_TICKET }})
+        if: ${{ env.PIPELINE_RETRIGGERED == 'true' }}
+        run: echo "Rerun retriggered for ${{ github.event.workflow_run.html_url }} with ticket ${{ env.FOUND_ERROR_TICKET }}"
+
   rerunner_tests:
     name: Rerunner Tests
     if: ${{ github.event_name == 'pull_request' }}
@@ -70,3 +74,12 @@ jobs:
         run: |
           export PYTHONPATH=${{ github.workspace }}/.github/scripts/workflow_rerun:${{ github.workspace }}/.github/scripts:$PYTHONPATH
           python3 -m unittest tests/*_test.py
+      
+      - name: Set vars
+        run: |
+          echo "PIPELINE_RETRIGGERED=true" >> "$GITHUB_ENV"
+          echo "FOUND_ERROR_TICKET=123123" >> "$GITHUB_ENV"
+      
+      - name: Rerun Retriggered (Ticket ${{ env.FOUND_ERROR_TICKET }})
+        if: ${{ env.PIPELINE_RETRIGGERED == 'true' }}
+        run: echo "Rerun retriggered for ${{ github.event.pull_request.number }} with ticket ${{ env.FOUND_ERROR_TICKET }}"

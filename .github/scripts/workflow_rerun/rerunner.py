@@ -1,8 +1,10 @@
+import os
 import sys
 import tempfile
 from pathlib import Path
 
 from github import Github, Auth
+
 from workflow_rerun.argument_parser import get_arguments
 from workflow_rerun.constants import GITHUB_TOKEN, LOGGER
 from workflow_rerun.log_analyzer import LogAnalyzer
@@ -17,15 +19,15 @@ if __name__ == '__main__':
     github = Github(auth=Auth.Token(token=GITHUB_TOKEN))
     gh_repo = github.get_repo(full_name_or_id=repository_name)
     run = gh_repo.get_workflow_run(id_=run_id)
-    
+
     LOGGER.info(f'CHECKING IF RERUN IS NEEDED FOR {run.html_url} RUN IN {repository_name}.')
-    
+
     # Check if the run has already been retriggered
     # we do not want to fall into a loop with retriggers
     if run.run_attempt > 1:
         LOGGER.info(f'THERE ARE {run.run_attempt} ATTEMPTS ALREADY. NOT CHECKING LOGS AND NOT RETRIGGERING. EXITING')
         sys.exit(0)
-        
+
     log_archive_path = Path(tempfile.NamedTemporaryFile(suffix='.zip').name)
 
     collect_logs_for_run(
@@ -38,7 +40,7 @@ if __name__ == '__main__':
         path_to_errors_file=args.error_to_look_for_file,
     )
     log_analyzer.analyze()
-    
+
     if log_analyzer.found_matching_error:
         LOGGER.info(f'FOUND MATCHING ERROR, RETRIGGERING {run.html_url}')
         status = run.rerun()
@@ -46,7 +48,13 @@ if __name__ == '__main__':
             LOGGER.info(f'RUN RETRIGGERED SUCCESSFULLY: {run.html_url}')
         else:
             LOGGER.info(f'RUN WAS NOT RETRIGGERED, SEE ABOVE')
-        
+
+        # Needed to run a step after for statistics
+        with open(file=os.environ['GITHUB_ENV'],
+                  mode='a') as fh:
+            fh.write('PIPELINE_RETRIGGERED=true')
+            fh.write(f'FOUND_ERROR_TICKET={log_analyzer.found_error_ticket}')
+
         # "status" is True (which is 1) if everything is ok, False (which is 0) otherwise
         sys.exit(not status)
     else:
