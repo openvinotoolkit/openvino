@@ -2400,6 +2400,7 @@ TEST(constant, cast_vector) {
                                           element::u2,
                                           element::u3,
                                           element::u4,
+                                          element::u6,
                                           element::u8,
                                           element::u16,
                                           element::u32,
