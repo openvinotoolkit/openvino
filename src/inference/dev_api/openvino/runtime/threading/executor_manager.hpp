@@ -82,6 +82,6 @@ public:
                                                   ov::threading::Task task) = 0;
 };
 
-OPENVINO_API std::shared_ptr<ExecutorManager> executor_manager();
+OPENVINO_RUNTIME_API std::shared_ptr<ExecutorManager> executor_manager();
 }  // namespace threading
 }  // namespace ov
