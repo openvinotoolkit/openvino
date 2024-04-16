@@ -34,7 +34,9 @@ IR serializeToIR(const std::shared_ptr<const ov::Model>& origModel, uint32_t sup
     // precision/layout preprocessing requirement. We are setting this value to "true" since the API version is no
     // longer a cause for altering the metadata. This is due to the preprocessing performed in the OpenVINO framework's
     // implementaion, the "ov::Model" object is preprocessed before reaching the NPU plugin.
-    const auto new_api_key = "is_new_api";
+    const auto newAPIKey = "is_new_api";
+
+    const auto newOutputNamingConventionKey = "is_new_output_naming_convention";
 
     // We modify the original model object here therefore a mutex is required
     static std::mutex rtInfoMutex;
@@ -42,12 +44,14 @@ IR serializeToIR(const std::shared_ptr<const ov::Model>& origModel, uint32_t sup
     {
         std::lock_guard<std::mutex> lock(rtInfoMutex);
 
-        model->set_rt_info(true, new_api_key);
+        model->set_rt_info(true, newAPIKey);
+        model->set_rt_info(true, newOutputNamingConventionKey);
 
         manager.run_passes(model);
 
         auto& rtInfo = model->get_rt_info();
-        rtInfo.erase(new_api_key);
+        rtInfo.erase(newAPIKey);
+        rtInfo.erase(newOutputNamingConventionKey);
     }
 
     return {std::move(xmlStream), std::move(weightsStream)};

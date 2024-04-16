@@ -359,12 +359,21 @@ SerializedIR LevelZeroCompilerInDriver<TableExtension>::serializeIR(
 }
 
 template <typename TableExtension>
-std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std::shared_ptr<const ov::Model>& model) {
+std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std::shared_ptr<const ov::Model>& model,
+                                                                       const ze_graph_compiler_version_info_t& compilerVersion) {
     const ov::ParameterVector& parameters = model->get_parameters();
     const ov::ResultVector& results = model->get_results();
 
+    const bool useNewOutputNamingConvention = !((compilerVersion.major < 5) || (compilerVersion.major <= 5 && compilerVersion.minor < 4));
+
     const std::string& firstInputName = parameters.at(0)->get_friendly_name();
-    const std::string& firstOutputName = results.at(0)->get_input_node_ptr(0)->get_friendly_name();
+    std::string firstOutputName;
+
+    if (useNewOutputNamingConvention) {
+        firstOutputName = results.at(0)->get_friendly_name();
+    } else {
+        firstOutputName = results.at(0)->get_input_node_ptr(0)->get_friendly_name();
+    }
 
     std::stringstream inputsPrecisionSS;
     std::stringstream inputsLayoutSS;
@@ -396,7 +405,14 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std
     outputsLayoutSS << OUTPUTS_LAYOUTS_KEY << KEY_VALUE_SEPARATOR << VALUE_DELIMITER;
 
     for (const std::shared_ptr<ov::op::v0::Result>& result : results) {
-        const std::string& name = result->get_input_node_ptr(0)->get_friendly_name();
+        std::string name;
+
+        if (useNewOutputNamingConvention) {
+            name = result->get_friendly_name();
+        } else {
+            name = result->get_input_node_ptr(0)->get_friendly_name();
+        }
+
         const ov::element::Type_t precision = result->get_element_type();
         const size_t rank = result->get_shape().size();
 
@@ -722,7 +738,7 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compileIR(const st
 
     std::string buildFlags;
 
-    buildFlags += serializeIOInfo(model);
+    buildFlags += serializeIOInfo(model, compilerVersion);
     buildFlags += " ";
     buildFlags += serializeConfig(config, compilerVersion);
 

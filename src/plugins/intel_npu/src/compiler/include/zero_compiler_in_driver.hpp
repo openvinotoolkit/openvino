@@ -74,7 +74,8 @@ public:
      * Since the layout information is no longer an important part of the metadata values when using the 2.0 OV API, the
      * layout fields shall be filled with default values in order to assure the backward compatibility with the driver.
      */
-    static std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model);
+    static std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model,
+    const ze_graph_compiler_version_info_t& compilerVersion);
 
 private:
     NetworkMetadata getNetworkMeta(ze_graph_handle_t graphHandle) const;
