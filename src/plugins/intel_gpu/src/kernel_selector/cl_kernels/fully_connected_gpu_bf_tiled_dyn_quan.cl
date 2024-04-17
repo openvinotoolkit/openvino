@@ -856,15 +856,8 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 output_offset += TILE_OUT_B_PITCH;                          \
             } while (false)
 #endif
-
-    #define WRITE_OUTPUT(bi) do {                                       \
-            OUTPUT_BLOCK_WRITE(output, output_offset, result[bi]);      \
-            output_offset += TILE_OUT_B_PITCH;                          \
-        } while (false)
-    CONST_LOOP(TILE_B, WRITE_OUTPUT);
-    #undef WRITE_OUTPUT
-
-
+        CONST_LOOP(TILE_B, WRITE_OUTPUT);
+        #undef WRITE_OUTPUT
     } else {
         printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
         output_offset += sglid;
