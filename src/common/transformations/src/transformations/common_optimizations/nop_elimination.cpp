@@ -270,8 +270,8 @@ static bool eliminate_unsqueeze(const shared_ptr<Node>& node) {
     // eliminate redundant squeeze->unsqueeze
     if (squeeze) {
         const auto& data_shape = squeeze->input_value(0).get_partial_shape();
-        if (ov::compare_constants(squeeze->input_value(1).get_node_shared_ptr(),
-                                  unsqueeze->input_value(1).get_node_shared_ptr())) {
+        if (squeeze->inputs().size() > 1 && ov::compare_constants(squeeze->input_value(1).get_node_shared_ptr(),
+                                                                  unsqueeze->input_value(1).get_node_shared_ptr())) {
             return replace_output_update_name(unsqueeze->output(0), squeeze->input_value(0));
         }
         if (data_shape.rank().is_dynamic() || out_shape.rank().is_dynamic()) {
