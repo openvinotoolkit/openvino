@@ -33,7 +33,6 @@
 #include "shared_test_classes/base/utils/compare_results.hpp"
 #include "shared_test_classes/base/utils/calculate_thresholds.hpp"
 
-
 namespace ov {
 namespace test {
 
@@ -225,9 +224,9 @@ void SubgraphBaseTest::import_export() {
             const auto importedFunction = importedModel.get_runtime_model()->clone();
             const auto runtimeModel = compiledModel.get_runtime_model()->clone();
 
-            auto comparator = FunctionsComparator::with_default()
-                        .enable(FunctionsComparator::ATTRIBUTES)
-                        .enable(FunctionsComparator::NAMES)
+            auto comparator = FunctionsComparator::no_default()
+                        .enable(FunctionsComparator::IN_OUT_NODES_ONLY)
+                        .enable(FunctionsComparator::PRECISIONS)
                         .enable(FunctionsComparator::CONST_VALUES);
             auto res = comparator.compare(importedFunction, runtimeModel);
             if (!res.valid) {

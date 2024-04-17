@@ -30,7 +30,8 @@ public:
         TENSOR_NAMES = 1 << 6,
         ACCURACY = 1 << 7,
         SUBGRAPH_DESCRIPTORS = 1 << 8,
-        CONSUMERS_COUNT = 1 << 9
+        CONSUMERS_COUNT = 1 << 9,
+        IN_OUT_NODES_ONLY = 1 << 10,
     };
 
     struct Result {
