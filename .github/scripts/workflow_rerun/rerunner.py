@@ -15,6 +15,9 @@ if __name__ == '__main__':
     run_id = args.run_id
     repository_name = args.repository_name
     errors_file = args.errors_to_look_for_file
+    is_dry_run = args.dry_run
+    if is_dry_run:
+        LOGGER.info('RUNNING IN DRY RUN MODE. IF ERROR WILL BE FOUND, WILL NOT RETRIGGER')
 
     github = Github(auth=Auth.Token(token=GITHUB_TOKEN))
     gh_repo = github.get_repo(full_name_or_id=repository_name)
@@ -43,6 +46,10 @@ if __name__ == '__main__':
 
     if log_analyzer.found_matching_error:
         LOGGER.info(f'FOUND MATCHING ERROR, RETRIGGERING {run.html_url}')
+        if is_dry_run:
+            LOGGER.info(f'RUNNING IN DRY RUN MODE, NOT RETRIGGERING, EXITING')
+            sys.exit(0)
+
         status = run.rerun()
         if status:
             LOGGER.info(f'RUN RETRIGGERED SUCCESSFULLY: {run.html_url}')
