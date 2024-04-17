@@ -139,7 +139,7 @@ jobs:
       - name: Copy caches
         run: |
           New-Item -ItemType Directory -Path "${{ env.CCACHE_REMOTE_DIR }}" -Force
-          Copy-Item -Path "${{ env.CCACHE_REMOTE_DIR }}/../*.cache" -Destination "${{ env.CCACHE_REMOTE_DIR }}"
+          Copy-Item -Path "C:\\mount\\caches\\ccache\\windows2022_x86_64_master\\*.cache" -Destination "${{ env.CCACHE_REMOTE_DIR }}"
 
 
       #
