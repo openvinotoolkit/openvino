@@ -5,7 +5,7 @@
 
 #include <napi.h>
 
-const std::string get_type_name(napi_valuetype type) {
+std::string get_type_name(napi_valuetype type) {
     switch (type) {
     case napi_undefined:
         return "Undefined";
