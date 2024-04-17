@@ -38,10 +38,6 @@ public:
         return { node.get_attached_memory().get_layout() };
     }
 
-    static layout calc_output_layout(data_node const& node, kernel_impl_params const& impl_param) {
-        return node.get_attached_memory().get_layout();
-    }
-
     static std::string to_string(data_node const& node);
 
     typed_primitive_inst(network& network, data_node const& node);

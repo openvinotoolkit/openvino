@@ -19,9 +19,6 @@ public:
 
     program_node& input() const { return get_dependency(0); }
     program_node& seq_indicators() const { return get_dependency(1); }
-
-    bool has_second_output() const { return !get_primitive()->second_output.empty(); }
-    program_node& second_output() const { return get_dependency(2); }
 };
 
 using ctc_greedy_decoder_node = typed_program_node<ctc_greedy_decoder>;
@@ -34,7 +31,6 @@ class typed_primitive_inst<ctc_greedy_decoder> : public typed_primitive_inst_bas
 public:
     template<typename ShapeType>
     static std::vector<layout> calc_output_layouts(ctc_greedy_decoder_node const& /*node*/, const kernel_impl_params& impl_param);
-    static layout calc_output_layout(ctc_greedy_decoder_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(ctc_greedy_decoder_node const& node);
 
 public:

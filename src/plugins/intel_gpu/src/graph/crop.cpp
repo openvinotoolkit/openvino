@@ -16,29 +16,6 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(crop)
 
-layout crop_inst::calc_output_layout(crop_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
-           "Output data type forcing is not supported for crop_node!");
-    auto desc = impl_param.typed_desc<crop>();
-    const auto& ref_in_sizes = desc->reference_input;
-    const auto in_layout = impl_param.get_input_layout();
-    const auto& in_sizes = in_layout.get_tensor();
-    const auto& offsets = desc->offsets;
-
-    // Check for borders variant of crop.
-    if (ref_in_sizes.batch[0] < 0 || ref_in_sizes.feature[0] < 0 || ref_in_sizes.spatial[0] < 0 ||
-        ref_in_sizes.spatial[1] < 0 || ref_in_sizes.spatial[2] < 0) {
-        // Ignore not supported dimensions.
-        const auto rb_sizes = ref_in_sizes.negate().sub({0, 0, 0, 0, 0});
-        const auto lt_sizes = offsets.sub({0, 0, 0, 0, 0});
-
-        const auto out_sizes = in_sizes - (rb_sizes + lt_sizes);
-
-        return layout({in_layout.data_type, in_layout.format, out_sizes});
-    }
-    return layout({in_layout.data_type, in_layout.format, ref_in_sizes});
-}
-
 template<typename ShapeType>
 std::vector<layout> crop_inst::calc_output_layouts(const crop_node& /*node*/, const kernel_impl_params& impl_param) {
     OPENVINO_ASSERT(static_cast<bool>(impl_param.desc->output_data_types[0]) == false,
@@ -269,7 +246,7 @@ void crop_inst::update_output_memory() {
     if (_node != nullptr)
         build_deps();
 
-    if (node->get_program().is_new_shape_infer() && input_memory_ptr() == nullptr)
+    if (input_memory_ptr() == nullptr)
         return;
 
     if (_outputs[0] && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))

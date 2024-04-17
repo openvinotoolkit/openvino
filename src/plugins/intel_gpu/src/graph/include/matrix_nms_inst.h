@@ -23,8 +23,6 @@ public:
 
     template<typename ShapeType>
     static std::vector<layout> calc_output_layouts(matrix_nms_node const& /*node*/, const kernel_impl_params& impl_param);
-
-    static layout calc_output_layout(const matrix_nms_node& node, const kernel_impl_params& impl_param);
     static std::string to_string(const matrix_nms_node& node);
 
     memory::ptr input_boxes_mem() const {
@@ -32,12 +30,6 @@ public:
     }
     memory::ptr input_scores_mem() const {
         return dep_memory_ptr(1);
-    }
-    memory::ptr input_selected_boxes_mem() const {
-        return dep_memory_ptr(2);
-    }
-    memory::ptr input_valid_outputs_mem() const {
-        return dep_memory_ptr(3);
     }
 };
 

@@ -4429,7 +4429,7 @@ TEST(scatter_nd_update_gpu, dynamic) {
     );
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
 
     network.set_input_data("InputData", input1);
@@ -4490,7 +4490,7 @@ TEST(scatter_nd_update_gpu, dynamic_padded_output) {
     topology.add(scatter_nd_upd);
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
 
     network.set_input_data("InputData", input1);
@@ -4536,7 +4536,7 @@ TEST(scatter_nd_update_gpu, dynamic_5d) {
     topology.add(scatter_nd_update("scatter_nd_update", input_info("data"), input_info("indices"), input_info("updates"), 5));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
 
     auto get_expected_res = [](const std::vector<float>& input,

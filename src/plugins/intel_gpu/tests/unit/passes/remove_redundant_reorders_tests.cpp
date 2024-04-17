@@ -56,7 +56,7 @@ TEST(remove_redundant_reorders, remove_dep_dynamic) {
     topology.add(softmax("softmax", input_info("reorder"), 1));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -231,7 +231,7 @@ TEST(remove_redundant_reorders, not_to_fuse_permute_new_shape_infer) {
     topology.add(concatenation("concat", {input_info("reshape"), input_info("input2")}, 4));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
     network.set_input_data("input1", input1);
@@ -289,7 +289,7 @@ TEST(remove_redundant_reorders, fuse_reorder_to_prev_mvn_dyn) {
     topology.add(fully_connected("fc", input_info("reorder"), { "weights" }, "", data_types::f16, 3, 2));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto prog = program::build_program(engine, topology, config, false, true);
 
@@ -332,7 +332,7 @@ TEST(remove_redundant_reorders, fuse_reorder_to_prev_concat_dyn) {
     topology.add(softmax("softmax", input_info("reorder"), 1));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto prog = program::build_program(engine, topology, config, false, true);
 
@@ -389,7 +389,7 @@ TEST(remove_redundant_reorders, not_to_fuse_concat_with_reorder_inside_shape_of_
     topology.add(concatenation("concat1", {input_info("reorder3"), input_info("data_2")}, 0, data_types::i32));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -472,7 +472,7 @@ TEST(remove_redundant_reorders, reorder_of_non_default_port) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     network network(engine, topology, config);
 

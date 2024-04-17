@@ -117,6 +117,17 @@ kernel_selector::dim_tensor<T> convert_dim_vector(const tensor& t) {
             static_cast<T>(sizes[5])};
 }
 
+
+inline kernel_selector::DimTensor<uint32_t> convert_vec_to_dim_tensor(const std::vector<int32_t>& p, size_t out_rank, int32_t default_value) {
+    auto sizes = p;
+    auto format = cldnn::format::get_default_format(out_rank);
+    for (size_t s = sizes.size(); s < format.dimension(); s++) {
+        sizes.push_back(default_value);
+    }
+    tensor block_shape(format, sizes, default_value);
+    return convert_dim_vector(block_shape);
+}
+
 std::shared_ptr<kernel_selector::fuse_params> convert_fuse_params(std::shared_ptr<NodeFuseParams> p);
 void convert_fused_ops_to_legacy_activations(const kernel_impl_params& param_info, std::vector<kernel_selector::base_activation_params>& activations);
 bool use_legacy_fused_ops(const kernel_impl_params& param_info);
@@ -233,8 +244,7 @@ inline ov::PartialShape extend_shape_to_rank_from_begin(const ov::PartialShape& 
     return extended_pshape;
 }
 
-inline bool broadcastable(const ov::PartialShape& first_pshape, const ov::PartialShape& second_pshape, bool use_new_shape_infer,
-                          bool first_to_second_only = false) {
+inline bool broadcastable(const ov::PartialShape& first_pshape, const ov::PartialShape& second_pshape, bool first_to_second_only = false) {
     if (first_pshape.is_dynamic() || second_pshape.is_dynamic()) {
         return false;
     }
@@ -243,7 +253,7 @@ inline bool broadcastable(const ov::PartialShape& first_pshape, const ov::Partia
             return false;
         }
     } else {
-        if (first_pshape.size() != second_pshape.size() && use_new_shape_infer) {
+        if (first_pshape.size() != second_pshape.size()) {
             return false;
         }
     }
@@ -259,7 +269,6 @@ inline bool broadcastable(const ov::PartialShape& first_pshape, const ov::Partia
 
 inline kernel_impl_params canonicalize_fused_shapes(const kernel_impl_params& impl_params) {
     auto updated_impl_params = impl_params;
-    bool use_new_shape_infer = impl_params.prog->is_new_shape_infer();
 
     for (auto& fd : updated_impl_params.fused_desc) {
         if (fd.is_type<eltwise>() && fd.total_num_deps == 2 && fd.has_outer_dep()) {
@@ -269,7 +278,7 @@ inline kernel_impl_params canonicalize_fused_shapes(const kernel_impl_params& im
                 auto& dep_layout = updated_impl_params.input_layouts[fd.outer_dep_start_idx];
                 const auto& dep_shape = dep_layout.get_partial_shape();
 
-                if (!broadcastable(dep_shape, out_pshape, use_new_shape_infer)) {
+                if (!broadcastable(dep_shape, out_pshape)) {
                     dep_layout.set_partial_shape(extend_shape_to_rank_from_begin(dep_shape, out_pshape.size()));
                 }
             }

@@ -84,7 +84,7 @@ void generic_one_hot_test_int(cldnn::format test_input_fmt, int input_b, int inp
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(one_hot("output", input_info("input"), shape, one_hot_axis, one_hot_limit));
+    topology.add(one_hot("output", input_info("input"), ov::element::from<T>(), one_hot_axis, one_hot_limit));
 
     cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
     network->set_input_data("input", input);
@@ -181,7 +181,7 @@ TEST(one_hot_gpu_i32, bfzyx_ax4) {
     auto input = engine.allocate_memory({ data_types::i32, format::bfyx, input_tensor });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(one_hot("output", input_info("input"), shape, one_hot_axis, 5));
+    topology.add(one_hot("output", input_info("input"), data_types::i32, one_hot_axis, 5));
 
     set_values(input, input_rnd_vec);
 
@@ -240,7 +240,7 @@ TEST(one_hot_gpu_i64, bfzyx_ax4) {
     auto input = engine.allocate_memory({ data_types::i64, format::bfyx, input_tensor });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(one_hot("output", input_info("input"), shape, one_hot_axis, 5));
+    topology.add(one_hot("output", input_info("input"), data_types::i64, one_hot_axis, 5));
 
     set_values(input, input_rnd_vec);
 
@@ -289,9 +289,6 @@ TEST(one_hot_gpu_i32_to_f32, bfyx_ax4) {
     int in_x = 1;
     tensor shape(in_b, in_f, 5, in_x, in_y);
     uint16_t one_hot_axis = 4;
-    std::vector<tensor::value_type> output_dims = { shape.batch[0], shape.feature[0],
-                                                    shape.spatial[2], shape.spatial[1], shape.spatial[0] };
-
     VF<int32_t> input_rnd_vec = {0, 1};
 
     auto& engine = get_test_engine();
@@ -299,7 +296,7 @@ TEST(one_hot_gpu_i32_to_f32, bfyx_ax4) {
     auto input = engine.allocate_memory({ data_types::i32, format::bfyx, input_tensor });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(one_hot("output", input_info("input"), shape, data_types::f32, one_hot_axis, 5));
+    topology.add(one_hot("output", input_info("input"), data_types::f32, one_hot_axis, 5));
 
     set_values(input, input_rnd_vec);
 
@@ -342,9 +339,6 @@ TEST(one_hot_gpu_i64_to_f32, bfyx_ax4) {
     int in_x = 1;
     tensor shape(in_b, in_f, 5, in_x, in_y);
     uint16_t one_hot_axis = 4;
-    std::vector<tensor::value_type> output_dims = { shape.batch[0], shape.feature[0],
-                                                    shape.spatial[2], shape.spatial[1], shape.spatial[0] };
-
     VF<int64_t> input_rnd_vec = {0, 1};
 
     auto& engine = get_test_engine();
@@ -352,7 +346,7 @@ TEST(one_hot_gpu_i64_to_f32, bfyx_ax4) {
     auto input = engine.allocate_memory({ data_types::i64, format::bfyx, input_tensor });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(one_hot("output", input_info("input"), shape, data_types::f32, one_hot_axis, 5));
+    topology.add(one_hot("output", input_info("input"), data_types::f32, one_hot_axis, 5));
 
     set_values(input, input_rnd_vec);
 
@@ -393,9 +387,6 @@ TEST(one_hot_gpu_i32, bfzyx_ax0) {
     int in_x = 2;
     tensor shape(3, in_b, in_x, in_y, in_f);
     uint16_t one_hot_axis = 0;
-    std::vector<tensor::value_type> output_dims = { shape.batch[0], shape.feature[0],
-                                                    shape.spatial[2], shape.spatial[1], shape.spatial[0] };
-
     VF<int32_t> input_rnd_vec = {0, 1};
 
     auto& engine = get_test_engine();
@@ -403,7 +394,7 @@ TEST(one_hot_gpu_i32, bfzyx_ax0) {
     auto input = engine.allocate_memory({ data_types::i32, format::bfyx, input_tensor });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(one_hot("output", input_info("input"), shape, one_hot_axis, 3));
+    topology.add(one_hot("output", input_info("input"), data_types::i32, one_hot_axis, 3));
 
     set_values(input, input_rnd_vec);
 
@@ -448,8 +439,6 @@ TEST(one_hot_gpu_i64, bfzyx_ax0) {
     int in_x = 2;
     tensor shape(3, in_b, in_x, in_y, in_f);
     uint16_t one_hot_axis = 0;
-    std::vector<tensor::value_type> output_dims = { shape.batch[0], shape.feature[0],
-                                                    shape.spatial[2], shape.spatial[1], shape.spatial[0] };
 
     VF<int64_t> input_rnd_vec = {0, 1};
 
@@ -458,7 +447,7 @@ TEST(one_hot_gpu_i64, bfzyx_ax0) {
     auto input = engine.allocate_memory({ data_types::i64, format::bfyx, input_tensor });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(one_hot("output", input_info("input"), shape, one_hot_axis, 3));
+    topology.add(one_hot("output", input_info("input"), data_types::i64, one_hot_axis, 3));
 
     set_values(input, input_rnd_vec);
 
@@ -503,8 +492,6 @@ TEST(one_hot_gpu_i32, bfzyx_ax1) {
     int in_x = 2;
     tensor shape(in_b, 3, in_x, in_y, in_f);
     uint16_t one_hot_axis = 1;
-    std::vector<tensor::value_type> output_dims = { shape.batch[0], shape.feature[0],
-                                                    shape.spatial[2], shape.spatial[1], shape.spatial[0] };
 
     VF<int32_t> input_rnd_vec = {0, 1};
 
@@ -513,7 +500,7 @@ TEST(one_hot_gpu_i32, bfzyx_ax1) {
     auto input = engine.allocate_memory({ data_types::i32, format::bfyx, input_tensor });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(one_hot("output", input_info("input"), shape, one_hot_axis, 3));
+    topology.add(one_hot("output", input_info("input"), data_types::i32, one_hot_axis, 3));
 
     set_values(input, input_rnd_vec);
 
@@ -558,8 +545,6 @@ TEST(one_hot_gpu_i64, bfzyx_ax1) {
     int in_x = 2;
     tensor shape(in_b, 3, in_x, in_y, in_f);
     uint16_t one_hot_axis = 1;
-    std::vector<tensor::value_type> output_dims = { shape.batch[0], shape.feature[0],
-                                                    shape.spatial[2], shape.spatial[1], shape.spatial[0] };
 
     VF<int64_t> input_rnd_vec = {0, 1};
 
@@ -568,7 +553,7 @@ TEST(one_hot_gpu_i64, bfzyx_ax1) {
     auto input = engine.allocate_memory({ data_types::i64, format::bfyx, input_tensor });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(one_hot("output", input_info("input"), shape, one_hot_axis, 3));
+    topology.add(one_hot("output", input_info("input"), data_types::i64, one_hot_axis, 3));
 
     set_values(input, input_rnd_vec);
 
@@ -613,8 +598,6 @@ TEST(one_hot_gpu_i32, bfzyx_ax2) {
     int in_x = 2;
     tensor shape(in_b, in_f, in_x, in_y, 3);
     uint16_t one_hot_axis = 2;
-    std::vector<tensor::value_type> output_dims = { shape.batch[0], shape.feature[0],
-                                                    shape.spatial[2], shape.spatial[1], shape.spatial[0] };
 
     VF<int32_t> input_rnd_vec = {0, 1};
 
@@ -623,7 +606,7 @@ TEST(one_hot_gpu_i32, bfzyx_ax2) {
     auto input = engine.allocate_memory({ data_types::i32, format::bfyx, input_tensor });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(one_hot("output", input_info("input"), shape, one_hot_axis, 3));
+    topology.add(one_hot("output", input_info("input"), data_types::i32, one_hot_axis, 3));
 
     set_values(input, input_rnd_vec);
 
@@ -668,8 +651,6 @@ TEST(one_hot_gpu_i64, bfzyx_ax2) {
     int in_x = 2;
     tensor shape(in_b, in_f, in_x, in_y, 3);
     uint16_t one_hot_axis = 2;
-    std::vector<tensor::value_type> output_dims = { shape.batch[0], shape.feature[0],
-                                                    shape.spatial[2], shape.spatial[1], shape.spatial[0] };
 
     VF<int64_t> input_rnd_vec = {0, 1};
 
@@ -678,7 +659,7 @@ TEST(one_hot_gpu_i64, bfzyx_ax2) {
     auto input = engine.allocate_memory({ data_types::i64, format::bfyx, input_tensor });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(one_hot("output", input_info("input"), shape, one_hot_axis, 3));
+    topology.add(one_hot("output", input_info("input"), data_types::i64, one_hot_axis, 3));
 
     set_values(input, input_rnd_vec);
 
@@ -723,8 +704,6 @@ TEST(one_hot_gpu_i32, bfzyx_ax3) {
     int in_x = 2;
     tensor shape(in_b, in_f, in_x, 3, in_y);
     uint16_t one_hot_axis = 3;
-    std::vector<tensor::value_type> output_dims = { shape.batch[0], shape.feature[0],
-                                                    shape.spatial[2], shape.spatial[1], shape.spatial[0] };
 
     VF<int32_t> input_rnd_vec = {0, 1};
 
@@ -733,7 +712,7 @@ TEST(one_hot_gpu_i32, bfzyx_ax3) {
     auto input = engine.allocate_memory({ data_types::i32, format::bfyx, input_tensor });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(one_hot("output", input_info("input"), shape, one_hot_axis, 3));
+    topology.add(one_hot("output", input_info("input"), data_types::i32, one_hot_axis, 3));
 
     set_values(input, input_rnd_vec);
 
@@ -778,8 +757,6 @@ TEST(one_hot_gpu_i64, bfzyx_ax3) {
     int in_x = 2;
     tensor shape(in_b, in_f, in_x, 3, in_y);
     uint16_t one_hot_axis = 3;
-    std::vector<tensor::value_type> output_dims = { shape.batch[0], shape.feature[0],
-                                                    shape.spatial[2], shape.spatial[1], shape.spatial[0] };
 
     VF<int64_t> input_rnd_vec = {0, 1};
 
@@ -788,7 +765,7 @@ TEST(one_hot_gpu_i64, bfzyx_ax3) {
     auto input = engine.allocate_memory({ data_types::i64, format::bfyx, input_tensor });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(one_hot("output", input_info("input"), shape, one_hot_axis, 3));
+    topology.add(one_hot("output", input_info("input"), data_types::i64, one_hot_axis, 3));
 
     set_values(input, input_rnd_vec);
 
@@ -831,7 +808,7 @@ TEST(one_hot_error, basic_error_wrong_axis) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(one_hot("output", input_info("input"), tensor(1, 1, 1, 50), 5, 2));
+    topology.add(one_hot("output", input_info("input"),data_types::i32, 5, 2));
 
     std::string msg_to_find = "Incorrect parameters configuration: one_hot_axis should be less or equal to 4.";
     EXPECT_ANY_THROW(check_exception_massage(engine, topology, msg_to_find));
@@ -843,7 +820,7 @@ TEST(one_hot_error, basic_error_bad_shape) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(one_hot("output", input_info("input"), tensor(1, 5, 1, 50), 2, 2));
+    topology.add(one_hot("output", input_info("input"), data_types::i32, 2, 2));
 
     std::string msg_to_find = "Incorrect parameters configuration: shape does not fit input size.";
     EXPECT_ANY_THROW(check_exception_massage(engine, topology, msg_to_find));

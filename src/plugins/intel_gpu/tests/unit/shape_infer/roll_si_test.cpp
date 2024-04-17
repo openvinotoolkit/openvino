@@ -32,7 +32,7 @@ TEST_P(roll_test, shape_infer) {
     auto& engine = get_test_engine();
 
     auto input0_layout_prim = std::make_shared<input_layout>("input0", p.input_layout);
-    auto roll_prim = std::make_shared<roll>("output", input_info("input0"), tensor(1));
+    auto roll_prim = std::make_shared<roll>("output", input_info("input0"), std::vector<int32_t>{1}, std::vector<int32_t>{0});
 
     cldnn::program prog(engine);
 

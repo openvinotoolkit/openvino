@@ -232,7 +232,6 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                 { "border", "Pad" },
                 { "concatenation", "Concat" },
                 { "convolution", "Convolution" },
-                { "deformable_convolution", "DeformableConvolution" },
                 { "crop", "Crop" },
                 { "custom_gpu_primitive", "CustomGPUPrimitive" },
                 { "data", "Const" },

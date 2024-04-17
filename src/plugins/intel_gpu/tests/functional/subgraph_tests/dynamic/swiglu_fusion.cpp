@@ -102,6 +102,7 @@ TEST_P(SwiGLUFusion, Inference_cached) {
     }
     {
         run();
+        core->set_property(ov::cache_dir(""));
         ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
         ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
         ov::test::utils::removeDir(cacheDirName);

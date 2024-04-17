@@ -45,7 +45,7 @@ TEST(add_onednn_optimization_attributes, init_attribute_for_fused_onednn_primiti
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     auto prog = program::build_program(engine, topology, config, false, false);
 
     prog->get_layout_optimizer().add_all_onednn_impls_optimization_attribute();

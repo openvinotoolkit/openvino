@@ -862,13 +862,6 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     }
 
     auto memory = device_tensor->get_memory();
-    // WA to extend shape to ranks expected by legacy shape infer. Remove after full migration to new shape infer
-    if (!m_graph->get_config().get_allow_new_shape_infer()) {
-        auto new_layout = memory->get_layout();
-        new_layout.set_partial_shape(m_graph->get_input_layouts().at(input_idx).get_shape());
-        memory = engine.reinterpret_buffer(*memory, new_layout);
-    }
-
     cldnn::event::ptr ret_event = nullptr;
     if (convert_needed) {
         if (is_remote_tensor_impl) {

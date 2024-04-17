@@ -6,9 +6,9 @@
 
 #include "primitive.hpp"
 
-namespace cldnn {
+#include "openvino/op/reverse.hpp"
 
-enum class reverse_mode : uint32_t { index, mask };
+namespace cldnn {
 
 struct reverse : public primitive_base<reverse> {
     CLDNN_DECLARE_PRIMITIVE(reverse)
@@ -23,11 +23,11 @@ struct reverse : public primitive_base<reverse> {
     reverse(const primitive_id& id,
             const input_info& input,
             const input_info& axes,
-            const reverse_mode mode)
+            const ov::op::v1::Reverse::Mode& mode)
         : primitive_base{id, {input, axes}},
           mode{mode} {}
 
-    reverse_mode mode{reverse_mode::index};
+    ov::op::v1::Reverse::Mode mode;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -46,12 +46,12 @@ struct reverse : public primitive_base<reverse> {
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<reverse>::save(ob);
-        ob << make_data(&mode, sizeof(reverse_mode));
+        ob << make_data(&mode, sizeof(ov::op::v1::Reverse::Mode));
     }
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<reverse>::load(ib);
-        ib >> make_data(&mode, sizeof(reverse_mode));
+        ib >> make_data(&mode, sizeof(ov::op::v1::Reverse::Mode));
     }
 };
 }  // namespace cldnn

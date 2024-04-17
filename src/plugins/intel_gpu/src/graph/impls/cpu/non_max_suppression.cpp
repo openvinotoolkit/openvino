@@ -363,18 +363,6 @@ void run(non_max_suppression_inst& instance) {
 
     size_t output_size = instance.get_impl_params()->output_layouts[0].batch();
 
-    // Legacy APIs using mutable inputs for multiple outputs
-    if (instance.has_third_output()) {
-        store_third_output(stream, instance.third_output_mem(), result);
-    }
-
-    if (instance.has_second_output()) {
-        store_second_output(stream, instance.second_output_mem(), result, output_size);
-        store_first_output(stream, instance.output_memory_ptr(), result, output_size);
-        return;
-    }
-
-    // New API for mutiple outputs support
     if (instance.outputs_memory_count() == 3)
         store_third_output(stream, instance.output_memory_ptr(2), result);
 

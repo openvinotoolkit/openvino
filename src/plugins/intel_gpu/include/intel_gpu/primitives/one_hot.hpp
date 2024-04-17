@@ -39,32 +39,15 @@ struct one_hot : public primitive_base<one_hot> {
     /// @param id              An identifier of new primitive.
     /// @param input           An identifier of primitive which is an input for newly created one-hot primitive.
     /// @param shape           Size of the output primitive.
-    /// @param one_hot_axis    One-hot axis position (0-based, from left to right) in shape.
-    one_hot(const primitive_id& id,
-            const input_info& input,
-            const tensor& shape,
-            const int64_t& one_hot_axis,
-            const int64_t& depth,
-            const float& on_value = 1.0f,
-            const float& off_value = 0.0f)
-        : primitive_base(id, {input})
-        , shape(shape)
-        , one_hot_axis(one_hot_axis)
-        , depth(depth)
-        , on_value(on_value)
-        , off_value(off_value) {}
-
     /// @brief onehot with depth from Select node
     one_hot(const primitive_id& id,
             const input_info& input,
             const input_info& input_depth,
-            const tensor& shape,
             const data_types output_dt,
             const int64_t& one_hot_axis,
             const float& on_value = 1.0f,
             const float& off_value = 0.0f)
         : primitive_base(id, {input, input_depth}, 1, {optional_data_type{output_dt}})
-        , shape(shape)
         , one_hot_axis(one_hot_axis)
         , on_value(on_value)
         , off_value(off_value) {}
@@ -77,21 +60,17 @@ struct one_hot : public primitive_base<one_hot> {
     /// @param one_hot_axis    One-hot axis position (0-based, from left to right) in shape.
     one_hot(const primitive_id& id,
             const input_info& input,
-            const tensor& shape,
             const data_types output_dt,
             const int64_t& one_hot_axis,
             const int64_t& depth,
             const float& on_value = 1.0f,
             const float& off_value = 0.0f)
         : primitive_base(id, {input}, 1, {optional_data_type{output_dt}})
-        , shape(shape)
         , one_hot_axis(one_hot_axis)
         , depth(depth)
         , on_value(on_value)
         , off_value(off_value) {}
 
-    /// @brief Output size reference.
-    tensor shape;
     /// @brief One-hot axis position in output shape (0-based, from left to right).
     int64_t one_hot_axis = 0;
     /// @brief The number of classes and thus the size of the one-hot dimension
@@ -123,7 +102,6 @@ struct one_hot : public primitive_base<one_hot> {
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<one_hot>::save(ob);
-        ob << shape;
         ob << one_hot_axis;
         ob << depth;
         ob << on_value;
@@ -132,7 +110,6 @@ struct one_hot : public primitive_base<one_hot> {
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<one_hot>::load(ib);
-        ib >> shape;
         ib >> one_hot_axis;
         ib >> depth;
         ib >> on_value;

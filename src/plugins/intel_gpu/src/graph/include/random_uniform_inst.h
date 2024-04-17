@@ -30,7 +30,6 @@ class typed_primitive_inst<random_uniform> : public typed_primitive_inst_base<ra
 public:
     template<typename ShapeType>
     static std::vector<layout> calc_output_layouts(random_uniform_node const& /*node*/, const kernel_impl_params& impl_param);
-    static layout calc_output_layout(random_uniform_node const &node, kernel_impl_params const& impl_param);
 
     static std::string to_string(random_uniform_node const &node);
 

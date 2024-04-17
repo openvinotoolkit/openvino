@@ -57,25 +57,6 @@ struct broadcast : public primitive_base<broadcast> {
 
     broadcast() : primitive_base("", {}) {}
 
-    /// @brief Constructs broadcast primitive / layer.
-    ///
-    /// @param id              An identifier of new primitive.
-    /// @param input           An identifier of primitive which is an input for newly created
-    ///                        broadcast primitive.
-    /// @param broadcast_sizes Sizes of broadcast. Output size of current primitive
-    ///                        will match broadcast sizes (layout type will not change).
-    /// @param broadcast_axes  Axes positions (0-based, from left to right) in output_shape
-    ///                        that are being broadcast. Values of broadcast_axes on remaining
-    ///                        axes must be greater (dividable) or equal to corresponding input
-    ///                        dimension values.
-    broadcast(const primitive_id& id,
-              const input_info& input,
-              const tensor& broadcast_sizes,
-              const std::vector<uint16_t>& broadcast_axes = {})
-        : primitive_base(id, {input}),
-          broadcast_sizes(broadcast_sizes),
-          broadcast_axes(broadcast_axes) {}
-
     /// @brief Constructs broadcast primitive / layer with static target_shape.
     ///
     /// @param id             An identifier of new primitive.
@@ -99,9 +80,7 @@ struct broadcast : public primitive_base<broadcast> {
         : primitive_base(id, {input}),
           target_shape(target_shape),
           axes_mapping(axes_mapping),
-          broadcast_mode(broadcast_spec),
-          broadcast_sizes(target_shape.empty() ? tensor(1) : tensor(0)),
-          broadcast_axes({}) {}
+          broadcast_mode(broadcast_spec) {}
 
     /// @brief Constructs broadcast primitive / layer with dynamic target_shape.
     broadcast(const primitive_id& id,
@@ -112,9 +91,7 @@ struct broadcast : public primitive_base<broadcast> {
     : primitive_base(id, {input, target_shape_id}),
       target_shape({}),
       axes_mapping(axes_mapping),
-      broadcast_mode(broadcast_spec),
-      broadcast_sizes({}),
-      broadcast_axes({}) {}
+      broadcast_mode(broadcast_spec) {}
 
     /// @brief The shape of the output tensor.
     ov::Shape target_shape;
@@ -122,17 +99,11 @@ struct broadcast : public primitive_base<broadcast> {
     ov::AxisSet axes_mapping;
     /// @brief Broadcast mode to use for determining broadcast axes.
     ov::op::BroadcastModeSpec broadcast_mode;
-    /// @brief Expected sizes of output from broadcast primitive.
-    tensor broadcast_sizes;
-    /// @brief Array of axes positions from output shape (0-based, from left to right)
-    ///        along which broadcast should happen.
-    std::vector<uint16_t> broadcast_axes;
 
     ov::PartialShape output_pshape = ov::PartialShape::dynamic();
 
     size_t hash() const override {
         size_t seed = primitive::hash();
-        seed = hash_range(seed, broadcast_axes.begin(), broadcast_axes.end());
         seed = hash_range(seed, axes_mapping.begin(), axes_mapping.end());
         return seed;
     }
@@ -145,7 +116,6 @@ struct broadcast : public primitive_base<broadcast> {
 
         return axes_mapping == rhs_casted.axes_mapping &&
                broadcast_mode == rhs_casted.broadcast_mode &&
-               broadcast_sizes == rhs_casted.broadcast_sizes &&
                output_pshape == rhs_casted.output_pshape;
     }
 
@@ -154,8 +124,6 @@ struct broadcast : public primitive_base<broadcast> {
         ob << target_shape;
         ob << axes_mapping;
         ob << make_data(&broadcast_mode, sizeof(ov::op::BroadcastModeSpec));
-        ob << broadcast_sizes;
-        ob << broadcast_axes;
         ob << output_pshape;
     }
 
@@ -164,8 +132,6 @@ struct broadcast : public primitive_base<broadcast> {
         ib >> target_shape;
         ib >> axes_mapping;
         ib >> make_data(&broadcast_mode, sizeof(ov::op::BroadcastModeSpec));
-        ib >> broadcast_sizes;
-        ib >> broadcast_axes;
         ib >> output_pshape;
     }
 };

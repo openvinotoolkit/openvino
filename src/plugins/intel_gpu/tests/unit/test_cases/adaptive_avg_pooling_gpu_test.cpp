@@ -18,8 +18,8 @@ using namespace ::tests;
 
 namespace {
 struct AdaptiveAvgPoolingParams {
-    tensor inputTensor;
-    tensor outputTensor;
+    ov::Shape input_shape;
+    ov::Shape output_shape;
 };
 
 using AdaptiveAvgPoolingParamsWithLayout = std::tuple<
@@ -54,23 +54,13 @@ std::vector<T> getValues(const std::vector<float>& values) {
     return result;
 }
 
-ov::Shape tensorToShape(const tensor& t, const format f)
-{
-    std::vector<int> vec(cldnn::format::dimension(f));
-    for (size_t i = 0; i < vec.size(); ++i) {
-        vec[i] = t.sizes()[i];
-    }
-    std::reverse(vec.begin() + 2, vec.end());
-
-    return ov::Shape(vec.begin(), vec.end());
-}
 
 template<typename T>
 void generateTestData(const AdaptiveAvgPoolingParams& p, const format fmt, const std::vector<float>& random_inputs, std::vector<T>& inputs, std::vector<T>& outputs) {
-    std::vector<float> out(p.outputTensor.count());
+    std::vector<float> out(ov::shape_size(p.output_shape));
 
-    const auto inShape = tensorToShape(p.inputTensor, fmt);
-    const auto outShape = tensorToShape(p.outputTensor, fmt);
+    const auto inShape = p.input_shape;
+    const auto outShape = p.output_shape;
 
     ov::reference::adaptive_avg_pool<float>(random_inputs.data(), out.data(), inShape, outShape);
 
@@ -98,8 +88,8 @@ struct PrintToStringParamName {
         format::type target_layout;
         bool is_caching_test;
         std::tie(p, plain_layout, target_layout, is_caching_test) = param.param;
-        buf << " input tensor " << p.inputTensor.to_string()
-            << " output tensor " << p.outputTensor.to_string()
+        buf << " input shape " << p.input_shape.to_string()
+            << " output shape " << p.output_shape.to_string()
             << " plain layout " << plain_layout
             << " target layout " << target_layout
             << " is_caching_test " << is_caching_test;
@@ -128,18 +118,22 @@ public:
 
         std::vector<T> input_data;
         std::vector<T> expected;
-        const std::vector<float> random_input_data = rg.generate_random_1d<float>(params.inputTensor.count(), -127, 127, 8);
+        const std::vector<float> random_input_data = rg.generate_random_1d<float>(ov::shape_size(params.input_shape), -127, 127, 8);
         generateTestData<T>(params, plain_layout, random_input_data, input_data, expected);
         auto& engine = get_test_engine();
 
-        auto input = engine.allocate_memory({data_type, plain_layout, params.inputTensor});
+        auto input = engine.allocate_memory({params.input_shape, data_type, plain_layout });
+        auto shape_input = engine.allocate_memory({{ static_cast<int64_t>(params.output_shape.size()) - 2 }, ov::element::i32, plain_layout });
 
         set_values(input, input_data);
+        std::vector<int32_t> o_shape(params.output_shape.begin() + 2, params.output_shape.end());
+        set_values<int32_t>(shape_input, o_shape);
 
         topology topology;
         topology.add(input_layout("input", input->get_layout()));
+        topology.add(data("shape", shape_input));
         topology.add(reorder("input_reordered", input_info("input"), target_layout, data_type));
-        topology.add(adaptive_pooling("adaptive_avg_pooling_blocked", input_info("input_reordered"), params.outputTensor));
+        topology.add(adaptive_pooling("adaptive_avg_pooling_blocked", input_info("input_reordered"), input_info("shape")));
         topology.add(reorder("adaptive_avg_pooling", input_info("adaptive_avg_pooling_blocked"), plain_layout, data_type));
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
@@ -151,8 +145,8 @@ public:
         auto out_mem = result.at("adaptive_avg_pooling").get_memory();
         cldnn::mem_lock<T> out_ptr(out_mem, get_test_stream());
 
-        ASSERT_EQ(params.outputTensor.count(), out_ptr.size());
-        ASSERT_EQ(params.outputTensor.count(), expected.size());
+        ASSERT_EQ(ov::shape_size(params.output_shape), out_ptr.size());
+        ASSERT_EQ(ov::shape_size(params.output_shape), expected.size());
         for (size_t i = 0; i < expected.size(); ++i) {
             ASSERT_NEAR(expected[i], out_ptr[i], getError<T>())
                 << "i = " << i << ", format=" << fmt_to_str(target_layout);
@@ -176,9 +170,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_adaptive_avg_pooling_test_f32_2d,
                          adaptive_avg_pooling_test_f32,
                          ::testing::Combine(
                                  ::testing::ValuesIn(std::vector<AdaptiveAvgPoolingParams>{
-                                        { tensor(1, 2, 7, 3), tensor(1, 2, 3, 3) },
-                                        { tensor(2, 3, 7, 3), tensor(2, 3, 3, 3) },
-                                        { tensor(1, 3, 7, 7), tensor(1, 3, 7, 7) },
+                                        { ov::Shape{1, 2, 3, 7}, ov::Shape{1, 2, 3, 3} },
+                                        { ov::Shape{2, 3, 3, 7}, ov::Shape{2, 3, 3, 3} },
+                                        { ov::Shape{1, 3, 7, 7}, ov::Shape{1, 3, 7, 7} },
                                     }),
                                  ::testing::Values(format::bfyx),
                                  ::testing::Values(format::bfyx),
@@ -189,8 +183,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_adaptive_avg_pooling_test_f32_3d,
                          adaptive_avg_pooling_test_f32,
                          ::testing::Combine(
                                  ::testing::ValuesIn(std::vector<AdaptiveAvgPoolingParams>{
-                                        { tensor(2, 2, 7, 3, 3), tensor(2, 2, 2, 2, 2) },
-                                        { tensor(2, 2, 8, 5, 4), tensor(2, 2, 3, 3, 3) },
+                                        { ov::Shape{2, 2, 3, 3, 7}, ov::Shape{2, 2, 2, 2, 2} },
+                                        { ov::Shape{2, 2, 4, 5, 8}, ov::Shape{2, 2, 3, 3, 3} },
                                     }),
                                  ::testing::Values(format::bfzyx),
                                  ::testing::Values(format::bfzyx),
@@ -201,8 +195,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_adaptive_avg_pooling_test_f16_2d,
                          adaptive_avg_pooling_test_f16,
                          ::testing::Combine(
                                  ::testing::ValuesIn(std::vector<AdaptiveAvgPoolingParams>{
-                                        { tensor(1, 2, 7, 3), tensor(1, 2, 3, 3) },
-                                        { tensor(2, 3, 7, 3), tensor(2, 3, 3, 3) },
+                                        { ov::Shape{1, 2, 7, 3}, ov::Shape{1, 2, 3, 3} },
+                                        { ov::Shape{2, 3, 7, 3}, ov::Shape{2, 3, 3, 3} },
                                     }),
                                  ::testing::Values(format::bfyx),
                                  ::testing::Values(format::bfyx),
@@ -213,8 +207,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_adaptive_avg_pooling_test_f16_3d,
                          adaptive_avg_pooling_test_f16,
                          ::testing::Combine(
                                  ::testing::ValuesIn(std::vector<AdaptiveAvgPoolingParams>{
-                                        { tensor(2, 2, 7, 3, 3), tensor(2, 2, 2, 2, 2) },
-                                        { tensor(2, 2, 8, 5, 4), tensor(2, 2, 3, 3, 3) },
+                                        { ov::Shape{2, 2, 7, 3, 3}, ov::Shape{2, 2, 2, 2, 2} },
+                                        { ov::Shape{2, 2, 8, 4, 5}, ov::Shape{2, 2, 3, 3, 3} },
                                     }),
                                  ::testing::Values(format::bfzyx),
                                  ::testing::Values(format::bfzyx),
@@ -225,8 +219,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_adaptive_avg_pooling_test_2d_all_formats,
                          adaptive_avg_pooling_test_f32,
                          ::testing::Combine(
                                  ::testing::ValuesIn(std::vector<AdaptiveAvgPoolingParams>{
-                                        { tensor(20, 20, 7, 3), tensor(20, 20, 3, 3) },
-                                        { tensor(32, 32, 7, 3), tensor(32, 32, 3, 3) },
+                                        { ov::Shape{20, 20, 3, 7}, ov::Shape{20, 20, 3, 3} },
+                                        { ov::Shape{32, 32, 3, 7}, ov::Shape{32, 32, 3, 3} },
                                     }),
                                  ::testing::Values(format::bfyx),
                                  ::testing::ValuesIn(layouts_2d),
@@ -237,8 +231,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_adaptive_avg_pooling_test_3d_all_formats,
                          adaptive_avg_pooling_test_f32,
                          ::testing::Combine(
                                  ::testing::ValuesIn(std::vector<AdaptiveAvgPoolingParams>{
-                                        { tensor(20, 20, 7, 3, 3), tensor(20, 20, 3, 3, 2) },
-                                        { tensor(32, 32, 7, 3, 3), tensor(32, 32, 3, 3, 2) },
+                                        { ov::Shape{20, 20, 3, 3, 7}, ov::Shape{20, 20, 2, 3, 3} },
+                                        { ov::Shape{32, 32, 3, 3, 7}, ov::Shape{32, 32, 2, 3, 3} },
                                     }),
                                  ::testing::Values(format::bfzyx),
                                  ::testing::ValuesIn(layouts_3d),
@@ -249,7 +243,7 @@ INSTANTIATE_TEST_SUITE_P(export_import,
                          adaptive_avg_pooling_test_f16,
                          ::testing::Combine(
                                  ::testing::ValuesIn(std::vector<AdaptiveAvgPoolingParams>{
-                                        { tensor(1, 2, 7, 3), tensor(1, 2, 3, 3) },
+                                        { ov::Shape{1, 2, 3, 7}, ov::Shape{1, 2, 3, 3} },
                                     }),
                                  ::testing::Values(format::bfyx),
                                  ::testing::Values(format::bfyx),

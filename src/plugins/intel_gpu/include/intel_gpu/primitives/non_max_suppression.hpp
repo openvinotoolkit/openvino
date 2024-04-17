@@ -4,7 +4,6 @@
 
 #pragma once
 #include "primitive.hpp"
-#include "intel_gpu/graph/serialization/string_serializer.hpp"
 
 #include <vector>
 
@@ -42,50 +41,25 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
     /// @param second_output Id of primitive specifying output for scores for each selected box.
     /// @param third_output Id of primitive specifying output for total number of selected boxes.
     non_max_suppression(const primitive_id& id,
-                        const input_info& boxes_positions,
-                        const input_info& boxes_score,
+                        const std::vector<input_info>& inputs,
                         int selected_indices_num,
                         bool center_point_box = false,
                         bool sort_result_descending = true,
-                        const primitive_id& num_select_per_class = primitive_id(),
-                        const primitive_id& iou_threshold = primitive_id(),
-                        const primitive_id& score_threshold = primitive_id(),
-                        const primitive_id& soft_nms_sigma = primitive_id(),
-                        const primitive_id& second_output = primitive_id(),
-                        const primitive_id& third_output = primitive_id(),
                         const size_t num_outputs = 1)
-        : primitive_base(id, {boxes_positions, boxes_score}, num_outputs, {optional_data_type()})
+        : primitive_base(id, inputs, num_outputs)
         , selected_indices_num(selected_indices_num)
         , center_point_box(center_point_box)
-        , sort_result_descending(sort_result_descending)
-        , num_select_per_class(num_select_per_class)
-        , iou_threshold(iou_threshold)
-        , score_threshold(score_threshold)
-        , soft_nms_sigma(soft_nms_sigma)
-        , second_output(second_output)
-        , third_output(third_output) {}
+        , sort_result_descending(sort_result_descending) {}
 
     int selected_indices_num;
     bool center_point_box;
     bool sort_result_descending;
-    primitive_id num_select_per_class;
-    primitive_id iou_threshold;
-    primitive_id score_threshold;
-    primitive_id soft_nms_sigma;
-    primitive_id second_output;
-    primitive_id third_output;
     Rotation rotation{Rotation::NONE};
 
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, center_point_box);
         seed = hash_combine(seed, sort_result_descending);
-        seed = hash_combine(seed, num_select_per_class.empty());
-        seed = hash_combine(seed, iou_threshold.empty());
-        seed = hash_combine(seed, score_threshold.empty());
-        seed = hash_combine(seed, soft_nms_sigma.empty());
-        seed = hash_combine(seed, second_output.empty());
-        seed = hash_combine(seed, third_output.empty());
         seed = hash_combine(seed, rotation);
         return seed;
     }
@@ -100,32 +74,8 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
         return cmp_fields(selected_indices_num) &&
                cmp_fields(center_point_box) &&
                cmp_fields(sort_result_descending) &&
-               cmp_fields(num_select_per_class.empty()) &&
-               cmp_fields(iou_threshold.empty()) &&
-               cmp_fields(score_threshold.empty()) &&
-               cmp_fields(soft_nms_sigma.empty()) &&
-               cmp_fields(second_output.empty()) &&
-               cmp_fields(third_output.empty()) &&
                cmp_fields(rotation);
         #undef cmp_fields
-    }
-
-    std::vector<input_info> get_dependencies() const override {
-        std::vector<input_info> ret;
-        if (!num_select_per_class.empty())
-            ret.push_back(num_select_per_class);
-        if (!iou_threshold.empty())
-            ret.push_back(iou_threshold);
-        if (!score_threshold.empty())
-            ret.push_back(score_threshold);
-        if (!soft_nms_sigma.empty())
-            ret.push_back(soft_nms_sigma);
-        if (!second_output.empty())
-            ret.push_back(second_output);
-        if (!third_output.empty())
-            ret.push_back(third_output);
-
-        return ret;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -133,12 +83,6 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
         ob << selected_indices_num;
         ob << center_point_box;
         ob << sort_result_descending;
-        ob << num_select_per_class;
-        ob << iou_threshold;
-        ob << score_threshold;
-        ob << soft_nms_sigma;
-        ob << second_output;
-        ob << third_output;
         ob << make_data(&rotation, sizeof(rotation));
     }
 
@@ -147,12 +91,6 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
         ib >> selected_indices_num;
         ib >> center_point_box;
         ib >> sort_result_descending;
-        ib >> num_select_per_class;
-        ib >> iou_threshold;
-        ib >> score_threshold;
-        ib >> soft_nms_sigma;
-        ib >> second_output;
-        ib >> third_output;
         ib >> make_data(&rotation, sizeof(rotation));
     }
 };

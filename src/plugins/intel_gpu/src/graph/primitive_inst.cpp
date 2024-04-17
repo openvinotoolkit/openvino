@@ -2592,7 +2592,6 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
         }
         ExecutionConfig subgraph_config{
             ov::intel_gpu::allow_static_input_reorder(true),
-            ov::intel_gpu::allow_new_shape_infer(true),
             ov::enable_profiling(get_network().get_config().get_enable_profiling()),
             ov::intel_gpu::use_onednn(get_network().get_config().get_use_onednn())
         };

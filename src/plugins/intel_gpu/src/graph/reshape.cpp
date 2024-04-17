@@ -107,44 +107,6 @@ padding propagate_padding(const layout& in_layout, const ov::PartialShape& out_s
     return padding(update_pad_lower, update_pad_upper, ret_update_pad_mask);
 }
 
-layout reshape_inst::calc_output_layout(reshape_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
-           "Output data type forcing is not supported for reshape_node!");
-    auto input_layout = impl_param.get_non_padded_input_layout();
-    auto desc = impl_param.typed_desc<reshape>();
-    if (desc->output_shape.count() == 0) {
-        if (desc->output_partial_shape.size() != 0) {
-            format out_fmt = format::adjust_to_rank(input_layout.format, desc->output_partial_shape.rank().get_length());
-            return layout{desc->output_partial_shape, input_layout.data_type, out_fmt};
-        } else {
-            OPENVINO_ASSERT("[GPU] Output shape is not provided");
-        }
-    }
-
-    auto sizes = desc->output_shape.sizes();
-    auto input_sizes = input_layout.get_tensor().sizes();
-    size_t need_recalc = 0;
-    uint32_t shape_count = 1;
-
-    for (size_t i = 0; i < sizes.size(); i++) {
-        if (sizes[i] == -1) {
-            if (need_recalc) {
-                CLDNN_ERROR_MESSAGE(desc->id, "Only one dimension of the new shape can be -1");
-            }
-            need_recalc = i;
-            continue;
-        }
-        if (sizes[i] == 0) {
-            sizes[i] = input_sizes[i];
-        }
-        shape_count *= sizes[i];
-    }
-    if (need_recalc)
-        sizes[need_recalc] = static_cast<int>(input_layout.count()) / shape_count;
-
-    return layout{input_layout.data_type, input_layout.format, tensor(sizes)};
-}
-
 template<typename ShapeType>
 std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, const kernel_impl_params& impl_param) {
     assert(static_cast<bool>(impl_param.typed_desc<reshape>()->output_data_types[0]) == false &&
@@ -313,7 +275,7 @@ void reshape_inst::update_output_memory() {
         return;
 
     build_deps();  // reshape need deps
-    if (node->get_program().is_new_shape_infer() && input_memory_ptr() == nullptr)
+    if (input_memory_ptr() == nullptr)
         return;
     OPENVINO_ASSERT(input_memory_ptr() != nullptr, "[GPU] Failed to reuse input in ", id(), " primitive: input memory was not allocated");
 

@@ -35,10 +35,7 @@ public:
 
         topology topology;
         topology.add(input_layout("Input", input->get_layout()));
-        topology.add(space_to_batch("space_to_batch", input_info("Input"), tensor(format::bfyx, {1,2,2,2}, 1),
-                                                                        tensor(format::bfyx, {0,0,0,0}, 0),
-                                                                        tensor(format::bfyx, {0,0,0,0}, 0),
-                                                                        tensor(format::bfyx, {8,1,1,1}, 1)));
+        topology.add(space_to_batch("space_to_batch", input_info("Input"), {1,2,2,2}, {0,0,0,0}, {0,0,0,0}));
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -80,10 +77,7 @@ public:
 
         topology topology;
         topology.add(input_layout("Input", input->get_layout()));
-        topology.add(space_to_batch("space_to_batch", input_info("Input"), tensor(format::bfyx, {1,2,2,1}, 1),
-                                                                        tensor(format::bfyx, {0,0,2,0}, 0),
-                                                                        tensor(format::bfyx, {0,0,0,0}, 0),
-                                                                        tensor(format::bfyx, {4,1,3,2}, 1)));
+        topology.add(space_to_batch("space_to_batch", input_info("Input"), {1,2,2,1}, {0,0,2,0}, {0,0,0,0}));
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input", input);
@@ -126,10 +120,7 @@ public:
 
         topology topology;
         topology.add(input_layout("Input", input->get_layout()));
-        topology.add(space_to_batch("space_to_batch", input_info("Input"), tensor(format::bfyx, {1,2,2,2}, 1),
-                                                                        tensor(format::bfyx, {0,0,1,0}, 0),
-                                                                        tensor(format::bfyx, {0,1,0,0}, 0),
-                                                                        tensor(format::bfyx, {16,1,2,1}, 1)));
+        topology.add(space_to_batch("space_to_batch", input_info("Input"), {1,2,2,2}, {0,0,1,0}, {0,1,0,0}));
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input", input);
@@ -172,10 +163,7 @@ public:
 
         topology topology;
         topology.add(input_layout("Input", input->get_layout()));
-        topology.add(space_to_batch("space_to_batch", input_info("Input"), tensor(format::bfzyx, {1,2,1,2,2}, 1),
-                                                                        tensor(format::bfzyx, {0,0,0,1,0}, 0),
-                                                                        tensor(format::bfzyx, {0,0,0,0,0}, 0),
-                                                                        tensor(format::bfzyx, {8,1,1,2,1}, 1)));
+        topology.add(space_to_batch("space_to_batch", input_info("Input"), {1,2,1,2,2}, {0,0,0,1,0}, {0,0,0,0,0}));
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input", input);
@@ -220,10 +208,7 @@ public:
 
         topology topology;
         topology.add(input_layout("Input", input->get_layout()));
-        topology.add(space_to_batch("space_to_batch", input_info("Input"), tensor(format::bfwzyx, {1,4,2,1,2,1}, 1),
-                                                                        tensor(format::bfwzyx, {0,1,0,1,0,0}, 0),
-                                                                        tensor(format::bfwzyx, {0,0,0,0,0,0}, 0),
-                                                                        tensor(format::bfwzyx, {16,1,2,2,1,1}, 1)));
+        topology.add(space_to_batch("space_to_batch", input_info("Input"), {1,4,2,1,2,1}, {0,1,0,1,0,0}, {0,0,0,0,0,0}));
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input", input);
@@ -272,10 +257,7 @@ public:
         topology topology;
         topology.add(input_layout("Input", input->get_layout()));
         topology.add(reorder("input_fsv", input_info("Input"), format::b_fs_yx_fsv16, data_types::f16));
-        topology.add(space_to_batch("space_to_batch", input_info("input_fsv"), tensor(format::bfyx, {1,2,2,2}, 1),
-                                                                            tensor(format::bfyx, {0,0,1,0}, 0),
-                                                                            tensor(format::bfyx, {0,0,0,1}, 0),
-                                                                            tensor(format::bfyx, {8,8,1,1}, 1)));
+        topology.add(space_to_batch("space_to_batch", input_info("input_fsv"), {1,2,2,2}, {0,0,1,0}, {0,0,0,1}));
         topology.add(reorder("stb_to_bfyx", input_info("space_to_batch"), format::bfyx, data_types::f16));
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -325,10 +307,7 @@ public:
         topology topology;
         topology.add(input_layout("Input", input->get_layout()));
         topology.add(reorder("input_fsv", input_info("Input"), format::b_fs_yx_fsv16, data_types::f16));
-        topology.add(space_to_batch("space_to_batch", input_info("input_fsv"), tensor(format::bfyx, {1,2,2,1}, 1),
-                                                                            tensor(format::bfyx, {0,0,1,0}, 0),
-                                                                            tensor(format::bfyx, {0,2,0,0}, 0),
-                                                                            tensor(format::bfyx, {4,5,1,2}, 1)));
+        topology.add(space_to_batch("space_to_batch", input_info("input_fsv"), {1,2,2,1}, {0,0,1,0}, {0,2,0,0}));
         topology.add(reorder("stb_to_bfyx", input_info("space_to_batch"), format::bfyx, data_types::f16));
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -402,10 +381,7 @@ public:
 
         topology topology;
         topology.add(input_layout("Input", input->get_layout()));
-        topology.add(space_to_batch("space_to_batch", input_info("Input"), tensor(format::bfyx, {1,2,2,2}, 1),
-                                                                        tensor(format::bfyx, {0,0,0,0}, 0),
-                                                                        tensor(format::bfyx, {0,0,0,0}, 0),
-                                                                        tensor(format::bfyx, {8,1,1,1}, 1)));
+        topology.add(space_to_batch("space_to_batch", input_info("Input"), {1,2,2,2}, {0,0,0,0}, {0,0,0,0}));
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input", input);
@@ -446,10 +422,7 @@ public:
 
         topology topology;
         topology.add(input_layout("Input", input->get_layout()));
-        topology.add(space_to_batch("space_to_batch", input_info("Input"), tensor(format::bfyx, {1,2,2,1}, 1),
-                                                                        tensor(format::bfyx, {0,0,2,0}, 0),
-                                                                        tensor(format::bfyx, {0,0,0,0}, 0),
-                                                                        tensor(format::bfyx, {4,1,3,2}, 1)));
+        topology.add(space_to_batch("space_to_batch", input_info("Input"), {1,2,2,1}, {0,0,2,0}, {0,0,0,0}));
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input", input);
@@ -492,10 +465,7 @@ public:
 
         topology topology;
         topology.add(input_layout("Input", input->get_layout()));
-        topology.add(space_to_batch("space_to_batch", input_info("Input"), tensor(format::bfyx, {1,2,2,2}, 1),
-                                                                        tensor(format::bfyx, {0,0,1,0}, 0),
-                                                                        tensor(format::bfyx, {0,1,0,0}, 0),
-                                                                        tensor(format::bfyx, {16,1,2,1}, 1)));
+        topology.add(space_to_batch("space_to_batch", input_info("Input"), {1,2,2,2}, {0,0,1,0}, {0,1,0,0}));
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input", input);
@@ -538,10 +508,7 @@ public:
 
         topology topology;
         topology.add(input_layout("Input", input->get_layout()));
-        topology.add(space_to_batch("space_to_batch", input_info("Input"), tensor(format::bfzyx, {1,2,1,2,2}, 1),
-                                                                        tensor(format::bfzyx, {0,0,0,1,0}, 0),
-                                                                        tensor(format::bfzyx, {0,0,0,0,0}, 0),
-                                                                        tensor(format::bfzyx, {8,1,1,2,1}, 1)));
+        topology.add(space_to_batch("space_to_batch", input_info("Input"), {1,2,1,2,2}, {0,0,0,1,0}, {0,0,0,0,0}));
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input", input);
@@ -584,10 +551,7 @@ public:
 
         topology topology;
         topology.add(input_layout("Input", input->get_layout()));
-        topology.add(space_to_batch("space_to_batch", input_info("Input"), tensor(format::bfwzyx, {1,4,2,1,2,1}, 1),
-                                                                        tensor(format::bfwzyx, {0,1,0,1,0,0}, 0),
-                                                                        tensor(format::bfwzyx, {0,0,0,0,0,0}, 0),
-                                                                        tensor(format::bfwzyx, {16,1,2,2,1,1}, 1)));
+        topology.add(space_to_batch("space_to_batch", input_info("Input"), {1,4,2,1,2,1}, {0,1,0,1,0,0}, {0,0,0,0,0,0}));
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input", input);
@@ -640,10 +604,7 @@ public:
         topology topology;
         topology.add(input_layout("Input", input->get_layout()));
         topology.add(reorder("input_fsv", input_info("Input"), format::b_fs_yx_fsv16, data_types::f32));
-        topology.add(space_to_batch("space_to_batch", input_info("input_fsv"), tensor(format::bfyx, {1,4,2,1}, 1),
-                                                                            tensor(format::bfyx, {0,0,0,0}, 0),
-                                                                            tensor(format::bfyx, {0,0,0,0}, 0),
-                                                                            tensor(format::bfyx, {8,4,1,2}, 1)));
+        topology.add(space_to_batch("space_to_batch", input_info("input_fsv"), {1,4,2,1}, {0,0,0,0}, {0,0,0,0}));
         topology.add(reorder("stb_to_bfyx", input_info("space_to_batch"), format::bfyx, data_types::f32));
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -694,10 +655,7 @@ public:
         topology topology;
         topology.add(input_layout("Input", input->get_layout()));
         topology.add(reorder("input_fsv", input_info("Input"), format::b_fs_yx_fsv16, data_types::f32));
-        topology.add(space_to_batch("space_to_batch", input_info("input_fsv"), tensor(format::bfyx, {1,3,1,2}, 1),
-                                                                            tensor(format::bfyx, {0,0,0,1}, 0),
-                                                                            tensor(format::bfyx, {0,0,0,0}, 0),
-                                                                            tensor(format::bfyx, {6,2,2,2}, 1)));
+        topology.add(space_to_batch("space_to_batch", input_info("input_fsv"), {1,3,1,2}, {0,0,0,1}, {0,0,0,0}));
         topology.add(reorder("stb_to_bfyx", input_info("space_to_batch"), format::bfyx, data_types::f32));
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 

@@ -37,8 +37,6 @@ class FullyConnectedFusingTest : public ::BaseFusingTest<fully_connected_test_pa
 public:
 
     void execute(fully_connected_test_params& p, bool is_dynamic = false) {
-        cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
-        cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
         auto input_prim = this->get_mem(get_input_layout(p));
         network network_not_fused(this->engine, this->topology_non_fused, this->cfg_not_fused);
         network network_fused(this->engine, this->topology_fused, this->cfg_fused);
@@ -104,7 +102,6 @@ public:
 
         ov::intel_gpu::ImplementationDesc fc_impl = { forcing_format, "", impl_types::onednn };
         cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "fc_prim", fc_impl } }));
-        cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
 
         network::ptr network_not_fused = get_network(this->engine, this->topology_non_fused, cfg_not_fused, get_test_stream_ptr(cfg_not_fused), is_caching_test);
         network::ptr network_fused = get_network(this->engine, this->topology_fused, cfg_fused, get_test_stream_ptr(cfg_fused), is_caching_test);
@@ -606,7 +603,6 @@ TEST_P(fc_fp16_eltwise_add_dynamic, basic) {
     );
 
     bool is_dynamic = true;
-    cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
     tolerance = 1e-2f;
     execute(p, false, is_dynamic);
 }
@@ -670,7 +666,6 @@ TEST_P(fc_compressed_int8_bias_dynamic_onednn, basic) {
     );
 
     bool is_dynamic = true;
-    cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
     cfg_not_fused.set_property(ov::hint::dynamic_quantization_group_size(0));
     tolerance = 1.0f;
     execute(p, false, is_dynamic);

@@ -13,49 +13,6 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(detection_output)
 
-layout detection_output_inst::calc_output_layout(detection_output_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
-           "Output data type forcing is not supported for "
-           "detection_output_node!");
-    auto desc = impl_param.typed_desc<detection_output>();
-    CLDNN_ERROR_NOT_EQUAL(desc->id,
-                          "Detection output layer input number",
-                          impl_param.input_layouts.size(),
-                          "expected number of inputs",
-                          static_cast<size_t>(3),
-                          "");
-
-    auto input_layout = impl_param.get_input_layout();
-
-    // Batch size and feature size are 1.
-    // Number of bounding boxes to be kept is set to keep_top_k*batch size.
-    // If number of detections is lower than top_k, will write dummy results at the end with image_id=-1.
-    // Each row is a 7 dimension vector, which stores:
-    // [image_id, label, confidence, xmin, ymin, xmax, ymax]
-    int output_size = static_cast<int>(input_layout.get_linear_size()) / PRIOR_BOX_SIZE;
-    int num_classes = desc->num_classes;
-
-    if (desc->share_location) {
-        num_classes = (desc->background_label_id == 0) ? desc->num_classes - 1
-                                                       : desc->num_classes;
-        output_size *= num_classes;
-    }
-
-    if (desc->top_k != -1) {
-        int top_k = desc->top_k * num_classes * input_layout.batch();
-        if (top_k < output_size) {
-            output_size = top_k;
-        }
-    }
-
-    output_size *= DETECTION_OUTPUT_ROW_SIZE;
-    // Add space for number of output results per image - needed in the next detection output step
-    output_size += ((input_layout.batch() + 15) / 16) * 16;
-
-    return {input_layout.data_type, cldnn::format::bfyx,
-            cldnn::tensor(1, 1, DETECTION_OUTPUT_ROW_SIZE, desc->keep_top_k * input_layout.batch())};
-}
-
 template<typename ShapeType>
 std::vector<layout> detection_output_inst::calc_output_layouts(detection_output_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<detection_output>();

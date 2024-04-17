@@ -16,23 +16,6 @@ namespace cldnn {
 
 GPU_DEFINE_PRIMITIVE_TYPE_ID(tile)
 
-layout tile_inst::calc_output_layout(tile_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
-           "Output data type forcing is not supported for tile_node!");
-    auto desc = impl_param.typed_desc<tile>();
-
-    auto input_layout = impl_param.get_input_layout();
-    auto input_format = input_layout.format;
-
-    std::vector<int64_t> repeats = desc->repeats;
-
-    auto out_shape = input_layout.get_dims();
-    for (size_t i = 0; i < repeats.size(); ++i) {
-        out_shape[i] *= repeats[i];
-    }
-    return layout{input_layout.data_type, input_format, tensor(input_format, out_shape)};
-}
-
 template<typename ShapeType>
 std::vector<layout> tile_inst::calc_output_layouts(tile_node const& /*node*/, const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<tile>();

@@ -256,7 +256,7 @@ public:
         auto& engine = get_test_engine();
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
         const int64_t d1 = 2;
         const int64_t d2 = 4;
         layout input_lay = {{-1, d1, -1, d2}, data_types::f32, format::bfyx};
@@ -355,7 +355,7 @@ public:
         auto& engine = get_test_engine();
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
         const int64_t d1 = 2;
         const int64_t d2 = 4;
         layout input_lay = {{-1, d1, -1, d2}, data_types::f32, format::bfyx};
@@ -907,7 +907,7 @@ TEST(condition_gpu, empty_body_with_different_shapes) {
     auto& engine = get_test_engine();
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     auto input_mem = engine.allocate_memory({ oned_pshape, data_types::f32, format::bfyx });
     auto predicate_mem = engine.allocate_memory({ oned_pshape, data_types::u8, format::bfyx });
     auto const_mem = engine.allocate_memory({ oned_pshape, data_types::f32, format::bfyx });
@@ -980,7 +980,7 @@ TEST(condition_gpu, set_empty_tensor) {
     auto& engine = get_test_engine();
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     auto empty_mem = engine.allocate_memory({ { 1, 1, 1, 1 }, data_types::f16, format::bfyx });
     auto empty_input_mem = engine.reinterpret_buffer(*empty_mem, { { 1, 1, 0, 1 }, data_types::f16, format::bfyx });
     auto input_mem = engine.allocate_memory({ { 1, 1, 4, 1 }, data_types::f32, format::bfyx });

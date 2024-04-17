@@ -54,17 +54,6 @@ struct arg_max_min_impl : typed_primitive_impl_ocl<arg_max_min> {
         }
     }
 
-protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<arg_max_min>& instance) const override {
-        kernel_arguments_data args = parent::get_arguments(instance);
-
-        // Legacy multi-output
-        if (instance.get_typed_desc<arg_max_min>()->has_second_output()) {
-            args.outputs.push_back(instance.dep_memory_ptr(instance.dependencies().size() - 1));
-        }
-
-        return args;
-    }
 
 public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
@@ -75,7 +64,7 @@ public:
         const auto& sort_type = primitive->sort;
         const auto& values_first = primitive->values_first;
         const auto& stable = primitive->stable;
-        const auto& outputs_num = primitive->input_size() == 3 ? 2 : static_cast<uint32_t>(primitive->output_size());
+        const auto& outputs_num = static_cast<uint32_t>(primitive->output_size());
 
         auto argm_params = get_default_params<kernel_selector::arg_max_min_params>(impl_param, is_shape_agnostic);
 
@@ -103,13 +92,8 @@ public:
         else
             argm_params.argMaxMinSortType = kernel_selector::argm_sort::INDEX;
 
-        if (outputs_num == 2) {  // for backward compatibility
-            if (primitive->input_size() != 3) {
-                argm_params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(1)));
-            } else {
-                // Legacy multi-output
-                argm_params.outputs.push_back(convert_data_tensor(impl_param.get_input_layout(2)));
-            }
+        if (outputs_num == 2) {
+            argm_params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(1)));
         }
 
         argm_params.values_first = values_first;

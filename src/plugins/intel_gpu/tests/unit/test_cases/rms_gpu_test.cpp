@@ -203,7 +203,6 @@ TEST(rms_gpu_test, rms_test_bfyx_opt_dyn) {
     topology.add(rms("rms", input_info("input"), input_info("gamma"), 1e-5f));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     network network(engine, topology, config);
 
@@ -293,7 +292,6 @@ TEST(rms_gpu_test, rms_test_bfyx_opt_leftovers_dyn) {
     topology.add(rms("rms", input_info("input"), input_info("gamma"), 1e-5f));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     network network(engine, topology, config);
 
@@ -338,7 +336,6 @@ TEST(rms_gpu_test, rms_test_bfyx_opt_unaligned_dyn) {
     topology.add(rms("rms", input_info("input"), input_info("gamma"), 1e-5f));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     network network(engine, topology, config);
 

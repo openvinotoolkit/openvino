@@ -15,23 +15,6 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(border)
 
-layout border_inst::calc_output_layout(border_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
-           "Output data type forcing is not supported for border_node!");
-    auto input_layout = impl_param.get_input_layout();
-    auto input_format = input_layout.format;
-    auto desc = impl_param.typed_desc<border>();
-
-    auto dims_format = format::adjust_to_rank(format::bfyx, input_layout.get_rank());
-    auto new_dims = input_layout.get_dims();
-
-    for (size_t i = 0; i < new_dims.size(); ++i) {
-        new_dims[i] += (i < desc->pads_begin.size()) ? desc->pads_begin[i] : 0;
-        new_dims[i] += (i < desc->pads_end.size()) ? desc->pads_end[i] : 0;
-    }
-    return layout{ input_layout.data_type, input_format, tensor(dims_format, new_dims) };
-}
-
 template<typename ShapeType>
 std::vector<layout> border_inst::calc_output_layouts(border_node const& /*node*/, const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<border>();

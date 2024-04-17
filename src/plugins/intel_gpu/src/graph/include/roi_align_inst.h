@@ -29,7 +29,6 @@ class typed_primitive_inst<roi_align> : public typed_primitive_inst_base<roi_ali
 public:
     template<typename ShapeType>
     static std::vector<layout> calc_output_layouts(roi_align_node const& node, kernel_impl_params const& impl_param);
-    static layout calc_output_layout(roi_align_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(roi_align_node const& node);
 
 public:

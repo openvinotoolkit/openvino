@@ -22,6 +22,7 @@ public:
 };
 using eye_node = typed_program_node<eye>;
 
+
 template <>
 class typed_primitive_inst<eye> : public typed_primitive_inst_base<eye> {
     using parent = typed_primitive_inst_base<eye>;
@@ -30,7 +31,6 @@ class typed_primitive_inst<eye> : public typed_primitive_inst_base<eye> {
 public:
     template<typename ShapeType>
     static std::vector<layout> calc_output_layouts(eye_node const& /*node*/, const kernel_impl_params& impl_param);
-    static layout calc_output_layout(eye_node const& node, const kernel_impl_params& impl_param);
     static std::string to_string(eye_node const& node);
 
     typed_primitive_inst(network& network, eye_node const& desc);
