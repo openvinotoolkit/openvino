@@ -97,7 +97,7 @@ struct Signature {
         return get_error_message(key, expected_type_str, real_type_str);
     }
 
-    static const std::string get_error_message(std::string key, std::string expected, napi_valuetype real_type) {
+    static const std::string get_error_message(const std::string& key, const std::string& expected, const const napi_valuetype& real_type) {
         std::string real_type_str = get_type_name(real_type);
 
         return get_error_message(key, expected, real_type_str);
