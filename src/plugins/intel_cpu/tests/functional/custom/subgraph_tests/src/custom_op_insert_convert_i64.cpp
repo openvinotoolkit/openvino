@@ -108,8 +108,8 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<CustomOpI64CPUTestParams>& obj) {
         std::ostringstream result;
 
-        result << "InElType=" << std::get<0>(obj.param);
-        result << "_IS="      << std::get<1>(obj.param);
+        result << "InElType=" << std::get<0>(obj.param) << "_";
+        result << "IS="       << std::get<1>(obj.param);
 
         return result.str();
     }
@@ -174,7 +174,7 @@ TEST_P(CustomOpConvertI64CPUTest, CompareWithRefs) {
     for (const auto& node : compiledModel.get_runtime_model()->get_ops()) {
         auto rt_info = node->get_rt_info();
         auto it = rt_info.find(exec_model_info::LAYER_TYPE);
-        OPENVINO_ASSERT(rt_info.end() != it);
+        ASSERT_NE(rt_info.end(), it);
 
         if (it->second.as<std::string>() == "Convert") {
             if (node->get_output_element_type(0) == element::i64) {
@@ -182,7 +182,7 @@ TEST_P(CustomOpConvertI64CPUTest, CompareWithRefs) {
             } else if (node->get_output_element_type(0) == element::i32) {
                 cvt_i64_i32_num++;
             } else {
-                OPENVINO_THROW("Unexpected convertion type: ", node->get_output_element_type(0));
+                FAIL() << "Unexpected convertion type: " << node->get_output_element_type(0);
             }
         }
         if (it->second.as<std::string>() == "Output") {
@@ -191,7 +191,7 @@ TEST_P(CustomOpConvertI64CPUTest, CompareWithRefs) {
             } else if (node->get_output_element_type(0) == element::i32) {
                 res_i32_num++;
             } else {
-                OPENVINO_THROW("Unexpected Result type: ", node->get_output_element_type(0));
+                FAIL() << "Unexpected Result type: " << node->get_output_element_type(0);
             }
         }
     }
