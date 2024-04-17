@@ -18,11 +18,14 @@ import pytest
 def test_float_to_nf4_convert(ov_type, numpy_dtype):
     data = np.linspace(-1.5, 1.5, num=41, dtype=numpy_dtype)
 
+    # Compress data to NF4
     compressed_const = opset.constant(data, dtype=ov.Type.nf4, name="nf4_constant")
-    convert = opset.convert(compressed_const, data.dtype)
+    # get decompressed data as tested OV type
+    decompressed = opset.convert(compressed_const, ov_type)
+
     parameter = opset.parameter(ov.PartialShape([-1]), ov_type)
-    add_op = opset.add(parameter, convert)
-    model = ov.Model([add_op], [parameter])
+    output = opset.add(parameter, decompressed)
+    model = ov.Model([output], [parameter])
 
     compiled = ov.compile_model(model)
     tensor = np.zeros(data.shape, dtype=numpy_dtype)
