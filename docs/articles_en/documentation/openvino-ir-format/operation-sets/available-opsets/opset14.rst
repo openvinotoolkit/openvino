@@ -175,7 +175,7 @@ Table of Contents
 * :doc:`Round <../operation-specs/arithmetic/round-5>`
 * :doc:`ScaledDotProductAttention <../operation-specs/sequence/scaled-dot-product-attention>`
 * :doc:`ScatterElementsUpdate <../operation-specs/movement/scatter-elements-update-12>`
-* :doc:`ScatterNDUpdate <../operation-specs/movement/scatter-nd-update-14>`
+* :doc:`ScatterNDUpdate <../operation-specs/movement/scatter-nd-update-3>`
 * :doc:`ScatterUpdate <../operation-specs/movement/scatter-update-3>`
 * :doc:`Select <../operation-specs/condition/select-1>`
 * :doc:`Selu <../operation-specs/activation/selu-1>`

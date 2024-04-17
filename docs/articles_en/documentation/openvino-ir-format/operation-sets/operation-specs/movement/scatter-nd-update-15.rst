@@ -1,14 +1,14 @@
-.. {#openvino_docs_ops_movement_ScatterNDUpdate_14}
+.. {#openvino_docs_ops_movement_ScatterNDUpdate_15}
 
 ScatterNDUpdate
 ===============
 
 
 .. meta::
-  :description: Learn about ScatterNDUpdate-14 - a data movement operation, which can be 
+  :description: Learn about ScatterNDUpdate-15 - a data movement operation, which can be 
                 performed on three required input tensors.
 
-**Versioned name**: *ScatterNDUpdate-14*
+**Versioned name**: *ScatterNDUpdate-15*
 
 **Category**: *Data movement*
 
@@ -24,11 +24,11 @@ Input ``updates`` is a tensor with shape ``indices.shape[:-1] + data.shape[indic
 
 The operation to perform between the corresponding elements is specified by reduction attribute, by default the elements of data tensor are simply overwritten by the values from updates input.
 
-Operator ScatterNDUpdate-14 is an equivalent to following NumPy snippet:
+Operator ScatterNDUpdate-15 is an equivalent to following NumPy snippet:
 
 .. code-block:: py
 
-    def scatter_nd_update_14(data, indices, updates, reduction=None):
+    def scatter_nd_update_15(data, indices, updates, reduction=None):
         func = lambda x, y: y
         if reduction == "sum":
             func = lambda x, y: x + y
