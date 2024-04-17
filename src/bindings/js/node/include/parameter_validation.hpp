@@ -46,7 +46,6 @@ struct Signature {
     typedef std::function<void(const std::string key, const Napi::Value&)> ValidatorType;
     std::vector<ValidatorType> attributes_validators;
 
-public:
     void param(ValidatorType validator) {
         attributes_validators.push_back(validator);
     }
