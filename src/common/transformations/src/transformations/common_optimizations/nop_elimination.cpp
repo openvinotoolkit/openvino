@@ -270,8 +270,8 @@ static bool eliminate_unsqueeze(const shared_ptr<Node>& node) {
     // eliminate redundant squeeze->unsqueeze
     if (squeeze) {
         const auto& data_shape = squeeze->input_value(0).get_partial_shape();
-        if (ov::compare_constants(squeeze->input_value(1).get_node_shared_ptr(),
-                                  unsqueeze->input_value(1).get_node_shared_ptr())) {
+        if (squeeze->inputs().size() > 1 && ov::compare_constants(squeeze->input_value(1).get_node_shared_ptr(),
+                                                                  unsqueeze->input_value(1).get_node_shared_ptr())) {
             return replace_output_update_name(unsqueeze->output(0), squeeze->input_value(0));
         }
         if (data_shape.rank().is_dynamic() || out_shape.rank().is_dynamic()) {
@@ -1016,6 +1016,7 @@ ov::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
     ADD_MATCHER_FOR_THIS(EliminateEltwise)
     using namespace ov::pass;
     ADD_MATCHER_FOR_THIS(EliminateSplitConcat)
+    ADD_MATCHER_FOR_THIS(NopStridedSlice)
 
     // shape-dependent transformations
     if (use_shape_for_elimination) {
@@ -1027,6 +1028,7 @@ ov::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
         ADD_MATCHER_FOR_THIS(EliminateBroadcast)
         ADD_MATCHER_FOR_THIS(EliminateNopBroadcast)
         ADD_MATCHER_FOR_THIS(NopSliceBeforeGatherElements)
+        ADD_MATCHER_FOR_THIS(NopStridedSliceByShape)
         ADD_MATCHER_FOR_THIS(EliminateGather)
     }
 }

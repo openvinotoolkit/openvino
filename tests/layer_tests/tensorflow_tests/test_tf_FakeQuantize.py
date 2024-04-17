@@ -3,12 +3,7 @@
 
 import numpy as np
 import pytest
-from common.layer_test_class import check_ir_version
 from common.tf_layer_test_class import CommonTFLayerTest
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array
-
-from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, connect, \
-    shaped_data, connect_front, regular_op
 
 
 class TestFakeQuantize(CommonTFLayerTest):
@@ -52,45 +47,13 @@ class TestFakeQuantize(CommonTFLayerTest):
 
         # reference graph to compare with IR
         ref_net = None
-        if check_ir_version(10, None, ir_version) and not use_legacy_frontend:
-            levels = 2 ** num_bits - int(narrow_range)
-
-            # data (shape, value) -> const (shape, vale) -> data (shape, no value)
-            const_for_layer_tests = lambda name, value: {
-                **{name + '_dd': {'kind': 'data', 'value': value, 'shape': value.shape}},
-                **{name: {'kind': 'op', 'type': 'Const'}},
-                **shaped_data(name + '_d', int64_array(value.shape))}
-
-            connect_const_for_layer_tests = lambda first_tensor_name, second_tensor_name: [
-                *connect_front(first_tensor_name + '_dd', first_tensor_name),
-                *connect(first_tensor_name, second_tensor_name)]
-
-            nodes = {
-                **regular_op_with_shaped_data('parameter', [11], {'type': 'Parameter'}),
-                **const_for_layer_tests('il', np.array([nudged_il], dtype=np.float32)),
-                **const_for_layer_tests('ih', np.array([nudged_ih], dtype=np.float32)),
-                **const_for_layer_tests('ol', np.array([nudged_il], dtype=np.float32)),
-                **const_for_layer_tests('oh', np.array([nudged_ih], dtype=np.float32)),
-                **regular_op_with_shaped_data('fq', [11],
-                                              {'type': 'FakeQuantize', 'levels': levels}),
-                **regular_op('result', {'type': 'Result'}),
-            }
-            edges = [
-                *connect('parameter', '0:fq'),
-                *connect_const_for_layer_tests('il', '1:fq'),
-                *connect_const_for_layer_tests('ih', '2:fq'),
-                *connect_const_for_layer_tests('ol', '3:fq'),
-                *connect_const_for_layer_tests('oh', '4:fq'),
-                *connect('fq', 'result'),
-            ]
-            ref_net = build_graph(nodes, edges)
 
         return tf_net, ref_net
 
     test_data = [
         # with8BitsNoScalingNoNudging
         pytest.param(dict(il=0.0, ih=255.0, num_bits=8, narrow_range=False, nudged_il=0.0, nudged_ih=255.0,
-                          expected_step=1.0), marks=pytest.mark.precommit_tf_fe),
+                          expected_step=1.0), marks=pytest.mark.precommit),
         # with8BitsScalingAndNudgingDown
         dict(il=0.5, ih=128.0, num_bits=8, narrow_range=False, nudged_il=0.0, nudged_ih=127.5,
              expected_step=0.5),

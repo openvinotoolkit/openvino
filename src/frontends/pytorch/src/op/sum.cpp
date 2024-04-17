@@ -89,6 +89,11 @@ OutputVector translate_sum_fx(const NodeContext& context) {
         axes = get_axes_range(context, 0);
     } else {
         axes = context.get_input(1);
+        // empty constant means default axes
+        if (const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(axes.get_node_shared_ptr())) {
+            if (constant->get_byte_size() == 0)
+                axes = get_axes_range(context, 0);
+        }
     }
     if (!context.input_is_none(2)) {
         keep_dims = context.const_input<bool>(2);

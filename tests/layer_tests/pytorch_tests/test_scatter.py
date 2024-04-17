@@ -212,13 +212,16 @@ class TestScatterReduce(PytorchLayerTest):
             pytest.skip(
                 "Cannot test reduce parameters with empty indexes due to issues with empty constant tensor or issues with prim::GetAttr str inputs."
             )
+        kwargs = dict(kwargs_to_prepare_input={"dtype": dtype, "out": has_out}, freeze_model=freeze)
+        if reduce == "mean" and dtype in ["int32", "int64"]:
+            # rounding can be different on torch vs ov
+            kwargs["custom_eps"] = 1.
         self._test(
             *self.create_model(dim, index, src, inplace, reduce, include_self, has_out),
             ie_device,
             precision,
             ir_version,
-            kwargs_to_prepare_input={"dtype": dtype, "out": has_out},
-            freeze_model=freeze
+            **kwargs
         )
 
 class TestScatterAdd(PytorchLayerTest):

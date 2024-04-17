@@ -8,6 +8,7 @@
 #include "openvino/op/lstm_cell.hpp"
 #include "openvino/op/loop.hpp"
 
+#include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
@@ -54,7 +55,7 @@ std::string layer_type_name_ID(const std::shared_ptr<ov::Node>& op) {
 }
 
 ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& engine, const ExecutionConfig& config,
-                               bool create_topology_only, bool partial_build,
+                               bool partial_build,
                                std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                                std::shared_ptr<cldnn::ICompilationContext> compilation_context,
                                bool is_inner_program)
@@ -103,7 +104,7 @@ ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& 
 
     auto ops = model->get_ordered_ops();
 
-    m_program = build(ops, create_topology_only, partial_build, is_inner_program);
+    m_program = build(ops, partial_build, is_inner_program);
 }
 
 ProgramBuilder::ProgramBuilder(cldnn::engine& engine, const ExecutionConfig& config)
@@ -133,8 +134,7 @@ void ProgramBuilder::cleanup_build() {
     #endif
 }
 
-std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::shared_ptr<ov::Node>>& ops,
-                                               bool create_topology_only, bool partial_build, bool is_inner_program) {
+std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::shared_ptr<ov::Node>>& ops, bool partial_build, bool is_inner_program) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "ProgramBuilder::build");
     // In the case of inner program, allow_new_shape_infer flag is setted by outside of program.
     // So, do not check allow_new_shape_infer for inner program build
@@ -157,35 +157,31 @@ std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::sha
     {
         GPU_DEBUG_DEFINE_MEM_LOGGER("CreateSingleLayerPrimitives");
         for (const auto& op : ops) {
-            CreateSingleLayerPrimitive(*m_topology, op);
+            CreateSingleLayerPrimitive(op);
         }
     }
-    if (create_topology_only) {
-        return {};
-    } else {
-        OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "ProgramBuilder::CreateProgram");
-        cldnn::program::ptr program;
-        try {
-            program = cldnn::program::build_program(m_engine,
-                                                    *m_topology,
-                                                    m_config,
-                                                    get_task_executor(),
-                                                    get_compilation_context(),
-                                                    false,
-                                                    false,
-                                                    is_inner_program);
-        } catch (std::exception& e) {
-            OPENVINO_ASSERT(false, "[GPU] ProgramBuilder build failed!\n", e.what());
-        }
-        cleanup_build();
 
-        return program;
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "ProgramBuilder::CreateProgram");
+    cldnn::program::ptr program;
+    try {
+        program = cldnn::program::build_program(m_engine,
+                                                *m_topology,
+                                                m_config,
+                                                get_task_executor(),
+                                                get_compilation_context(),
+                                                false,
+                                                false,
+                                                is_inner_program);
+    } catch (std::exception& e) {
+        OPENVINO_ASSERT(false, "[GPU] ProgramBuilder build failed!\n", e.what());
     }
+    cleanup_build();
+
+    return program;
 }
 
 bool ProgramBuilder::is_op_supported(const std::shared_ptr<ov::Node>& op) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "ProgramBuilder::is_op_supported");
-    cldnn::topology topology;
     try {
         // Query mode disables checks that input primitives are created,
         // as is_op_supported method is called for each operation separately
@@ -198,8 +194,11 @@ bool ProgramBuilder::is_op_supported(const std::shared_ptr<ov::Node>& op) {
         // 2. We also check parameters of each operation, which means we have more
         //    reliable results of QueryNetwork call.
         prepare_build();
+        if (!data_types_are_supported(op.get()))
+            return false;
+
         allow_new_shape_infer = requires_new_shape_infer(op);
-        CreateSingleLayerPrimitive(topology, op);
+        CreateSingleLayerPrimitive(op);
         cleanup_build();
         DisableQueryMode();
     } catch (std::exception&) {
@@ -211,7 +210,7 @@ bool ProgramBuilder::is_op_supported(const std::shared_ptr<ov::Node>& op) {
     return true;
 }
 
-void ProgramBuilder::CreateSingleLayerPrimitive(cldnn::topology& topology, const std::shared_ptr<ov::Node>& op) {
+void ProgramBuilder::CreateSingleLayerPrimitive(const std::shared_ptr<ov::Node>& op) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "ProgramBuilder::CreateSingleLayerPrimitive");
     GPU_DEBUG_LOG << "Process " << "op::" << op->get_type_info().version_id << "::" << op->get_type_name() << " operation "
                   << "(friendly_name=" << op->get_friendly_name() << ")" << std::endl;
@@ -367,28 +366,6 @@ int64_t ProgramBuilder::get_result_index(const ov::Output<ov::Node>& value) cons
 
 int64_t ProgramBuilder::get_result_index(const ov::Output<const ov::Node>& value) const {
     return m_model->get_result_index(value);
-}
-
-// TODO: Does it make sense to add such method to ov core?
-bool IsNodeOnConstPath(const std::shared_ptr<ov::Node>& node) {
-    std::set<std::shared_ptr<ov::Node>> nodes_processed = {};
-    std::function<bool(const std::shared_ptr<ov::Node>&)> is_const_node = [&nodes_processed, &is_const_node](const std::shared_ptr<ov::Node>& node) {
-        if (nodes_processed.count(node)) return true;
-        nodes_processed.insert(node);
-        // If input is constant, then drop it from the processing list
-        if (std::dynamic_pointer_cast<ov::op::v0::Constant>(node) != nullptr)
-            return true;
-        // If the node doesn't have any parents and it's not a constant, then we deal with dynamic path
-        if (node->get_input_size() == 0)
-            return false;
-        for (size_t i = 0; i < node->get_input_size(); i++) {
-            auto input_node = node->get_input_node_shared_ptr(i);
-            if (!is_const_node(input_node))
-                return false;
-        }
-        return true;
-    };
-    return is_const_node(node);
 }
 
 void validate_inputs_count(const std::shared_ptr<ov::Node>& op, std::vector<size_t> valid_inputs_count) {

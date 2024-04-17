@@ -42,14 +42,16 @@ class TestTruncateDiv(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.xfail(condition=platform.system() in ('Linux', 'Darwin') and platform.machine() in ('arm', 'armv7l',
                                                                                                      'aarch64',
                                                                                                      'arm64', 'ARM64'),
                        reason='Ticket - 126314, 122716')
     def test_truncate_div_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_legacy_frontend):
+                                use_legacy_frontend):
+        if ie_device == 'GPU':
+            pytest.skip("Requested activation is not supported for integer type or accuracy issue on GPU")
         self._test(*self.create_truncate_div_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
