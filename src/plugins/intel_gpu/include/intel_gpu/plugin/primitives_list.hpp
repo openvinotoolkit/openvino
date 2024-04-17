@@ -280,3 +280,5 @@ REGISTER_FACTORY(internal, SwiGLU);
 REGISTER_FACTORY(internal, IndirectGemm);
 REGISTER_FACTORY(internal, Convolution);
 REGISTER_FACTORY(internal, Placeholder);
+REGISTER_FACTORY(internal, MhaFusion);
+REGISTER_FACTORY(internal, ScaledDotProductAttention);

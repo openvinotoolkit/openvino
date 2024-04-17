@@ -18,6 +18,18 @@ namespace cldnn {
 namespace onednn {
 
 // common utils
+
+template <typename S>
+std::ostream& operator<<(std::ostream& os,
+                    const std::vector<S>& vector) {
+    os << "[";
+    for (auto element : vector) {
+        os << element << " ";
+    }
+    os << "]";
+    return os;
+}
+
 template <typename T>
 cldnn::memory::ptr convert_zp_data_to_s32(const memory::ptr zp_memory);
 cldnn::format default_fmt_for_dims(size_t dims, bool is_grouped = false);

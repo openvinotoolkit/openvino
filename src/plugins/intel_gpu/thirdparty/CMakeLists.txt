@@ -115,7 +115,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DCMAKE_INSTALL_PREFIX=${ONEDNN_INSTALL_DIR}"
                 "-DDNNL_ENABLE_CONCURRENT_EXEC=ON"
                 "-DDNNL_ENABLE_PRIMITIVE_CACHE=ON"
-                "-DDNNL_ENABLE_WORKLOAD=INFERENCE"
+                "-DDNNL_ENABLE_WORKLOAD=TRAINING"
                 "-DDNNL_ENABLE_JIT_PROFILING=${BUILD_SHARED_LIBS}"
                 "-DDNNL_ENABLE_ITT_TASKS=${BUILD_SHARED_LIBS}"
                 "-DDNNL_BUILD_TESTS=OFF"
@@ -123,7 +123,8 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DDNNL_BLAS_VENDOR=NONE"
                 "-DDNNL_LIBRARY_TYPE=STATIC"
                 "-DDNNL_EXPERIMENTAL_PROFILING=ON"
-                "-DONEDNN_BUILD_GRAPH=OFF"
+                "-DONEDNN_BUILD_GRAPH=ON"
+                "-DONEDNN_ENABLE_GRAPH_DUMP=ON"
                 # specifically for Conan, because it overrides CMAKE_PREFIX_PATH and oneDNN's FindOpenCL.cmake is ignored
                 # Conan's FindOpenCL.cmake module does not set OpenCL_INCLUDE_DIRS, so we need to set it manually
                 "-DOpenCL_INCLUDE_DIRS=$<TARGET_PROPERTY:OpenCL::OpenCL,INTERFACE_INCLUDE_DIRECTORIES>"
@@ -134,8 +135,10 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 # The arguments below requires list to be passed as argument
                 # which doesn't work properly when passed to CMAKE_ARGS.
                 # Thus we pass it via CMAKE_CACHE_ARGS
-                "-DDNNL_ENABLE_PRIMITIVE:STRING=${ONEDNN_ENABLED_PRIMITIVES}"
-                "-DDNNL_ENABLE_PRIMITIVE_GPU_ISA:STRING=${ONEDNN_ENABLED_ISA}"
+                # "-DDNNL_ENABLE_PRIMITIVE:STRING=${ONEDNN_ENABLED_PRIMITIVES}"
+                # "-DDNNL_ENABLE_PRIMITIVE_GPU_ISA:STRING=${ONEDNN_ENABLED_ISA}"
+                "-DDNNL_ENABLE_PRIMITIVE:STRING=ALL"
+                "-DDNNL_ENABLE_PRIMITIVE_GPU_ISA:STRING=ALL"
             # Build Step Options:
             BUILD_BYPRODUCTS ${ONEDNN_GPU_LIB_PATH}
             # Target Options:

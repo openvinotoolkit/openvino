@@ -30,6 +30,7 @@
 #include "condition_inst.h"
 #include "gather_inst.h"
 #include "broadcast_inst.h"
+#include "scaled_dot_product_attention_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "implementation_map.hpp"
 #include "graph_optimizer/prepare_buffer_fusing.h"
@@ -828,7 +829,7 @@ bool primitive_inst::update_impl() {
         const bool async_compilation = use_async_compilation();
         std::shared_ptr<primitive_impl> cached_impl = nullptr;
         {
-            if (async_compilation)
+            if (async_compilation || _node->is_type<scaled_dot_product_attention>())
                 cached_impl = cache.get(updated_params);
 
             if (cached_impl) {
