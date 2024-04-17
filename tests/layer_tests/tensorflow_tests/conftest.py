@@ -34,8 +34,8 @@ def rename_tf_fe_libs(request):
         copy_files_by_pattern(openvino_lib_path, tf_fe_lib_names[0], tf_fe_lib_names[1])
 
 @pytest.fixture(scope="session", autouse=True)
-def openvino_tokenizers(request):
-     # do not import openvino_tokenizers in legacy tests
+def test_openvino_tokenizers(request):
+    # do not import openvino_tokenizers in legacy tests
     if not request.config.getoption('use_legacy_frontend'):
         import_openvino_tokenizers()
 
