@@ -267,7 +267,6 @@ jobs:
     runs-on: aks-win-8-cores-64gb
     env:
       CMAKE_BUILD_TYPE: 'Release'
-      CMAKE_GENERATOR: 'Ninja Multi-Config'
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
       MODELS_PATH: "${{ github.workspace }}\\testdata"
@@ -378,14 +377,13 @@ jobs:
       - name: Install python dependencies for run_parallel.py
         run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/layer_tests_summary/requirements.txt
 
-      # Windows pipeline is in nightly mode, uncomment once there is a consistent cache creation
-      # - name: Restore tests execution time
-      #   uses: actions/cache/restore@v3
-      #   with:
-      #     path: ${{ env.PARALLEL_TEST_CACHE }}
-      #     key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
-      #     restore-keys: |
-      #      ${{ runner.os }}-tests-functional-cpu-stamp
+      - name: Restore tests execution time
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.PARALLEL_TEST_CACHE }}
+          key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-tests-functional-cpu-stamp
 
       - name: Intel CPU plugin func tests (parallel)
         shell: cmd
