@@ -23,7 +23,7 @@ Install Intel® Distribution of OpenVINO™ Toolkit for Linux Using APT Reposito
       :sync: system-requirements
 
       | Full requirement listing is available in:
-      | :doc:`System Requirements Page <../../../about-openvino/system-requirements>`
+      | :doc:`System Requirements Page <../../../about-openvino/release-notes-openvino/system-requirements>`
 
    .. tab-item:: Processor Notes
       :sync: processor-notes
