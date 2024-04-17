@@ -135,16 +135,10 @@ jobs:
           # Add it to the GitHub Path so it would be available in the subsequent steps
           Add-Content -Path $env:GITHUB_PATH -Value "${{ github.workspace }}/ninja-win"
 
-      # TODO: remove before merge!
-      - name: Copy caches
-        run: |
-          New-Item -ItemType Directory -Path "${{ env.CCACHE_REMOTE_DIR }}" -Force
-          Copy-Item -Path "C:\\mount\\caches\\ccache\\windows2022_x86_64_master\\*.cache" -Destination "${{ env.CCACHE_REMOTE_DIR }}"
-
-
       #
       # Build
       #
+
       - name: Setup ccache
         uses: ./openvino/.github/actions/cache
         with:
