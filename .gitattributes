@@ -65,3 +65,5 @@
 *.vsdx filter=lfs diff=lfs merge=lfs -text
 *.bmp filter=lfs diff=lfs merge=lfs -text
 *.svg filter=lfs diff=lfs merge=lfs -text
+.github/scripts/workflow_rerun/tests/data/log_archive_with_error.zip filter=lfs diff=lfs merge=lfs -text
+.github/scripts/workflow_rerun/tests/data/log_archive_wo_error.zip filter=lfs diff=lfs merge=lfs -text
