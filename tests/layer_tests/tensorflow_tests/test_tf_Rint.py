@@ -28,7 +28,7 @@ class TestRint(CommonTFLayerTest):
 
         return tf_net, ref_net
 
-    @pytest.mark.parametrize("input_shape", [[6], [2, 5, 3], [10, 5, 1, 5]])
+    @pytest.mark.parametrize("input_shape", [[], [6], [2, 5], [5, 4, 1]])
     @pytest.mark.parametrize("input_type", [np.float32, np.float64])
     @pytest.mark.precommit
     @pytest.mark.nightly
