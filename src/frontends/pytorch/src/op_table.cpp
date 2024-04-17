@@ -31,6 +31,7 @@ OP_CONVERTER(translate_addcmul);
 OP_CONVERTER(translate_addmm);
 OP_CONVERTER(translate_alias_copy);
 OP_CONVERTER(translate_all);
+OP_CONVERTER(translate_any);
 OP_CONVERTER(translate_amax);
 OP_CONVERTER(translate_amin);
 OP_CONVERTER(translate_and);
@@ -354,6 +355,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::amax", op::translate_amax},
         {"aten::amin", op::translate_amin},
         {"aten::aminmax", op::translate_aminmax},
+        {"aten::any", op::translate_any},
         // aten::append - Supported in limited set of patterns
         {"aten::arange", op::translate_arange},
         {"aten::argmax", op::translate_argmax},
@@ -760,6 +762,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.amin.default", op::translate_amin},
         {"aten.any.default", op::translate_any_fx},
         {"aten.any.dim", op::translate_any_fx},
+        {"aten.any.dims", op::translate_any_fx},
         {"aten.arange.default", op::translate_arange_fx},
         {"aten.arange.start", op::translate_arange_fx},
         {"aten.arange.start_step", op::translate_arange_fx},
