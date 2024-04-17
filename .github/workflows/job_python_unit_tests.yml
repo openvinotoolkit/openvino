@@ -259,8 +259,6 @@ jobs:
       - name: TensorFlow 1 Layer Tests - TF FE
         if: fromJSON(inputs.affected-components).TF_FE.test
         run: |
-          # requires 'unit_tests' from 'mo'
-          export PYTHONPATH=${INSTALL_TEST_DIR}/mo
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/ -m precommit -n logical --junitxml=${INSTALL_TEST_DIR}/TEST-tf_fe.xml
         env:
           TEST_DEVICE: CPU
@@ -269,9 +267,7 @@ jobs:
       - name: TensorFlow 2 Layer Tests - TF FE
         if: fromJSON(inputs.affected-components).TF_FE.test && runner.os != 'macOS' # Ticket: 123322
         run: |
-          # requires 'unit_tests' from 'mo'
-          export PYTHONPATH=${INSTALL_TEST_DIR}/mo
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/ -n logical -m precommit_tf_fe --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_fe.xml
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/ -n logical -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_fe.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16

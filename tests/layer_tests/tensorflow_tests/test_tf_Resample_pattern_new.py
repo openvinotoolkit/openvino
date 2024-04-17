@@ -5,8 +5,6 @@ import numpy as np
 import pytest
 from common.tf_layer_test_class import CommonTFLayerTest
 
-from unit_tests.utils.graph import build_graph
-
 
 class TestResamplePattern(CommonTFLayerTest):
     def _prepare_input(self, inputs_dict):
@@ -39,31 +37,7 @@ class TestResamplePattern(CommonTFLayerTest):
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
-        #
-        #   Create reference IR net
-        #   Please, specify 'type': 'Input' for input node
-        #   Moreover, do not forget to validate ALL layer attributes!!!
-        #
-
         ref_net = None
-        if not use_legacy_frontend:
-            new_shape = shape.copy()
-            new_shape[2] *= factor
-            new_shape[3] *= factor
-            nodes_attributes = {
-                'input': {'kind': 'op', 'type': 'Input'},
-                'input_data': {'shape': shape, 'kind': 'data'},
-                'resample': {'kind': 'op', 'type': 'caffe.ResampleParameter.NEAREST',
-                             "factor": factor,
-                             "height": 0, "width": 0, "antialias": 0},
-                'resample_data': {'shape': new_shape, 'kind': 'data'},
-            }
-
-            ref_net = build_graph(nodes_attributes,
-                                  [('input', 'input_data'),
-                                   ('input_data', 'resample'),
-                                   ('resample', 'resample_data')
-                                   ])
 
         return tf_net, ref_net
 
