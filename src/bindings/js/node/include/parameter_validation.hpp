@@ -79,11 +79,7 @@ struct Signature {
     }
 
     static void array(const std::string key, const Napi::Value& value) {
-        if (value.IsArray())
-            return;
-
-        std::string error_message = Signature::get_error_message(key, "Array", value.Type());
-        throw std::runtime_error(error_message);
+        OPENVINO_ASSERT(value.IsArray(), get_error_message(key, "Array", value.Type()));
     }
 
     static void check_type(const napi_valuetype expected_type, const std::string key, const Napi::Value& value) {
