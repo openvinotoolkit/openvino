@@ -179,13 +179,7 @@ private:
     // 15      | aux
     // 16      | aux
     // 17      | aux
-    // 18      | src
-    // 19      | src
-    // 20      | src
-    // 21      | src
-    // 22      | src
-    // 23      | src
-    // 24-31   | [not used]
+    // 18-31   | src
 
 
     TReg vmm_dst {9};
