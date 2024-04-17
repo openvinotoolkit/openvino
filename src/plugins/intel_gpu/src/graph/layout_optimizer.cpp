@@ -687,7 +687,7 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(const layout& input_layout,
     return false;
 }
 
-static bool has_rank3_mvn_user(const program_node& node, size_t cur_depth, size_t max_depth, uint64_t reorder_size_threshold = 0) {
+static bool has_reorder_before_mvn(const program_node& node, size_t cur_depth, size_t max_depth, uint64_t reorder_size_threshold = 0) {
     // MVN with rank size 3 always requires Reorder and Reshape. Due to this pattern, too many Reorder may occur when used with Convolution,
     // which may performance degradation. It stand out in Stable-Diffusion Unet and Decoder.
     if (cur_depth > max_depth) return false;
@@ -695,15 +695,9 @@ static bool has_rank3_mvn_user(const program_node& node, size_t cur_depth, size_
         for (auto& reorder_user : node.get_users()) {
             if (reorder_user->is_type<reshape>()) {
                 for (auto& reshape_user : reorder_user->get_users()) {
-                    if (reshape_user->is_type<mvn>()) {
-                        if (reorder_size_threshold == 0) {
-                            return true;
-                        } else {
-                            if (node.get_output_layout().get_linear_size() > reorder_size_threshold) {
-                                GPU_DEBUG_LOG << node.id() << ": " << node.get_output_layout().to_short_string() << " -> heavy reorder" << std::endl;
-                                return true;
-                            }
-                        }
+                    if (reshape_user->is_type<mvn>() && node.get_output_layout().get_linear_size() > reorder_size_threshold) {
+                        GPU_DEBUG_LOG << node.id() << ": " << node.get_output_layout().to_short_string() << " : heavy reorder" << std::endl;
+                        return true;
                     }
                 }
             }
@@ -711,7 +705,7 @@ static bool has_rank3_mvn_user(const program_node& node, size_t cur_depth, size_
     }
     bool res = false;
     for (const auto& usr : node.get_users()) {
-        res |= has_rank3_mvn_user(*usr, cur_depth + 1, max_depth, reorder_size_threshold);
+        res |= has_reorder_before_mvn(*usr, cur_depth + 1, max_depth, reorder_size_threshold);
     }
     return res;
 }
@@ -735,7 +729,7 @@ bool layout_optimizer::should_select_b_fs_yx_fsv16_layout(convolution_node const
     return (((_optimization_attributes.b_fs_yx_fsv16_network) &&
             (current_conv_supports_layout || (may_use_weak_restrictions && current_conv_partially_supports_layout))) ||
            input_layout.format == format::b_fs_yx_fsv16) &&
-           !has_rank3_mvn_user(reinterpret_cast<program_node const&>(node), 0, 3, 8300000);
+           !has_reorder_before_mvn(reinterpret_cast<program_node const&>(node), 0, 3, 8300000);
             // Decoder in Stable-Diffusion showed planar format Convolution without Reorder is better than
             // blocked format Convolution in case Reorder is larger than [1, 512, 128, 128].
 }
@@ -1214,7 +1208,7 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
                   convolution_fs_b_yx_fsv32_opt(input_layout,
                                                 output_layout,
                                                 weights_layout, prim, true)))) &&
-                 !(has_rank3_mvn_user(reinterpret_cast<program_node const&>(*node.get_users().front()), 0, 3, 1000000) &&
+                 !(has_reorder_before_mvn(reinterpret_cast<program_node const&>(*node.get_users().front()), 0, 3, 1000000) &&
                      !static_cast<bool>(prepare_padding::get_convolution_needed_padding(const_cast<convolution_node&>(node))))) {
             // Chose fs_b_yx_fsv32 layout in two cases: 1-st: the current conv primitive totally supports fs_b_yx_fsv32 layout
             //                                          2-nd: the previous conv primitive supports fs_b_yx_fsv32 layout and
