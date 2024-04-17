@@ -91,6 +91,7 @@ public:
      */
     Napi::Value get_output_shape(const Napi::CallbackInfo& info);
 
+
 private:
     std::shared_ptr<ov::Model> _model;
     ov::Core _core;

@@ -6,7 +6,6 @@
 
 #include "memory_desc/cpu_memory_desc.h"
 #include "dnnl_extension_utils.h"
-#include "memory_desc/cpu_memory_desc_utils.h"
 #include <onednn/dnnl.h>
 #include <cpu_shape.h>
 
