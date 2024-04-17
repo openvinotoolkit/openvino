@@ -30,8 +30,6 @@
 #include <dnnl_debug.h>
 #include "utils/general_utils.h"
 #include "utils/cpu_utils.hpp"
-#include "utils/verbose.h"
-#include "utils/profiler.hpp"
 #include "nodes/common/cpu_convert.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
@@ -551,7 +549,6 @@ void Node::updateShapes() {
                     " with name: ",
                     getName());
     if (needShapeInfer()) {
-        PROFILE(_prof, "updateShape", getName());
         auto result = shapeInfer();
         if (ShapeInferStatus::success == result.status) {
             redefineOutputMemory(result.dims);
@@ -566,7 +563,6 @@ void Node::updateDynamicParams() {
                     " with name: ",
                     getName());
     if (isExecutable()) {
-        PROFILE(_prof, "updateDynamicParams", getName());
         if (needPrepareParams()) {
             OPENVINO_ASSERT(inputShapesDefined(),
                             "Can't prepare params for ",
