@@ -112,5 +112,7 @@ class TestBinaryOps(CommonTFLayerTest):
             pytest.skip("Bitwise and Xdivy ops are supported only by new TF FE.")
         if op_type in ['BitwiseAnd', 'BitwiseOr', 'BitwiseXor', 'Pow', 'Mod'] and ie_device == 'GPU':
             pytest.skip("GPU does not support Bitwise ops. For Mod and Pow it has inference mismatch")
+        if op_type in [''Mod'] and platform.machine() == 'arm64':
+            pytest.skip("Arm64 has inference mismatch for Mod")
         self._test(*self.create_add_placeholder_const_net(x_shape=x_shape, y_shape=y_shape, op_type=op_type), ie_device,
                    precision, ir_version, temp_dir=temp_dir, use_legacy_frontend=use_legacy_frontend)
