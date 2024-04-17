@@ -108,6 +108,15 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/variadic_split.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/space_to_batch.hpp"
+#include "openvino/op/gather_nd.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/depth_to_space.hpp"
+#include "openvino/op/einsum.hpp"
+#include "openvino/op/random_uniform.hpp"
+#include "openvino/op/eye.hpp"
 
 namespace ov {
 namespace test {
@@ -216,6 +225,7 @@ static std::map<ov::NodeTypeInfo, std::vector<std::vector<ov::test::utils::Input
         { ov::op::v1::ReduceLogicalOr::get_type_info_static(),  {{{0, 2}}, {{0, 2}}} },
         { ov::op::v1::Reshape::get_type_info_static(),  {{{-1000, 2000}, {0, 256, 1, 1, true}}, {{-100, 200, 32768}} }},
         { ov::op::v4::Interpolate::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}}} },
+        { ov::op::v3::TopK::get_type_info_static(),  {{{-1000, 2000}, {0, 1000, 1, 1, true}}, {{-1000, 2000, 32768}}} },
         { ov::op::v11::TopK::get_type_info_static(),  {{{-1000, 2000}, {0, 1000, 1, 1, true}}, {{-1000, 2000, 32768}}} },
         { ov::op::v4::Range::get_type_info_static(),  {{{0, 15}, {1, 1000, 1, 1, true}}, {{-1000, 2000, 32768}, {1, 1000, 1, 1, true}}} },
         { ov::op::v11::Interpolate::get_type_info_static(),  {{{0, 15}}, {{-1000, 2000, 32768}, }} },
@@ -228,6 +238,15 @@ static std::map<ov::NodeTypeInfo, std::vector<std::vector<ov::test::utils::Input
         { ov::op::v1::Multiply::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}}} },
         { ov::op::v1::StridedSlice::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}}} },
         { ov::op::v5::LSTMSequence::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}}} },
+        { ov::op::v1::VariadicSplit::get_type_info_static(),  {{{0, 10}}, {{0, 8, 32}}} },
+        { ov::op::v1::Subtract::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}}} },
+        { ov::op::v1::SpaceToBatch::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}}} },
+        { ov::op::v8::GatherND::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}}} },
+        { ov::op::v8::Gather::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}}} },
+        { ov::op::v0::DepthToSpace::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}}} },
+        { ov::op::v7::Einsum::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}}} },
+        { ov::op::v8::RandomUniform::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}}} },
+        { ov::op::v9::Eye::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}}} },
 };
 
 ov::test::utils::InputGenerateData get_range_by_type(ov::element::Type temp_type, uint64_t kMaxRange);

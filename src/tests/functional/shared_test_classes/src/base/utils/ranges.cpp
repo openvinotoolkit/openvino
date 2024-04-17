@@ -26,6 +26,16 @@ ov::test::utils::InputGenerateData get_range_by_type(ov::element::Type temp_type
     double min_start = 0 - (int32_t)round(kMaxRange / 2);
     uint32_t max_range = kMaxRange - 1;
 
+    // ov::test::utils::InputGenerateData inData;
+    // if (temp_type.is_real()) {
+    //     inData.start_from = -1000;
+    //     inData.range = 2000;
+    //     inData.resolution = 32;
+    // } else if (temp_type.is_signed()) {
+    //     inData.start_from = -1000;
+    //     inData.range = 2000;
+    // }
+
     ov::test::utils::InputGenerateData inData(min_start, max_range);
     #define CASE(X)                                                                                                 \
     case X: {                                                                                                       \
