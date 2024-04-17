@@ -4,8 +4,8 @@
 
 #include "shared_test_classes/single_op/non_max_suppression.hpp"
 
-#include "openvino/op/non_max_suppression.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/non_max_suppression.hpp"
 
 namespace ov {
 namespace test {
@@ -42,7 +42,8 @@ std::string NmsLayerTest::getTestCaseName(const testing::TestParamInfo<NmsParams
     result << "params_type=" << params_type << "_max_box_type=" << max_box_type << "_thr_type=" << thr_type << "_";
     result << "max_out_boxes_per_class=" << max_out_boxes_per_class << "_";
     result << "iou_thr=" << iou_thr << "_score_thr=" << score_thr << "_soft_nms_sigma=" << soft_nms_sigma << "_";
-    result << "boxEncoding=" << box_encoding << "_sort_res_descend=" << sort_res_descend << "_out_type=" << out_type << "_";
+    result << "boxEncoding=" << box_encoding << "_sort_res_descend=" << sort_res_descend << "_out_type=" << out_type
+           << "_";
     result << "TargetDevice=" << target_device;
     return result.str();
 }
@@ -74,13 +75,15 @@ void NmsLayerTest::SetUp() {
 
     const ov::Shape boxes_shape{num_batches, num_boxes, 4}, scores_shape{num_batches, num_classes, num_boxes};
 
-    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(params_type, ov::Shape(boxes_shape)),
-                                std::make_shared<ov::op::v0::Parameter>(params_type, ov::Shape(scores_shape))};
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(params_type, ov::Shape(boxes_shape)),
+                               std::make_shared<ov::op::v0::Parameter>(params_type, ov::Shape(scores_shape))};
 
-    auto max_out_boxes_per_class_node = std::make_shared<ov::op::v0::Constant>(max_box_type, ov::Shape{}, std::vector<int>{max_out_boxes_per_class});
+    auto max_out_boxes_per_class_node =
+        std::make_shared<ov::op::v0::Constant>(max_box_type, ov::Shape{}, std::vector<int>{max_out_boxes_per_class});
     auto iou_thr_node = std::make_shared<ov::op::v0::Constant>(thr_type, ov::Shape{}, std::vector<float>{iou_thr});
     auto score_thr_node = std::make_shared<ov::op::v0::Constant>(thr_type, ov::Shape{}, std::vector<float>{score_thr});
-    auto soft_nms_sigma_node = std::make_shared<ov::op::v0::Constant>(thr_type, ov::Shape{}, std::vector<float>{soft_nms_sigma});
+    auto soft_nms_sigma_node =
+        std::make_shared<ov::op::v0::Constant>(thr_type, ov::Shape{}, std::vector<float>{soft_nms_sigma});
 
     auto nms = std::make_shared<ov::op::v5::NonMaxSuppression>(params[0],
                                                                params[1],
@@ -115,9 +118,9 @@ void Nms9LayerTest::SetUp() {
              out_type,
              targetDevice) = this->GetParam();
 
-    box_encoding_v9 = box_encoding == op::v5::NonMaxSuppression::BoxEncodingType::CENTER ?
-                      op::v9::NonMaxSuppression::BoxEncodingType::CENTER :
-                      op::v9::NonMaxSuppression::BoxEncodingType::CORNER;
+    box_encoding_v9 = box_encoding == op::v5::NonMaxSuppression::BoxEncodingType::CENTER
+                          ? op::v9::NonMaxSuppression::BoxEncodingType::CENTER
+                          : op::v9::NonMaxSuppression::BoxEncodingType::CORNER;
 
     size_t num_batches, num_boxes, num_classes;
     std::tie(num_batches, num_boxes, num_classes) = input_shape_params;
@@ -127,13 +130,15 @@ void Nms9LayerTest::SetUp() {
 
     const std::vector<size_t> boxes_shape{num_batches, num_boxes, 4}, scores_shape{num_batches, num_classes, num_boxes};
 
-    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(params_type, ov::Shape(boxes_shape)),
-                                std::make_shared<ov::op::v0::Parameter>(params_type, ov::Shape(scores_shape))};
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(params_type, ov::Shape(boxes_shape)),
+                               std::make_shared<ov::op::v0::Parameter>(params_type, ov::Shape(scores_shape))};
 
-    auto max_out_boxes_per_class_node = std::make_shared<ov::op::v0::Constant>(max_box_type, ov::Shape{}, std::vector<int>{max_out_boxes_per_class});
+    auto max_out_boxes_per_class_node =
+        std::make_shared<ov::op::v0::Constant>(max_box_type, ov::Shape{}, std::vector<int>{max_out_boxes_per_class});
     auto iou_thr_node = std::make_shared<ov::op::v0::Constant>(thr_type, ov::Shape{}, std::vector<float>{iou_thr});
     auto score_thr_node = std::make_shared<ov::op::v0::Constant>(thr_type, ov::Shape{}, std::vector<float>{score_thr});
-    auto soft_nms_sigma_node = std::make_shared<ov::op::v0::Constant>(thr_type, ov::Shape{}, std::vector<float>{soft_nms_sigma});
+    auto soft_nms_sigma_node =
+        std::make_shared<ov::op::v0::Constant>(thr_type, ov::Shape{}, std::vector<float>{soft_nms_sigma});
 
     auto nms = std::make_shared<ov::op::v9::NonMaxSuppression>(params[0],
                                                                params[1],
@@ -148,11 +153,9 @@ void Nms9LayerTest::SetUp() {
     function = std::make_shared<ov::Model>(nms, params, "NMS");
 }
 
-
 void NmsLayerTest::compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) {
     CompareBBoxes(expected, actual);
 }
-
 
 namespace {
 
@@ -184,10 +187,12 @@ public:
 
 template <typename fromT, typename toT>
 void convert(fromT* src, toT* dst, size_t size) {
-    std::transform(src, src + size, dst, [](fromT el)->toT{return static_cast<toT>(el);});
+    std::transform(src, src + size, dst, [](fromT el) -> toT {
+        return static_cast<toT>(el);
+    });
 }
 
-} // namespace
+}  // namespace
 
 // 1: selected_indices - tensor of type T_IND and shape [number of selected boxes, 3] containing information about
 // selected boxes as triplets [batch_index, class_index, box_index]. 2: selected_scores - tensor of type T_THRESHOLDS
@@ -265,7 +270,8 @@ void NmsLayerTest::CompareBBoxes(const std::vector<ov::Tensor>& expected, const 
     }
 
     auto compare_box = [](const Box& box_a, const Box& box_b) {
-        return (box_a.batch_id < box_b.batch_id) || (box_a.batch_id == box_b.batch_id && box_a.class_id < box_b.class_id) ||
+        return (box_a.batch_id < box_b.batch_id) ||
+               (box_a.batch_id == box_b.batch_id && box_a.class_id < box_b.class_id) ||
                (box_a.batch_id == box_b.batch_id && box_a.class_id == box_b.class_id && box_a.box_id < box_b.box_id);
     };
 
@@ -327,7 +333,6 @@ void NmsLayerTest::CompareBBoxes(const std::vector<ov::Tensor>& expected, const 
             std::copy(ptr, ptr + actual[1].get_size(), selected_scores_data.begin());
         }
 
-
         for (size_t i = 0; i < selected_indices_size; i += 3) {
             const int32_t batch_id = selected_indices_data[i + 0];
             const int32_t class_id = selected_indices_data[i + 1];
@@ -348,7 +353,8 @@ void NmsLayerTest::CompareBBoxes(const std::vector<ov::Tensor>& expected, const 
         std::copy(expected_list.begin(), expected_list.end(), tempexpected_list.begin());
         std::copy(actual_list.begin(), actual_list.end(), tempActualList.begin());
         auto same_box = [](const Box& box_a, const Box& box_b) {
-            return (box_a.batch_id == box_b.batch_id) && (box_a.class_id == box_b.class_id) && (box_a.box_id == box_b.box_id);
+            return (box_a.batch_id == box_b.batch_id) && (box_a.class_id == box_b.class_id) &&
+                   (box_a.box_id == box_b.box_id);
         };
 
         for (auto itA = tempActualList.begin(); itA != tempActualList.end(); ++itA) {
@@ -373,30 +379,22 @@ void NmsLayerTest::CompareBBoxes(const std::vector<ov::Tensor>& expected, const 
                 continue;
 
             float max_iou = 0.f;
-            // for (auto& refItem : intersection_list) {
-            //     max_iou = std::max(max_iou, iou_func(item, refItem));
-
-            //     if (max_iou > 0.3f)
-            //         break;
-            // }
-            std::find_if(intersection_list.begin(), intersection_list.end(),
-                [&](const Box& ref_item) {
-                    max_iou = std::max(max_iou, iou_func(item, ref_item));
-                    return max_iou > 0.3f;
-                });
+            std::ignore = std::find_if(intersection_list.begin(), intersection_list.end(), [&](const Box& ref_item) {
+                max_iou = std::max(max_iou, iou_func(item, ref_item));
+                return max_iou > 0.3f;
+            });
 
             ASSERT_TRUE(max_iou > 0.3f) << "MaxIOU: " << max_iou << ", expected_list.size(): " << expected_list.size()
-                                       << ", actual_list.size(): " << actual_list.size()
-                                       << ", intersection_list.size(): " << intersection_list.size()
-                                       << ", diffList.size(): " << difference_list.size()
-                                       << ", batch_id: " << item.batch_id << ", class_id: " << item.class_id
-                                       << ", box_id: " << item.box_id << ", score: " << item.score
-                                       << ", coord: " << item.rect.x1 << ", " << item.rect.y1 << ", " << item.rect.x2
-                                       << ", " << item.rect.y2;
+                                        << ", actual_list.size(): " << actual_list.size()
+                                        << ", intersection_list.size(): " << intersection_list.size()
+                                        << ", diffList.size(): " << difference_list.size()
+                                        << ", batch_id: " << item.batch_id << ", class_id: " << item.class_id
+                                        << ", box_id: " << item.box_id << ", score: " << item.score
+                                        << ", coord: " << item.rect.x1 << ", " << item.rect.y1 << ", " << item.rect.x2
+                                        << ", " << item.rect.y2;
         }
     }
 }
-
 
 }  // namespace test
 }  // namespace ov
