@@ -340,16 +340,25 @@ debug_configuration::debug_configuration()
     }
 
     if (dump_runtime_memory_pool_iters_str.size() > 0) {
-        dump_runtime_memory_pool_iters_str = " " + dump_runtime_memory_pool_iters_str + " ";
-        std::istringstream ss(dump_runtime_memory_pool_iters_str);
-        std::string token;
-        while (ss >> token) {
-            try {
-                dump_runtime_memory_pool_iters.insert(static_cast<int64_t>(std::stol(token)));
-            } catch(const std::exception& ex) {
-                dump_runtime_memory_pool_iters.clear();
-                GPU_DEBUG_COUT << "OV_GPU_DumpRuntimeMemoryPoolIters was ignored. It cannot be parsed to integer array." << std::endl;
-                break;
+        // eliminate '"' from string to avoid parasing error
+        dump_runtime_memory_pool_iters_str.erase(
+            std::remove_if (dump_runtime_memory_pool_iters_str.begin (), dump_runtime_memory_pool_iters_str.end (), [](char c)
+                 {
+                    return c == '\"';
+                 }),
+                 dump_runtime_memory_pool_iters_str.end ());
+        if (dump_runtime_memory_pool_iters_str.size() > 0) {
+            dump_runtime_memory_pool_iters_str = " " + dump_runtime_memory_pool_iters_str + " ";
+            std::istringstream ss(dump_runtime_memory_pool_iters_str);
+            std::string token;
+            while (ss >> token) {
+                try {
+                    dump_runtime_memory_pool_iters.insert(static_cast<int64_t>(std::stol(token)));
+                } catch(const std::exception& ex) {
+                    dump_runtime_memory_pool_iters.clear();
+                    GPU_DEBUG_COUT << "OV_GPU_DumpRuntimeMemoryPoolIters was ignored. It cannot be parsed to integer array." << std::endl;
+                    break;
+                }
             }
         }
     }
