@@ -42,35 +42,6 @@ std::map<size_t, memory::ptr> loop_node::get_memory_deps() const {
     return memory_deps;
 }
 
-layout loop_inst::calc_output_layout(loop_node const& /*node*/, kernel_impl_params const& impl_param) {
-    auto prim = impl_param.typed_desc<loop>();
-
-    // finds internal output
-    const auto& output_primitive_maps = prim->output_primitive_maps;
-    const auto& output_mapping = output_primitive_maps.front();
-
-    const auto& body_program = impl_param.inner_progs.front();
-    const auto& body_outputs = body_program->get_outputs();
-
-    const primitive_id& output_internal_id = output_mapping.internal_id.pid;
-    auto target = std::find_if(body_outputs.begin(), body_outputs.end(), [&](const cldnn::program_node * output) {
-        return output->id() == output_internal_id;
-    });
-    OPENVINO_ASSERT(target != body_outputs.end(), impl_param.desc->id, "output not found");
-
-    // set body output layout
-    layout loop_output_layout = (*target)->get_output_layout();
-    const int64_t axis_to_iterate_through = output_mapping.axis;
-    if (axis_to_iterate_through != -1) {
-        const size_t ndim = loop_output_layout.get_rank();
-        auto shape = loop_output_layout.get_dims();
-        shape[axis_to_iterate_through] = static_cast<int32_t>(prim->max_num_iterations);
-        loop_output_layout.set_tensor(tensor(format::get_default_format(ndim), shape));
-    }
-
-    return loop_output_layout;
-}
-
 template<typename T>
 static std::vector<layout> get_output_layouts(kernel_impl_params const& impl_param, std::vector<T> body_outputs, const int64_t num_iterations = -1) {
     auto prim = impl_param.typed_desc<loop>();
@@ -781,19 +752,13 @@ void loop_inst::update_output_layout() {
     _impl_params->memory_deps = memory_deps;
 
     auto new_layouts = _node->type()->calc_output_layouts(*_node, *_impl_params);
-    if (new_layouts.empty()) {
-        auto new_layout = _node->type()->calc_output_layout(*_node, *_impl_params);
-        new_layout.data_padding = padding::max(_node->get_primitive()->get_output_padding(0), new_layout.data_padding);
-        _impl_params->output_layouts[0] = new_layout;
-    } else {
-        if (_impl_params->output_layouts.size() < new_layouts.size()) {
-            _impl_params->output_layouts.resize(new_layouts.size());
-        }
-        for (size_t i = 0; i < new_layouts.size(); ++i) {
-            auto new_layout = new_layouts[i];
-            new_layout.data_padding = padding::max(_node->get_primitive()->get_output_padding(i), new_layout.data_padding);
-            _impl_params->output_layouts[i] = new_layout;
-        }
+    if (_impl_params->output_layouts.size() < new_layouts.size()) {
+        _impl_params->output_layouts.resize(new_layouts.size());
+    }
+    for (size_t i = 0; i < new_layouts.size(); ++i) {
+        auto new_layout = new_layouts[i];
+        new_layout.data_padding = padding::max(_node->get_primitive()->get_output_padding(i), new_layout.data_padding);
+        _impl_params->output_layouts[i] = new_layout;
     }
 }
 

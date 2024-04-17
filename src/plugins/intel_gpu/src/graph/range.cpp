@@ -20,10 +20,6 @@ std::string lexical_cast(const json_base& j, int offset = 1) {
 
 GPU_DEFINE_PRIMITIVE_TYPE_ID(range)
 
-layout range_inst::calc_output_layout(range_node const& node, kernel_impl_params const& impl_param) {
-    return impl_param.typed_desc<range>()->output_layout;
-}
-
 template<typename ShapeType>
 std::vector<layout> range_inst::calc_output_layouts(range_node const& /*node*/, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<range>();

@@ -3,7 +3,6 @@
 //
 
 #include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
 #include "openvino/op/one_hot.hpp"
@@ -48,26 +47,20 @@ static void CreateOneHotOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::
         }
     }
 
-    auto out_pshape = op->get_output_partial_shape(0);
-    cldnn::tensor out_tensor = out_pshape.is_static() ? tensor_from_dims(out_pshape.to_shape()) : cldnn::tensor{};
-
     if (depth_value_node) {
         int64_t depth = depth_value_node->cast_vector<int64_t>()[0];
         auto oneHotPrim = cldnn::one_hot(layerName,
                                          inputs[0],
-                                         out_tensor,
                                          cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                          axis,
                                          depth,
                                          on_value,
                                          off_value);
-
         p.add_primitive(*op, oneHotPrim);
     } else {
         auto oneHotPrim = cldnn::one_hot(layerName,
                                          inputs[0],
                                          inputs[1],
-                                         out_tensor,
                                          cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                          axis,
                                          on_value,

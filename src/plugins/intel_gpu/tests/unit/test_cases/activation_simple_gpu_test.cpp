@@ -40,7 +40,7 @@ TEST(activation_f32_fw_gpu, dynamic) {
         topology.add(activation("activation", input_info("input"), func));
 
         ExecutionConfig config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
         network network(engine, topology, config);
 
         network.set_input_data("input", input);
@@ -116,7 +116,7 @@ TEST(activation_f32_fw_cpu_impl, dynamic_8d) {
         ExecutionConfig config = get_test_default_config(engine);
         auto forcing_map = ov::intel_gpu::ImplForcingMap{ {"activation", {format::bfvuwzyx, "", impl_types::cpu}} };
         config.set_property(ov::intel_gpu::force_implementations(forcing_map));
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
         network network(engine, topology, config);
 
         network.set_input_data("input", input);
@@ -1705,7 +1705,7 @@ TEST(activation_f32_fw_gpu, bfyx_prelu_dyn) {
     );
 
     ExecutionConfig config = get_test_default_config(eng);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     cldnn::network net(eng, topo, config);
 
     set_values(in_mem, flatten_4d(format::bfyx, in_data));
@@ -2114,7 +2114,6 @@ TEST(activation_gpu, has_proper_synchronization) {
 
     auto config_ref = get_test_default_config(engine);
     config_ref.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
-    config_ref.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     auto config_test = config_ref;
     config_test.set_property(ov::intel_gpu::force_implementations(impl_forcing_map));

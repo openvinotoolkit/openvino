@@ -78,7 +78,6 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::intel_gpu::dump_graphs, ""),
         std::make_tuple(ov::intel_gpu::force_implementations, ImplForcingMap{}),
         std::make_tuple(ov::intel_gpu::partial_build_program, false),
-        std::make_tuple(ov::intel_gpu::allow_new_shape_infer, false),
         std::make_tuple(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape, false),
         std::make_tuple(ov::intel_gpu::buffers_preallocation_ratio, 1.1f),
         std::make_tuple(ov::intel_gpu::max_kernels_per_batch, 8),

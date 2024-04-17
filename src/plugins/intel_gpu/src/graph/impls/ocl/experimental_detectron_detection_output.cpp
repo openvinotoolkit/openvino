@@ -23,17 +23,6 @@ struct experimental_detectron_detection_output_impl
         return make_deep_copy<experimental_detectron_detection_output_impl, kernel_params_t>(*this);
     }
 
-protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<experimental_detectron_detection_output>& instance) const override {
-        kernel_arguments_data args = parent::get_arguments(instance);
-        if (instance.desc()->num_outputs == 1) {
-            // Legacy multi-output
-            args.outputs.push_back(instance.output_classes_memory());
-            args.outputs.push_back(instance.output_scores_memory());
-        }
-
-        return args;
-    }
 
 public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
@@ -49,25 +38,13 @@ public:
         params.class_agnostic_box_regression = primitive->class_agnostic_box_regression;
         params.deltas_weights = primitive->deltas_weights;
 
-        if (impl_param.prog->is_new_shape_infer()) {
-            const size_t num_inputs = primitive->input_size();
-            for (size_t i = 1; i < num_inputs; i++) {
-                params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
-            }
-
-            params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[1]));
-            params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[2]));
-        } else {
-            const size_t num_deps = primitive->input_size();
-            OPENVINO_ASSERT(num_deps == 6, "Unexpected deps num: ", num_deps);
-            const size_t num_inputs = num_deps - 2;
-            for (size_t i = 1; i < num_inputs; i++) {
-                params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
-            }
-            for (size_t i = num_inputs; i < num_deps; i++) {
-                params.outputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
-            }
+        const size_t num_inputs = primitive->input_size();
+        for (size_t i = 1; i < num_inputs; i++) {
+            params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
         }
+
+        params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[1]));
+        params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[2]));
 
         return params;
     }

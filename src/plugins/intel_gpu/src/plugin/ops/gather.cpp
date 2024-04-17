@@ -34,27 +34,6 @@ void CreateGatherOpBase(ProgramBuilder& p, const std::shared_ptr<T>& op, const i
 
     int64_t axis = op->get_axis();
 
-    std::vector<cldnn::input_info> reordered_inputs;
-    reordered_inputs.resize(inputs.size());
-
-    for (size_t portIndex = 0; portIndex < inputs.size(); portIndex++) {
-        auto inputDataType = cldnn::element_type_to_data_type(op->get_input_element_type(portIndex));
-        if (inputDataType == cldnn::data_types::i64) {
-            // GPU primitive does not support i64 inputs,
-            // so we need additional reorders to convert them to i32
-            auto reorderPrimName = inputs[portIndex].pid + "_" + op->get_friendly_name() + ProgramBuilder::m_preProcessTag;
-            auto targetFormat = cldnn::format::get_default_format(op->get_input_partial_shape(portIndex).size());
-            auto preprocessPrim = cldnn::reorder(reorderPrimName,
-                                                 inputs[portIndex],
-                                                 targetFormat,
-                                                 cldnn::data_types::i32);
-            p.add_primitive(*op, preprocessPrim);
-            reordered_inputs[portIndex] = cldnn::input_info(reorderPrimName);
-        } else {
-            reordered_inputs[portIndex] = inputs[portIndex];
-        }
-    }
-
     // Dynamic path will do shape infer internally, so no need to pass valid out shape for that case
     bool is_static = op->get_output_partial_shape(0).is_static();
     ov::Shape out_shape = is_static ? op->get_output_shape(0) : ov::Shape{};
@@ -62,22 +41,6 @@ void CreateGatherOpBase(ProgramBuilder& p, const std::shared_ptr<T>& op, const i
     // Update output_shape in case of scalar indice
     bool need_reshape = false;
     auto out_shape_original = out_shape;
-    if (!p.use_new_shape_infer() && is_static) {
-        auto input1_shape = op->get_input_shape(1);
-        if (input1_shape.size() == 0 && batch_dim == 0) {
-            need_reshape = true;
-
-            auto new_axis = axis;
-            if (new_axis < 0) {
-                new_axis += op->get_input_shape(0).size();
-            }
-            out_shape.push_back(1);
-            for (int i = static_cast<int>(out_shape.size()) - 1; i > new_axis ; i--) {
-                out_shape[i] = out_shape[i-1];
-            }
-            out_shape[new_axis] = 1;
-        }
-    }
 
     // WA for NMS->Gather construction. NMS fills part of the output blob by the -1 if these values
     // must not be taken into account.
@@ -132,13 +95,13 @@ void CreateGatherOpBase(ProgramBuilder& p, const std::shared_ptr<T>& op, const i
 
         // Create Crop
         layerName = get_crop_layer_name(layerName, static_cast<size_t>(result));
-        auto cropPrim = cldnn::crop(layerName, reordered_inputs[0], outTensor, offsetTensor);
+        auto cropPrim = cldnn::crop(layerName, inputs[0], outTensor, offsetTensor);
         p.add_primitive(*op, cropPrim);
     } else {
         if (!weights_compressed) {
             auto gatherPrim = cldnn::gather(layerName,
-                                            reordered_inputs[0],
-                                            reordered_inputs[1],
+                                            inputs[0],
+                                            inputs[1],
                                             axis,
                                             input_rank,
                                             out_shape,
@@ -159,11 +122,11 @@ void CreateGatherOpBase(ProgramBuilder& p, const std::shared_ptr<T>& op, const i
             std::shared_ptr<ov::op::internal::GatherCompressed> op_compressed = std::dynamic_pointer_cast<ov::op::internal::GatherCompressed>(op);
 
             auto gatherPrim = cldnn::gather(layerName,
-                                            reordered_inputs[0],
-                                            reordered_inputs[1],
+                                            inputs[0],
+                                            inputs[1],
                                             axis,
-                                            reordered_inputs[3],
-                                            (has_scalar_zp || op->get_input_size() == 4) ? cldnn::input_info() : reordered_inputs[4],
+                                            inputs[3],
+                                            (has_scalar_zp || op->get_input_size() == 4) ? cldnn::input_info() : inputs[4],
                                             op_compressed->get_output_element_type(0),
                                             input_rank,
                                             out_shape,

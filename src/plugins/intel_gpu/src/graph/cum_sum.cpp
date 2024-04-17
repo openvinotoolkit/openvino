@@ -11,10 +11,6 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(cum_sum)
 
-layout cum_sum_inst::calc_output_layout(cum_sum_node const& node, kernel_impl_params const& impl_param) {
-    return impl_param.get_input_layout();
-}
-
 std::string cum_sum_inst::to_string(cum_sum_node const& node) {
     auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();

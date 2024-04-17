@@ -307,7 +307,7 @@ TEST(mvn_gpu_test, dynamic_across_channels_inside_sqrt_bfyx_normalize_variance_f
     topology.add(mvn("mvn", input_info("input"), true, 1e-10f, true, {1, 2, 3}));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
     network.set_input_data("input", input);
 
@@ -558,7 +558,7 @@ TEST(mvn_gpu_test, dynamic_within_channels_inside_sqrt_bfyx_normalize_variance_f
     topology.add(mvn("mvn", input_info("input"), true, 1e-10f, true, {2, 3}));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
     network.set_input_data("input", input);
 

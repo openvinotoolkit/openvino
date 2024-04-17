@@ -3,7 +3,6 @@
 //
 
 #include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reduce_prod.hpp"
@@ -17,8 +16,6 @@
 #include "openvino/op/constant.hpp"
 
 #include "intel_gpu/primitives/reduce.hpp"
-#include "intel_gpu/primitives/reorder.hpp"
-#include "intel_gpu/primitives/reshape.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -49,49 +46,6 @@ static void CreateReduceOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& o
                                     keep_dims);
 
     p.add_primitive(*op, reducePrim);
-
-    if (input_pshape.is_dynamic() || p.use_new_shape_infer()) {
-        return;
-    }
-
-    auto resultLayerName = layerName;
-    auto out_dims = op->get_output_shape(0).size();
-    if (out_dims == 3 && !keep_dims && rank >= 4) {
-        resultLayerName = layerName + "_reshape";
-        auto out_shape = op->get_output_shape(0);
-        cldnn::tensor outTensor;
-        switch (rank) {
-            case 6:
-                outTensor = cldnn::tensor(TensorValue(out_shape[0]), TensorValue(out_shape[1]),
-                                          1, TensorValue(out_shape[2]), 1, 1);
-            case 5:
-                outTensor = cldnn::tensor(TensorValue(out_shape[0]), TensorValue(out_shape[1]),
-                                          1, TensorValue(out_shape[2]), 1);
-            case 4:
-                outTensor = cldnn::tensor(TensorValue(out_shape[0]), TensorValue(out_shape[1]),
-                                          1, TensorValue(out_shape[2]));
-        }
-        auto reshape_prim = cldnn::reshape(resultLayerName, cldnn::input_info(layerName), outTensor);
-        p.add_primitive(*op, reshape_prim);
-    }
-
-    auto reorderLayerName = layerName + "_reorder";
-    cldnn::format out_format = cldnn::format::any;
-    auto out_dt = cldnn::element_type_to_data_type(op->get_output_element_type(0));
-    if (!keep_dims && rank > 4) {
-        if (rank - axes.size() == 6)
-            out_format = cldnn::format::bfwzyx;
-        else if (rank - axes.size() == 5)
-            out_format = cldnn::format::bfzyx;
-        else if (rank - axes.size() <= 4)
-            out_format = cldnn::format::bfyx;
-
-        auto reorder_prim = cldnn::reorder(reorderLayerName,
-                                           cldnn::input_info(resultLayerName),
-                                           out_format,
-                                           out_dt);
-        p.add_primitive(*op, reorder_prim);
-    }
 }
 
 static void CreateReduceMaxOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::ReduceMax>& op) {

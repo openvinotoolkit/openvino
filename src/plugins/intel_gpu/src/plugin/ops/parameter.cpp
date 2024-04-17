@@ -16,7 +16,6 @@
 
 #include "intel_gpu/primitives/input_layout.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
-#include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
 
 namespace ov {
@@ -24,9 +23,6 @@ namespace intel_gpu {
 
 static void CreateParameterOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Parameter>& op) {
     auto input_pshape = op->get_partial_shape();
-    if (!p.use_new_shape_infer() && input_pshape.size() < 4) {
-        input_pshape.insert(input_pshape.end(), 4 - input_pshape.size(), ov::Dimension(1));
-    }
 
     cldnn::format input_format = cldnn::format::get_default_format(input_pshape.size());
     auto element_type = convert_to_supported_device_type(op->get_output_element_type(0));

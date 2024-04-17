@@ -28,7 +28,7 @@ TEST(post_optimize_weights, fuse_reorder_to_weights_reorder_test) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     auto prog = program::build_program(engine, topology, config, false, true);
 
     reorder_factory rf;
@@ -57,7 +57,7 @@ TEST(post_optimize_weights, fuse_reorder_to_weights_reorder_test_dynamic) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     auto prog = program::build_program(engine, topology, config, false, true);
 
     reorder_factory rf;
@@ -88,7 +88,7 @@ TEST(post_optimize_weights, weights_reorder_constant_folding_test) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     auto prog = program::build_program(engine, topology, config, false, true);
 
@@ -140,7 +140,7 @@ TEST(post_optimize_weights, weights_reorder_constant_folding_test_dynamic) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     auto prog = program::build_program(engine, topology, config, false, true);
 
@@ -191,7 +191,7 @@ TEST(post_optimize_weights, fuse_only_with_supported_weights_layout) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     auto prog = program::build_program(engine, topology, config, false, true);
 
     reorder_factory rf;
@@ -223,7 +223,6 @@ TEST(post_optimize_weights, fuse_reorder_to_onednn_weights_reorder_test) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     if (engine.get_device_info().supports_immad) {
         ov::intel_gpu::ImplementationDesc fc_impl = { format::bfyx, "", impl_types::onednn };

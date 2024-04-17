@@ -17,10 +17,6 @@ namespace cldnn {
 // -----------------------------------------------
 GPU_DEFINE_PRIMITIVE_TYPE_ID(unique_count)
 
-layout unique_count_inst::calc_output_layout(const unique_count_node& node, const kernel_impl_params& impl_param) {
-    OPENVINO_THROW("Only calc_output_layouts should be used!");
-}
-
 template <typename ShapeType>
 std::vector<layout> unique_count_inst::calc_output_layouts(const unique_count_node& node,
                                                            const kernel_impl_params& impl_param) {
@@ -51,10 +47,6 @@ std::string unique_count_inst::to_string(const unique_count_node& node) {
 // unique_gather
 // -----------------------------------------------
 GPU_DEFINE_PRIMITIVE_TYPE_ID(unique_gather)
-
-layout unique_gather_inst::calc_output_layout(const unique_gather_node& node, const kernel_impl_params& impl_param) {
-    OPENVINO_THROW("Only calc_output_layouts should be used!");
-}
 
 template <typename ShapeType>
 std::vector<layout> unique_gather_inst::calc_output_layouts(const unique_gather_node& node,

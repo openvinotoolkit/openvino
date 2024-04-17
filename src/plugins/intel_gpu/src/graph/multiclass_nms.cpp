@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/multiclass_nms.hpp"
+#include "multiclass_nms_shape_inference.hpp"
 #include <string>
 
 #include "json_object.h"
@@ -40,39 +42,6 @@ std::vector<layout> multiclass_nms_inst::calc_output_layouts(multiclass_nms_node
 }
 
 template std::vector<layout> multiclass_nms_inst::calc_output_layouts<ov::PartialShape>(multiclass_nms_node const& node, const kernel_impl_params& impl_param);
-
-
-layout multiclass_nms_inst::calc_output_layout(const multiclass_nms_node& node, const kernel_impl_params& impl_param) {
-    const auto input_layout = impl_param.get_input_layout();
-    const auto attrs = impl_param.typed_desc<multiclass_nms>()->attrs;
-
-    const auto num_batches =
-        node.has_roisnum() ? node.roisnum().get_output_layout().batch() : node.scores().get_output_layout().batch();
-    auto num_classes =
-        node.has_roisnum() ? node.boxes().get_output_layout().batch() : node.scores().get_output_layout().feature();
-    const auto num_boxes = node.boxes().get_output_layout().feature();
-
-    // see shape_infer() call in MulticlassNmsIEInternal::validate_and_infer_types() - ignore_bg_class == true
-    if (attrs.background_class >= 0 && attrs.background_class < num_classes) {
-        num_classes = std::max(1, num_classes - 1);
-    }
-
-    int max_output_boxes_per_class = 0;
-    if (attrs.nms_top_k >= 0) {
-        max_output_boxes_per_class = std::min(num_boxes, attrs.nms_top_k);
-    } else {
-        max_output_boxes_per_class = num_boxes;
-    }
-
-    auto max_output_boxes_per_batch = max_output_boxes_per_class * num_classes;
-    if (attrs.keep_top_k >= 0) {
-        max_output_boxes_per_batch = std::min(max_output_boxes_per_batch, attrs.keep_top_k);
-    }
-
-    const auto dim = max_output_boxes_per_batch * num_batches;
-    constexpr auto output_size = 6; // 4 coordinates + 1 class + 1 score
-    return layout{input_layout.data_type, input_layout.format, {dim, output_size, 1, 1}};
-}
 
 std::string multiclass_nms_inst::to_string(const multiclass_nms_node& node) {
     const auto attrs = node.get_primitive()->attrs;

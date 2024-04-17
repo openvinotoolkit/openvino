@@ -20,13 +20,6 @@ std::vector<layout> ctc_loss_inst::calc_output_layouts(ctc_loss_node const& /*no
 
 template std::vector<layout> ctc_loss_inst::calc_output_layouts<ov::PartialShape>(ctc_loss_node const& node, const kernel_impl_params& impl_param);
 
-
-layout ctc_loss_inst::calc_output_layout(const ctc_loss_node& node, const kernel_impl_params& impl_param) {
-    auto input_layout = impl_param.get_input_layout();
-    std::vector<tensor::value_type> out_tensor = {input_layout.get_tensor().sizes().front(), 1, 1, 1};
-    return {input_layout.data_type, input_layout.format, tensor(input_layout.format, out_tensor)};
-}
-
 std::string ctc_loss_inst::to_string(const ctc_loss_node& node) {
     auto primitive = node.get_primitive();
     json_composite ctc_loss_info;

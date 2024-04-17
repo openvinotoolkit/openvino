@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,17 +17,14 @@ struct eye : public primitive_base<eye> {
     /// @brief Constructs eye primitive.
     /// @param id This primitive id.
     /// @param inputs List of primitive ids.
-    /// @param output_shape Tensor output shape
     /// @param ext_prim_id Primitive extra id (friendly name)
     /// @param shift Eye diagonal
     /// @param output_type Tensor output type
     eye(const primitive_id& id,
         const std::vector<input_info>& inputs,
-        const tensor& output_shape,
         const int32_t shift,
         const cldnn::data_types output_type)
         : primitive_base{id, inputs, 1, {optional_data_type(output_type)}},
-          output_shape{output_shape},
           shift{shift} {}
 
     tensor output_shape;
@@ -50,13 +47,11 @@ struct eye : public primitive_base<eye> {
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<eye>::save(ob);
-        ob << output_shape;
         ob << shift;
     }
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<eye>::load(ib);
-        ib >> output_shape;
         ib >> shift;
     }
 };

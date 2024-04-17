@@ -47,7 +47,7 @@ TEST(network_test, model_with_empty_input_is_not_dynamic) {
     topology.add(data("input1", const_mem));
     topology.add(concatenation("output", { input_info("input0"), input_info("input1") }, 1));
 
-    network net(engine, topology, {ov::intel_gpu::allow_new_shape_infer(true)});
+    network net(engine, topology);
 
     ASSERT_FALSE(net.is_dynamic());
 }
@@ -63,7 +63,7 @@ TEST(network_test, model_with_dynamic_input_is_dynamic) {
     topology.add(data("input1", const_mem));
     topology.add(concatenation("output", { input_info("input0"), input_info("input1") }, 1));
 
-    network net(engine, topology, {ov::intel_gpu::allow_new_shape_infer(true)});
+    network net(engine, topology);
 
     ASSERT_TRUE(net.is_dynamic());
 }
@@ -87,7 +87,7 @@ TEST(network_test, has_proper_event_for_in_order_queue) {
 
     auto config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::force_implementations(impl_forcing_map));
 
     network net(engine, topology, config);
@@ -133,7 +133,7 @@ TEST(network_test, has_proper_event_for_in_order_queue_optimized_out) {
 
     auto config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::force_implementations(impl_forcing_map));
 
     network net(engine, topology, config);
@@ -186,7 +186,7 @@ TEST(network_test, has_proper_event_for_in_order_queue_onednn) {
 
     auto config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::force_implementations(impl_forcing_map));
 
     network net(engine, topology, config);
@@ -233,7 +233,7 @@ TEST(network_test, scratchpad_test) {
     auto config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(false));
     config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::force_implementations(impl_forcing_map));
 
     network net1(engine, topology, config);

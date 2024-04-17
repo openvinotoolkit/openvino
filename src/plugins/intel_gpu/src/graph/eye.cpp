@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <eye_inst.h>
 #include "openvino/op/eye.hpp"
+#include <eye_inst.h>
 #include "eye_shape_inference.hpp"
 #include <json_object.h>
 
@@ -41,11 +41,6 @@ std::vector<layout> eye_inst::calc_output_layouts(eye_node const& /*node*/, cons
 }
 
 template std::vector<layout> eye_inst::calc_output_layouts<ov::PartialShape>(eye_node const& node, const kernel_impl_params& impl_param);
-
-layout eye_inst::calc_output_layout(eye_node const& node, const kernel_impl_params&) {
-    auto primitive = node.get_primitive();
-    return {*(primitive->output_data_types[0]), node.get_input_layout().format, primitive->output_shape};
-}
 
 std::string eye_inst::to_string(eye_node const& node) {
     auto node_info = node.desc_to_json();

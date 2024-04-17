@@ -575,7 +575,7 @@ public:
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
         network network(engine, topology, config);
 
         {
@@ -583,7 +583,7 @@ public:
 
             auto outputs = network.execute();
 
-            ASSERT_EQ(std::static_pointer_cast<fully_connected_inst>(network.get_primitive("relu1"))->output_memory_ptr()->buffer_ptr(), 
+            ASSERT_EQ(std::static_pointer_cast<fully_connected_inst>(network.get_primitive("relu1"))->output_memory_ptr()->buffer_ptr(),
                       std::static_pointer_cast<fully_connected_inst>(network.get_primitive("relu2"))->output_memory_ptr()->buffer_ptr());
         }
 
@@ -592,7 +592,7 @@ public:
 
             auto outputs = network.execute();
 
-            ASSERT_EQ(std::static_pointer_cast<fully_connected_inst>(network.get_primitive("relu1"))->output_memory_ptr()->buffer_ptr(), 
+            ASSERT_EQ(std::static_pointer_cast<fully_connected_inst>(network.get_primitive("relu1"))->output_memory_ptr()->buffer_ptr(),
                       std::static_pointer_cast<fully_connected_inst>(network.get_primitive("relu2"))->output_memory_ptr()->buffer_ptr());
         }
     }
@@ -628,7 +628,7 @@ public:
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
         network network(engine, topology, config);
 
         {

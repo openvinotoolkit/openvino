@@ -23,17 +23,6 @@ static void generate_anchors(unsigned base_size,
 
 GPU_DEFINE_PRIMITIVE_TYPE_ID(proposal)
 
-layout proposal_inst::calc_output_layout(proposal_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
-           "Output data type forcing is not supported for proposal_node!");
-    auto desc = impl_param.typed_desc<proposal>();
-    layout input_layout = impl_param.get_input_layout(cls_scores_index);
-
-    return layout(input_layout.data_type,
-                  format::bfyx,
-                  {input_layout.batch() * desc->post_nms_topn, CLDNN_ROI_VECTOR_SIZE, 1, 1});
-}
-
 template<typename ShapeType>
 std::vector<layout> proposal_inst::calc_output_layouts(proposal_node const& node, kernel_impl_params const& impl_param) {
     std::vector<layout> layouts;

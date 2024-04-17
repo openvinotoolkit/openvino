@@ -94,7 +94,6 @@ TEST(memory_reuse_realloc_reset_test, basic_conv_with_padding) {
                       reorder("output", input_info("conv"), format::bfyx, data_types::f32)); /*output padding*/
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"conv", {format::any, "", impl_types::ocl}}}));
 
     network network(engine, topology, config);
@@ -154,7 +153,7 @@ TEST(softmax_gpu_dynamic_f32_test_upper_bound, input_same_values) {
                data_types::f32,
                format::bfyx);
     auto config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     ov::intel_gpu::ImplementationDesc softmax_impl = { format::bfyx, "softmax_gpu_ref" };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "softmax", softmax_impl } }));
     network network(engine, topology(input_layout("input", in_layout),
@@ -242,7 +241,7 @@ TEST(dyn_shape_mem_test, igpu_shape_infer_dep_mem_type) {
                       reshape("reshape", input_info("reorder"), input_info("eltwise"), false, ov::PartialShape()));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
 
     auto input_mem = engine.allocate_memory(layout{ov::PartialShape{6, 1}, data_types::f32, format::bfyx});
@@ -343,7 +342,6 @@ TEST(memory_reuse_realloc_reset_test, basic_conv_with_padding_reorder) {
                       reorder("output", input_info("conv"), format::bfyx, data_types::f32)); /*output padding*/
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"conv", {format::any, "", impl_types::ocl}}}));
 
     network network(engine, topology, config);

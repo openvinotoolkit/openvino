@@ -5,7 +5,6 @@
 #include "loop_inst.h"
 #include "impls/registry/implementation_map.hpp"
 #include "register.hpp"
-#include "mutable_data_inst.h"
 #include "input_layout_inst.h"
 #include <vector>
 #include <algorithm>

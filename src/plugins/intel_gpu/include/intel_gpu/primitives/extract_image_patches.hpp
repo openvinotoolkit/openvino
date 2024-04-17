@@ -28,14 +28,12 @@ struct extract_image_patches : public primitive_base<extract_image_patches> {
                           const ov::Shape& sizes,
                           const ov::Strides& strides,
                           const ov::Shape& rates,
-                          const ov::op::PadType& auto_pad,
-                          const tensor& output_shape = tensor{})
+                          const ov::op::PadType& auto_pad)
         : primitive_base(id, {input}),
           sizes(sizes),
           strides(strides),
           rates(rates),
-          auto_pad(auto_pad),
-          output_shape(output_shape) {}
+          auto_pad(auto_pad) {}
 
     /// @brief Vector with sizes
     ov::Shape sizes;
@@ -45,8 +43,6 @@ struct extract_image_patches : public primitive_base<extract_image_patches> {
     ov::Shape rates;
     /// @brief Mode how the padding is calculated
     ov::op::PadType auto_pad;
-    /// @brief Shape of output layout
-    tensor output_shape;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -75,7 +71,6 @@ struct extract_image_patches : public primitive_base<extract_image_patches> {
         ob << strides;
         ob << rates;
         ob << make_data(&auto_pad, sizeof(ov::op::PadType));
-        ob << output_shape;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -84,7 +79,6 @@ struct extract_image_patches : public primitive_base<extract_image_patches> {
         ib >> strides;
         ib >> rates;
         ib >> make_data(&auto_pad, sizeof(ov::op::PadType));
-        ib >> output_shape;
     }
 };
 }  // namespace cldnn

@@ -28,7 +28,7 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
         {},
         {},
         "Concat",
-        "U8",
+        ov::element::u8.get_type_name(),
         1,
     },
     // with ReLU operation
@@ -39,7 +39,7 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
         {},
         {},
         "Concat",
-        "U8",
+        ov::element::u8.get_type_name(),
         1
     },
     // negative axis
@@ -50,7 +50,7 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
         {},
         {},
         "Concat",
-        "FP32",
+        ov::element::f32.get_type_name(),
         0
     },
     // Q/DQ
@@ -65,7 +65,7 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
             { 0.01f }
         },
         "Concat",
-        "U8",
+        ov::element::u8.get_type_name(),
         1
     },
     // Q/DQ with ReLU
@@ -80,7 +80,7 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
             { 0.01f }
         },
         "Concat",
-        "U8",
+        ov::element::u8.get_type_name(),
         1
     },
     // multi chanel
@@ -96,7 +96,7 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
         {},
         {},
         "Concat",
-        "U8",
+        ov::element::u8.get_type_name(),
         1
     },
     // Q/DQ with multi-channels
@@ -118,7 +118,7 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
             { {0.01f, 0.01f, 0.01f}, ov::element::f32, {1, 3, 1, 1} }
         },
         "Concat",
-        "U8",
+        ov::element::u8.get_type_name(),
         1
     },
     // Q/DQ with multi-channels subtruct
@@ -140,7 +140,7 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
             { 0.01f }
         },
         "Concat",
-        "U8",
+        ov::element::u8.get_type_name(),
         1
     },
 };

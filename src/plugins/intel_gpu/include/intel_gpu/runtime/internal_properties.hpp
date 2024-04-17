@@ -45,7 +45,6 @@ static constexpr Property<bool, PropertyMutability::RW> enable_memory_pool{"GPU_
 static constexpr Property<bool, PropertyMutability::RW> optimize_data{"GPU_OPTIMIZE_DATA"};
 static constexpr Property<bool, PropertyMutability::RW> allow_static_input_reorder{"GPU_ALLOW_STATIC_INPUT_REORDER"};
 static constexpr Property<bool, PropertyMutability::RW> partial_build_program{"GPU_PARTIAL_BUILD"};
-static constexpr Property<bool, PropertyMutability::RW> allow_new_shape_infer{"GPU_ALLOW_NEW_SHAPE_INFER"};
 static constexpr Property<bool, PropertyMutability::RW> use_only_static_kernels_for_dynamic_shape{"GPU_USE_ONLY_STATIC_KERNELS_FOR_DYNAMIC_SHAPE"};
 static constexpr Property<std::string, PropertyMutability::RW> dump_graphs{"GPU_DUMP_GRAPHS"};
 static constexpr Property<std::vector<std::string>, PropertyMutability::RW> custom_outputs{"GPU_CUSTOM_OUTPUTS"};

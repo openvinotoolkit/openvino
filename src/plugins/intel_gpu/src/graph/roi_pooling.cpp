@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/op/psroi_pooling.hpp"
 #include "roi_pooling_inst.h"
 #include "roi_pooling_shape_inference.hpp"
 #include "psroi_pooling_shape_inference.hpp"
@@ -12,20 +14,6 @@
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(roi_pooling)
-
-layout roi_pooling_inst::calc_output_layout(roi_pooling_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
-           "Output data type forcing is not supported for roi_pooling_node!");
-    auto desc = impl_param.typed_desc<roi_pooling>();
-    layout data_layout = impl_param.get_input_layout(0);
-    layout rois_layout = impl_param.get_input_layout(1);
-    int num_rois = rois_layout.batch();
-    int out_fm = desc->position_sensitive ? desc->output_dim : data_layout.feature();
-
-    return layout(data_layout.data_type,
-                  data_layout.format,
-                  {num_rois, out_fm, desc->pooled_width, desc->pooled_height});
-}
 
 template<typename ShapeType>
 std::vector<layout> roi_pooling_inst::calc_output_layouts(roi_pooling_node const& node, kernel_impl_params const& impl_param) {

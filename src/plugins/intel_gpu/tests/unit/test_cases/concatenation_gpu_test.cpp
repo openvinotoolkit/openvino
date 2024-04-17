@@ -113,7 +113,7 @@ void start_concat_test_dynamic(impl_types impl_type) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     if (impl_type != impl_types::any) {
         auto force_impl = ov::intel_gpu::ImplementationDesc{ format::bfyx, "", impl_type };
         config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {primitive_id("concat"), force_impl} }));
@@ -334,7 +334,7 @@ TEST(concat_gpu, dynamic_6d_f) {
                           data_types::f32)
     );
 
-    ExecutionConfig config{ov::intel_gpu::allow_new_shape_infer(true)};
+    ExecutionConfig config;
 
     auto network = cldnn::network::build_network(engine, topology, config);
 
@@ -533,7 +533,7 @@ TEST(concat_gpu, pooling_dynamic_input_no_exception) {
                       reorder("reorder", input_info("concat"), reorder_layout));
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     network network(engine, topology, config);
     network.set_input_data("input0", input0);

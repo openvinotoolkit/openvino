@@ -1052,7 +1052,7 @@ TEST(softmax_gpu_bfyx_f32, normalize_f_dynamic) {
     };
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
     network.set_input_data("input", input);
 
@@ -1157,7 +1157,7 @@ TEST(softmax_gpu_bfyx_f32, bf_opt_normalize_f_dynamic) {
     };
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
     network.set_input_data("input", input);
 
@@ -1210,7 +1210,7 @@ static void run_softmax_bfyx_opt(const int64_t b, const int64_t f, const int64_t
     auto& engine = get_test_engine();
     auto config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     ov::intel_gpu::ImplementationDesc softmax_bf_kernel = {format::bfyx, "softmax_gpu_bf"};
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"softmax", softmax_bf_kernel}}));
 

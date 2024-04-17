@@ -12,18 +12,6 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(quantize)
 
-layout quantize_inst::calc_output_layout(quantize_node const& node, kernel_impl_params const& impl_param) {
-    auto desc = impl_param.typed_desc<quantize>();
-
-    auto input_layout = impl_param.get_input_layout();
-    auto output_format = input_layout.format;
-    auto out_dt = input_layout.data_type;
-    if (desc->output_data_types[0])
-        out_dt = *desc->output_data_types[0];
-
-    return layout{out_dt, output_format, input_layout.get_tensor()};
-}
-
 std::string quantize_inst::to_string(quantize_node const& node) {
     auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();

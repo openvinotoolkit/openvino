@@ -25,18 +25,7 @@ static void CreateGatherElementsOp(ProgramBuilder& p, const std::shared_ptr<ov::
     OPENVINO_ASSERT(axis >= 0 && axis < static_cast<int64_t>(rank),
                     "GatherElements axis is not correspond to number of dimensions");
 
-    std::shared_ptr<cldnn::gather_elements> primitive = nullptr;
-    if (op->get_output_partial_shape(0).is_dynamic() || p.use_new_shape_infer()) {
-        primitive = std::make_shared<cldnn::gather_elements>(layerName, inputs[0], inputs[1], axis);
-    } else {
-        auto outLayout = cldnn::format::get_default_format(op->get_output_shape(0).size());
-        primitive = std::make_shared<cldnn::gather_elements>(layerName,
-                                                             inputs[0],
-                                                             inputs[1],
-                                                             outLayout,
-                                                             tensor_from_dims(op->get_output_shape(0)),
-                                                             axis);
-    }
+    auto primitive = std::make_shared<cldnn::gather_elements>(layerName, inputs[0], inputs[1], axis);
 
     p.add_primitive(*op, primitive);
 }

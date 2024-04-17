@@ -25,15 +25,16 @@ struct batch_to_space_impl : typed_primitive_impl_ocl<batch_to_space> {
         const auto& primitive = impl_param.typed_desc<batch_to_space>();
         auto params = get_default_params<kernel_selector::batch_to_space_params>(impl_param);
 
+        auto out_rank = impl_param.output_layouts[0].get_rank();
         if (primitive->shape_constant) {
             params.block_type = kernel_selector::base_params::ArgType::Constant;
-            params.block_shape = convert_dim_vector(primitive->block_shape);
+            params.block_shape = convert_vec_to_dim_tensor(primitive->block_shape, out_rank, 1);
 
             params.begin_type = kernel_selector::base_params::ArgType::Constant;
-            params.crops_begin = convert_dim_vector(primitive->crops_begin);
+            params.crops_begin = convert_vec_to_dim_tensor(primitive->crops_begin, out_rank, 0);
 
             params.end_type = kernel_selector::base_params::ArgType::Constant;
-            params.crops_end = convert_dim_vector(primitive->crops_end);
+            params.crops_end = convert_vec_to_dim_tensor(primitive->crops_end, out_rank, 0);
         } else {
             params.block_input_index = 1;
             params.block_type = kernel_selector::base_params::ArgType::Input;

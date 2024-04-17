@@ -27,7 +27,7 @@ TEST(reorder_transfer, transfer_per_permute) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     auto prog = program::build_program(engine, topology, config, false, true);
 
     for (auto& node : prog->get_processing_order()) {

@@ -81,8 +81,6 @@ public:
     }
 
     bool is_shape_infer_dep(void) const {
-        if (!myprog.is_new_shape_infer())
-            return false;
         for (auto u : users) {
             for (auto dep_idx : u->get_shape_infer_dependencies()) {
                 if (u->get_dependencies().size() <= dep_idx) {
@@ -241,8 +239,6 @@ public:
         set_output_padding(padding::max(padd, output_layouts[idx].data_padding), idx);
     }
 
-    // only calculated output layout (for external usage), does not modify/use cached output layout nor invalidate users
-    layout calc_output_layout() const;
     std::vector<layout> calc_output_layouts() const;
 
     // uses cached output layout if valid, if not calls 'calc_output_layout' and stores its result + invalidate all

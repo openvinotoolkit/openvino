@@ -39,10 +39,6 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(slice)
 slice_inst::typed_primitive_inst(network& network, slice_node const& node)
     : parent(network, node) {}
 
-layout slice_inst::calc_output_layout(slice_node const& node, kernel_impl_params const& impl_param) {
-    return calc_output_layouts<ov::PartialShape>(node, impl_param)[0];
-}
-
 template <typename ShapeType>
 inline std::vector<layout> slice_inst::calc_output_layouts(const slice_node&, const kernel_impl_params& impl_param) {
     std::vector<ShapeType> input_shapes{impl_param.input_layouts[0].get<ShapeType>()};

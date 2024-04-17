@@ -40,7 +40,7 @@ TEST(handle_reshape, dont_remove_reshape_that_changes_rank) {
     topology.add(eltwise("e2", input_info("reshape"), input_info("data1"), eltwise_mode::sum));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto prog = program::build_program(engine, topology, config, false, true);
 
@@ -69,7 +69,7 @@ TEST(handle_reshape, dont_remove_reshape_that_changes_rank_chain) {
     topology.add(eltwise("e2", input_info("reshape2"), input_info("data1"), eltwise_mode::sum));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto prog = program::build_program(engine, topology, config, false, true);
 
@@ -144,7 +144,7 @@ TEST(handle_reshape, correct_parameters_propagation) {
     topology.add(reorder("reorder", input_info("reshape"), format::bfyx, data_types::f32));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto prog = program::build_program(engine, topology, config, false, true);
 
@@ -184,7 +184,7 @@ TEST(handle_reshape, correct_parameters_propagation_2_inputs) {
     topology.add(reorder("reorder", input_info("reshape"), format::bfyx, data_types::f32));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto prog = program::build_program(engine, topology, config, false, true);
 
@@ -236,7 +236,7 @@ TEST(handle_reshape, reshape_input_reorder) {
     topology.add(reorder("reorder", input_info("eltw"), format::bfyx, data_types::f32));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto prog = program::build_program(engine, topology, config);
 
@@ -297,7 +297,7 @@ TEST(handle_reshape, reshape_opt_out_layout_update) {
     topology.add(reorder("reorder", input_info("permute"), format::b_fs_yx_fsv16, data_types::f32));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto prog = program::build_program(engine, topology, config, false, true);
 
