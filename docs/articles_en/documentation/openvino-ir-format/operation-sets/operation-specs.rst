@@ -196,7 +196,7 @@ Operation Specifications
    ScatterElementsUpdate-3 <operation-specs/movement/scatter-elements-update-3>
    ScatterElementsUpdate-12 <operation-specs/movement/scatter-elements-update-12>
    ScatterNDUpdate-3 <operation-specs/movement/scatter-nd-update-3>
-   ScatterNDUpdate-14 <operation-specs/movement/scatter-nd-update-14>
+   ScatterNDUpdate-15 <operation-specs/movement/scatter-nd-update-15>
    ScatterUpdate-3 <operation-specs/movement/scatter-update-3>
    Select-1 <operation-specs/condition/select-1>
    Selu-1 <operation-specs/activation/selu-1>
