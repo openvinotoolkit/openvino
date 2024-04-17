@@ -578,13 +578,13 @@ constexpr auto iterator(const void* ptr) -> decltype(iterator<ET, T>(reinterpret
 }
 
 /**
- * @brief Gets size of N elements of given precision in bytes.
+ * @brief Gets size of memory in bytes for N elements of given precision.
  *
  * @param type  Element precision.
  * @param n     Number of elements.
  *
  * @return Elements size in bytes.
  */
-OPENVINO_API size_t get_byte_size(const element::Type& type, const size_t n);
+OPENVINO_API size_t get_memory_size(const element::Type& type, const size_t n);
 }  // namespace element
 }  // namespace ov
