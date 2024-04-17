@@ -84,6 +84,23 @@ public:
      */
     Napi::Value is_dynamic(const Napi::CallbackInfo& info);
 
+    /**
+     * @brief Sets a friendly name for a model.
+     * @param info Contains information about the environment and passed arguments
+     * this method accepts only one argument of type String,
+     * throws Napi::Undefined if more than 1 arguments are provided or the provided argument is not of type String
+     * @return Napi::Undefined
+     */
+    Napi::Value set_friendly_name(const Napi::CallbackInfo& info);
+
+    /**
+     * @brief Gets the friendly name for a model, if not set, gets the unique name
+     * @param info Contains information about the environment and passed arguments
+     * this method does not accept any arguments. If arguments are provided it throws ov::Exception.
+     * @return Napi::String containing friendly name
+     */
+    Napi::Value get_friendly_name(const Napi::CallbackInfo& info);
+
 private:
     std::shared_ptr<ov::Model> _model;
     ov::Core _core;

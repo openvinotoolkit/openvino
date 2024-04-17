@@ -20,6 +20,8 @@ Napi::Function ModelWrap::get_class(Napi::Env env) {
                         InstanceMethod("output", &ModelWrap::get_output),
                         InstanceMethod("input", &ModelWrap::get_input),
                         InstanceMethod("isDynamic", &ModelWrap::is_dynamic),
+                        InstanceMethod("setFriendlyName", &ModelWrap::set_friendly_name),
+                        InstanceMethod("getFriendlyName", &ModelWrap::get_friendly_name),
                         InstanceAccessor<&ModelWrap::get_inputs>("inputs"),
                         InstanceAccessor<&ModelWrap::get_outputs>("outputs")});
 }
@@ -127,4 +129,28 @@ Napi::Value ModelWrap::is_dynamic(const Napi::CallbackInfo& info) {
     }
     const auto result = _model->is_dynamic();
     return Napi::Boolean::New(env, result);
+}
+
+Napi::Value ModelWrap::set_friendly_name(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    try {
+        if (info.Length() != 1 || !info[0].IsString()) {
+            OPENVINO_THROW("Expected a single string argument for the friendly name");
+        }
+        const auto name = info[0].As<Napi::String>().Utf8Value();
+        _model->set_friendly_name(name);
+    } catch (const std::exception& e) {
+        reportError(env, e.what());
+    }
+    return env.Undefined();
+}
+
+Napi::Value ModelWrap::get_friendly_name(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    if (info.Length() > 0) {
+        reportError(env, "getFriendlyName() does not take any arguments");
+        return env.Undefined();
+    }
+    const auto friendly_name = _model->get_friendly_name();
+    return Napi::String::New(env, friendly_name);
 }
