@@ -85,11 +85,7 @@ struct Signature {
     static void check_type(const napi_valuetype expected_type, const std::string key, const Napi::Value& value) {
         napi_valuetype real_type = value.Type();
 
-        if (real_type == expected_type)
-            return;
-
-        std::string error_message = Signature::get_error_message(key, expected_type, real_type);
-        throw std::runtime_error(error_message);
+        OPENVINO_ASSERT(real_type == expected_type, get_error_message(key, expected_type, real_type));
     }
 
     static const std::string get_error_message(std::string key,
