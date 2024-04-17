@@ -152,6 +152,7 @@ public:
     }
 
     void dump(uint32_t id, uint32_t iter, std::string dump_dir_path = "");
+    size_t get_total_mem_pool_size();
 
 private:
     void dump_to_screen(uint32_t id, uint32_t iter);

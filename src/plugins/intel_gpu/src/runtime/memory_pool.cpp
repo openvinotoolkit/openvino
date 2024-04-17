@@ -311,6 +311,20 @@ inline float get_percentage(size_t size, size_t total_size) {
     return (static_cast<float>(size) * 100.0f / total_size);
 }
 
+size_t memory_pool::get_total_mem_pool_size() {
+    size_t total_mem_pool_size = 0;
+    for (auto mem : _non_padded_pool) {
+        total_mem_pool_size += mem.first;
+    }
+
+    for (auto mem : _padded_pool) {
+        for (auto record : mem.second) {
+            total_mem_pool_size += record._memory->size();
+        }
+    }
+    return total_mem_pool_size;
+}
+
 void memory_pool::dump(uint32_t net_id, uint32_t iter, std::string dump_dir_path) {
     dump_to_screen(net_id, iter);
     if (!dump_dir_path.empty())
