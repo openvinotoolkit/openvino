@@ -53,5 +53,32 @@ static constexpr ov::Property<uint64_t, ov::PropertyMutability::RO> device_total
  */
 static constexpr ov::Property<uint32_t, ov::PropertyMutability::RO> driver_version{"NPU_DRIVER_VERSION"};
 
+/**
+ * @brief [Only for NPU plugin]
+ * Type: pcie_info
+ * Read-only property to get NPU pcie information (for both discrete/integrated NPU devices)
+ * @ingroup ov_runtime_npu_prop_cpp_api
+ */
+
+struct PCIInfo {
+    /**
+     * @brief PCI domain ID
+     */
+    uint32_t domain;
+    /**
+     * @brief PCI bus ID
+     */
+    uint32_t bus;
+    /**
+     * @brief PCI device ID
+     */
+    uint32_t device;
+    /**
+     * @brief PCI function ID
+     */
+    uint32_t function;
+};
+static constexpr ov::Property<PCIInfo, ov::PropertyMutability::RO> pci_info{"NPU_PCI_INFO"};
+
 }  // namespace intel_npu
 }  // namespace ov

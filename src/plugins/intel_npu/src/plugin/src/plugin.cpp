@@ -380,6 +380,12 @@ Plugin::Plugin()
           [&](const Config& config) {
               return _metrics->GetDriverVersion();
           }}},
+        {ov::intel_npu::pci_info.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [&](const Config& config) {
+              return _metrics->GetPciInfo(get_specified_device_name(config));
+          }}},
         // NPU Private
         // =========
         {ov::intel_npu::dma_engines.name(),

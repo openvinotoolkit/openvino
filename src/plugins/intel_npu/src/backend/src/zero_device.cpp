@@ -20,6 +20,10 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
     zeroUtils::throwOnFail("zeDeviceGetProperties",
                            zeDeviceGetProperties(_initStructs->getDevice(), &device_properties));
 
+    pci_properties.stype = ZE_STRUCTURE_TYPE_PCI_EXT_PROPERTIES;
+    zeroUtils::throwOnFail("zeDevicePciGetPropertiesExt",
+                           zeDevicePciGetPropertiesExt(_initStructs->getDevice(), &pci_properties));
+
     std::vector<ze_command_queue_group_properties_t> command_group_properties;
     uint32_t command_queue_group_count = 0;
     // Discover all command queue groups
@@ -108,6 +112,13 @@ uint64_t ZeroDevice::getTotalMemSize() const {
         "pfnQueryContextMemory",
         _graph_ddi_table_ext->pfnQueryContextMemory(_initStructs->getContext(), ZE_GRAPH_QUERY_MEMORY_DDR, &query));
     return query.total;
+}
+
+ov::intel_npu::PCIInfo ZeroDevice::getPciInfo() const {
+    return ov::intel_npu::PCIInfo{pci_properties.address.domain,
+                                  pci_properties.address.bus,
+                                  pci_properties.address.device,
+                                  pci_properties.address.function};
 }
 
 std::shared_ptr<SyncInferRequest> ZeroDevice::createInferRequest(

@@ -66,6 +66,7 @@ public:
     virtual uint32_t getMaxNumSlices() const;
     virtual uint64_t getAllocMemSize() const;
     virtual uint64_t getTotalMemSize() const;
+    virtual ov::intel_npu::PCIInfo getPciInfo() const;
 
     virtual std::shared_ptr<SyncInferRequest> createInferRequest(
         const std::shared_ptr<const ICompiledModel>& compiledModel,
