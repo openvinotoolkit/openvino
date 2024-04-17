@@ -380,10 +380,12 @@ void memory_pool::dump_to_screen(uint32_t net_id, uint32_t iter) {
         GPU_DEBUG_COUT <<  "   - min of the memory pool entry: " << min_percentage << std::endl;
         GPU_DEBUG_COUT <<  "   - max of the memory pool entry: " << max_percentage << std::endl;
     }
-    GPU_DEBUG_COUT << "========== non-padded pool efficiency: "
-                    << std::to_string(static_cast<float>(total_mem_request / total_mem_pool_size))
-                    << " (Total memory request : " << get_mb_size(total_mem_request) << "MB"
-                    << " / Total meomry pool size : " << get_mb_size(total_mem_pool_size) << "MB) ==========" << std::endl;
+    if (total_mem_pool_size > 0.f) {
+        GPU_DEBUG_COUT << "========== non-padded pool efficiency: "
+            << std::to_string(static_cast<float>(total_mem_request / total_mem_pool_size))
+            << " (Total memory request : " << get_mb_size(total_mem_request) << "MB"
+            << " / Total meomry pool size : " << get_mb_size(total_mem_pool_size) << "MB) ==========" << std::endl;
+    }
     GPU_DEBUG_COUT << "========== padded pool (" << _padded_pool.size() << " records) ==========" << std::endl;
     total_mem_request = 0.f;
     total_mem_pool_size = 0.f;
@@ -408,9 +410,11 @@ void memory_pool::dump_to_screen(uint32_t net_id, uint32_t iter) {
             GPU_DEBUG_COUT << "   - max of the memory pool entry: " << max_percentage << std::endl;
         }
     }
-    GPU_DEBUG_COUT << "========== padded pool efficiency: "
-                    << std::to_string(static_cast<float>(total_mem_request / total_mem_pool_size))
-                    << " (Total memory request : " << get_mb_size(total_mem_request) << "MB"
-                    << " / Total meomry pool size : " << get_mb_size(total_mem_pool_size) << "MB) ==========" << std::endl;
+    if (total_mem_pool_size > 0.f) {
+        GPU_DEBUG_COUT << "========== padded pool efficiency: "
+            << std::to_string(static_cast<float>(total_mem_request / total_mem_pool_size))
+            << " (Total memory request : " << get_mb_size(total_mem_request) << "MB"
+            << " / Total meomry pool size : " << get_mb_size(total_mem_pool_size) << "MB) ==========" << std::endl;
+    }
 }
 }  // namespace cldnn
