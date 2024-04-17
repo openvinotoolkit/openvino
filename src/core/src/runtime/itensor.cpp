@@ -23,7 +23,7 @@ size_t ITensor::get_size() const {
 }
 
 size_t ITensor::get_byte_size() const {
-    return element::get_byte_size(get_element_type(), get_size());
+    return element::get_memory_size(get_element_type(), get_size());
 }
 
 bool ITensor::is_continuous() const {
