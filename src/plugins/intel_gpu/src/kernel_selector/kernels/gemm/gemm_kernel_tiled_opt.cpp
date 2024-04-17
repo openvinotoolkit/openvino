@@ -156,20 +156,6 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
         const std::string not_divisible_k = "(" + leftover_k + "!=0)";
         const std::string full_iteration_k = "(" + k_size + "/" + std::to_string(tuning_data.tile_k_size) + ")";
 
-        bool tile_k_may_have_leftover = false;
-        if (k_size.find("shape_info") == std::string::npos) {
-            tile_k_may_have_leftover = ((std::stoi(k_size) % tuning_data.tile_k_size) != 0);
-        } else {
-            tile_k_may_have_leftover = true;
-        }
-
-        bool tile_n_may_have_leftover = false;
-        if (n_size.find("shape_info") == std::string::npos) {
-            tile_n_may_have_leftover = ((std::stoi(n_size) % tuning_data.tile_n_size) != 0);
-        } else {
-            tile_n_may_have_leftover = true;
-        }
-
         jit.AddConstants({
             MakeJitConstant("M", m_size),
             MakeJitConstant("K", k_size),
@@ -182,10 +168,8 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
             MakeJitConstant("TILE_N", tuning_data.tile_n_size),
             MakeJitConstant("K_FULL_ITERATIONS", full_iteration_k),
             MakeJitConstant("TILE_M_NOT_DIVISIBLE", not_divisible_m),
-            MakeJitConstant("TILE_K_NOT_DIVISIBLE", tile_k_may_have_leftover),
-            MakeJitConstant("TILE_K_NOT_DIVISIBLE_CALC", not_divisible_k),
-            MakeJitConstant("TILE_N_NOT_DIVISIBLE", tile_n_may_have_leftover),
-            MakeJitConstant("TILE_N_NOT_DIVISIBLE_CALC", not_divisible_n),
+            MakeJitConstant("TILE_K_NOT_DIVISIBLE", not_divisible_k),
+            MakeJitConstant("TILE_N_NOT_DIVISIBLE", not_divisible_n),
             MakeJitConstant("TILE_M_LEFTOVER", leftover_m),
             MakeJitConstant("TILE_K_LEFTOVER", leftover_k),
             MakeJitConstant("TILE_N_LEFTOVER", leftover_n),
@@ -356,7 +340,54 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
 }
 
 KernelsData GemmKernelTiledOpt::GetKernelsData(const Params& params) const {
-    return GetCommonKernelsData(params);
+    if (!Validate(params)) {
+        return KernelsData();
+    }
+
+    const auto& prim_params = static_cast<const gemm_params&>(params);
+    size_t num_kernels = params.is_shape_agnostic ? 4 : 1;
+    auto dispatchData = SetDefault(prim_params);
+    KernelData k_data = KernelData::Default<gemm_params>(params, num_kernels);
+    GetUpdateDispatchDataFunc(k_data);
+    auto cldnn_jit = GetJitConstants(prim_params);
+    for (size_t i = 0; i < num_kernels; i++) {
+        if (params.is_shape_agnostic) {
+            cldnn_jit.RemoveConstant("TILE_K_NOT_DIVISIBLE");
+            cldnn_jit.RemoveConstant("TILE_N_NOT_DIVISIBLE");
+            if (i == 0) {
+                cldnn_jit.AddConstant(MakeJitConstant("TILE_K_NOT_DIVISIBLE", "0"));
+                cldnn_jit.AddConstant(MakeJitConstant("TILE_N_NOT_DIVISIBLE", "0"));
+            } else if (i == 1) {
+                cldnn_jit.AddConstant(MakeJitConstant("TILE_K_NOT_DIVISIBLE", "0"));
+                cldnn_jit.AddConstant(MakeJitConstant("TILE_N_NOT_DIVISIBLE", "1"));
+            } else if (i == 2) {
+                cldnn_jit.AddConstant(MakeJitConstant("TILE_K_NOT_DIVISIBLE", "1"));
+                cldnn_jit.AddConstant(MakeJitConstant("TILE_N_NOT_DIVISIBLE", "0"));
+            } else if (i == 3) {
+                cldnn_jit.AddConstant(MakeJitConstant("TILE_K_NOT_DIVISIBLE", "1"));
+                cldnn_jit.AddConstant(MakeJitConstant("TILE_N_NOT_DIVISIBLE", "1"));
+            }
+        }
+        auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params, i);
+        auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
+
+        auto& kernel = k_data.kernels[i];
+        FillCLKernelData(kernel,
+                        dispatchData,
+                        params.engineInfo,
+                        kernelName,
+                        jit,
+                        entry_point,
+                        EXE_MODE_DEFAULT,
+                        false,
+                        false,
+                        (uint32_t)prim_params.inputs.size(),
+                        GetFusedPrimitiveInputsCount(params),
+                        1,
+                        prim_params.is_shape_agnostic);
+    }
+
+    return {k_data};
 }
 
 KernelsPriority GemmKernelTiledOpt::GetKernelsPriority(const Params& params) const {
@@ -403,5 +434,65 @@ bool GemmKernelTiledOpt::Validate(const Params& params) const {
             return false;
 
     return true;
+}
+
+void GemmKernelTiledOpt::GetUpdateDispatchDataFunc(KernelData& kd) const {
+    if (kd.kernels.size() == 1) {
+        Parent::GetUpdateDispatchDataFunc(kd);
+    } else {
+        kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+            const auto& prim_params = static_cast<const gemm_params&>(params);
+
+            auto getTensorValue = [](const DataTensor& t, const int64_t dim_idx) -> size_t {
+                switch (dim_idx) {
+                    case 1:
+                        return t.Feature().v;
+                    case 2:
+                        return t.U().v;
+                    case 3:
+                        return t.V().v;
+                    case 4:
+                        return t.W().v;
+                    case 5:
+                        return t.Z().v;
+                    case 6:
+                        return t.Y().v;
+                    case 7:
+                        return t.X().v;
+                    default:
+                        return t.Batch().v;
+                }
+            };
+
+            GemmTuningData tuning_data = SetTuningParams(prim_params);
+            auto input0_dims = ConvTo8dims(prim_params.input0_order);
+            auto input1_dims = ConvTo8dims(prim_params.input1_order);
+            auto k_size = getTensorValue(prim_params.inputs[0], input0_dims[7]);
+            auto n_size = getTensorValue(prim_params.inputs[1], input1_dims[7]);
+            bool not_divisible_k = ((k_size % tuning_data.tile_k_size) != 0);
+            bool not_divisible_n = ((n_size % tuning_data.tile_n_size) != 0);
+            size_t execute_kernel_idx = 0;
+            if (not_divisible_k == false && not_divisible_n == false) {
+                execute_kernel_idx = 0;
+            } else if (not_divisible_k == false && not_divisible_n == true) {
+                execute_kernel_idx = 1;
+            } else if (not_divisible_k == true && not_divisible_n == false) {
+                execute_kernel_idx = 2;
+            } else if (not_divisible_k == true && not_divisible_n == true) {
+                execute_kernel_idx = 3;
+            }
+
+            auto dispatchData = SetDefault(prim_params);
+            for (size_t i = 0; i < kd.kernels.size(); i++) {
+                kd.kernels[i].params.workGroups.global = dispatchData.gws;
+                kd.kernels[i].params.workGroups.local = dispatchData.lws;
+                if (execute_kernel_idx == i) {
+                    kd.kernels[i].skip_execution = KernelData::SkipKernelExecution(prim_params);
+                } else {
+                    kd.kernels[i].skip_execution = true;
+                }
+            }
+        };
+    }
 }
 }  // namespace kernel_selector
