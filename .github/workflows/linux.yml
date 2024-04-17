@@ -510,7 +510,7 @@ jobs:
 
   TensorFlow_Models_Tests_Nightly_TF_HUB:
     name: TensorFlow TF Hub Models tests
-    if: ${{ github.event_name == 'schedule' }}
+    # if: ${{ github.event_name == 'schedule' }}
     needs: [ Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
@@ -520,7 +520,7 @@ jobs:
 
   TensorFlow_Models_Tests_Nightly_HF:
     name: TensorFlow Hugging Face Models tests
-    if: ${{ github.event_name == 'schedule' }}
+    # if: ${{ github.event_name == 'schedule' }}
     needs: [ Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
