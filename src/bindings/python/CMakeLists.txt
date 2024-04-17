@@ -320,7 +320,7 @@ if(ENABLE_PYTHON_PACKAGING)
     # install OpenVINO Python API
 
     set(ov_python_package_prefix "${CMAKE_CURRENT_BINARY_DIR}/openvino/install_${pyversion}")
-    set(ov_install_lib "${python_package_prefix}/lib/${python_versioned_folder}/${ov_site_packages}")
+    set(ov_install_lib "${ov_python_package_prefix}/lib/${python_versioned_folder}/${ov_site_packages}")
     set(openvino_meta_info_subdir "openvino-${OpenVINO_VERSION}-py${python_xy}.egg-info")
     set(openvino_meta_info_file "${ov_install_lib}/${openvino_meta_info_subdir}/PKG-INFO")
 
