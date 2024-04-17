@@ -20,6 +20,33 @@ from openvino.runtime.utils.types import get_element_type
 
 from tests.test_transformations.utils.utils import expect_exception
 
+def test_writing_doc():
+    model_param1 = ops.parameter(PartialShape([2, 2]))
+    model_param2 = ops.parameter(PartialShape([2, 2]))
+    model_add = ops.add(model_param1, model_param2)
+    model_abs = ops.abs(model_add)
+    model_relu = ops.relu(model_abs)
+
+    pattern_abs = ops.abs(AnyInput())
+    pattern_relu = ops.relu(pattern_abs)
+
+    matcher = Matcher(pattern_relu, "FindPattern")
+
+    assert matcher.match(model_relu)
+
+def test_writing_doc1():
+    model_param1 = ops.parameter(PartialShape([2, 2]))
+    model_param2 = ops.parameter(PartialShape([2, 2]))
+    model_add = ops.add(model_param1, model_param2)
+    model_abs = ops.abs(model_add)
+    model_relu = ops.relu(model_abs)
+
+    pattern_abs = WrapType("opset13.Abs", AnyInput())
+    pattern_relu = WrapType("opset13.Relu", pattern_abs)
+
+    matcher = Matcher(pattern_relu, "FindPattern")
+
+    assert matcher.match(model_relu)
 
 def test_wrap_type_pattern_type():
     last_opset_number = 15
