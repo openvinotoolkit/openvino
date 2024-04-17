@@ -15,13 +15,13 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-/// Snippet represents subgraph node in CPU plugin
+/// Subgraph represents subgraph node in CPU plugin
 /// potentially, snippet can be placed as a postop to any support operation while it doesn't support postops itself
 /// precision: fp32
-class Snippet : public Node {
+class Subgraph : public Node {
 public:
-    Snippet(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
-    ~Snippet() override = default;
+    Subgraph(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
+    ~Subgraph() override = default;
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -40,7 +40,7 @@ public:
     void execute(dnnl::stream strm) override;
     void executeDynamicImpl(dnnl::stream strm) override;
 
-    struct SnippetAttrs {
+    struct SubgraphAttrs {
         // Local copy of subgraph node for canonization & code generation
         std::shared_ptr<snippets::op::Subgraph> snippet;
         uint64_t bodyHash;
@@ -68,26 +68,26 @@ private:
     std::vector<MemoryPtr> srcMemPtrs = {};
     std::vector<MemoryPtr> dstMemPtrs = {};
 
-    mutable SnippetAttrs snippetAttrs;
+    mutable SubgraphAttrs snippetAttrs;
     bool is_dynamic = false;
 
-    class SnippetExecutor {
+    class SubgraphExecutor {
         public:
-            SnippetExecutor(SnippetAttrs attrs, bool is_dynamic);
+            SubgraphExecutor(SubgraphAttrs attrs, bool is_dynamic);
             virtual void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) = 0;
-            virtual ~SnippetExecutor() = default;
+            virtual ~SubgraphExecutor() = default;
             std::shared_ptr<IShapeInfer> shapeInference = nullptr;
 
         protected:
-            SnippetAttrs snippetAttrs;
+            SubgraphAttrs snippetAttrs;
             bool is_dynamic = false;
     };
 
-    std::shared_ptr<SnippetExecutor> execPtr = nullptr;
+    std::shared_ptr<SubgraphExecutor> execPtr = nullptr;
 
-    class SnippetJitExecutor : public SnippetExecutor {
+    class SubgraphJitExecutor : public SubgraphExecutor {
         public:
-            SnippetJitExecutor(SnippetAttrs attrs, bool is_dynamic);
+            SubgraphJitExecutor(SubgraphAttrs attrs, bool is_dynamic);
             void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
 
             bool schedule_created();
