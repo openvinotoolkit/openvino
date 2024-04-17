@@ -1142,11 +1142,12 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
 
     bool onednn_valid_post_ops = get_post_ops_count(node) <= 32;
     bool use_onednn_impls = _optimization_attributes.use_onednn_impls && input_layout.data_type != data_types::f32;
-    bool use_onednn_preferred_format = (use_onednn_impls && onednn_valid_post_ops && node.get_preferred_output_fmt() != format::any);
 
-    // Use planar bfyx format for dynamic convolutions with explicit padding
-    if (node.is_dynamic() && output_layout.get_partial_shape().size() == 4 && node.use_explicit_padding() && !i8_u8_input && !use_onednn_preferred_format)
+    // Use planar bfyx format for dynamic convolutions with explicit padding in clDNN
+    if (node.is_dynamic() && output_layout.get_partial_shape().size() == 4 && node.use_explicit_padding() && !i8_u8_input &&
+        !(use_onednn_impls && onednn_valid_post_ops)) {
         return format::bfyx;
+    }
 
     if (input_layout.is_dynamic() || output_layout.is_dynamic()) {
         if (input_layout.get_partial_shape().size() <= 4)
@@ -1158,7 +1159,7 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
 
     const float cond_denom = _total_conv > 0 ? 1.0f / static_cast<float>(_total_conv) : 1.0f;
 
-    if (use_onednn_preferred_format) {
+    if (use_onednn_impls && onednn_valid_post_ops && node.get_preferred_output_fmt() != format::any) {
         expected_format = node.get_preferred_output_fmt();
     } else {
         /* *************************** Native impls format selection part ************************** */
