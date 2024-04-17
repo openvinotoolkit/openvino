@@ -381,6 +381,8 @@ void inline fill_data_ptr_normal_random_float(T* data,
     }
 }
 
+void fill_data_boolean(fundamental_type_for<ov::element::boolean>* dst, const size_t size, const int seed = 1);
+
 void fill_random_string(std::string* dst,
                         const size_t size,
                         const size_t len_range = 10lu,

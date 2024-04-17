@@ -46,18 +46,17 @@ bool ov::intel_cpu::ACLInterpolateExecutor::init(const InterpolateAttrs &interpo
             return false;
     }
 
-    auto srcDims = srcDescs[0]->getShape().getDims();
-    auto dstDims = dstDescs[0]->getShape().getDims();
+    auto srcDims = shapeCast(srcDescs[0]->getShape().getDims());
+    auto dstDims = shapeCast(dstDescs[0]->getShape().getDims());
 
     if (srcDescs[0]->hasLayoutType(LayoutType::nspc) && dstDescs[0]->hasLayoutType(LayoutType::nspc)) {
-        changeLayoutToNhwc(srcDims);
-        changeLayoutToNhwc(dstDims);
+        changeLayoutToNH_C({&srcDims, &dstDims});
     }
 
-    auto srcTensorInfo = arm_compute::TensorInfo(shapeCast(srcDims), 1,
+    auto srcTensorInfo = arm_compute::TensorInfo(srcDims, 1,
                                                  precisionToAclDataType(srcDescs[0]->getPrecision()),
                                                  getAclDataLayoutByMemoryDesc(srcDescs[0]));
-    auto dstTensorInfo = arm_compute::TensorInfo(shapeCast(dstDims), 1,
+    auto dstTensorInfo = arm_compute::TensorInfo(dstDims, 1,
                                                  precisionToAclDataType(dstDescs[0]->getPrecision()),
                                                  getAclDataLayoutByMemoryDesc(dstDescs[0]));
 

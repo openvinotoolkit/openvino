@@ -76,6 +76,14 @@ public:
      */
     Napi::Value get_outputs(const Napi::CallbackInfo& info);
 
+    /**
+     * @brief Checks if the model is dynamic.
+     * @param info Contains information about the environment and passed arguments
+     * This method does not accept any arguments. If arguments are provided it throws Napi::Error.
+     * @return Boolean indicating if the model is dynamic or not
+     */
+    Napi::Value is_dynamic(const Napi::CallbackInfo& info);
+
 private:
     std::shared_ptr<ov::Model> _model;
     ov::Core _core;

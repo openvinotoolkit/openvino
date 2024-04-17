@@ -300,19 +300,19 @@ KERNEL(strided_slice_ref)(OPTIONAL_SHAPE_INFO_ARG
     const uint index_in_batch = (feature * (uint)get_global_size(2) + (uint)get_global_id(2)) % (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z);
     const uint input_feature_id = (feature * (uint)get_global_size(2) + (uint)get_global_id(2)) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z);
     const uint w_input = 0;
-    const uint yx_input = index_in_batch % (INPUT0_SIZE_X * INPUT0_SIZE_Y);
-    const uint z_input = index_in_batch / (INPUT0_SIZE_X * INPUT0_SIZE_Y);
-    const uint y_input = yx_input / INPUT0_SIZE_X;
-    const uint x_input = yx_input % INPUT0_SIZE_X;
+    const uint yx_input = index_in_batch % (OUTPUT_SIZE_X * OUTPUT_SIZE_Y);
+    const uint z_input = index_in_batch / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y);
+    const uint y_input = yx_input / OUTPUT_SIZE_X;
+    const uint x_input = yx_input % OUTPUT_SIZE_X;
 #elif INPUT0_LAYOUT_BFWZYX
     const uint index_in_batch = (feature * (uint)get_global_size(2) + (uint)get_global_id(2)) % (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z * OUTPUT_SIZE_W);
     const uint input_feature_id = (feature * (uint)get_global_size(2) + (uint)get_global_id(2)) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z * OUTPUT_SIZE_W);
-    const uint zyx_input = index_in_batch % (INPUT0_SIZE_X * INPUT0_SIZE_Y * INPUT0_SIZE_Z);
-    const uint w_input = index_in_batch / (INPUT0_SIZE_X * INPUT0_SIZE_Y * INPUT0_SIZE_Z);
-    const uint z_input = zyx_input / (INPUT0_SIZE_X * INPUT0_SIZE_Y);
-    const uint yx_input = zyx_input % (INPUT0_SIZE_X * INPUT0_SIZE_Y);
-    const uint y_input = yx_input / INPUT0_SIZE_X;
-    const uint x_input = yx_input % INPUT0_SIZE_X;
+    const uint zyx_input = index_in_batch % (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z);
+    const uint w_input = index_in_batch / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z);
+    const uint z_input = zyx_input / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y);
+    const uint yx_input = zyx_input % (OUTPUT_SIZE_X * OUTPUT_SIZE_Y);
+    const uint y_input = yx_input / OUTPUT_SIZE_X;
+    const uint x_input = yx_input % OUTPUT_SIZE_X;
 #endif
     
     const uint input_index = INPUT0_OFFSET +

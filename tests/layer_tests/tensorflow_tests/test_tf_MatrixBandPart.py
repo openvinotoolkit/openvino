@@ -31,7 +31,7 @@ class TestMatrixBandPart(CommonTFLayerTest):
     @pytest.mark.parametrize('input_type', [np.float32, np.int32])
     @pytest.mark.parametrize('num_lower', [-4, -1, 0, 1, 4])
     @pytest.mark.parametrize('num_upper', [-4, -1, 0, 1, 4])
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_matrix_band_part_basic(self, input_shape, input_type, num_lower, num_upper,
                                     ie_device, precision, ir_version, temp_dir,

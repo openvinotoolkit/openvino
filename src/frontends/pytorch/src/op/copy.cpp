@@ -29,6 +29,22 @@ OutputVector translate_copy_(const NodeContext& context) {
     return {res};
 };
 
+OutputVector translate_copy_fx(const NodeContext& context) {
+    // copy = torch.ops.aten.copy.default(slice_4);
+    // copy = torch.ops.aten.copy.default(slice_4, clone);
+    num_inputs_check(context, 1, 2);
+    auto self = context.get_input(0);
+    if (context.input_is_none(1)) {
+        return {self};
+    } else {
+        auto src = context.get_input(1);
+        auto src_converted = context.mark_node(std::make_shared<v1::ConvertLike>(src, self));
+        auto self_shape = context.mark_node(std::make_shared<v3::ShapeOf>(self));
+        Output<Node> res = context.mark_node(std::make_shared<v3::Broadcast>(src_converted, self_shape));
+        return {res};
+    }
+};
+
 OutputVector translate_alias_copy(const NodeContext& context) {
     // aten::alias_copy(Tensor self) -> Tensor
     // aten::alias_copy.out(Tensor self, *, Tensor(a!) out) -> Tensor(a!)

@@ -2,12 +2,32 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "cpu_types.h"
+#include "cpu_shape.h"
 
 #include <string>
-#include <vector>
+#include <sstream>
 
 namespace ov {
 namespace intel_cpu {
+
+std::string dim2str(Dim dim) {
+    return dim == Shape::UNDEFINED_DIM ? "?" : std::to_string(dim);
+}
+
+std::string dims2str(const VectorDims& dims) {
+    std::stringstream output;
+    output << "{";
+
+    if (!dims.empty()) {
+        auto itr = dims.begin();
+        do {
+            output << dim2str(*itr);
+        } while (++itr != dims.end() && output << ", ");
+    }
+
+    output << "}";
+    return output.str();
+}
 
 using TypeToNameMap = ov::intel_cpu::caseless_unordered_map<std::string, Type>;
 
@@ -219,6 +239,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"ScaledDotProductAttentionWithKVCache", Type::ScaledDotProductAttention},
         {"PagedAttentionExtension", Type::ScaledDotProductAttention},
         {"RoPE", Type::RoPE},
+        {"GatherCompressed", Type::Gather},
         {"CausalMaskPreprocess", Type::CausalMaskPreprocess},
     };
     return type_to_name_tbl;
