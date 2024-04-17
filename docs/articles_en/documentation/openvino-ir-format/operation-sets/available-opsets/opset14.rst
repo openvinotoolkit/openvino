@@ -169,6 +169,7 @@ Table of Contents
 * :doc:`RNNCell <../operation-specs/sequence/rnn-cell-3>`
 * :doc:`RNNSequence <../operation-specs/sequence/rnn-sequence-5>`
 * :doc:`ROIAlign <../operation-specs/detection/roi-align-9>`
+* :doc:`ROIAlignRotated <../operation-specs/detection/roi-align-rotated-14>`
 * :doc:`ROIPooling <../operation-specs/detection/roi-pooling-1>`
 * :doc:`Roll <../operation-specs/movement/roll-7>`
 * :doc:`Round <../operation-specs/arithmetic/round-5>`
