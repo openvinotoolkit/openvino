@@ -267,11 +267,7 @@ jobs:
     runs-on: aks-win-8-cores-64gb
     env:
       CMAKE_BUILD_TYPE: 'Release'
-      CMAKE_CXX_COMPILER_LAUNCHER: ccache
-      CMAKE_C_COMPILER_LAUNCHER: ccache
-      CCACHE_REMOTE_DIR: C:\\mount\\caches\\ccache\\windows2022_x86_64_cc_master
-      CCACHE_DIR: ${{ github.workspace }}\\ccache
-      CCACHE_MAXSIZE: 2G
+      CMAKE_GENERATOR: 'Ninja Multi-Config'
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
       MODELS_PATH: "${{ github.workspace }}\\testdata"
@@ -309,24 +305,6 @@ jobs:
           should-setup-pip-paths: 'false'
           self-hosted-runner: 'false'
 
-      - name: Download and install ccache
-        run: |
-          Invoke-WebRequest -Uri 'https://github.com/ccache/ccache/releases/download/v4.9.1/ccache-4.9.1-windows-x86_64.zip' -OutFile 'ccache.zip'
-          Expand-Archive -Path 'ccache.zip' -DestinationPath 'C:\temp\ccache'
-          Move-Item -Path 'C:\temp\ccache\*' -Destination 'C:\ccache'
-          Add-Content -Path $env:GITHUB_PATH -Value "C:\ccache"
-
-      - name: Setup ccache
-        uses: ./openvino/.github/actions/cache
-        with:
-          save-always: true # TODO: replace after 1st run
-          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cache-path: ${{ env.CCACHE_REMOTE_DIR }}
-          path: ${{ env.CCACHE_DIR }}
-          key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-ccache
-
       - name: CMake configure - CC ON
         run: |
           cmake `
@@ -344,17 +322,8 @@ jobs:
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
-      - name: Clean ccache stats
-        run: '& ccache --zero-stats'
-
       - name: Cmake build - CC ON
         run: cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app
-
-      - name: Show ccache stats
-        run: '& ccache --show-stats'
-
-      - name: Cleanup ccache
-        run: '& ccache --cleanup'
 
       - name: List bin files
         shell: cmd
