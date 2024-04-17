@@ -85,6 +85,16 @@ OPENVINO_API EnumNames<ov::op::TopKMode>& EnumNames<ov::op::TopKMode>::get() {
     return enum_names;
 }
 
+template <>
+OPENVINO_API EnumNames<ov::op::PhilloxAlignment>& EnumNames<ov::op::PhilloxAlignment>::get() {
+    static auto enum_names =
+        EnumNames<ov::op::PhilloxAlignment>("ov::op::PhilloxAlignment",
+                                            {{"openvino", ov::op::PhilloxAlignment::OPENVINO},
+                                             {"pytorch", ov::op::PhilloxAlignment::PYTORCH},
+                                             {"tensorflow", ov::op::PhilloxAlignment::TENSORFLOW}});
+    return enum_names;
+}
+
 bool AttributeAdapter<ov::op::AutoBroadcastSpec>::visit_attributes(AttributeVisitor& visitor) {
     // Maintain back-compatibility
     std::string name = visitor.finish_structure();
@@ -148,6 +158,10 @@ std::ostream& op::operator<<(std::ostream& s, const ov::op::TopKSortType& type) 
 }
 
 std::ostream& op::operator<<(std::ostream& s, const ov::op::TopKMode& type) {
+    return s << as_string(type);
+}
+
+std::ostream& op::operator<<(std::ostream& s, const ov::op::PhilloxAlignment& type) {
     return s << as_string(type);
 }
 

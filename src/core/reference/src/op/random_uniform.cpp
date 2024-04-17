@@ -5,57 +5,25 @@
 #include "openvino/reference/random_uniform.hpp"
 
 #include <ctime>
+#include <memory>
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/reference/utils/phillox_generator.hpp"
+
+using PhilloxOutput = ov::reference::phillox::PhilloxOutput;
+using PhilloxGenerator = ov::reference::phillox::PhilloxGenerator;
+using PytorchPhilloxGenerator = ov::reference::phillox::PytorchPhilloxGenerator;
+using OpenvinoPhilloxGenerator = ov::reference::phillox::OpenvinoPhilloxGenerator;
+using TensorflowPhilloxGenerator = ov::reference::phillox::TensorflowPhilloxGenerator;
 
 namespace ov {
 namespace reference {
 namespace {
 
-// Splits uint64 value into two uint32 values with right and left part of original value.
-std::pair<uint32_t, uint32_t> split_high_low(uint64_t value) {
-    uint32_t low = static_cast<uint32_t>(value);
-    uint32_t high = static_cast<uint32_t>(value >> 32);
-    return {low, high};
-}
-
 // Concatenates two uint32 values into single uint64 values.
 uint64_t unite_high_low(uint32_t high, uint32_t low) {
     return (static_cast<uint64_t>(high) << 32) + low;
-}
-
-// Runs single "round" of Philox algorithm.
-void calculate_round(uint64_t key, uint64_t& counter, uint64_t& n) {
-    // Split key, counter and n into two uint32 values.
-    auto counter_lr = split_high_low(counter);
-    auto key_lr = split_high_low(key);
-    auto n_lr = split_high_low(n);
-
-    // Each round performs following updating for n and counter:
-    // left uint32 part = mullo(R, M)
-    // right uint32 part  = mulhi(R, M) xor k xor L
-    // mulhi(a, b) = floor((a * b) / 2^32)
-    // mullo(a, b) = (a * b) mod 2^32,
-    // where M - statistic_maximizing_multiplier const
-    auto prod0 = split_high_low(statistic_maximizing_multiplier_n * n_lr.first);
-    auto prod1 = split_high_low(statistic_maximizing_multiplier_counter * counter_lr.first);
-    n_lr.first = prod1.second ^ n_lr.second ^ key_lr.first;
-    n_lr.second = prod1.first;
-    counter_lr.first = prod0.second ^ counter_lr.second ^ key_lr.second;
-    counter_lr.second = prod0.first;
-
-    // Unite counter and n into uint64 values.
-    counter = unite_high_low(counter_lr.second, counter_lr.first);
-    n = unite_high_low(n_lr.second, n_lr.first);
-}
-
-// Increases key value.
-void raise_key(uint64_t& key) {
-    auto key_lr = split_high_low(key);
-    key_lr.first += crush_resistance_const_lower_value;
-    key_lr.second += crush_resistance_const_upper_value;
-    key = unite_high_low(key_lr.second, key_lr.first);
 }
 
 // Helper function for converting uint32 values to float32. Sets fractional part of
@@ -71,6 +39,21 @@ float uint32_to_float(uint32_t x) {
 
     convert_types out_val = {(static_cast<uint32_t>(127) << 23) | (x & 0x7fffffu)};
     return out_val.f - 1.0f;
+}
+
+float uint32_to_float_pytorch(uint32_t x) {
+    // float32 is formatted as follows: sign(1 bit) exponent(8 bits) mantissa(23 bits). The value is interpreted
+    // The value is interpreted using following formula:
+    // (-1)^sign * 1, mantissa * 2 ^ (exponent - 127)
+    // Here we set the following values:
+    // sign = 0
+    // exponent = 127, for obtaining a zero exponent.
+    // mantissa = 23 right bits from generated uint32 random value.
+    auto MASK = static_cast<uint32_t>((static_cast<uint64_t>(1) << std::numeric_limits<float>::digits) - 1);
+    auto DIVISOR = static_cast<float>(1) / (static_cast<uint64_t>(1) << std::numeric_limits<float>::digits);
+    convert_types out_val = {(static_cast<uint32_t>(127) << 23) | (x & 0x7fffffu)};
+    float ret = (x & MASK) * DIVISOR;
+    return ret;
 }
 
 // Helper function for converting uint32 values to float16.Sets fractional part of
@@ -121,21 +104,6 @@ bfloat16 uint32_to_bfloat16(uint32_t x) {
     return out_val.bf16 - static_cast<bfloat16>(1);
 }
 
-// Runs Philox algorithm.
-void run_philox(uint64_t key, uint64_t counter, uint64_t n, size_t n_rounds, std::vector<uint32_t>& res) {
-    for (size_t i = 0; i < n_rounds; i++) {
-        calculate_round(key, counter, n);
-        if (i < n_rounds - 1)
-            raise_key(key);
-    }
-    auto res1 = split_high_low(n);
-    auto res2 = split_high_low(counter);
-    res[0] = res1.first;
-    res[1] = res1.second;
-    res[2] = res2.first;
-    res[3] = res2.second;
-}
-
 // Converts uint32 values to destination type and normalizes to required range
 template <typename T>
 void convert_to_output_type(const std::vector<uint32_t>& res,
@@ -158,8 +126,9 @@ void convert_to_output_type(const std::vector<uint32_t>& res,
     std::vector<T> res_out_type(step);
     if (elem_type.size() > 4) {
         // Each element of resulting sequence is formed using two uint32 values
-        res_out_type[0] = convert_two_inputs(res[0], res[1], mn[0], mx[0]);
-        res_out_type[1] = convert_two_inputs(res[2], res[3], mn[0], mx[0]);
+        for (size_t i = 0; i < step / 2; ++i) {
+            res_out_type[i] = convert_two_inputs(res[2 * i], res[2 * i + 1], mn[0], mx[0]);
+        }
     } else {
         // Each element of resulting sequence is formed using single uint32 value
         std::transform(res.data(),
@@ -188,22 +157,14 @@ std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,
                                              const element::Type& elem_type,
                                              uint64_t seed,
                                              uint64_t seed2,
-                                             std::pair<uint64_t, uint64_t> prev_state) {
+                                             std::pair<uint64_t, uint64_t> prev_state,
+                                             PhilloxAlignment alignment) {
     // When both seed values are equal to zero RandomUniform should generate non-deterministic sequence.
     // Implementation in plugins may differ for this case.
     if (seed == 0 && seed2 == 0) {
         std::srand(static_cast<unsigned int>(std::time(nullptr)));
         seed = std::rand();
     }
-
-    // Get previous counter state
-    uint64_t n_state = prev_state.first;
-    uint64_t counter_state = prev_state.second;
-
-    // Initialize Philox key and counters
-    uint64_t key = seed;
-    uint64_t counter = counter_state > 0 ? counter_state : seed2;
-    uint64_t n = n_state;
 
     // Calculate total element count for generation
     size_t shape_count = shape_size(out_shape_shape);
@@ -212,29 +173,47 @@ std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,
         elem_count *= out_shape[i];
     }
 
-    // Philox algorithm returns 4 elements of RNG sequence per each invocation
-    const size_t philox_output_size = 4;
+    std::shared_ptr<PhilloxGenerator> generator;
+    switch (alignment) {
+    case PhilloxAlignment::OPENVINO:
+        // Openvino uses seeds as a {key, counter} pair
+        // seed -> global_seed <-> key
+        // seed2 -> operator_seed <-> counter
+        generator = std::make_shared<OpenvinoPhilloxGenerator>(seed, seed2, prev_state);
+        break;
+    case PhilloxAlignment::TENSORFLOW:
+        // Very similar algorithm
+        generator = std::make_shared<TensorflowPhilloxGenerator>(seed, seed2, prev_state, elem_count);
+        break;
+    case PhilloxAlignment::PYTORCH:
+        // Completely different algorithm that uses only a single seed
+        generator = std::make_shared<PytorchPhilloxGenerator>(seed);
+        break;
+    default:
+        OPENVINO_THROW("Unknown Phillox algorithm alignment option selected.");
+    }
 
-    // Each run of Philox algorithm generates 4 uint32 values.
-    // If output_type is int32, f32, bf16, or f16 each value is converted to
-    // corresponding type so we have 4 result values. For f64 and i64 we use
-    // a pair of values for conversion, so we have 2 result values.
-    // Step indicates how many values we generate in one iteration.
-    const size_t step = elem_type.size() > 4 ? 2 : 4;
-
+    const size_t step = generator->get_step(elem_type);
     for (size_t k = 0; k < elem_count; k += step) {
-        // generate 4 random uint32 values using Philox algorithm
-        std::vector<uint32_t> res(philox_output_size);
-        run_philox(key, counter, n, rounds_number, res);
+        // generate a set of random uint32 values using Philox algorithm
+        PhilloxOutput result = generator->random();
 
         // convert values to corresponding output_type
         switch (elem_type) {
         case element::Type_t::f32: {
-            convert_to_output_type<float>(res, step, elem_type, min_val, max_val, out, k, elem_count, uint32_to_float);
+            convert_to_output_type<float>(result,
+                                          step,
+                                          elem_type,
+                                          min_val,
+                                          max_val,
+                                          out,
+                                          k,
+                                          elem_count,
+                                          uint32_to_float); // TODO CHANGE THIS
             break;
         }
         case element::Type_t::f16: {
-            convert_to_output_type<float16>(res,
+            convert_to_output_type<float16>(result,
                                             step,
                                             elem_type,
                                             min_val,
@@ -246,7 +225,7 @@ std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,
             break;
         }
         case element::Type_t::bf16: {
-            convert_to_output_type<bfloat16>(res,
+            convert_to_output_type<bfloat16>(result,
                                              step,
                                              elem_type,
                                              min_val,
@@ -258,7 +237,7 @@ std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,
             break;
         }
         case element::Type_t::f64: {
-            convert_to_output_type<double>(res,
+            convert_to_output_type<double>(result,
                                            step,
                                            elem_type,
                                            min_val,
@@ -273,7 +252,7 @@ std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,
             break;
         }
         case element::Type_t::i32: {
-            convert_to_output_type<int>(res,
+            convert_to_output_type<int>(result,
                                         step,
                                         elem_type,
                                         min_val,
@@ -289,7 +268,7 @@ std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,
             break;
         }
         case element::Type_t::i64: {
-            convert_to_output_type<int64_t>(res,
+            convert_to_output_type<int64_t>(result,
                                             step,
                                             elem_type,
                                             min_val,
@@ -306,17 +285,9 @@ std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,
         default:
             OPENVINO_THROW("Unsupported type of RandomUniform: ", elem_type.to_string());
         }
-        if (++n == 0)
-            ++counter;
     }
 
-    // Calculate counter values for next RandomUniform run
-    uint64_t skip_count = elem_count * skip_const;
-    n_state += skip_count;
-    if (n_state < skip_count)
-        counter_state++;
-
-    return {n_state, counter_state};
+    return generator->get_next_state();
 }
 
 }  // namespace reference

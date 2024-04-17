@@ -326,6 +326,7 @@ def random_uniform(
     output_type: str,
     global_seed: int = 0,
     op_seed: int = 0,
+    alignment: str = "openvino"
 ) -> Node:
     """Return a node which generates sequence of random values from uniform distribution.
 
@@ -351,6 +352,7 @@ def random_uniform(
         "output_type": output_type,
         "global_seed": global_seed,
         "op_seed": op_seed,
+        "alignment": alignment.lower()
     }
     return _get_node_factory_opset8().create("RandomUniform", inputs, attributes)
 

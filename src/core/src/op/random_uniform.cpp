@@ -8,6 +8,8 @@
 #include "openvino/op/random_uniform.hpp"
 #include "random_uniform_shape_inference.hpp"
 
+using PhilloxAlignment = ov::op::PhilloxAlignment;
+
 namespace ov {
 namespace op {
 namespace v8 {
@@ -26,11 +28,13 @@ RandomUniform::RandomUniform(const Output<Node>& out_shape,
                              const Output<Node>& max_val,
                              const ov::element::Type& out_type,
                              uint64_t global_seed,
-                             uint64_t op_seed)
+                             uint64_t op_seed,
+                             PhilloxAlignment alignment)
     : Op({out_shape, min_val, max_val}),
       m_output_type(out_type),
       m_global_seed(global_seed),
-      m_op_seed(op_seed) {
+      m_op_seed(op_seed),
+      m_alignment(alignment) {
     constructor_validate_and_infer_types();
 }
 
@@ -60,6 +64,7 @@ bool RandomUniform::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("output_type", m_output_type);
     visitor.on_attribute("op_seed", m_op_seed);
     visitor.on_attribute("global_seed", m_global_seed);
+    visitor.on_attribute("alignment", m_alignment);
     return true;
 }
 
@@ -71,7 +76,8 @@ std::shared_ptr<Node> RandomUniform::clone_with_new_inputs(const OutputVector& n
                                                        new_args.at(2),
                                                        m_output_type,
                                                        m_global_seed,
-                                                       m_op_seed);
+                                                       m_op_seed,
+                                                       m_alignment);
     ru_copy->m_state = this->m_state;
     return ru_copy;
 }
@@ -100,7 +106,8 @@ bool RandomUniform::evaluate(TensorVector& outputs, const TensorVector& inputs) 
                                                get_out_type(),
                                                get_global_seed(),
                                                get_op_seed(),
-                                               m_state);
+                                               m_state,
+                                               m_alignment);
 
     // Update RandomUniform state
     std::lock_guard<std::mutex> guard(m_state_mutex);
