@@ -31,7 +31,6 @@ class typed_primitive_inst<swiglu> : public typed_primitive_inst_base<swiglu> {
 public:
     template<typename ShapeType>
     static std::vector<layout> calc_output_layouts(swiglu_node const& /*node*/, const kernel_impl_params& impl_params);
-    static layout calc_output_layout(swiglu_node const& node, kernel_impl_params const& impl_params);
     static std::string to_string(swiglu_node const& node);
 
     typed_primitive_inst(network& network, swiglu_node const& node);

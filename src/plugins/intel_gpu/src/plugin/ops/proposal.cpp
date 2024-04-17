@@ -7,8 +7,6 @@
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/primitives/proposal.hpp"
-#include "intel_gpu/primitives/mutable_data.hpp"
-#include "intel_gpu/runtime/debug_configuration.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -54,123 +52,36 @@ static void CreateProposalOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
         swap_xy = false;
     }
 
-    if (p.use_new_shape_infer()) {
-        size_t num_outputs = op->get_output_size();
+    size_t num_outputs = op->get_output_size();
 
-        auto proposalPrim = cldnn::proposal(layerName,
-                                            inputs[0],  // cls_score
-                                            inputs[1],  // bbox_pred
-                                            inputs[2],  // im_info
-                                            0,          // max_num_proposals is unused
-                                            nms_thresh,
-                                            base_size,
-                                            min_size,
-                                            feature_stride,
-                                            pre_nms_topn,
-                                            post_nms_topn,
-                                            ratio,
-                                            scale,
-                                            coordinates_offset,
-                                            box_coordinate_scale,
-                                            box_size_scale,
-                                            false,
-                                            swap_xy,
-                                            initial_clip,
-                                            clip_before_nms,
-                                            clip_after_nms,
-                                            round_ratios,
-                                            shift_anchors,
-                                            normalize,
-                                            cldnn::element_type_to_data_type(op->get_output_element_type(0)),
-                                            num_outputs);
-        proposalPrim.output_data_types = get_output_data_types(op);
-        p.add_primitive(*op, proposalPrim);
-    } else {
-        if (op->get_output_size() == 2) {
-            auto mutable_precision = op->get_output_element_type(1);
-            if (mutable_precision == ov::element::i64) {
-                mutable_precision = ov::element::i32;
-            }
-
-            cldnn::layout mutableLayout = cldnn::layout(cldnn::element_type_to_data_type(mutable_precision),
-                                                        cldnn::format::get_default_format(op->get_output_shape(1).size()),
-                                                        tensor_from_dims(op->get_output_shape(1)));
-
-            GPU_DEBUG_LOG << "[" << layerName << ": mutable data]" << std::endl;
-            auto shared_memory = p.get_engine().allocate_memory(mutableLayout);
-
-            cldnn::primitive_id proposal_mutable_id_w = layerName + "_md_write";
-            auto argmax_mutable_prim = cldnn::mutable_data(proposal_mutable_id_w,
-                                                           shared_memory);
-            p.add_primitive(*op, argmax_mutable_prim);
-            inputs.push_back(cldnn::input_info(proposal_mutable_id_w));
-
-            std::string proposalLayerName = layerName + ".out0";
-            auto proposalPrim = cldnn::proposal(proposalLayerName,
-                                                inputs[0],  // cls_score
-                                                inputs[1],  // bbox_pred
-                                                inputs[2],  // im_info
-                                                inputs[3],  // second_output
-                                                0,          // max_num_proposals is unused
-                                                nms_thresh,
-                                                base_size,
-                                                min_size,
-                                                feature_stride,
-                                                pre_nms_topn,
-                                                post_nms_topn,
-                                                ratio,
-                                                scale,
-                                                coordinates_offset,
-                                                box_coordinate_scale,
-                                                box_size_scale,
-                                                false,
-                                                swap_xy,
-                                                initial_clip,
-                                                clip_before_nms,
-                                                clip_after_nms,
-                                                round_ratios,
-                                                shift_anchors,
-                                                normalize);
-
-            p.add_primitive(*op, proposalPrim);
-
-            cldnn::primitive_id proposal_mutable_id_r = layerName + ".out1";
-            auto argmax_mutable_prim_r = cldnn::mutable_data(proposal_mutable_id_r,
-                                                             { cldnn::input_info(proposalLayerName) },
-                                                             shared_memory);
-            p.add_primitive(*op, argmax_mutable_prim_r);
-            return;
-        } else if (op->get_output_size() == 1) {
-            auto proposalPrim = cldnn::proposal(layerName,
-                                                inputs[0],  // cls_score
-                                                inputs[1],  // bbox_pred
-                                                inputs[2],  // im_info
-                                                0,          // max_num_proposals is unused
-                                                nms_thresh,
-                                                base_size,
-                                                min_size,
-                                                feature_stride,
-                                                pre_nms_topn,
-                                                post_nms_topn,
-                                                ratio,
-                                                scale,
-                                                coordinates_offset,
-                                                box_coordinate_scale,
-                                                box_size_scale,
-                                                false,
-                                                swap_xy,
-                                                initial_clip,
-                                                clip_before_nms,
-                                                clip_after_nms,
-                                                round_ratios,
-                                                shift_anchors,
-                                                normalize);
-
-            p.add_primitive(*op, proposalPrim);
-        } else {
-            OPENVINO_THROW(op->get_friendly_name(), " Incorrect Proposal outputs number");
-        }
-    }
+    auto proposalPrim = cldnn::proposal(layerName,
+                                        inputs[0],  // cls_score
+                                        inputs[1],  // bbox_pred
+                                        inputs[2],  // im_info
+                                        0,          // max_num_proposals is unused
+                                        nms_thresh,
+                                        base_size,
+                                        min_size,
+                                        feature_stride,
+                                        pre_nms_topn,
+                                        post_nms_topn,
+                                        ratio,
+                                        scale,
+                                        coordinates_offset,
+                                        box_coordinate_scale,
+                                        box_size_scale,
+                                        false,
+                                        swap_xy,
+                                        initial_clip,
+                                        clip_before_nms,
+                                        clip_after_nms,
+                                        round_ratios,
+                                        shift_anchors,
+                                        normalize,
+                                        cldnn::element_type_to_data_type(op->get_output_element_type(0)),
+                                        num_outputs);
+    proposalPrim.output_data_types = get_output_data_types(op);
+    p.add_primitive(*op, proposalPrim);
 }
 
 REGISTER_FACTORY_IMPL(v0, Proposal);

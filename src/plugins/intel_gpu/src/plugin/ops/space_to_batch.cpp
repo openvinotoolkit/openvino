@@ -21,8 +21,8 @@ static void CreateSpaceToBatchOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     auto rank = op->get_input_partial_shape(0).size();
     auto format = cldnn::format::get_default_format(rank);
 
-    std::vector<cldnn::tensor> tensor_inputs;
-    tensor_inputs.reserve(3);
+    std::vector<std::vector<int32_t>> const_inputs;
+    const_inputs.reserve(3);
 
     bool non_constant_input = false;
     for (size_t i = 1; i < 4; ++i) {
@@ -37,32 +37,20 @@ static void CreateSpaceToBatchOp(ProgramBuilder& p, const std::shared_ptr<ov::op
         }
     }
 
-    // In case of dynamic shapes pass dummy shape value to space_to_batch primitive
-    // To be removed once we enable internal shape infer for all operations
-    auto output_pshape = op->get_output_partial_shape(0);
-    auto out_size = output_pshape.is_static() ? tensor_from_dims(output_pshape.to_shape()) : cldnn::tensor();
-
     if (non_constant_input) {
-        auto spaceToBatchPrim = cldnn::space_to_batch(layerName, inputs, out_size);
+        auto spaceToBatchPrim = cldnn::space_to_batch(layerName, inputs);
         p.add_primitive(*op, spaceToBatchPrim);
     } else {
         for (size_t i = 1; i < 4; ++i) {
-            auto inConst = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i));
-
-            std::vector<int32_t> sizes = inConst->cast_vector<int32_t>();
-            int32_t default_size = i == 1 ? 1 : 0;
-            for (size_t s = sizes.size(); s < format.dimension(); s++) {
-                sizes.push_back(default_size);
-            }
-            tensor_inputs.emplace_back(format, sizes, default_size);
+            auto in_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i));
+            const_inputs.emplace_back(in_const->cast_vector<int32_t>());
         }
 
         auto spaceToBatchPrim = cldnn::space_to_batch(layerName,
                                                       inputs[0],            // input data
-                                                      tensor_inputs[0],     // block_shape
-                                                      tensor_inputs[1],     // crops_begin
-                                                      tensor_inputs[2],     // crops_end
-                                                      out_size);
+                                                      const_inputs[0],     // block_shape
+                                                      const_inputs[1],     // crops_begin
+                                                      const_inputs[2]);     // crops_end
 
         p.add_primitive(*op, spaceToBatchPrim);
     }

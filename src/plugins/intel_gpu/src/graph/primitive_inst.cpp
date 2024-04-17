@@ -432,14 +432,8 @@ void primitive_inst::update_shape() {
     };
 
     auto new_layouts = _node->type()->calc_output_layouts(*_node, *_impl_params);
-    if (new_layouts.empty()) {
-        auto new_layout = _node->type()->calc_output_layout(*_node, *_impl_params);
-        update_output_layout(new_layout, 0);
-    } else {
-        for (size_t i = 0; i != new_layouts.size(); ++i) {
-            auto new_layout = new_layouts[i];
-            update_output_layout(new_layout, i);
-        }
+    for (size_t i = 0; i != new_layouts.size(); ++i) {
+        update_output_layout(new_layouts[i], i);
     }
 
     // Update descriptors of fused operations and set output_layout's shape to all fused ops
@@ -2308,7 +2302,6 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
         }
         ExecutionConfig subgraph_config{
             ov::intel_gpu::allow_static_input_reorder(true),
-            ov::intel_gpu::allow_new_shape_infer(true),
             ov::enable_profiling(get_network().get_config().get_property(ov::enable_profiling))
         };
         auto prog = program::build_program(get_network().get_engine(),

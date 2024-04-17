@@ -158,7 +158,7 @@ TEST(shape_of_gpu, dynamic) {
     topology.add(shape_of("shape_of", input_info("input"), data_types::i32));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
 
     auto inst = network.get_primitive("shape_of");
@@ -207,7 +207,7 @@ TEST(shape_of_gpu, shape_infer_optimization_dynamic) {
     topology.add(shape_of("shape_of", input_info("input"), data_types::i32));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
 
     auto inst = network.get_primitive("shape_of");

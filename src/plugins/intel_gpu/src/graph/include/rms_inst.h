@@ -33,7 +33,6 @@ public:
     static std::vector<layout> calc_output_layouts(rms_node const& /*node*/, const kernel_impl_params& impl_params) {
         return forward_input0_shape<ShapeType>(impl_params);
     }
-    static layout calc_output_layout(rms_node const& node, kernel_impl_params const& impl_params);
     static std::string to_string(rms_node const& node);
 
     typed_primitive_inst(network& network, rms_node const& node);

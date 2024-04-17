@@ -35,7 +35,7 @@ TEST_P(one_hot_test, shape_infer) {
     auto& engine = get_test_engine();
 
     auto input_layout_prim = std::make_shared<input_layout>("input", p.in_layout);
-    auto one_hot_prim = std::make_shared<one_hot>("output", input_info("input"), tensor(), p.axis, p.depth);
+    auto one_hot_prim = std::make_shared<one_hot>("output", input_info("input"), ov::element::f32, p.axis, p.depth);
 
     cldnn::program prog(engine);
 

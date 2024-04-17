@@ -27,7 +27,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         {},
         false,
         "Convolution",
-        "FP32"
+        ov::element::f32.get_type_name()
     },
     {
         {},
@@ -35,7 +35,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         { 255ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
         "Convolution",
-        "FP32"
+        ov::element::f32.get_type_name()
     },
     {
         { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
@@ -43,7 +43,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         { 255ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
         "Convolution",
-        "U8"
+        ov::element::u8.get_type_name()
     },
     {
         { 256ul, ov::Shape {}, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
@@ -51,7 +51,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         { 255ul, ov::Shape {}, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
         "Convolution",
-        "U8"
+        ov::element::u8.get_type_name()
     },
     {
         { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { -12.75f }, { 6.375f } },
@@ -59,7 +59,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         { 255ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
         "Convolution",
-        "U8"
+        ov::element::u8.get_type_name()
     },
     {
         { 256ul, ov::Shape { 1 }, { 0.f }, { 255.f }, { -18.7f }, { 18.8f } },
@@ -70,7 +70,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         },
         false,
         "Convolution",
-        "U8"
+        ov::element::u8.get_type_name()
     },
     {
         { 256ul, ov::Shape { 1 }, { 0.f }, { 255.f }, { -18.7f }, { 18.8f } },
@@ -82,7 +82,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         },
         false,
         "Convolution",
-        "U8"
+        ov::element::u8.get_type_name()
     },
     // not supported quantization level on data
     {
@@ -91,7 +91,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         { 255ul, ov::Shape{1, 1, 1, 1}, {0.f}, {254.f}, {-12.7f}, {12.7f}},
         false,
         "Convolution",
-        "FP32"
+        ov::element::f32.get_type_name()
     },
     // not supported quantization level on data & weights
     {
@@ -100,7 +100,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         { 65536ul, ov::Shape{1, 1, 1, 1}, {0.f}, {254.f}, {-12.7f}, {12.7f}},
         false,
         "Convolution",
-        "FP32"
+        ov::element::f32.get_type_name()
     },
     // not supported quantization level on weights
     {
@@ -109,7 +109,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         { 65536ul, ov::Shape{1, 1, 1, 1}, {0.f}, {254.f}, {-12.7f}, {12.7f}},
         false,
         "Convolution",
-        "FP32"
+        ov::element::f32.get_type_name()
     },
     {
         { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 0.f }, { 0.f }, { 0.f } },
@@ -117,7 +117,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         { 255ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
         false,
         "Convolution",
-        "u8"
+        ov::element::u8.get_type_name()
     }
 };
 

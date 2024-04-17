@@ -28,8 +28,8 @@ struct reverse_impl : typed_primitive_impl_ocl<reverse> {
         auto params = get_default_params<kernel_selector::reverse_params>(impl_param);
 
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
-        params.reverseMode = primitive->mode == reverse_mode::index ? kernel_selector::reverse_mode::index
-                                                                    : kernel_selector::reverse_mode::mask;
+        params.reverseMode = primitive->mode == ov::op::v1::Reverse::Mode::INDEX ? kernel_selector::reverse_mode::index
+                                                                                 : kernel_selector::reverse_mode::mask;
         return params;
     }
 };

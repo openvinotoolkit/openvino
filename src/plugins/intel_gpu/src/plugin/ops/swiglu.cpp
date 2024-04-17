@@ -23,27 +23,14 @@ static void CreateSwiGLUOp(ProgramBuilder& p, const std::shared_ptr<op::SwiGLU>&
     auto inputs = p.GetInputInfo(op);
     std::string primitive_name = layer_type_name_ID(op);
 
-    if (p.use_new_shape_infer()) {
-        auto prim = cldnn::swiglu(primitive_name,
-                                  inputs[0],
-                                  op->get_axis(),
-                                  op->get_split_lengths(),
-                                  op->get_glu_type(),
-                                  op->get_split_to_glu_idx(),
-                                  cldnn::tensor());
-        prim.output_data_types = get_output_data_types(op);
-        p.add_primitive(*op, prim);
-    } else {
-        auto prim = cldnn::swiglu(primitive_name,
-                                  inputs[0],
-                                  op->get_axis(),
-                                  op->get_split_lengths(),
-                                  op->get_glu_type(),
-                                  op->get_split_to_glu_idx(),
-                                  tensor_from_dims(op->get_output_shape(0)));
-        prim.output_data_types = get_output_data_types(op);
-        p.add_primitive(*op, prim);
-    }
+    auto prim = cldnn::swiglu(primitive_name,
+                                inputs[0],
+                                op->get_axis(),
+                                op->get_split_lengths(),
+                                op->get_glu_type(),
+                                op->get_split_to_glu_idx());
+    prim.output_data_types = get_output_data_types(op);
+    p.add_primitive(*op, prim);
 }
 
 REGISTER_FACTORY_IMPL(internal, SwiGLU);

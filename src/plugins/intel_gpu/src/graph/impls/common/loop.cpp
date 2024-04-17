@@ -4,7 +4,6 @@
 #include "loop_inst.h"
 #include "implementation_map.hpp"
 #include "register.hpp"
-#include "mutable_data_inst.h"
 #include "input_layout_inst.h"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include <vector>

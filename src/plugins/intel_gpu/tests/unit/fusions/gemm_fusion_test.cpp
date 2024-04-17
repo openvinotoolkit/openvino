@@ -46,9 +46,6 @@ class GemmFusingTest : public ::BaseFusingTest<gemm_test_params> {
 public:
 
     void execute(gemm_test_params& p, bool is_dynamic, bool is_caching_test = false) {
-        cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
-        cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
-
         auto input0_prim = get_mem(get_input_layout(p, 0));
         auto input1_prim = get_mem(get_input_layout(p, 1));
 
@@ -420,9 +417,6 @@ TEST_P(gemm_2in_dynamic_add, add) {
     if (engine.get_device_info().supports_immad)
         p.expected_fused_primitives++;
 
-    cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-
     auto eltwise_layout = get_output_layout(p);
     auto eltwise_shape = ov::PartialShape::dynamic(eltwise_layout.get_partial_shape().size());
     if (p.broadcast_kind == broadcast_kinds::batch)
@@ -594,7 +588,6 @@ public:
     void execute(gemm_test_params& p, bool is_dynamic, bool is_caching_test = false) {
         if (!engine.get_device_info().supports_immad)
             return;
-        cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
 
         auto impl_forcing = cfg_fused.get_property(ov::intel_gpu::force_implementations);
         auto forcing_format = p.input_format;
@@ -603,7 +596,6 @@ public:
                 forcing_format = forcing.second.output_format;
         ov::intel_gpu::ImplementationDesc gemm_impl = { forcing_format, "", impl_types::onednn };
         cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "gemm_prim", gemm_impl } }));
-        cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
 
         auto in0_layout = get_input_layout(p, 0);
         auto in1_layout = get_input_layout(p, 1); 

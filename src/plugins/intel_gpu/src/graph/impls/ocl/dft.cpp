@@ -27,8 +27,7 @@ struct dft_impl : typed_primitive_impl_ocl<dft> {
         auto params = get_default_params<kernel_selector::dft_params>(impl_param);
         auto& memory_deps = impl_param.memory_deps;
 
-        bool allow_new_shape_infer = impl_param.get_program().is_new_shape_infer();
-        if (allow_new_shape_infer && primitive->axes.empty() && primitive->signal_size.empty()) {
+        if (primitive->axes.empty() && primitive->signal_size.empty()) {
             if (memory_deps.count(1)) {
                 auto axes_mem = memory_deps.at(1);
                 cldnn::mem_lock<uint8_t, mem_lock_type::read> axes_lock(axes_mem, impl_param.get_stream());
@@ -83,10 +82,10 @@ struct dft_impl : typed_primitive_impl_ocl<dft> {
             const auto output_layout = impl_param.get_output_layout();
             // No need to extend layout for input that has less than 4 dimensions
             if (input_layout.get_rank() != output_layout.get_rank()) {
-                auto new_dims = input_layout.get_dims();
+                auto new_dims = input_layout.get_partial_shape();
                 new_dims.push_back(1);
                 const auto new_fmt = format::adjust_to_rank(input_layout.format, new_dims.size());
-                params.inputs[0] = convert_data_tensor({input_layout.data_type, new_fmt, tensor(new_fmt, new_dims)});
+                params.inputs[0] = convert_data_tensor({new_dims, input_layout.data_type, new_fmt});
             }
         }
 
@@ -96,14 +95,42 @@ struct dft_impl : typed_primitive_impl_ocl<dft> {
             const auto output_layout = impl_param.get_output_layout();
             // No need to extend layout for output that has less than 4 dimensions
             if (input_layout.get_rank() != output_layout.get_rank()) {
-                auto new_dims = output_layout.get_dims();
+                auto new_dims = output_layout.get_partial_shape();
                 new_dims.push_back(1);
                 const auto new_fmt = format::adjust_to_rank(output_layout.format, new_dims.size());
-                params.outputs[0] = convert_data_tensor({output_layout.data_type, new_fmt, tensor(new_fmt, new_dims)});
+                params.outputs[0] = convert_data_tensor({new_dims, output_layout.data_type, new_fmt});
             }
         }
 
         return params;
+    }
+
+    static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
+        auto updated_impl_params = canonicalize_fused_shapes(impl_params);
+        auto primitive = impl_params.typed_desc<dft>();
+
+        for (auto& input_layout : updated_impl_params.input_layouts) {
+            input_layout.set_partial_shape(extend_shape_to_rank_from_end(input_layout.get_partial_shape()));
+        }
+
+        auto& output_layout = updated_impl_params.output_layouts[0];
+        auto output_shape = output_layout.get_partial_shape();
+        // Extend shape to 4d by pushing ones at the end (needed to support less than 4d cases)
+        for (auto i = output_shape.size(); i < 4; ++i) {
+            auto it = output_shape.end();
+            // For IRDFT push ones at the end, for other DTFs push ones before the last dim
+            if (primitive->direction != dft_direction::inverse || primitive->mode != dft_mode::real) {
+                it = std::prev(it);
+            }
+            output_shape.insert(it, 1);
+        }
+        output_layout.set_partial_shape(output_shape);
+
+        return updated_impl_params;
+    }
+
+    kernel_impl_params canonicalize_shapes(const kernel_impl_params& impl_params) const override {
+        return dft_impl::static_canonicalize_shapes(impl_params);
     }
 };
 

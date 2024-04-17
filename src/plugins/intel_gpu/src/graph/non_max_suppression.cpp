@@ -1,7 +1,9 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "intel_gpu/runtime/tensor_accessor.hpp"
 #include "non_max_suppression_inst.h"
+#include "openvino/op/nms_rotated.hpp"
 #include "primitive_type_base.h"
 #include "json_object.h"
 #include <string>
@@ -16,15 +18,6 @@ namespace cldnn {
 // non_max_suppression
 // -----------------------------------------------
 GPU_DEFINE_PRIMITIVE_TYPE_ID(non_max_suppression)
-
-layout non_max_suppression_inst::calc_output_layout(non_max_suppression_node const& node, kernel_impl_params const& impl_param) {
-    auto desc = impl_param.typed_desc<non_max_suppression>();
-
-    auto output_type = desc->output_data_types[0].value_or(data_types::i32);
-
-    auto output_size = tensor(batch(desc->selected_indices_num), feature(3));
-    return layout(output_type, impl_param.get_input_layout().format, output_size);
-}
 
 template<typename ShapeType>
 std::vector<layout> non_max_suppression_inst::calc_output_layouts(non_max_suppression_node const& /*node*/, const kernel_impl_params& impl_param) {
@@ -148,7 +141,7 @@ void non_max_suppression_gather_inst::update_output_memory() {
         return;
 
     for (size_t i = 0; i < inputs_memory_count(); i++) {
-        if (node->get_program().is_new_shape_infer() && input_memory_ptr(i) == nullptr)
+        if (input_memory_ptr(i) == nullptr)
             return;
 
         if (output_memory_ptr(i) != nullptr && _network.get_engine().is_the_same_buffer(output_memory(i), input_memory(i)))

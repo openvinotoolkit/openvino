@@ -35,8 +35,7 @@ TEST(kernel_impl_params_relevance, weights_layout) {
 
     auto fc_opt_impl = ov::intel_gpu::ImplementationDesc(format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl);
     ExecutionConfig cfg{ ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc", fc_opt_impl} }),
-                         ov::intel_gpu::optimize_data(true),
-                         ov::intel_gpu::allow_new_shape_infer(true) };
+                         ov::intel_gpu::optimize_data(true)};
 
     // 1. Compile network with forced `fully_connected_gpu_bf_tiled` kernel => optimized shape-agnostic
     //    kernel will be used

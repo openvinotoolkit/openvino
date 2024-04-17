@@ -10,6 +10,7 @@
 
 namespace cldnn {
 namespace ocl {
+
 struct space_to_batch_impl : typed_primitive_impl_ocl<space_to_batch> {
     using parent = typed_primitive_impl_ocl<space_to_batch>;
     using parent::parent;
@@ -25,16 +26,17 @@ struct space_to_batch_impl : typed_primitive_impl_ocl<space_to_batch> {
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<space_to_batch>();
         auto params = get_default_params<kernel_selector::space_to_batch_params>(impl_param);
+        auto out_rank = impl_param.output_layouts[0].get_rank();
 
         if (primitive->shape_constant) {
             params.block_type = kernel_selector::base_params::ArgType::Constant;
-            params.block_shape = convert_dim_vector(primitive->block_shape);
+            params.block_shape = convert_vec_to_dim_tensor(primitive->block_shape, out_rank, 1);
 
             params.begin_type = kernel_selector::base_params::ArgType::Constant;
-            params.pads_begin = convert_dim_vector(primitive->pads_begin);
+            params.pads_begin = convert_vec_to_dim_tensor(primitive->pads_begin, out_rank, 0);
 
             params.end_type = kernel_selector::base_params::ArgType::Constant;
-            params.pads_end = convert_dim_vector(primitive->pads_end);
+            params.pads_end = convert_vec_to_dim_tensor(primitive->pads_end, out_rank, 0);
         } else {
             params.block_input_index = 1;
             params.block_type = kernel_selector::base_params::ArgType::Input;

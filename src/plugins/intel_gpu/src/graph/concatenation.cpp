@@ -15,35 +15,6 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(concatenation)
 
-layout concatenation_inst::calc_output_layout(concatenation_node const& node, kernel_impl_params const& impl_param) {
-    auto desc = impl_param.typed_desc<concatenation>();
-
-    auto input_layout = impl_param.get_input_layout();
-    auto output_format = input_layout.format;
-    auto result_sizes = input_layout.get_dims();
-
-    auto output_dt = desc->output_data_types[0].value_or(input_layout.data_type);
-    if (impl_param.has_fused_primitives()) {
-        output_dt = impl_param.get_output_element_type();
-    }
-
-    auto axis_index = desc->axis;
-
-    // calculate sum of features from all inputs
-    result_sizes[axis_index] = 0;
-    for (size_t i = 0; i < desc->input.size(); ++i) {
-        auto input_sizes = impl_param.get_input_layout(i).get_dims();
-        if (impl_param.get_input_layout(i).format == format::b_fs_yx_fsv16)
-            output_format = format::b_fs_yx_fsv16;
-
-        result_sizes[axis_index] += input_sizes[axis_index];
-    }
-
-    auto def_fmt = format::get_default_format(input_layout.get_rank());
-
-    return layout {output_dt, output_format, tensor(def_fmt, result_sizes)};
-}
-
 template<typename ShapeType>
 std::vector<layout> concatenation_inst::calc_output_layouts(const concatenation_node& /* node */, const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<concatenation>();

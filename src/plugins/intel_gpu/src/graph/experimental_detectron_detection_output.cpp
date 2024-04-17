@@ -33,14 +33,6 @@ template std::vector<layout>
 experimental_detectron_detection_output_inst::calc_output_layouts<ov::PartialShape>(
         experimental_detectron_detection_output_node const& node, const kernel_impl_params& impl_param);
 
-layout experimental_detectron_detection_output_inst::calc_output_layout(
-    const experimental_detectron_detection_output_node& node, kernel_impl_params const& impl_param) {
-    const layout data_layout = impl_param.get_input_layout();
-    auto desc = impl_param.typed_desc<experimental_detectron_detection_output>();
-
-    return layout(data_layout.data_type, data_layout.format, {static_cast<int>(desc->max_detections_per_image), 4, 1, 1});
-}
-
 std::string experimental_detectron_detection_output_inst::to_string(
     const experimental_detectron_detection_output_node& node) {
     auto desc = node.get_primitive();

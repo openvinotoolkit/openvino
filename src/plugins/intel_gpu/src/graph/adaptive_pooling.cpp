@@ -13,12 +13,6 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(adaptive_pooling)
 
-layout adaptive_pooling_inst::calc_output_layout(adaptive_pooling_node const& node, kernel_impl_params const& impl_param) {
-    const auto data_layout = impl_param.get_input_layout();
-    const auto prim = impl_param.typed_desc<adaptive_pooling>();
-    return {data_layout.data_type, data_layout.format, prim->output_size};
-}
-
 template<typename ShapeType>
 std::vector<layout> adaptive_pooling_inst::calc_output_layouts(adaptive_pooling_node const& /*node*/, const kernel_impl_params& impl_param) {
     std::vector<layout> layouts;

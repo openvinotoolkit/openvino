@@ -47,7 +47,7 @@ TEST_P(test_empty_tensor, concat_two_inputs) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
 
     std::vector<int32_t> nonzero_input_with_all_zero(p.nonzero_input_layout.count());

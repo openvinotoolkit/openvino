@@ -34,7 +34,7 @@ static void CreateNormalizeL2Op(ProgramBuilder& p, const std::shared_ptr<ov::op:
 
     // We create fake scale constant and fill it with ones to keep the same behavior as current primitive
     auto scale = std::make_shared<ov::op::v0::Constant>(op->get_output_element_type(0), ov::Shape{1}, std::vector<float>{1.0});
-    cldnn::layout constLayout = cldnn::layout(cldnn::element_type_to_data_type(op->get_output_element_type(0)), cldnn::format::bfyx, cldnn::tensor{1});
+    cldnn::layout constLayout = cldnn::layout({1}, cldnn::element_type_to_data_type(op->get_output_element_type(0)), cldnn::format::bfyx);
     auto mem = p.get_engine().allocate_memory(constLayout, false);
     cldnn::mem_lock<int8_t> tmpPointer{mem, p.get_engine().get_service_stream()};
     auto buf = tmpPointer.data();

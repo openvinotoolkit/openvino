@@ -12,20 +12,6 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(grid_sample)
 
-layout grid_sample_inst::calc_output_layout(const grid_sample_node& node, const kernel_impl_params& impl_param) {
-    const auto data_layout = impl_param.get_input_layout();
-    const auto data_sizes = data_layout.get_dims();
-    const auto& N = data_sizes[0];
-    const auto& C = data_sizes[1];
-
-    const auto grid_layout = impl_param.get_input_layout(1);
-    const auto grid_sizes = grid_layout.get_dims();
-    const auto& H = grid_sizes[1];
-    const auto& W = grid_sizes[2];
-
-    return {data_layout.data_type, data_layout.format, tensor(data_layout.format, {N, C, H, W})};
-}
-
 template<typename ShapeType>
 std::vector<layout> grid_sample_inst::calc_output_layouts(grid_sample_node const& /*node*/, const kernel_impl_params& impl_param) {
     auto prim = impl_param.typed_desc<grid_sample>();

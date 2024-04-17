@@ -49,7 +49,7 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
         {{}, {}, {}},
         ov::builder::subgraph::RecurrentCellFunction::RNNType::LSTMSequence,
         "RNNCell",
-        "U8"
+        ov::element::u8.get_type_name()
     },
     // asymmetrical FQ on weights
     {
@@ -79,7 +79,7 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
         {{}, {}, {}},
         ov::builder::subgraph::RecurrentCellFunction::RNNType::LSTMSequence,
         "RNNCell",
-        "FP32"
+        ov::element::f32.get_type_name()
     }
 };
 
@@ -129,7 +129,7 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
         {{}, {}, {}},
         ov::builder::subgraph::RecurrentCellFunction::RNNType::GRUSequence,
         "RNNCell",
-        "U8"
+        ov::element::u8.get_type_name()
     },
     // asymmetrical FQ on weights
     {
@@ -159,7 +159,7 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
         {{}, {}, {}},
         ov::builder::subgraph::RecurrentCellFunction::RNNType::GRUSequence,
         "RNNCell",
-        "FP32"
+        ov::element::f32.get_type_name()
     }
 };
 
