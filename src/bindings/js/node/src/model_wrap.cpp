@@ -136,6 +136,6 @@ Napi::Value ModelWrap::get_output_size(const Napi::CallbackInfo& info) {
         reportError(env, "getOutputSize() does not accept any arguments.");
         return env.Undefined();
     }
-    const auto size = _model->get_output_size();
+    const auto size = static_cast<double>(_model->get_output_size());
     return Napi::Number::New(env, size);
 }
