@@ -8,7 +8,6 @@
 #include <regex>
 
 #include "openvino/op/util/op_types.hpp"
-#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/util/env_util.hpp"
 #include "openvino/util/log.hpp"
 
@@ -140,33 +139,13 @@ bool Matcher::match_permutation(const OutputVector& pattern_args, const OutputVe
     return true;
 }
 
-// matching arguments in case of `optional`: input values size can be different
-// in this case pattern should cover all possible cases by `optional` pattern
-// against graph with `lost` inputs
-// Operation example: ov::op::v5::NMS
-inline bool are_arguments_misaligned(const std::vector<ov::Output<Node>>& args,
-                                     const std::vector<ov::Output<Node>>& pattern_args) {
-    // 'lost' operation can be defined in the end
-    // try to find them
-    if (pattern_args.size() < args.size()) {
-        return true;
-    }
-    for (size_t i = args.size(); i < pattern_args.size(); ++i) {
-        const auto pattern_in_node_type = pattern_args[i].get_node()->get_type_info();
-        if (!pattern_in_node_type.is_castable(ov::pass::pattern::op::Optional::get_type_info_static())) {
-            return true;
-        }
-    }
-    return false;
-}
-
 bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& graph_node) {
     OPENVINO_DEBUG << "[MATCHER] Match arguments at " << *graph_node << " for pattern " << *pattern_node;
 
     auto args = graph_node->input_values();
     auto pattern_args = pattern_node->input_values();
 
-    if (args.size() != pattern_args.size() && are_arguments_misaligned(args, pattern_args)) {
+    if (args.size() != pattern_args.size()) {
         OPENVINO_DEBUG << "[MATCHER] Aborting at " << *graph_node << " for pattern " << *pattern_node;
         return false;
     }
