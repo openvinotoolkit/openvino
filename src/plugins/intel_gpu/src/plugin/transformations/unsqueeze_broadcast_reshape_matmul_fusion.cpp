@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "broadcast_reshape_matmul_fusion.hpp"
+#include "unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 
 #include "intel_gpu/op/gemm.hpp"
 
@@ -10,6 +10,7 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "transformations/utils/utils.hpp"
@@ -17,7 +18,7 @@
 namespace ov {
 namespace intel_gpu {
 
-BroadcastReshapeMatmulFusion::BroadcastReshapeMatmulFusion() {
+UnsqueezeBroadcastReshapeMatmulFusion::UnsqueezeBroadcastReshapeMatmulFusion() {
     using namespace ov::pass::pattern;
 
     auto not_reshape = [](const ov::Output<ov::Node>& output) -> bool {
@@ -35,10 +36,15 @@ BroadcastReshapeMatmulFusion::BroadcastReshapeMatmulFusion() {
     auto input_a_m = any_input(not_reshape);
     auto input_b_m = any_input(not_reshape);
 
+    auto unsqueeze_a_axes_m = wrap_type<ov::op::v0::Constant>();
+    auto unsqueeze_a_m = wrap_type<ov::op::v0::Unsqueeze>({input_a_m, unsqueeze_a_axes_m}, consumers_count(1));
+    auto unsqueeze_b_axes_m = wrap_type<ov::op::v0::Constant>();
+    auto unsqueeze_b_m = wrap_type<ov::op::v0::Unsqueeze>({input_b_m, unsqueeze_b_axes_m}, consumers_count(1));
+
     auto broadcast_a_target_shape_m = wrap_type<ov::op::v0::Constant>();
-    auto broadcast_a_m = wrap_type<ov::op::v3::Broadcast>({input_a_m, broadcast_a_target_shape_m}, broadcast_rank_equals_and_has_static_dims);
+    auto broadcast_a_m = wrap_type<ov::op::v3::Broadcast>({unsqueeze_a_m, broadcast_a_target_shape_m}, broadcast_rank_equals_and_has_static_dims);
     auto broadcast_b_target_shape_m = wrap_type<ov::op::v0::Constant>();
-    auto broadcast_b_m = wrap_type<ov::op::v3::Broadcast>({input_b_m, broadcast_b_target_shape_m}, broadcast_rank_equals_and_has_static_dims);
+    auto broadcast_b_m = wrap_type<ov::op::v3::Broadcast>({unsqueeze_b_m, broadcast_b_target_shape_m}, broadcast_rank_equals_and_has_static_dims);
 
     auto reshape_a_pattern_m = wrap_type<ov::op::v0::Constant>();
     auto reshape_a_m = wrap_type<ov::op::v1::Reshape>({broadcast_a_m, reshape_a_pattern_m}, reshape_rank_equals_and_has_static_dim);
@@ -57,8 +63,6 @@ BroadcastReshapeMatmulFusion::BroadcastReshapeMatmulFusion() {
             return false;
         }
 
-        auto target_shape_a = std::vector<int32_t>();
-        auto target_shape_b = std::vector<int32_t>();
         size_t input_a_output_idx = matmul->get_input_source_output(0).get_index();
         size_t input_b_output_idx = matmul->get_input_source_output(1).get_index();
         auto order_a = matmul->get_input0_transpose_order();
@@ -68,13 +72,31 @@ BroadcastReshapeMatmulFusion::BroadcastReshapeMatmulFusion() {
             return order.size() == 4 && order[1] == 2;
         };
 
+        if (pattern_map.count(unsqueeze_a_m) > 0) {
+            if (!valid_transpose_order(order_a))
+                return false;
+            auto unsqueeze_a = std::dynamic_pointer_cast<ov::op::v0::Unsqueeze>(pattern_map.at(unsqueeze_a_m).get_node_shared_ptr());
+            if (!unsqueeze_a)
+                return false;
+            input_a_output_idx = unsqueeze_a->get_input_source_output(0).get_index();
+        }
+        if (pattern_map.count(unsqueeze_b_m) > 0) {
+            if (!valid_transpose_order(order_b))
+                return false;
+            auto unsqueeze_b = std::dynamic_pointer_cast<ov::op::v0::Unsqueeze>(pattern_map.at(unsqueeze_b_m).get_node_shared_ptr());
+            if (!unsqueeze_b)
+                return false;
+            input_b_output_idx = unsqueeze_b->get_input_source_output(0).get_index();
+        }
+
+        auto target_shape_a = std::vector<int32_t>();
+        auto target_shape_b = std::vector<int32_t>();
+
         auto valid_broadcast_target_shape = [](const std::vector<int32_t>& target_shape) {
             return std::count_if(target_shape.begin(), target_shape.end(), [](int32_t s) { return s != 1; }) == 1;
         };
 
         if (pattern_map.count(broadcast_a_m) > 0) {
-            if (!valid_transpose_order(order_a))
-                return false;
             auto broadcast_a = std::dynamic_pointer_cast<ov::op::v3::Broadcast>(pattern_map.at(broadcast_a_m).get_node_shared_ptr());
             if (!broadcast_a || broadcast_a->get_broadcast_spec().m_type != ov::op::BroadcastType::BIDIRECTIONAL)
                 return false;
@@ -82,11 +104,8 @@ BroadcastReshapeMatmulFusion::BroadcastReshapeMatmulFusion() {
             target_shape_a = broadcast_a_target_shape->cast_vector<int32_t>();
             if (!valid_broadcast_target_shape(target_shape_a))
                 return false;
-            input_a_output_idx = broadcast_a->get_input_source_output(0).get_index();
         }
         if (pattern_map.count(broadcast_b_m) > 0) {
-            if (!valid_transpose_order(order_b))
-                return false;
             auto broadcast_b = std::dynamic_pointer_cast<ov::op::v3::Broadcast>(pattern_map.at(broadcast_b_m).get_node_shared_ptr());
             if (!broadcast_b || broadcast_b->get_broadcast_spec().m_type != ov::op::BroadcastType::BIDIRECTIONAL)
                 return false;
@@ -94,7 +113,6 @@ BroadcastReshapeMatmulFusion::BroadcastReshapeMatmulFusion() {
             target_shape_b = broadcast_b_target_shape->cast_vector<int32_t>();
             if (!valid_broadcast_target_shape(target_shape_b))
                 return false;
-            input_b_output_idx = broadcast_b->get_input_source_output(0).get_index();
         }
 
         auto pattern_a = std::vector<int64_t>();
@@ -123,10 +141,6 @@ BroadcastReshapeMatmulFusion::BroadcastReshapeMatmulFusion() {
 
         auto gemm = std::make_shared<op::Gemm>(input_a,
                                                input_b,
-                                               target_shape_a,
-                                               target_shape_b,
-                                               pattern_a,
-                                               pattern_b,
                                                order_a,
                                                order_b,
                                                order_c);
@@ -137,7 +151,7 @@ BroadcastReshapeMatmulFusion::BroadcastReshapeMatmulFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(matmul_m, "BroadcastReshapeMatmulFusion");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matmul_m, "UnsqueezeBroadcastReshapeMatmulFusion");
     this->register_matcher(m, callback);
 }
 
