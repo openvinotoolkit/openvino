@@ -57,7 +57,7 @@ bool AclMVNExecutor::init(const MVNAttrs& mvnAttrs,
     dstTensor.allocator()->init(dstTensorInfo);
 
     mvn = std::make_unique<arm_compute::NEMeanStdDevNormalizationLayer>();
-    mvn->configure(&srcTensor, &dstTensor, mvnAttrs.epsValue_);
+    configureThreadSafe([&] { mvn->configure(&srcTensor, &dstTensor, mvnAttrs.epsValue_); });
 
     return true;
 }

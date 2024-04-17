@@ -116,8 +116,11 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                 ob << make_data(&_scratchpad_mode, sizeof(dnnl::scratchpad_mode));
             }
             {
-                dnnl::fpmath_mode _fmath_mode = _attrs->get_fpmath_mode();
+                dnnl::fpmath_mode _fmath_mode;
+                bool _apply_to_int;
+                _attrs->get_fpmath_mode(_fmath_mode, _apply_to_int);
                 ob << make_data(&_fmath_mode, sizeof(dnnl::fpmath_mode));
+                ob << _apply_to_int;
             }
             {
                 const dnnl::post_ops _post_ops = _attrs->get_post_ops();
@@ -218,8 +221,10 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
             }
             {
                 dnnl::fpmath_mode _fmath_mode = dnnl::fpmath_mode::any;
+                bool _apply_to_int = false;
                 ib >> make_data(&_fmath_mode, sizeof(dnnl::fpmath_mode));
-                _attrs->set_fpmath_mode(_fmath_mode);
+                ib >> _apply_to_int;
+                _attrs->set_fpmath_mode(_fmath_mode, _apply_to_int);
             }
             {
                 const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());

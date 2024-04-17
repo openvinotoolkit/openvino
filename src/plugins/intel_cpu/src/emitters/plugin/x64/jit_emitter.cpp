@@ -5,6 +5,7 @@
 #include "jit_emitter.hpp"
 #include <vector>
 #include "utils/general_utils.h"
+#include "utils.hpp"
 
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl;

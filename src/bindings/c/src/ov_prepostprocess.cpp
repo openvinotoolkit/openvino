@@ -167,6 +167,22 @@ ov_status_e ov_preprocess_preprocess_steps_scale(ov_preprocess_preprocess_steps_
     return ov_status_e::OK;
 }
 
+OPENVINO_C_API(ov_status_e)
+ov_preprocess_preprocess_steps_scale_multi_channels(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
+                                                    const float* values,
+                                                    const int32_t value_size) {
+    if (!preprocess_input_process_steps || !values || value_size <= 0) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        std::vector<float> scale_vec(values, values + value_size);
+        preprocess_input_process_steps->object->scale(scale_vec);
+    }
+    CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
 ov_status_e ov_preprocess_preprocess_steps_mean(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
                                                 float value) {
     if (!preprocess_input_process_steps) {
@@ -174,6 +190,22 @@ ov_status_e ov_preprocess_preprocess_steps_mean(ov_preprocess_preprocess_steps_t
     }
     try {
         preprocess_input_process_steps->object->mean(value);
+    }
+    CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+OPENVINO_C_API(ov_status_e)
+ov_preprocess_preprocess_steps_mean_multi_channels(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
+                                                   const float* values,
+                                                   const int32_t value_size) {
+    if (!preprocess_input_process_steps || !values || value_size <= 0) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        std::vector<float> mean_vec(values, values + value_size);
+        preprocess_input_process_steps->object->mean(mean_vec);
     }
     CATCH_OV_EXCEPTIONS
 

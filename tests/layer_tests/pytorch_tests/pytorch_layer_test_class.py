@@ -9,7 +9,6 @@ import os
 import numpy as np
 from common.constants import test_device, test_precision
 from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
-from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 
 from openvino.frontend import FrontEndManager
 from openvino.runtime import Core, Type, PartialShape
@@ -48,8 +47,7 @@ class PytorchLayerTest:
     def use_torch_compile_backend():
         torch_compile_env = os.getenv("PYTORCH_TRACING_MODE")
         if torch_compile_env is not None:
-            if (torch_compile_env == "TORCHFX" or torch_compile_env == "TORCHSCRIPT"):
-                return True
+            return torch_compile_env == "TORCHFX"
         return False
 
     @staticmethod
@@ -95,28 +93,15 @@ class PytorchLayerTest:
             if self.use_torch_export():
                 from openvino import convert_model
                 from torch.export import export
-                from torch.fx.experimental.proxy_tensor import make_fx
 
                 em = export(model, tuple(torch_inputs))
                 if version.parse(torch.__version__) >= version.parse("2.3"):
                     em = em.run_decompositions()
-                print(em.graph_module.code)
+                gm = em.module()
+                print(gm.code)
 
-                try:
-                    gm = make_fx(em)(*torch_inputs)
-                except:
-                    gm = make_fx(em, tracing_mode='symbolic')(*torch_inputs)
-
-                input_shapes = []
-                input_types = []
-                for input_data in torch_inputs:
-                    input_types.append(input_data.type())
-                    input_shapes.append(input_data.size())
-
-                decoder = TorchFXPythonDecoder(
-                    gm, gm, input_shapes=input_shapes, input_types=input_types)
                 converted_model = convert_model(
-                    decoder, example_input=torch_inputs)
+                    em, example_input=torch_inputs)
                 self._resolve_input_shape_dtype(
                     converted_model, ov_inputs, dynamic_shapes)
                 smodel = model
