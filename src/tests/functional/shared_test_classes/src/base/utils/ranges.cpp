@@ -16,6 +16,8 @@
 
 #include "shared_test_classes/base/utils/ranges.hpp"
 
+#include "shared_test_classes/base/utils/generate_inputs.hpp"
+
 namespace ov {
 namespace test {
 namespace utils {
@@ -24,7 +26,7 @@ ov::test::utils::InputGenerateData get_range_by_type(ov::element::Type temp_type
     double min_start = 0 - (int32_t)round(kMaxRange / 2);
     uint32_t max_range = kMaxRange - 1;
 
-    ov::test::utils::InputGenerateData inData;
+    ov::test::utils::InputGenerateData inData(min_start, max_range);
     #define CASE(X)                                                                                                 \
     case X: {                                                                                                       \
         auto lowest = std::numeric_limits<element_type_traits<X>::value_type>::lowest();                            \
@@ -87,6 +89,42 @@ ov::test::utils::InputGenerateData get_range_by_type(ov::element::Type temp_type
 
             break;
         }
+        case ov::element::Type_t::f8e4m3: {
+            ov::float8_e4m3 lowest_tmp = std::numeric_limits<ov::float8_e4m3>::lowest();
+            ov::float8_e4m3 max_tmp = std::numeric_limits<ov::float8_e4m3>::max();
+
+            double lowest = 0 - static_cast<double>(lowest_tmp.to_bits());
+            double max = max_tmp.to_bits();
+
+            double tmp_range = max - lowest;
+            if (tmp_range < kMaxRange) {
+                inData.start_from = lowest;
+                inData.range = (uint32_t)round(tmp_range);
+            } else {
+                inData.start_from = lowest > min_start ? lowest : min_start;
+                inData.range = kMaxRange - 1;
+            }
+
+            break;
+        }
+        case ov::element::Type_t::f8e5m2: {
+            ov::float8_e5m2 lowest_tmp = std::numeric_limits<ov::float8_e5m2>::lowest();
+            ov::float8_e5m2 max_tmp = std::numeric_limits<ov::float8_e5m2>::max();
+
+            double lowest = 0 - static_cast<double>(lowest_tmp.to_bits());
+            double max = max_tmp.to_bits();
+
+            double tmp_range = max - lowest;
+            if (tmp_range < kMaxRange) {
+                inData.start_from = lowest;
+                inData.range = (uint32_t)round(tmp_range);
+            } else {
+                inData.start_from = lowest > min_start ? lowest : min_start;
+                inData.range = kMaxRange - 1;
+            }
+
+            break;
+        }
         CASE(ov::element::Type_t::f32)
         CASE(ov::element::Type_t::f64)
         CASE(ov::element::Type_t::i4)
@@ -106,21 +144,17 @@ ov::test::utils::InputGenerateData get_range_by_type(ov::element::Type temp_type
     return inData;
 }
 
-std::string get_range_id(const std::shared_ptr<ov::Node>& node, size_t port, bool spectial) {
-    std::string range_id = std::to_string(node->input(port).get_element_type().is_real());
-    if (spectial) {
-        range_id += '_' + std::string(node->get_type_name()) + '_' + std::to_string(port);
-    }
+std::string ModelRange::get_range_id(const std::shared_ptr<ov::Node>& node, size_t port) {
+    std::string range_id = std::string(node->get_type_name());
+    range_id += "_" + TYPE_ALIAS[node->input(port).get_element_type().is_real()];
+    range_id += "_" + std::to_string(port);
     return range_id;
 }
 
-std::map<std::string, std::shared_ptr<ov::test::utils::InputGenerateData>> collect_ranges(const std::shared_ptr<ov::Model>& function, uint64_t kMaxRange) {
-    bool success = true;
-    std::map<std::string, std::shared_ptr<ov::test::utils::InputGenerateData>> inputDataMap;
-    inputDataMap["0"] = std::make_shared<ov::test::utils::InputGenerateData>(ov::test::utils::get_range_by_type(ov::element::Type_t::undefined,
-                                                                                                                kMaxRange));
-    inputDataMap["1"] = std::make_shared<ov::test::utils::InputGenerateData>(ov::test::utils::get_range_by_type(ov::element::Type_t::undefined,
-                                                                                                                kMaxRange));
+void ModelRange::collect_ranges(const std::shared_ptr<ov::Model>& function, uint64_t kMaxRange) {
+    general_real = std::make_shared<ov::test::utils::InputGenerateData>(ov::test::utils::get_range_by_type(ov::element::Type_t::undefined, kMaxRange));
+    general_integral = std::make_shared<ov::test::utils::InputGenerateData>(ov::test::utils::get_range_by_type(ov::element::Type_t::undefined, kMaxRange));
+
     for (const auto& node : function->get_ordered_ops()) {
         if (ov::op::util::is_output(node) ||
             ov::op::util::is_constant(node) ||
@@ -144,47 +178,96 @@ std::map<std::string, std::shared_ptr<ov::test::utils::InputGenerateData>> colle
             }
 
             std::string range_id = get_range_id(node, port);
-            ov::test::utils::InputGenerateData temp_range;
+            ov::test::utils::InputGenerateData port_range;
             if (ranges.empty()) {
-                temp_range = ov::test::utils::get_range_by_type(node->input(port).get_element_type(), kMaxRange);
-                if (temp_range.start_from == inputDataMap[range_id]->start_from && temp_range.range == inputDataMap[range_id]->range) {
-                    continue;
-                }
+                port_range = ov::test::utils::get_range_by_type(node->input(port).get_element_type(), kMaxRange);
             } else {
                 auto op_range = ranges.at(node->input(port).get_element_type().is_real());
-                temp_range = op_range.size() <= port ? op_range.front() : op_range.at(port);
-                if (temp_range.spetial) {
-                    range_id = get_range_id(node, port, true);
-                    inputDataMap[range_id] = std::make_shared<ov::test::utils::InputGenerateData>(temp_range);
-                    continue;
-                }
+                port_range = op_range.size() <= port ? op_range.front() : op_range.at(port);
             }
-
-            success = inputDataMap[range_id]->correct_range(node, port, temp_range);
-            if (!success)
-                break;
+            node_ranges[range_id] = std::make_shared<ov::test::utils::InputGenerateData>(port_range);
         }
-
-        if (!success)
-            break;
     }
-
-#ifndef NDEBUG
-    if (success) {
-        for (auto& range : inputDataMap) {
-            std::cout << "RANGE " << range.first << " :\n" <<
-                         "  start from: " << std::to_string(range.second->start_from) <<
-                         "  range: " << std::to_string(range.second->range) <<
-                         "  resolution: " << std::to_string(range.second->resolution) <<
-                         "  seed: " << std::to_string(range.second->resolution) << std::endl;
-        }
-    } else {
-        std::cout << " RANGE NOT FOUND \n";
-    }
-#endif
-    return success ? inputDataMap : std::map<std::string, std::shared_ptr<ov::test::utils::InputGenerateData>>{};
 }
 
+void ModelRange::find_general_ranges() {
+    bool find_integral = true;
+    bool find_real = true;
+
+    for (auto& node_range : node_ranges) {
+        if (node_range.second->spetial) {
+            continue;
+        }
+
+        if (node_range.first.find(TYPE_ALIAS[0]) != std::string::npos) {
+            find_integral = general_integral->correct_range(node_range.second);
+        } else if (node_range.first.find(TYPE_ALIAS[1]) != std::string::npos) {
+            find_real = general_real->correct_range(node_range.second);
+        }
+    }
+
+    if (find_integral) {
+// #ifndef NDEBUG
+            std::cout << "INEGRAL RANGE FOUND \n" <<
+                         "  start from: " << std::to_string(general_integral->start_from) <<
+                         "  range: " << std::to_string(general_integral->range) <<
+                         "  resolution: " << std::to_string(general_integral->resolution) <<
+                         "  seed: " << std::to_string(general_integral->seed) << std::endl;
+// #endif
+    } else {
+        general_integral = nullptr;
+// #ifndef NDEBUG
+        std::cout << " RANGE NOT FOUND \n";
+// #endif
+    }
+
+    if (find_real) {
+// #ifndef NDEBUG
+            std::cout << "REAL RANGE FOUND \n" <<
+                         "  start from: " << std::to_string(general_real->start_from) <<
+                         "  range: " << std::to_string(general_real->range) <<
+                         "  resolution: " << std::to_string(general_real->resolution) <<
+                         "  seed: " << std::to_string(general_real->seed) << std::endl;
+// #endif
+    } else {
+        general_real = nullptr;
+// #ifndef NDEBUG
+        std::cout << " RANGE NOT FOUND \n";
+// #endif
+    }
+}
+
+ov::Tensor ModelRange::generate_input(std::shared_ptr<ov::Node> node, size_t port, const ov::Shape& targetShape) {
+    std::string range_id = get_range_id(node, port);
+    if (node_ranges.find(range_id) == node_ranges.end()) {
+        throw std::runtime_error("Node info not in rages: " + node->get_friendly_name());
+    }
+
+    auto inputMap = ov::test::utils::getInputMap();
+    auto it = inputMap.find(node->get_type_info());
+    if (it == inputMap.end()) {
+        throw std::runtime_error("Couln't find Operation in inputMap: " + std::string(node->get_type_name()));
+    }
+
+    std::shared_ptr<ov::test::utils::InputGenerateData> range = node_ranges[range_id];
+    if (!node_ranges[range_id]->spetial) {
+        if (node->get_input_element_type(port).is_real() && general_real) {
+            range = general_real;
+        } else {
+            range = general_integral;
+        }
+    }
+
+    return it->second(node, port, node->get_input_element_type(port), targetShape, range);
+}
+
+const std::shared_ptr<ov::test::utils::InputGenerateData> ModelRange::get_general_real_range() {
+    return general_real;
+}
+
+const std::shared_ptr<ov::test::utils::InputGenerateData> ModelRange::get_general_integral_range() {
+    return general_integral;
+}
 
 } // namespace utils
 } // namespace test

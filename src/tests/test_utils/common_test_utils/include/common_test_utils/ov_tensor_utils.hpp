@@ -57,67 +57,59 @@ struct InputGenerateData {
         }
     };
 
-    bool correct_range(const std::shared_ptr<ov::Node>& node, size_t port, const InputGenerateData& new_range) {
+    bool correct_range(const std::shared_ptr<InputGenerateData> new_range) {
         bool success = true;
 
-        double new_max = new_range.start_from + new_range.range;
+        double new_max = new_range->start_from + new_range->range;
         double current_max = start_from + range;
 
-        if (start_from == new_range.start_from) {
+        if (start_from == new_range->start_from) {
             // nothing to do - -----start_curr/new+++++++++++++++range*res curr/new-----------------------
             // nothing to do - -----start_curr/new+++++++++++++++range*res curr----------range*res new----
             // reduce range  - -----start_curr/new+++++++++++++++range*res new-----------range*res curr---
             if (current_max > new_max) {
-                range = new_range.range;
-                resolution = resolution != 1 && resolution <= new_range.resolution ? resolution : new_range.resolution;
+                range = new_range->range;
+                resolution = new_range->resolution > resolution ? new_range->resolution : resolution;
             }
-        } else if (start_from > new_range.start_from) {
+        } else if (start_from > new_range->start_from) {
             // nothing to do        - -----start_new-----start_curr++++++++++range*res curr/new-------------------
             // nothing to do        - -----start_new-----start_curr++++++++++range*res curr------range*res new----
             // reduce range         - -----start_new-----start_curr++++++++++range*res new-------range*res curr---
             // could not find range - -----start_new---range*res new-----start_curr-----range*res curr---
             if (start_from > new_max) {
                 success = false;
-#ifndef NDEBUG
-                std::cout << " FAIL TO FIND RANGE: start_from > new_range.start_from + new_range.range " <<
-                    //  " new range node: " << node->get_friendly_name() << " CURRENT start_from: " <<
-                    //  std::to_string(start_from) <<
-                    " new range node: "
-                          << "node"
-                          << " CURRENT start_from: " << std::to_string(start_from)
-                          << " NEW start_from: " << std::to_string(new_range.start_from)
-                          << " NEW max: " << std::to_string(new_max) << std::endl;
-#endif
+// #ifndef NDEBUG
+                std::cout << " FAIL TO FIND RANGE: current->start_from > new_range->start_from + new_range->range "
+                          << " current->start_from: " << std::to_string(start_from)
+                          << " new_range->start_from: " << std::to_string(new_range->start_from)
+                          << " new_range max: " << std::to_string(new_max) << std::endl;
+// #endif
             } else if (current_max > new_max) {
                 range = (uint32_t)round(new_max - start_from);
-                resolution = resolution != 1 && resolution <= new_range.resolution ? resolution : new_range.resolution;
+                resolution = new_range->resolution > resolution ? new_range->resolution : resolution;
             }
-        } else if (start_from < new_range.start_from) {
+        } else if (start_from < new_range->start_from) {
             // reset to new         - -----start_curr-----start_new++++++++++range*res curr/new-------------------
             // reset to new         - -----start_curr-----start_new++++++++++range*res new-------range*res curr---
             // recalculate range    - -----start_curr-----start_new++++++++++range*res curr------range*res new----
             // could not find range - -----start_curr---range*res curr-----start_new-----range*res new---
-            if (current_max < new_range.start_from) {
+            if (current_max < new_range->start_from) {
                 success = false;
-#ifndef NDEBUG
-                std::cout << " FAIL TO FIND RANGE: current.start_from + current.range < new_range.start_from " <<
-                    //  " new range node: " << node->get_friendly_name() << " NODE start_from: " <<
-                    //  std::to_string(new_range.start_from) <<
-                    " new range node: "
-                          << "node"
-                          << " NODE start_from: " << std::to_string(new_range.start_from)
-                          << " CURRENT start_from: " << std::to_string(start_from)
-                          << " CURRENT max: " << std::to_string(current_max) << std::endl;
-#endif
+// #ifndef NDEBUG
+                std::cout << " FAIL TO FIND RANGE: current->start_from + current->range < new_range->start_from "
+                          << " new_range start_from: " << std::to_string(new_range->start_from)
+                          << " current->start_from: " << std::to_string(start_from)
+                          << " current max: " << std::to_string(current_max) << std::endl;
+// #endif
             } else if (current_max >= new_max) {
-                start_from = new_range.start_from;
-                range = new_range.range;
-                resolution = resolution != 1 && resolution <= new_range.resolution ? resolution : new_range.resolution;
+                start_from = new_range->start_from;
+                range = new_range->range;
+                resolution = new_range->resolution > resolution ? new_range->resolution : resolution;
                 ;
             } else {
-                range = (uint32_t)round(current_max - new_range.start_from);
-                resolution = resolution != 1 && resolution <= new_range.resolution ? resolution : new_range.resolution;
-                start_from = new_range.start_from;
+                range = (uint32_t)round(current_max - new_range->start_from);
+                resolution = new_range->resolution > resolution ? new_range->resolution : resolution;
+                start_from = new_range->start_from;
             }
         }
 

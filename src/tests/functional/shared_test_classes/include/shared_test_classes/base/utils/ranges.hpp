@@ -100,6 +100,14 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/roi_align.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/deformable_convolution.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/batch_norm.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/lstm_sequence.hpp"
 
 namespace ov {
 namespace test {
@@ -108,11 +116,11 @@ namespace utils {
 static std::map<ov::NodeTypeInfo, std::vector<std::vector<ov::test::utils::InputGenerateData>>> inputRanges = {
         // NodeTypeInfo: {IntRanges{}, RealRanges{}} (Ranges are used by generate<ov::Node>)
         { ov::op::v0::Erf::get_type_info_static(), {{{-3, 6}}, {{-3, 6, 10}}} },
-        { ov::op::v1::Divide::get_type_info_static(), {{{101, 100}}, {{1, 2, 128}}} },
+        { ov::op::v1::Divide::get_type_info_static(), {{{101, 100}}, {{2, 2, 128}}} },
         { ov::op::v1::FloorMod::get_type_info_static(), {{{2, 4}}, {{2, 2, 128}}} },
         { ov::op::v1::Mod::get_type_info_static(), {{{2, 4}}, {{2, 2, 128}}} },
         { ov::op::v1::ReduceMax::get_type_info_static(), {{{0, 5}}, {{-5, 5, 1000}}} },
-        { ov::op::v1::ReduceMean::get_type_info_static(), {{{0, 5}}, {{0, 5, 1000}}} },
+        { ov::op::v1::ReduceMean::get_type_info_static(), {{{0, 5, 1000}}, {{0, 5, 1000}}} },
         { ov::op::v1::ReduceMin::get_type_info_static(), {{{0, 5}}, {{0, 5, 1000}}} },
         { ov::op::v1::ReduceProd::get_type_info_static(), {{{0, 5}}, {{0, 5, 1000}}} },
         { ov::op::v1::ReduceSum::get_type_info_static(), {{{0, 5}}, {{0, 5, 1000}}} },
@@ -155,7 +163,7 @@ static std::map<ov::NodeTypeInfo, std::vector<std::vector<ov::test::utils::Input
         { ov::op::v0::Tan::get_type_info_static(), {{{0, 15}}, {{-1, 2, 32768}}} },
         { ov::op::v0::Elu::get_type_info_static(), {{{0, 15}}, {{-1, 2, 32768}}} },
         { ov::op::v0::Erf::get_type_info_static(), {{{0, 15}}, {{-1, 2, 32768}}} },
-        { ov::op::v0::HardSigmoid::get_type_info_static(), {{{0, 15}}, {{-1, 2, 32768}}} },
+        { ov::op::v0::HardSigmoid::get_type_info_static(), {{{0, 15}}, {{-1, 2, 32768}, {0.2, 0, 1, 1, true}, {0.5, 0, 1, 1, true}}} },
         { ov::op::v0::Selu::get_type_info_static(), {{{0, 15}}, {{-1, 2, 32768}}} },
         { ov::op::v0::Sigmoid::get_type_info_static(), {{{0, 15}}, {{-1, 2, 32768}}} },
         { ov::op::v0::Tanh::get_type_info_static(), {{{0, 15}}, {{-1, 2, 32768}}} },
@@ -178,8 +186,8 @@ static std::map<ov::NodeTypeInfo, std::vector<std::vector<ov::test::utils::Input
 // new temp
         { ov::op::v1::Convolution::get_type_info_static(), {{{0, 15}}, {{0, 8, 32}}} },
         { ov::op::v1::ConvolutionBackpropData::get_type_info_static(), {{{0, 15}}, {{0, 8, 32}}} },
-        { ov::op::v1::GroupConvolution::get_type_info_static(), {{{0, 15}}, {{0, 8, 32}}} },
-        { ov::op::v1::GroupConvolutionBackpropData::get_type_info_static(), {{{0, 15}}, {{0, 8, 32}}} },
+        { ov::op::v1::GroupConvolution::get_type_info_static(), {{{0, 15}}, {{0, 8, 32}}}},
+        { ov::op::v1::GroupConvolutionBackpropData::get_type_info_static(), {{{0, 15}}, {{0, 8, 32}}}},
         { ov::op::v12::ScatterElementsUpdate::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}}} },
         { ov::op::v3::ScatterUpdate::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}}} },
         { ov::op::v0::Unsqueeze::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}}} },
@@ -189,10 +197,16 @@ static std::map<ov::NodeTypeInfo, std::vector<std::vector<ov::test::utils::Input
         { ov::op::v0::LRN::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}}} },
         { ov::op::v1::Pad::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}}} },
         { ov::op::v3::Broadcast::get_type_info_static(),  {{{0, 2000}}, {{0, 2000, 32768}}} },
-        { ov::op::v9::NonMaxSuppression::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}, {0, 1, 1000, 1, true}}} },
-        { ov::op::v8::MatrixNms::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}, {0, 1, 1000, 1, true}}} },
+        { ov::op::v5::NonMaxSuppression::get_type_info_static(),  {{{0, 15}, {0, 1, 1000, 1, true}}, {{0, 8, 32}, {0, 1, 1000, 1, true}}} },
+        { ov::op::v9::NonMaxSuppression::get_type_info_static(),  {{{0, 15}, {0, 1, 1000, 1, true}}, {{0, 8, 32}, {0, 1, 1000, 1, true}}} },
+        { ov::op::v8::MatrixNms::get_type_info_static(),  {{{0, 15}, {0, 1, 1000, 1, true}}, {{0, 8, 32}, {0, 1, 1000, 1, true}}} },
         { ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage::get_type_info_static(),  {{{1, 0, 1, 1}}, {{1, 0, 1, 1}}}},
-        { ov::op::v6::ExperimentalDetectronPriorGridGenerator::get_type_info_static(),  {{{0, 0, 1, 1}}, {{-100, 200, 2, 1}, {0, 0, 1, 1}, {0, 0, 1, 1}}}},
+        { ov::op::v6::ExperimentalDetectronPriorGridGenerator::get_type_info_static(),  {{{0, 0, 1, 1}},
+                                                                                         {{-100, 200, 2, 1}, {0, 0, 1, 1, true}, {0, 0, 1, 1, true}}}},
+        { ov::op::v8::DeformableConvolution::get_type_info_static(),  {{{0, 15}, {0, 2, 10, 1, true}, {0, 1, 20, 1, true}},
+                                                                       {{0, 8, 32}, {0, 2, 10, 1, true}, {0, 1, 20, 1, true}}}},
+        { ov::op::v5::GRUSequence::get_type_info_static(),  {{{0, 15}, {0, 15}, {0, 10, 1, 1, true}}, {{0, 8, 32}}}},
+        { ov::op::v5::BatchNormInference::get_type_info_static(),  {{{0, 3}}, {{0, 3, 1}}}},
         { ov::op::v5::RNNSequence::get_type_info_static(),  {{{0, 15}, {0, 15}, {0, 10, 1, 1, true}}, {{0, 8, 32}, {0, 8, 32}, {0, 10, 1, 1, true}}} },
         { ov::op::v1::LogicalAnd::get_type_info_static(),  {{{0, 2}}, {{0, 2}}} },
         { ov::op::v1::LogicalNot::get_type_info_static(),  {{{0, 2}}, {{0, 2}}} },
@@ -208,13 +222,33 @@ static std::map<ov::NodeTypeInfo, std::vector<std::vector<ov::test::utils::Input
         { ov::op::v9::ROIAlign::get_type_info_static(),  {{{0, 15}, {0, 1000, 1, 1, true}, {0, 1000, 1, 1, true}},
                                                           {{-1000, 2000, 32768}, {0, 1000, 1, 1, true}, {0, 1000, 1, 1, true}}} },
         { ov::op::v0::Convert::get_type_info_static(),  {{{0, 1000}}, {{-100, 200, 32768}}} },
+        { ov::op::v0::FakeQuantize::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}}} },
+        { ov::op::v0::FakeQuantize::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}}} },
+        { ov::op::v1::Select::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}}} },
+        { ov::op::v1::Multiply::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}}} },
+        { ov::op::v1::StridedSlice::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}}} },
+        { ov::op::v5::LSTMSequence::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}}} },
 };
 
 ov::test::utils::InputGenerateData get_range_by_type(ov::element::Type temp_type, uint64_t kMaxRange);
 
-std::string get_range_id(const std::shared_ptr<ov::Node>& node, size_t port, bool spectial = false);
+class ModelRange {
+        std::vector<std::string> TYPE_ALIAS {"integral", "real"};
 
-std::map<std::string, std::shared_ptr<ov::test::utils::InputGenerateData>> collect_ranges(const std::shared_ptr<ov::Model>& function, uint64_t kMaxRange);
+        std::shared_ptr<ov::test::utils::InputGenerateData> general_real;
+        std::shared_ptr<ov::test::utils::InputGenerateData> general_integral;
+        // key for map calculated in get_range_id and contais [Op Type Name]_[integral/real]_[port]
+        std::map<std::string, std::shared_ptr<ov::test::utils::InputGenerateData>> node_ranges;
+public:
+        void collect_ranges(const std::shared_ptr<ov::Model>& function, uint64_t kMaxRange);
+        void find_general_ranges();
+        std::string get_range_id(const std::shared_ptr<ov::Node>& node, size_t port);
+        ov::Tensor generate_input(std::shared_ptr<ov::Node> node, size_t port, const ov::Shape& targetShape);
+
+        const std::shared_ptr<ov::test::utils::InputGenerateData> get_general_real_range();
+        const std::shared_ptr<ov::test::utils::InputGenerateData> get_general_integral_range();
+};
+
 
 } // namespace utils
 } // namespace test
