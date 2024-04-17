@@ -88,10 +88,6 @@ bool SupportsFusingWithConvolution_SumActivation(const std::shared_ptr<const Nod
 }
 
 bool canBePerformedAsScaleShift(const std::shared_ptr<const Node> &node, const int channelAxis) {
-    // Aligned with ov::intel_cpu::Node::canBePerformedAsScaleShift for arm64
-#if defined(OPENVINO_ARCH_ARM64)
-    return false;
-#else
     size_t fusingPort = 0;
     size_t numNonConstInputs = 0;
     ov::PartialShape dataShape;
@@ -130,7 +126,6 @@ bool canBePerformedAsScaleShift(const std::shared_ptr<const Node> &node, const i
             ov::is_type<ov::opset1::Subtract>(node) ||
             ov::is_type<ov::opset1::Divide>(node)) &&
            isBroadcastableToDataInput();
-#endif
 }
 
 inline bool canBeMatMulExecutedInInt8(const ov::element::Type& firstType, const ov::element::Type& secondType) {
@@ -269,10 +264,6 @@ bool isSuitableChildForFusingSimple(const std::shared_ptr<const Node> &node, con
 
 bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, const bool canMatMulBeExecutedInI8,
                                     NodeFusingType &updatedChainType, int& fusingAxis) {
-    // Aligned with FullyConnected::canFuse and MatMul::canFuse for arm64
-#if defined(OPENVINO_ARCH_ARM64)
-    return false;
-#else
     // Firsly check for Bias and DQScales fusion
     const bool is_bias = ov::is_type<ov::opset1::Add>(node);
     const bool is_dq_scales = ov::is_type<ov::opset1::Multiply>(node) && canMatMulBeExecutedInI8;
@@ -361,7 +352,6 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, con
     }
 
     return false;
-#endif
 }
 bool isSuitableParentForFusingSumActivation(const std::shared_ptr<const Node> &node) {
 #if defined(OPENVINO_ARCH_ARM64)

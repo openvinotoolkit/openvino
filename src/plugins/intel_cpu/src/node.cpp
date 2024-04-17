@@ -1358,7 +1358,7 @@ Node* Node::NodesFactory::create(const std::shared_ptr<ov::Node>& op, const Grap
 }
 
 bool Node::canBePerformedAsScaleShift(const Node *parentNode) const {
-#if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
     OPENVINO_ASSERT(parentNode);
 
     size_t fusingPort = 0;
