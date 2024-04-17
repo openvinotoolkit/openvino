@@ -79,31 +79,31 @@ struct Signature {
     }
 
     static void array(const std::string key, const Napi::Value& value) {
-        OPENVINO_ASSERT(value.IsArray(), get_error_message(key, "Array", value.Type()));
+        OPENVINO_ASSERT(value.IsArray(), create_error_message(key, "Array", value.Type()));
     }
 
     static void check_type(const napi_valuetype expected_type, const std::string key, const Napi::Value& value) {
         napi_valuetype real_type = value.Type();
 
-        OPENVINO_ASSERT(real_type == expected_type, get_error_message(key, expected_type, real_type));
+        OPENVINO_ASSERT(real_type == expected_type, create_error_message(key, expected_type, real_type));
     }
 
-    static const std::string get_error_message(std::string key,
+    static const std::string create_error_message(std::string key,
                                                napi_valuetype expected_type,
                                                napi_valuetype real_type) {
         std::string expected_type_str = get_type_name(expected_type);
         std::string real_type_str = get_type_name(real_type);
 
-        return get_error_message(key, expected_type_str, real_type_str);
+        return create_error_message(key, expected_type_str, real_type_str);
     }
 
-    static const std::string get_error_message(const std::string& key, const std::string& expected, const const napi_valuetype& real_type) {
+    static const std::string create_error_message(const std::string& key, const std::string& expected, const napi_valuetype& real_type) {
         std::string real_type_str = get_type_name(real_type);
 
-        return get_error_message(key, expected, real_type_str);
+        return create_error_message(key, expected, real_type_str);
     }
 
-    static std::string get_error_message(std::string key, std::string expected, std::string real) {
+    static std::string create_error_message(std::string key, std::string expected, std::string real) {
         return "Argument #" + key + " has type '" + real + "', expected '" + expected + "'";
     }
 };
