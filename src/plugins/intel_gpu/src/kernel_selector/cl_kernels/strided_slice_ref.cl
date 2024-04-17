@@ -10,20 +10,20 @@ inline void FUNC(get_slice_step)(OPTIONAL_SHAPE_INFO_ARG
                                  int* step_batch, int* step_feature,
                                  int* step_w, int* step_z, int* step_y, int* step_x)
 {
-    const uint batch_index = 0;
-    const uint feature_index = 1;
+    const uint batch_index = DIM_IDX_BATCH;
+    const uint feature_index = DIM_IDX_FEATURE;
 #ifdef OUTPUT_LAYOUT_BFYX
-    const uint y_index = 2;
-    const uint x_index = 3;
+    const uint y_index = DIM_IDX_Y;
+    const uint x_index = DIM_IDX_X;
 #elif OUTPUT_LAYOUT_BFZYX
-    const uint z_index = 2;
-    const uint y_index = 3;
-    const uint x_index = 4;
+    const uint z_index = DIM_IDX_Z;
+    const uint y_index = DIM_IDX_Y;
+    const uint x_index = DIM_IDX_X;
 #elif OUTPUT_LAYOUT_BFWZYX
-    const uint w_index = 2;
-    const uint z_index = 3;
-    const uint y_index = 4;
-    const uint x_index = 5;
+    const uint w_index = DIM_IDX_W;
+    const uint z_index = DIM_IDX_Z;
+    const uint y_index = DIM_IDX_Y;
+    const uint x_index = DIM_IDX_X;
 #endif
 
     *step_batch = batch_index < STRIDE_DIMS ? stride[batch_index] : 1;
@@ -55,20 +55,20 @@ inline void FUNC(get_slice_end)(OPTIONAL_SHAPE_INFO_ARG
     const uint out_z_num = INPUT0_SIZE_Z;
     const uint out_y_num = INPUT0_SIZE_Y;
     const uint out_x_num = INPUT0_SIZE_X;
-    const uint batch_index = 0;
-    const uint feature_index = 1;
+    const uint batch_index = DIM_IDX_BATCH;
+    const uint feature_index = DIM_IDX_FEATURE;
 #ifdef OUTPUT_LAYOUT_BFYX
-    const uint y_index = 2;
-    const uint x_index = 3;
+    const uint y_index = DIM_IDX_Y;
+    const uint x_index = DIM_IDX_X;
 #elif OUTPUT_LAYOUT_BFZYX
-    const uint z_index = 2;
-    const uint y_index = 3;
-    const uint x_index = 4;
+    const uint z_index = DIM_IDX_Z;
+    const uint y_index = DIM_IDX_Y;
+    const uint x_index = DIM_IDX_X;
 #elif OUTPUT_LAYOUT_BFWZYX
-    const uint w_index = 2;
-    const uint z_index = 3;
-    const uint y_index = 4;
-    const uint x_index = 5;
+    const uint w_index = DIM_IDX_W;
+    const uint z_index = DIM_IDX_Z;
+    const uint y_index = DIM_IDX_Y;
+    const uint x_index = DIM_IDX_X;
 #endif
     END_TYPE batch = batch_index < END_DIMS ? end[batch_index] : 0;
     END_TYPE feature = feature_index < END_DIMS ? end[feature_index] : 0;
@@ -100,20 +100,20 @@ inline void FUNC(get_slice_begin)(OPTIONAL_SHAPE_INFO_ARG
                                   int* begin_batch, int* begin_feature,
                                   int* begin_w, int* begin_z, int* begin_y, int* begin_x)
 {
-    const uint batch_index = 0;
-    const uint feature_index = 1;
+    const uint batch_index = DIM_IDX_BATCH;
+    const uint feature_index = DIM_IDX_FEATURE;
 #ifdef OUTPUT_LAYOUT_BFYX
-    const uint y_index = 2;
-    const uint x_index = 3;
+    const uint y_index = DIM_IDX_Y;
+    const uint x_index = DIM_IDX_X;
 #elif OUTPUT_LAYOUT_BFZYX
-    const uint z_index = 2;
-    const uint y_index = 3;
-    const uint x_index = 4;
+    const uint z_index = DIM_IDX_Z;
+    const uint y_index = DIM_IDX_Y;
+    const uint x_index = DIM_IDX_X;
 #elif OUTPUT_LAYOUT_BFWZYX
-    const uint w_index = 2;
-    const uint z_index = 3;
-    const uint y_index = 4;
-    const uint x_index = 5;
+    const uint w_index = DIM_IDX_W;
+    const uint z_index = DIM_IDX_Z;
+    const uint y_index = DIM_IDX_Y;
+    const uint x_index = DIM_IDX_X;
 #endif
 
     BEGIN_TYPE batch = batch_index < BEGIN_DIMS ? begin[batch_index] : 0;
@@ -160,7 +160,7 @@ inline void FUNC(calculate_index)(int* step, int* begin_num, int* end_num, const
     {
         int real_begin = *begin_num < 0 ? *begin_num + out_num : *begin_num;
         int real_end = *end_num < 0 ? *end_num + out_num : *end_num;
-        if (*step < 0) {    
+        if (*step < 0) {
             real_begin = max((int)(0), min((int)(out_num - 1), real_begin));
             real_end = max((int)(-1), min((int)out_num, real_end));
             if (real_begin < real_end) { // for reversing
@@ -388,7 +388,7 @@ KERNEL(strided_slice_ref)(OPTIONAL_SHAPE_INFO_ARG
     const uint input_index = INPUT0_OFFSET +
             (slice_begin_batch + batch * slice_steps_batch) * INPUT0_BATCH_PITCH +
             (slice_begin_feature + feature * slice_steps_feature) * INPUT0_FEATURE_PITCH +
-    #if INPUT0_LAYOUT_BFWZYX        
+    #if INPUT0_LAYOUT_BFWZYX
             (slice_begin_w + w * slice_steps_w) * INPUT0_W_PITCH +
             (slice_begin_z + z * slice_steps_z) * INPUT0_Z_PITCH +
             (slice_begin_y + y * slice_steps_y) * INPUT0_Y_PITCH +

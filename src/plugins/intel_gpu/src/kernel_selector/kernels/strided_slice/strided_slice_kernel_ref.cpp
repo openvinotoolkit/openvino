@@ -165,6 +165,38 @@ JitConstants StridedSliceKernelRef::GetJitConstants(const strided_slice_params& 
         "NEW_AXIS_MODE",
         std::find(params.new_axis_mask.begin(), params.new_axis_mask.end(), 1) != params.new_axis_mask.end()));
 
+    std::vector<int> dims_indexes;
+    bool ellipsis_mode = std::find(params.ellipsis_mask.begin(), params.ellipsis_mask.end(), 1) != params.ellipsis_mask.end();
+    if (ellipsis_mode) {
+        size_t ellipsis_pos1 = 0;
+        for (size_t i = 0; i < params.ellipsis_mask.size(); i++) {
+            if (params.ellipsis_mask[i] == 1) {
+                ellipsis_pos1 = i;
+                break;
+            }
+        }
+
+        const size_t output_rank = params.outputs[0].Dimentions();
+        const size_t skip_dims_num = output_rank - params.ellipsis_mask.size() + 1;
+        int dim_counter = 0;
+
+        for (size_t i = 0; i < ellipsis_pos1; i++)
+            dims_indexes.push_back(dim_counter++);
+
+        for (size_t i = 0; i < skip_dims_num; i++)
+            dims_indexes.push_back(-1);
+
+        dim_counter++;
+        for (size_t i = 0; i < params.ellipsis_mask.size() - ellipsis_pos1 - 1; i++)
+            dims_indexes.push_back(dim_counter++);
+
+        OPENVINO_ASSERT(dims_indexes.size() == output_rank, "[GPU] Number of indexes is expected to match with output rank");
+    } else {
+        dims_indexes.resize(params.outputs[0].Dimentions());
+        std::iota(dims_indexes.begin(), dims_indexes.end(), 0);
+    }
+    makeJitConstForParam(jit, "DIM_IDX", dims_indexes);
+
     bool shrink_mode = std::find(params.shrink_axis_mask.begin(), params.shrink_axis_mask.end(), 1) != params.shrink_axis_mask.end();
     if (shrink_mode) {
         jit.AddConstant(MakeJitConstant("SHRINK_MODE", true));
