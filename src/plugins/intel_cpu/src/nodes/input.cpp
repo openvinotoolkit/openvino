@@ -375,15 +375,23 @@ void Input::cloneBlobIfRequired() {
 
     auto weightCache = context->getWeightsCache();
 
-    if (weightCache) {
-        MemoryPtr ptr = *weightCache->findOrCreate(blobKey(), cloneBlob);
-        memoryPtr = std::const_pointer_cast<const IMemory>(ptr);
-    // IRs already have all subnormals flushed to zero, but in
-    // read_model scenario with directly loaded original model still can have subnormals
-    } else if (prec != element::string && isBlobAligned() && (!needFlushDenormalsToZero || !hasSubnormals()) && !isWA()) {
+    // if (weightCache) {
+    //     MemoryPtr ptr = *weightCache->findOrCreate(blobKey(), cloneBlob);
+    //     memoryPtr = std::const_pointer_cast<const IMemory>(ptr);
+    // // IRs already have all subnormals flushed to zero, but in
+    // // read_model scenario with directly loaded original model still can have subnormals
+    // } else
+    if (prec != element::string && isBlobAligned() && (!needFlushDenormalsToZero || !hasSubnormals()) && !isWA()) {
         memoryPtr = std::make_shared<Memory>(getEngine(), memDesc, constOp->get_data_ptr());
     } else {
-        memoryPtr = std::const_pointer_cast<const IMemory>(cloneBlob());
+        if (weightCache) {
+            MemoryPtr ptr = *weightCache->findOrCreate(blobKey(), cloneBlob);
+            memoryPtr = std::const_pointer_cast<const IMemory>(ptr);
+            // IRs already have all subnormals flushed to zero, but in
+            // read_model scenario with directly loaded original model still can have subnormals
+        } else {
+            memoryPtr = std::const_pointer_cast<const IMemory>(cloneBlob());
+        }
     }
 }
 
