@@ -72,7 +72,7 @@ useful modules.
 .. code:: ipython3
 
     %pip install -q --upgrade pip
-    %pip install -q --upgrade transformers torch gradio openvino accelerate onnx ipywidgets --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q --upgrade transformers torch gradio openvino accelerate onnx ipywidgets "peft==0.6.2" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
 
 Select inference device

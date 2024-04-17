@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -111,10 +111,6 @@ void check_unique_names(const std::shared_ptr<ov::Model>& f, const std::shared_p
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::CheckUniqueNames>(unh, true);
     manager.run_passes(f);
-}
-
-std::shared_ptr<ov::op::v0::Constant> create_zero_constant(const ov::element::Type_t& et, const ov::Shape& shape) {
-    return ov::op::v0::Constant::create(et, shape, {0});
 }
 
 namespace ov {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "loop_inst.h"
@@ -167,6 +167,9 @@ struct loop_impl : typed_primitive_impl<loop> {
         // read initial execution condition from outer network
         int64_t execution_condition = 1;
         if (!primitive->first_execution_condition_id.empty()) {
+            // Wait for completion of the execution_condition of outer_network
+            if (outer_network.has_event(primitive->first_execution_condition_id))
+                outer_network.get_primitive_event(primitive->first_execution_condition_id)->wait();
             memory::ptr first_execution_condition_mem = outer_network.get_primitive(primitive->first_execution_condition_id)->output_memory_ptr();
             execution_condition = read_scalar_value(first_execution_condition_mem, stream);
         }

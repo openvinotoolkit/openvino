@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -43,5 +43,7 @@ class TestScaledDotProductAttention(PytorchLayerTest):
     @pytest.mark.parametrize(['mask', 'is_causal'], [(False, False), (False, True), (True, True), (True, False)])
     @pytest.mark.parametrize("dtype", (np.float32, np.float64))
     def test_scaled_dot_product_atten(self, ie_device, precision, ir_version, mask, is_causal, dtype):
+        if PytorchLayerTest.use_torch_export() and not mask and is_causal:
+            pytest.xfail(reason="Unsupported case for torch.export")
         self._test(*self.create_model(mask, is_causal, dtype),
                    ie_device, precision, ir_version, kwargs_to_prepare_input={"dtype": dtype})

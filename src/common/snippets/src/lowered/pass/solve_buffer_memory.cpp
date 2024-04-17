@@ -26,7 +26,7 @@ std::vector<ov::MemorySolver::Box> SolveBufferMemory::init_boxes(const AllocateB
             OPENVINO_ASSERT(buffer != nullptr, "BufferSolver expects Buffer ops in clusters");
 
             // life finish time - order of LoopEnd / MemoryAccess ops
-            const auto buffer_outs = buffer_expr->get_output_port_connectors();
+            const auto& buffer_outs = buffer_expr->get_output_port_connectors();
             for (const auto& buffer_out : buffer_outs) {
                 const auto consumers = buffer_out->get_consumers();
                 for (const auto& consumer : consumers) {
@@ -36,7 +36,7 @@ std::vector<ov::MemorySolver::Box> SolveBufferMemory::init_boxes(const AllocateB
             }
             e_start = e_finish;
 
-            const auto buffer_ins = buffer_expr->get_input_port_connectors();
+            const auto& buffer_ins = buffer_expr->get_input_port_connectors();
             for (const auto& buffer_in : buffer_ins) {
                 const auto& source = buffer_in->get_source();
                 e_start = static_cast<int>(ov::snippets::pass::GetTopologicalOrder(source.get_expr()->get_node()));

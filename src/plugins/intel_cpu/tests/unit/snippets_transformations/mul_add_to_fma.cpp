@@ -99,7 +99,6 @@ typedef std::tuple<
         PartialShape,  // Input shape 0
         PartialShape,  // Input shape 1
         PartialShape,  // Input shape 2
-        PartialShape,  // Master shape
         size_t         // Add input index
 > MulAddToFMAParams;
 
@@ -107,14 +106,12 @@ class MulAddToFMATests : public LoweringTests, public testing::WithParamInterfac
 public:
     static std::string getTestCaseName(testing::TestParamInfo<MulAddToFMAParams> obj) {
         std::vector<PartialShape> inputShapes(3);
-        PartialShape master_shape;
         size_t add_input_idx;
-        std::tie(inputShapes[0], inputShapes[1], inputShapes[2], master_shape, add_input_idx) = obj.param;
+        std::tie(inputShapes[0], inputShapes[1], inputShapes[2], add_input_idx) = obj.param;
 
         std::ostringstream result;
         for (size_t i = 0; i < inputShapes.size(); i++)
             result << "IS[" << i << "]=" <<  ov::test::utils::partialShape2str({inputShapes[i]}) << "_";
-        result << "MS=" << ov::test::utils::partialShape2str({master_shape}) << "_";
         result << "add_input_idx=" << add_input_idx;
         return result.str();
     }
@@ -125,7 +122,7 @@ protected:
         LoweringTests::SetUp();
         std::vector<PartialShape> inputShapes(3);
         size_t add_input_idx;
-        std::tie(inputShapes[0], inputShapes[1], inputShapes[2], master_shape, add_input_idx) = this->GetParam();
+        std::tie(inputShapes[0], inputShapes[1], inputShapes[2], add_input_idx) = this->GetParam();
         const bool scalar_input = ov::shape_size(inputShapes[2].to_shape()) == 1;
         snippets_model = std::make_shared<EltwiseWithMulAddFunction>(inputShapes, add_input_idx, scalar_input);
 
@@ -145,7 +142,6 @@ protected:
 
 TEST_P(MulAddToFMATests, MulAddToFMATests) {
     auto subgraph = getLoweredSubgraph(snippets_model->getOriginal(),
-                                       master_shape,
                                        backend_passes,
                                        std::make_shared<ov::snippets::lowered::pass::PassConfig>(),
                                        {},
@@ -167,7 +163,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets, MulAddToFMATests,
                                 ::testing::ValuesIn(in_shapes_0),
                                 ::testing::ValuesIn(in_shapes_1),
                                 ::testing::ValuesIn(in_shapes_2),
-                                ::testing::Values(ov::PartialShape{1, 3, 16, 16}),
                                 ::testing::ValuesIn(in_idxes_for_add)),
                         MulAddToFMATests::getTestCaseName);
 } // namespace MulAddToFMATestsInstantiation

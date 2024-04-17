@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -335,6 +335,10 @@ struct layout {
 
     /// Modify padding in layout
     layout with_padding(padding const& padd) const;
+
+    bool has_dynamic_pad() const {
+        return data_padding.get_dynamic_pad_dims() != tensor(0);
+    }
 
     /// Data type stored in @ref memory (see. @ref data_types)
     ov::element::Type_t data_type;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,6 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -260,14 +259,15 @@ TEST(type_prop, concat_partial_negative_axis_incorrect) {
                     HasSubstr("Concat Parameter axis -4 out of the tensor rank range"));
 }
 
-/** \brief Test uses evaluate lower/upper and label of concat op. */
-TEST(type_prop, concat_dynamic_value_and_label_propagation) {
+/** \brief Test uses evaluate lower/upper and symbol of concat op. */
+TEST(type_prop, concat_dynamic_value_and_symbol_propagation) {
     ov::Dimension marked_0 = ov::Dimension(3);
-    ov::DimensionTracker::set_label(marked_0, 10);
+    auto A = std::make_shared<ov::Symbol>(), B = std::make_shared<ov::Symbol>();
+    marked_0.set_symbol(A);
     ov::PartialShape target_0 = ov::PartialShape{marked_0, 4};
 
     ov::Dimension marked_1 = ov::Dimension(5);
-    ov::DimensionTracker::set_label(marked_1, 15);
+    marked_1.set_symbol(B);
     ov::PartialShape target_1 = ov::PartialShape{4, marked_1, 9};
 
     auto param = make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
@@ -284,18 +284,19 @@ TEST(type_prop, concat_dynamic_value_and_label_propagation) {
     EXPECT_EQ(bc->get_shape(), (ov::Shape{3, 4, 5, 4, 5, 9}));
 
     const auto& output_shape = bc->get_output_partial_shape(0);
-    const auto labels = get_shape_labels(output_shape);
-    ASSERT_THAT(labels, ElementsAre(10, 0, 0, 0, 15, 0));
+    const auto symbols = get_shape_symbols(output_shape);
+    ASSERT_THAT(symbols, ElementsAre(A, nullptr, nullptr, nullptr, B, nullptr));
 }
 
-/** \brief Test uses evaluate lower/upper and label of concat op. */
-TEST(type_prop, concat_dynamic_value_and_label_propagation_1) {
+/** \brief Test uses evaluate lower/upper and symbol of concat op. */
+TEST(type_prop, concat_dynamic_value_and_symbol_propagation_1) {
     ov::Dimension marked_0 = ov::Dimension(3);
-    ov::DimensionTracker::set_label(marked_0, 1000);
+    auto A = std::make_shared<ov::Symbol>(), B = std::make_shared<ov::Symbol>();
+    marked_0.set_symbol(A);
     ov::PartialShape target_0 = ov::PartialShape{marked_0, 4};
 
     ov::Dimension marked_1 = ov::Dimension(5);
-    ov::DimensionTracker::set_label(marked_1, 1500);
+    marked_1.set_symbol(B);
     ov::PartialShape target_1 = ov::PartialShape{4, marked_1, 9};
 
     auto param = make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
@@ -316,8 +317,8 @@ TEST(type_prop, concat_dynamic_value_and_label_propagation_1) {
     EXPECT_EQ(bc->get_shape(), (ov::Shape{3, 4, 5, 4, 5, 9}));
 
     const auto& output_shape = bc->get_output_partial_shape(0);
-    const auto labels = get_shape_labels(output_shape);
-    ASSERT_THAT(labels, ElementsAre(1000, 0, 0, 0, 1500, 0));
+    const auto symbols = get_shape_symbols(output_shape);
+    ASSERT_THAT(symbols, ElementsAre(A, nullptr, nullptr, nullptr, B, nullptr));
 }
 
 TEST(type_prop, concat_interval_dimensions) {

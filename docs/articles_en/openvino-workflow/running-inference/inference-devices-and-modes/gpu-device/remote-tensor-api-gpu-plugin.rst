@@ -515,7 +515,8 @@ using ``ov::AnyMap`` containers that are filled with ``std::string, ov::Any`` pa
 Two types of map entries are possible: descriptor and container.
 Descriptor sets the expected structure and possible parameter values of the map.
 
-For possible low-level properties and their description, refer to the ``openvino/runtime/intel_gpu/remote_properties.hpp`` header file .
+For possible low-level properties and their description, refer to the header file:
+`remote_properties.hpp <https://github.com/openvinotoolkit/openvino/blob/releases/2024/0/src/inference/include/openvino/runtime/intel_gpu/remote_properties.hpp>`__.
 
 Examples
 ###########################################################
@@ -563,6 +564,6 @@ To see pseudo-code of usage examples, refer to the sections below.
 See Also
 #######################################
 
-* ``ov::Core``
-* ``ov::RemoteTensor``
+* `ov::Core <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_core.html>`__
+* `ov::RemoteTensor <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_remote_tensor.html>`__
 

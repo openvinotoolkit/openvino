@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <nodes/common/cpu_convert.h>
 #include "cpu_memory.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
 #include "dnnl_extension_utils.h"
 #include "cpu_tensor.h"
 #include "utils/plain_tensor.hpp"

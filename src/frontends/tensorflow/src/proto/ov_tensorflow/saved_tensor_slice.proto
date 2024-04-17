@@ -8,7 +8,7 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.*/
-// Modification Copyright (C) 2018-2023 Intel Corporation
+// Modification Copyright (C) 2018-2024 Intel Corporation
 // Protocol buffers for saved tensor slices. It's used for the brain tensor
 // ops checkpoints and the V3 checkpoints in dist_belief.
 
@@ -25,7 +25,7 @@ limitations under the License.*/
 // ordered code that encodes the name of the tensor and the slice
 // information. The name is also stored in the SaveSlice message for ease of
 // debugging and manual examination.
-// Modification Copyright (C) 2023 Intel Corporation
+// Modification Copyright (C) 2024 Intel Corporation
 
 syntax = "proto3";
 

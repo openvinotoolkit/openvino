@@ -193,6 +193,15 @@ Tune quantization parameters
        regex = '.*layer_.*'
        nncf.quantize(model, dataset, ignored_scope=nncf.IgnoredScope(patterns=regex))
 
+  * Exclude by subgraphs:
+
+    .. code-block:: sh
+
+       subgraph = nncf.Subgraph(inputs=['layer_1', 'layer_2'], outputs=['layer_3'])
+       nncf.quantize(model, dataset, ignored_scope=nncf.IgnoredScope(subgraphs=[subgraph]))
+
+    In this case, all nodes along all simple paths in the graph from input to output nodes will be excluded from the quantization process.
+
 * ``target_device`` - defines the target device, the specificity of which will be taken into account during optimization. The following values are supported: ``ANY`` (default), ``CPU``, ``CPU_SPR``, ``GPU``, and ``NPU``.
 
   .. code-block:: sh
@@ -201,7 +210,7 @@ Tune quantization parameters
 
 * ``advanced_parameters`` - used to specify advanced quantization parameters for fine-tuning the quantization algorithm. Defined by `nncf.quantization.advanced_parameters <https://openvinotoolkit.github.io/nncf/autoapi/nncf/quantization/advanced_parameters/index.html>`__ NNCF submodule. ``None`` is default.
 
-If the accuracy of the quantized model is not satisfactory, you can try to use the :doc:`Quantization with accuracy control <quantization_w_accuracy_control>` flow.
+If the accuracy of the quantized model is not satisfactory, you can try to use the :doc:`Quantization with accuracy control <quantizing-with-accuracy-control>` flow.
 
 Examples of how to apply NNCF post-training quantization:
 ############################################################

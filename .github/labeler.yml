@@ -71,6 +71,9 @@
 - 'src/plugins/intel_gpu/**/*'
 - 'thirdparty/ocl/**/*'
 
+'category: NPU':
+- 'src/plugins/intel_npu/**/*'
+
 'category: HETERO':
 - 'src/plugins/hetero/**/*'
 
@@ -166,6 +169,9 @@
 'category: transformations':
 - 'src/common/transformations/**/*'
 - 'src/common/offline_transformations/**/*'
+- 'src/core/pattern/**/*'
+- 'src/core/pass/**/*'
+- 'src/core/include/openvino/pass/**/*'
 
 'category: licensing':
 - 'licensing/**/*'

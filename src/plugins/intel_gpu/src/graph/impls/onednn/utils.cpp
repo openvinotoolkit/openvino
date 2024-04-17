@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -101,6 +101,8 @@ dnnl::memory::data_type convert_data_type(cldnn::data_types dt) {
         case cldnn::data_types::i8: return dnnl::memory::data_type::s8;
         case cldnn::data_types::u8: return dnnl::memory::data_type::u8;
         case cldnn::data_types::i32: return dnnl::memory::data_type::s32;
+        case cldnn::data_types::i4: return dnnl::memory::data_type::s4;
+        case cldnn::data_types::u4: return dnnl::memory::data_type::u4;
         default: throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to onednn type");
     }
 }
@@ -123,11 +125,9 @@ std::vector<std::pair<cldnn::format, dnnl::memory::format_tag>> format_map = {
         { cldnn::format::goizyx,  dnnl::memory::format_tag::goidhw },
 
         { cldnn::format::os_iyx_osv16,  dnnl::memory::format_tag::Oihw16o },
-        { cldnn::format::gs_oiyx_gsv8,  dnnl::memory::format_tag::Goihw8g },
         { cldnn::format::gs_oiyx_gsv16,  dnnl::memory::format_tag::Goihw16g },
         { cldnn::format::gs_oiyx_gsv32,  dnnl::memory::format_tag::Goihw32g },
         { cldnn::format::gs_oizyx_gsv16,  dnnl::memory::format_tag::Goidhw16g },
-        { cldnn::format::gs_oizyx_gsv32,  dnnl::memory::format_tag::Goidhw32g },
         { cldnn::format::g_os_iyx_osv16,  dnnl::memory::format_tag::gOihw16o },
 
         { cldnn::format::os_is_yx_osv16_isv16,  dnnl::memory::format_tag::OIhw16o16i },
@@ -221,6 +221,9 @@ int64_t get_offset(cldnn::layout&& l, dnnl::memory::desc&& desc) {
     }
 
     switch (desc.get_data_type()) {
+        case dnnl::memory::data_type::s4:
+        case dnnl::memory::data_type::u4:
+            return offset / 2;
         case dnnl::memory::data_type::s8:
         case dnnl::memory::data_type::u8:
             return offset;
@@ -244,6 +247,9 @@ dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_t
     } else if (target_fmt == dnnl::memory::format_tag::ab) {
         dims.push_back(l.batch());
         dims.push_back(l.get_tensor().count() / l.batch());
+    } else if (target_fmt == dnnl::memory::format_tag::ba) {
+        dims.push_back(l.feature());
+        dims.push_back(l.get_tensor().count() / l.feature());
     } else if (flatten) {
         dims = flatten_tensor(l.get_tensor());
     } else {

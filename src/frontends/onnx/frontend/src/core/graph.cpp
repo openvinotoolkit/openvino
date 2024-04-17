@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,7 @@
 #include "openvino/frontend/onnx/extension/conversion.hpp"
 #include "openvino/frontend/onnx/node_context.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/util/common_util.hpp"
 #include "utils/common.hpp"
 
 using namespace ov;
@@ -173,7 +174,11 @@ void Graph::convert_to_ov_nodes() {
     // Process ONNX graph nodes, convert to OV nodes
     for (const auto& node_proto : m_model->get_graph().node()) {
         if (m_extensions.telemetry) {
-            op_statistics[node_proto.op_type()]++;
+            std::string op_name =
+                (node_proto.has_domain() && node_proto.domain() != ""
+                     ? "***." + node_proto.op_type() + "-X"
+                     : node_proto.op_type() + +"-" + std::to_string(m_model->get_opset_version(node_proto.domain())));
+            op_statistics[op_name]++;
         }
         const Node node{node_proto, this};
         if (!m_model->is_operator_available(node.op_type(), node.domain())) {
@@ -274,7 +279,11 @@ void Graph::decode_to_framework_nodes() {
     // Process ONNX graph nodes, convert to OV nodes
     for (const auto& node_proto : m_model->get_graph().node()) {
         if (m_extensions.telemetry) {
-            op_statistics[node_proto.op_type()]++;
+            std::string op_name =
+                (node_proto.has_domain() && node_proto.domain() != ""
+                     ? "***." + node_proto.op_type() + "-X"
+                     : node_proto.op_type() + +"-" + std::to_string(m_model->get_opset_version(node_proto.domain())));
+            op_statistics[op_name]++;
         }
         const Node node{node_proto, this};
         ov::OutputVector ov_nodes{make_framework_nodes(node)};
@@ -310,10 +319,10 @@ std::shared_ptr<ov::Model> Graph::create_model() {
 
 std::shared_ptr<ov::Model> Graph::decode() {
     decode_to_framework_nodes();
-    auto function = create_model();
-    auto& rt_info = function->get_rt_info();
+    auto model = create_model();
+    auto& rt_info = model->get_rt_info();
     rt_info[ONNX_GRAPH_RT_ATTRIBUTE] = shared_from_this();
-    return function;
+    return model;
 }
 
 bool Graph::is_ov_node_in_cache(const std::string& name) const {
@@ -339,6 +348,8 @@ ov::OutputVector Graph::get_ov_outputs() {
 ov::OutputVector Graph::make_ov_nodes(const Node& onnx_node) {
     ov::OutputVector ov_subgraph_outputs;
     std::string error_message;
+    const std::string onnx_prefix = "[ONNX Frontend] ";
+    // Failed to convert operation "
     if (m_model->is_operator_available(onnx_node.op_type(), onnx_node.domain())) {
         const auto ng_node_factory = m_model->get_operator(onnx_node.op_type(), onnx_node.domain());
         try {
@@ -347,7 +358,7 @@ ov::OutputVector Graph::make_ov_nodes(const Node& onnx_node) {
             error_message = e.what();
         } catch (const std::exception& exc) {
             error_message = error::detail::get_error_msg_prefix(onnx_node);
-            error_message += ":\n" + std::string{exc.what()};
+            error_message += ": " + std::string{exc.what()};
         } catch (...) {
             error_message = error::detail::get_error_msg_prefix(onnx_node);
             // Since we do not know anything about current exception data type we can only
@@ -356,6 +367,14 @@ ov::OutputVector Graph::make_ov_nodes(const Node& onnx_node) {
         }
     }
     if (ov_subgraph_outputs.empty()) {  // translation not possible (not supported op or exception during processing)
+        if (m_extensions.telemetry && !error_message.empty()) {
+            std::string onnx_domain = onnx_node.domain();
+            int64_t opset_version = m_model->get_opset_version(onnx_domain);
+            error_message = onnx_prefix + "Conversion failed for " +
+                            (onnx_domain != "" ? "***." + onnx_node.op_type() + "-X"
+                                               : onnx_node.op_type() + "-" + std::to_string(opset_version)) +
+                            "\n" + error_message;
+        }
         const auto not_supported_node =
             std::make_shared<ov::frontend::onnx::NotSupportedONNXNode>(onnx_node.get_ov_inputs(),
                                                                        onnx_node.get_outputs_size(),

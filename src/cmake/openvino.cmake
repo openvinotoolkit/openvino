@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -51,6 +51,10 @@ endif()
 
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME} PUBLIC OPENVINO_STATIC_LIBRARY)
+endif()
+
+if(DEFINED OV_GLIBCXX_USE_CXX11_ABI)
+    target_compile_definitions(${TARGET_NAME} PUBLIC _GLIBCXX_USE_CXX11_ABI=${OV_GLIBCXX_USE_CXX11_ABI})
 endif()
 
 if(WIN32)

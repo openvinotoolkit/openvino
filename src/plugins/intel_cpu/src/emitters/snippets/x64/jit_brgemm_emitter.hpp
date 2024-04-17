@@ -5,12 +5,21 @@
 #pragma once
 
 #include "emitters/plugin/x64/jit_emitter.hpp"
+#include "jit_kernel_emitter.hpp"
 
 #include <cpu/x64/brgemm/brgemm.hpp>
 
-
 namespace ov {
 namespace intel_cpu {
+
+struct jit_brgemm_call_args {
+    const void* A = nullptr;
+    const void* B = nullptr;
+    void* C = nullptr;
+    void* scratch = nullptr;
+    amx_tile_config_t* amx_tile_config = nullptr;
+};
+#define GET_OFF_BRGEMM_ARGS(field) offsetof(jit_brgemm_call_args, field)
 
 class jit_brgemm_emitter : public jit_emitter {
 public:
@@ -35,13 +44,15 @@ private:
         bool is_with_comp;
         float beta;
     };
-    static void init_brgemm_kernel(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel, bool use_amx);
+    static void init_brgemm_kernel(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel);
 
-    void emit_brgemm_kernel_call(const dnnl::impl::cpu::x64::brgemm_kernel_t* brg_kernel, const brgemmCtx& ctx,
+    void emit_brgemm_kernel_call(const dnnl::impl::cpu::x64::brgemm_kernel_t* brg_kernel,
                                  Xbyak::Reg64 addr_A, Xbyak::Reg64 addr_B, Xbyak::Reg64 scratch, Xbyak::Reg64 addr_C,
                                  size_t in0_kernel_offset = 0, size_t in1_kernel_offset = 0,
                                  size_t in2_kernel_offset = 0, size_t out0_kernel_offset = 0) const;
-    static void kernel_execute(const dnnl::impl::cpu::x64::brgemm_kernel_t *brg_kernel, const void *A, const void *B, void *C, void *scratch, int with_comp);
+    static void kernel_execute(const dnnl::impl::cpu::x64::brgemm_kernel_t* brg_kernel,
+                               const brgemmCtx* ctx,
+                               jit_brgemm_call_args* brgemm_call_args);
 
     brgemmCtx m_ctx;
     std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> m_kernel = nullptr;
@@ -53,8 +64,6 @@ private:
     size_t m_load_offset_b = 0lu;
     size_t m_load_offset_scratch = 0lu;
     size_t m_store_offset_c = 0lu;
-
-    std::vector<size_t> io_data_size {};
 
 #ifdef SNIPPETS_DEBUG_CAPS
     friend std::string init_info_jit_brgemm_emitter(const jit_brgemm_emitter *emitter);

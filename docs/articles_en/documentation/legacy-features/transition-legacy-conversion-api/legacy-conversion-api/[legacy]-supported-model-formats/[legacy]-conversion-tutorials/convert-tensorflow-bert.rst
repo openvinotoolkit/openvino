@@ -5,7 +5,7 @@ Converting a TensorFlow BERT Model
 
 
 .. meta::
-   :description: Learn how to convert a BERT model 
+   :description: Learn how to convert a BERT model
                  from TensorFlow to the OpenVINO Intermediate Representation.
 
 
@@ -13,8 +13,8 @@ Converting a TensorFlow BERT Model
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <tutorials>`.
-   
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <../../../../../../learn-openvino/interactive-tutorials-python>`.
+
 Pretrained models for BERT (Bidirectional Encoder Representations from Transformers) are
 `publicly available <https://github.com/google-research/bert>`__.
 
@@ -166,7 +166,7 @@ Follow these steps to make a pretrained TensorFlow BERT model reshapable over ba
       --input_model inference_graph.pb \
       --input "IteratorGetNext:0{i32}[1,128],IteratorGetNext:1{i32}[1,128],IteratorGetNext:4{i32}[1,128]"
 
-For other applicable parameters, refer to the :doc:`Convert Model from TensorFlow <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>` guide.
+For other applicable parameters, refer to the :doc:`Convert Model from TensorFlow <../[legacy]-convert-tensorflow>` guide.
 
-For more information about reshape abilities, refer to the :doc:`Using Shape Inference <openvino_docs_OV_UG_ShapeInference>` guide.
+For more information about reshape abilities, refer to the :doc:`Using Shape Inference <../../../../../../openvino-workflow/running-inference/changing-input-shape>` guide.
 

@@ -1,9 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 #include "intel_gpu/primitives/reshape.hpp"
+#include "intel_gpu/runtime/tensor_accessor.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "primitive_inst.h"
 
 #include <string>
@@ -11,11 +13,14 @@
 
 namespace cldnn {
 
+padding propagate_padding(const layout& in_layout, const ov::PartialShape& out_shape, reshape::reshape_mode mode, const ov::ITensorAccessor& ta);
+
 template <>
 struct typed_program_node<reshape> : public typed_program_node_base<reshape> {
     using parent = typed_program_node_base<reshape>;
     typed_program_node(const std::shared_ptr<reshape> prim, program& prog) : parent(prim, prog) {
         support_padding_all(true);
+        set_runtime_skippable(true);
     }
 
 public:
@@ -24,7 +29,7 @@ public:
     program_node& input() const { return get_dependency(0); }
 
     bool has_padding() const {
-        return (this->get_output_layout().data_padding || input().get_output_layout(false).data_padding);
+        return (this->get_output_layout().data_padding || input().get_output_layout(false).data_padding || input().get_output_layout(false).has_dynamic_pad());
     }
 
     bool has_outer_padding_offset() const {
@@ -56,6 +61,10 @@ public:
         if (this->is_output() || this->has_fused_primitives())
             return false;
 
+        if (input().get_output_layout(false).has_dynamic_pad()) {
+            return typed_desc()->mode != reshape::reshape_mode::base;
+        }
+
         if (has_padding())
             return false;
 
@@ -68,6 +77,22 @@ public:
 
         auto input_layout = input().get_output_layout(false);
         auto output_layout = this->get_output_layout();
+        if (input_layout.has_dynamic_pad()) {
+            auto prim = typed_desc();
+
+            ov::PartialShape pattern_shape = { static_cast<int64_t>(prim->output_pattern.size()) };
+            if (pattern_shape.size() == 0)
+                pattern_shape = {};
+
+            auto pattern_data = prim->output_pattern;
+            auto pattern_tensor = make_tensor({pattern_shape, data_types::i64, format::bfyx}, static_cast<void*>(pattern_data.data()));
+            std::unordered_map<size_t, ov::Tensor> const_data {{1, pattern_tensor}};
+            const auto ta = ov::make_tensor_accessor(const_data);
+
+            this->set_output_padding(propagate_padding(input_layout, output_layout.get_partial_shape(), prim->mode, ta));
+            return;
+        }
+
         if (input_layout.batch() != output_layout.batch()) {
             // adjust output padding if Reshape has an outer padding exists in an input
             auto input_pitches = input_layout.get_pitches();

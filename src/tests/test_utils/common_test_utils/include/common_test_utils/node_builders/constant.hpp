@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -23,28 +23,28 @@ std::shared_ptr<ov::Node> make_constant(const ov::element::Type& type,
                                         T up_to = 10,
                                         T start_from = 1,
                                         const int seed = 1) {
-#define makeNode(TYPE)                                                                                              \
-    case TYPE:                                                                                                      \
-        if (random) {                                                                                               \
-            return std::make_shared<ov::op::v0::Constant>(                                                          \
-                type,                                                                                               \
-                shape,                                                                                              \
-                NGraphFunctions::Utils::generateVector<TYPE>(ov::shape_size(shape),                                 \
-                                                             ov::element_type_traits<TYPE>::value_type(up_to),      \
-                                                             ov::element_type_traits<TYPE>::value_type(start_from), \
-                                                             seed));                                                \
-        } else {                                                                                                    \
-            if (std::is_same<T, fundamental_type_for<TYPE>>::value) {                                               \
-                return std::make_shared<ov::op::v0::Constant>(type, shape, data);                                   \
-            } else {                                                                                                \
-                /* Convert std::vector<T> data to required type */                                                  \
-                std::vector<fundamental_type_for<TYPE>> converted_data(data.size());                                \
-                std::transform(data.cbegin(), data.cend(), converted_data.begin(), [](T e) {                        \
-                    return static_cast<fundamental_type_for<TYPE>>(e);                                              \
-                });                                                                                                 \
-                return std::make_shared<ov::op::v0::Constant>(type, shape, converted_data);                         \
-            }                                                                                                       \
-        }                                                                                                           \
+#define makeNode(TYPE)                                                                       \
+    case TYPE:                                                                               \
+        if (random) {                                                                        \
+            return std::make_shared<ov::op::v0::Constant>(                                   \
+                type,                                                                        \
+                shape,                                                                       \
+                generateVector<TYPE>(ov::shape_size(shape),                                  \
+                                     ov::element_type_traits<TYPE>::value_type(up_to),       \
+                                     ov::element_type_traits<TYPE>::value_type(start_from),  \
+                                     seed));                                                 \
+        } else {                                                                             \
+            if (std::is_same<T, fundamental_type_for<TYPE>>::value) {                        \
+                return std::make_shared<ov::op::v0::Constant>(type, shape, data);            \
+            } else {                                                                         \
+                /* Convert std::vector<T> data to required type */                           \
+                std::vector<fundamental_type_for<TYPE>> converted_data(data.size());         \
+                std::transform(data.cbegin(), data.cend(), converted_data.begin(), [](T e) { \
+                    return static_cast<fundamental_type_for<TYPE>>(e);                       \
+                });                                                                          \
+                return std::make_shared<ov::op::v0::Constant>(type, shape, converted_data);  \
+            }                                                                                \
+        }                                                                                    \
         break;
     switch (type) {
         makeNode(ov::element::bf16);

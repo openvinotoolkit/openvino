@@ -7,12 +7,12 @@ Quantizing with Accuracy Control
 Introduction
 ####################
 
-This is the advanced quantization flow that allows to apply 8-bit quantization to the model with control of accuracy metric. This is achieved by keeping the most impactful operations within the model in the original precision. The flow is based on the :doc:`Basic 8-bit quantization <basic_quantization_flow>` and has the following differences:
+This is the advanced quantization flow that allows to apply 8-bit quantization to the model with control of accuracy metric. This is achieved by keeping the most impactful operations within the model in the original precision. The flow is based on the :doc:`Basic 8-bit quantization <basic-quantization-flow>` and has the following differences:
 
 * Besides the calibration dataset, a **validation dataset** is required to compute the accuracy metric. Both datasets can refer to the same data in the simplest case.
 * **Validation function**, used to compute accuracy metric is required. It can be a function that is already available in the source framework or a custom function.
-* Since accuracy validation is run several times during the quantization process, quantization with accuracy control can take more time than the :doc:`Basic 8-bit quantization <basic_quantization_flow>` flow.
-* The resulted model can provide smaller performance improvement than the :doc:`Basic 8-bit quantization <basic_quantization_flow>` flow because some of the operations are kept in the original precision.
+* Since accuracy validation is run several times during the quantization process, quantization with accuracy control can take more time than the :doc:`Basic 8-bit quantization <basic-quantization-flow>` flow.
+* The resulted model can provide smaller performance improvement than the :doc:`Basic 8-bit quantization <basic-quantization-flow>` flow because some of the operations are kept in the original precision.
 
 .. note:: Currently, 8-bit quantization with accuracy control is available only for models in OpenVINO and onnx.ModelProto representation.
 
@@ -27,7 +27,7 @@ If the original model is converted to OpenVINO and saved through ``openvino.save
 Prepare calibration and validation datasets
 ############################################
 
-This step is similar to the :doc:`Basic 8-bit quantization <basic_quantization_flow>` flow. The only difference is that two datasets, calibration and validation, are required.
+This step is similar to the :doc:`Basic 8-bit quantization <basic-quantization-flow>` flow. The only difference is that two datasets, calibration and validation, are required.
 
 .. tab-set::
 
@@ -121,9 +121,9 @@ To save the model in the OpenVINO Intermediate Representation (IR), use ``openvi
          :language: python
          :fragment: [save]
 
-``nncf.quantize_with_accuracy_control()`` API supports all the parameters from :doc:`Basic 8-bit quantization <basic_quantization_flow>` API, to quantize a model with accuracy control and a custom configuration.
+``nncf.quantize_with_accuracy_control()`` API supports all the parameters from :doc:`Basic 8-bit quantization <basic-quantization-flow>` API, to quantize a model with accuracy control and a custom configuration.
 
-If the accuracy or performance of the quantized model is not satisfactory, you can try :doc:`Training-time Optimization <tmo_introduction>` as the next step.
+If the accuracy or performance of the quantized model is not satisfactory, you can try :doc:`Training-time Optimization <../compressing-models-during-training>` as the next step.
 
 Examples of NNCF post-training quantization with control of accuracy metric:
 #############################################################################
@@ -135,6 +135,6 @@ Examples of NNCF post-training quantization with control of accuracy metric:
 See also
 ####################
 
-* :doc:`Optimizing Models at Training Time <tmo_introduction>`
+* :doc:`Optimizing Models at Training Time <../compressing-models-during-training>`
 
 

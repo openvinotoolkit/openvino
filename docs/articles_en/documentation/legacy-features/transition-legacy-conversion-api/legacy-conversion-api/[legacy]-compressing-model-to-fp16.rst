@@ -7,7 +7,7 @@
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Conversion Parameters <openvino_docs_OV_Converter_UG_Conversion_Options>` article.
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Conversion Parameters <../../../../openvino-workflow/model-preparation/conversion-parameters>` article.
 
 By default, when IR is saved all relevant floating-point weights are compressed to ``FP16`` data type during model conversion.
 It results in creating a "compressed ``FP16`` model", which occupies about half of
@@ -37,12 +37,12 @@ To disable compression, use the ``compress_to_fp16=False`` option:
 
 
 For details on how plugins handle compressed ``FP16`` models, see
-:doc:`Inference Devices and Modes <openvino_docs_Runtime_Inference_Modes_Overview>`.
+:doc:`Inference Devices and Modes <../../../../openvino-workflow/running-inference/inference-devices-and-modes>`.
 
 .. note::
 
    ``FP16`` compression is sometimes used as the initial step for ``INT8`` quantization.
-   Refer to the :doc:`Post-training optimization <ptq_introduction>` guide for more
+   Refer to the :doc:`Post-training optimization <../../../../openvino-workflow/model-optimization-guide/quantizing-models-post-training>` guide for more
    information about that.
 
 

@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2023 Intel Corporation
+ Copyright (C) 2018-2024 Intel Corporation
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -10,7 +10,6 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import os
 import pytest
 import re
 import sys
@@ -20,19 +19,17 @@ from common.samples_common_test_class import get_tests
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 
-test_data_fp32 = get_tests(cmd_params={'i': [os.path.join('227x227', 'dog.bmp')],
-                                       'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
-                                       'sample_type': ['C++','Python'],
-                                       'batch': [1, 2, 4],
-                                      },
-                           )
+test_data_fp32 = get_tests({
+    'i': ['dog-224x224.bmp'],
+    'm': ['bvlcalexnet-12.onnx'],  # Remove the model forom .md and .rst if removed from here
+    'sample_type': ['C++','Python'],
+})
 
-test_data_fp16 = get_tests(cmd_params={'i': [os.path.join('227x227', 'dog.bmp')],
-                                       'm': [os.path.join('squeezenet1.1', 'FP16', 'squeezenet1.1.xml')],
-                                       'sample_type': ['C++','Python'],
-                                       'batch': [1, 2, 4],
-                                       },
-                           )
+test_data_fp16 = get_tests({
+    'i': ['dog-224x224.bmp'],
+    'm': ['bvlcalexnet-12.onnx'],
+    'sample_type': ['C++','Python'],
+})
 
 
 class TestClassification(SamplesCommonTestClass):

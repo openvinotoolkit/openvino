@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,9 +15,9 @@ struct slice_params: public base_params {
     std::vector<std::int64_t> compile_time_start;
     std::vector<std::int64_t> compile_time_step;
     std::vector<std::int64_t> compile_time_axes;
-    kernel_selector::Datatype start_data_type;
-    kernel_selector::Datatype step_data_type;
-    kernel_selector::Datatype axes_data_type;
+    kernel_selector::Datatype start_data_type = kernel_selector::Datatype::UNSUPPORTED;
+    kernel_selector::Datatype step_data_type = kernel_selector::Datatype::UNSUPPORTED;
+    kernel_selector::Datatype axes_data_type = kernel_selector::Datatype::UNSUPPORTED;
 };
 
 class SliceKernelRef: public KernelBaseOpenCL {

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -44,7 +44,7 @@ class TestRsqrt(CommonTFLayerTest):
                    use_legacy_frontend=use_legacy_frontend)
 
     test_data = [dict(shape=[1]),
-                 pytest.param(dict(shape=[1, 224]), marks=pytest.mark.precommit_tf_fe),
+                 pytest.param(dict(shape=[1, 224]), marks=pytest.mark.precommit),
                  dict(shape=[1, 3, 224]),
                  dict(shape=[1, 3, 100, 224]),
                  dict(shape=[1, 3, 50, 100, 224])]

@@ -14,8 +14,6 @@ Synchronous Inference Request API. Before using the sample, refer to the followi
 
 - Models with only one input and output are supported.
 - The sample accepts any file format supported by ``core.read_model``.
-- The sample has been validated with: `alexnet <https://docs.openvino.ai/nightly/omz_models_model_alexnet.html>`__,
-  `googlenet-v1 <https://docs.openvino.ai/nightly/omz_models_model_googlenet_v1.html>`__ models.
 - To build the sample, use instructions available at :ref:`Build the Sample Applications <build-samples>`
   section in "Get Started with Samples" guide.
 
@@ -54,7 +52,7 @@ inference, and processes output data, logging each step in a standard output str
 
 
 You can see the explicit description of each sample step at
-:doc:`Integration Steps <openvino_docs_OV_UG_Integrate_OV_with_your_application>`
+:doc:`Integration Steps <../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
 section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
 Running
@@ -98,10 +96,10 @@ To run the sample, you need to specify a model and an image:
      application or reconvert your model using model conversion API with
      ``reverse_input_channels`` argument specified. For more information about
      the argument, refer to **When to Reverse Input Channels** section of
-     :doc:`Embedding Preprocessing Computation <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>`.
+     :doc:`Embedding Preprocessing Computation <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/[legacy]-setting-input-shapes>`.
    - Before running the sample with a trained model, make sure the model is
      converted to the intermediate representation (IR) format (\*.xml + \*.bin)
-     using the :doc:`model conversion API <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
+     using the :doc:`model conversion API <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`.
    - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
 Example
@@ -257,11 +255,11 @@ Sample Output
 Additional Resources
 ####################
 
-- :doc:`Integrate the OpenVINO™ Runtime with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`
-- :doc:`Get Started with Samples <openvino_docs_get_started_get_started_demos>`
-- :doc:`Using OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>`
-- :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
-- `OpenVINO Runtime C API <api/c_cpp_api/group__ov__c__api.html>`__
+- :doc:`Integrate the OpenVINO™ Runtime with Your Application <../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
+- :doc:`Get Started with Samples <get-started-demos>`
+- :doc:`Using OpenVINO Samples <../openvino-samples>`
+- :doc:`Convert a Model <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`
+- `OpenVINO Runtime C API <https://docs.openvino.ai/2024/api/c_cpp_api/group__ov__c__api.html>`__
 - `Hello Classification Python Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/python/hello_classification/README.md>`__
 - `Hello Classification C++ Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/cpp/hello_classification/README.md>`__
 - `Hello Classification C Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/c/hello_classification/README.md>`__

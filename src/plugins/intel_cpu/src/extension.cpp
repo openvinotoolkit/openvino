@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,11 +7,13 @@
 #include "openvino/core/op_extension.hpp"
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
+#include "ov_ops/gather_compressed.hpp"
 #include "ov_ops/multiclass_nms_ie_internal.hpp"
 #include "ov_ops/nms_ie_internal.hpp"
 #include "ov_ops/nms_static_shape_ie.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "snippets/op/subgraph.hpp"
+#include "transformations/cpu_opset/common/op/causal_mask_preprocess.hpp"
 #include "transformations/cpu_opset/common/op/fully_connected.hpp"
 #include "transformations/cpu_opset/common/op/leaky_relu.hpp"
 #include "transformations/cpu_opset/common/op/ngram.hpp"
@@ -69,8 +71,10 @@ private:
     OP_EXTENSION(ov::intel_cpu::LeakyReluNode)                              \
     OP_EXTENSION(ov::intel_cpu::PowerStaticNode)                            \
     OP_EXTENSION(ov::intel_cpu::RoPENode)                                   \
+    OP_EXTENSION(ov::intel_cpu::CausalMaskPreprocessNode)                             \
     OP_EXTENSION(ov::intel_cpu::SwishNode)                                  \
     OP_EXTENSION(ov::intel_cpu::NgramNode)                                  \
+    OP_EXTENSION(ov::op::internal::GatherCompressed)                        \
     OP_EXTENSION(ov::op::internal::NonMaxSuppressionIEInternal)             \
     OP_EXTENSION(ov::op::internal::MulticlassNmsIEInternal)                 \
     OP_EXTENSION(ov::op::internal::AUGRUCell)                               \
@@ -166,7 +170,10 @@ private:
     OP_EXTENSION(ov::snippets::op::Store)                    \
     OP_EXTENSION(ov::snippets::op::Subgraph)                 \
     OP_EXTENSION(ov::snippets::op::VectorBuffer)             \
-    OP_EXTENSION(ov::snippets::op::RankNormalization)
+    OP_EXTENSION(ov::snippets::op::RankNormalization)        \
+    OP_EXTENSION(ov::snippets::op::ReduceMax)                \
+    OP_EXTENSION(ov::snippets::op::ReduceSum)                \
+    OP_EXTENSION(ov::snippets::op::Reshape)
 
 OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>(
     {CPU_EXTENSIONS TYPE_RELAXED_EXTENSIONS SNIPPETS_EXTENSIONS SNIPPETS_DEBUG_CAPS_EXTENSIONS}));

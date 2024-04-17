@@ -13,6 +13,7 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "dev/core_impl.hpp"
 #include "openvino/op/relu.hpp"
+#include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/util/file_util.hpp"
 
 using namespace testing;
@@ -381,6 +382,29 @@ TEST(CoreTests_parse_device_config, get_device_config) {
         "HETERO",
         ov::AnyMap{ov::device::priorities("MULTI,DEVICE"),
                    ov::device::properties(ov::AnyMap{{"MULTI", ov::AnyMap{ov::device::priorities("DEVICE")}}})});
+
+    // invalid device name with characters after parenthesis except comma
+    EXPECT_THROW(ov::parseDeviceNameIntoConfig("DEVICE(0)ov", ov::AnyMap{}), ov::Exception);
+    EXPECT_THROW(ov::parseDeviceNameIntoConfig("MULTI:DEVICE(0)ov,DEVICE(1)", ov::AnyMap{}), ov::Exception);
+    EXPECT_THROW(ov::parseDeviceNameIntoConfig("MULTI:DEVICE(0),DEVICE(1),", ov::AnyMap{}), ov::Exception);
+}
+
+TEST(CoreTests_parse_device_config, get_batch_device_name) {
+    EXPECT_STREQ(ov::DeviceIDParser::get_batch_device("CPU").c_str(), "CPU");
+    EXPECT_STREQ(ov::DeviceIDParser::get_batch_device("GPU(4)").c_str(), "GPU");
+
+    OV_EXPECT_THROW(ov::DeviceIDParser::get_batch_device("-CPU"),
+                    ov::Exception,
+                    ::testing::HasSubstr("Invalid device name '-CPU' for BATCH"));
+    OV_EXPECT_THROW(ov::DeviceIDParser::get_batch_device("CPU(0)-"),
+                    ov::Exception,
+                    ::testing::HasSubstr("Invalid device name 'CPU(0)-' for BATCH"));
+    OV_EXPECT_THROW(ov::DeviceIDParser::get_batch_device("GPU(4),CPU"),
+                    ov::Exception,
+                    ::testing::HasSubstr("BATCH accepts only one device in list but got 'GPU(4),CPU'"));
+    OV_EXPECT_THROW(ov::DeviceIDParser::get_batch_device("CPU,GPU"),
+                    ov::Exception,
+                    ::testing::HasSubstr("BATCH accepts only one device in list but got 'CPU,GPU'"));
 }
 
 class ApplyAutoBatchThreading : public testing::Test {

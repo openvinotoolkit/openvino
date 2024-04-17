@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -70,7 +70,7 @@ bool ConvolutionBackpropDataTransformation::isQuantizedStatic(const std::shared_
 
 size_t ConvolutionBackpropDataTransformation::getInputChannels(const std::shared_ptr<ov::Node> conv) const {
     const auto channels = conv->get_input_partial_shape(1)[0];
-    assert(channels.is_static());
+    OPENVINO_ASSERT(channels.is_static());
     return channels.get_length();
 }
 
@@ -113,11 +113,6 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
         if (dequantization.subtract != nullptr) {
             NetworkHelper::optimizeSubtract(dequantization.subtract);
         }
-
-        std::shared_ptr<Node> newMultiplyAfterConst = std::make_shared<ov::opset1::Constant>(
-            dequantization.multiplyConstant->get_element_type(),
-            Shape{ 1 },
-            dequantization.multiplyConstant->cast_vector<float>()[0]);
         auto inputs = convolutionBackpropData->input_values();
         inputs[0] = dequantization.multiply->input_value(0);
         const auto copyNode = convolutionBackpropData->clone_with_new_inputs(inputs);
@@ -126,6 +121,12 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
             *ov::as_type_ptr<ov::opset1::ConvolutionBackpropData>(copyNode),
             std::vector<element::Type>{deqPrecision, deqPrecision},
             std::vector<element::Type>{deqPrecision});
+
+        const auto newMultiplyAfterConst = foldConvert(
+            std::make_shared<ov::opset1::Constant>(dequantization.multiplyConstant->get_element_type(),
+                                                   Shape{1},
+                                                   dequantization.multiplyConstant->cast_vector<float>()[0]),
+            deqPrecision);
 
         newMultiplyAfter = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
             std::vector<element::Type>{ deqPrecision, deqPrecision },
@@ -163,21 +164,24 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
 
         {
             const auto newScalePShape = multiplyFromWeights->get_input_partial_shape(1);
-            assert(newScalePShape.is_static());
+            OPENVINO_ASSERT(newScalePShape.is_static());
             Shape newScaleShape = newScalePShape.to_shape();
 
             auto inputs = convolutionBackpropData->input_values();
             inputs[1] = multiplyFromWeights->input_value(0);
 
             const auto newconvolutionBackpropData = convolutionBackpropData->copy_with_new_inputs(inputs);
-            newMultiplyAfter = std::make_shared<ov::opset1::Multiply>(
-                newconvolutionBackpropData,
-                foldConvert(
-                    fold_reshape<ov::opset1::Reshape>(
-                        multiplyFromWeights->input_value(1),
-                        std::make_shared<ov::opset1::Constant>(element::u64, Shape{ newScaleShape.size() }, newScaleShape),
-                        false),
-                    convolutionBackpropData->get_output_element_type(0)));
+            const auto newMultiplyAfterConst = foldConvert(
+                fold_reshape<ov::opset1::Reshape>(
+                    multiplyFromWeights->input_value(1),
+                    std::make_shared<ov::opset1::Constant>(element::u64, Shape{newScaleShape.size()}, newScaleShape),
+                    false),
+                deqPrecision);
+            newMultiplyAfter = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
+                std::vector<element::Type>{deqPrecision, deqPrecision},
+                std::vector<element::Type>{dequantization.multiply->get_output_element_type(0)},
+                ov::op::TemporaryReplaceOutputType(newconvolutionBackpropData, deqPrecision).get(),
+                ov::op::TemporaryReplaceOutputType(newMultiplyAfterConst, deqPrecision).get());
             NetworkHelper::insertDequantizationAfter(convolutionBackpropData, newMultiplyAfter, newconvolutionBackpropData);
             convolutionBackpropData = newMultiplyAfter->get_input_node_shared_ptr(0);
         }
@@ -191,7 +195,7 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
                 subtractFromWeights = ov::as_type_ptr<ov::opset1::Subtract>(optimizedSubtract);
 
                 const auto weightsPShape = subtractFromWeights->get_input_partial_shape(0);
-                assert(weightsPShape.is_static());
+                OPENVINO_ASSERT(weightsPShape.is_static());
 
                 const size_t weightsRankValue = weightsPShape.rank().get_length();
                 Shape zeroPointShape(weightsRankValue, 1ul);

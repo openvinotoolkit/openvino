@@ -12,8 +12,8 @@ Converting a PyTorch RNN-T Model
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <tutorials>`.
-   
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <../../../../../../learn-openvino/interactive-tutorials-python>`.
+
 This guide covers conversion of RNN-T model from `MLCommons <https://github.com/mlcommons>`__ repository. Follow
 the instructions below to export a PyTorch model into ONNX, before converting it to IR:
 
@@ -60,7 +60,7 @@ if you were following the `guide <https://github.com/mlcommons/inference/tree/ma
 
 .. note::
 
-   If you already have a full clone of MLCommons inference repository, you need 
+   If you already have a full clone of MLCommons inference repository, you need
    to specify the ``mlcommons_inference_path`` variable.
 
 .. code-block:: py
@@ -134,6 +134,6 @@ After completing this step, the files ``rnnt_encoder.onnx``, ``rnnt_prediction.o
 
 .. note::
 
-   The hardcoded value for sequence length = 157 was taken from the MLCommons, but conversion to IR preserves network :doc:`reshapeability <openvino_docs_OV_UG_ShapeInference>`. Therefore, input shapes can be changed manually to any value during either conversion or inference.
+   The hardcoded value for sequence length = 157 was taken from the MLCommons, but conversion to IR preserves network :doc:`reshapeability <../../../../../../openvino-workflow/running-inference/changing-input-shape>`. Therefore, input shapes can be changed manually to any value during either conversion or inference.
 
 

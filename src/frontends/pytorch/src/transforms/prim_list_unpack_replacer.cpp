@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,7 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
             }
             std::shared_ptr<Node> split;
             if (rank.get_length() == 0) {
-                // Create split_lenghts tensor from split_size int,
+                // Create split_lengths tensor from split_size int,
                 // allow for last chunk to be smaller if data is not equally divisible.
                 auto split_size = torch_split->get_input_source_output(1);
                 // Using number of ListUnpack outputs.
@@ -81,6 +81,7 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
             }
             auto input_tensor = chunk->get_input_source_output(0);
             auto chunks = chunk->get_input_source_output(1);
+            chunks = rg.make<opset10::Convert>(chunks, element::i32);
             auto dim = chunk->get_input_source_output(2);
 
             auto tensor_0 = opset10::Constant::create(element::i32, Shape{1}, {0});
@@ -127,6 +128,7 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
 
             auto input = tensor_split->get_input_source_output(0);
             auto indices_or_sections = tensor_split->get_input_source_output(1);
+            indices_or_sections = std::make_shared<opset10::Convert>(indices_or_sections, element::i32);
             auto dim = rg.make<opset10::Unsqueeze>(tensor_split->get_input_source_output(2), const_0);
             auto list_num_outs = opset10::Constant::create(element::i32, Shape{1}, {list_unpack->get_output_size()});
             auto list_num_outs_scalar =
@@ -145,8 +147,8 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
 
                 auto split_sizes = rg.make<opset10::Concat>(OutputVector{splits_max_size, splits_min_size}, 0);
                 // Reshape is used to make number of outputs static.
-                auto split_sizes_known_lenght = rg.make<opset10::Reshape>(split_sizes, list_num_outs, false);
-                auto splits = rg.make<opset10::VariadicSplit>(input, dim, split_sizes_known_lenght);
+                auto split_sizes_known_length = rg.make<opset10::Reshape>(split_sizes, list_num_outs, false);
+                auto splits = rg.make<opset10::VariadicSplit>(input, dim, split_sizes_known_length);
                 copy_runtime_info_and_name(list_unpack, rg.get(), {input_node});
                 replace_node(list_unpack, splits->outputs());
                 return true;
@@ -295,7 +297,7 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
                 auto out = rg.make<opset10::Broadcast>(reshape, cat, ov::op::BroadcastType::BIDIRECTIONAL);
                 outputs.push_back(out);
             }
-            if (indexing == "xy" && meshgrid_inputs.size() >= 2) {
+            if (indexing == "xy" && outputs.size() >= 2) {
                 std::swap(outputs[0], outputs[1]);
             }
             copy_runtime_info_and_name(list_unpack, rg.get(), {input_node, meshgrid_input_node});

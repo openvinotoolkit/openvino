@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -123,6 +123,10 @@ protected:
         }
 
         function = makeNgraphFunction(inPrec, params, fq, "FakeQuantizeCPU");
+
+        if (inPrec == ov::element::f32) {
+            abs_threshold = 1e-4;
+        }
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {

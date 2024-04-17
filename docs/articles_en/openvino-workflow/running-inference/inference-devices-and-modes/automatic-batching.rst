@@ -210,7 +210,7 @@ The following are limitations of the current AUTO Batching implementations:
 Testing Performance with Benchmark_app
 ######################################
 
-Using the :doc:`benchmark_app sample <openvino_sample_benchmark_tool>` is the best way to evaluate the performance of Automatic Batching:
+Using the :doc:`benchmark_app sample <../../../learn-openvino/openvino-samples/benchmark-tool>` is the best way to evaluate the performance of Automatic Batching:
 
 - The most straightforward way is using the performance hints:
 
@@ -243,7 +243,7 @@ This is NOT the actual latency of the batched execution, so you are recommended 
 Additional Resources
 ####################
 
-* :doc:`Inference Devices and Modes <openvino_docs_Runtime_Inference_Modes_Overview>`
+* :doc:`Inference Devices and Modes <../inference-devices-and-modes>`
 
 
 

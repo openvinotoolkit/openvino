@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2023 Intel Corporation
+ Copyright (C) 2018-2024 Intel Corporation
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -10,7 +10,6 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import os
 import pytest
 import re
 import sys
@@ -20,12 +19,12 @@ from common.samples_common_test_class import SamplesCommonTestClass
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 
-test_data_fp32 = get_tests(cmd_params={'i': [os.path.join('224x224', 'dog6.yuv')],
-                                       'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
-                                       'size': ['224x224'],
-				       'sample_type': ['C++', 'C'],
-                                       },
-                           )
+test_data_fp32 = get_tests({
+    'i': ['samples_smoke_tests_data_2021.4/validation_set/224x224/dog6.yuv'],
+    'm': ['bvlcalexnet-12.onnx'],  # Remove the model forom .md and .rst if removed from here
+    'size': ['224x224'],
+    'sample_type': ['C++', 'C'],
+})
 
 class TestHelloNV12Input(SamplesCommonTestClass):
     sample_name = 'hello_nv12_input_classification'

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVPropertiesIncorrectTests,
 
 const std::vector<ov::AnyMap> default_properties = {
         {},
-        {ov::enable_profiling(true)},
+        {ov::enable_profiling(false)},
 };
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVPropertiesTests,
@@ -36,37 +36,43 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVPropertiesTests,
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVCheckGetSupportedROMetricsPropsTests,
         ::testing::Combine(
                         ::testing::Values(ov::test::utils::target_device),
-                        ::testing::ValuesIn(OVCheckGetSupportedROMetricsPropsTests::getROMandatoryProperties())),
+                        ::testing::ValuesIn(OVCheckGetSupportedROMetricsPropsTests::getROMandatoryProperties(
+                                sw_plugin_in_target_device(ov::test::utils::target_device)))),
         OVCheckGetSupportedROMetricsPropsTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin, OVCheckGetSupportedROMetricsPropsTests,
         ::testing::Combine(
                         ::testing::Values(ov::test::utils::target_device),
-                        ::testing::ValuesIn(OVCheckGetSupportedROMetricsPropsTests::getROOptionalProperties())),
+                        ::testing::ValuesIn(OVCheckGetSupportedROMetricsPropsTests::getROOptionalProperties(
+                                sw_plugin_in_target_device(ov::test::utils::target_device)))),
         OVCheckGetSupportedROMetricsPropsTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVCheckSetSupportedRWMetricsPropsTests,
         ::testing::Combine(
                         ::testing::Values(ov::test::utils::target_device),
-                        ::testing::ValuesIn(OVCheckSetSupportedRWMetricsPropsTests::getRWMandatoryPropertiesValues())),
+                        ::testing::ValuesIn(OVCheckSetSupportedRWMetricsPropsTests::getRWMandatoryPropertiesValues(
+                                {}, sw_plugin_in_target_device(ov::test::utils::target_device)))),
         OVCheckSetSupportedRWMetricsPropsTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin, OVCheckSetSupportedRWMetricsPropsTests,
         ::testing::Combine(
                         ::testing::Values(ov::test::utils::target_device),
-                        ::testing::ValuesIn(OVCheckSetSupportedRWMetricsPropsTests::getRWOptionalPropertiesValues())),
+                        ::testing::ValuesIn(OVCheckSetSupportedRWMetricsPropsTests::getRWOptionalPropertiesValues(
+                                {}, sw_plugin_in_target_device(ov::test::utils::target_device)))),
         OVCheckSetSupportedRWMetricsPropsTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVCheckSetIncorrectRWMetricsPropsTests,
         ::testing::Combine(
                         ::testing::Values(ov::test::utils::target_device),
-                        ::testing::ValuesIn(OVCheckSetIncorrectRWMetricsPropsTests::getWrongRWMandatoryPropertiesValues())),
+                        ::testing::ValuesIn(OVCheckSetIncorrectRWMetricsPropsTests::getWrongRWMandatoryPropertiesValues(
+                                {}, sw_plugin_in_target_device(ov::test::utils::target_device)))),
         OVCheckSetIncorrectRWMetricsPropsTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin, OVCheckSetIncorrectRWMetricsPropsTests,
         ::testing::Combine(
                         ::testing::Values(ov::test::utils::target_device),
-                        ::testing::ValuesIn(OVCheckSetIncorrectRWMetricsPropsTests::getWrongRWOptionalPropertiesValues())),
+                        ::testing::ValuesIn(OVCheckSetIncorrectRWMetricsPropsTests::getWrongRWOptionalPropertiesValues(
+                                {}, sw_plugin_in_target_device(ov::test::utils::target_device)))),
         OVCheckSetIncorrectRWMetricsPropsTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVCheckChangePropComplieModleGetPropTests_DEVICE_ID,

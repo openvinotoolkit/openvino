@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -15,6 +15,9 @@ ov_add_test_target(
             gtest
             gtest_main
             common_test_utils
+        INCLUDES
+            PUBLIC
+                $<TARGET_PROPERTY:openvino_hetero_plugin,SOURCE_DIR>/src
         ADD_CLANG_FORMAT
         LABELS
             OV UNIT HETERO

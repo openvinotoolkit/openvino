@@ -70,7 +70,7 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q accelerate diffusers transformers torch gradio qrcode opencv-python --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q accelerate diffusers transformers torch gradio qrcode opencv-python "peft==0.6.2" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "openvino>=2023.1.0" "nncf>=2.7.0"
 
 Instantiating Generation Pipeline

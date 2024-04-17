@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -146,8 +146,8 @@ bool Slice::evaluate_upper(ov::TensorVector& output_values) const {
     return slice_bound_check(this) && default_upper_bound_evaluator(this, output_values);
 }
 
-bool Slice::evaluate_label(TensorLabelVector& output_labels) const {
-    return slice_bound_check(this) && ov::util::default_label_evaluator(this, output_labels);
+bool Slice::evaluate_symbol(TensorSymbolVector& output_symbols) const {
+    return slice_bound_check(this) && ov::util::default_symbol_evaluator(this, output_symbols);
 }
 }  // namespace v8
 }  // namespace op

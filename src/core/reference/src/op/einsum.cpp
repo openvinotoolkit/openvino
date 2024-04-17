@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -103,8 +103,8 @@ std::string generate_grouping_subscript(const std::string& input_subscript,
     return required_subscript;
 }
 
-std::unordered_map<std::string, ov::TensorLabel> compute_label_dim_map(const Rank& input_rank,
-                                                                       const std::string& input_subscript) {
+std::unordered_map<std::string, std::vector<size_t>> compute_label_dim_map(const Rank& input_rank,
+                                                                           const std::string& input_subscript) {
     constexpr char ellipsis[] = "...";
     auto labels = ov::op::v7::Einsum::extract_labels(input_subscript);
     size_t input_rank_length = labels.size();
@@ -113,25 +113,25 @@ std::unordered_map<std::string, ov::TensorLabel> compute_label_dim_map(const Ran
     if (input_rank.is_static()) {
         input_rank_length = input_rank.get_length();
     }
-    std::unordered_map<std::string, ov::TensorLabel> resulted_map;
+    std::unordered_map<std::string, std::vector<size_t>> resulted_map;
     OPENVINO_ASSERT(input_rank_length >= labels.size());
     size_t num_broadcasted_dims = input_rank_length - labels.size() + 1;
 
     size_t current_dim = 0;
     for (const auto& label : labels) {
         if (label == ellipsis) {
-            ov::TensorLabel label_dims;
+            std::vector<size_t> label_dims;
             for (size_t ind = 0; ind < num_broadcasted_dims; ++ind) {
-                label_dims.push_back(static_cast<ov::label_t>(current_dim + ind));
+                label_dims.push_back(static_cast<size_t>(current_dim + ind));
             }
             resulted_map[label] = label_dims;
             current_dim += num_broadcasted_dims;
         } else if (resulted_map.find(label) != resulted_map.end()) {
-            resulted_map[label].push_back(static_cast<ov::label_t>(current_dim));
+            resulted_map[label].push_back(static_cast<size_t>(current_dim));
             ++current_dim;
         } else {
-            ov::TensorLabel label_dims;
-            label_dims.push_back(static_cast<ov::label_t>(current_dim));
+            std::vector<size_t> label_dims;
+            label_dims.push_back(static_cast<size_t>(current_dim));
             resulted_map[label] = label_dims;
             ++current_dim;
         }
@@ -460,7 +460,7 @@ void broadcast_input(ov::TensorVector& inputs,
 /// identity
 ///
 template <typename T>
-ov::Tensor build_identity(const ov::Tensor& input, const ov::TensorLabel& repeated_label_dims) {
+ov::Tensor build_identity(const ov::Tensor& input, const std::vector<size_t>& repeated_label_dims) {
     // allocate Tensor for building identity tensor
     OPENVINO_ASSERT(repeated_label_dims.size() > 1);
     Shape input_shape = input.get_shape();
@@ -504,7 +504,7 @@ ov::Tensor build_identity(const ov::Tensor& input, const ov::TensorLabel& repeat
 template <typename T>
 ov::Tensor build_multi_identity(const ov::Tensor& input,
                                 const std::vector<std::string>& repeated_labels,
-                                std::unordered_map<std::string, ov::TensorLabel>& label_dim_map) {
+                                std::unordered_map<std::string, std::vector<size_t>>& label_dim_map) {
     Shape input_shape = input.get_shape();
 
     // initially set multi-identity with identity for the first repeated label
