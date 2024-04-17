@@ -24,7 +24,7 @@ ov::intel_gpu::ConvertReduceMaxScalarOutput::ConvertReduceMaxScalarOutput() {
         }
 
         auto dynamic_shape = false;
-        auto output_shape = reduce_max->get_output_partial_shape(0);
+        const auto output_shape = reduce_max->get_output_partial_shape(0);
         auto input = reduce_max->input_value(0);
         const auto input_shape = input.get_partial_shape();
         if (input_shape.is_dynamic() || input_shape.rank().is_dynamic() || output_shape.is_dynamic() ||
@@ -41,7 +41,7 @@ ov::intel_gpu::ConvertReduceMaxScalarOutput::ConvertReduceMaxScalarOutput() {
             }
             // Input shape is too small, 1 EU should be enough.
             const auto input_static_shape = input_shape.to_shape();
-            if (ov::shape_size(input_static_shape) < 512) {
+            if (ov::shape_size(input_static_shape) < 64) {
                 return false;
             }
 
@@ -56,14 +56,10 @@ ov::intel_gpu::ConvertReduceMaxScalarOutput::ConvertReduceMaxScalarOutput() {
                 reduce_max->input_value(0),
                 ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {max_dim}),
                 true);
-
-            reduce = std::make_shared<ov::op::v1::ReduceMax>(reduce_->get_default_output(),
-                                                             reduce_max->input_value(1),
-                                                             true);
         } else if ((output_shape.rank().is_dynamic() || output_shape.rank().get_max_length() == 0) &&
                    !input_shape.rank().is_dynamic()) {
-            // Dynamic shape and output shape is [0], which will lead 1 EU to do all work
-            for (size_t i = 0; i < input_shape.size(); i++) {
+            // Dynamic shape and output shape is [0], which will lead to 1 EU to do all work
+            for (size_t i = 0; i < input_shape.size() - 1; i++) {
                 // Reduce one dimension by one dimension to avoid 1 EU do all work.
                 if (input_shape[i].is_dynamic() || (input_shape[i].is_static() && input_shape[i].get_length() >= 4)) {
                     if (!reduce_)
@@ -78,15 +74,13 @@ ov::intel_gpu::ConvertReduceMaxScalarOutput::ConvertReduceMaxScalarOutput() {
                             true);
                 }
             }
-            if (!reduce_)
-                return false;
-            reduce = std::make_shared<ov::op::v1::ReduceMax>(reduce_->get_default_output(),
-                                                             reduce_max->input_value(1),
-                                                             true);
-        } else {
-            return false;
         }
 
+        if (!reduce_)
+            return false;
+        reduce = std::make_shared<ov::op::v1::ReduceMax>(reduce_->get_default_output(),
+                                                         reduce_max->input_value(1),
+                                                         reduce_max->get_keep_dims());
         reduce->set_friendly_name(reduce_max->get_friendly_name());
         copy_runtime_info(reduce_max, reduce);
         replace_node(reduce_max, reduce);
