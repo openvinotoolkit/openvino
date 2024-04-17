@@ -324,8 +324,8 @@ FullyConnected_bf_tiled_dyn_quan::SetDefault(const fully_connected_params& param
     // on `kernel_number` (this implementation allows to have 2 shape-agnostic kernels at the same time
     // for small batches and large batches and change them during inference on the fly)
     auto kernel_type = KernelType::ANY;
-    if (params.is_shape_agnostic)
-        kernel_type = kernel_number == 0 ? KernelType::DEFAULT : KernelType::SLM;
+    // if (params.is_shape_agnostic)
+    //     kernel_type = kernel_number == 0 ? KernelType::DEFAULT : KernelType::SLM;
 
     auto tparams = GetAutoTuneParams(params, kernel_type, autoTuneIndex);
 
@@ -351,10 +351,13 @@ FullyConnected_bf_tiled_dyn_quan::SetDefault(const fully_connected_params& param
     dispatchData.lws[1] = 1;
     dispatchData.lws[2] = can_use_slm ? lws_batches : 1;
 
-    std::cout << ">> FullyConnected_bf_tiled_dyn_quan GWS [0,1,2] : " << dispatchData.gws[0] << ", " << dispatchData.gws[1] << ", "
-                << dispatchData.gws[2] << std::endl;
-    std::cout << ">> FullyConnected_bf_tiled_dyn_quan LWS [0,1,2] : " << dispatchData.lws[0] << ", " << dispatchData.lws[1] << ", "
-                << dispatchData.lws[2] << std::endl;
+    // std::cout << "========================================================================================" << std::endl;
+    // std::cout << ">> FullyConnected_bf_tiled_dyn_quan GWS [0,1,2] : " << dispatchData.gws[0] << ", " << dispatchData.gws[1] << ", "
+    //             << dispatchData.gws[2] << std::endl;
+    // std::cout << ">> FullyConnected_bf_tiled_dyn_quan LWS [0,1,2] : " << dispatchData.lws[0] << ", " << dispatchData.lws[1] << ", "
+    //             << dispatchData.lws[2] << std::endl;
+    // printf("  --  input  : batch(%d), feature(%d) Y(%d)\n", (int)params.inputs[0].Batch().v, (int)params.inputs[0].Feature().v, (int)params.inputs[0].Y().v);
+    // printf("  --  output : batch(%d), feature(%d) Y(%d)\n", (int)params.outputs[0].Batch().v, (int)params.outputs[0].Feature().v, (int)params.outputs[0].Y().v);
 
     dispatchData.tile_m = tparams.tile_b;
     dispatchData.tile_n = tparams.tile_ofm;
@@ -375,14 +378,9 @@ KernelsPriority FullyConnected_bf_tiled_dyn_quan::GetKernelsPriority(const Param
         output_b *= fc_params.outputs[0].Feature().v;
 
     float estimated_time = FORCE_PRIORITY_9;
-    if (output_b > 1 && fc_params.inputs[0].GetDType() == Datatype::F32)
-        estimated_time = FORCE_PRIORITY_3;
-    else if (output_b > 1 && fc_params.inputs[0].GetDType() == Datatype::F16)
-        estimated_time = FORCE_PRIORITY_4;
-
     auto tparams = GetAutoTuneParams(fc_params, KernelType::ANY);
-    if (tparams.kernel_type == KernelType::SLM &&
-        fc_params.inputs[0].Batch().v > 8 && fc_params.inputs[0].Y().v > 16 &&
+    if (tparams.kernel_type == KernelType::SLM && fc_params.inputs[0].GetDType() == Datatype::F16 &&
+        /*fc_params.inputs[0].Batch().v > 8 && */fc_params.inputs[0].Y().v > 16 &&
         fc_params.decompression_zero_point.Feature().v == 1) {
         estimated_time = FORCE_PRIORITY_1;
     }
@@ -405,14 +403,14 @@ JitConstants FullyConnected_bf_tiled_dyn_quan::GetJitConstants(const fully_conne
         // Do not use SCALE_POST_OP for SLM kernel, since it demonstrates worse performance
         if (scale_group_size % simd == 0/* && !dispatchData.use_slm*/) {
             jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
-            std::cout << ">> FullyConnected_bf_tiled_dyn_quan : DECOMPRESSION_SCALE_POST_OP ON" << std::endl;
+            // std::cout << ">> FullyConnected_bf_tiled_dyn_quan : DECOMPRESSION_SCALE_POST_OP ON" << std::endl;
         } else {
-            std::cout << ">> FullyConnected_bf_tiled_dyn_quan : DECOMPRESSION_SCALE_POST_OP OFF" << std::endl;
+            // std::cout << ">> FullyConnected_bf_tiled_dyn_quan : DECOMPRESSION_SCALE_POST_OP OFF" << std::endl;
         }
     }
 
     if (dispatchData.use_slm) {
-        std::cout << ">> FullyConnected_bf_tiled_dyn_quan : USE_SLM ON" << std::endl;
+        // std::cout << ">> FullyConnected_bf_tiled_dyn_quan : USE_SLM ON" << std::endl;
         OPENVINO_ASSERT(dispatchData.tile_n == 2, "[GPU] Unsupported TILE_OFM size for SLM kernel configuration");
         OPENVINO_ASSERT(weights_dt == WeightsType::INT4 || weights_dt == WeightsType::UINT4, "[GPU] Unsupported FC weights type for SLM kernel configuration");
 

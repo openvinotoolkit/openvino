@@ -356,10 +356,13 @@ FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int au
     dispatchData.lws[1] = 1;
     dispatchData.lws[2] = can_use_slm ? lws_batches : 1;
 
+    // std::cout << "========================================================================================" << std::endl;
     // std::cout << ">> FullyConnected_bf_tiled GWS [0,1,2] : " << dispatchData.gws[0] << ", " << dispatchData.gws[1] << ", "
     //             << dispatchData.gws[2] << std::endl;
     // std::cout << ">> FullyConnected_bf_tiled LWS [0,1,2] : " << dispatchData.lws[0] << ", " << dispatchData.lws[1] << ", "
     //             << dispatchData.lws[2] << std::endl;
+    // printf("  --  input  : batch(%d), feature(%d) Y(%d)\n", (int)params.inputs[0].Batch().v, (int)params.inputs[0].Feature().v, (int)params.inputs[0].Y().v);
+    // printf("  --  output : batch(%d), feature(%d) Y(%d)\n", (int)params.outputs[0].Batch().v, (int)params.outputs[0].Feature().v, (int)params.outputs[0].Y().v);
 
     dispatchData.tile_m = tparams.tile_b;
     dispatchData.tile_n = tparams.tile_ofm;
