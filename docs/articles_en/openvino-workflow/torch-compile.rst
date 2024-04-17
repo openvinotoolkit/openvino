@@ -22,9 +22,9 @@ By default, Torch code runs in eager-mode, but with the use of ``torch.compile``
 How to Use
 ####################
 
-To use ``torch.compile``, you need to add an import statement and define ``openvino`` backend.
-With this backend, Torch FX subgraphs are directly converted to OpenVINO representation without
-any additional PyTorch based tracing/scripting.
+To use ``torch.compile``, you need to add an import statement and define the ``openvino`` backend.
+This way Torch FX subgraphs will be directly converted to OpenVINO representation without
+any additional PyTorch-based tracing/scripting.
 
 
 .. code-block:: sh
