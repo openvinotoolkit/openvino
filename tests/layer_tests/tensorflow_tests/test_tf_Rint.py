@@ -11,7 +11,8 @@ class TestRint(CommonTFLayerTest):
         assert 'input:0' in inputs_info
         inputs_shape = inputs_info['input:0']
         inputs_data = {}
-        inputs_data['input:0'] = np.random.rand(*inputs_shape).astype(self.input_type)
+        rng = np.random.default_rng()
+        inputs_data['input:0'] = rng.uniform(-5.0, 5.0, inputs_shape).astype(self.input_type)
         return inputs_data
 
     def create_tf_rint_net(self, input_shape, input_type):
