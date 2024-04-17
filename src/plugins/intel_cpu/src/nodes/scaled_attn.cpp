@@ -1397,11 +1397,23 @@ void ScaledDotProductAttention::assignState(const std::shared_ptr<VariableStateK
     }
 }
 
+template <typename T>
+std::vector<T> permute_axes(const std::vector<T>& shape, const std::vector<size_t>& order) {
+    std::vector<T> results(shape.size());
+    for (size_t i = 0; i < order.size(); i++) {
+        results[i] = shape[order[i]];
+    }
+    return results;
+}
+
 void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k, const MemoryPtr& mem_cur_v, const MemoryPtr& mem_beam_idx) {
     std::vector<size_t> order = {0, 1, 2, 3};
     if (!m_config.config.permute_axes.empty()) {
         order = m_config.config.permute_axes;
     }
+    // order aims to permute input shape to BHLS
+    // real_order aims to permute input shape to LBHS
+    const std::vector<size_t> real_order = getKVCacheOrder();
     PlainTensor beam_idx, old_beam_table_k;
     auto old_hidden_state_k = m_k_state->hidden_state_mem();
     beam_idx.reset(mem_beam_idx);
@@ -1440,11 +1452,14 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
     // 2. resize pastkv
     ov::element::Type kvcache_precision = m_k_state->internal_desc()->getPrecision();
     {
-        auto shape = {B, H, (L0 + L1) * 2, S};
+        // shape is the shape used by the original model which maybe different from BHLS, reverse here is to permute BHLS to original model shape.
+        // BHLS is the stated input shape of SDPA, however internally we use LBHS for KV-cache storage.
+        // real_order is used to permute the original shape to LBHS
+        std::vector<size_t> shape = reverse({B, H, (L0 + L1) * 2, S});
         auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(kvcache_precision,
-            Shape(reverse(shape)),
-            shape,
-            order);
+                                                               Shape(shape),
+                                                               permute_axes(shape, real_order),
+                                                               real_order);
         auto new_internal_mem_k = std::make_shared<Memory>(getEngine(), mem_desc);
         auto new_internal_mem_v = std::make_shared<Memory>(getEngine(), mem_desc);
 
@@ -1493,14 +1508,16 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
             m_v_state->set_scale_zp(new_scale_zp_v);
         }
 
-        auto new_shape = {B, H, (L0 + L1), S};
+        std::vector<size_t> new_shape = reverse({B, H, (L0 + L1), S});
+        // Get the shape of physical layout using Real Order
+        auto strides = mem_desc->getStrides();
         mem_desc = std::make_shared<CpuBlockedMemoryDesc>(kvcache_precision,
-            Shape(reverse(new_shape)),
-            new_shape,
-            order,
-            0,
-            VectorDims{},
-            mem_desc->getStrides());
+                                                          Shape(new_shape),
+                                                          permute_axes(new_shape, real_order),
+                                                          real_order,
+                                                          0,
+                                                          VectorDims{},
+                                                          strides);
         new_internal_mem_k->redefineDesc(mem_desc);
         new_internal_mem_v->redefineDesc(mem_desc);
         if (kvcache_precision == ov::element::u8) {
@@ -1770,12 +1787,13 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
     ov::element::Type kvcache_precision = m_k_state->internal_desc()->getPrecision();
     bool need_redefine = true;
     if (B * H * (L0 + L1) * S > m_k_state->internal_state_max_size()) {
-        auto new_shape = {B, H, (L0 + L1) * 2, S};
-        auto real_shape = {(L0 + L1) * 2, B, H, S};
-        auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(kvcache_precision,
-            Shape(reverse(new_shape)),
-            real_shape,
-            real_order);
+        // new_shape is the shape used by the original model which maybe different fromt, reverse here is to permute BHLS to original model shape.
+        // BHLS is the stated input shape of SDPA, however internally we use LBHS for KV-cache storage.
+        // real_order is used to permute the original shape to LBHS
+        std::vector<size_t> new_shape = reverse({B, H, (L0 + L1) * 2, S});
+        auto real_shape = permute_axes(new_shape, real_order);
+        auto mem_desc =
+            std::make_shared<CpuBlockedMemoryDesc>(kvcache_precision, Shape(new_shape), real_shape, real_order);
 
         auto new_internal_mem_k = std::make_shared<Memory>(getEngine(), mem_desc);
         auto new_internal_mem_v = std::make_shared<Memory>(getEngine(), mem_desc);
@@ -1823,19 +1841,20 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
         }
     } else if (is_reset) {
         // when reset and not resize, just reset the desc
-        // std::cout << "going to reset" << std::endl;
         need_redefine = false;
         auto size = m_k_state->internal_state_max_size();
         auto max_l = size / (B * H * S);
-        VectorDims strides(4);
-        strides[0] = H * B * S;
-        strides[1] = H * S;
-        strides[2] = S;
-        strides[3] = 1;
-        auto new_shape = {B, H, (L0 + L1), S};
-        auto real_shape = {(L0 + L1), B, H, S};
+        // new_shape is the shape used by the original model which maybe different fromt, reverse here is to permute BHLS to original model shape.
+        // BHLS is the stated input shape of SDPA, however internally we use LBHS for KV-cache storage.
+        // real_order is used to permute the original shape to LBHS
+        std::vector<size_t> new_shape = reverse({B, H, (L0 + L1), S});
+        VectorDims strides(new_shape.size(), 1);
+        auto real_shape = permute_axes(new_shape, real_order);
+        for (size_t i = real_shape.size() - 2; i >= 0; i++) {
+            strides[i] *= real_shape[i - 1];
+        }
         auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(kvcache_precision,
-            Shape(reverse(new_shape)),
+            Shape(new_shape),
             real_shape,
             real_order,
             0,
@@ -1854,15 +1873,19 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
         }
     }
     if (need_redefine) {
-        auto new_shape = {B, H, (L0 + L1), S};
-        auto real_shape = {(L0 + L1), B, H, S};
-        auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(kvcache_precision,
-            Shape(reverse(new_shape)),
-            real_shape,
-            real_order,
-            0,
-            VectorDims{},
-            internal_mem_k->getDescWithType<BlockedMemoryDesc>()->getStrides());
+        // new_shape is the shape used by the original model which maybe different fromt, reverse here is to permute BHLS to original model shape.
+        // BHLS is the stated input shape of SDPA, however internally we use LBHS for KV-cache storage.
+        // real_order is used to permute the original shape to LBHS
+        std::vector<size_t> new_shape = reverse({B, H, (L0 + L1), S});
+        auto real_shape = permute_axes(new_shape, real_order);
+        auto mem_desc =
+            std::make_shared<CpuBlockedMemoryDesc>(kvcache_precision,
+                                                   Shape(new_shape),
+                                                   real_shape,
+                                                   real_order,
+                                                   0,
+                                                   VectorDims{},
+                                                   internal_mem_k->getDescWithType<BlockedMemoryDesc>()->getStrides());
         internal_mem_k->redefineDesc(mem_desc);
         internal_mem_v->redefineDesc(mem_desc);
     }
