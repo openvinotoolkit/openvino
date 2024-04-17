@@ -25,7 +25,7 @@ Install OpenVINO™ Runtime on macOS from an Archive File
       :sync: system-requirements
 
       | Full requirement listing is available in:
-      | :doc:`System Requirements Page <../../../about-openvino/system-requirements>`
+      | :doc:`System Requirements Page <../../../about-openvino/release-notes-openvino/system-requirements>`
 
    .. tab-item:: Software Requirements
       :sync: software-requirements

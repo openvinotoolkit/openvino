@@ -8,10 +8,9 @@
 #include "memory.hpp"
 #include "scaled_attn.h"
 #include "common/cpu_convert.h"
-#include "common/cpu_memcpy.h"
 #include "utils/general_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "utils/ngraph_utils.hpp"
+#include "memory_desc/cpu_memory_desc_utils.h"
 #include "shape_inference/shape_inference_pass_through.hpp"
 #include "common/arbitrary_order_desc_creator.h"
 
