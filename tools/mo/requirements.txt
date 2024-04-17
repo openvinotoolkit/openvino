@@ -11,4 +11,3 @@ urllib3>=1.26.4
 requests>=2.25.1
 fastjsonschema~=2.15.1
 openvino-telemetry>=2022.1.0
-pydot>=1.4.1,<2.0.0
