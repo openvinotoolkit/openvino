@@ -419,7 +419,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
         const auto& shape = port.get_partial_shape();
         const bool isDynamic = shape.is_dynamic();
 
-        if (!isDynamic && !shape.compatible(ov::PartialShape(tensor->get_shape()))) {
+        if (!shape.compatible(ov::PartialShape(tensor->get_shape())) && tensor->get_size() != 0) {
             OPENVINO_THROW("Can't set the output tensor with index: ",
                            output_index,
                            ", because the model output tensor (shape=",
