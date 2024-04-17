@@ -22,6 +22,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/non_max_suppression.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/relu.hpp"
@@ -589,6 +590,83 @@ TEST(pattern, DISABLED_optional_one_node) {
 
     ASSERT_TRUE(tm.match(ov::pass::pattern::optional<op::v0::Parameter>(), model_input));
     ASSERT_FALSE(tm.match(ov::pass::pattern::optional<op::v0::Relu>(), model_input));
+}
+
+// ov::op::v5::NonMaxSupression supports optinal inputs
+// In case we would not specify input in constractor, the node input won't be created by default as constant
+TEST(pattern, optional_match_node_with_optional_input) {
+    auto model_in_0 = std::make_shared<ov::op::v0::Parameter>(element::f32, ov::Shape{3, 100, 4});
+    auto model_in_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, ov::Shape{3, 5, 100});
+    auto model_in_2 = std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape{}, std::vector<int>{10});
+    auto model_nms_without_optional = std::make_shared<ov::op::v5::NonMaxSuppression>(model_in_0, model_in_1);
+    auto model_nms_with_optional = std::make_shared<ov::op::v5::NonMaxSuppression>(model_in_0, model_in_1, model_in_2);
+
+    TestMatcher matcher;
+    auto positive_predicate = [](const Output<Node>& output) {
+        return true;
+    };
+    auto negative_predicate = [](const Output<Node>& output) {
+        return false;
+    };
+
+    auto pattern_in_0 = ov::pass::pattern::any_input();
+    auto pattern_in_1 = ov::pass::pattern::any_input();
+
+    // checking matching optional input
+    {
+        auto pattern_in_2 = ov::pass::pattern::optional<ov::op::v0::Constant>();
+        ASSERT_TRUE(matcher.match(pattern_in_2, model_in_2));
+    }
+
+    // checking matching optional input: negative
+    {
+        auto pattern_in_2 = ov::pass::pattern::optional<ov::op::v0::Parameter>();
+        ASSERT_FALSE(matcher.match(pattern_in_2, model_in_2));
+    }
+
+    // validate matching: pattern is without optional input
+    {
+        auto pattern_nms = ov::pass::pattern::wrap_type<ov::op::v5::NonMaxSuppression>({pattern_in_0, pattern_in_1});
+        ASSERT_FALSE(matcher.match(pattern_nms, model_nms_with_optional));
+        ASSERT_TRUE(matcher.match(pattern_nms, model_nms_without_optional));
+    }
+
+    // validate matching: pattern is with optional input
+    {
+        auto pattern_in_2 = ov::pass::pattern::optional<ov::op::v0::Constant>();
+        auto pattern_nms =
+            ov::pass::pattern::wrap_type<ov::op::v5::NonMaxSuppression>({pattern_in_0, pattern_in_1, pattern_in_2});
+        ASSERT_TRUE(matcher.match(pattern_nms, model_nms_with_optional));
+        ASSERT_TRUE(matcher.match(pattern_nms, model_nms_without_optional));
+    }
+
+    // validate matching: pattern is with optional input with positive predicate
+    {
+        auto pattern_in_2 = ov::pass::pattern::optional<ov::op::v0::Constant>(positive_predicate);
+        auto pattern_nms =
+            ov::pass::pattern::wrap_type<ov::op::v5::NonMaxSuppression>({pattern_in_0, pattern_in_1, pattern_in_2});
+        ASSERT_TRUE(matcher.match(pattern_nms, model_nms_with_optional));
+        ASSERT_TRUE(matcher.match(pattern_nms, model_nms_without_optional));
+    }
+
+    // validate matching: pattern is with optional input with negative predicate
+    {
+        auto pattern_in_2 = ov::pass::pattern::optional<ov::op::v0::Constant>(negative_predicate);
+        auto pattern_nms =
+            ov::pass::pattern::wrap_type<ov::op::v5::NonMaxSuppression>({pattern_in_0, pattern_in_1, pattern_in_2});
+        ASSERT_FALSE(matcher.match(pattern_nms, model_nms_with_optional));
+        ASSERT_TRUE(matcher.match(pattern_nms, model_nms_without_optional));
+    }
+
+    // validate matching: pattern is with optional input and optional relu as input 2
+    {
+        auto pattern_in_2 = ov::pass::pattern::optional<ov::op::v0::Constant>();
+        auto pattern_relu = ov::pass::pattern::optional<ov::op::v0::Relu>(pattern_in_2);
+        auto pattern_nms =
+            ov::pass::pattern::wrap_type<ov::op::v5::NonMaxSuppression>({pattern_in_0, pattern_in_1, pattern_relu});
+        ASSERT_TRUE(matcher.match(pattern_nms, model_nms_with_optional));
+        ASSERT_TRUE(matcher.match(pattern_nms, model_nms_without_optional));
+    }
 }
 
 TEST(pattern, mean) {
