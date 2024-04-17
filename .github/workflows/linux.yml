@@ -765,7 +765,7 @@ jobs:
     needs: [ Build, Smart_CI ]
     if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
     timeout-minutes: 80
-    runs-on: linux-gpu-vm-5
+    runs-on: [ self-hosted, gpu-5 ]
     strategy:
       max-parallel: 2
       fail-fast: false
