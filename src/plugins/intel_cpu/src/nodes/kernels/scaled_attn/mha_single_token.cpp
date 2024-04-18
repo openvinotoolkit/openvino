@@ -964,6 +964,39 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                                 ov::element::f32);
         });
         // attn_w * V
+        // Fast Path if there are enough works for each thread
+        if (B >= static_cast<size_t>(nthr)) {
+            buf_attn_score.resize<float>({static_cast<size_t>(nthr), q_len, h_each_group_len, S});
+            parallel_for2d(B, h_group_num, [&](size_t b, size_t h_group) {
+                auto ithr = parallel_get_thread_num();
+                memset(buf_attn_score.ptr<float>(ithr), 0, q_len * h_each_group_len * S * sizeof(float));
+                for (size_t pv = 0; pv < kv_len; pv++) {
+                    auto b_kv = beams ? beams.ptr<int32_t>(b)[pv] : b;
+                    auto* v = present_value.ptr<T2>(b_kv, h_group, pv);
+                    auto p = past_v_scale_zp.ptr<float>(b_kv, h_group, pv);
+                    for (size_t pq = 0; pq < q_len; pq++) {
+                        for (size_t h = h_group * h_each_group_len, group_idx = 0; h < (h_group + 1) * h_each_group_len; h++, group_idx++) {
+                            attn_acc_value(buf_attn_score.ptr<float>(ithr, pq, group_idx),
+                                           buf_attn_w.ptr<float>(b, h, pq)[pv],
+                                           v,
+                                           S,
+                                           p + 0,
+                                           p + 1);
+                        }
+                    }
+                }
+                // convert to dst
+                for (size_t pq = 0; pq < q_len; pq++) {
+                    for (size_t h = h_group * h_each_group_len, group_idx = 0; h < (h_group + 1) * h_each_group_len;
+                         h++, group_idx++) {
+                        auto* dst = has_out_transpose ? output_emb.ptr<T>(b, pq, h * S) : output_emb.ptr<T>(b, h, pq);
+                        cvt_copy(dst, buf_attn_score.ptr<float>(ithr, pq, group_idx), S);
+                    }
+                }
+            });
+            return;
+        }
+
         buf_attn_score.resize<float>({static_cast<size_t>(nthr), B, q_len, H, S});
         // buf_attn_w {B, H, q_len, kv_len}
         parallel_nt_static(nthr, [&](const size_t ithr, const size_t nthr) {

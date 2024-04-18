@@ -1787,7 +1787,7 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
     ov::element::Type kvcache_precision = m_k_state->internal_desc()->getPrecision();
     bool need_redefine = true;
     if (B * H * (L0 + L1) * S > m_k_state->internal_state_max_size()) {
-        // new_shape is the shape used by the original model which maybe different fromt, reverse here is to permute BHLS to original model shape.
+        // new_shape is the shape used by the original model which maybe different from BHLS, reverse here is to permute BHLS to original model shape.
         // BHLS is the stated input shape of SDPA, however internally we use LBHS for KV-cache storage.
         // real_order is used to permute the original shape to LBHS
         std::vector<size_t> new_shape = reverse({B, H, (L0 + L1) * 2, S});
@@ -1844,7 +1844,7 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
         need_redefine = false;
         auto size = m_k_state->internal_state_max_size();
         auto max_l = size / (B * H * S);
-        // new_shape is the shape used by the original model which maybe different fromt, reverse here is to permute BHLS to original model shape.
+        // new_shape is the shape used by the original model which maybe different from BHLS, reverse here is to permute BHLS to original model shape.
         // BHLS is the stated input shape of SDPA, however internally we use LBHS for KV-cache storage.
         // real_order is used to permute the original shape to LBHS
         std::vector<size_t> new_shape = reverse({B, H, (L0 + L1), S});
@@ -1873,7 +1873,7 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
         }
     }
     if (need_redefine) {
-        // new_shape is the shape used by the original model which maybe different fromt, reverse here is to permute BHLS to original model shape.
+        // new_shape is the shape used by the original model which maybe different from BHLS, reverse here is to permute BHLS to original model shape.
         // BHLS is the stated input shape of SDPA, however internally we use LBHS for KV-cache storage.
         // real_order is used to permute the original shape to LBHS
         std::vector<size_t> new_shape = reverse({B, H, (L0 + L1), S});
