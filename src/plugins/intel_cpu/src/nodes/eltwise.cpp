@@ -2170,13 +2170,13 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
             ov::element::i16,
             ov::element::i32
         } : std::vector<ov::element::Type> {
+            ov::element::f16,
             ov::element::f32,
             ov::element::u8,
             ov::element::i8,
             ov::element::u16,
             ov::element::i16,
             ov::element::bf16,
-            ov::element::f16,
             ov::element::i32
         };
 
