@@ -5,8 +5,8 @@ Obtaining a Stateful OpenVINO Model
 
 If the original framework does not offer a dedicated API for working with states, the
 resulting OpenVINO IR model will not be stateful by default. This means it will not contain
-either a state or the :doc:`Assign <../../../documentation/openvino-ir-format/operation-sets/operations-specifications/infrastructure/assign-6>` and
-:doc:`ReadValue <../../../documentation/openvino-ir-format/operation-sets/operations-specifications/infrastructure/read-value-6>` operations. You can still
+either a state or the :doc:`Assign <../../../documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/assign-6>` and
+:doc:`ReadValue <../../../documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/read-value-6>` operations. You can still
 make such models stateful (:doc:`see benefits <../stateful-models>`),
 and you have three ways to do it:
 
@@ -86,8 +86,8 @@ LowLatency2 Transformation
 ##########################
 
 The LowLatency2 transformation changes the structure of a model containing
-:doc:`TensorIterator <../../../documentation/openvino-ir-format/operation-sets/operations-specifications/infrastructure/tensor-iterator-1>`
-and :doc:`Loop <../../../documentation/openvino-ir-format/operation-sets/operations-specifications/infrastructure/loop-5>` by automatically detecting
+:doc:`TensorIterator <../../../documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/tensor-iterator-1>`
+and :doc:`Loop <../../../documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/loop-5>` by automatically detecting
 and replacing pairs of Parameter and Results with the Assign and ReadValue operations,
 as illustrated by the following example:
 
@@ -100,7 +100,7 @@ input, as shown in the picture above. These inputs should set the initial value 
 initialization of ReadValue operations. However, such initialization is not supported in
 the current State API implementation. Input values are ignored, and the initial values
 for the ReadValue operations are set to zeros unless the user specifies otherwise via
-:ref:`State API <ov_ug_state_api>`.
+:doc:`State API <../stateful-models>`.
 
 Applying LowLatency2 Transformation
 ++++++++++++++++++++++++++++++++++++
@@ -181,7 +181,7 @@ Applying LowLatency2 Transformation
             :fragment: [ov:low_latency_2]
 
 
-4. Use state API. See sections :ref:`OpenVINO State API <ov_ug_state_api>`,
+4. Use state API. See sections :doc:`OpenVINO State API <../stateful-models>`,
    :ref:`Stateful Model Inference <ov_ug_stateful_model_inference>`.
 
    .. image:: ../../../_static/images/low_latency_limitation_2.svg

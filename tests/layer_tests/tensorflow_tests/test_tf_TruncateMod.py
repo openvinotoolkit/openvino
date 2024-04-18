@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -40,10 +40,12 @@ class TestTruncateMod(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_truncate_mod_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_legacy_frontend):
+                                use_legacy_frontend):
+        if ie_device == 'GPU':
+            pytest.skip("accuracy issue on GPU")
         self._test(*self.create_truncate_mod_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)

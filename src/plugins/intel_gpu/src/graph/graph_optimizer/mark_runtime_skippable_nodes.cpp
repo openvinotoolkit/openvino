@@ -8,6 +8,7 @@
 #include "strided_slice_inst.h"
 #include "kv_cache_inst.h"
 #include "gemm_inst.h"
+#include "broadcast_inst.h"
 #include "program_helpers.h"
 
 using namespace cldnn;
@@ -94,6 +95,45 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 return;
             node.can_be_optimized(true);
             GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
+        });
+        program_helpers::do_for_types<broadcast>(*node, [](broadcast_node& node){
+            auto impl_params = node.get_kernel_impl_params();
+            if (node.is_output()
+                || node.has_fused_primitives()
+                || (impl_params->get_input_layout(0).format != impl_params->get_output_layout().format)
+                || (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type))
+                return;
+
+            if (node.is_dynamic()) {
+                // If the user is reorder, it could be fused to broadcast in the remove_redundant_reorders pass.
+                // In this case, broadcast can not be optimized due to different input and output shapes.
+                if (node.have_user_with_type<reorder>() && node.get_users().size() == 1)
+                    return;
+
+                // Check if the size of rank is different, or if one of static dimensions has different size
+                auto input_pshape = impl_params->get_input_layout(0).get_partial_shape();
+                auto output_pshape = impl_params->get_output_layout().get_partial_shape();
+
+                if (input_pshape.rank().is_static() && output_pshape.rank().is_static()) {
+                    if (input_pshape.size() != output_pshape.size())
+                        return;
+
+                    auto input_pdim = input_pshape.begin();
+                    auto output_pdim = output_pshape.begin();
+                    while (input_pdim != input_pshape.end()) {
+                        if (input_pdim->is_static() && output_pdim->is_static()) {
+                            if (input_pdim->get_max_length() != output_pdim->get_max_length())
+                                return;
+                        }
+
+                        input_pdim++;
+                        output_pdim++;
+                    }
+                }
+
+                node.can_be_optimized(true);
+                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
+            }
         });
     }
 }

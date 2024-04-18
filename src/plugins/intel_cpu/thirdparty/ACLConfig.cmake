@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -98,7 +98,6 @@ elseif(NOT TARGET arm_compute::arm_compute)
     #
 
     set(ARM_COMPUTE_SOURCE_DIR "${intel_cpu_thirdparty_SOURCE_DIR}/ComputeLibrary")
-    set(ARM_COMPUTE_BINARY_DIR "${intel_cpu_thirdparty_BINARY_DIR}/ComputeLibrary")
 
     message(STATUS "Configure to build ${ARM_COMPUTE_SOURCE_DIR}")
 
@@ -149,17 +148,16 @@ elseif(NOT TARGET arm_compute::arm_compute)
         list(APPEND ARM_COMPUTE_OPTIONS estate=32)
     else()
         list(APPEND ARM_COMPUTE_OPTIONS estate=64)
-        if(NOT APPLE AND CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 10.2)
-            # arm_sve.h header is not available on gcc older 10.2
-            # TODO: validate it on machines with FP16 / SVE support and enabled back
-            # list(APPEND ARM_COMPUTE_OPTIONS multi_isa=1)
+        if(OV_CPU_AARCH64_USE_MULTI_ISA)
+            list(APPEND ARM_COMPUTE_OPTIONS multi_isa=1)
+            # let's additionally enable SME as well
+            set(extra_cxx_flags "${extra_cxx_flags} -DENABLE_SME -DARM_COMPUTE_ENABLE_SME -DARM_COMPUTE_ENABLE_SME2")
         endif()
     endif()
 
     if(NOT MSVC64)
         list(APPEND ARM_COMPUTE_OPTIONS
-            build_dir=${ARM_COMPUTE_BINARY_DIR}
-            install_dir=${ARM_COMPUTE_BINARY_DIR}/install)
+            install_dir=install)
     endif()
 
     if(ARM_COMPUTE_SCONS_JOBS)
@@ -329,11 +327,10 @@ elseif(NOT TARGET arm_compute::arm_compute)
 
     if(MSVC64)
         set(arm_compute build/arm_compute-static.lib)
-        set(arm_compute_full_path "${ARM_COMPUTE_SOURCE_DIR}/${arm_compute}")
     else()
-        set(arm_compute ${ARM_COMPUTE_BINARY_DIR}/libarm_compute-static.a)
-        set(arm_compute_full_path "${arm_compute}")
+        set(arm_compute build/libarm_compute-static.a)
     endif()
+    set(arm_compute_full_path "${ARM_COMPUTE_SOURCE_DIR}/${arm_compute}")
 
     list(APPEND ARM_COMPUTE_OPTIONS fixed_format_kernels=True)
 

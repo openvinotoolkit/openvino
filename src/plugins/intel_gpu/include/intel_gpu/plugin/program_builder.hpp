@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include "openvino/core/node.hpp"
 #include "openvino/runtime/profiling_info.hpp"
+#include "openvino/op/parameter.hpp"
 
 #include "intel_gpu/plugin/custom_layer.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -91,21 +92,26 @@ public:
     static const cldnn::primitive_id m_postCustomLayerTag;
 
     std::map<std::string, cldnn::primitive_id> primitive_ids;
-    std::map<std::string, std::vector<cldnn::primitive_id>> prevPrimitiveIDs;
+    std::map<size_t, std::vector<cldnn::primitive_id>> inputPrimitiveIDs;
+    std::map<size_t, cldnn::primitive_id> prevPrimitiveIDs;
     std::map<cldnn::primitive_id, std::pair<std::string, PerfCounter>> perfMap;
 
     std::vector<cldnn::primitive_id> profiling_ids;
 
-    std::map<std::string, cldnn::layout> inputLayouts;
+    std::map<size_t, cldnn::layout> inputLayouts;
     using BlobCacheKey = std::tuple<const char*, ov::Shape, ov::element::Type>;
     std::map<BlobCacheKey, cldnn::primitive_id> blobMemCache;
 
     std::shared_ptr<cldnn::program> get_compiled_program() const;
     std::shared_ptr<cldnn::topology> get_topology() const { return m_topology; }
 
-    const std::map<std::string, cldnn::layout>& get_input_layouts() const { return inputLayouts; }
+    const std::map<size_t, cldnn::layout>& get_input_layouts() const { return inputLayouts; }
     cldnn::engine& get_engine() const { return m_engine; }
     const ExecutionConfig& get_config() const { return m_config; }
+
+    int64_t get_parameter_index(const std::shared_ptr<ov::op::v0::Parameter>& parameter) const;
+    int64_t get_result_index(const ov::Output<ov::Node>& value) const;
+    int64_t get_result_index(const ov::Output<const ov::Node>& value) const;
 
     bool is_op_supported(const std::shared_ptr<ov::Node>& op);
 
@@ -136,6 +142,7 @@ public:
     bool use_new_shape_infer() const { return allow_new_shape_infer; }
     bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) const;
     bool is_inner_program() const { return m_is_inner_program; }
+    bool is_query_mode() { return queryMode; }
 
     std::shared_ptr<ov::threading::IStreamsExecutor> get_task_executor() const { return m_task_executor; }
     std::shared_ptr<cldnn::ICompilationContext> get_compilation_context() const { return m_compilation_context; }
@@ -143,6 +150,7 @@ public:
 private:
     static factories_map_t factories_map;
     std::shared_ptr<cldnn::program> m_program;
+    std::shared_ptr<ov::Model> m_model;
     ExecutionConfig m_config;
     cldnn::engine& m_engine;
     static std::mutex m_mutex;

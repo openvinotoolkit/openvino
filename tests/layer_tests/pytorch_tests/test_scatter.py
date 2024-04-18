@@ -1,10 +1,10 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 import torch
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 
 class TestScatter(PytorchLayerTest):
@@ -91,6 +91,7 @@ class TestScatter(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("dim", [1, -1, 0])
     @pytest.mark.parametrize(
         "index",
@@ -211,13 +212,16 @@ class TestScatterReduce(PytorchLayerTest):
             pytest.skip(
                 "Cannot test reduce parameters with empty indexes due to issues with empty constant tensor or issues with prim::GetAttr str inputs."
             )
+        kwargs = dict(kwargs_to_prepare_input={"dtype": dtype, "out": has_out}, freeze_model=freeze)
+        if reduce == "mean" and dtype in ["int32", "int64"]:
+            # rounding can be different on torch vs ov
+            kwargs["custom_eps"] = 1.
         self._test(
             *self.create_model(dim, index, src, inplace, reduce, include_self, has_out),
             ie_device,
             precision,
             ir_version,
-            kwargs_to_prepare_input={"dtype": dtype, "out": has_out},
-            freeze_model=freeze
+            **kwargs
         )
 
 class TestScatterAdd(PytorchLayerTest):
@@ -255,6 +259,7 @@ class TestScatterAdd(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("dim", [1, -1, 0])
     @pytest.mark.parametrize(
         "index",
@@ -266,7 +271,7 @@ class TestScatterAdd(PytorchLayerTest):
     )
     @pytest.mark.parametrize("src", [torch.arange(1, 26).reshape(5, 5)])
     @pytest.mark.parametrize("dtype", ["int32", "int64", "float32", "float64"])
-    @pytest.mark.parametrize("inplace", [True, False])
+    @pytest.mark.parametrize("inplace", [skip_if_export(True), False])
     def test_scatter_add(self, dim, index, src, dtype, inplace, ie_device, precision, ir_version):
         if isinstance(src, torch.Tensor):
             src = src.to(getattr(torch, dtype))

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,6 +42,7 @@ struct NonZeroParams {
 class ReferenceNonZeroLayerTest : public testing::TestWithParam<NonZeroParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params.dynamicShape, params.inType, params.refType);
         inputData = {params.inputData};

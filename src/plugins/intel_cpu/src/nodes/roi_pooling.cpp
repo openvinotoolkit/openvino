@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -830,7 +830,7 @@ std::shared_ptr<ROIPooling::ROIPoolingExecutor> ROIPooling::ROIPoolingExecutor::
     OV_SWITCH(intel_cpu, ROIPoolingExecutorCreation, ctx, jpp.src_prc,
               OV_CASE(ov::element::f32, float),
               OV_CASE(ov::element::bf16, bfloat16_t),
-              OV_CASE(ov::element::f16, float16_t))
+              OV_CASE(ov::element::f16, dnnl::impl::float16_t))
 
     return ctx.executor;
 }

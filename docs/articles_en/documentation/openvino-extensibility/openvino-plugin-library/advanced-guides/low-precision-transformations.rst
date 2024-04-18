@@ -43,37 +43,37 @@ Input model requirements
 
 LPT transformations propagate dequantization operations through the following operations:
 
-* :doc:`Add-1 <../../../openvino-ir-format/operation-sets/operations-specifications/arithmetic/add-1>`
-* :doc:`AvgPool-1 <../../../openvino-ir-format/operation-sets/operations-specifications/pooling/avg-pool-1>`
-* :doc:`Clamp-1 <../../../openvino-ir-format/operation-sets/operations-specifications/activation/clamp-1>`
-* :doc:`Concat-1 <../../../openvino-ir-format/operation-sets/operations-specifications/movement/concat-1>`
-* :doc:`Convolution-1 <../../../openvino-ir-format/operation-sets/operations-specifications/convolution/convolution-1>`
-* :doc:`ConvolutionBackpropData-1 <../../../openvino-ir-format/operation-sets/operations-specifications/convolution/convolution-backprop-data-1>`
-* :doc:`DepthToSpace-1 <../../../openvino-ir-format/operation-sets/operations-specifications/movement/depth-to-space-1>`
-* :doc:`FakeQuantize-1 <../../../openvino-ir-format/operation-sets/operations-specifications/quantization/fake-quantize-1>`
-* :doc:`GroupConvolution-1 <../../../openvino-ir-format/operation-sets/operations-specifications/convolution/group-convolution-1>`
-* :doc:`Interpolate-1 <../../../openvino-ir-format/operation-sets/operations-specifications/image/interpolate-1>`
-* :doc:`Interpolate-4 <../../../openvino-ir-format/operation-sets/operations-specifications/image/interpolate-4>`
-* :doc:`MatMul-1 <../../../openvino-ir-format/operation-sets/operations-specifications/matrix/matmul-1>`
-* :doc:`MaxPool-1 <../../../openvino-ir-format/operation-sets/operations-specifications/pooling/max-pool-1>`
-* :doc:`Multiply-1 <../../../openvino-ir-format/operation-sets/operations-specifications/arithmetic/multiply-1>`
-* :doc:`MVN-1 <../../../openvino-ir-format/operation-sets/operations-specifications/normalization/mvn-1>`
-* :doc:`NormalizeL2-1 <../../../openvino-ir-format/operation-sets/operations-specifications/normalization/normalize-l2-1>`
-* :doc:`PRelu-1 <../../../openvino-ir-format/operation-sets/operations-specifications/activation/prelu-1>`
-* :doc:`ReduceMax-1 <../../../openvino-ir-format/operation-sets/operations-specifications/reduction/reduce-max-1>`
-* :doc:`ReduceMean-1 <../../../openvino-ir-format/operation-sets/operations-specifications/reduction/reduce-mean-1>`
-* :doc:`ReduceMin-1 <../../../openvino-ir-format/operation-sets/operations-specifications/reduction/reduce-min-1>`
-* :doc:`ReduceSum-1 <../../../openvino-ir-format/operation-sets/operations-specifications/reduction/reduce-sum-1>`
-* :doc:`Relu-1 <../../../openvino-ir-format/operation-sets/operations-specifications/activation/relu-1>`
-* :doc:`Reshape-1 <../../../openvino-ir-format/operation-sets/operations-specifications/shape/reshape-1>`
-* :doc:`Split-1 <../../../openvino-ir-format/operation-sets/operations-specifications/movement/split-1>`
-* :doc:`Squeeze-1 <../../../openvino-ir-format/operation-sets/operations-specifications/shape/reshape-1>`
-* :doc:`StridedSlice-1 <../../../openvino-ir-format/operation-sets/operations-specifications/movement/strided-slice-1>`
-* :doc:`Transpose-1 <../../../openvino-ir-format/operation-sets/operations-specifications/movement/transpose-1>`
-* :doc:`Gather-7 <../../../openvino-ir-format/operation-sets/operations-specifications/movement/gather-7>`
-* :doc:`Gather-8 <../../../openvino-ir-format/operation-sets/operations-specifications/movement/gather-8>`
-* :doc:`Unsqueeze-1 <../../../openvino-ir-format/operation-sets/operations-specifications/shape/unsqueeze-1>`
-* :doc:`VariadicSplit-1 <../../../openvino-ir-format/operation-sets/operations-specifications/movement/variadic-split-1>`
+* :doc:`Add-1 <../../../openvino-ir-format/operation-sets/operation-specs/arithmetic/add-1>`
+* :doc:`AvgPool-1 <../../../openvino-ir-format/operation-sets/operation-specs/pooling/avg-pool-1>`
+* :doc:`Clamp-1 <../../../openvino-ir-format/operation-sets/operation-specs/activation/clamp-1>`
+* :doc:`Concat-1 <../../../openvino-ir-format/operation-sets/operation-specs/movement/concat-1>`
+* :doc:`Convolution-1 <../../../openvino-ir-format/operation-sets/operation-specs/convolution/convolution-1>`
+* :doc:`ConvolutionBackpropData-1 <../../../openvino-ir-format/operation-sets/operation-specs/convolution/convolution-backprop-data-1>`
+* :doc:`DepthToSpace-1 <../../../openvino-ir-format/operation-sets/operation-specs/movement/depth-to-space-1>`
+* :doc:`FakeQuantize-1 <../../../openvino-ir-format/operation-sets/operation-specs/quantization/fake-quantize-1>`
+* :doc:`GroupConvolution-1 <../../../openvino-ir-format/operation-sets/operation-specs/convolution/group-convolution-1>`
+* :doc:`Interpolate-1 <../../../openvino-ir-format/operation-sets/operation-specs/image/interpolate-1>`
+* :doc:`Interpolate-4 <../../../openvino-ir-format/operation-sets/operation-specs/image/interpolate-4>`
+* :doc:`MatMul-1 <../../../openvino-ir-format/operation-sets/operation-specs/matrix/matmul-1>`
+* :doc:`MaxPool-1 <../../../openvino-ir-format/operation-sets/operation-specs/pooling/max-pool-1>`
+* :doc:`Multiply-1 <../../../openvino-ir-format/operation-sets/operation-specs/arithmetic/multiply-1>`
+* :doc:`MVN-1 <../../../openvino-ir-format/operation-sets/operation-specs/normalization/mvn-1>`
+* :doc:`NormalizeL2-1 <../../../openvino-ir-format/operation-sets/operation-specs/normalization/normalize-l2-1>`
+* :doc:`PRelu-1 <../../../openvino-ir-format/operation-sets/operation-specs/activation/prelu-1>`
+* :doc:`ReduceMax-1 <../../../openvino-ir-format/operation-sets/operation-specs/reduction/reduce-max-1>`
+* :doc:`ReduceMean-1 <../../../openvino-ir-format/operation-sets/operation-specs/reduction/reduce-mean-1>`
+* :doc:`ReduceMin-1 <../../../openvino-ir-format/operation-sets/operation-specs/reduction/reduce-min-1>`
+* :doc:`ReduceSum-1 <../../../openvino-ir-format/operation-sets/operation-specs/reduction/reduce-sum-1>`
+* :doc:`Relu-1 <../../../openvino-ir-format/operation-sets/operation-specs/activation/relu-1>`
+* :doc:`Reshape-1 <../../../openvino-ir-format/operation-sets/operation-specs/shape/reshape-1>`
+* :doc:`Split-1 <../../../openvino-ir-format/operation-sets/operation-specs/movement/split-1>`
+* :doc:`Squeeze-1 <../../../openvino-ir-format/operation-sets/operation-specs/shape/reshape-1>`
+* :doc:`StridedSlice-1 <../../../openvino-ir-format/operation-sets/operation-specs/movement/strided-slice-1>`
+* :doc:`Transpose-1 <../../../openvino-ir-format/operation-sets/operation-specs/movement/transpose-1>`
+* :doc:`Gather-7 <../../../openvino-ir-format/operation-sets/operation-specs/movement/gather-7>`
+* :doc:`Gather-8 <../../../openvino-ir-format/operation-sets/operation-specs/movement/gather-8>`
+* :doc:`Unsqueeze-1 <../../../openvino-ir-format/operation-sets/operation-specs/shape/unsqueeze-1>`
+* :doc:`VariadicSplit-1 <../../../openvino-ir-format/operation-sets/operation-specs/movement/variadic-split-1>`
 
 If operation is not supported by LPT then dequantization operation will not be propagated, input tensor precisions will not be changed to low precision and operation will be executed in original precision.
 

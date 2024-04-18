@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -107,6 +107,10 @@ bool FullyConnected::canFuse(const NodePtr& node) const {
 
 bool FullyConnected::created() const {
     return getType() == Type::FullyConnected;
+}
+
+void FullyConnected::toNumaNodeImpl(int numaID) {
+    executor->moveMemToNumaNode(numaID);
 }
 
 const std::vector<impl_desc_type>& FullyConnected::getDefaultImplPriority() {

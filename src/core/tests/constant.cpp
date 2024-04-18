@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1497,6 +1497,15 @@ TEST(constant, ov_string_shared_data) {
     const int16_t* p1 = c1->get_data_ptr<int16_t>();
     const int16_t* p2 = c2->get_data_ptr<int16_t>();
     EXPECT_EQ(p1, p2);
+}
+
+TEST(constant, ov_string_broadcast_from_non_string) {
+    EXPECT_THROW(std::ignore = op::v0::Constant::create(element::string, Shape{4}, std::vector<int>{10}), Exception);
+}
+
+TEST(constant, ov_string_from_non_string_vector) {
+    EXPECT_THROW(std::ignore = op::v0::Constant::create(element::string, Shape{4}, std::vector<int>{10, 1, 3, 2}),
+                 Exception);
 }
 
 template <typename T1, typename T2>

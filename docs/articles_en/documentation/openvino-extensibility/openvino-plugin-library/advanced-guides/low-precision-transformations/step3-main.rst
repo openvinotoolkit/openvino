@@ -69,7 +69,7 @@ Main transformations are the majority of low precision transformations. Transfor
 * :doc:`MultiplyPartialTransformation <step3-main/arithmetic/multiply-partial>`
 * :doc:`MVNTransformation <step3-main/normalization/mvn>`
 * :doc:`NormalizeL2Transformation <step3-main/normalization/normalize-l2>`
-* :doc:`PadTransformation<step3-main/movement/pad>`
+* :doc:`PadTransformation <step3-main/movement/pad>`
 * :doc:`PReluTransformation <step3-main/activation/prelu>`
 * :doc:`ReduceMaxTransformation <step3-main/reduction/reduce-max>`
 * :doc:`ReduceMeanTransformation <step3-main/reduction/reduce-mean>`

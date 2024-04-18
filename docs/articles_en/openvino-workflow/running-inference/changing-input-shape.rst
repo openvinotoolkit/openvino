@@ -191,7 +191,7 @@ Once you set the input shape of the model, call the ``compile_model`` method to
 get a ``CompiledModel`` object for inference with updated shapes.
 
 There are other approaches to change model input shapes during the stage of
-:ref:`IR generation <when_to_specify_input_shapes>` or :ref:`model representation <integrate-openvino-with-your-application/model-representation>` in OpenVINO Runtime.
+:doc:`IR generation <../model-preparation/setting-input-shapes>` or :doc:`model representation <./integrate-openvino-with-your-application/model-representation>` in OpenVINO Runtime.
 
 
 .. important::

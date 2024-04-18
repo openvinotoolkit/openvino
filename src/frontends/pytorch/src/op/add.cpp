@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,14 +20,22 @@ using namespace ov::op;
 
 OutputVector translate_add_common(const NodeContext& context, bool inplace) {
     num_inputs_check(context, 2, 3);
-    auto lhs = context.get_input(0);
-    auto rhs = context.get_input(1);
+    Output<Node> lhs;
+    Output<Node> rhs;
     auto dtype0 = context.get_input_type(0);
     auto dtype1 = context.get_input_type(1);
     if (dtype0.is<type::List>() && dtype1.is<type::List>()) {
         // aten::add.t(t[] a, t[] b) -> t[]
         // Case when two lists gets concatenated
         PYTORCH_OP_CONVERSION_CHECK(false, "aten::add is used for concatenation of lists, not possible to convert");
+    }
+    if (inplace) {
+        lhs = context.get_input(0);
+        rhs = context.get_input(1);
+        if (lhs.get_element_type().is_dynamic() || lhs.get_element_type() != rhs.get_element_type())
+            rhs = context.mark_node(std::make_shared<v1::ConvertLike>(rhs, lhs));
+    } else {
+        std::tie(lhs, rhs) = get_inputs_with_promoted_types(context, 0, 1);
     }
 
     auto left_is_bool = lhs.get_element_type() == ov::element::boolean ||
@@ -44,12 +52,6 @@ OutputVector translate_add_common(const NodeContext& context, bool inplace) {
         return {logical_or};
     }
 
-    if (inplace) {
-        if (lhs.get_element_type().is_dynamic() || lhs.get_element_type() != rhs.get_element_type())
-            rhs = context.mark_node(std::make_shared<v1::ConvertLike>(rhs, lhs));
-    } else {
-        align_eltwise_input_types(context, lhs, rhs, true);
-    }
     Output<Node> alpha;
     if (!context.input_is_none(2)) {
         alpha = context.get_input(2);

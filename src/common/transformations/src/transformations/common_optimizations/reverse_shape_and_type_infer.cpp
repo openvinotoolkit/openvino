@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,7 @@
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 #include "openvino/op/util/pad_base.hpp"
 #include "openvino/op/util/unary_elementwise_arithmetic.hpp"
+#include "transformations/utils/utils.hpp"
 
 bool ov::pass::ReverseShapeAndTypeInfer::inherit_output_shape(const std::shared_ptr<ov::Node>& node,
                                                               const std::vector<size_t>& input_idxs) {
@@ -70,6 +71,8 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
     auto ops = f->get_ordered_ops();
     for (auto it = ops.rbegin(); it != ops.rend(); ++it) {
         const auto& op = *it;
+        is_changed = ov::op::util::process_subgraph(*this, op) || is_changed;
+
         auto output_shape = op->get_output_partial_shape(0);
         auto output_type = op->get_output_element_type(0);
         if (const auto& param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(op)) {

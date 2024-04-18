@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,7 +59,9 @@ std::shared_ptr<Node> get_node_axes_range(const NodeContext& context, const Outp
 
 Output<Node> normalize_axis(const NodeContext& context, const Output<Node>& axis, const Output<Node>& input_node);
 
-std::shared_ptr<Node> numel(const NodeContext& context, const Output<Node>& x);
+std::shared_ptr<Node> numel(const NodeContext& context,
+                            const Output<Node>& x,
+                            element::Type output_type = element::i32);
 
 element::Type convert_dtype(int64_t dtype_value);
 
@@ -88,11 +90,13 @@ Any simplified_type_interpret(Any type);
 
 void add_exception_to_fw_node(std::shared_ptr<Node> node, const std::string& msg);
 
-element::Type infer_types(const Output<Node>& lhs, const Output<Node>& rhs, bool align_scalars);
+bool is_python_scalar_input(const NodeContext& context, size_t index);
+
 void align_eltwise_input_types(const NodeContext& context,
                                Output<Node>& lhs,
                                Output<Node>& rhs,
-                               bool align_scalars = false);
+                               const bool& is_lhs_python_scalar = false,
+                               const bool& ir_rhs_python_scalar = false);
 void align_output_types(const NodeContext& context, OutputVector& outputs);
 
 std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start);
@@ -100,6 +104,14 @@ std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start);
 void copy_runtime_info_and_name(const std::shared_ptr<Node>& from,
                                 ov::NodeVector to,
                                 const ov::NodeVector& additional_rt_info_src = {});
+
+Output<Node> get_input_with_floating_type(const NodeContext& context, size_t idx);
+
+Output<Node> get_input_as_i32(const NodeContext& context, size_t idx);
+
+std::tuple<Output<Node>, Output<Node>> get_inputs_with_promoted_types(const NodeContext& context,
+                                                                      size_t lhs_idx,
+                                                                      size_t rhs_idx);
 
 // helper ops
 Output<Node> masked_fill(ov::pass::NodeRegistry& rg,
@@ -145,10 +157,7 @@ OutputVector translate_1to1_match_1_inputs(const NodeContext& context) {
 template <typename T>
 OutputVector translate_1to1_match_1_inputs_with_fp32_type_alignment(const NodeContext& context) {
     FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0), "Input should not be None.");
-    auto x = context.get_input(0);
-    // This const only needed for type alignment
-    auto dummy_const = context.mark_node(ov::op::v0::Constant::create(element::f32, Shape({}), {0.5}))->output(0);
-    align_eltwise_input_types(context, x, dummy_const);
+    auto x = get_input_with_floating_type(context, 0);
     return {context.mark_node(std::make_shared<T>(x))};
 }
 
@@ -169,8 +178,13 @@ OutputVector translate_1to1_match_2_inputs_align_types(const NodeContext& contex
     auto rhs_type = context.get_input_type(1);
     // If type is string or None, we shouldn't align
     if (!lhs_type.is<type::Str>() && !rhs_type.is<type::Str>() && !lhs_type.is<type::PyNone>() &&
-        !rhs_type.is<type::PyNone>())
-        align_eltwise_input_types(context, lhs, rhs, true);
+        !rhs_type.is<type::PyNone>()) {
+        align_eltwise_input_types(context,
+                                  lhs,
+                                  rhs,
+                                  is_python_scalar_input(context, 0),
+                                  is_python_scalar_input(context, 1));
+    }
     OutputVector res = {context.mark_node(std::make_shared<T>(lhs, rhs))};
     align_output_types(context, res);
     return res;

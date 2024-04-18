@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,7 @@ void ov::descriptor::Tensor::invalidate_values() {
         return;
     m_upper_value = {};
     m_lower_value = {};
-    m_value_label.clear();
+    m_value_symbol.clear();
 }
 
 void ov::descriptor::Tensor::set_lower_value(const ov::Tensor& value) {
@@ -50,14 +50,14 @@ void ov::descriptor::Tensor::set_upper_value(const ov::Tensor& value) {
     m_upper_value = value;
 }
 
-void ov::descriptor::Tensor::set_value_label(const TensorLabel& value_label) {
-    const auto& labels_size = value_label.size();
-    if (labels_size == 0) {
-        m_value_label.clear();
+void ov::descriptor::Tensor::set_value_symbol(const TensorSymbol& value_symbol) {
+    const auto& symbols_size = value_symbol.size();
+    if (symbols_size == 0) {
+        m_value_symbol.clear();
     } else {
         OPENVINO_ASSERT(m_partial_shape.is_static());
-        OPENVINO_ASSERT(shape_size(m_partial_shape.to_shape()) == labels_size);
-        m_value_label = value_label;
+        OPENVINO_ASSERT(shape_size(m_partial_shape.to_shape()) == symbols_size);
+        m_value_symbol = value_symbol;
     }
 }
 
@@ -121,7 +121,7 @@ void ov::descriptor::Tensor::clone_from(const ov::descriptor::Tensor& old) {
     m_partial_shape = old.get_partial_shape();
     m_lower_value = old.get_lower_value();
     m_upper_value = old.get_upper_value();
-    m_value_label = old.get_value_label();
+    m_value_symbol = old.get_value_symbol();
     m_legacy_name = old.m_legacy_name;
     m_rt_info = old.get_rt_info();
     m_shape_changed = true;

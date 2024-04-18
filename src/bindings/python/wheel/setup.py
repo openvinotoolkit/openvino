@@ -277,7 +277,6 @@ class CustomBuild(build):
                 self.spawn(["cmake", "--install", binary_dir,
                                      "--prefix", prefix,
                                      "--config", CONFIG,
-                                     "--strip",
                                      "--component", cpack_comp_name])
 
     def run(self):

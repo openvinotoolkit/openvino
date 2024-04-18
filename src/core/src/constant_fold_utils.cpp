@@ -7,6 +7,7 @@
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/convert_promote_types.hpp"
 #include "openvino/op/fake_convert.hpp"
+#include "openvino/op/random_uniform.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/util/assign_base.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
@@ -78,7 +79,7 @@ static bool is_node_whitelisted(const ov::Node* const node) {
 #define WHITELIST                                                                                                      \
     ov::op::util::AssignBase, ov::op::v0::Ceiling, ov::op::v0::Constant, ov::op::v0::Convert, ov::op::v1::ConvertLike, \
         ov::op::v14::ConvertPromoteTypes, ov::op::v13::FakeConvert, ov::op::util::MultiSubGraphOp,                     \
-        ov::op::util::ReadValueBase
+        ov::op::v8::RandomUniform, ov::op::util::ReadValueBase
     // any node that is on WHITELIST does not require precision conversion
     return is_any_of_type<WHITELIST>(node);
 #undef WHITELIST

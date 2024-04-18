@@ -8,6 +8,7 @@
 #include "snippets/itt.hpp"
 #include "snippets/utils.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 #include <assert.h>
 #include <memory>
@@ -29,6 +30,8 @@ bool ov::snippets::pass::PropagatePrecision::run_on_model(const std::shared_ptr<
 
     bool was_updated = false;
     for (const auto& op : f->get_ordered_ops()) {
+        ov::op::util::process_subgraph(*this, op);
+
         auto type_info = op->get_type_info();
         auto exec = target_machine->get_supported_precisions(type_info);
         const auto& supported_precisions = exec(op);

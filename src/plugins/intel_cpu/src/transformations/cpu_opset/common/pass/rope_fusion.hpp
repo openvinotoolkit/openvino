@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,6 +54,18 @@ public:
     EliminateStridedSlice();
 };
 
+class RoPEShareCosSin : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("RoPEShareCosSin", "0");
+    RoPEShareCosSin();
+
+private:
+    std::shared_ptr<Node> m_inv_freq;
+    std::shared_ptr<Node> m_shared_cos0;
+    std::shared_ptr<Node> m_shared_sin0;
+    std::vector<std::shared_ptr<Node>> m_shared_inputs{2, nullptr};
+};
+
 class RoPEFusion : public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("RoPEFusion", "0");
@@ -71,6 +83,8 @@ public:
 
         add_matcher<RoPEFusionQwen>(0);
         add_matcher<RoPEFusionQwen>(1);
+
+        add_matcher<RoPEShareCosSin>();
     }
 };
 

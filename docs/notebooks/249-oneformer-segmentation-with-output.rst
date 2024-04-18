@@ -52,7 +52,14 @@ Install required libraries
 
 .. code:: ipython3
 
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "transformers>=4.26.0" "openvino>=2023.1.0" "nncf>=2.6.0" gradio torch scipy ipywidgets Pillow matplotlib
+    import platform
+    
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "transformers>=4.26.0" "openvino>=2023.1.0" "nncf>=2.7.0" gradio torch scipy ipywidgets Pillow
+    
+    if platform.system() != "Windows":
+        %pip install -q "matplotlib>=3.4"
+    else:
+        %pip install -q "matplotlib>=3.4,<3.7"
 
 
 .. parsed-literal::
@@ -74,7 +81,7 @@ variables.
     from collections import defaultdict
     from pathlib import Path
     import sys
-
+    
     from transformers import OneFormerProcessor, OneFormerForUniversalSegmentation
     from transformers.models.oneformer.modeling_oneformer import OneFormerForUniversalSegmentationOutput
     import torch
@@ -82,9 +89,9 @@ variables.
     import matplotlib.patches as mpatches
     from PIL import Image
     from PIL import ImageOps
-
+    
     import openvino
-
+    
     sys.path.append("../utils")
     from notebook_utils import download_file
 
@@ -155,7 +162,7 @@ should provide PyTorch model instance and example input to
 .. code:: ipython3
 
     model.config.torchscript = True
-
+    
     if not IR_PATH.exists():
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -183,16 +190,16 @@ Select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     import ipywidgets as widgets
-
+    
     core = openvino.Core()
-
+    
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value='AUTO',
         description='Device:',
         disabled=False,
     )
-
+    
     device
 
 
@@ -229,7 +236,7 @@ images and text to solve image segmentation.
         hf_kwargs = {
             output_name: torch.tensor(d[output_name]) for output_name in OUTPUT_NAMES
         }
-
+    
         return OneFormerForUniversalSegmentationOutput(**hf_kwargs)
 
 .. code:: ipython3
@@ -255,7 +262,7 @@ the inference results.
             fig.legend(handles=handles, ncol=len(handles) // 20 + 1, loc='center')
             fig.tight_layout()
             return fig
-
+        
         @staticmethod
         def predicted_semantic_map_to_figure(predicted_map):
             segmentation = predicted_map[0]
@@ -274,7 +281,7 @@ the inference results.
             fig_legend = Visualizer.extract_legend(handles=handles)
             fig.tight_layout()
             return fig, fig_legend
-
+            
         @staticmethod
         def predicted_instance_map_to_figure(predicted_map):
             segmentation = predicted_map[0]['segmentation']
@@ -295,11 +302,11 @@ the inference results.
                 instances_counter[segment_label_id] += 1
                 color = viridis(segment_id)
                 handles.append(mpatches.Patch(color=color, label=label))
-
+                
             fig_legend = Visualizer.extract_legend(handles)
             fig.tight_layout()
             return fig, fig_legend
-
+    
         @staticmethod
         def predicted_panoptic_map_to_figure(predicted_map):
             segmentation = predicted_map[0]['segmentation']
@@ -320,11 +327,11 @@ the inference results.
                 instances_counter[segment_label_id] += 1
                 color = viridis(segment_id)
                 handles.append(mpatches.Patch(color=color, label=label))
-
+                
             fig_legend = Visualizer.extract_legend(handles)
             fig.tight_layout()
             return fig, fig_legend
-
+    
         @staticmethod
         def figures_to_images(fig, fig_legend, name_suffix=""):
             seg_filename, leg_filename = f"segmentation{name_suffix}.png", f"legend{name_suffix}.png"
@@ -339,7 +346,7 @@ the inference results.
     def segment(model, img: Image.Image, task: str):
         """
         Apply segmentation on an image.
-
+    
         Args:
             img: Input image. It will be resized to 800x800.
             task: String describing the segmentation task. Supported values are: "semantic", "instance" and "panoptic".
@@ -383,7 +390,7 @@ Choose a segmentation task
 .. code:: ipython3
 
     from ipywidgets import Dropdown
-
+    
     task = Dropdown(options=["semantic", "instance", "panoptic"], value="semantic")
     task
 
@@ -405,13 +412,13 @@ Inference
 
     import matplotlib
     matplotlib.use("Agg")  # disable showing figures
-
+    
     def stack_images_horizontally(img1: Image, img2: Image):
         res = Image.new("RGB", (img1.width + img2.width, max(img1.height, img2.height)), (255, 255,255))
         res.paste(img1, (0, 0))
         res.paste(img2, (img1.width, 0))
         return res
-
+    
     segmentation_fig, legend_fig = segment(compiled_model, image, task.value)
     segmentation_image, legend_image = Visualizer.figures_to_images(segmentation_fig, legend_fig)
     plt.close("all")
@@ -451,13 +458,13 @@ improve model inference speed.
 .. code:: ipython3
 
     compiled_quantized_model = None
-
+    
     to_quantize = widgets.Checkbox(
         value=False,
         description='Quantization',
         disabled=False,
     )
-
+    
     to_quantize
 
 
@@ -476,7 +483,7 @@ not selected
 
     import sys
     sys.path.append("../utils")
-
+    
     %load_ext skip_kernel_extension
 
 Preparing calibration dataset
@@ -491,20 +498,20 @@ dataset as calibration samples.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     import nncf
     import torch.utils.data as data
-
+    
     from zipfile import ZipFile
-
+    
     DATA_URL = "https://ultralytics.com/assets/coco128.zip"
     OUT_DIR = Path('.')
-
-
+    
+    
     class COCOLoader(data.Dataset):
         def __init__(self, images_path):
             self.images = list(Path(images_path).iterdir())
-
+    
         def __getitem__(self, index):
             image = Image.open(self.images[index])
             if image.mode == 'L':
@@ -512,11 +519,11 @@ dataset as calibration samples.
                 rgb_image.paste(image)
                 image = rgb_image
             return image
-
+    
         def __len__(self):
             return len(self.images)
-
-
+    
+    
     def download_coco128_dataset():
         download_file(DATA_URL, directory=OUT_DIR, show_progress=True)
         if not (OUT_DIR / "coco128/images/train2017").exists():
@@ -524,14 +531,14 @@ dataset as calibration samples.
                 zip_ref.extractall(OUT_DIR)
         coco_dataset = COCOLoader(OUT_DIR / 'coco128/images/train2017')
         return coco_dataset
-
-
+    
+    
     def transform_fn(image):
         # We quantize model in panoptic mode because it produces optimal results for both semantic and instance segmentation tasks
         inputs = prepare_inputs(image, "panoptic")
         return inputs
-
-
+    
+    
     coco_dataset = download_coco128_dataset()
     calibration_dataset = nncf.Dataset(coco_dataset, transform_fn)
 
@@ -558,15 +565,14 @@ OneFormer model.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     INT8_IR_PATH = Path(str(IR_PATH).replace(".xml", "_int8.xml"))
-
+    
     if not INT8_IR_PATH.exists():
         quantized_model = nncf.quantize(
             model,
             calibration_dataset,
             model_type=nncf.parameters.ModelType.TRANSFORMER,
-            preset=nncf.QuantizationPreset.MIXED,
             subset_size=len(coco_dataset),
             # smooth_quant_alpha value of 0.5 was selected based on prediction quality visual examination
             advanced_parameters=nncf.AdvancedQuantizationParameters(smooth_quant_alpha=0.5))
@@ -598,9 +604,9 @@ Let’s see quantized model prediction next to original model prediction.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     from IPython.display import display
-
+    
     image = Image.open("sample.jpg")
     segmentation_fig, legend_fig = segment(compiled_quantized_model, image, task.value)
     segmentation_image, legend_image = Visualizer.figures_to_images(segmentation_fig, legend_fig, name_suffix="_int8")
@@ -641,13 +647,13 @@ speed.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     import time
     import numpy as np
     from tqdm.auto import tqdm
-
+    
     INFERENCE_TIME_DATASET_SIZE = 30
-
+    
     def calculate_compression_rate(model_path_ov, model_path_ov_int8):
         model_size_fp32 = model_path_ov.with_suffix(".bin").stat().st_size / 1024
         model_size_int8 = model_path_ov_int8.with_suffix(".bin").stat().st_size / 1024
@@ -655,8 +661,8 @@ speed.
         print(f"    * FP32 IR model size: {model_size_fp32:.2f} KB")
         print(f"    * INT8 IR model size: {model_size_int8:.2f} KB")
         return model_size_fp32, model_size_int8
-
-
+    
+    
     def calculate_call_inference_time(model):
         inference_time = []
         for i in tqdm(range(INFERENCE_TIME_DATASET_SIZE), desc="Measuring performance"):
@@ -667,13 +673,13 @@ speed.
             delta = end - start
             inference_time.append(delta)
         return np.median(inference_time)
-
-
+    
+    
     time_fp32 = calculate_call_inference_time(compiled_model)
     time_int8 = calculate_call_inference_time(compiled_quantized_model)
-
+    
     model_size_fp32, model_size_int8 = calculate_compression_rate(IR_PATH, INT8_IR_PATH)
-
+    
     print(f"Model footprint reduction: {model_size_fp32 / model_size_int8:.3f}")
     print(f"Performance speedup: {time_fp32 / time_int8:.3f}")
 
@@ -708,31 +714,31 @@ Interactive Demo
 
     import time
     import gradio as gr
-
+    
     quantized_model_present = compiled_quantized_model is not None
-
-
+    
+    
     def compile_model(device):
         global compiled_model
         global compiled_quantized_model
         compiled_model = core.compile_model(model=model, device_name=device)
         if quantized_model_present:
             compiled_quantized_model = core.compile_model(model=quantized_model, device_name=device)
-
+    
     def segment_wrapper(image, task, run_quantized=False):
         current_model = compiled_quantized_model if run_quantized else compiled_model
-
+    
         start_time = time.perf_counter()
         segmentation_fig, legend_fig = segment(current_model, image, task)
         end_time = time.perf_counter()
-
+    
         name_suffix = "" if not quantized_model_present else "_int8" if run_quantized else "_fp32"
         segmentation_image, legend_image = Visualizer.figures_to_images(segmentation_fig, legend_fig, name_suffix=name_suffix)
         plt.close("all")
         result = stack_images_horizontally(segmentation_image, legend_image)
         return result, f"{end_time - start_time:.2f}"
-
-
+    
+    
     with gr.Blocks() as demo:
         with gr.Row():
             with gr.Column():
@@ -755,26 +761,26 @@ Interactive Demo
         gr.Examples(
             examples=[["sample.jpg", "semantic"]], inputs=[inp_img, inp_task]
         )
-
-
+    
+    
         def on_device_change_begin():
             return (
                 run_button.update(value="Changing device...", interactive=False),
                 run_quantized_button.update(value="Changing device...", interactive=False),
                 inp_device.update(interactive=False)
             )
-
+    
         def on_device_change_end():
             return (
                 run_button.update(value="Run", interactive=True),
                 run_quantized_button.update(value="Run quantized", interactive=True),
                 inp_device.update(interactive=True)
             )
-
+    
         inp_device.change(on_device_change_begin, outputs=[run_button, run_quantized_button, inp_device]).then(
             compile_model, inp_device
         ).then(on_device_change_end, outputs=[run_button, run_quantized_button, inp_device])
-
+    
     try:
         demo.launch(debug=False)
     except Exception:
@@ -787,12 +793,12 @@ Interactive Demo
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-
+    
     To create a public link, set `share=True` in `launch()`.
 
 
 
-.. .. raw:: html
 
-..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

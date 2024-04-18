@@ -1,5 +1,5 @@
 
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #ifdef CPU_DEBUG_CAPS
@@ -358,6 +358,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
 
     // last line(s): fused layers
     os << " " << node.getOriginalLayers();
+    os << " " << node.getParallelDomain();
 
     if (node.PerfCounter().count()) {
         os << " latency:" << node.PerfCounter().avg() << "(us) x" << node.PerfCounter().count();
@@ -656,11 +657,11 @@ std::ostream& operator<<(std::ostream& os, const IMemory& mem) {
     if (mem.isAllocated()) {
         os << " [";
         if (desc.getPrecision() == ov::element::i32) {
-            os << to_string(reinterpret_cast<int32_t*>(mem.getData()), mem.getSize() / sizeof(int32_t), 256);
+            os << to_string(mem.getDataAs<int32_t>(), mem.getSize() / sizeof(int32_t), 256);
         } else if (desc.getPrecision() == ov::element::f32) {
-            os << to_string(reinterpret_cast<float*>(mem.getData()), mem.getSize() / sizeof(float), 256);
+            os << to_string(mem.getDataAs<float>(), mem.getSize() / sizeof(float), 256);
         } else if (desc.getPrecision() == ov::element::i64) {
-            os << to_string(reinterpret_cast<int64_t*>(mem.getData()), mem.getSize() / sizeof(int64_t), 256);
+            os << to_string(mem.getDataAs<int64_t>(), mem.getSize() / sizeof(int64_t), 256);
         } else {
             os << " ? ";
         }

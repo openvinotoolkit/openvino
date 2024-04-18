@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include "node/include/core_wrap.hpp"
@@ -11,6 +11,44 @@
 #include "node/include/model_wrap.hpp"
 #include "node/include/read_model_args.hpp"
 
+void validate_set_property_args(const Napi::CallbackInfo& info) {
+    const size_t args_length = info.Length();
+    const bool is_device_specified = info[0].IsString();
+    const bool has_params_obj = info[is_device_specified ? 1 : 0];
+
+    if (!has_params_obj)
+        OPENVINO_THROW("Properties parameter must be an object");
+
+    if (args_length > (is_device_specified ? 2 : 1))
+        OPENVINO_THROW("setProperty applies 1 or 2 arguments only");
+}
+
+std::tuple<ov::AnyMap, std::string> try_get_set_property_parameters(const Napi::CallbackInfo& info) {
+    validate_set_property_args(info);
+
+    std::string device_name;
+    ov::AnyMap properties;
+
+    const size_t args_length = info.Length();
+
+    if (args_length > 1)
+        device_name = info[0].ToString();
+
+    const size_t parameters_position_index = device_name.empty() ? 0 : 1;
+    Napi::Object parameters = info[parameters_position_index].ToObject();
+    const auto& keys = parameters.GetPropertyNames();
+
+    for (uint32_t i = 0; i < keys.Length(); ++i) {
+        auto property_name = static_cast<Napi::Value>(keys[i]).ToString().Utf8Value();
+
+        ov::Any any_value = js_to_any(info, parameters.Get(property_name));
+
+        properties.insert(std::make_pair(property_name, any_value));
+    }
+
+    return std::make_tuple(properties, device_name);
+}
+
 CoreWrap::CoreWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<CoreWrap>(info), _core{} {}
 
 Napi::Function CoreWrap::get_class(Napi::Env env) {
@@ -20,7 +58,11 @@ Napi::Function CoreWrap::get_class(Napi::Env env) {
                         InstanceMethod("readModel", &CoreWrap::read_model_async),
                         InstanceMethod("compileModelSync", &CoreWrap::compile_model_sync_dispatch),
                         InstanceMethod("compileModel", &CoreWrap::compile_model_async),
-                        InstanceMethod("getAvailableDevices", &CoreWrap::get_available_devices)});
+                        InstanceMethod("getAvailableDevices", &CoreWrap::get_available_devices),
+                        InstanceMethod("importModelSync", &CoreWrap::import_model),
+                        InstanceMethod("getAvailableDevices", &CoreWrap::get_available_devices),
+                        InstanceMethod("setProperty", &CoreWrap::set_property),
+                        InstanceMethod("getProperty", &CoreWrap::get_property)});
 }
 
 Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
@@ -229,4 +271,65 @@ Napi::Value CoreWrap::get_available_devices(const Napi::CallbackInfo& info) {
         js_devices[i++] = dev;
 
     return js_devices;
+}
+
+Napi::Value CoreWrap::import_model(const Napi::CallbackInfo& info) {
+    if (info.Length() != 2) {
+        reportError(info.Env(), "Invalid number of arguments -> " + std::to_string(info.Length()));
+        return info.Env().Undefined();
+    }
+    if (!info[0].IsBuffer()) {
+        reportError(info.Env(), "The first argument must be of type Buffer.");
+        return info.Env().Undefined();
+    }
+    if (!info[1].IsString()) {
+        reportError(info.Env(), "The second argument must be of type String.");
+        return info.Env().Undefined();
+    }
+    const auto& model_data = info[0].As<Napi::Buffer<uint8_t>>();
+    const auto model_stream = std::string(reinterpret_cast<char*>(model_data.Data()), model_data.Length());
+    std::stringstream _stream;
+    _stream << model_stream;
+
+    const auto& compiled = _core.import_model(_stream, std::string(info[1].ToString()));
+    return CompiledModelWrap::wrap(info.Env(), compiled);
+}
+
+Napi::Value CoreWrap::set_property(const Napi::CallbackInfo& info) {
+    try {
+        auto args = try_get_set_property_parameters(info);
+        ov::AnyMap properties = std::get<0>(args);
+        std::string device_name = std::get<1>(args);
+
+        if (device_name.empty()) {
+            _core.set_property(properties);
+        } else {
+            _core.set_property(device_name, properties);
+        }
+    } catch (std::runtime_error& err) {
+        reportError(info.Env(), err.what());
+    }
+
+    return info.Env().Undefined();
+}
+
+Napi::Value CoreWrap::get_property(const Napi::CallbackInfo& info) {
+    const size_t args_length = info.Length();
+    std::string device_name;
+
+    if (!(info[0].IsString() || (args_length == 2 && info[0].IsString() && info[1].IsString()))) {
+        reportError(info.Env(), "Invalid arguments of get_property function");
+
+        return info.Env().Undefined();
+    }
+
+    if (args_length == 2)
+        device_name = info[0].ToString();
+
+    std::string property_name = info[args_length > 1 ? 1 : 0].ToString();
+
+    ov::Any value =
+        device_name.empty() ? _core.get_property(property_name) : _core.get_property(device_name, property_name);
+
+    return any_to_js(info, value);
 }

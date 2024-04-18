@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -213,7 +213,7 @@ TEST(type_prop, reverse_sequence_dynamic_invalid_seq_axis) {
 
 TEST(type_prop, reverse_sequence_dynamic_data_input_static_rank) {
     auto data_shape = PartialShape::dynamic(4);
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
     auto data = std::make_shared<Parameter>(element::f32, data_shape);
     auto seq_lengths = std::make_shared<Parameter>(element::i32, PartialShape{3});
     int64_t batch_axis = 2;
@@ -222,7 +222,7 @@ TEST(type_prop, reverse_sequence_dynamic_data_input_static_rank) {
 
     EXPECT_EQ(reverse_seq->get_output_partial_shape(0), PartialShape({-1, -1, 3, -1}));
     EXPECT_EQ(reverse_seq->get_output_element_type(0), element::f32);
-    EXPECT_THAT(get_shape_labels(reverse_seq->get_output_partial_shape(0)), ElementsAre(10, 11, 12, 13));
+    EXPECT_THAT(get_shape_symbols(reverse_seq->get_output_partial_shape(0)), symbols);
 }
 
 TEST(type_prop, reverse_sequence_dynamic_data_input_static_rank_seq_lengths_input_dynamic_rank) {
@@ -309,11 +309,11 @@ TEST_F(TypePropReverseSequenceV0Test, default_ctor_no_arguments) {
     EXPECT_EQ(op->get_output_size(), 0);
 }
 
-TEST_F(TypePropReverseSequenceV0Test, data_shape_interval_and_sequence_static_dim_with_labels) {
+TEST_F(TypePropReverseSequenceV0Test, data_shape_interval_and_sequence_static_dim_with_symbols) {
     auto data_shape = PartialShape{{2, 5}, 4, {1, 3}};
     auto seq_shape = PartialShape{3};
-    set_shape_labels(data_shape, 10);
-    set_shape_labels(seq_shape, 20);
+    auto data_symbols = set_shape_symbols(data_shape);
+    set_shape_symbols(seq_shape);
 
     auto data = std::make_shared<Parameter>(element::f32, data_shape);
     auto seq_lengths = std::make_shared<Parameter>(element::i32, seq_shape);
@@ -321,14 +321,15 @@ TEST_F(TypePropReverseSequenceV0Test, data_shape_interval_and_sequence_static_di
 
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({3, 4, {1, 3}}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(20, 11, 12));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(data_symbols[0], data_symbols[1], data_symbols[2]));
 }
 
-TEST_F(TypePropReverseSequenceV0Test, data_shape_and_sequence_interval_dim_with_labels) {
+TEST_F(TypePropReverseSequenceV0Test, data_shape_and_sequence_interval_dim_with_symbols) {
     auto data_shape = PartialShape{{2, 5}, 4, {1, 3}};
     auto seq_shape = PartialShape{{3, 6}};
-    set_shape_labels(data_shape, 10);
-    set_shape_labels(seq_shape, 20);
+    auto data_symbols = set_shape_symbols(data_shape);
+    set_shape_symbols(seq_shape);
 
     auto data = std::make_shared<Parameter>(element::f32, data_shape);
     auto seq_lengths = std::make_shared<Parameter>(element::i32, seq_shape);
@@ -336,5 +337,6 @@ TEST_F(TypePropReverseSequenceV0Test, data_shape_and_sequence_interval_dim_with_
 
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({{3, 5}, 4, {1, 3}}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(20, 11, 12));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(data_symbols[0], data_symbols[1], data_symbols[2]));
 }

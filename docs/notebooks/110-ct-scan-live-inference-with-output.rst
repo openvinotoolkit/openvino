@@ -48,7 +48,7 @@ Table of contents:
 
 .. code:: ipython3
 
-    %pip install -q "openvino>=2023.1.0" "monai>=0.9.1,<1.0.0" "nncf>=2.5.0"
+    %pip install -q "openvino>=2023.3.0" "monai>=0.9.1" "nncf>=2.8.0"
 
 
 .. parsed-literal::
@@ -67,27 +67,27 @@ Imports
     import sys
     import zipfile
     from pathlib import Path
-
+    
     import numpy as np
     from monai.transforms import LoadImage
     import openvino as ov
-
+    
     from custom_segmentation import SegmentationModel
-
+    
     sys.path.append("../utils")
     from notebook_utils import download_file
 
 
 .. parsed-literal::
 
-    2024-02-09 22:50:38.323593: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-02-09 22:50:38.357752: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-03-12 22:35:25.130181: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-03-12 22:35:25.164310: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 
 
 .. parsed-literal::
 
-    2024-02-09 22:50:38.922511: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-03-12 22:35:25.734617: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Settings
@@ -104,16 +104,16 @@ trained or optimized yourself, adjust the model paths.
 
     # The directory that contains the IR model (xml and bin) files.
     models_dir = Path('pretrained_model')
-
+    
     ir_model_url = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/kidney-segmentation-kits19/FP16-INT8/'
     ir_model_name_xml = 'quantized_unet_kits19.xml'
     ir_model_name_bin = 'quantized_unet_kits19.bin'
-
+    
     download_file(ir_model_url + ir_model_name_xml, filename=ir_model_name_xml, directory=models_dir)
     download_file(ir_model_url + ir_model_name_bin, filename=ir_model_name_bin, directory=models_dir)
-
+    
     MODEL_PATH = models_dir / ir_model_name_xml
-
+    
     # Uncomment the next line to use the FP16 model instead of the quantized model.
     # MODEL_PATH = "pretrained_model/unet_kits19.xml"
 
@@ -140,7 +140,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
 is a command-line application that can be run in the notebook with
 ``! benchmark_app`` or ``%sx benchmark_app`` commands.
 
-   **NOTE**: The ``benchmark_app`` tool is able to measure the
+   **Note**: The ``benchmark_app`` tool is able to measure the
    performance of the OpenVINO Intermediate Representation (OpenVINO IR)
    models only. For more accurate performance, run ``benchmark_app`` in
    a terminal/command prompt after closing other applications. Run
@@ -154,16 +154,16 @@ is a command-line application that can be run in the notebook with
     core = ov.Core()
     # By default, benchmark on MULTI:CPU,GPU if a GPU is available, otherwise on CPU.
     device_list = ["MULTI:CPU,GPU" if "GPU" in core.available_devices else "AUTO"]
-
+    
     import ipywidgets as widgets
-
+    
     device = widgets.Dropdown(
         options=core.available_devices + device_list,
         value=device_list[0],
         description='Device:',
         disabled=False,
     )
-
+    
     device
 
 
@@ -187,18 +187,18 @@ is a command-line application that can be run in the notebook with
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2023.3.0-13775-ceeafaf64f3-releases/2023/3
-    [ INFO ]
+    [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
+    [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2023.3.0-13775-ceeafaf64f3-releases/2023/3
-    [ INFO ]
-    [ INFO ]
+    [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
+    [ INFO ] 
+    [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.LATENCY.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 13.02 ms
+    [ INFO ] Read model took 13.37 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     input.1 (node: input.1) : f32 / [...] / [1,1,512,512]
@@ -216,7 +216,7 @@ is a command-line application that can be run in the notebook with
 
 .. parsed-literal::
 
-    [ INFO ] Compile model took 232.64 ms
+    [ INFO ] Compile model took 259.78 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: pretrained_unet_kits19
@@ -228,12 +228,15 @@ is a command-line application that can be run in the notebook with
     [ INFO ]     AFFINITY: Affinity.CORE
     [ INFO ]     CPU_DENORMALS_OPTIMIZATION: False
     [ INFO ]     CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
+    [ INFO ]     DYNAMIC_QUANTIZATION_GROUP_SIZE: 0
     [ INFO ]     ENABLE_CPU_PINNING: True
     [ INFO ]     ENABLE_HYPER_THREADING: False
     [ INFO ]     EXECUTION_DEVICES: ['CPU']
     [ INFO ]     EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
     [ INFO ]     INFERENCE_NUM_THREADS: 12
     [ INFO ]     INFERENCE_PRECISION_HINT: <Type: 'float32'>
+    [ INFO ]     KV_CACHE_PRECISION: <Type: 'float16'>
+    [ INFO ]     LOG_LEVEL: Level.NO
     [ INFO ]     NETWORK_NAME: pretrained_unet_kits19
     [ INFO ]     NUM_STREAMS: 1
     [ INFO ]     OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
@@ -245,28 +248,24 @@ is a command-line application that can be run in the notebook with
     [ INFO ]   LOADED_FROM_CACHE: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'input.1'!. This input will be filled with random values!
-    [ INFO ] Fill input 'input.1' with random values
+    [ INFO ] Fill input 'input.1' with random values 
     [Step 10/11] Measuring performance (Start inference synchronously, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-
-
-.. parsed-literal::
-
-    [ INFO ] First inference took 24.68 ms
+    [ INFO ] First inference took 26.09 ms
 
 
 .. parsed-literal::
 
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            1366 iterations
-    [ INFO ] Duration:         15004.33 ms
+    [ INFO ] Count:            1346 iterations
+    [ INFO ] Duration:         15003.91 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        10.75 ms
-    [ INFO ]    Average:       10.80 ms
-    [ INFO ]    Min:           10.53 ms
-    [ INFO ]    Max:           12.59 ms
-    [ INFO ] Throughput:   91.04 FPS
+    [ INFO ]    Median:        10.91 ms
+    [ INFO ]    Average:       10.96 ms
+    [ INFO ]    Min:           10.64 ms
+    [ INFO ]    Max:           12.98 ms
+    [ INFO ] Throughput:   89.71 FPS
 
 
 Download and Prepare Data
@@ -292,9 +291,9 @@ downloaded and extracted in the next cell.
     # The CT scan case number. For example: 16 for data from the case_00016 directory.
     # Currently only 117 is supported.
     CASE = 117
-
+    
     case_path = BASEDIR / f"case_{CASE:05d}"
-
+    
     if not case_path.exists():
         filename = download_file(
             f"https://storage.openvinotoolkit.org/data/test_data/openvino_notebooks/kits19/case_{CASE:05d}.zip"
@@ -371,7 +370,7 @@ to see the implementation.
         ie=core, model_path=Path(MODEL_PATH), sigmoid=True, rotate_and_flip=True
     )
     image_paths = sorted(case_path.glob("imaging_frames/*jpg"))
-
+    
     print(f"{case_path.name}, {len(image_paths)} images")
 
 
@@ -393,10 +392,10 @@ tutorial.
 .. code:: ipython3
 
     framebuf = []
-
+    
     next_frame_id = 0
     reader = LoadImage(image_only=True, dtype=np.uint8)
-
+    
     while next_frame_id < len(image_paths) - 1:
         image_path = image_paths[next_frame_id]
         image = reader(str(image_path))
@@ -439,20 +438,20 @@ The ``callback`` function will show the results of inference.
     import cv2
     import copy
     from IPython import display
-
+    
     from typing import Dict, Any
-
+    
     # Define a callback function that runs every time the asynchronous pipeline completes inference on a frame
     def completion_callback(infer_request: ov.InferRequest, user_data: Dict[str, Any],) -> None:
         preprocess_meta = user_data['preprocess_meta']
-
-        raw_outputs = {out.any_name: copy.deepcopy(res.data) for out, res in zip(infer_request.model_outputs, infer_request.output_tensors)}
+        
+        raw_outputs = {idx: copy.deepcopy(res.data) for idx, (out, res) in enumerate(zip(infer_request.model_outputs, infer_request.output_tensors))}
         frame = segmentation_model.postprocess(raw_outputs, preprocess_meta)
-
+    
         _, encoded_img = cv2.imencode(".jpg", frame, params=[cv2.IMWRITE_JPEG_QUALITY, 90])
         # Create IPython image
         i = display.Image(data=encoded_img)
-
+    
         # Display the image in this notebook
         display.clear_output(wait=True)
         display.display(i)
@@ -465,34 +464,34 @@ Create asynchronous inference queue and perform it
 .. code:: ipython3
 
     import time
-
+    
     load_start_time = time.perf_counter()
     compiled_model = core.compile_model(segmentation_model.net, device.value)
     # Create asynchronous inference queue with optimal number of infer requests
     infer_queue = ov.AsyncInferQueue(compiled_model)
     infer_queue.set_callback(completion_callback)
     load_end_time = time.perf_counter()
-
+    
     results = [None] * len(framebuf)
     frame_number = 0
-
+    
     # Perform inference on every frame in the framebuffer
     start_time = time.time()
     for i, input_frame in enumerate(framebuf):
         inputs, preprocessing_meta = segmentation_model.preprocess({segmentation_model.net.input(0): input_frame})
         infer_queue.start_async(inputs, {'preprocess_meta': preprocessing_meta})
-
+    
     # Wait until all inference requests in the AsyncInferQueue are completed
     infer_queue.wait_all()
     stop_time = time.time()
-
+    
     # Calculate total inference time and FPS
     total_time = stop_time - start_time
     fps = len(framebuf) / total_time
-    time_per_frame = 1 / fps
-
+    time_per_frame = 1 / fps 
+    
     print(f"Loaded model to {device} in {load_end_time-load_start_time:.2f} seconds.")
-
+    
     print(f'Total time to infer all frames: {total_time:.3f}s')
     print(f'Time per frame: {time_per_frame:.6f}s ({fps:.3f} FPS)')
 
@@ -503,7 +502,7 @@ Create asynchronous inference queue and perform it
 
 .. parsed-literal::
 
-    Loaded model to Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO') in 0.23 seconds.
-    Total time to infer all frames: 2.588s
-    Time per frame: 0.038061s (26.274 FPS)
+    Loaded model to Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO') in 0.26 seconds.
+    Total time to infer all frames: 2.496s
+    Time per frame: 0.036711s (27.239 FPS)
 

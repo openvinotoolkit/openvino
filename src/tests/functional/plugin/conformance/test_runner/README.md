@@ -94,7 +94,7 @@ The script has the following optional arguments:
 * `sm SPECIAL_MODE, --special_mode SPECIAL_MODE`
                         Specify shape mode (`static`, `dynamic` or ``) for Opset conformance or API scope type (`mandatory` or ``). Default value is ``
 *  `-e ENTITY, --entity ENTITY`
-                        Specify validation entity: `Inference`, `ImportExport` or `QueryModel` for `OP` or `ov`. Default value is `ov_compiled_model`, `ov_infer_request` or `ov_plugin` for `API`. Default value is ``(all)
+                        Specify validation entity: `Inference`, `ImportExport`, `QueryModel` or `OpImpl` for `OP` or `ov`. Default value is `ov_compiled_model`, `ov_infer_request` or `ov_plugin` for `API`. Default value is ``(all)
 * `p PARALLEL_DEVICES, --parallel_devices PARALLEL_DEVICES`
                         Parallel over HW devices. For example run tests over `GPU.0` and `GPU.1` in case when device are the same
 * `f EXPECTED_FAILURES, --expected_failures EXPECTED_FAILURES`
@@ -103,6 +103,10 @@ The script has the following optional arguments:
                         Overwrite expected failures list in case same failures were fixed
 * `-cache_path CACHE_PATH`
                         Path to the cache file with test_name list sorted by execution time as `.lst` file!
+* `-r DISABLE_RERUN, --disable_rerun DISABLE_RERUN`
+                        Disable re-run of interapted/lost tests. Default value is `False`
+* `--timeout TIMEOUT`
+                        Set a custom timeout per worker in s
 
 > **NOTE**: All arguments are optional and have default values to reproduce OMZ based Opset conformance results  on `CPU` in a default method.
 

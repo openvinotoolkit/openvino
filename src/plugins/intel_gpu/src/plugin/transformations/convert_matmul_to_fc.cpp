@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "intel_gpu/op/fully_connected.hpp"
+#include "intel_gpu/op/placeholder.hpp"
 #include "convert_matmul_to_fc.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/convert.hpp"
@@ -177,8 +178,10 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
             fc_input_b = convert;
         }
 
+        auto no_bias = std::make_shared<op::Placeholder>();
+
         // Create FullyConnected
-        auto fc = std::make_shared<op::FullyConnected>(fc_input_a, fc_input_b, matmul->get_output_element_type(0));
+        auto fc = std::make_shared<op::FullyConnected>(fc_input_a, fc_input_b, no_bias, matmul->get_output_element_type(0));
         fc->set_friendly_name(matmul->get_friendly_name());
         new_ops.push_back(fc);
         ov::copy_runtime_info(matmul, new_ops);

@@ -98,7 +98,7 @@ To check if the driver has been installed:
 
 Your device driver has been updated and is now ready to use your GPU.
 
-.. _wsl-install:
+.. _wsl_install:
 
 Windows Subsystem for Linux (WSL)
 #################################
@@ -111,7 +111,7 @@ WSL allows developers to run a GNU/Linux development environment for the Windows
 
 Below are the required steps to make it work with OpenVINO:
 
-- Install the GPU drivers as described :ref:`above <wsl-instal>`.
+- Install the GPU drivers as described :ref:`above <wsl_install>`.
 - Run the following commands in PowerShell to view the latest version of WSL2:
 
   .. code-block:: sh

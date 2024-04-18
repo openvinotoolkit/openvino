@@ -127,6 +127,7 @@ Choose the component your Good First Issue is related to. You can run tests to m
 - [Auto plugin](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/auto)
 - [CPU plugin](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu)
 - [GPU plugin](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu)
+- [NPU plugin](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_npu)
 - [Hetero plugin](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/hetero)
 - [Template plugin](https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/template)
 
@@ -150,7 +151,7 @@ questions in the channel dedicated to Good First Issue support.
 
 ### 4. Submit a PR with your changes
 
-Follow our [Good Pull Request guidelines](https://github.com/openvinotoolkit/openvino/blob/master/CONTRIBUTING_PR.md).
+Follow our [Good Pull Request guidelines](https://github.com/openvinotoolkit/openvino/blob/master/CONTRIBUTING_PR.md). Please remember about [linking your Pull Request to the issue](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue#manually-linking-a-pull-request-to-an-issue-using-the-pull-request-sidebar) it addresses.
 
 ### 5. Wait for a review
 

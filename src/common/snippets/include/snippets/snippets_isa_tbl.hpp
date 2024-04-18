@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@ OV_OP(LoopBegin, ov::snippets::op)
 OV_OP(LoopEnd, ov::snippets::op)
 OV_OP(Brgemm, ov::snippets::op)
 OV_OP(BroadcastLoad, ov::snippets::op)
+OV_OP(Reshape, ov::snippets::op)
 
 OV_OP(Store, ov::snippets::op)
 

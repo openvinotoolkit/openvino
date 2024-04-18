@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,7 +36,7 @@ void Mish::validate_and_infer_types() {
 
     const auto& data_batch_et = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
-                          data_batch_et.is_real(),
+                          data_batch_et.is_real() || data_batch_et.is_dynamic(),
                           "Element must be of floating point type, Got: ",
                           data_batch_et);
 

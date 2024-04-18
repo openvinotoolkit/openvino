@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -606,11 +606,12 @@ TokenizeSnippets::TokenizeSnippets() {
         }
 
         // The each data node (Parameter (and non-Scalar Constants), Result, Buffers with the same ID) requires the own unique GPR.
-        // At the moment, CPU Plugin has limitation for GPR registers: there are only 12 available registers.
+        // At the moment, CPU Plugin has limitation for GPR registers: there are 12 available GPRs,
+        // and one of them must be reserved for runtime parameters, so only 11 can be used during kernel execution.
         // This limitation will be resolved once generator supports gprs spills [75622].
         // TODO [75567]: move this plugin-specific constraint to the plugin callback
         const auto unique_buffer_count = op::Subgraph::get_estimated_buffer_count(ops_for_buffer_count);
-        if (body_parameters.size() + body_results.size() + hidden_data_count + unique_buffer_count > 12) {
+        if (body_parameters.size() + body_results.size() + hidden_data_count + unique_buffer_count > 11) {
             const std::string message_reset = "new subgraph is created. Impossible to schedule subgraph with " +
             std::to_string(body_parameters.size()) + " inputs, " + std::to_string(body_results.size()) + " outputs and " +
             std::to_string(hidden_data_count) + " non-scalar constants and " + std::to_string(unique_buffer_count) + "buffers.";

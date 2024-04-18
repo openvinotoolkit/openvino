@@ -159,3 +159,14 @@ Performance Information F.A.Q.
    for autonomous vehicles, where a quick response to the result of the
    inference is required.
 
+
+
+.. raw:: html
+
+   <link rel="stylesheet" type="text/css" href="../../_static/css/benchmark-banner.css">
+
+.. container:: benchmark-banner
+
+   Results may vary. For more information, see
+   :doc:`Platforms, Configurations, Methodology <../performance-benchmarks>`.
+   See :doc:`Legal Information <../additional-resources/legal-information>`.

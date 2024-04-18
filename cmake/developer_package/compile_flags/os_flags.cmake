@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -73,6 +73,17 @@ macro(ov_dev_package_no_errors)
         if(SUGGEST_OVERRIDE_SUPPORTED)
             set(ov_cxx_dev_no_errors "-Wno-error=suggest-override")
         endif()
+    endif()
+
+    if (CMAKE_COMPILE_WARNING_AS_ERROR AND WIN32)
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+            if(CMAKE_VERSION VERSION_LESS 3.24)
+                string(REPLACE "/WX" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+                string(REPLACE "/WX" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+            endif()
+            string(REPLACE "/WX" "" CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
+        endif()
+        set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
     endif()
 
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${ov_c_cxx_dev_no_errors} ${ov_cxx_dev_no_errors}")

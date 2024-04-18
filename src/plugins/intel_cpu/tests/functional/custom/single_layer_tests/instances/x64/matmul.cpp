@@ -191,6 +191,7 @@ std::vector<fusingSpecificParams> fusingParamsSet2D_Brgemm_smoke {
         fusingMultiplyPerChannel,
 #endif
         fusingFakeQuantizePerTensorRelu,
+        fusingReluScaleShift
 };
 
 const auto fullyConnectedParams2D_Brgemm_smoke = ::testing::Combine(::testing::ValuesIn(IS2D_Brgemm_smoke),

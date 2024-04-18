@@ -10,6 +10,7 @@
 #include "cpu_memory.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/dnnl/dnnl_fullyconnected_primitive.hpp"
+#include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
 #include "nodes/executors/dnnl/dnnl_aliases.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_config.hpp"
@@ -43,7 +44,7 @@ public:
                    const bool cacheWeights)
         : m_attrs(attrs),
           m_context(context),
-          m_shapeAgnosticData(DnnlFCPrimitive::createShapeAgnosticData(m_attrs, postOps, memory, m_context, cacheWeights)),
+          m_shapeAgnosticData(Primitive::createShapeAgnosticData(m_attrs, postOps, memory, m_context, cacheWeights)),
           m_primArgs(m_shapeAgnosticData->primAttrs.dnnlArgs) {}
     bool update(const MemoryArgs& memory) override {
         const auto primitive = createPrimitive(memory);
@@ -66,6 +67,28 @@ public:
 
     impl_desc_type implType() const override {
         return m_primitive ? m_primitive->implType() : undef;
+    }
+
+    void moveMemToNumaNode(int numaNodeID) override {
+        if (curNumaNode == numaNodeID) {
+            return;
+        }
+        const auto newPrimMemDesc = m_primitive->scratchPadDesc();
+        m_scratchPadMemory = m_context->getScratchPad(numaNodeID)->createScratchPadMem(newPrimMemDesc);
+        m_primArgs[DNNL_ARG_SCRATCHPAD] = m_scratchPadMemory->getPrimitive();
+
+        if (m_primArgs.count(DNNL_ARG_WEIGHTS)) {
+            if (!mbind_move(m_primArgs[DNNL_ARG_WEIGHTS], numaNodeID)) {
+                DEBUG_LOG("[FullyConnected] move DNNL_ARG_WEIGHTS to node ", numaNodeID, " failed");
+            }
+        }
+
+        if (m_primArgs.count(DNNL_ARG_BIAS)) {
+            if (!mbind_move(m_primArgs[DNNL_ARG_BIAS], numaNodeID)) {
+                DEBUG_LOG("[FullyConnected] move DNNL_ARG_BIAS to node ", numaNodeID, " failed");
+            }
+        }
+        curNumaNode = numaNodeID;
     }
 
 private:
@@ -118,7 +141,7 @@ private:
         if (currentPrimitive && currentPrimitive->scratchPadDesc()->isCompatible(*newPrimMemDesc))
             return;
 
-        m_scratchPadMemory = m_context->getScratchPad()->createScratchPadMem(newPrimMemDesc);
+        m_scratchPadMemory = m_context->getScratchPad(curNumaNode)->createScratchPadMem(newPrimMemDesc);
         m_primArgs[DNNL_ARG_SCRATCHPAD] = m_scratchPadMemory->getPrimitive();
     }
 
@@ -148,6 +171,7 @@ private:
     bool resetDstMemoryDataHandle = false;
     MemoryPtr m_scratchPadMemory;
     PrimitivePtr m_primitive;
+    int curNumaNode = -1;
 };
 
 }  // namespace intel_cpu

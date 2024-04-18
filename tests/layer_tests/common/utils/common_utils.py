@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
@@ -137,7 +137,12 @@ def allclose(cur_array, ref_array, atol, rtol):
         # so we have to align formats of both string tensors, for example, to unicode
         if cur_array.dtype.type != ref_array.dtype.type:
             cur_array = cur_array.astype('U')
-            ref_array = ref_array.astype('U')
+            try:
+                ref_array = ref_array.astype('U')
+            except:
+                # ref_array of object type and each element must be utf-8 decoded
+                utf8_decoded_elems = [elem.decode('UTF-8') for elem in ref_array.flatten()]
+                ref_array = np.array(utf8_decoded_elems, dtype=str).reshape(ref_array.shape)
         return np.array_equal(cur_array, ref_array)
     elif cur_array.dtype == bool:
         abs_diff = np.absolute(cur_array ^ ref_array)

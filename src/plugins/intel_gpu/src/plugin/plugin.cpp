@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,6 @@
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "openvino/core/deprecated.hpp"
-#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
@@ -257,6 +256,8 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
     ProgramBuilder prog(ctx->get_engine(), config);
 
+    float query_model_ratio = config.get_property(ov::internal::query_model_ratio.name()).as<float>();
+
     auto supported = ov::get_supported_nodes(model,
         [&config,this](std::shared_ptr<ov::Model>& model) {
             std::map<std::string, ov::PartialShape> shapes;
@@ -265,7 +266,8 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
         },
         [&prog](std::shared_ptr<ov::Node> node) {
             return prog.is_op_supported(node);
-        });
+        },
+        query_model_ratio);
 
     for (auto&& op_name : supported) {
         res.emplace(op_name, ctx->get_device_name());
@@ -563,7 +565,8 @@ std::vector<ov::PropertyName> Plugin::get_supported_internal_properties() const 
             ov::PropertyName{ov::internal::config_device_id.name(), ov::PropertyMutability::WO},
             ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
             ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(), ov::PropertyMutability::RO}};
+            ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::query_model_ratio.name(), PropertyMutability::RW}};
     return supported_internal_properties;
 }
 
@@ -655,7 +658,7 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
     auto cloned_model = model->clone();
 
     try {
-        std::set<std::pair<std::string, size_t>> batched_inputs;
+        std::set<std::pair<size_t, size_t>> batched_inputs;
 
         auto tmp_model = cloned_model->clone();
         ov::pass::Manager m;
@@ -674,12 +677,11 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
 
             if (shape.size()) {
                 for (size_t s = 0; s < shape.size(); s++) {
-                    if (ov::DimensionTracker::get_label(shape[s])) {
-                        // batched dim for the input
-                        auto batched_input_id = ov::op::util::get_ie_output_name(params[input_id]->output(0));
-                        GPU_DEBUG_LOG << "[MAX_BATCH_SIZE] detected batched input " << batched_input_id
+                    if (const auto& symbol = shape[s].get_symbol()) {
+                        batched_inputs.insert(std::make_pair(input_id, s));
+                        GPU_DEBUG_LOG << "[MAX_BATCH_SIZE] detected batched input " << input->get_friendly_name()
+                                      << " with index " << symbol
                                       << "[" << s << "]" << std::endl;
-                        batched_inputs.insert(std::make_pair(batched_input_id, s));
                     }
                 }
             }
@@ -691,9 +693,11 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
         }
 
         try {
-            std::map<std::string, ov::PartialShape> shapes;
-            for (auto& param : cloned_model->get_parameters()) {
-                shapes[ov::op::util::get_ie_output_name(param->output(0))] = param->get_output_partial_shape(0);
+            std::map<size_t, ov::PartialShape> shapes;
+            const auto& params = cloned_model->get_parameters();
+            for (size_t input_id = 0; input_id < params.size(); input_id++) {
+                const auto& param = params[input_id];
+                shapes[input_id] = param->get_output_partial_shape(0);
             }
             for (const auto& input : batched_inputs)
                 shapes[input.first][input.second] = base_batch_size;

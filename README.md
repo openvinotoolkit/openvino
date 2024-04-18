@@ -23,7 +23,7 @@ Check out the [OpenVINO Cheat Sheet](https://docs.openvino.ai/2024/_static/downl
 
 [Get your preferred distribution of OpenVINO](https://docs.openvino.ai/2024/get-started/install-openvino.html) or use this command for quick installation:
 
-```
+```sh
 pip install openvino
 ```
 
@@ -42,7 +42,7 @@ Here are easy-to-follow code examples demonstrating how to run TensorFlow and Py
 
 **TensorFlow Model**
 
-```
+```python
 import numpy as np
 import openvino as ov
 import tensorflow as tf
@@ -64,7 +64,7 @@ output = compiled_model.infer_new_request({0: data})
 
 **PyTorch Model**
 
-```
+```python
 import openvino as ov
 import torch
 import torchvision
@@ -84,13 +84,13 @@ compiled_model = core.compile_model(ov_model, 'CPU')
 output = compiled_model.infer_new_request({0: example.numpy()})
 ```
 
-OpenVINO also supports CPU, GPU, and NPU devices and works with models in TensorFLow, PyTorch, ONNX, TenforFlow Lite, PaddlePaddle model formats.
+OpenVINO also supports CPU, GPU, and NPU devices and works with models in TensorFlow, PyTorch, ONNX, TensorFlow Lite, PaddlePaddle model formats.
 With OpenVINO you can do automatic performance enhancements at runtime customized to your hardware (preserving model accuracy), including:
 asynchronous execution, batch processing, tensor fusion, load balancing, dynamic inference parallelism, automatic BF16 conversion, and more.
 
 ## OpenVINO Ecosystem
 
--	 [🤗Optimum Intel](https://github.com/huggingface/optimum-intel) -  a simple interface to optimize Transformers and Diffusers models.
+-   [🤗Optimum Intel](https://github.com/huggingface/optimum-intel) -  a simple interface to optimize Transformers and Diffusers models.
 -   [Neural Network Compression Framework (NNCF)](https://github.com/openvinotoolkit/nncf) - advanced model optimization techniques including quantization, filter pruning, binarization, and sparsity.
 -   [GenAI Repository](https://github.com/openvinotoolkit/openvino.genai) and [OpenVINO Tokenizers](https://github.com/openvinotoolkit/openvino_tokenizers) - resources and tools for developing and optimizing Generative AI applications.
 -   [OpenVINO™ Model Server (OVMS)](https://github.com/openvinotoolkit/model_server) - a scalable, high-performance solution for serving models optimized for Intel architectures.

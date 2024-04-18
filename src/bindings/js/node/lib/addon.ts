@@ -23,12 +23,12 @@ type elementTypeString =
 interface Core {
   compileModel(
     model: Model,
-    device: string,
+    deviceName: string,
     config?: { [option: string]: string }
   ): Promise<CompiledModel>;
   compileModelSync(
     model: Model,
-    device: string,
+    deviceName: string,
     config?: { [option: string]: string }
   ): CompiledModel;
   readModel(modelPath: string, weightsPath?: string): Promise<Model>;
@@ -36,7 +36,18 @@ interface Core {
     modelBuffer: Uint8Array, weightsBuffer?: Uint8Array): Promise<Model>;
   readModelSync(modelPath: string, weightsPath?: string): Model;
   readModelSync(modelBuffer: Uint8Array, weightsBuffer?: Uint8Array): Model;
+  importModelSync(modelStream: Buffer, device: string): CompiledModel;
   getAvailableDevices(): string[];
+  setProperty(props: { [key: string]: string | number | boolean }): void;
+  setProperty(
+    deviceName: string,
+    props: { [key: string]: string | number | boolean },
+  ): void;
+  getProperty(propertyName: string): string | number | boolean,
+  getProperty(
+    deviceName: string,
+    propertyName: string,
+  ): string | number | boolean,
 }
 interface CoreConstructor {
   new(): Core;
@@ -48,6 +59,7 @@ interface Model {
   output(nameOrId?: string | number): Output;
   input(nameOrId?: string | number): Output;
   getName(): string;
+  isDynamic(): boolean;
 }
 
 interface CompiledModel {
@@ -56,6 +68,7 @@ interface CompiledModel {
   output(nameOrId?: string | number): Output;
   input(nameOrId?: string | number): Output;
   createInferRequest(): InferRequest;
+  exportModelSync(): Buffer;
 }
 
 interface Tensor {
@@ -63,6 +76,7 @@ interface Tensor {
   getElementType(): element;
   getShape(): number[];
   getData(): number[];
+  getSize(): number;
 }
 interface TensorConstructor {
   new(type: element | elementTypeString,

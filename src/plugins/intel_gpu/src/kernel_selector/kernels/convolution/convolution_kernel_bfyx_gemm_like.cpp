@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -107,6 +107,13 @@ bool ConvolutionKernel_bfyx_GEMMLike::Validate(const Params& p) const {
         return false;
 
     if (!params.engineInfo.supports_intel_subgroups_short && params.inputs[0].GetDType() == Datatype::F16) {
+        return false;
+    }
+
+    // Limit filter_x_size to 32 becasue convolution ref kernel is faster than GEMMLike kernel when filter size is bigger.
+    // 32 is chosen from filter size of customer model. May need to more measurement to pick optimal value
+    const size_t acceptable_filter_x_size = 32;
+    if (params.filterSize.x > acceptable_filter_x_size) {
         return false;
     }
 

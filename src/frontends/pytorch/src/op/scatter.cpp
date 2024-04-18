@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ Output<Node> prepare_source(const NodeContext& context,
                             const Output<Node>& src,
                             const Output<Node>& index,
                             const Output<Node>& input) {
-    auto src_partial_shape = src.get_partial_shape();
+    const auto& src_partial_shape = src.get_partial_shape();
     auto index_shape_rank = get_shape_rank(context, index);
     auto index_shape = std::get<0>(index_shape_rank);
     auto index_rank = std::get<1>(index_shape_rank);

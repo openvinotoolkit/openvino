@@ -18,15 +18,20 @@ For an in-depth description of CPU plugin, see:
 - `OpenVINO Runtime CPU plugin source files <https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_cpu/>`__.
 
 .. note::
-   The scope of the CPU plugin features and optimizations on Arm® may differ from Intel® x86-64. If the limitation is not mentioned explicitly, the feature is supported for all CPU architectures.
+
+   The scope of the CPU plugin features and optimizations on Arm® may differ from
+   Intel® x86-64. If the limitation is not mentioned explicitly, the feature is supported for
+   all CPU architectures. **CPU inference on ARM64 is not supported for Windows.**
 
 
 Device Name
 ###########################################################
 
-The ``CPU`` device name is used for the CPU plugin. Even though there can be more than one physical socket on a platform, only one device of this kind is listed by OpenVINO.
-On multi-socket platforms, load balancing and memory usage distribution between NUMA nodes are handled automatically.
-In order to use CPU for inference, the device name should be passed to the ``ov::Core::compile_model()`` method:
+The ``CPU`` device name is used for the CPU plugin. Even though there can be more than one
+physical socket on a platform, only one device of this kind is listed by OpenVINO.
+On multi-socket platforms, load balancing and memory usage distribution between NUMA nodes are
+handled automatically. In order to use CPU for inference, the device name should be passed to
+the ``ov::Core::compile_model()`` method:
 
 
 .. tab-set::

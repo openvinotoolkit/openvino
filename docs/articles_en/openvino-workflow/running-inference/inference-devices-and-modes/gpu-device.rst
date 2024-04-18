@@ -213,7 +213,7 @@ Alternatively, it can be enabled explicitly via the device notion, for example `
                :fragment: compile_model_auto_batch
 
 
-For more details, see the :doc:`Automatic batching<automatic-batching>`.
+For more details, see the :doc:`Automatic batching <automatic-batching>`.
 
 Multi-stream Execution
 +++++++++++++++++++++++++++++++++++++++
@@ -230,7 +230,7 @@ which means that the incoming infer requests can be processed simultaneously.
 When multiple inferences of the same model need to be executed in parallel, the multi-stream feature is preferred to multiple instances of the model or application.
 The reason for this is that the implementation of streams in the GPU plugin supports weight memory sharing across streams, thus, memory consumption may be lower, compared to the other approaches.
 
-For more details, see the :doc:`optimization guide<../optimize-inference>`.
+For more details, see the :doc:`optimization guide <../optimize-inference>`.
 
 Dynamic Shapes
 +++++++++++++++++++++++++++++++++++++++
@@ -365,9 +365,9 @@ The GPU plugin has the following additional preprocessing options:
 
 With such preprocessing, GPU plugin will expect ``ov::intel_gpu::ocl::ClImage2DTensor`` (or derived) to be passed for each NV12 plane via ``ov::InferRequest::set_tensor()`` or ``ov::InferRequest::set_tensors()`` methods.
 
-For usage examples, refer to the :doc:`RemoteTensor API<gpu-device/remote-tensor-api-gpu-plugin>`.
+For usage examples, refer to the :doc:`RemoteTensor API <gpu-device/remote-tensor-api-gpu-plugin>`.
 
-For more details, see the :doc:`preprocessing API<../optimize-inference/optimize-preprocessing>`.
+For more details, see the :doc:`preprocessing API <../optimize-inference/optimize-preprocessing>`.
 
 Model Caching
 +++++++++++++++++++++++++++++++++++++++
@@ -465,7 +465,7 @@ GPU Performance Checklist: Summary
 
 Since OpenVINO relies on the OpenCL kernels for the GPU implementation, many general OpenCL tips apply:
 
--	Prefer ``FP16`` inference precision over ``FP32``, as Model Conversion API can generate both variants, and the ``FP32`` is the default. To learn about optimization options, see :doc:`Optimization Guide<../../model-optimization>`.
+-	Prefer ``FP16`` inference precision over ``FP32``, as Model Conversion API can generate both variants, and the ``FP32`` is the default. To learn about optimization options, see :doc:`Optimization Guide <../../model-optimization>`.
 - Try to group individual infer jobs by using :doc:`automatic batching <automatic-batching>`.
 -	Consider :doc:`caching <../optimize-inference/optimizing-latency/model-caching-overview>` to minimize model load time.
 -	If your application performs inference on the CPU alongside the GPU, or otherwise loads the host heavily, make sure that the OpenCL driver threads do not starve. :doc:`CPU configuration options <cpu-device>` can be used to limit the number of inference threads for the CPU plugin.

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -114,13 +114,17 @@ std::vector<std::string> GemmKernelBase::GetTransposedDims(const std::vector<int
             break;
         case 6:
             if (is_tiled_opt) {
-                dim_ids.push_back("(y+write_id)");
+                dim_ids.push_back("(y+y_write_id)");
             } else {
                 dim_ids.push_back("y");
             }
             break;
         case 7:
-            dim_ids.push_back("x");
+            if (is_tiled_opt) {
+                dim_ids.push_back("(x+x_write_id)");
+            } else {
+                dim_ids.push_back("x");
+            }
             break;
         default:
             break;
@@ -209,6 +213,44 @@ JitConstants GemmKernelBase::GetJitConstants(const gemm_params& params) const {
 
     if (params.inputs.size() == 4 || (!params.indirect_input0 && !params.indirect_input1 && params.inputs.size() == 3)) {
         jit.AddConstant(MakeJitConstant("BIAS_TERM", 1));
+    }
+
+    auto get_broadcast_input_str = [](const std::vector<int32_t>& target_shape) {
+        const size_t target_rank = target_shape.size();
+        std::vector<std::string> dims;
+        if (target_rank == 1) {
+            dims = {"x"};
+        } else if (target_rank == 2) {
+            dims = {"y", "x"};
+        } else if (target_rank == 3) {
+            dims = {"f", "y", "x"};
+        } else if (target_rank == 4) {
+            dims = {"b", "f", "y", "x"};
+        } else if (target_rank == 5) {
+            dims = {"b", "f", "z", "y", "x"};
+        } else if (target_rank == 6) {
+            dims = {"b", "f", "w", "z", "y", "x"};
+        }
+        int pos = 0;
+        for (auto ts : target_shape) {
+            if (ts != 1)
+                break;
+            pos += 1;
+        }
+        std::string str = dims[pos] + " /= " + std::to_string(target_shape[pos]) + ";";
+        return str;
+    };
+    if (params.input0_target_shape.size() > 1) {
+        jit.AddConstants({
+            MakeJitConstant("BROADCAST_INPUT0", true),
+            MakeJitConstant("DO_BROADCAST_INPUT0", get_broadcast_input_str(params.input0_target_shape)),
+        });
+    }
+    if (params.input1_target_shape.size() > 1) {
+        jit.AddConstants({
+            MakeJitConstant("BROADCAST_INPUT1", true),
+            MakeJitConstant("DO_BROADCAST_INPUT1", get_broadcast_input_str(params.input1_target_shape)),
+        });
     }
 
     jit.AddConstants({

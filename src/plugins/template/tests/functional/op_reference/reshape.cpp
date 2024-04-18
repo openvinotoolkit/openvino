@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -105,6 +105,7 @@ struct ReshapeShuffleParams {
 class ReferenceReshapeLayerTest : public testing::TestWithParam<ReshapeParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         const auto params = GetParam();
         function = CreateFunction(params.m_input_type,
                                   params.m_expected_type,
@@ -146,6 +147,7 @@ class ReferenceReshapeShuffleLayerTest : public testing::TestWithParam<ReshapeSh
                                          public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         const auto params = GetParam();
         function = CreateFunction(params.m_input_type,
                                   params.m_expected_type,

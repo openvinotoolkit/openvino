@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
@@ -411,16 +412,29 @@ bool fuse_type_to_convert_cpu(const std::shared_ptr<ov::Node>& node, const preci
     const auto& to = it->second;
     if (auto convert = ov::as_type_ptr<ov::opset1::Convert>(node)) {
         // For Convert node, converting precision from floating point to boolean will lead to mathematical
-        // error, because here the output precision boolean is replaced by u8. E.g. floating point value 0.01
-        // is converted to be 1 for boolean, but 0 for u8. Thus an Abs and Ceil node should be added before the
-        // Convert node for this scenario.
+        // error, because here the output precision boolean is replaced by u8:
+        //  - floating point value 0.01 is converted to be 1 for boolean, but 0 for u8 - need to insert Ceil.
+        //  - floating point value 256 is converted to be 1 for boolean, but 0 for u8 - need to insert Min(x, UINT8_MAX)
+        //  - floating point value -256 is converted to be 1 for boolean, but 0 for u8 - need to insert Abs before Min.
+        // Thus an Abs, Ceil and Min nodes should be added before the Convert node for this scenario.
         if (convert->input(0).get_element_type().is_real() &&
             convert->get_convert_element_type() == ov::element::boolean && to.is_integral_number()) {
-            auto abs = std::make_shared<ov::opset1::Abs>(convert->input_value(0).get_node_shared_ptr());
-            auto ceil = std::make_shared<ov::opset1::Ceiling>(abs);
-            auto new_convert = std::make_shared<ov::opset1::Convert>(ceil, to);
+            ov::pass::NodeRegistry reg;
+            const auto& in_prec = convert->get_input_element_type(0);
+            auto data = convert->input_value(0).get_node_shared_ptr();
+            auto item = precisions.find(in_prec);
+            if (item != precisions.end()) {
+                // Add convert node for unsupported precision, such as FP64
+                data = reg.make<ov::opset1::Convert>(data, item->second);
+            }
+            const auto abs = reg.make<ov::opset1::Abs>(data);
+            const auto to_max_value = reg.make<ov::opset1::Constant>(ov::util::make_tensor_of_max_value(to));
+            const auto to_max_convert = reg.make<ov::opset1::Convert>(to_max_value, abs->get_output_element_type(0));
+            const auto min = reg.make<ov::opset1::Minimum>(abs, to_max_convert);
+            const auto ceil = reg.make<ov::opset1::Ceiling>(min);
+            const auto new_convert = reg.make<ov::opset1::Convert>(ceil, to);
             new_convert->set_friendly_name(convert->get_friendly_name());
-            ov::copy_runtime_info(convert, {abs, ceil, new_convert});
+            ov::copy_runtime_info(convert, reg.get());
             ov::replace_node(convert, new_convert);
             return true;
         } else {

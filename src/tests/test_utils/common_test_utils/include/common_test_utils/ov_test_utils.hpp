@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,8 +69,6 @@ std::shared_ptr<ov::op::v0::Constant> create_constant(const std::vector<T>& data
     ov::Shape shape = scalar ? ov::Shape{} : ov::Shape{data.size()};
     return ov::op::v0::Constant::create(et, shape, data);
 }
-
-std::shared_ptr<ov::op::v0::Constant> create_zero_constant(const ov::element::Type_t& et, const ov::Shape& shape);
 
 namespace ov {
 namespace test {

@@ -47,8 +47,15 @@ Prerequisites
 
 .. code:: ipython3
 
+    import platform
+    
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu torch torchvision
-    %pip install -q matplotlib
+    
+    if platform.system() != "Windows":
+        %pip install -q "matplotlib>=3.4"
+    else:
+        %pip install -q "matplotlib>=3.4,<3.7"
+    
     %pip install -q "openvino>=2023.2.0"
 
 
@@ -70,7 +77,7 @@ Prerequisites
 .. code:: ipython3
 
     from pathlib import Path
-
+    
     import openvino as ov
     import torch
 
@@ -84,11 +91,11 @@ First of all lets get a test image from an open dataset.
 .. code:: ipython3
 
     import urllib.request
-
+    
     from torchvision.io import read_image
     import torchvision.transforms as transforms
-
-
+    
+    
     img_path = 'cats_image.jpeg'
     urllib.request.urlretrieve(
         url='https://huggingface.co/datasets/huggingface/cats-image/resolve/main/cats_image.jpeg',
@@ -122,12 +129,12 @@ models <https://pytorch.org/vision/stable/models.html#listing-and-retrieving-ava
 .. code:: ipython3
 
     import torchvision.models as models
-
+    
     # List available models
     all_models = models.list_models()
     # List of models by type
     segmentation_models = models.list_models(module=models.segmentation)
-
+    
     print(segmentation_models)
 
 
@@ -167,11 +174,11 @@ wight <https://pytorch.org/vision/stable/models.html#using-the-pre-trained-model
 .. code:: ipython3
 
     import numpy as np
-
-
+    
+    
     preprocess = models.segmentation.LRASPP_MobileNet_V3_Large_Weights.COCO_WITH_VOC_LABELS_V1.transforms()
     preprocess.resize_size = (IMAGE_HEIGHT, IMAGE_WIDTH)  # change to an image size
-
+    
     input_data = preprocess(image)
     input_data = np.expand_dims(input_data, axis=0)
 
@@ -199,8 +206,8 @@ directory. For more information on how to convert models, see this
 .. code:: ipython3
 
     ov_model_xml_path = Path('models/ov_lraspp_model.xml')
-
-
+    
+    
     if not ov_model_xml_path.exists():
         ov_model_xml_path.parent.mkdir(parents=True, exist_ok=True)
         dummy_input = torch.randn(1, 3, IMAGE_HEIGHT, IMAGE_WIDTH)
@@ -219,7 +226,7 @@ Select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     import ipywidgets as widgets
-
+    
     core = ov.Core()
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
@@ -227,7 +234,7 @@ Select device from dropdown list for running inference using OpenVINO
         description='Device:',
         disabled=False,
     )
-
+    
     device
 
 
@@ -266,13 +273,13 @@ visualize the image with a ``cat`` mask for the PyTorch model.
 
     import torch
     import matplotlib.pyplot as plt
-
+    
     import torchvision.transforms.functional as F
-
-
+    
+    
     plt.rcParams["savefig.bbox"] = 'tight'
-
-
+    
+    
     def show(imgs):
         if not isinstance(imgs, list):
             imgs = [imgs]
@@ -293,11 +300,11 @@ Prepare and display a cat mask.
         'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor'
     ]
     sem_class_to_idx = {cls: idx for (idx, cls) in enumerate(sem_classes)}
-
+    
     normalized_mask = torch.nn.functional.softmax(result_torch, dim=1)
-
+    
     cat_mask = normalized_mask[0, sem_class_to_idx['cat']]
-
+    
     show(cat_mask)
 
 
@@ -322,7 +329,7 @@ And now we can plot a boolean mask on top of the original image.
 .. code:: ipython3
 
     from torchvision.utils import draw_segmentation_masks
-
+    
     show(draw_segmentation_masks(image, masks=boolean_cat_mask, alpha=0.7, colors='yellow'))
 
 

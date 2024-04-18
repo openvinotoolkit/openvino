@@ -78,7 +78,7 @@ bool ValidateLoops::run(LinearIR& linear_ir) {
                                                : ov::snippets::utils::get_preordered_vdims(*loop_port.expr_port);
             const auto& dim = *(planar_shape.rbegin() + loop_port.dim_idx);
             // Since dim == 1 can be broadcasted to any value, it's not necessary to add it to unique dims
-            if (dim != 1)
+            if (!utils::is_dynamic_value(dim) && dim != 1)
                 unique_dims.insert(dim);
         }
     };
