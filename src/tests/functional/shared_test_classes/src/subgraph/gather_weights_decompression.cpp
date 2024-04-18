@@ -34,6 +34,8 @@ std::string GatherWeightsDecompression::get_test_case_name(
     for (const auto& actual_shape : shape_params.indices_shape.second) {
         result << ov::test::utils::partialShape2str({actual_shape}) << "_";
     }
+    result << "axis=" << shape_params.axis << "_";
+    result << "batch_dims=" << shape_params.batch_dims << "_";
     result << "group_size=" << shape_params.decompression_group_size << "_";
     result << "data_precision=" << data_precision << "_";
     result << "output_precision=" << output_precision << "_";

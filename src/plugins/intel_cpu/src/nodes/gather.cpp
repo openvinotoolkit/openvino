@@ -649,13 +649,13 @@ void Gather::execCompressed4Bit() {
 
                 OUT_TYPE* pdst = &dstData[dstIdx];
 
-                const size_t scale_offset = srcIdx / scale_group_size;
-                auto cur_zp = have_zp ? zp[srcIdx / zp_group_size] : 0;
                 size_t p = srcIdx;
                 size_t dst_idx = 0;
 
                 for (; p < srcIdx + afterAxisSize; p++) {
                     auto val = srcData[p >> 1];
+                    const size_t scale_offset = p / scale_group_size;
+                    auto cur_zp = have_zp ? zp[p / zp_group_size] : 0;
                     pdst[dst_idx] = static_cast<OUT_TYPE>((get4Bit(val, p % 2) - cur_zp) * scale[scale_offset]);
                     dst_idx++;
                 }
@@ -699,13 +699,17 @@ void Gather::execCompressed8Bit() {
                 size_t srcIdx = c1 + axisAndAfterAxisSize * i;
                 size_t dstIdx = c2 + specIdxAndAfterAxSize * i;
 
-                const IN_TYPE* psrc = &srcData[srcIdx];
                 OUT_TYPE* pdst = &dstData[dstIdx];
 
-                const size_t scale_offset = srcIdx / scale_group_size;
-                auto cur_zp = have_zp ? zp[srcIdx / zp_group_size] : 0;
-                for (size_t p = 0; p < afterAxisSize; p++) {
-                    pdst[p] = static_cast<OUT_TYPE>((static_cast<float>(psrc[p]) - cur_zp) * scale[scale_offset]);
+                size_t p = srcIdx;
+                size_t dst_idx = 0;
+
+                for (; p < srcIdx + afterAxisSize; p++) {
+                    const size_t scale_offset = p / scale_group_size;
+                    auto cur_zp = have_zp ? zp[p / zp_group_size] : 0;
+                    pdst[dst_idx] =
+                        static_cast<OUT_TYPE>((static_cast<float>(srcData[p]) - cur_zp) * scale[scale_offset]);
+                    dst_idx++;
                 }
             }
         } else {

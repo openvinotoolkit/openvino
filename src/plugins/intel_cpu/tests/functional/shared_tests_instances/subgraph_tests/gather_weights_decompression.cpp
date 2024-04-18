@@ -24,6 +24,7 @@ const std::vector<ov::element::Type> weights_precisions = {ov::element::u8,
 const std::vector<GWDShapeParams> input_shapes_basic = {
     {{2, 5}, {{-1, -1}, {{2, 3}}}, 0, 0},
     {{15, 32}, {{-1, -1}, {{2, 3}}}, 1, 0, 16},
+    {{15, 32}, {{-1, -1}, {{2, 3}}}, 0, 0, 16},
     {{2, 5}, {{}, {{2, 3}}}, 1, -1},
     {{15, 16, 2}, {{-1, -1}, {{2, 3}}}, 0, 0},
 };
