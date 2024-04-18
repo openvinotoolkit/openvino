@@ -91,6 +91,8 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
         return std::find(container.begin(), container.end(), value) != container.end();
     };
 
+    auto allocator = zeroMemory::HostMemAllocator(backendPtr);
+
     for (const std::string& inputName : _metadata.inputNames) {
         if (!executorInputDescriptors.count(inputName)) {
             OPENVINO_THROW("Invalid graph input descriptor key: " + inputName);
@@ -99,15 +101,15 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
         const IONodeDescriptor& parameterDescriptor = _metadata.parameters.at(inputName);
         check_level_zero_attributes_match(parameterDescriptor, executorInputDescriptors.at(inputName), inputName);
 
-        ov::Allocator allocator;
+        ov::Allocator inputAllocator;
         if (properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED) {
-            allocator = zeroMemory::HostMemAllocator(backendPtr, ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED);
+            inputAllocator = zeroMemory::HostMemAllocator(backendPtr, ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED);
         } else {
-            allocator = zeroMemory::HostMemAllocator(backendPtr);
-        }
+            inputAllocator = zeroMemory::HostMemAllocator(backendPtr);
+        };
 
         // The I/O buffers already allocated using the Level Zero API are being reused here
-        allocate_tensor(inputName, parameterDescriptor, TensorType::InputOrOutput, allocator);
+        allocate_tensor(inputName, parameterDescriptor, TensorType::InputOrOutput, inputAllocator);
 
         if (contains(_metadata.shapeNames, inputName)) {
             const std::string shapeBufferName = SHAPE_TENSOR_PREFIX + inputName;
@@ -117,14 +119,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
                                               executorInputDescriptors.at(shapeBufferName),
                                               shapeBufferName);
 
-            ov::Allocator allocator;
-            if (properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED) {
-                allocator = zeroMemory::HostMemAllocator(backendPtr, ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED);
-            } else {
-                allocator = zeroMemory::HostMemAllocator(backendPtr);
-            }
-
-            allocate_tensor(inputName, shapeDescriptor, TensorType::Shape, allocator);
+            allocate_tensor(inputName, shapeDescriptor, TensorType::Shape, inputAllocator);
         }
     }
 
@@ -135,8 +130,6 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
         const IONodeDescriptor& resultDescriptor = _metadata.results.at(outputName);
         check_level_zero_attributes_match(resultDescriptor, executorOutputDescriptors.at(outputName), outputName);
-
-        auto allocator = zeroMemory::HostMemAllocator(backendPtr);
 
         allocate_tensor(outputName, resultDescriptor, TensorType::InputOrOutput, allocator);
 
@@ -149,13 +142,6 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
                 check_level_zero_attributes_match(shapeDescriptor,
                                                   executorOutputDescriptors.at(shapeBufferName),
                                                   shapeBufferName);
-
-                ov::Allocator allocator;
-                if (properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED) {
-                    allocator = zeroMemory::HostMemAllocator(backendPtr, ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED);
-                } else {
-                    allocator = zeroMemory::HostMemAllocator(backendPtr);
-                }
 
                 allocate_tensor(shapeNameMatch->second, shapeDescriptor, TensorType::Shape, allocator);
             }
@@ -180,8 +166,6 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
         check_level_zero_attributes_match(stateDescriptor,
                                           executorOutputDescriptors.at(stateOutputBufferName),
                                           stateOutputBufferName);
-
-        auto allocator = zeroMemory::HostMemAllocator(backendPtr);
 
         // Only one buffer per state variable is required, we'll use the "output" one since this one captures the latest
         // tensor value
