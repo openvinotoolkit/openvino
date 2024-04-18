@@ -12,7 +12,6 @@ from collections import OrderedDict
 from pathlib import Path
 from typing import Iterable, Callable
 
-import numpy as np
 
 try:
     import openvino_telemetry as tm
@@ -23,6 +22,7 @@ except ImportError:
 from openvino.tools.ovc.moc_frontend.check_config import any_extensions_used
 from openvino.tools.ovc.moc_frontend.pipeline import moc_pipeline
 from openvino.tools.ovc.moc_frontend.moc_emit_ir import moc_emit_ir
+from openvino.tools.ovc.moc_frontend.type_utils import to_ov_type
 from openvino.tools.ovc.cli_parser import get_available_front_ends, get_common_cli_options, depersonalize, \
     get_mo_convert_params, input_to_input_cut_info, parse_inputs
 from openvino.tools.ovc.help import get_convert_model_help_specifics
@@ -40,7 +40,7 @@ from openvino.tools.ovc.moc_frontend.paddle_frontend_utils import paddle_fronten
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager, OpConversionFailure, TelemetryExtension
 from openvino.runtime import get_version as get_rt_version
-from openvino.runtime import Type, PartialShape
+from openvino.runtime import PartialShape
 
 try:
     from openvino.frontend.tensorflow.utils import create_tf_graph_iterator, type_supported_by_tf_fe, \
@@ -343,11 +343,8 @@ def normalize_inputs(argv: argparse.Namespace):
             else:
                 shape_dict[inp.name] = None
             if inp.type is not None:
-                # Convert type to numpy type for uniformity of stored values
-                if isinstance(inp.type, (np.dtype, str)):
-                    data_type_dict[inp.name] = Type(inp.type)
-                else:
-                    data_type_dict[inp.name] = inp.type
+                # Convert type to ov.Type for uniformity of stored values
+                data_type_dict[inp.name] = to_ov_type(inp.type)
         argv.placeholder_shapes = shape_dict if shape_dict else None
         argv.placeholder_data_types = data_type_dict if data_type_dict else {}
     else:
@@ -359,11 +356,8 @@ def normalize_inputs(argv: argparse.Namespace):
                 # Wrap shape to PartialShape for uniformity of stored values
                 shape_list.append(PartialShape(inp.shape))
             if inp.type is not None:
-                # Convert type to numpy type for uniformity of stored values
-                if isinstance(inp.type, (np.dtype, str)):
-                    data_type_list.append(Type(inp.type))
-                else:
-                    data_type_list.append(inp.type)
+                # Convert type to ov.Type for uniformity of stored values
+                data_type_list.append(to_ov_type(inp.type))
         argv.placeholder_shapes = shape_list if shape_list else None
         argv.placeholder_data_types = data_type_list if data_type_list else {}
     if hasattr(argv, "framework") and argv.framework == "pytorch" and getattr(argv, "example_input", None) is not None:

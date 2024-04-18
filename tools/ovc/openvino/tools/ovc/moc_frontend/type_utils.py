@@ -3,6 +3,8 @@
 
 import sys
 
+import numpy as np
+
 import openvino as ov
 from openvino.runtime import Type
 
@@ -28,27 +30,13 @@ def is_type(val):
 def to_ov_type(val):
     if isinstance(val, Type):
         return val
-    if isinstance(val, type):
+    if isinstance(val, (type, str, np.dtype)):
         return Type(val)
     if 'tensorflow' in sys.modules:
         import tensorflow as tf # pylint: disable=import-error
         if isinstance(val, tf.dtypes.DType):
-            tf_to_ov_type = {
-                tf.float32: ov.Type.f32,
-                tf.float16: ov.Type.f16,
-                tf.float64: ov.Type.f64,
-                tf.bfloat16: ov.Type.bf16,
-                tf.uint8: ov.Type.u8,
-                tf.int8: ov.Type.i8,
-                tf.int16: ov.Type.i16,
-                tf.int32: ov.Type.i32,
-                tf.int64: ov.Type.i64,
-                tf.bool: ov.Type.boolean,
-                tf.string: ov.Type.string
-            }
-            if val not in tf_to_ov_type:
-                raise Exception("The provided data time is not supported {}.".format(val))
-            return tf_to_ov_type[val]
+            from openvino.frontend.tensorflow.utils import tf_type_to_ov_type  # pylint: disable=no-name-in-module,import-error
+            return tf_type_to_ov_type(val)
     if 'torch' in sys.modules:
         import torch
 
