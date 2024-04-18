@@ -131,7 +131,7 @@ CommonDispatchData ScatterElementsUpdateKernelRef::SetDefault(const scatter_elem
 JitConstants ScatterElementsUpdateKernelRef::GetJitConstants(const scatter_elements_update_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    jit.AddConstant(MakeJitConstant("AXIS_VALUE", GetScatterElementsUpdateChannelIndex(params)));
+    jit.AddConstant(MakeJitConstant("AXIS_VALUE", static_cast<size_t>(GetScatterElementsUpdateChannelIndex(params))));
 
     if (params.mode != ScatterUpdateReduction::NONE) {
         jit.AddConstant(MakeJitConstant("REDUCE_MODE", static_cast<int>(params.mode)));

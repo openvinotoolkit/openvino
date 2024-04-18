@@ -24,7 +24,10 @@ size_t GetDivisor(const size_t input_size) {
         return input_size % i == 0;
     };
     auto result = std::find_if(begin(v), end(v), is_divided);
-    return *result;
+    if (result != end(v)) {
+        return *result;
+    }
+    return 1;
 }
 
 bool IsSimpleMemCopyOperation(const permute_params& params) {

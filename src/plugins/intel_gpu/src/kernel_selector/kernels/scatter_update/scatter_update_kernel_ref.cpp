@@ -220,7 +220,8 @@ JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params
     }
 
     jit.AddConstant(MakeJitConstant("UPDATES_INDEX_ORDER", GetUpdatesIndexOrder(params)));
-    jit.AddConstant(MakeJitConstant("SECOND_ITER_OUTPUT_INDEX_ORDER", GetSecondIterOutputIndexOrder(params, GetScatterUpdateChannelIndex(params))));
+    jit.AddConstant(MakeJitConstant("SECOND_ITER_OUTPUT_INDEX_ORDER",
+                                    GetSecondIterOutputIndexOrder(params, static_cast<size_t>(GetScatterUpdateChannelIndex(params)))));
     jit.AddConstant(MakeJitConstant("OUTPUT_INDEX_ON_AXIS", GetOutputIndexOnAxis(params, GetScatterUpdateChannelIndex(params))));
     jit.AddConstant(MakeJitConstant("AXIS_VALUE", axis_value));
 
