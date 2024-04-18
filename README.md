@@ -31,12 +31,12 @@ Check [system requirements](https://docs.openvino.ai/2024/about-openvino/system-
 
 ## Tutorials and Examples
 
-[OpenVINO Quickstart example](https://docs.openvino.ai/2024/notebooks/201-vision-monodepth-with-output.html) will walk you through the basics of deploying your first model.
+[OpenVINO Quickstart example](https://docs.openvino.ai/2024/get-started.html) will walk you through the basics of deploying your first model.
 
 Learn how to optimize and deploy popular models with the [OpenVINO Notebooks](https://github.com/openvinotoolkit/openvino_notebooks)📚:
-- [Create an LLM-powered Chatbot using OpenVINO](https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/254-llm-chatbot/254-llm-chatbot.ipynb)
-- [YOLOv8 Optimization](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/230-yolov8-optimization)
-- [Text-to-Image Generation](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/235-controlnet-stable-diffusion)
+- [Create an LLM-powered Chatbot using OpenVINO](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/llm-chatbot/llm-chatbot.ipynb)
+- [YOLOv8 Optimization](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/quantizing-model-with-accuracy-control/yolov8-quantization-with-accuracy-control.ipynb)
+- [Text-to-Image Generation](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/controlnet-stable-diffusion/controlnet-stable-diffusion.ipynb)
 
 Here are easy-to-follow code examples demonstrating how to run TensorFlow and PyTorch model inference using OpenVINO:
 
