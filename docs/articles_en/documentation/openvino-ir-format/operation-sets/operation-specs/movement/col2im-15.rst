@@ -46,7 +46,7 @@ The ``input`` blocks are being moved into the ``output`` tensor of shape ``(N, C
   * **Type**: *T_IND*
   * **Required**: *yes*
 
-* *dilation*
+* *dilations*
 
   * **Description**: controls local stride of the elements.
   * **Range of values**: 1D tensor of non-negative integer numbers
