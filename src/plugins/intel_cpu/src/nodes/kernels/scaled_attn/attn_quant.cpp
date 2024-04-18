@@ -174,10 +174,13 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                           const ov::intel_cpu::PlainTensor& v_dst,
                           const ov::intel_cpu::PlainTensor& k_scale_zp,
                           const ov::intel_cpu::PlainTensor& v_scale_zp) {
+    // For compatibility, all input_kvs are permuted to BHLS
     size_t B = k_src.m_dims[0], H = k_src.m_dims[1], L1 = k_src.m_dims[2], S = k_src.m_dims[3];
-    parallel_for3d(B, H, L1, [&](size_t b, size_t h, size_t m) {
-        auto p_k = k_scale_zp.ptr<float>(b, h, m);
-        auto p_v = v_scale_zp.ptr<float>(b, h, m);
+    // Internal LBHS layout has strides[L] > strides[B]
+    assert(k_src.m_strides[2] > k_src.m_strides[0]);
+    parallel_for3d(L1, B, H, [&](size_t m, size_t b, size_t h) {
+        auto p_k = k_scale_zp.ptr<float>(m, b, h);
+        auto p_v = v_scale_zp.ptr<float>(m, b, h);
         quant_u8(k_src.ptr<T>(b, h, m),
                  k_dst.ptr<T2>(b, h, m),
                  S,

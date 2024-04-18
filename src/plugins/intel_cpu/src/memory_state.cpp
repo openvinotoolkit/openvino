@@ -202,16 +202,16 @@ ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
     if (pastkv.get_precision() == element::u8) {
         auto nthr = parallel_get_max_threads();
         std::vector<PlainTensor> buffers(nthr);
-        parallel_for3d(B, H, L0, [&](size_t ithr, size_t b, size_t h, size_t m) {
+        parallel_for3d(L0, B, H, [&](size_t ithr, size_t m, size_t b, size_t h) {
             auto b_kv = static_cast<size_t>(beam_table.at<int32_t>({b, m}));
             buffers[ithr].resize<float>({S});
-            attn_dequant_u8(pastkv.ptr<uint8_t>(b_kv, h, m),
+            attn_dequant_u8(pastkv.ptr<uint8_t>(m, b_kv, h),
                             buffers[ithr].ptr<float>(),
                             S,
-                            m_scale_zp.ptr<float>(b_kv, h, m)[0],
-                            m_scale_zp.ptr<float>(b_kv, h, m)[1]);
+                            m_scale_zp.ptr<float>(m, b_kv, h)[0],
+                            m_scale_zp.ptr<float>(m, b_kv, h)[1]);
             cpu_convert(buffers[ithr].ptr<float>(),
-                        output.ptr_v(b, h, m),
+                        output.ptr_v(m, b, h),
                         element::f32,
                         output.m_dt,
                         S);

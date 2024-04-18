@@ -42,7 +42,7 @@ public:
 
     const std::vector<size_t> getKVCacheOrder() const {
         const auto permute_axes = m_config.config.permute_axes;
-        std::vector<size_t> real_order = {2, 0, 1, 3};
+        std::vector<size_t> real_order = m_kvstate_layout;
         if (!permute_axes.empty())
             real_order = {permute_axes[2], permute_axes[0], permute_axes[1], permute_axes[3]};
         return real_order;
@@ -77,6 +77,10 @@ private:
 
     std::shared_ptr<VariableStateKVcache> m_k_state;
     std::shared_ptr<VariableStateKVcache> m_v_state;
+    // KV cache layout
+    // (0, 1, 2, 3) for BHLS
+    // (2, 0, 1, 3) for LBHS
+    std::vector<size_t> m_kvstate_layout = {2, 0, 1, 3};
 
     // PagedAttention input index
     static const size_t ID_Q = 0;

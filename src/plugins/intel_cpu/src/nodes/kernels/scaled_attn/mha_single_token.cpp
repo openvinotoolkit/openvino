@@ -906,7 +906,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                     if (B == 1) {
                         // the memory will be continuous when b==1
                         for (size_t iwork = start; iwork < end; ++iwork) {
-                            auto p = past_k_scale_zp.ptr<float>(0, h_group, pk);
+                            auto p = past_k_scale_zp.ptr<float>(pk, 0, h_group);
                             auto p_k = present_key.ptr<T2>(0, h_group, pk);
                             prefetch_bytes(S, _MM_HINT_T0, 4096, p_k);
                             buf_attn_w.ptr<float>(0, h_group, 0)[pk] =
@@ -917,7 +917,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                     } else {
                         for (size_t iwork = start; iwork < end; ++iwork) {
                             auto b_kv = beams ? beams.ptr<int32_t>(b)[pk] : b;
-                            auto p = past_k_scale_zp.ptr<float>(b_kv, h_group, pk);
+                            auto p = past_k_scale_zp.ptr<float>(pk, b_kv, h_group);
                             auto p_k = present_key.ptr<T2>(b_kv, h_group, pk);
                             buf_attn_w.ptr<float>(b, h_group, 0)[pk] =
                                     dot_product(query.ptr<T>(b, h_group), p_k,
@@ -929,7 +929,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                     for (size_t iwork = start; iwork < end; ++iwork) {
                         auto b_kv = beams ? beams.ptr<int32_t>(b)[pk] : b;
                         for (size_t pq = 0; pq < q_len; pq++) {
-                            auto p = past_k_scale_zp.ptr<float>(b_kv, h_group, pk);
+                            auto p = past_k_scale_zp.ptr<float>(pk, b_kv, h_group);
                             for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
                                 buf_attn_w.ptr<float>(b, h, pq)[pk] =
                                         dot_product(query.ptr<T>(b, h, pq), present_key.ptr<T2>(b_kv, h_group, pk),
@@ -973,7 +973,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                 for (size_t pv = 0; pv < kv_len; pv++) {
                     auto b_kv = beams ? beams.ptr<int32_t>(b)[pv] : b;
                     auto* v = present_value.ptr<T2>(b_kv, h_group, pv);
-                    auto p = past_v_scale_zp.ptr<float>(b_kv, h_group, pv);
+                    auto p = past_v_scale_zp.ptr<float>(pv, b_kv, h_group);
                     for (size_t pq = 0; pq < q_len; pq++) {
                         for (size_t h = h_group * h_each_group_len, group_idx = 0; h < (h_group + 1) * h_each_group_len; h++, group_idx++) {
                             attn_acc_value(buf_attn_score.ptr<float>(ithr, pq, group_idx),
@@ -1012,7 +1012,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                     for (size_t iwork = start; iwork < end; ++iwork) {
                         auto b_kv = beams ? beams.ptr<int32_t>(b)[pv] : b;
                         auto* v = present_value.ptr<T2>(b_kv, h_group, pv);
-                        auto p = past_v_scale_zp.ptr<float>(b_kv, h_group, pv);
+                        auto p = past_v_scale_zp.ptr<float>(pv, b_kv, h_group);
                         attn_acc_value(buf_attn_score.ptr<float>(ithr, b, 0, h_group),
                                     buf_attn_w.ptr<float>(b, h_group, 0, pv)[0],
                                     v,
@@ -1025,7 +1025,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                     for (size_t iwork = start; iwork < end; ++iwork) {
                         auto b_kv = beams ? beams.ptr<int32_t>(b)[pv] : b;
                         auto* v = present_value.ptr<T2>(b_kv, h_group, pv);
-                        auto p = past_v_scale_zp.ptr<float>(b_kv, h_group, pv);
+                        auto p = past_v_scale_zp.ptr<float>(pv, b_kv, h_group);
                         for (size_t pq = 0; pq < q_len; pq++) {
                             for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
                                 attn_acc_value(buf_attn_score.ptr<float>(ithr, b, pq, h),

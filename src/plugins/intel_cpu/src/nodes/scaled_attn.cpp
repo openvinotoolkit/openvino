@@ -1490,17 +1490,18 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
             auto& old_scale_zp_k = m_k_state->get_scale_zp();
             auto& old_scale_zp_v = m_v_state->get_scale_zp();
             PlainTensor new_scale_zp_k, new_scale_zp_v;
-
-            new_scale_zp_k.resize<float>({B, H, (L0 + L1) * 2, 2});
-            new_scale_zp_v.resize<float>({B, H, (L0 + L1) * 2, 2});
-            parallel_for2d(B, H, [&](size_t b, size_t h) {
+            std::vector<size_t> shape = reverse({B, H, (L0 + L1) * 2, 2});
+            std::vector<size_t> real_shape = permute_axes(shape, real_order);
+            new_scale_zp_k.resize<float>(real_shape);
+            new_scale_zp_v.resize<float>(real_shape);
+            parallel_for2d(L0, B, [&](size_t m, size_t b) {
                 auto idx = static_cast<size_t>(table[b]);
-                for (size_t m = 0; m < L0; m++) {
+                for (size_t h = 0; h < H; h++) {
                     auto b_kv = static_cast<size_t>(old_beam_table_k.at<int32_t>({idx, m}));
-                    new_scale_zp_k.at<float>({b, h, m, 0}) = old_scale_zp_k.at<float>({b_kv, h, m, 0});
-                    new_scale_zp_k.at<float>({b, h, m, 1}) = old_scale_zp_k.at<float>({b_kv, h, m, 1});
-                    new_scale_zp_v.at<float>({b, h, m, 0}) = old_scale_zp_v.at<float>({b_kv, h, m, 0});
-                    new_scale_zp_v.at<float>({b, h, m, 1}) = old_scale_zp_v.at<float>({b_kv, h, m, 1});
+                    new_scale_zp_k.at<float>({m, b, h, 0}) = old_scale_zp_k.at<float>({m, b_kv, h, 0});
+                    new_scale_zp_k.at<float>({m, b, h, 1}) = old_scale_zp_k.at<float>({m, b_kv, h, 1});
+                    new_scale_zp_v.at<float>({m, b, h, 0}) = old_scale_zp_v.at<float>({m, b_kv, h, 0});
+                    new_scale_zp_v.at<float>({m, b, h, 1}) = old_scale_zp_v.at<float>({m, b_kv, h, 1});
                 }
             });
 
@@ -1509,7 +1510,7 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
         }
 
         std::vector<size_t> new_shape = reverse({B, H, (L0 + L1), S});
-        // Get the shape of physical layout using Real Order
+        // Get the shape of physical layout using real order
         auto strides = mem_desc->getStrides();
         mem_desc = std::make_shared<CpuBlockedMemoryDesc>(kvcache_precision,
                                                           Shape(new_shape),
@@ -1521,9 +1522,11 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
         new_internal_mem_k->redefineDesc(mem_desc);
         new_internal_mem_v->redefineDesc(mem_desc);
         if (kvcache_precision == ov::element::u8) {
+            // past_k's shape is BHLS, internal layout LBHS
+            // scale_zp's shape is LBHS, internal layout LBHS
             attn_quantkv(cur_k, cur_v,
                 new_pastk.slice(2, L0, L0 + L1), new_pastv.slice(2, L0, L0 + L1),
-                m_k_state->get_scale_zp().slice(2, L0, L0 + L1), m_v_state->get_scale_zp().slice(2, L0, L0 + L1));
+                m_k_state->get_scale_zp().slice(0, L0, L0 + L1), m_v_state->get_scale_zp().slice(0, L0, L0 + L1));
         } else {
             attn_memcpy(cur_k, cur_v, new_pastk.slice(2, L0, L0 + L1), new_pastv.slice(2, L0, L0 + L1));
         }
@@ -1822,17 +1825,14 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
             auto& old_scale_zp_k = m_k_state->get_scale_zp();
             auto& old_scale_zp_v = m_v_state->get_scale_zp();
             PlainTensor new_scale_zp_k, new_scale_zp_v;
-
-            new_scale_zp_k.resize<float>({B, H, (L0 + L1) * 2, 2});
-            new_scale_zp_v.resize<float>({B, H, (L0 + L1) * 2, 2});
+            std::vector<size_t> shape = reverse({B, H, (L0 + L1) * 2, 2});
+            std::vector<size_t> real_shape = permute_axes(shape, real_order);
+            new_scale_zp_k.resize<float>(real_shape);
+            new_scale_zp_v.resize<float>(real_shape);
             if (L0 > 0 && !is_reset) {
-                parallel_for2d(B, H, [&](size_t b, size_t h) {
-                    memcpy(new_scale_zp_k.ptr<float>(b, h),
-                           old_scale_zp_k.ptr<float>(b, h),
-                           sizeof(float) * L0 * 2);
-                    memcpy(new_scale_zp_v.ptr<float>(b, h),
-                           old_scale_zp_v.ptr<float>(b, h),
-                           sizeof(float) * L0 * 2);
+                parallel_for(L0, [&](size_t m) {
+                    memcpy(new_scale_zp_k.ptr<float>(m), old_scale_zp_k.ptr<float>(m), sizeof(float) * B * H * 2);
+                    memcpy(new_scale_zp_v.ptr<float>(m), old_scale_zp_v.ptr<float>(m), sizeof(float) * B * H * 2);
                 });
             }
 
@@ -1842,8 +1842,6 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
     } else if (is_reset) {
         // when reset and not resize, just reset the desc
         need_redefine = false;
-        auto size = m_k_state->internal_state_max_size();
-        auto max_l = size / (B * H * S);
         // new_shape is the shape used by the original model which maybe different from BHLS, reverse here is to permute BHLS to original model shape.
         // BHLS is the stated input shape of SDPA, however internally we use LBHS for KV-cache storage.
         // real_order is used to permute the original shape to LBHS
@@ -1866,10 +1864,11 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
             auto& old_scale_zp_k = m_k_state->get_scale_zp();
             auto& old_scale_zp_v = m_v_state->get_scale_zp();
             // only dim0, dim1 need change
-            old_scale_zp_k.m_strides[0] = H * max_l * 2;
-            old_scale_zp_k.m_strides[1] = max_l * 2;
-            old_scale_zp_v.m_strides[0] = H * max_l * 2;
-            old_scale_zp_v.m_strides[1] = max_l * 2;
+            // LBHS
+            old_scale_zp_k.m_strides[0] = H * B * 2;
+            old_scale_zp_k.m_strides[1] = H * 2;
+            old_scale_zp_v.m_strides[0] = H * B * 2;
+            old_scale_zp_v.m_strides[1] = H * 2;
         }
     }
     if (need_redefine) {
@@ -1917,9 +1916,11 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
     }
 
     if (kvcache_precision == ov::element::u8) {
+        // past_k's shape is BHLS, internal layout LBHS
+        // scale_zp's shape is LBHS, internal layout LBHS
         attn_quantkv(cur_k, cur_v,
             past_k.slice(2, L0, L0 + L1), past_v.slice(2, L0, L0 + L1),
-            m_k_state->get_scale_zp().slice(2, L0, L0 + L1), m_v_state->get_scale_zp().slice(2, L0, L0 + L1));
+            m_k_state->get_scale_zp().slice(0, L0, L0 + L1), m_v_state->get_scale_zp().slice(0, L0, L0 + L1));
     } else {
         attn_memcpy(cur_k, cur_v, past_k.slice(2, L0, L0 + L1), past_v.slice(2, L0, L0 + L1));
     }
