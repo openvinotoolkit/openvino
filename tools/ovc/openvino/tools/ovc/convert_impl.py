@@ -12,6 +12,8 @@ from collections import OrderedDict
 from pathlib import Path
 from typing import Iterable, Callable
 
+import numpy as np
+
 try:
     import openvino_telemetry as tm
     from openvino_telemetry.backend import backend_ga4
@@ -343,10 +345,8 @@ def normalize_inputs(argv: argparse.Namespace):
                 shape_dict[inp.name] = None
             if inp.type is not None:
                 # Convert type to numpy type for uniformity of stored values
-                if isinstance(inp.type, str):
-                    data_type_dict[inp.name] = destination_type_to_np_data_type(inp.type)
-                elif isinstance(inp.type, Type):
-                    data_type_dict[inp.name] = inp.type.to_dtype().type
+                if isinstance(inp.type, (np.dtype, str)):
+                    data_type_dict[inp.name] = Type(inp.type)
                 else:
                     data_type_dict[inp.name] = inp.type
         argv.placeholder_shapes = shape_dict if shape_dict else None
@@ -361,10 +361,8 @@ def normalize_inputs(argv: argparse.Namespace):
                 shape_list.append(PartialShape(inp.shape))
             if inp.type is not None:
                 # Convert type to numpy type for uniformity of stored values
-                if isinstance(inp.type, str):
-                    data_type_list.append(destination_type_to_np_data_type(inp.type))
-                elif isinstance(inp.type, Type):
-                    data_type_list.append(inp.type.to_dtype().type)
+                if isinstance(inp.type, (np.dtype, str)):
+                    data_type_list.append(Type(inp.type))
                 else:
                     data_type_list.append(inp.type)
         argv.placeholder_shapes = shape_list if shape_list else None
