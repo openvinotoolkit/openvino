@@ -455,9 +455,21 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 uchar4 wei_packed = as_uchar4(_sub_group_block_read_uc4((const __global uchar *)(weights) + (weights_idx)));
 
                 char8 dq_wei_unpacked = unpack_mixed_to_char(*((uint4x8_t *)&wei_packed));
-                dq_wei_unpacked -= (char8)8;
-                char *dq_w = (char *)(&dq_wei_unpacked);
+                //dq_wei_unpacked -= (char8)8;
+                #if DECOMPRESSION_ZP_TERM
+                    #if DECOMPRESSION_ZP_SCALAR
+                        char8 dzp = (char8)(DECOMPRESSION_ZP_VALUE);
+                    #elif DECOMPRESSION_ZP_GROUPS_NUM > 1
+                        #error "FC bf_tiled dynamic quantize kernel: not recommended DECOMPRESSION_ZP_GROUPS_NUM > 1"
+                    #else
+                        char8 dzp = (char8)(d_zps[0]);
+                    #endif
+                #else
+                    char8 dzp = (char8)(ACCUMULATOR_VAL_ZERO);
+                #endif
+                dq_wei_unpacked -= dzp;
 
+                // char *dq_w = (char *)(&dq_wei_unpacked);
                 // Dynamic Quantizing should use DECOMPRESSION_SCALE_POST_OP
                 // __attribute__((opencl_unroll_hint)) for (uint fi = 0; fi < 2; ++fi) {
                 //     __attribute__((opencl_unroll_hint)) for (uint kii = 0; kii < 4; ++kii) {
@@ -469,7 +481,6 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 //         dq_w[w_idx] = (dq_w[w_idx] - convert_char_sat(dzp));
                 //     }
                 // }
-
                 /*
                 // char_slm_weight[wei_local_idx] = dq_wei_unpacked.s01;
                 // wei_local_idx += 16;
@@ -506,72 +517,72 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
         #endif  // USE_SLM : Restore compressed weight
 
         #if 1
-        // wei_local_idx = sglid * 4;
-        // [Packing weight]
-        wei_local_idx = sglid * 2;
-        // [Weight along local_id]
-        // wei_local_idx = sglid * 2 * 8;
-        __attribute__((opencl_unroll_hint)) for (uint ki = 0; ki < (2 * 16) / 4; ++ki) {
-            char4 input_val = as_char4(_sub_group_shuffle(packed_in_0[0], ki));
-            // char4 first_weight = ((char4 *)(&char_slm_weight[wei_local_idx]))[0];
-            // char4 second_weight = ((char4 *)(&char_slm_weight[wei_local_idx+2]))[0];
+            // wei_local_idx = sglid * 4;
             // [Packing weight]
-            #if 1  // optimization of ~2ms for 3k input
-            char8 weight = vload8(0, (__local char *)(&char_slm_weight[wei_local_idx + 16*2*ki]));
-            char4 first_weight = weight.s0123;
-            char4 second_weight = weight.s4567;
-            #else
-            char4 first_weight = as_char4(((__local int *)(&char_slm_weight[wei_offset + 16*2*ki]))[0]);
-            char4 second_weight = as_char4(((__local int *)(&char_slm_weight[wei_offset + 16*2*ki + 1]))[0]);
-            #endif
-            __attribute__((opencl_unroll_hint)) for (uint bi = 0; bi < 8; ++bi) {
-                // [TEMP]
-                // ((int *)(&acc_tmp[bi]))[0] = imad_SW(((int *)(&acc_tmp[bi]))[0],
-                //                                         as_char4(_sub_group_shuffle(packed_in_0[bi % 4], (bi / 4) * 8 + ki)),
-                //                                         ((char4 *)(&char_slm_weight[wei_local_idx]))[0]);
-                // ((int *)(&acc_tmp[bi]))[1] = imad_SW(((int *)(&acc_tmp[bi]))[1],
-                //                                         as_char4(_sub_group_shuffle(packed_in_0[bi % 4], (bi / 4) * 8 + ki)),
-                //                                         ((char4 *)(&char_slm_weight[wei_local_idx+2]))[0]);
-
-                // Chaged order
-                // ((int *)(&acc_tmp[0]))[bi] = imad_SW(((int *)(&acc_tmp[0]))[bi],
-                //                                         as_char4(_sub_group_shuffle(packed_in_0[bi / 2], (bi % 2) * 8 + ki)),
-                //                                         ((char4 *)(&char_slm_weight[wei_local_idx]))[0]);
-                // ((int *)(&acc_tmp[1]))[bi] = imad_SW(((int *)(&acc_tmp[1]))[bi],
-                //                                         as_char4(_sub_group_shuffle(packed_in_0[bi / 2], (bi % 2) * 8 + ki)),
-                //                                         ((char4 *)(&char_slm_weight[wei_local_idx+2]))[0]);
-
-                // SW pipeline
-                acc_tmp[0][bi] = imad_SW(acc_tmp[0][bi], input_val, first_weight);
-                acc_tmp[1][bi] = imad_SW(acc_tmp[1][bi], input_val, second_weight);
-                input_val = as_char4(_sub_group_shuffle(packed_in_0[(bi+1) / 2], ((bi+1) % 2) * 8 + ki));
-
-                // if (get_group_id(0) == 0 && get_group_id(0) == 0 && bi == 0 && sglid == 0) {
-                //     printf(">>> %p , %p \n", &(((char4 *)(&wei))[0]), &(((char4 *)(&wei))[1]));
-                //     printf("  --- [%d %d %d %d] [%d %d %d %d]\n", (int)wei[4], (int)wei[5], (int)wei[6], (int)wei[7], (int)char_slm_weight[wei_local_idx + 2][0],
-                //             (int)char_slm_weight[wei_local_idx + 2][1], (int)char_slm_weight[wei_local_idx + 3][0], (int)char_slm_weight[wei_local_idx + 3][1]);
-                // }
-            }
-
-            // wei_local_idx += 16 * 4;
-            // [Packing weight]
-            // wei_local_idx += 16 * 2;
+            wei_local_idx = sglid * 2;
             // [Weight along local_id]
-            // wei_local_idx += 2;
-        }  // ki < (TILE_IFM * SIMD) / TILE_K
+            // wei_local_idx = sglid * 2 * 8;
+            __attribute__((opencl_unroll_hint)) for (uint ki = 0; ki < (2 * 16) / 4; ++ki) {
+                char4 input_val = as_char4(_sub_group_shuffle(packed_in_0[0], ki));
+                // char4 first_weight = ((char4 *)(&char_slm_weight[wei_local_idx]))[0];
+                // char4 second_weight = ((char4 *)(&char_slm_weight[wei_local_idx+2]))[0];
+                // [Packing weight]
+                #if 1  // optimization of ~2ms for 3k input
+                char8 weight = vload8(0, (__local char *)(&char_slm_weight[wei_local_idx + 16*2*ki]));
+                char4 first_weight = weight.s0123;
+                char4 second_weight = weight.s4567;
+                #else
+                char4 first_weight = as_char4(((__local int *)(&char_slm_weight[wei_offset + 16*2*ki]))[0]);
+                char4 second_weight = as_char4(((__local int *)(&char_slm_weight[wei_offset + 16*2*ki + 1]))[0]);
+                #endif
+                __attribute__((opencl_unroll_hint)) for (uint bi = 0; bi < 8; ++bi) {
+                    // [TEMP]
+                    // ((int *)(&acc_tmp[bi]))[0] = imad_SW(((int *)(&acc_tmp[bi]))[0],
+                    //                                         as_char4(_sub_group_shuffle(packed_in_0[bi % 4], (bi / 4) * 8 + ki)),
+                    //                                         ((char4 *)(&char_slm_weight[wei_local_idx]))[0]);
+                    // ((int *)(&acc_tmp[bi]))[1] = imad_SW(((int *)(&acc_tmp[bi]))[1],
+                    //                                         as_char4(_sub_group_shuffle(packed_in_0[bi % 4], (bi / 4) * 8 + ki)),
+                    //                                         ((char4 *)(&char_slm_weight[wei_local_idx+2]))[0]);
+
+                    // Chaged order
+                    // ((int *)(&acc_tmp[0]))[bi] = imad_SW(((int *)(&acc_tmp[0]))[bi],
+                    //                                         as_char4(_sub_group_shuffle(packed_in_0[bi / 2], (bi % 2) * 8 + ki)),
+                    //                                         ((char4 *)(&char_slm_weight[wei_local_idx]))[0]);
+                    // ((int *)(&acc_tmp[1]))[bi] = imad_SW(((int *)(&acc_tmp[1]))[bi],
+                    //                                         as_char4(_sub_group_shuffle(packed_in_0[bi / 2], (bi % 2) * 8 + ki)),
+                    //                                         ((char4 *)(&char_slm_weight[wei_local_idx+2]))[0]);
+
+                    // SW pipeline
+                    acc_tmp[0][bi] = imad_SW(acc_tmp[0][bi], input_val, first_weight);
+                    acc_tmp[1][bi] = imad_SW(acc_tmp[1][bi], input_val, second_weight);
+                    input_val = as_char4(_sub_group_shuffle(packed_in_0[(bi+1) / 2], ((bi+1) % 2) * 8 + ki));
+
+                    // if (get_group_id(0) == 0 && get_group_id(0) == 0 && bi == 0 && sglid == 0) {
+                    //     printf(">>> %p , %p \n", &(((char4 *)(&wei))[0]), &(((char4 *)(&wei))[1]));
+                    //     printf("  --- [%d %d %d %d] [%d %d %d %d]\n", (int)wei[4], (int)wei[5], (int)wei[6], (int)wei[7], (int)char_slm_weight[wei_local_idx + 2][0],
+                    //             (int)char_slm_weight[wei_local_idx + 2][1], (int)char_slm_weight[wei_local_idx + 3][0], (int)char_slm_weight[wei_local_idx + 3][1]);
+                    // }
+                }
+
+                // wei_local_idx += 16 * 4;
+                // [Packing weight]
+                // wei_local_idx += 16 * 2;
+                // [Weight along local_id]
+                // wei_local_idx += 2;
+            }  // ki < (TILE_IFM * SIMD) / TILE_K
         #else
-        wei_local_idx = sglid * 2;
-        for (uint ki = 0; ki < (2 * 16) / 4; ++ki) {
-            char4 input_val = as_char4(_sub_group_shuffle(packed_in_0[0], ki));
-            char4 first_weight = as_char4(((__local int *)(&char_slm_weight[wei_local_idx]))[0]);
-            char4 second_weight = as_char4(((__local int *)(&char_slm_weight[wei_local_idx+1]))[0]);
-            __attribute__((opencl_unroll_hint)) for (uint bi = 0; bi < 8; ++bi) {
-                acc_tmp[0][bi] = imad_SW(acc_tmp[0][bi], input_val, first_weight);
-                acc_tmp[1][bi] = imad_SW(acc_tmp[1][bi], input_val, second_weight);
-                input_val = as_char4(_sub_group_shuffle(packed_in_0[(bi+1) / 2], ((bi+1) % 2) * 8 + ki));
+            wei_local_idx = sglid * 2;
+            for (uint ki = 0; ki < (2 * 16) / 4; ++ki) {
+                char4 input_val = as_char4(_sub_group_shuffle(packed_in_0[0], ki));
+                char4 first_weight = as_char4(((__local int *)(&char_slm_weight[wei_local_idx]))[0]);
+                char4 second_weight = as_char4(((__local int *)(&char_slm_weight[wei_local_idx+1]))[0]);
+                __attribute__((opencl_unroll_hint)) for (uint bi = 0; bi < 8; ++bi) {
+                    acc_tmp[0][bi] = imad_SW(acc_tmp[0][bi], input_val, first_weight);
+                    acc_tmp[1][bi] = imad_SW(acc_tmp[1][bi], input_val, second_weight);
+                    input_val = as_char4(_sub_group_shuffle(packed_in_0[(bi+1) / 2], ((bi+1) % 2) * 8 + ki));
+                }
+                wei_local_idx += 16 * 2;
             }
-            wei_local_idx += 16 * 2;
-        }
         #endif
         weights_offset += 4 * 16 * (8);
 
@@ -859,7 +870,6 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
         CONST_LOOP(TILE_B, WRITE_OUTPUT);
         #undef WRITE_OUTPUT
     } else {
-        printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
         output_offset += sglid;
 
         // TODO: Investigate why below code doesn't compile and check how it affects performance.
