@@ -29,6 +29,10 @@ TEST(LoadLibraryTest, load_free_library) {
     std::promise<void> thread_exit_promise;
     std::future<void> thread_exit_future = thread_exit_promise.get_future();
     auto shared_object = LoadLibraryA("openvino.dll");
+    if (!shared_object) {
+        std::cout << "LoadLibrary openvino.dll fail" << std::endl;
+        return;
+    }
 
     std::thread sub_thread = std::thread([&] {
         free_promise.set_value();
@@ -45,6 +49,10 @@ TEST(LoadLibraryTest, load_free_library) {
 
 TEST_P(ThreadLocalTest, get_property_test) {
     auto shared_object = LoadLibraryA("ov_thread_local.dll");
+    if (!shared_object) {
+        std::cout << "LoadLibrary ov_thread_local.dll fail" << std::endl;
+        return;
+    }
     auto procAddr = reinterpret_cast<TestFunc>(GetProcAddress(shared_object, "core_get_property_test"));
     procAddr(target_device);
     FreeLibrary(shared_object);
@@ -52,6 +60,10 @@ TEST_P(ThreadLocalTest, get_property_test) {
 
 TEST_P(ThreadLocalTest, infer_test) {
     auto shared_object = LoadLibraryA("ov_thread_local.dll");
+    if (!shared_object) {
+        std::cout << "LoadLibrary ov_thread_local.dll fail" << std::endl;
+        return;
+    }
     auto procAddr = reinterpret_cast<TestFunc>(GetProcAddress(shared_object, "core_infer_test"));
     procAddr(target_device);
     FreeLibrary(shared_object);
@@ -59,6 +71,10 @@ TEST_P(ThreadLocalTest, infer_test) {
 
 void process_sub_thread(const std::string& func_name, const std::string& target_device) {
     auto shared_object = LoadLibraryA("ov_thread_local.dll");
+    if (!shared_object) {
+        std::cout << "LoadLibrary ov_thread_local.dll fail" << std::endl;
+        return;
+    }
     auto procAddr = reinterpret_cast<TestFunc>(GetProcAddress(shared_object, func_name.c_str()));
     std::promise<void> free_promise;
     std::future<void> free_future = free_promise.get_future();
