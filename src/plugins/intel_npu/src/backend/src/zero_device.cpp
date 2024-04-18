@@ -20,9 +20,24 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
     zeroUtils::throwOnFail("zeDeviceGetProperties",
                            zeDeviceGetProperties(_initStructs->getDevice(), &device_properties));
 
-    pci_properties.stype = ZE_STRUCTURE_TYPE_PCI_EXT_PROPERTIES;
-    zeroUtils::throwOnFail("zeDevicePciGetPropertiesExt",
-                           zeDevicePciGetPropertiesExt(_initStructs->getDevice(), &pci_properties));
+    // Query PCI information
+    // Older drivers do not have this implementend. Linux driver returns NOT_IMPLEMENTED, while windows driver returns
+    // zero values. If this is detected, we populate only device with ID from device_properties for backwards
+    // compatibility
+    try {
+        pci_properties.stype = ZE_STRUCTURE_TYPE_PCI_EXT_PROPERTIES;
+        zeroUtils::throwOnFail("zeDevicePciGetPropertiesExt",
+                               zeDevicePciGetPropertiesExt(_initStructs->getDevice(), &pci_properties));
+        // win backwards compatibility
+        if (pci_properties.address.device == 0) {
+            log.warning("PCI information not available in driver. Falling back to deviceId");
+            pci_properties.address.device = device_properties.deviceId;
+        }
+    } catch (...) {
+        log.warning("PCI information not available in driver. Falling back to deviceId");
+        // linux backwards compatibilty
+        pci_properties.address.device = device_properties.deviceId;
+    }
 
     std::vector<ze_command_queue_group_properties_t> command_group_properties;
     uint32_t command_queue_group_count = 0;
