@@ -415,10 +415,9 @@ std::shared_ptr<ov::Node> convert_weights_input(const std::shared_ptr<ov::Node>&
         auto transpose_order = std::make_shared<ov::op::v0::Constant>(ov::element::u32, ov::Shape{2}, ov::Shape{1, 0});
         tail = std::make_shared<ov::op::v1::Transpose>(tail, transpose_order);
     }
-    tail = ov::op::util::convert_lstm_node_format(tail,
+    return ov::op::util::convert_lstm_node_format(tail,
                                                   ov::op::util::LSTMWeightsFormat::IFCO,
                                                   ov::op::util::LSTMWeightsFormat::FICO);
-    return ov::util::constantfold_subgraph(tail);
 }
 
 }  // namespace
