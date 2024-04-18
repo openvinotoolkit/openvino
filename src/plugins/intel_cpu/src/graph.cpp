@@ -1818,8 +1818,7 @@ void Graph::EnforceInferencePrecision() {
                     return true;
 
                 // kvcache of PagedAttention should be written directly
-                if (node->getType() == Type::ScaledDotProductAttention && node->getOriginalInputsNumber() == 13 &&
-                    (inPort == 3 || inPort == 4))
+                if (node->getType() == Type::PagedAttention && (inPort == 3 || inPort == 4))
                     return true;
                 const auto &parent = node->getParentEdgeAt(inPort)->getParent();
                 /* Skip BF16 enforcement for nodes after Constant Inputs for maintaining precision for fusing.
