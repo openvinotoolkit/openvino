@@ -289,9 +289,16 @@ void Snippet::selectOptimalPrimitiveDescriptor() {
         if (curDesc->getPrecision() == parentDesc->getPrecision() && descInConfSize >= 3u) {
             auto& curShape = curDesc->getShape();
             auto& parentShape = parentDesc->getShape();
-            if (curShape.isStatic() && (parentShape == curShape)) {
+            if (curShape.isStatic() && (parentShape == curShape) && parentShape.isStatic()) {
                 auto& curDims = curShape.getDims();
-                if (curDims.size() > 2 && curDims[curDims.size() - 1] == 1 && curDims[curDims.size() - 2] == 1) {
+                size_t num1count = 0;
+                for (size_t i = 0; i < curDims.size(); i++) {
+                    if (curDims[i] == 1u) {
+                        num1count++;
+                    }
+                }
+                // Check if curDims contains exactly one non-1 element or all 1 elements.
+                if (curDims.size() > 2 && ((num1count == curDims.size() - 1u) || num1count == curDims.size())) {
                     return true;
                 }
             }
