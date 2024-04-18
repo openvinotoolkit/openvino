@@ -6,7 +6,6 @@
 
 #include "common_test_utils/type_prop.hpp"
 #include "dimension_util.hpp"
-#include "openvino/core/model.hpp"
 
 namespace ov {
 namespace test {
@@ -132,24 +131,6 @@ TEST(type_prop, DISABLED_read_value_labels_propagation_from_init_subgraph) {
     auto variable = std::make_shared<op::util::Variable>(variable_info);
     std::shared_ptr<ov::op::v6::ReadValue> read_value = std::make_shared<ov::op::v6::ReadValue>(input, variable);
     EXPECT_THAT(get_shape_labels(read_value->get_output_partial_shape(0)), testing::ElementsAre(10, 11, 12, 13));
-}
-
-TEST(type_prop, read_value_v6_model_reshape) {
-    const auto batch_shape = PartialShape{1, 30};
-    const auto new_batch_shape = PartialShape{3, 30};
-
-    // dummy model with ReadValue for reshape
-    auto input = std::make_shared<Parameter>(element::f16, batch_shape);
-    auto variable = std::make_shared<Variable>(VariableInfo{batch_shape, element::f16, "ID"});
-    auto read_value = std::make_shared<op::v6::ReadValue>(input, variable);
-    auto assign = std::make_shared<op::v6::Assign>(read_value, variable);
-    auto result = std::make_shared<Result>(read_value);
-
-    auto model = std::make_shared<Model>(ResultVector{result}, SinkVector{assign}, ParameterVector{input});
-
-    ASSERT_NO_THROW(model->reshape(new_batch_shape));
-    EXPECT_EQ(read_value->get_output_partial_shape(0), new_batch_shape);
-    EXPECT_EQ(read_value->get_variable()->get_info(), VariableInfo({new_batch_shape, element::f16, "ID"}));
 }
 
 }  // namespace test

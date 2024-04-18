@@ -145,6 +145,15 @@ public:
     void reshape(const std::map<std::string, ov::PartialShape>& partial_shapes);
     void reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& partial_shapes);
 
+    void reshape(const ov::PartialShape& partial_shape,
+                 const std::unordered_map<std::string, ov::PartialShape>& variable_shapes);
+    void reshape(const std::map<size_t, ov::PartialShape>& partial_shapes,
+                 const std::unordered_map<std::string, ov::PartialShape>& variable_shapes);
+    void reshape(const std::map<std::string, ov::PartialShape>& partial_shapes,
+                 const std::unordered_map<std::string, ov::PartialShape>& variable_shapes);
+    void reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& partial_shapes,
+                 const std::unordered_map<std::string, ov::PartialShape>& variable_shapes);
+
     /// Return the element type of output i
     const ov::element::Type& get_output_element_type(size_t i) const;
 

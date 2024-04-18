@@ -134,10 +134,6 @@ bool ReadValue::visit_attributes(AttributeVisitor& visitor) {
 }
 
 void ReadValue::revalidate_and_infer_types() {
-    // Update variable shape if not extend new shape (e.g reshape result).
-    if (get_input_size() > 0 && !m_variable->get_info().data_shape.relaxes(get_input_partial_shape(0))) {
-        m_variable->update_data_shape(get_input_partial_shape(0));
-    }
     Node::revalidate_and_infer_types();
 }
 
