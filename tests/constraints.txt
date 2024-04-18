@@ -28,4 +28,4 @@ jaxlib<=0.4.14
 torch>=1.13,<2.3
 kornia==0.7.0
 networkx<=3.1.0
-keras>=2.13.0,<3.0.0
+keras>=2.0.0,<3.0.0
