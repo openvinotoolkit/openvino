@@ -26,3 +26,4 @@ wheel
 PyYAML
 kornia
 g2p-en
+librosa
