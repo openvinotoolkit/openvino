@@ -13,6 +13,7 @@ concurrency:
 
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
+  APT_CACHE_PATH: /mount/caches/apt/ubuntu_20/${{ github.base_ref || github.ref_name }}
   PYTHON_VERSION: '3.11'
 
 jobs:
@@ -54,7 +55,10 @@ jobs:
 
     steps:
       - name: Set apt retries
-        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+        run: |
+          echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+          # do not remove deb packages:
+          rm /etc/apt/apt.conf.d/docker-clean
 
       - name: Install git
         run: |
@@ -225,7 +229,10 @@ jobs:
       CXX: clang++
     steps:
       - name: Set apt retries
-        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+        run: |
+          echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+          # do not remove deb packages:
+          rm /etc/apt/apt.conf.d/docker-clean
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v4
@@ -257,6 +264,17 @@ jobs:
           pushd $INSTALL_TEST_DIR
             tar -xzf openvino_tests.tar.gz -C $INSTALL_DIR
           popd
+
+      - name: Setup apt cache
+        uses: ./openvino/.github/actions/cache
+        with:
+          save-always: true # TODO: for the 1st run only
+          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          cache-path: ${{ env.APT_CACHE_PATH }}
+          path: '/var/cache/apt/archives'
+          key: ${{ runner.os }}-${{ runner.arch }}-apt-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-apt
 
       - name: Install dependencies (Linux)
         run: |
