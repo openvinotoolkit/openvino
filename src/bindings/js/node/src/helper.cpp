@@ -510,7 +510,7 @@ Napi::Value any_to_js(const Napi::CallbackInfo& info, ov::Any value) {
     return info.Env().Undefined();
 }
 
-ov::Any js_to_any(const Napi::CallbackInfo& info, Napi::Value value) {
+ov::Any js_to_any(const Napi::Env& env, const Napi::Value& value) {
     if (value.IsString()) {
         return ov::Any(value.ToString().Utf8Value());
     } else if (value.IsBigInt()) {
@@ -526,7 +526,7 @@ ov::Any js_to_any(const Napi::CallbackInfo& info, Napi::Value value) {
     } else if (value.IsNumber()) {
         Napi::Number num = value.ToNumber();
 
-        if (is_napi_value_int(info, value)) {
+        if (is_napi_value_int(env, value)) {
             return ov::Any(num.Int32Value());
         } else {
             return ov::Any(num.DoubleValue());
@@ -538,14 +538,25 @@ ov::Any js_to_any(const Napi::CallbackInfo& info, Napi::Value value) {
     }
 }
 
-bool is_napi_value_int(const Napi::CallbackInfo& info, Napi::Value& num) {
-    return info.Env()
-        .Global()
-        .Get("Number")
-        .ToObject()
-        .Get("isInteger")
-        .As<Napi::Function>()
-        .Call({num})
-        .ToBoolean()
-        .Value();
+bool is_napi_value_int(const Napi::Env& env, const Napi::Value& num) {
+    return env.Global().Get("Number").ToObject().Get("isInteger").As<Napi::Function>().Call({num}).ToBoolean().Value();
+}
+
+ov::AnyMap to_anyMap(const Napi::Env& env, const Napi::Value& val) {
+    ov::AnyMap properties;
+    if (!val.IsObject()) {
+        OPENVINO_THROW("Passed Napi::Value must be an object.");
+    }
+    const auto& parameters = val.ToObject();
+    const auto& keys = parameters.GetPropertyNames();
+
+    for (uint32_t i = 0; i < keys.Length(); ++i) {
+        const auto& property_name = static_cast<Napi::Value>(keys[i]).ToString().Utf8Value();
+
+        ov::Any any_value = js_to_any(env, parameters.Get(property_name));
+
+        properties.insert(std::make_pair(property_name, any_value));
+    }
+
+    return properties;
 }
