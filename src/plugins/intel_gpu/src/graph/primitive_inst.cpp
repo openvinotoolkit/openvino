@@ -1094,18 +1094,54 @@ void primitive_inst::do_runtime_skip_gather() {
 
 void primitive_inst::do_runtime_skip_permute() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_skip_permute: " + id()));
-    // Check pattern
-    if (!get_node().is_type<permute>()
-        || is_output()
-        || !get_node().can_be_optimized()
-        || _impl_params->has_fused_primitives()
-        || _impl_params->get_input_layout(0).data_type != _impl_params->get_output_layout().data_type)
+    // check pattern
+    auto qualified_user_as_permute = [&]() -> bool {
+        if (get_users().size() != 1)
+            return false;
+        for (auto u : get_user_insts()) {
+            auto& node = u->get_node();
+            auto impl_params = node.get_kernel_impl_params();
+            if (node.is_type<permute>() && !impl_params->has_fused_primitives()) {
+                if (!node.can_be_optimized())
+                    return false;
+                if (impl_params->get_input_layout(0).data_type == _impl_params->get_output_layout().data_type)
+                    return true;
+            }
+        }
+        return false;
+    };
+
+    auto qualified_permute = [&]() -> bool {
+        if (get_node().is_type<permute>() && !is_output() && !_impl_params->has_fused_primitives()) {
+            if (!get_node().can_be_optimized())
+                return false;
+            if (_impl_params->get_input_layout(0).data_type == _impl_params->get_output_layout().data_type)
+                return true;
+        }
+        return false;
+    };
+
+    if (!qualified_permute() && !qualified_user_as_permute())
+        return;
+
+    if (get_node().is_type<permute>() && get_node().can_be_optimized())
         return;
 
     GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_permute] " << id() << " : check optimizability" << std::endl;
-    auto desc = _node->as<permute>().get_primitive();
-    auto input_shape = _impl_params->get_input_layout(0).get_shape();
-    const auto& permute_order = desc->permute_order;
+    std::shared_ptr<const primitive> desc;
+    ov::Shape permute_input_shape;
+    auto permute_user = get_user_insts()[0];
+    if (get_node().is_type<permute>()) {
+        desc = _node->get_primitive();
+        permute_input_shape = _impl_params->get_input_layout(0).get_shape();
+    } else {
+        if (permute_user->get_node().is_type<permute>()) {
+            desc = permute_user->get_node().get_primitive();
+            permute_input_shape = _impl_params->get_output_layout(0).get_shape();
+        }
+    }
+
+    const auto& permute_order = std::dynamic_pointer_cast<const permute>(desc)->permute_order;
 
     // Check runtime shape
     // Optimize when the largest value among the acutal dim values in case where the permute order
@@ -1114,7 +1150,7 @@ void primitive_inst::do_runtime_skip_permute() {
     int32_t max_value = 0;
     for (int32_t i = 0; i < static_cast<int32_t>(permute_order.size()); ++i) {
         int32_t order = static_cast<int32_t>(permute_order[i]);
-        int32_t dim = static_cast<int32_t>(input_shape[order]);
+        int32_t dim = static_cast<int32_t>(permute_input_shape[order]);
         if (i != order) {
             if (dim > max_value)
                 max_value = dim;
@@ -1123,34 +1159,32 @@ void primitive_inst::do_runtime_skip_permute() {
     }
     // If the largest value and total size are different, can_be_optimized needs to be reset
     if (size != max_value) {
-        GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because size(" << size << ") and max_value(" << max_value << ") are different" << std::endl;
-        set_can_be_optimized(false);
+        GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because size(" << size << ") and max_value(" << max_value
+                               << ") are different" << std::endl;
+        if (get_node().is_type<permute>())
+            set_can_be_optimized(false);
+        else
+            permute_user->set_can_be_optimized(false);
         return;
     }
 
-    auto check_dependency_all_cpu = [&]() -> bool {
-        for (auto& dep : dependencies()) {
-            if (!is_user_cpu(&(dep.first->get_node())))
-                return false;
-        }
-        return true;
-    };
-
-    auto needs_sync = _needs_completion_event;
-    for (auto u : get_user_insts()) {
-        needs_sync |= u->_needs_completion_event;
+    if (get_node().is_type<permute>()) {
+        GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_permute] " << id() << " : can_be_optimized" << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "            - Input layout : " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "            - Output layout : " << _impl_params->get_output_layout().to_short_string() << std::endl;
+        set_can_be_optimized(true);
+    } else {
+        GPU_DEBUG_TRACE_DETAIL << "[prepare_runtime_skip_permute], user of " << id() << " : can_be_optimized" << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "            - Input layout : " << _impl_params->get_output_layout().to_short_string() << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "            - Output layout : "
+            << permute_user->get_node().get_kernel_impl_params()->get_output_layout().to_short_string() << std::endl;
+        permute_user->set_can_be_optimized(true);
+        // needs to add extra syncronization
+        // permute as user can be optimized, check pattern permute + reorder, which may be both optimized during runtime
+        _needs_completion_event |= permute_user->needs_completion_event();
+        for (auto u : permute_user->get_user_insts())
+            _needs_completion_event |= u->needs_completion_event();
     }
-
-    if (get_network().get_stream().get_queue_type() == QueueTypes::in_order && _needs_completion_event && !check_dependency_all_cpu()) {
-        GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because in order queue, and" << id() << " needs syncronization" << std::endl;
-        set_can_be_optimized(false);
-        return;
-    }
-
-    GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_permute] " << id() << " : can_be_optimized" << std::endl;
-    GPU_DEBUG_TRACE_DETAIL << "            - Input layout : " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
-    GPU_DEBUG_TRACE_DETAIL << "            - Output layout : " << _impl_params->get_output_layout().to_short_string() << std::endl;
-    set_can_be_optimized(true);
 }
 
 void primitive_inst::do_runtime_skip_strided_slice() {
