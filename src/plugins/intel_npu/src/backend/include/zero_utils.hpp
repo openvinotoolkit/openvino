@@ -164,7 +164,7 @@ static inline std::size_t layoutCount(const ze_graph_argument_layout_t val) {
     }
 }
 
-static inline std::size_t getSizeIOBytes(const ze_graph_argument_properties_t& argument) {
+static inline std::size_t getSizeIOBytes(const ze_graph_argument_properties_3_t& argument) {
     std::size_t num_elements = 1;
     for (std::size_t i = 0; i < layoutCount(argument.deviceLayout); ++i) {
         num_elements *= argument.dims[i];

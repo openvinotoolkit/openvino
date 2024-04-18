@@ -996,8 +996,8 @@ static void getNodeDescriptor(IONodeDescriptorMap& nodeDescriptors,
     }
     const std::string& legacyName = arg.name;
 
-    names.push_back(legacyName);
-    nodeDescriptors[legacyName] =
+    names.push_back(arg.debug_friendly_name);
+    nodeDescriptors[arg.debug_friendly_name] =
         {legacyName, arg.debug_friendly_name, std::move(outputTensorNames), precision, shape, shape};
 }
 
