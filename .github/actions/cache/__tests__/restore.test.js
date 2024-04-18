@@ -177,7 +177,7 @@ describe('restore', () => {
   });
 
   it('gets the cache file and extract to absent dir', async () => {
-    const cacheAbsentPath = path.join(tempDir, 'cache_absent');
+    const cacheAbsentPath = path.join(tempDir, 'cache_absent', 'subdir');
     // Set the action's inputs as return values from core.getInput()
     getInputMock.mockImplementation(name => {
       switch (name) {

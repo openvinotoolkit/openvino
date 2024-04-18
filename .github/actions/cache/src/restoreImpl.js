@@ -54,7 +54,7 @@ async function restore() {
 
       // extract
       if (!(await checkFileExists(cacheLocalPath))) {
-        await fs.mkdir(cacheLocalPath);
+        await fs.mkdir(cacheLocalPath, { recursive: true });
       }
       core.info(`Extracting ${cacheFile} to ${cacheLocalPath}`);
       tar.x({
