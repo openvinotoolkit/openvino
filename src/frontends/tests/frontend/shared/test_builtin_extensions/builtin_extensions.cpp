@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/core/extension.hpp>
-#include <openvino/frontend/extension/conversion.hpp>
-#include <openvino/opsets/opset8.hpp>
+#include "openvino/core/extension.hpp"
+#include "openvino/frontend/extension/conversion.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 #ifdef ENABLE_OV_ONNX_FRONTEND
-#    include <openvino/frontend/onnx/extension/conversion.hpp>
+#    include "openvino/frontend/onnx/extension/conversion.hpp"
 #    define ONNX_EXT                                                                                      \
         std::make_shared<ov::frontend::onnx::ConversionExtension>("NewCustomOp_3", CustomTranslatorONNX), \
             std::make_shared<ov::frontend::onnx::ConversionExtension>("Relu", ReluToSwishTranslator),
@@ -16,7 +16,7 @@
 #endif
 
 #ifdef ENABLE_OV_PADDLE_FRONTEND
-#    include <openvino/frontend/paddle/extension/conversion.hpp>
+#    include "openvino/frontend/paddle/extension/conversion.hpp"
 #    define PADDLE_EXT                                                                                            \
         std::make_shared<ov::frontend::paddle::ConversionExtension>("NewCustomOp_4", CustomTranslatorPaddle),     \
             std::make_shared<ov::frontend::paddle::ConversionExtension>("relu", ReluToSwishTranslatorPDPD),       \
@@ -27,7 +27,7 @@
 #endif
 
 #ifdef ENABLE_OV_TF_FRONTEND
-#    include <openvino/frontend/tensorflow/extension/conversion.hpp>
+#    include "openvino/frontend/tensorflow/extension/conversion.hpp"
 #    define TF_EXT                                                                                                    \
         std::make_shared<ov::frontend::tensorflow::ConversionExtension>("NewCustomOp_5", CustomTranslatorTensorflow), \
             std::make_shared<ov::frontend::tensorflow::ConversionExtension>("Relu", ReluToSwishTranslator),
@@ -36,7 +36,7 @@
 #endif
 
 #ifdef ENABLE_OV_TF_LITE_FRONTEND
-#    include <openvino/frontend/tensorflow_lite/extension/conversion.hpp>
+#    include "openvino/frontend/tensorflow_lite/extension/conversion.hpp"
 #    define TF_LITE_EXT                                                                                   \
         std::make_shared<ov::frontend::tensorflow_lite::ConversionExtension>("NewCustomOp_6",             \
                                                                              CustomTranslatorTensorflow), \
@@ -55,17 +55,24 @@ std::map<std::string, ov::OutputVector> CustomTranslatorCommon_2(const ov::front
     return std::map<std::string, ov::OutputVector>();
 }
 
+#if defined(ENABLE_OV_TF_FRONTEND) || defined(ENABLE_OV_TF_LITE_FRONTEND)
 ov::OutputVector CustomTranslatorTensorflow(const ov::frontend::NodeContext& node) {
     return ov::OutputVector();
 }
+#endif
 
+#ifdef ENABLE_OV_ONNX_FRONTEND
 ov::OutputVector CustomTranslatorONNX(const ov::frontend::NodeContext& node) {
     return ov::OutputVector();
 }
+#endif
 
+#if defined(ENABLE_OV_TF_FRONTEND) || defined(ENABLE_OV_TF_LITE_FRONTEND) || defined(ENABLE_OV_ONNX_FRONTEND) || \
+    defined(ENABLE_OV_PYTORCH_FRONTEND)
 ov::OutputVector ReluToSwishTranslator(const ov::frontend::NodeContext& node) {
     return {std::make_shared<ov::opset8::Swish>(node.get_input(0))};
 }
+#endif
 
 #ifdef ENABLE_OV_PADDLE_FRONTEND
 std::map<std::string, ov::OutputVector> ReluToSwishTranslatorPDPD(const ov::frontend::NodeContext& node) {
@@ -117,7 +124,6 @@ public:
         default:
             return false;
         }
-        return false;
     }
 
     template <typename T>
@@ -147,10 +153,10 @@ private:
 };
 
 #ifdef ENABLE_OV_PYTORCH_FRONTEND
-#    include <openvino/frontend/extension/op.hpp>
-#    include <openvino/frontend/pytorch/extension/conversion.hpp>
-#    include <openvino/frontend/pytorch/extension/op.hpp>
-#    include <openvino/op/relu.hpp>
+#    include "openvino/frontend/extension/op.hpp"
+#    include "openvino/frontend/pytorch/extension/conversion.hpp"
+#    include "openvino/frontend/pytorch/extension/op.hpp"
+#    include "openvino/op/relu.hpp"
 class ReluCustom : public ov::op::v0::Relu {
 public:
     OPENVINO_OP("ReluCustom");
