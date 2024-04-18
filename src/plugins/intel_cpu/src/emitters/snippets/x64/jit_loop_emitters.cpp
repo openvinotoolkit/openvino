@@ -4,7 +4,7 @@
 
 #include "jit_loop_emitters.hpp"
 
-#include "jit_kernel_emitter.hpp"
+#include "emitters/snippets/jit_snippets_call_args.hpp"
 
 using namespace Xbyak;
 using namespace dnnl::impl;

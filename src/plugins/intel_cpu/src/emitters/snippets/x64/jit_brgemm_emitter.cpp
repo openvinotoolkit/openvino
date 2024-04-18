@@ -3,7 +3,6 @@
 //
 
 #include "jit_brgemm_emitter.hpp"
-#include "jit_kernel_emitter.hpp"
 
 #include "snippets/utils.hpp"
 #include "snippets/lowered/expression.hpp"

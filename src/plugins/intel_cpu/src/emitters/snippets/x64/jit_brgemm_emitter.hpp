@@ -5,7 +5,7 @@
 #pragma once
 
 #include "emitters/plugin/x64/jit_emitter.hpp"
-#include "jit_kernel_emitter.hpp"
+#include "emitters/snippets/jit_snippets_call_args.hpp"
 
 #include <cpu/x64/brgemm/brgemm.hpp>
 
