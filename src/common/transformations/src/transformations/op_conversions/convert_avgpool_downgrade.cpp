@@ -22,9 +22,8 @@ ov::pass::ConvertAvgPool14ToAvgPool1::ConvertAvgPool14ToAvgPool1() {
     const matcher_pass_callback callback = [](pattern::Matcher& m) {
         const auto avg_pool_v14 = std::dynamic_pointer_cast<ov::op::v14::AvgPool>(m.get_match_root());
         const auto rounding_type_v14 = avg_pool_v14->get_rounding_type();
-        const auto rounding_type_v1 = rounding_type_v14 == ov::op::RoundingType::CEIL_TORCH
-                                          ? ov::op::RoundingType::CEIL
-                                          : rounding_type_v14;
+        const auto rounding_type_v1 =
+            rounding_type_v14 == ov::op::RoundingType::CEIL_TORCH ? ov::op::RoundingType::CEIL : rounding_type_v14;
 
         const auto exclude_pad = avg_pool_v14->get_exclude_pad();
         const auto input = avg_pool_v14->input_value(0);
