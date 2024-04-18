@@ -16,6 +16,7 @@ Overview of Transformations API
    transformation-api/model-pass
    transformation-api/matcher-pass
    transformation-api/graph-rewrite-pass
+   transformation-api/patterns-python-api
 
 OpenVINO Transformation mechanism allows to develop transformation passes to modify ``ov::Model``. You can use this mechanism to apply additional optimizations to the original Model or transform unsupported subgraphs and operations to new operations which are supported by the plugin.
 This guide contains all the necessary information that you need to start implementing OpenVINO™ transformations.
