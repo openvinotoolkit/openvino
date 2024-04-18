@@ -14,7 +14,7 @@ from transformers import AutoConfig, AutoModel, AutoProcessor, AutoTokenizer, Au
     SpeechT5Processor, SpeechT5ForTextToSpeech, LayoutLMv2Processor, Pix2StructForConditionalGeneration, RetriBertTokenizer, VivitImageProcessor, ViTHybridImageProcessor
 
 from torch_utils import TestTorchConvertModel, process_pytest_marks
-from models_hub_common.constants import hf_hub_cache_dir
+from models_hub_common.constants import hf_cache_dir, no_clean_cache_dir
 from models_hub_common.utils import cleanup_dir
 
 def is_gptq_model(config_dict):
@@ -117,6 +117,8 @@ class TestTransformersModel(TestTorchConvertModel):
             config = {}
         is_gptq = is_gptq_model(config)
         model_kwargs = {"torchscript": True}
+        if not no_clean_cache_dir:
+            model_kwargs["cache_dir"] = hf_cache_dir
         if is_gptq:
             self.cuda_available, self.gptq_postinit = patch_gptq()
             model_kwargs["torch_dtype"] = torch.float32
@@ -511,8 +513,6 @@ class TestTransformersModel(TestTorchConvertModel):
         return model
 
     def teardown_method(self):
-        # remove all downloaded files from cache
-        cleanup_dir(hf_hub_cache_dir)
         # restore after gptq patching
         if self.cuda_available is not None:
             unpatch_gptq(self.cuda_available, self.gptq_postinit)

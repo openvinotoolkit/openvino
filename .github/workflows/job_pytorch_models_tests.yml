@@ -120,20 +120,20 @@ jobs:
         env:
           CPLUS_INCLUDE_PATH: ${{ env.Python_ROOT_DIR }}/include/python${{ env.PYTHON_VERSION }}
 
-      - name: PyTorch Models Tests Timm and Torchvision
+      - name: PyTorch Models Tests Timm, Torchvision and HF
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_timm_tv_tests.html --self-contained-html -v -n 4 -k "TestTimmConvertModel or TestTorchHubConvertModel"
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_timm_tv_tests.html --self-contained-html -v -n auto -k "TestTimmConvertModel or TestTorchHubConvertModel or TestTransformersModel"
         env:
-          TYPE: ${{ inputs.event == 'schedule' && 'nightly' || 'precommit'}}
+          TYPE: 'nightly'
           TEST_DEVICE: CPU
           OP_REPORT_FILE: ${{ env.INSTALL_TEST_DIR }}/TEST-torch_unsupported_ops.log
 
-      - name: PyTorch Models Tests Not Timm or Torchvision
+      - name: PyTorch Models Tests Not Timm, Torchvision or HF
         if: always()
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_tests.html --self-contained-html -v -k "not (TestTimmConvertModel or TestTorchHubConvertModel)"
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_tests.html --self-contained-html -v -k "not (TestTimmConvertModel or TestTorchHubConvertModel or TestTransformersModel)"
         env:
           TYPE: 'nightly'
           TEST_DEVICE: CPU

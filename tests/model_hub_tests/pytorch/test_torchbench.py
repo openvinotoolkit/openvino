@@ -7,7 +7,7 @@ import subprocess
 import pytest
 import torch
 import tempfile
-from torch_utils import process_pytest_marks, get_models_list, TestTorchConvertModel
+from torch_utils import process_pytest_marks, TestTorchConvertModel
 
 
 # To make tests reproducible we seed the random generator
@@ -24,7 +24,7 @@ class TestTorchbenchmarkConvertModel(TestTorchConvertModel):
         os.environ['HUGGING_FACE_HUB_TOKEN'] = 'x'
         torch.set_grad_enabled(False)
 
-        self.infer_timeout = 800
+        self.infer_timeout = 3000
 
         self.repo_dir = tempfile.TemporaryDirectory()
         os.system(

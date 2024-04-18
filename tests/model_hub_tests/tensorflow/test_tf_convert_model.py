@@ -35,10 +35,10 @@ class TestTFHubConvertModel(TestConvertModel):
             library_type = model_link[3:]
             if library_type == "transformers":
                 from transformers import TFAutoModel
-                return TFAutoModel.from_pretrained(model_name)
+                return TFAutoModel.from_pretrained(model_name, cache_dir=hf_cache_dir)
             elif library_type == "sentence-transformers":
                 from tf_sentence_transformers import SentenceTransformer
-                return SentenceTransformer.from_pretrained(model_name)
+                return SentenceTransformer.from_pretrained(model_name, cache_dir=hf_cache_dir)
         if 'storage.openvinotoolkit.org' in model_link:
             # this models is from public OpenVINO storage
             subprocess.check_call(["wget", "-nv", model_link], cwd=self.model_dir.name)
