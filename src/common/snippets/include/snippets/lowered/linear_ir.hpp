@@ -49,6 +49,7 @@ public:
     bool m_are_buffers_optimized = true;
 };
 
+class LinearIRBuilder;
 class LoopManager;
 using LoopManagerPtr = std::shared_ptr<LoopManager>;
 
@@ -56,6 +57,7 @@ using LoopManagerPtr = std::shared_ptr<LoopManager>;
  * The class diagram is described in the documentation `snippets/docs/snippets_design_guide.md`.
  */
 class LinearIR {
+    friend class LinearIRBuilder;
     class ExpressionFactory;
 public:
     using container = std::list<ExpressionPtr>;
@@ -69,11 +71,6 @@ public:
     LinearIR(const std::shared_ptr<ov::Model>& m, const std::shared_ptr<IShapeInferSnippetsFactory>& factory, Config config = {});
 
     ExpressionPtr create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& inputs) const;
-
-    std::shared_ptr<LinearIR> clone() const;
-    static LinearIR::container deep_copy_range(LinearIR::container::const_iterator begin,
-                                               LinearIR::container::const_iterator end,
-                                               ExpressionMap& expression_map);
 
     const container& get_ops() const { return m_expressions; }
     const io_container& get_IO_ops() const { return m_io_expressions; }
@@ -133,6 +130,7 @@ public:
     IShapeInferSnippets::Result shape_infer(const std::vector<VectorDimsRef>& input_shapes);
     const std::shared_ptr<ShapeInferSnippetsNode>& get_shape_infer_instance() const {return m_shape_infer; }
     VectorDims get_master_shape() const;
+    VectorDims get_parallel_domain() const;
 
     bool is_dynamic() const;
 

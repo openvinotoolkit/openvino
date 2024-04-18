@@ -103,21 +103,6 @@ public:
     bool is_quantized() const { return config.m_is_quantized; }
     bool has_domain_sensitive_ops() const { return config.m_has_domain_sensitive_ops; }
 
-    snippets::Schedule generate(const BlockedShapeVector& blocked_input_shapes = {},
-                                const std::vector<ov::element::Type>& input_precisions = {},
-                                const std::vector<ov::element::Type>& output_precisions = {},
-                                const std::vector<snippets::pass::Manager::PositionedPassBase>& data_flow_passes = {},
-                                const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config = std::make_shared<lowered::pass::PassConfig>(),
-                                const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes = {},
-                                size_t min_parallel_work_amount = 8, size_t min_kernel_work_amount = 256,
-                                const std::shared_ptr<IShapeInferSnippetsFactory>& factory = nullptr,
-                                const void* compile_params = nullptr);
-
-    Schedule generate_from_linear_ir(const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config = std::make_shared<lowered::pass::PassConfig>(),
-                                     const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes = {},
-                                     const void* compile_params = nullptr) const;
-    IShapeInferSnippets::Result shape_infer(const std::vector<VectorDimsRef>& input_shapes);
-
     // plugin sets generator for a snippet to some specific generator.
     // it's going to be replaced with Jitters table later
     void set_generator(std::shared_ptr<ov::snippets::Generator> generator);
@@ -126,7 +111,12 @@ public:
 
     void print() const;
 
+    IShapeInferSnippets::Result shape_infer(const std::vector<VectorDimsRef>& input_shapes);
     VectorDims infer_master_shape();
+
+    std::shared_ptr<Subgraph> clone() const;
+
+    const std::shared_ptr<RuntimeConfig>& update_runtime_config() const;
 
     static auto wrap_node_as_subgraph(const std::shared_ptr<ov::Node>& node) -> std::shared_ptr<Subgraph>;
     static void fill_empty_output_names(const Output<Node>& target_output_node, const Output<Node>& replacement_output_node);
@@ -144,17 +134,38 @@ public:
     void data_flow_transformations(const BlockedShapeVector& blocked_input_shapes = {},
                                    const std::vector<ov::element::Type>& input_precisions = {},
                                    const std::vector<ov::element::Type>& output_precisions = {},
-                                   const std::vector<snippets::pass::Manager::PositionedPassBase>& = {});
+                                   const std::vector<snippets::pass::Manager::PositionedPassBase>& = {}) const;
+
+    void control_flow_transformations(const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config = std::make_shared<lowered::pass::PassConfig>(),
+                                      const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes = {});
+
+    void pre_generation_transformations() const;
+
+    void lower(const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config = std::make_shared<lowered::pass::PassConfig>(),
+               const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes = {});
+
     std::shared_ptr<lowered::LinearIR>
     convert_body_to_linear_ir(size_t min_parallel_work_amount = 8, size_t min_kernel_work_amount = 256,
                               const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory = std::make_shared<IShapeInferSnippetsFactory>());
-    std::shared_ptr<Subgraph> clone() const;
+
+    Schedule generate_from_linear_ir(const void* compile_params = nullptr) const;
+
+    snippets::Schedule generate(const BlockedShapeVector& blocked_input_shapes = {},
+                                const std::vector<ov::element::Type>& input_precisions = {},
+                                const std::vector<ov::element::Type>& output_precisions = {},
+                                const std::vector<snippets::pass::Manager::PositionedPassBase>& data_flow_passes = {},
+                                const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config = std::make_shared<lowered::pass::PassConfig>(),
+                                const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes = {},
+                                size_t min_parallel_work_amount = 8, size_t min_kernel_work_amount = 256,
+                                const std::shared_ptr<IShapeInferSnippetsFactory>& factory = nullptr,
+                                const void* compile_params = nullptr);
 
 private:
     void control_flow_transformations(lowered::LinearIR& linear_ir,
                                       LoweringResult& lowering_result,
                                       const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config = std::make_shared<lowered::pass::PassConfig>(),
                                       const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes = {}) const;
+    void init_shape_infer_linear_ir();
     void init_config();
     // Count of Subgraph virtual ports:
     //  - Potential non-scalar Constants that will be created after some transformations (At the moment it's relevant only for FakeQuantize decomposition)
@@ -163,10 +174,14 @@ private:
     size_t m_virtual_port_count = 0;
     Shape exec_domain = {};
     std::shared_ptr<ov::snippets::Generator> m_generator = nullptr;
+    // Temprorary solution
+    size_t buffer_scratchpad_size = 0;
 
     size_t tileRank = 0; // set by plugin to specify the number of dimensions processed in a single kernel call
     std::vector<size_t> appendOnesForCanonical;
     std::shared_ptr<lowered::LinearIR> m_linear_ir = nullptr;
+    // This LinearIR is used for ShapeInfer and based on LinearIR state after ControlFlow transformations
+    std::shared_ptr<lowered::LinearIR> m_shape_infer_linear_ir = nullptr;
 
     /**
     * @interface SubgraphConfig

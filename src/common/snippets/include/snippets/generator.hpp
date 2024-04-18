@@ -79,10 +79,6 @@ public:
      */
     virtual ~Generator() = default;
     /**
-    * @interface GeneratorConfig
-    * @brief Allows to tweak the lowering process.
-    */
-    /**
      * @brief generates executable code
      * @param linear_ir lowered IR for code generation
      * @param result variable to hande the result, only compiled_snippet and m_saved_emitters field will be modified
@@ -96,6 +92,13 @@ public:
      * @return pointer to constant target machine
      */
     std::shared_ptr<const TargetMachine> get_target_machine() const;
+
+    /**
+     * @brief Update config with runtime arguments using the current state of LinearIR
+     * @param linear_ir current LinearIR
+     * @return shared pointer of config
+     */
+    const std::shared_ptr<RuntimeConfig>& update_runtime_config(const std::shared_ptr<lowered::LinearIR>& linear_ir) const;
 
     /**
      * @brief gets register type by op type

@@ -133,28 +133,24 @@ std::string init_info_jit_brgemm_copy_b_emitter(const jit_brgemm_copy_b_emitter 
 std::string init_info_jit_kernel_static_emitter(const jit_kernel_static_emitter* emitter) {
     std::stringstream ss;
     ss << "Emitter_type_name:jit_kernel_static_emitter"
-       << " jcp.parallel_executor_ndims:" << emitter->jcp.parallel_executor_ndims
+       << " jcp.master_shape:" << vector_to_string(emitter->jcp.master_shape)
        << " gp_regs_pool:"<< vector_to_string(emitter->gp_regs_pool)
        << " master_shape:" << vector_to_string(emitter->master_shape)
        << " num_inputs:" << emitter->num_inputs
        << " num_outputs:" << emitter->num_outputs
        << " num_unique_buffers:" << emitter->num_unique_buffers
-       << " io_data_sizes:" << vector_to_string(emitter->io_data_sizes)
        << " data_ptr_regs_idx:" << vector_to_string(emitter->data_ptr_regs_idx)
        << " vec_regs_pool:" << vector_to_string(emitter->vec_regs_pool)
        << " reg_indexes_idx:" << emitter->reg_indexes_idx
        << " reg_runtime_params_idx:" << emitter->reg_runtime_params_idx;
-    for (size_t i = 0; i < emitter->io_data_layouts.size(); ++i)
-        ss << " io_data_layouts for " << i << " is:" << vector_to_string(emitter->io_data_layouts[i]);
-    for (size_t i = 0; i < emitter->io_shapes.size(); ++i)
-        ss << " io_shapes for " << i << " is: "<< vector_to_string(emitter->io_shapes[i]);
+    for (size_t i = 0; i < emitter->data_offsets.size(); ++i)
+        ss << " data_offsets for " << i << " is:" << vector_to_string(emitter->data_offsets[i]);
     return ss.str();
 }
 
 std::string init_info_jit_kernel_dynamic_emitter(const jit_kernel_dynamic_emitter* emitter) {
     std::stringstream ss;
     ss << "Emitter_type_name:jit_kernel_dynamic_emitter"
-       << " jcp.parallel_executor_ndims:" << emitter->jcp.parallel_executor_ndims
        << " gp_regs_pool:"<< vector_to_string(emitter->gp_regs_pool)
        << " num_inputs:" << emitter->num_inputs
        << " num_outputs:" << emitter->num_outputs

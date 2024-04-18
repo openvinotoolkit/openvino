@@ -9,6 +9,9 @@
 #include "snippets/target_machine.hpp"
 #include "snippets/generator.hpp"
 #include "cache/multi_cache.h"
+#include "snippets/runtime_configurator.hpp"
+
+#include "emitters/snippets/jit_snippets_call_args.hpp"
 
 #ifdef SNIPPETS_DEBUG_CAPS
 #include "emitters/snippets/utils/debug_caps_config.hpp"

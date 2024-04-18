@@ -350,6 +350,24 @@ const std::vector<int64_t>& ExpandedLoopInfo::get_data_sizes() const {
     return m_data_sizes;
 }
 
+void ExpandedLoopInfo::update_ptr_increments(const std::vector<int64_t>& new_values) {
+    OPENVINO_ASSERT(new_values.size() == m_ptr_increments.size(), "Failed to update ptr_increments: incompatible counts");
+    m_ptr_increments.assign(new_values.cbegin(), new_values.end());
+}
+
+void ExpandedLoopInfo::update_ptr_increments(int64_t new_value) {
+    std::fill(m_ptr_increments.begin(), m_ptr_increments.end(), new_value);
+}
+
+void ExpandedLoopInfo::update_finalization_offsets(const std::vector<int64_t>& new_values) {
+    OPENVINO_ASSERT(new_values.size() == m_finalization_offsets.size(), "Failed to update finalization_offsets: incompatible counts");
+    m_finalization_offsets.assign(new_values.cbegin(), new_values.end());
+}
+
+void ExpandedLoopInfo::update_finalization_offsets(int64_t new_value) {
+    std::fill(m_finalization_offsets.begin(), m_finalization_offsets.end(), new_value);
+}
+
 void ExpandedLoopInfo::replace_with_new_ports(const LoopPort& actual_port, const std::vector<LoopPort>& target_ports) {
     OPENVINO_ASSERT(target_ports.size() == 1, "ExpandedLoopInfo supports replace one port with only one port!");
     LoopInfo::replace_with_new_ports(actual_port, target_ports);

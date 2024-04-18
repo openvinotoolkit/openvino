@@ -92,7 +92,7 @@ bool OptimizeDomain::run(snippets::lowered::LinearIR& linear_ir) {
 
     VectorDims master_shape = linear_ir.get_master_shape();
     if (linear_ir.is_dynamic()) {
-        m_tile_rank = master_shape.size() > 1 ? 2 : 1;
+        m_tile_rank = 1;
         return false;
     }
 

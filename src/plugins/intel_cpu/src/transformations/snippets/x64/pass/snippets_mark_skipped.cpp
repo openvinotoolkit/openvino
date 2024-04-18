@@ -200,10 +200,7 @@ bool isSuitableMatMulParent(const std::shared_ptr<const Node> &node) {
 }
 // From Reduce::canFuse() corner case. CanFuseSimpleOperation is covered by Misc
 inline bool isSuitableReduceParent(const std::shared_ptr<const Node> &node) {
-    bool is_suitable_reduce = ov::is_type<ov::op::util::ArithmeticReductionKeepDims>(node) && isSuitableMiscParent(node);
-    bool is_not_min_max = !ov::is_type<ov::op::v1::ReduceMax>(node) && !ov::is_type<ov::op::v1::ReduceMin>(node);
-    bool out_is_f32 = node->get_output_element_type(0) == ov::element::f32;
-    return is_suitable_reduce && is_not_min_max && out_is_f32;
+return ov::is_type<ov::op::util::ArithmeticReductionKeepDims>(node) && isSuitableMiscParent(node);
 }
 // Subtract as ZeroPoints for Convolution
 bool isSuitableSubtractAsZeroPointsParent(const std::shared_ptr<const Node> &node) {
@@ -364,25 +361,23 @@ bool isSuitableParentForFusingSumActivation(const std::shared_ptr<const Node> &n
         const auto bias = n->get_input_source_output(1);
         if (!(ov::is_type<ov::op::v0::Constant>(bias.get_node_shared_ptr()) && isSuitableConvolutionParent(conv.get_node_shared_ptr())))
             return false;
-        const auto conv_shape = conv.get_partial_shape();
-        const auto bias_shape = bias.get_partial_shape();
-        if  (bias_shape.is_dynamic() || conv_shape.is_dynamic() || bias_shape.size() > conv_shape.size())
+        const auto& conv_shape = conv.get_partial_shape();
+        const auto& bias_shape = bias.get_partial_shape();
+        if (conv_shape.rank().is_dynamic())
             return false;
-        auto getNormalizedDims = [](const ov::Shape &dims, size_t ndims) -> std::vector<size_t>{
-            std::vector<size_t> normalizedDims = dims;
+        auto getNormalizedDims = [](const ov::Shape &dims, size_t ndims) -> ov::Shape {
+            ov::Shape normalizedDims = dims;
             for (size_t i = 0; i < (ndims - dims.size()); i++) {
                 normalizedDims.insert(normalizedDims.begin(), 1);
             }
             return normalizedDims;
         };
         const auto bias_norm_dims = getNormalizedDims(bias_shape.get_shape(), conv_shape.size());
-        if (bias_norm_dims.size() < 2 || bias_norm_dims[0] != 1 || conv_shape[1] != bias_norm_dims[1])
+        if (conv_shape.size() != bias_norm_dims.size() || bias_norm_dims.size() < 2)
             return false;
-        for (size_t i = 2; i < bias_norm_dims.size(); i++) {
-            if (bias_norm_dims[i] != 1)
-                return false;
-        }
-        return true;
+        const auto channelAxis = 1;
+        return conv_shape[channelAxis].is_static() && conv_shape[channelAxis].get_length() == static_cast<int64_t>(bias_norm_dims[channelAxis]) &&
+               bias_norm_dims[channelAxis] == static_cast<size_t>(shape_size(bias_norm_dims));
     };
     auto isFusedFQNode = [&isFusedBiasNode](std::shared_ptr<Node> n) {
         if (!(ov::is_type<ov::op::v0::FakeQuantize>(n) &&
@@ -407,7 +402,7 @@ bool isSuitableChildForFusingSumActivation(const std::shared_ptr<const Node> &no
     return SupportsFusingWithConvolution_SumActivation(node);
 }
 bool isSuitableReduceChild(const std::shared_ptr<const Node> &node, const int channelAxis = DEFAULT_AXIS) {
-    return node->get_output_element_type(0) == ov::element::f32 && isSuitableChildForFusingSimple(node, channelAxis);
+    return isSuitableChildForFusingSimple(node, channelAxis);
 }
 bool isSuitableMatMulWithConstantPath(const std::shared_ptr<Node>& node) {
     return ov::is_type<ov::opset1::MatMul>(node) &&

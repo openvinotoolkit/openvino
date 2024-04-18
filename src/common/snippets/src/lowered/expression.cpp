@@ -241,6 +241,16 @@ ExpressionPtr IOExpression::clone_with_new_inputs(const std::vector<PortConnecto
     return expr;
 }
 
-}// namespace lowered
-}// namespace snippets
-}// namespace ov
+LoopExpression::LoopExpression(const std::shared_ptr<op::LoopBase>& loop, const std::shared_ptr<IShapeInferSnippetsFactory>& factory)
+        : Expression(loop, factory) {}
+
+ExpressionPtr LoopExpression::clone_with_new_inputs(const std::vector<PortConnectorPtr>& new_inputs,
+                                                    const std::shared_ptr<Node>& new_node) const {
+    const auto& expr = std::shared_ptr<LoopExpression>(new LoopExpression(*this));
+    expr->update_node_and_connectors(new_inputs, new_node);
+    return expr;
+}
+
+} // namespace lowered
+} // namespace snippets
+} // namespace ov

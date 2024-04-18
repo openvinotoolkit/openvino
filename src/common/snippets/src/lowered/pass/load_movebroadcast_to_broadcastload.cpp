@@ -26,8 +26,10 @@ bool LoadMoveBroadcastToBroadcastLoad::run(LinearIR& linear_ir, lowered::LinearI
             const auto& interm_connector = expr->get_input_port_connector(0);
             const auto parent_expr = interm_connector->get_source().get_expr();
             const auto load = ov::as_type_ptr<op::Load>(parent_expr->get_node());
-            if (!load)
-                continue;
+            if (!load ||
+                 load->get_input_element_type(0) != load->get_output_element_type(0) ||
+                 parent_expr->get_input_port_descriptor(0)->get_shape() != parent_expr->get_output_port_descriptor(0)->get_shape())
+                 continue;
 
             OPENVINO_ASSERT(expr->get_loop_ids() == parent_expr->get_loop_ids(),
                             "The pair of Load and MoveBroadcast expressions must be in the same loops!");
@@ -45,8 +47,9 @@ bool LoadMoveBroadcastToBroadcastLoad::run(LinearIR& linear_ir, lowered::LinearI
             if (count > 1)
                 continue;
 
+            const auto& parent_node = parent_expr->get_input_port_connector(0)->get_source().get_expr()->get_node();
             const auto& outshape = move_broadcast->get_output_partial_shape(0);
-            const auto broadcastload = std::make_shared<snippets::op::BroadcastLoad>(load->input_value(0), *outshape.rbegin(), load->get_offset());
+            const auto broadcastload = std::make_shared<snippets::op::BroadcastLoad>(parent_node, *outshape.rbegin(), load->get_offset());
             expr_it = linear_ir.replace_with_node({ parent_expr, expr }, broadcastload);
             modified |= true;
         }

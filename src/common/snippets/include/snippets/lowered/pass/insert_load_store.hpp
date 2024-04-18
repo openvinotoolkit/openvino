@@ -26,6 +26,8 @@ public:
     explicit InsertLoadStore(size_t vector_size);
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 
+    static size_t get_processing_dim(const ExpressionPort& port);
+
 private:
     size_t get_count(const ExpressionPort& port) const;
     bool insert_load(LinearIR& linear_ir, const LinearIR::constExprIt& data_expr_it);

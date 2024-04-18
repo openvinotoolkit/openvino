@@ -4,6 +4,8 @@
 
 #include "snippets/target_machine.hpp"
 
+#include "snippets/runtime_configurator.hpp"
+
 using namespace ov::snippets;
 std::function<std::shared_ptr<Emitter>(const lowered::ExpressionPtr&)> TargetMachine::get(const ov::DiscreteTypeInfo& type) const {
     auto jitter = jitters.find(type);
@@ -20,4 +22,9 @@ TargetMachine::get_supported_precisions(const ov::DiscreteTypeInfo& type) const 
 
 bool TargetMachine::has(const ov::DiscreteTypeInfo& type) const {
     return jitters.find(type) != jitters.end();
+}
+
+const std::shared_ptr<RuntimeConfig>& TargetMachine::update_runtime_config(const std::shared_ptr<lowered::LinearIR>& linear_ir) const {
+    OPENVINO_ASSERT(configurator, "RuntimeConfigurator has not been inited!");
+    return configurator->get_updated_config(linear_ir);
 }

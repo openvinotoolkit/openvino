@@ -301,6 +301,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*FQLayerDQBias.smoke_CompareWithRefs.*)",
         R"(.*smoke_matmulBrgemmInt8/MatmulBrgemmInt8Test.CompareWithRefs.*MatMul.*InputType=i8_OutputType=i8.*)",
         R"(.*smoke_Snippets_MHAWOTransposeOnInputs_4D/MHAWOTransposeOnInputs.CompareWithRefImpl.*)",
+        // Issue: 123274 (Dynamic Softmax aren't supported)
+        R"(smoke_Snippets_(Softmax|AddSoftmax|Reduce).*\[.*\?.*\].*)",
+        R"(smoke_Snippets_BroadcastSelect_Dynamic.*)"
     };
 
 #if defined(OPENVINO_ARCH_X86)
