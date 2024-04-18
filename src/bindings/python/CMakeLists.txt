@@ -383,7 +383,7 @@ if(ENABLE_PYTHON_PACKAGING)
     # install python package, which will be later packed into DEB | RPM
     ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_OPENVINO}_package_${pyversion} HIDDEN)
 
-    install(DIRECTORY ${ov_python_package_prefix} ${telemetry_python_package_prefix}
+    install(DIRECTORY ${ov_python_package_prefix}/ ${telemetry_python_package_prefix}/
             DESTINATION ${CMAKE_INSTALL_PREFIX}
             COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_${pyversion}
             ${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE_EXCLUDE_ALL}
