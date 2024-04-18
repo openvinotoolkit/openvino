@@ -46,6 +46,14 @@ The ``input`` blocks are being moved into the ``output`` tensor of shape ``(N, C
   * **Type**: *T_IND*
   * **Required**: *yes*
 
+* *strides*
+
+  * **Description**: stride in the sliding blocks in the input spatial dimensions.
+  * **Range of values**: 1D tensor of non-negative integer numbers
+  * **Type**: *T_IND*
+  * **Default value**: [1, 1]
+  * **Required**: *no*
+
 * *dilations*
 
   * **Description**: controls local stride of the elements.
@@ -68,14 +76,6 @@ The ``input`` blocks are being moved into the ``output`` tensor of shape ``(N, C
   * **Range of values**: 1D tensor of non-negative integer numbers
   * **Type**: *T_IND*
   * **Default value**: [0, 0]
-  * **Required**: *no*
-
-* *stride*
-
-  * **Description**: stride in the sliding blocks in the input spatial dimensions.
-  * **Range of values**: 1D tensor of non-negative integer numbers
-  * **Type**: *T_IND*
-  * **Default value**: [1, 1]
   * **Required**: *no*
 
 **Inputs**
