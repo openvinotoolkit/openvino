@@ -12,9 +12,9 @@
 #include "op/perf_count_rdtsc.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #ifdef SNIPPETS_LIBXSMM_TPP
-#include "transformations/snippets/tpp/op/brgemm.hpp"
-#include "transformations/snippets/tpp/op/scalar.hpp"
-#include "transformations/snippets/tpp/op/reduce.hpp"
+#include "transformations/tpp/x64/op/brgemm.hpp"
+#include "transformations/tpp/x64/op/scalar.hpp"
+#include "transformations/tpp/x64/op/reduce.hpp"
 #endif
 
 namespace ov {

@@ -45,10 +45,10 @@ std::mutex err_print_lock;
 #endif
 
 #ifdef SNIPPETS_LIBXSMM_TPP
-#include "transformations/snippets/tpp/pass/brgemm_to_brgemm_tpp.hpp"
-#include "transformations/snippets/tpp/pass/eltwise_to_eltwise_tpp.hpp"
-#include "transformations/snippets/tpp/pass/scalar_to_scalar_tpp.hpp"
-#include "transformations/snippets/tpp/pass/lowered/set_tpp_leading_dim.hpp"
+#include "transformations/tpp/x64/pass/brgemm_to_brgemm_tpp.hpp"
+#include "transformations/tpp/x64/pass/eltwise_to_eltwise_tpp.hpp"
+#include "transformations/tpp/x64/pass/scalar_to_scalar_tpp.hpp"
+#include "transformations/tpp/x64/pass/lowered/set_tpp_leading_dim.hpp"
 #endif
 
 using namespace dnnl::impl::utils;

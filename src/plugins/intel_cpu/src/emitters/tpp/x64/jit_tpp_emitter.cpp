@@ -4,7 +4,7 @@
 
 #include "jit_tpp_emitter.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
-#include "transformations/snippets/tpp/op/eltwise.hpp"
+#include "transformations/tpp/x64/op/eltwise.hpp"
 
 using namespace Xbyak;
 using namespace dnnl::impl;

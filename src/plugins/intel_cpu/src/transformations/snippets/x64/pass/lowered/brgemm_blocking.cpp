@@ -12,7 +12,7 @@
 #include "snippets/snippets_isa.hpp"
 #include "snippets/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
-#include "transformations/snippets/tpp/op/brgemm.hpp"
+#include "transformations/tpp/x64/op/brgemm.hpp"
 
 namespace ov {
 namespace intel_cpu {

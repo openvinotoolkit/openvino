@@ -3,7 +3,7 @@
 //
 
 #include "jit_eltwise_emitters.hpp"
-#include "transformations/snippets/tpp/op/eltwise.hpp"
+#include "transformations/tpp/x64/op/eltwise.hpp"
 
 namespace ov {
 namespace intel_cpu {

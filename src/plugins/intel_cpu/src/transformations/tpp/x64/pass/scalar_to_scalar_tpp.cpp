@@ -6,8 +6,8 @@
 #include "scalar_to_scalar_tpp.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/op/scalar.hpp"
-#include "transformations/snippets/tpp/op/scalar.hpp"
-#include "transformations/snippets/tpp/op/modifiers.hpp"
+#include "transformations/tpp/x64/op/scalar.hpp"
+#include "transformations/tpp/x64/op/modifiers.hpp"
 #include "snippets/lowered/port_connector.hpp"
 
 

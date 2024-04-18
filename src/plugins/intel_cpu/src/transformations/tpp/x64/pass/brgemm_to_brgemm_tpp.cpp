@@ -8,7 +8,7 @@
 
 #include "snippets/utils.hpp"
 #include "snippets/op/brgemm.hpp"
-#include "transformations/snippets/tpp/op/brgemm.hpp"
+#include "transformations/tpp/x64/op/brgemm.hpp"
 
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"

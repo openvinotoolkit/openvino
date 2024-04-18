@@ -4,7 +4,7 @@
 
 #include "snippets/itt.hpp"
 #include "snippets/op/buffer.hpp"
-#include "transformations/snippets/tpp/op/modifiers.hpp"
+#include "transformations/tpp/x64/op/modifiers.hpp"
 #include "set_tpp_leading_dim.hpp"
 #include "snippets/op/brgemm.hpp"
 #include "snippets/lowered/loop_manager.hpp"

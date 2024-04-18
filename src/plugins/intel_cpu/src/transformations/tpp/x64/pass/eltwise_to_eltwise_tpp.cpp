@@ -6,7 +6,7 @@
 #include "eltwise_to_eltwise_tpp.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-#include "transformations/snippets/tpp/op/factory.hpp"
+#include "transformations/tpp/x64/op/factory.hpp"
 
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 #include "openvino/op/util/unary_elementwise_arithmetic.hpp"

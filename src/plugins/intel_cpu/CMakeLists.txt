@@ -146,7 +146,7 @@ endif()
 
 if (NOT ENABLE_SNIPPETS_LIBXSMM_TPP)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/tpp/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/tpp/*)
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/*)
 endif ()
 
 file(GLOB_RECURSE FILES_TO_REMOVE ${EXCLUDE_PATHS})

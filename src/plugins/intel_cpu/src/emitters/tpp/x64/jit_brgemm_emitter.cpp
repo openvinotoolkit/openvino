@@ -4,7 +4,7 @@
 
 #include "jit_brgemm_emitter.hpp"
 #include "emitters/snippets/x64/jit_snippets_emitters.hpp"
-#include "transformations/snippets/tpp/op/brgemm.hpp"
+#include "transformations/tpp/x64/op/brgemm.hpp"
 
 using jit_generator = dnnl::impl::cpu::x64::jit_generator;
 using cpu_isa_t = dnnl::impl::cpu::x64::cpu_isa_t;

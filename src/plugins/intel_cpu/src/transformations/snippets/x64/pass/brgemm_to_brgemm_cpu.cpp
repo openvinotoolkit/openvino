@@ -10,7 +10,7 @@
 #include "snippets/op/brgemm.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
-#include "transformations/snippets/tpp/op/modifiers.hpp"
+#include "transformations/tpp/x64/op/modifiers.hpp"
 
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
