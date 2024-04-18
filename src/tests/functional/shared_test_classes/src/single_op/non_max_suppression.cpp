@@ -67,7 +67,7 @@ void NmsLayerTest::SetUp() {
              out_type,
              targetDevice) = this->GetParam();
 
-    size_t num_batches, num_boxes, num_classes;
+    size_t num_classes;
     std::tie(num_batches, num_boxes, num_classes) = input_shape_params;
 
     ov::element::Type params_type, max_box_type, thr_type;
@@ -122,7 +122,7 @@ void Nms9LayerTest::SetUp() {
                           ? op::v9::NonMaxSuppression::BoxEncodingType::CENTER
                           : op::v9::NonMaxSuppression::BoxEncodingType::CORNER;
 
-    size_t num_batches, num_boxes, num_classes;
+    size_t num_classes;
     std::tie(num_batches, num_boxes, num_classes) = input_shape_params;
 
     ov::element::Type params_type, max_box_type, thr_type;
@@ -154,7 +154,7 @@ void Nms9LayerTest::SetUp() {
 }
 
 void NmsLayerTest::compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) {
-    CompareBBoxes(expected, actual);
+    CompareBBoxes(expected, actual, inputs[function->get_parameters().at(0)], num_batches, num_boxes);
 }
 
 namespace {
@@ -166,18 +166,8 @@ typedef struct Rect {
     int32_t y2;
 } Rect;
 
-class Box {
+struct Box {
 public:
-    Box() = default;
-
-    Box(int32_t batch_id, int32_t class_id, int32_t box_id, Rect rect, float score) {
-        this->batch_id = batch_id;
-        this->class_id = class_id;
-        this->box_id = box_id;
-        this->rect = rect;
-        this->score = score;
-    }
-
     int32_t batch_id;
     int32_t class_id;
     int32_t box_id;
@@ -199,28 +189,11 @@ void convert(fromT* src, toT* dst, size_t size) {
 // and shape [number of selected boxes, 3] containing information about scores for each selected box as triplets
 //    [batch_index, class_index, box_score].
 // 3: valid_outputs - 1D tensor with 1 element of type T_IND representing the total number of selected boxes.
-void NmsLayerTest::CompareBBoxes(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) {
-    InputTypes input_types;
-    InputShapeParams input_shape_params;
-    int max_out_boxes_per_class;
-    float iou_thr, score_thr, soft_nms_sigma;
-    op::v5::NonMaxSuppression::BoxEncodingType box_encoding;
-    bool sort_res_descend;
-    ov::element::Type out_type;
-    std::tie(input_shape_params,
-             input_types,
-             max_out_boxes_per_class,
-             iou_thr,
-             score_thr,
-             soft_nms_sigma,
-             box_encoding,
-             sort_res_descend,
-             out_type,
-             targetDevice) = this->GetParam();
-
-    size_t num_batches, num_boxes, num_classes;
-    std::tie(num_batches, num_boxes, num_classes) = input_shape_params;
-
+void CompareBBoxes(const std::vector<ov::Tensor>& expected,
+                   const std::vector<ov::Tensor>& actual,
+                   const ov::Tensor& input,
+                   size_t num_batches,
+                   size_t num_boxes) {
     auto iou_func = [](const Box& box_i, const Box& box_j) {
         const Rect& rect_i = box_i.rect;
         const Rect& rect_j = box_j.rect;
@@ -246,7 +219,6 @@ void NmsLayerTest::CompareBBoxes(const std::vector<ov::Tensor>& expected, const 
     // Get input bboxes' coords
     std::vector<std::vector<Rect>> coord_list(num_batches, std::vector<Rect>(num_boxes));
     {
-        const auto& input = inputs[function->get_parameters().at(0)];
         std::vector<double> buffer(input.get_size());
         if (input.get_element_type() == ov::element::f32) {
             convert(input.data<float>(), buffer.data(), input.get_size());
@@ -305,7 +277,7 @@ void NmsLayerTest::CompareBBoxes(const std::vector<ov::Tensor>& expected, const 
             if (batch_id == -1 || class_id == -1 || box_id == -1)
                 break;
 
-            expected_list.emplace_back(batch_id, class_id, box_id, coord_list[batch_id][box_id], score);
+            expected_list.push_back({batch_id, class_id, box_id, coord_list[batch_id][box_id], score});
         }
 
         std::sort(expected_list.begin(), expected_list.end(), compare_box);
@@ -341,7 +313,7 @@ void NmsLayerTest::CompareBBoxes(const std::vector<ov::Tensor>& expected, const 
             if (batch_id == -1 || class_id == -1 || box_id == -1)
                 break;
 
-            actual_list.emplace_back(batch_id, class_id, box_id, coord_list[batch_id][box_id], score);
+            actual_list.push_back({batch_id, class_id, box_id, coord_list[batch_id][box_id], score});
         }
         std::sort(actual_list.begin(), actual_list.end(), compare_box);
     }
