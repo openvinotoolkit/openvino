@@ -42,44 +42,98 @@ std::string get_type_name(napi_valuetype type) {
     }
 }
 
-struct Signature {
+struct NapiArgValidator {
     typedef std::function<void(const std::string& key, const Napi::Value&)> ValidatorType;
     std::vector<ValidatorType> attributes_validators;
 
-    void param(ValidatorType validator) {
+    bool validate(const Napi::CallbackInfo& info, std::vector<std::string>& error_messages) {
+        std::string validation_errors;
+
+        if (info.Length() != attributes_validators.size()) return false;
+
+        size_t index = 0;
+
+        for (const auto& validator : attributes_validators) {
+            try {
+                validator(std::to_string(index), info[index]);
+            } catch (std::runtime_error& err) {
+                validation_errors.append("\t" + std::string(err.what()) + "\n");
+            }
+
+            index++;
+        }
+
+        error_messages.push_back(validation_errors);
+
+        return validation_errors.empty();
+    }
+
+    void add_arg(ValidatorType validator) {
         attributes_validators.push_back(validator);
     }
 
-    static void boolean(const std::string key, const Napi::Value& value) {
-        return check_type(napi_boolean, key, value);
+    NapiArgValidator& add_boolean_arg() {
+        attributes_validators.push_back([](const std::string key, const Napi::Value& value) {
+            check_type(napi_boolean, key, value);
+        });
+
+        return *this;
     }
 
-    static void number(const std::string key, const Napi::Value& value) {
-        return check_type(napi_number, key, value);
+    NapiArgValidator& add_number_arg() {
+        attributes_validators.push_back([](const std::string key, const Napi::Value& value) {
+            check_type(napi_number, key, value);
+        });
+
+        return *this;
     }
 
-    static void string(const std::string key, const Napi::Value& value) {
-        return check_type(napi_string, key, value);
+    NapiArgValidator& add_string_arg() {
+        attributes_validators.push_back([](const std::string key, const Napi::Value& value) {
+            check_type(napi_string, key, value);
+        });
+
+        return *this;
     }
 
-    static void symbol(const std::string key, const Napi::Value& value) {
-        return check_type(napi_symbol, key, value);
+    NapiArgValidator& add_symbol_arg() {
+        attributes_validators.push_back([](const std::string key, const Napi::Value& value) {
+            check_type(napi_symbol, key, value);
+        });
+
+        return *this;
     }
 
-    static void object(const std::string key, const Napi::Value& value) {
-        return check_type(napi_object, key, value);
+    NapiArgValidator& add_object_arg() {
+        attributes_validators.push_back([](const std::string key, const Napi::Value& value) {
+            check_type(napi_object, key, value);
+        });
+
+        return *this;
     }
 
-    static void function(const std::string key, const Napi::Value& value) {
-        return check_type(napi_function, key, value);
+    NapiArgValidator& add_function_arg() {
+        attributes_validators.push_back([](const std::string key, const Napi::Value& value) {
+            check_type(napi_function, key, value);
+        });
+
+        return *this;
     }
 
-    static void bigint(const std::string key, const Napi::Value& value) {
-        return check_type(napi_bigint, key, value);
+    NapiArgValidator& add_bigint_arg() {
+        attributes_validators.push_back([](const std::string key, const Napi::Value& value) {
+            check_type(napi_bigint, key, value);
+        });
+
+        return *this;
     }
 
-    static void array(const std::string key, const Napi::Value& value) {
-        OPENVINO_ASSERT(value.IsArray(), create_error_message(key, "Array", value.Type()));
+    NapiArgValidator& add_array_arg() {
+        attributes_validators.push_back([](const std::string key, const Napi::Value& value) {
+            OPENVINO_ASSERT(value.IsArray(), create_error_message(key, "Array", value.Type()));
+        });
+
+        return *this;
     }
 
     static void check_type(const napi_valuetype expected_type, const std::string key, const Napi::Value& value) {
@@ -107,42 +161,3 @@ struct Signature {
         return "Argument #" + key + " has type '" + real + "', expected '" + expected + "'";
     }
 };
-
-std::pair<bool, const std::string> validate_args(const Napi::CallbackInfo& info,
-                                                 const std::function<void(Signature&)>& builder) {
-    Signature s = Signature();
-    std::string validation_errors;
-
-    builder(s);
-
-    if (info.Length() != s.attributes_validators.size())
-        return std::make_pair(false, validation_errors);
-
-    size_t index = 0;
-
-    for (const auto& validator : s.attributes_validators) {
-        try {
-            validator(std::to_string(index), info[index]);
-        } catch (std::runtime_error& err) {
-            validation_errors.append("\t" + std::string(err.what()) + "\n");
-        }
-
-        index++;
-    }
-
-    bool is_errors_empty = validation_errors.empty();
-
-    return std::make_pair(is_errors_empty, validation_errors);
-}
-
-std::function<bool(const Napi::CallbackInfo& info)> create_signature(const std::function<void(Signature&)>& builder,
-                                                                     std::vector<std::string>& error_messages) {
-    return [builder, &error_messages](const Napi::CallbackInfo& info) {
-        auto result = validate_args(info, builder);
-
-        if (!result.first)
-            error_messages.push_back(result.second);
-
-        return result.first;
-    };
-}

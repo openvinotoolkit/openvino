@@ -154,43 +154,31 @@ Napi::Value CoreWrap::compile_model_sync_dispatch(const Napi::CallbackInfo& info
     std::vector<std::string> errors_messages;
 
     // Allowed signatures list
-    auto path_and_device = create_signature(
-        [](Signature& s) {
-            s.param(&s.string);
-            s.param(&s.string);
-        },
-        errors_messages);
-    auto path_device_and_config = create_signature(
-        [](Signature& s) {
-            s.param(&s.string);
-            s.param(&s.string);
-            s.param(&s.object);
-        },
-        errors_messages);
-    auto model_and_device = create_signature(
-        [](Signature& s) {
-            s.param(&s.object);
-            s.param(&s.string);
-        },
-        errors_messages);
-    auto model_device_and_config = create_signature(
-        [](Signature& s) {
-            s.param(&s.object);
-            s.param(&s.string);
-            s.param(&s.object);
-        },
-        errors_messages);
+    auto path_and_device = NapiArgValidator()
+        .add_string_arg()
+        .add_string_arg();
+    auto path_device_and_config = NapiArgValidator()
+        .add_string_arg()
+        .add_string_arg()
+        .add_object_arg();
+    auto model_and_device = NapiArgValidator()
+        .add_object_arg()
+        .add_string_arg();
+    auto model_device_and_config = NapiArgValidator()
+        .add_object_arg()
+        .add_string_arg()
+        .add_object_arg();
 
     try {
-        if (path_and_device(info)) {
+        if (path_and_device.validate(info, errors_messages)) {
             return compile_model_sync(info, info[0].ToString(), info[1].ToString());
-        } else if (model_and_device(info)) {
+        } else if (model_and_device.validate(info, errors_messages)) {
             return compile_model_sync(info, info[0].ToObject(), info[1].ToString());
-        } else if (path_device_and_config(info)) {
+        } else if (path_device_and_config.validate(info, errors_messages)) {
             const auto& config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2, {napi_object});
 
             return compile_model_sync(info, info[0].ToString(), info[1].ToString(), config);
-        } else if (model_device_and_config(info)) {
+        } else if (model_device_and_config.validate(info, errors_messages)) {
             const auto& config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2, {napi_object});
 
             return compile_model_sync(info, info[0].ToObject(), info[1].ToString(), config);
