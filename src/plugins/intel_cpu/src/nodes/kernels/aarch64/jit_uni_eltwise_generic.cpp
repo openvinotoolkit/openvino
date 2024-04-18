@@ -34,7 +34,27 @@ template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_uni_eltwise_generic<isa>::generate() {
     preamble();
 
-    auto const exec_prc = eltwise_precision_helper::get_precision(jep_.inputs_number, jep_.src_prc, eltwise_data_);
+    const auto check_src_prc = [](
+            const ov::element::Type src_prc[MAX_ELTWISE_INPUTS],
+            const ov::element::Type& type) {
+        for (auto i = 0; i <= MAX_ELTWISE_INPUTS; ++i) {
+            if (src_prc[i] == ov::element::undefined) {
+                break;
+            }
+
+            if (src_prc[i] != type) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    auto const exec_prc =
+            (jep_.dst_prc != jep_.src_prc[0]) &&
+            (check_src_prc(jep_.src_prc, element::f16)) &&
+            (jep_.dst_prc == element::f32) ?
+                jep_.dst_prc :
+                eltwise_precision_helper::get_precision(jep_.inputs_number, jep_.src_prc, eltwise_data_);
 
     eltwise_emitter = create_eltwise_emitter(eltwise_data_.front(), exec_prc);
     for (size_t i = 1; i < eltwise_data_.size(); ++i) {
@@ -305,6 +325,11 @@ void jit_uni_eltwise_generic<isa>::load_vector(const TReg& data,
                                                const ov::element::Type& dst_prc,
                                                const bool broadcast,
                                                const int32_t ptr_offset) {
+    if ((src_prc == dst_prc) && (!broadcast)) {
+        jit_generator::uni_ldr(data, ptr_reg, ptr_offset);
+        return;
+    }
+
     switch (src_prc) {
         case ov::element::f16: {
             utils::load_vector(data.h, data.h4, ptr_reg, ptr_offset, broadcast, this);
@@ -474,6 +499,11 @@ void jit_uni_eltwise_generic<isa>::store_vector(const XReg& ptr,
         }
     }
 
+    if (src_prc == dst_prc) {
+        str(Xbyak_aarch64::QReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, ptr_offset));
+        return;
+    }
+
     switch (dst_prc) {
         case ov::element::f16: {
             str(Xbyak_aarch64::DReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, ptr_offset));
@@ -571,6 +601,7 @@ struct EltwiseEmitterContext {
 template<typename T>
 struct EltwiseEmitter {
     void operator()(EltwiseEmitterContext& ctx) {
+        std::cout << "emitter: " << ctx.exec_prc << " : " << typeid(T).name() << std::endl;
         ctx.emitter = std::make_shared<T>(ctx.host, ctx.host_isa, ctx.exec_prc);
     }
 };
@@ -578,6 +609,7 @@ struct EltwiseEmitter {
 template<>
 struct EltwiseEmitter<jit_swish_emitter> {
     void operator()(EltwiseEmitterContext& ctx) {
+        std::cout << "emitter: " << ctx.exec_prc << " : " << typeid(jit_swish_emitter).name() << std::endl;
         ctx.emitter = std::make_shared<jit_swish_emitter>(ctx.host,
                                                           ctx.host_isa,
                                                           ctx.opData.alpha,
@@ -588,6 +620,7 @@ struct EltwiseEmitter<jit_swish_emitter> {
 template<>
 struct EltwiseEmitter<jit_elu_emitter> {
     void operator()(EltwiseEmitterContext& ctx) {
+        std::cout << "emitter: " << ctx.exec_prc << " : " << typeid(jit_elu_emitter).name() << std::endl;
         ctx.emitter = std::make_shared<jit_elu_emitter>(ctx.host,
                                                           ctx.host_isa,
                                                           ctx.opData.alpha,
@@ -598,6 +631,7 @@ struct EltwiseEmitter<jit_elu_emitter> {
 template<>
 struct EltwiseEmitter<jit_clamp_emitter> {
     void operator()(EltwiseEmitterContext& ctx) {
+        std::cout << "emitter: " << ctx.exec_prc << " : " << typeid(jit_clamp_emitter).name() << std::endl;
         ctx.emitter = std::make_shared<jit_clamp_emitter>(ctx.host,
                                                           ctx.host_isa,
                                                           ctx.opData.alpha,
@@ -609,6 +643,7 @@ struct EltwiseEmitter<jit_clamp_emitter> {
 template<>
 struct EltwiseEmitter<jit_power_static_emitter> {
     void operator()(EltwiseEmitterContext& ctx) {
+        std::cout << "emitter: " << ctx.exec_prc << " : " << typeid(jit_power_static_emitter).name() << std::endl;
         ctx.emitter = std::make_shared<jit_power_static_emitter>(ctx.host,
                                                                  ctx.host_isa,
                                                                  ctx.opData.alpha,

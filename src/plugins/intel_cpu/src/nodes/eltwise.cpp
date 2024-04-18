@@ -2170,13 +2170,13 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
             ov::element::i16,
             ov::element::i32
         } : std::vector<ov::element::Type> {
+            ov::element::f16,
             ov::element::f32,
             ov::element::u8,
             ov::element::i8,
             ov::element::u16,
             ov::element::i16,
             ov::element::bf16,
-            ov::element::f16,
             ov::element::i32
         };
 
@@ -3049,6 +3049,11 @@ bool Eltwise::canFuse(const NodePtr& node) const {
     };
 
 #if defined (OPENVINO_ARCH_ARM64)
+    if (this->getOriginalOutputPrecisions().empty() || node->getOriginalOutputPrecisions().empty() ||
+        (this->getOriginalOutputPrecisionAtPort(0) != node->getOriginalOutputPrecisionAtPort(0))) {
+        return false;
+    }
+
     if (!mayiuse(dnnl::impl::cpu::aarch64::asimd) || (getInputShapeAtPort(0).getRank() > MAX_ELTWISE_DIM_RANK))
         return false;
 
