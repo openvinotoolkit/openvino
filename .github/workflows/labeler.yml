@@ -16,3 +16,27 @@ jobs:
         sync-labels: 'true'
         dot: 'true'
         non-matching-label: 'no-match-files'
+  
+  external_pr_labeller:
+    name: Label External PR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Labeller Script
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: '.github'
+
+      - name: Install deps
+        run: pip3 install PyGithub==2.2.0
+
+      - name: Dump GitHub context
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+        run: echo "$GITHUB_CONTEXT"
+
+      - name: Label External PR
+        env:
+          GITHUB_TOKEN: "${{ secrets.EXTERNAL_LABELLER_TOKEN }}"
+        run: |
+          python3 ${{ github.workspace }}/.github/scripts/external_pr_labeller.py \
+          --repository-name ${GITHUB_REPOSITORY} --pr-number ${{ github.event.number }}
