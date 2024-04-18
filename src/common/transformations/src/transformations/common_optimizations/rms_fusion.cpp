@@ -16,6 +16,7 @@
 #include "openvino/op/sqrt.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/pass/manager.hpp"
 
 namespace ov {
 namespace pass {
@@ -34,7 +35,7 @@ static std::function<bool(ov::Output<ov::Node>)> constant_value(const float targ
     };
 }
 
-RMSFusion::RMSFusion(uint64_t max_work_group_size) {
+RMSFusion::RMSFusion() {
     using namespace ov::pass::pattern;
 
     // Detect RMS decomposition pattern
@@ -82,7 +83,6 @@ RMSFusion::RMSFusion(uint64_t max_work_group_size) {
         }
 
         const auto& gamma_node = pattern_map.at(gamma).get_node_shared_ptr();
-        const auto& gamma_shape = gamma_node->get_output_partial_shape(0).to_shape();
 
         const auto& mean_node = pattern_map.at(mean).get_node_shared_ptr();
         const auto & axes = pattern_map.at(mean_axes).get_node_shared_ptr();
@@ -91,10 +91,11 @@ RMSFusion::RMSFusion(uint64_t max_work_group_size) {
         // allow last dimension only
         if ((axes_val[0] != -1) && (axes_val[0] != (static_cast<int64_t>(mean_node->get_input_partial_shape(0).size()) - 1)))
             return false;
-
-        const int32_t vec_size = 8;
-        if (static_cast<int32_t>((gamma_shape.back() / vec_size)) > static_cast<int32_t>(max_work_group_size))
+        
+        auto node = m.get_match_root();
+        if (transformation_callback(node)) {
             return false;
+        }
 
         auto output_type = m.get_match_root()->get_output_element_type(0);
 
