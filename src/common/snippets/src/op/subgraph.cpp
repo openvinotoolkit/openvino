@@ -486,18 +486,7 @@ snippets::Schedule Subgraph::generate_from_linear_ir(const std::shared_ptr<lower
         perf_count_pass.run(linear_ir, linear_ir.cbegin(), linear_ir.cend());
     }
 #endif
-#ifdef SNIPPETS_LIBXSMM_TPP
-    // Note: LIBXSMM_X86_HINT_USE_HIGH_PREC_ELTWISE_APPROX enables more accurate exp approximation and exact division in TPP
-    setenv("LIBXSMM_X86_HINT_USE_HIGH_PREC_ELTWISE_APPROX", "1", 1);
-    // Note: LIBXSMM_GEMM_K_A_PF_DIST allows to tweak prefetching.
-    setenv("LIBXSMM_GEMM_K_A_PF_DIST", "4", 1);
-#endif
     m_generator->generate(linear_ir, lowering_result, compile_params);
-#ifdef SNIPPETS_LIBXSMM_TPP
-    unsetenv("LIBXSMM_X86_HINT_USE_HIGH_PREC_ELTWISE_APPROX");
-    unsetenv("LIBXSMM_GEMM_K_A_PF_DIST");
-#endif
-
 
     VectorDims parallel_exec_domain = linear_ir.get_master_shape();
     const size_t loop_depth = linear_ir.get_config().m_loop_depth;
