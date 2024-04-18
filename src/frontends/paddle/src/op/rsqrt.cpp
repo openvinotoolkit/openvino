@@ -13,15 +13,9 @@ namespace op {
 NamedOutputs rsqrt(const NodeContext& node) {
     auto data = node.get_input("X");
 
-    // Calculate the square root of the input
-    auto sqrt = std::make_shared<default_opset::Power>(
-        data,
-        default_opset::Constant::create(data.get_element_type(), Shape{}, {0.5}));
-
-    // Take the reciprocal of the square root
     auto rsqrt = std::make_shared<default_opset::Power>(
-        sqrt,
-        default_opset::Constant::create(data.get_element_type(), Shape{}, {-1.0}));
+        data,
+        default_opset::Constant::create(data.get_element_type(), Shape{}, {-0.5}));
 
     return node.default_single_output_mapping({rsqrt}, {"Out"});
 }
