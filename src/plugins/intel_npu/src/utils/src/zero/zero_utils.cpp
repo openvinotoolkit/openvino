@@ -327,10 +327,10 @@ const std::string ze_result_to_description(const ze_result_t result) {
 }
 
 bool support_batching_on_plugin(const uint32_t driver_ext_version) {
-    // if (driver_ext_version > ZE_GRAPH_EXT_VERSION_1_5) {
+    if (driver_ext_version < ZE_GRAPH_EXT_VERSION_1_6) {
+        return false;
+    }
     return true;
-    // }
-    // return false;
 }
 
 }  // namespace intel_npu

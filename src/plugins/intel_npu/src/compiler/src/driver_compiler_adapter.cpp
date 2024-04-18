@@ -133,7 +133,10 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter() : _logger("LevelZeroCompile
 #if defined(NPU_PLUGIN_DEVELOPER_BUILD)
     auto adapterManualConfig = std::getenv("ADAPTER_MANUAL_CONFIG");
     if (adapterManualConfig != nullptr) {
-        if (strcmp(adapterManualConfig, "ZE_extension_graph_1_5") == 0) {
+        if (strcmp(adapterManualConfig, "ZE_extension_graph_1_6") == 0) {
+            _logger.info("With ADAPTER_MANUAL_CONFIG. Using ZE_GRAPH_EXT_VERSION_1_6");
+            targetVersion = ZE_GRAPH_EXT_VERSION_1_6;
+        } else if (strcmp(adapterManualConfig, "ZE_extension_graph_1_5") == 0) {
             _logger.info("With ADAPTER_MANUAL_CONFIG. Using ZE_GRAPH_EXT_VERSION_1_5");
             targetVersion = ZE_GRAPH_EXT_VERSION_1_5;
         } else if (strcmp(adapterManualConfig, "ZE_extension_graph_1_4") == 0) {
@@ -164,7 +167,8 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter() : _logger("LevelZeroCompile
         _logger.info("Using ZE_GRAPH_EXT_VERSION_1_2");
         apiAdapter =
             std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_2_t>>(graphExtName, _driverHandle);
-    } else if (strcmp(graphExtName, ZE_GRAPH_EXT_NAME_1_3) == 0) {
+    } else if (ZE_GRAPH_EXT_VERSION_1_3 == targetVersion) {
+        _logger.info("Using ZE_GRAPH_EXT_VERSION_1_3");
         apiAdapter =
             std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_3_t>>(graphExtName, _driverHandle);
     } else if (ZE_GRAPH_EXT_VERSION_1_4 == targetVersion) {
@@ -175,6 +179,10 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter() : _logger("LevelZeroCompile
         _logger.info("Using ZE_GRAPH_EXT_VERSION_1_5");
         apiAdapter =
             std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_5_t>>(graphExtName, _driverHandle);
+    } else if (ZE_GRAPH_EXT_VERSION_1_6 == targetVersion) {
+        _logger.info("Using ZE_GRAPH_EXT_VERSION_1_6");
+        apiAdapter =
+            std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_6_t>>(graphExtName, _driverHandle);
     } else {
         _logger.info("Using ZE_GRAPH_EXT_VERSION_1_0");
         apiAdapter = std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_t>>(graphExtName, _driverHandle);
