@@ -403,7 +403,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE", weights_dt, tile_k_ofm));
         const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
         // Do not use SCALE_POST_OP for SLM kernel, since it demonstrates worse performance
-        if (scale_group_size % simd == 0/* && !dispatchData.use_slm*/) {
+        if (scale_group_size % simd == 0 && !dispatchData.use_slm) {
             jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
             // std::cout << ">> FullyConnected_bf_tiled : DECOMPRESSION_SCALE_POST_OP ON" << std::endl;
         } else {

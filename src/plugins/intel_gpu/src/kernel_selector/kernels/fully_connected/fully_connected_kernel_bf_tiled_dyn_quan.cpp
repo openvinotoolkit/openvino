@@ -112,6 +112,12 @@ bool FullyConnected_bf_tiled_dyn_quan::Validate(const Params& params) const {
         return false;
     }
 
+    const size_t scale_group_size = fc_params.weights.IFM().v / fc_params.decompression_scale.Feature().v;
+    if (scale_group_size % simd != 0) {
+        // Scale post operations(DECOMPRESSION_SCALE_POST_OP) is not enabled : not proper for dynamic quantize
+        return false;
+    }
+
     return true;
 }
 
@@ -398,15 +404,8 @@ JitConstants FullyConnected_bf_tiled_dyn_quan::GetJitConstants(const fully_conne
         tile_k_ofm_packed /= 2;
 
         jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE", weights_dt, tile_k_ofm));
-        const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
-        // info : FILTER_IFM_NUM == 4096, DECOMPRESSION_SCALE_FEATURE_NUM == 128
-        // Do not use SCALE_POST_OP for SLM kernel, since it demonstrates worse performance
-        if (scale_group_size % simd == 0/* && !dispatchData.use_slm*/) {
-            jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
-            // std::cout << ">> FullyConnected_bf_tiled_dyn_quan : DECOMPRESSION_SCALE_POST_OP ON" << std::endl;
-        } else {
-            // std::cout << ">> FullyConnected_bf_tiled_dyn_quan : DECOMPRESSION_SCALE_POST_OP OFF" << std::endl;
-        }
+        // Dynamic quantize kernel requires DECOMPRESSION_SCALE_POST_OP for char type calculation
+        jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
     }
 
     if (dispatchData.use_slm) {

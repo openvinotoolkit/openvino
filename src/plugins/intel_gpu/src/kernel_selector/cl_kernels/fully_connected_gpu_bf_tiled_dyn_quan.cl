@@ -202,11 +202,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     int packed_in_0[TILE_B/2] = { }; // Packing char4 to int
 
 #if !USE_SLM
-    #if DECOMPRESSION_SCALE_POST_OP
-        DQ_FILTER_VEC_TYPE wei = 0;
-    #else
-        FILTER_VEC_TYPE wei = 0;
-    #endif
+    DQ_FILTER_VEC_TYPE wei = 0;
 #endif
 
     uint input_offset = out_b * TILE_IN_B_PITCH + INPUT0_OFFSET;
@@ -282,25 +278,15 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
         for (uint bi = 0; bi < TILE_B/2; ++bi) {
             tiled_input_0[bi] = vload4(0, &input[input_offset_tmp]);
 
-            // [TEMP]
-            // input_offset_tmp += TILE_IN_B_PITCH;
+            // Next batch
             input_offset_tmp += (TILE_IN_B_PITCH * 2);
         }
 
         // Load input.
-#if 0
-        #define LOAD_IN_0(bi) do {                                    \
-                in_0[bi] = INPUT_BLOCK_READ(input, input_offset);     \
-                input_offset += TILE_IN_B_PITCH;                      \
-            } while (false)
+        // input_offset += TILE_IN_B_PITCH * 8;
+        // input_offset += TILE_IFM * SIMD - TILE_IN_B_PITCH * TILE_B;
+        input_offset += TILE_IFM * SIMD;
 
-        CONST_LOOP(TILE_B, LOAD_IN_0);
-        #undef LOAD_IN_0
-#else
-        input_offset += TILE_IN_B_PITCH * 8;
-#endif
-
-        input_offset += TILE_IFM * SIMD - TILE_IN_B_PITCH * TILE_B;
         // NOTE: Manually unrolling multiplication loop leads to lower register pressure and allows for bigger block sizes,
         //       but significantly degrades readability and generality of code.
         //       It doesn't also show noticable performance improvement on tested configurations.
@@ -728,7 +714,6 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 
     // =====================================================================================================================================
     // Leftovers
-#if 0
 #if MAIN_LOOP_ELEMENTS_COUNT % (TILE_IFM * SIMD) != 0
     // Handle leftovers in normal case without alignment correction.
     #define LEFTOVER_IFM               (MAIN_LOOP_ELEMENTS_COUNT % (TILE_IFM * SIMD))
@@ -801,15 +786,12 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     }
     #undef LEFTOVER_IFM
 
-#endif // MAIN_LOOP_ELEMENTS_COUNT % (TILE_IFM * SIMD) != 0
 #endif
 
     // =====================================================================================================================================
     // Post-processing: bias, activation, fused-ops
-    const uint CURRENT_TILE_B = TILE_B;
-    // const uint CURRENT_TILE_B = TILE_B / 2;
-    ACTIVATION_VEC_TYPE activated[CURRENT_TILE_B] = { };
-    for (uint bi = 0; bi < CURRENT_TILE_B; ++bi) {
+    ACTIVATION_VEC_TYPE activated[TILE_B] = { };
+    for (uint bi = 0; bi < TILE_B; ++bi) {
         activated[bi] = TO_ACTIVATION_VEC_TYPE(acc[bi]);
     }
 
@@ -822,14 +804,14 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
             ((BIAS_TYPE*)(&bias))[fi] = biases[out_f + sglid + fi * SIMD];
         }
     #endif
-    unroll_for (uint bi = 0; bi < CURRENT_TILE_B; ++bi) {
+    unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
         activated[bi] += TO_ACTIVATION_VEC_TYPE(bias);
     }
 #endif
 
-    OUTPUT_VEC_TYPE result[CURRENT_TILE_B] = { };
+    OUTPUT_VEC_TYPE result[TILE_B] = { };
 #if HAS_FUSED_OPS
-    unroll_for (uint bi = 0; bi < CURRENT_TILE_B; ++bi) {
+    unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
     #if TILE_OFM > 1
         unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
             FUSED_OPS_VEC;
@@ -841,18 +823,14 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     #endif // TILE_OFM > 1
     }
 #else
-    unroll_for (uint bi = 0; bi < CURRENT_TILE_B; ++bi) {
+    unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
         result[bi] = TO_OUTPUT_VEC_TYPE(ACTIVATION_TYPED(activated[bi], ACTIVATION_PARAMS_TYPED));
     }
 #endif
 
     // =====================================================================================================================================
-    // Packing offset
-    // uint output_batch_sglid = (sglid * TILE_K / 32);   // 0 to 1 : to batch direction
-    // output_batch_sglid *= (TILE_OUT_B_PITCH * (TILE_B/2));
     // Write results
     uint output_offset = out_f * TILE_OUT_F_PITCH + out_b * TILE_OUT_B_PITCH + OUTPUT_OFFSET;
-    // uint output_offset = out_f * TILE_OUT_F_PITCH + out_b * TILE_OUT_B_PITCH + OUTPUT_OFFSET + output_batch_sglid;
 
     if (USE_BLOCK_WRITE && (TILE_OUT_F_NUM % (TILE_OFM * SIMD) == 0 || out_f + (TILE_OFM * SIMD) <= TILE_OUT_F_NUM)) {
 #if IS_DYNAMIC
@@ -871,27 +849,6 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
         #undef WRITE_OUTPUT
     } else {
         output_offset += sglid;
-
-        // TODO: Investigate why below code doesn't compile and check how it affects performance.
-        //#define WRITE_OUTPUT_FEATURE(fi) do {                                                   \
-        //        const bool should_write =                                                       \
-        //            TILE_OUT_F_NUM %  (TILE_OFM * SIMD) == 0 ||                                 \
-        //            out_f + (fi) * SIMD + sglid < TILE_OUT_F_NUM;                               \
-        //        if (should_write) {                                                             \
-        //            output[output_offset] = result[out_bi][fi];                                 \
-        //        }                                                                               \
-        //        output_offset += SIMD;                                                          \
-        //    } while (false)
-        //
-        //#define WRITE_OUTPUT(bi) do {                                                           \
-        //        const uint out_bi = bi;                                                         \
-        //        CONST_LOOP(TILE_OFM, WRITE_OUTPUT_FEATURE);                                     \
-        //        output_offset += TILE_OUT_B_PITCH - TILE_OFM * SIMD;                            \
-        //    } while (false)
-        //
-        //CONST_LOOP(TILE_B, WRITE_OUTPUT);
-        //#undef WRITE_OUTPUT
-        //#undef WRITE_OUTPUT_FEATURE
 
         for (uint bi = 0; bi < TILE_B; ++bi) {
             for (uint fi = 0; fi < TILE_OFM; ++fi) {
