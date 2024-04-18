@@ -45,7 +45,6 @@ Table of Contents
 * :doc:`CTCLoss <../operation-specs/sequence/ctc-loss-4>`
 * :doc:`Ceiling <../operation-specs/arithmetic/ceiling-1>`
 * :doc:`Clamp <../operation-specs/activation/clamp-1>`
-* :doc:`Col2Im <../operation-specs/movement/col-2-im-14>`
 * :doc:`Concat <../operation-specs/movement/concat-1>`
 * :doc:`Constant <../operation-specs/infrastructure/constant-1>`
 * :doc:`Convert <../operation-specs/type/convert-1>`

@@ -1,13 +1,13 @@
-.. {#openvino_docs_ops_type_Col2Im_14}
+.. {#openvino_docs_ops_type_Col2Im_15}
 
 Col2Im
 ===================
 
 
 .. meta::
-  :description: Learn about Col2Im-14 - data movement operation which combines sliding blocks into an image tensor.
+  :description: Learn about Col2Im-15 - data movement operation which combines sliding blocks into an image tensor.
 
-**Versioned name**: *Col2Im-14*
+**Versioned name**: *Col2Im-15*
 
 **Category**: *Data movement*
 
@@ -15,15 +15,15 @@ Col2Im
 
 **Detailed description**
 
-Consider an ``input`` tensor containing batches of image blocks of shape ``(N, C * ∏(kernel_size), L)``, where:
+Consider an ``input`` tensor containing batches of image blocks of shape ``(N, C * Product(kernel_size), L)``, where:
 
 * ``N`` is the batch dimension,
-* ``C * ∏(kernel_size)`` is the number of elements within a block (each block contains ``∏(kernel_size)`` vectors containing values from each channel ``C``),
+* ``C * Product(kernel_size)`` is the number of elements within a block (each block contains ``Product(kernel_size)`` vectors containing values from each channel ``C``),
 * ``L`` is the total number of blocks calculated as follows:
 
 .. math::
 
-    L = \prod_d \left\lfloor \frac{({\text{{output\_size}}[d] + \text{{pads\_begin}}[d] + \text{{pads\_end}}[d] - \text{{dilation}}[d] \times (\text{{kernel\_size}}[d] - 1) - 1}}{{\text{{stride}}[d]}}) \right + 1\rfloor
+    L = \prod_{d=1}^{2} \left\lfloor \frac{({\text{{output\_size}}[d] + \text{{pads\_begin}}[d] + \text{{pads\_end}}[d] - \text{{dilation}}[d] \times (\text{{kernel\_size}}[d] - 1) - 1}}{{\text{{stride}}[d]}}) + 1\rfloor
 
 
 where ``d`` is over all spatial dimensions.
@@ -80,7 +80,7 @@ The ``input`` blocks are being moved into the ``output`` tensor of shape ``(N, C
 
 **Inputs**
 
-* **1**: A 4D tensor of type *T* and shape ``(N, C * ∏(kernel_size), L)``. **Required.**
+* **1**: A 4D tensor of type *T* and shape ``(N, C * Product(kernel_size), L)``. **Required.**
 
 **Outputs**
 
@@ -105,7 +105,7 @@ All examples assume ``C = 3``.
         <input>
             <port id="0" precision="I32">
                 <dim>3</dim>     <!-- batch_axis -->
-                <dim>12</dim>    <!-- C * ∏(kernel_size) -->
+                <dim>12</dim>    <!-- C * Product(kernel_size) -->
                 <dim>225</dim>   <!-- L -->
             </port>
         </input>
@@ -130,7 +130,7 @@ All examples assume ``C = 3``.
         <input>
             <port id="0" precision="I32">
                 <dim>1</dim>     <!-- batch_axis -->
-                <dim>27/dim>     <!-- C * ∏(kernel_size) -->
+                <dim>27/dim>     <!-- C * Product(kernel_size) -->
                 <dim>25</dim>    <!-- L -->
             </port>
         </input>
@@ -154,7 +154,7 @@ All examples assume ``C = 3``.
         <input>
             <port id="0" precision="I32">
                 <dim>12</dim>    <!-- batch_axis -->
-                <dim>12/dim>     <!-- C * ∏(kernel_size) -->
+                <dim>12/dim>     <!-- C * Product(kernel_size) -->
                 <dim>1296</dim>  <!-- L -->
             </port>
         </input>

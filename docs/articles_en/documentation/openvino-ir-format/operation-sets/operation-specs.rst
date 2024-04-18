@@ -39,7 +39,6 @@ Operation Specifications
    CTCGreedyDecoderSeqLen-6 <operation-specs/sequence/ctc-greedy-decoder-seq-len-6>
    Ceiling-1 <operation-specs/arithmetic/ceiling-1>
    Clamp-1 <operation-specs/activation/clamp-1>
-   Col2Im <operation-specs/movement/col-2-im-14>
    Concat-1 <operation-specs/movement/concat-1>
    Constant-1 <operation-specs/infrastructure/constant-1>
    ConvertLike-1 <operation-specs/type/convert-like-1>
