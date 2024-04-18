@@ -11,6 +11,19 @@
 
 namespace ov {
 namespace intel_cpu {
+// Note: The macro allows to automatically set appropriate environment variables for TPP/Libxsmm kernel compilation
+// All TPP kernels must be compiled using this macro.
+// * LIBXSMM_X86_HINT_USE_HIGH_PREC_ELTWISE_APPROX enables more accurate exp approximation and exact division in TPP
+// * LIBXSMM_GEMM_K_A_PF_DIST allows to tweak prefetching for GEMM kernels
+#define COMPILE_TPP_KERNEL(...) \
+    [&]() { \
+        setenv("LIBXSMM_X86_HINT_USE_HIGH_PREC_ELTWISE_APPROX", "1", 1); \
+        setenv("LIBXSMM_GEMM_K_A_PF_DIST", "4", 1); \
+        auto res = reinterpret_cast<const uintptr_t>(__VA_ARGS__); \
+        unsetenv("LIBXSMM_X86_HINT_USE_HIGH_PREC_ELTWISE_APPROX"); \
+        unsetenv("LIBXSMM_GEMM_K_A_PF_DIST"); \
+        return res; \
+    }()
 class DebugTppEmitter;
 class TppEmitter : public jit_emitter {
     friend DebugTppEmitter;

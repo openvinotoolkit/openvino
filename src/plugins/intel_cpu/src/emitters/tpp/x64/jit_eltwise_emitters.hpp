@@ -35,9 +35,9 @@ public:
 
     static void execute_kernel(libxsmm_meltwfunction_unary eltwise_kernel, void *in0, void *out0);
     const uintptr_t get_compiled_kernel_ptr() const override {
-        return reinterpret_cast<const uintptr_t>(libxsmm_dispatch_meltw_unary(m_op_type,
-                                                                                 m_shape,
-                                                                                 m_compile_flags));
+        return COMPILE_TPP_KERNEL(libxsmm_dispatch_meltw_unary(m_op_type,
+                                                               m_shape,
+                                                               m_compile_flags));
     }
     const uintptr_t get_execute_function_ptr() const override { return reinterpret_cast<const uintptr_t>(execute_kernel); }
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);

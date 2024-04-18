@@ -670,19 +670,11 @@ void Snippet::SnippetJitExecutor::generate(const jit_snippets_compile_args* jcp)
     lowering_config->disable<ov::snippets::lowered::pass::OptimizeDomain>();
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::intel_cpu::pass::FuseLoadStoreConvert,
                                     ov::intel_cpu::tpp::pass::SetTPPLeadingDim);
-    // Note: LIBXSMM_X86_HINT_USE_HIGH_PREC_ELTWISE_APPROX enables more accurate exp approximation and exact division in TPP
-    setenv("LIBXSMM_X86_HINT_USE_HIGH_PREC_ELTWISE_APPROX", "1", 1);
-    // Note: LIBXSMM_GEMM_K_A_PF_DIST allows to tweak prefetching.
-    setenv("LIBXSMM_GEMM_K_A_PF_DIST", "4", 1);
 #endif
 
     schedule = snippetAttrs.snippet->generate_from_linear_ir(lowering_config,
                                                              backend_passes,
                                                              reinterpret_cast<const void*>(jcp));
-#ifdef SNIPPETS_LIBXSMM_TPP
-    unsetenv("LIBXSMM_X86_HINT_USE_HIGH_PREC_ELTWISE_APPROX");
-    unsetenv("LIBXSMM_GEMM_K_A_PF_DIST");
-#endif
 
 #undef SNIPPETS_REGISTER_PASS_RELATIVE
 }
