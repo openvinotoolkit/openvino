@@ -7,14 +7,8 @@
 #include "common_test_utils/type_prop.hpp"
 #include "dimension_util.hpp"
 
-namespace ov {
-namespace test {
-
 using namespace std;
-using ov::op::util::Variable;
-using ov::op::util::VariableInfo;
-using ov::op::v0::Parameter;
-using ov::op::v0::Result;
+using namespace ov;
 
 TEST(type_prop, read_value_deduce) {
     auto input = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 64, 64});
@@ -132,6 +126,3 @@ TEST(type_prop, DISABLED_read_value_labels_propagation_from_init_subgraph) {
     std::shared_ptr<ov::op::v6::ReadValue> read_value = std::make_shared<ov::op::v6::ReadValue>(input, variable);
     EXPECT_THAT(get_shape_labels(read_value->get_output_partial_shape(0)), testing::ElementsAre(10, 11, 12, 13));
 }
-
-}  // namespace test
-}  // namespace ov
