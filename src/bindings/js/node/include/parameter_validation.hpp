@@ -5,40 +5,54 @@
 
 #include <napi.h>
 
+namespace NapiTypename {
+    const std::string UNDEFINED_STR = "Undefined";
+    const std::string NULL_STR = "Null";
+    const std::string BOOLEAN_STR = "Boolean";
+    const std::string NUMBER_STR = "Number";
+    const std::string STIRNG_STR = "String";
+    const std::string SYMBOL_STR = "Symbol";
+    const std::string OBJECT_STR = "Object";
+    const std::string FUNCTION_STR = "Function";
+    const std::string EXTERNAL_STR = "External";
+    const std::string BIGINT_STR = "BigInt";
+    const std::string UNKNOWN_STR = "Unknown";
+}
+
 std::string get_type_name(napi_valuetype type) {
     switch (type) {
     case napi_undefined:
-        return "Undefined";
+        return NapiTypename::UNDEFINED_STR;
 
     case napi_null:
-        return "Null";
+        return NapiTypename::NULL_STR;
 
     case napi_boolean:
-        return "Boolean";
+        return NapiTypename::BOOLEAN_STR;
 
     case napi_number:
-        return "Number";
+        return NapiTypename::NUMBER_STR;
 
     case napi_string:
-        return "String";
+        return NapiTypename::STIRNG_STR;
 
     case napi_symbol:
-        return "Symbol";
+        return NapiTypename::SYMBOL_STR;
 
     case napi_object:
-        return "Object";
+        return NapiTypename::OBJECT_STR;
 
     case napi_function:
-        return "Function";
+        return NapiTypename::FUNCTION_STR;
 
     case napi_external:
-        return "External";
+        return NapiTypename::EXTERNAL_STR;
 
     case napi_bigint:
-        return "BigInt";
+        return NapiTypename::BIGINT_STR;
 
     default:
-        return "Unknown";
+        return NapiTypename::UNKNOWN_STR;
     }
 }
 
