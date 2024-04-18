@@ -107,6 +107,17 @@ jobs:
           # ref: 'master'
           ref: 3eeb2326e0d974f61a83f8e67d37e918ccfa1edd
 
+      - name: Setup apt cache
+        uses: ./openvino/.github/actions/cache
+        with:
+          save-always: true # TODO: for the 1st run only
+          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          cache-path: ${{ env.APT_CACHE_PATH }}
+          path: '/var/cache/apt/archives'
+          key: ${{ runner.os }}-${{ runner.arch }}-apt-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-apt
+
       #
       # Print system info
       #
@@ -635,9 +646,6 @@ jobs:
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
           ref: 'master'
 
-      #
-      # Dependencies
-      #
       - name: Setup apt cache
         uses: ./openvino/.github/actions/cache
         with:
@@ -648,6 +656,10 @@ jobs:
           key: ${{ runner.os }}-${{ runner.arch }}-apt-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-apt
+
+      #
+      # Dependencies
+      #
 
       - name: Install build dependencies
         run: |
