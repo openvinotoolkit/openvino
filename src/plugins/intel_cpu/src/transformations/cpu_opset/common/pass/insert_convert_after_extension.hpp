@@ -1,10 +1,10 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <openvino/pass/graph_rewrite.hpp>
+#include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov {
 namespace pass {
@@ -15,7 +15,7 @@ namespace pass {
 class InsertConvertAfterExtension: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("InsertConvertAfterExtension", "0");
-    InsertConvertAfterExtension();
+    InsertConvertAfterExtension(bool convert_output_precision = true);
 };
 
 }  // namespace pass
