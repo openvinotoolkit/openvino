@@ -188,6 +188,7 @@ Operation Specifications
    RNNSequence-5 <operation-specs/sequence/rnn-sequence-5>
    ROIAlign-3 <operation-specs/detection/roi-align-3>
    ROIAlign-9 <operation-specs/detection/roi-align-9>
+   ROIAlignRotated-14 <operation-specs/detection/roi-align-rotated-14>
    ROIPooling-1 <operation-specs/detection/roi-pooling-1>
    Roll-7 <operation-specs/movement/roll-7>
    Round-5 <operation-specs/arithmetic/round-5>
