@@ -78,44 +78,44 @@ vector in embedded space.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
+-  `Prerequisites <#prerequisites>`__
 
-   -  `Authentication <#Authentication>`__
+   -  `Authentication <#authentication>`__
 
 -  `DeepFloyd IF in Diffusers
-   library <#DeepFloyd-IF-in-Diffusers-library>`__
+   library <#deepfloyd-if-in-diffusers-library>`__
 -  `Convert models to OpenVINO Intermediate representation (IR)
-   format <#Convert-models-to-OpenVINO-Intermediate-representation-(IR)-format>`__
--  `1. Convert Text Encoder <#1.-Convert-Text-Encoder>`__
+   format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
+-  `1. Convert Text Encoder <#1--convert-text-encoder>`__
 -  `Convert the first Pixel Diffusion module’s
-   UNet <#Convert-the-first-Pixel-Diffusion-module's-UNet>`__
+   UNet <#convert-the-first-pixel-diffusion-modules-unet>`__
 -  `Convert the second pixel diffusion
-   module <#Convert-the-second-pixel-diffusion-module>`__
--  `Prepare Inference pipeline <#Prepare-Inference-pipeline>`__
+   module <#convert-the-second-pixel-diffusion-module>`__
+-  `Prepare Inference pipeline <#prepare-inference-pipeline>`__
 
-   -  `Select inference device <#Select-inference-device>`__
+   -  `Select inference device <#select-inference-device>`__
 
--  `Run Text-to-Image generation <#Run-Text-to-Image-generation>`__
+-  `Run Text-to-Image generation <#run-text-to-image-generation>`__
 
-   -  `Text Encoder inference <#Text-Encoder-inference>`__
+   -  `Text Encoder inference <#text-encoder-inference>`__
    -  `First Stage diffusion block
-      inference <#First-Stage-diffusion-block-inference>`__
+      inference <#first-stage-diffusion-block-inference>`__
    -  `Second Stage diffusion block
-      inference <#Second-Stage-diffusion-block-inference>`__
-   -  `Third Stage diffusion block <#Third-Stage-diffusion-block>`__
+      inference <#second-stage-diffusion-block-inference>`__
+   -  `Third Stage diffusion block <#third-stage-diffusion-block>`__
    -  `Upscale the generated image using a Super Resolution
-      network <#Upscale-the-generated-image-using-a-Super-Resolution-network>`__
+      network <#upscale-the-generated-image-using-a-super-resolution-network>`__
 
       -  `Download the Super Resolution model
-         weights <#Download-the-Super-Resolution-model-weights>`__
-      -  `Reshape the model’s inputs <#Reshape-the-model's-inputs>`__
+         weights <#download-the-super-resolution-model-weights>`__
+      -  `Reshape the model’s inputs <#reshape-the-models-inputs>`__
       -  `Prepare the input images and run the
-         model <#Prepare-the-input-images-and-run-the-model>`__
-      -  `Display the result <#Display-the-result>`__
+         model <#prepare-the-input-images-and-run-the-model>`__
+      -  `Display the result <#display-the-result>`__
 
 -  `Try out the converted pipeline with
-   Gradio <#Try-out-the-converted-pipeline-with-Gradio>`__
--  `Next steps <#Next-steps>`__
+   Gradio <#try-out-the-converted-pipeline-with-gradio>`__
+-  `Next steps <#next-steps>`__
 
    **NOTE**:
 
@@ -135,7 +135,7 @@ Table of contents:
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Install required packages.
 
@@ -223,7 +223,7 @@ Install required packages.
 Authentication
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 In order to access IF checkpoints, users need to provide an
 authentication token.
@@ -258,7 +258,7 @@ Uncheck the ``Add token as git credential?`` box.
 DeepFloyd IF in Diffusers library
 ---------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To work with IF by DeepFloyd Lab, we will use `Hugging Face Diffusers
 package <https://github.com/huggingface/diffusers>`__. Diffusers package
@@ -426,7 +426,7 @@ diffusion models. The code below demonstrates how to create a
 Convert models to OpenVINO Intermediate representation (IR) format
 ------------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Model conversion API enables direct conversion of PyTorch models. We
 will utilize the ``ov.convert_model`` method to acquire OpenVINO IR
@@ -447,7 +447,7 @@ Let us convert each part.
 1. Convert Text Encoder
 -----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The text encoder is responsible for converting the input prompt, such as
 “ultra close-up color photo portrait of rainbow owl with deer horns in
@@ -488,7 +488,7 @@ providing greater flexibility.
 Convert the first Pixel Diffusion module’s UNet
 -----------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 U-Net model gradually denoises latent image representation guided by
 text encoder hidden state.
@@ -549,7 +549,7 @@ resolution images.
 Convert the second pixel diffusion module
 -----------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The second Diffusion module in the cascade generates 256x256 pixel
 images.
@@ -590,7 +590,7 @@ encoded user prompt.
 Prepare Inference pipeline
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The original pipeline from the source repository will be reused in this
 example. In order to achieve this, adapter classes were created to
@@ -604,7 +604,7 @@ seamlessly into the pipeline.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -633,7 +633,7 @@ select device from dropdown list for running inference using OpenVINO
 Run Text-to-Image generation
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, we can set a text prompt for image generation and execute the
 inference pipeline. Optionally, you can also modify the random generator
@@ -643,7 +643,7 @@ be generated for the given prompt.
 Text Encoder inference
 ~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Inferring model in FP16 on GPU significantly increases performance and
 reduces required memory, but it may lead to lesser accuracy on some
@@ -732,7 +732,7 @@ remains comparable with full FP16.
 First Stage diffusion block inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -791,7 +791,7 @@ First Stage diffusion block inference
 Second Stage diffusion block inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -843,7 +843,7 @@ Second Stage diffusion block inference
 Third Stage diffusion block
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The final block, which upscales images to a higher resolution (1024x1024
 px), has not been released by DeepFloyd yet. Stay tuned!
@@ -851,7 +851,7 @@ px), has not been released by DeepFloyd yet. Stay tuned!
 Upscale the generated image using a Super Resolution network
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Though the third stage has not been officially released, we’ll employ
 the Super Resolution network from `Example
@@ -881,7 +881,7 @@ release!
 Download the Super Resolution model weights
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -910,7 +910,7 @@ Download the Super Resolution model weights
 Reshape the model’s inputs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We need to reshape the inputs for the model. This is necessary because
 the IR model was converted with a different target input resolution. The
@@ -926,7 +926,7 @@ Resolution model makes our target image size 1024x1024 pixel.
 Prepare the input images and run the model
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -943,7 +943,7 @@ Prepare the input images and run the model
 Display the result
 ^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -960,7 +960,7 @@ Display the result
 Try out the converted pipeline with Gradio
 ------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The demo app below is created using `Gradio
 package <https://www.gradio.app/docs/interface>`__
@@ -1053,7 +1053,7 @@ package <https://www.gradio.app/docs/interface>`__
 Next steps
 ----------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Open the `deep-floyd-if-optimize <deep-floyd-if-optimize.ipynb>`__
 notebook to quantize stage 1 and stage 2 U-Net models with the

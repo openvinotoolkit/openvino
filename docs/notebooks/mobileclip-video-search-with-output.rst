@@ -24,30 +24,30 @@ In this tutorial, we consider how to use MobileCLIP to implement a
 visual content search engine for finding relevant frames in video. ####
 Table of contents:
 
--  `Prerequisites <#Prerequisites>`__
--  `Select model <#Select-model>`__
--  `Run model inference <#Run-model-inference>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Select model <#select-model>`__
+-  `Run model inference <#run-model-inference>`__
 
-   -  `Prepare image gallery <#Prepare-image-gallery>`__
-   -  `Prepare model <#Prepare-model>`__
-   -  `Perform search <#Perform-search>`__
+   -  `Prepare image gallery <#prepare-image-gallery>`__
+   -  `Prepare model <#prepare-model>`__
+   -  `Perform search <#perform-search>`__
 
 -  `Convert Model to OpenVINO Intermediate Representation
-   format <#Convert-Model-to-OpenVINO-Intermediate-Representation-format>`__
--  `Run OpenVINO model inference <#Run-OpenVINO-model-inference>`__
+   format <#convert-model-to-openvino-intermediate-representation-format>`__
+-  `Run OpenVINO model inference <#run-openvino-model-inference>`__
 
    -  `Select device for image
-      encoder <#Select-device-for-image-encoder>`__
+      encoder <#select-device-for-image-encoder>`__
    -  `Select device for text
-      encoder <#Select-device-for-text-encoder>`__
-   -  `Perform search <#Perform-search>`__
+      encoder <#select-device-for-text-encoder>`__
+   -  `Perform search <#perform-search>`__
 
--  `Interactive Demo <#Interactive-Demo>`__
+-  `Interactive Demo <#interactive-demo>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__ ## Prerequisites
+ ## Prerequisites
 
 .. code:: ipython3
 
@@ -67,18 +67,142 @@ Prerequisites
 .. parsed-literal::
 
     remote: Enumerating objects: 45, done.[K
-    remote: Counting objects:   2% (1/45)[Kremote: Counting objects:   4% (2/45)[Kremote: Counting objects:   6% (3/45)[Kremote: Counting objects:   8% (4/45)[Kremote: Counting objects:  11% (5/45)[Kremote: Counting objects:  13% (6/45)[Kremote: Counting objects:  15% (7/45)[Kremote: Counting objects:  17% (8/45)[Kremote: Counting objects:  20% (9/45)[Kremote: Counting objects:  22% (10/45)[Kremote: Counting objects:  24% (11/45)[Kremote: Counting objects:  26% (12/45)[Kremote: Counting objects:  28% (13/45)[Kremote: Counting objects:  31% (14/45)[Kremote: Counting objects:  33% (15/45)[Kremote: Counting objects:  35% (16/45)[Kremote: Counting objects:  37% (17/45)[Kremote: Counting objects:  40% (18/45)[Kremote: Counting objects:  42% (19/45)[Kremote: Counting objects:  44% (20/45)[Kremote: Counting objects:  46% (21/45)[Kremote: Counting objects:  48% (22/45)[Kremote: Counting objects:  51% (23/45)[Kremote: Counting objects:  53% (24/45)[Kremote: Counting objects:  55% (25/45)[Kremote: Counting objects:  57% (26/45)[Kremote: Counting objects:  60% (27/45)[Kremote: Counting objects:  62% (28/45)[Kremote: Counting objects:  64% (29/45)[Kremote: Counting objects:  66% (30/45)[Kremote: Counting objects:  68% (31/45)[Kremote: Counting objects:  71% (32/45)[Kremote: Counting objects:  73% (33/45)[Kremote: Counting objects:  75% (34/45)[Kremote: Counting objects:  77% (35/45)[Kremote: Counting objects:  80% (36/45)[Kremote: Counting objects:  82% (37/45)[Kremote: Counting objects:  84% (38/45)[Kremote: Counting objects:  86% (39/45)[Kremote: Counting objects:  88% (40/45)[Kremote: Counting objects:  91% (41/45)[Kremote: Counting objects:  93% (42/45)[Kremote: Counting objects:  95% (43/45)[Kremote: Counting objects:  97% (44/45)[Kremote: Counting objects: 100% (45/45)[Kremote: Counting objects: 100% (45/45), done.[K
-    remote: Compressing objects:   2% (1/36)[Kremote: Compressing objects:   5% (2/36)[Kremote: Compressing objects:   8% (3/36)[Kremote: Compressing objects:  11% (4/36)[Kremote: Compressing objects:  13% (5/36)[Kremote: Compressing objects:  16% (6/36)[Kremote: Compressing objects:  19% (7/36)[Kremote: Compressing objects:  22% (8/36)[Kremote: Compressing objects:  25% (9/36)[Kremote: Compressing objects:  27% (10/36)[Kremote: Compressing objects:  30% (11/36)[Kremote: Compressing objects:  33% (12/36)[Kremote: Compressing objects:  36% (13/36)[Kremote: Compressing objects:  38% (14/36)[Kremote: Compressing objects:  41% (15/36)[Kremote: Compressing objects:  44% (16/36)[Kremote: Compressing objects:  47% (17/36)[Kremote: Compressing objects:  50% (18/36)[Kremote: Compressing objects:  52% (19/36)[Kremote: Compressing objects:  55% (20/36)[Kremote: Compressing objects:  58% (21/36)[Kremote: Compressing objects:  61% (22/36)[Kremote: Compressing objects:  63% (23/36)[Kremote: Compressing objects:  66% (24/36)[Kremote: Compressing objects:  69% (25/36)[Kremote: Compressing objects:  72% (26/36)[Kremote: Compressing objects:  75% (27/36)[Kremote: Compressing objects:  77% (28/36)[Kremote: Compressing objects:  80% (29/36)[Kremote: Compressing objects:  83% (30/36)[Kremote: Compressing objects:  86% (31/36)[Kremote: Compressing objects:  88% (32/36)[Kremote: Compressing objects:  91% (33/36)[Kremote: Compressing objects:  94% (34/36)[Kremote: Compressing objects:  97% (35/36)[Kremote: Compressing objects: 100% (36/36)[Kremote: Compressing objects: 100% (36/36), done.[K
-    Unpacking objects:   2% (1/45)Unpacking objects:   4% (2/45)Unpacking objects:   6% (3/45)Unpacking objects:   8% (4/45)Unpacking objects:  11% (5/45)Unpacking objects:  13% (6/45)
+    remote: Counting objects:   2% (1/45)[K
+remote: Counting objects:   4% (2/45)[K
+remote: Counting objects:   6% (3/45)[K
+remote: Counting objects:   8% (4/45)[K
+remote: Counting objects:  11% (5/45)[K
+remote: Counting objects:  13% (6/45)[K
+remote: Counting objects:  15% (7/45)[K
+remote: Counting objects:  17% (8/45)[K
+remote: Counting objects:  20% (9/45)[K
+remote: Counting objects:  22% (10/45)[K
+remote: Counting objects:  24% (11/45)[K
+remote: Counting objects:  26% (12/45)[K
+remote: Counting objects:  28% (13/45)[K
+remote: Counting objects:  31% (14/45)[K
+remote: Counting objects:  33% (15/45)[K
+remote: Counting objects:  35% (16/45)[K
+remote: Counting objects:  37% (17/45)[K
+remote: Counting objects:  40% (18/45)[K
+remote: Counting objects:  42% (19/45)[K
+remote: Counting objects:  44% (20/45)[K
+remote: Counting objects:  46% (21/45)[K
+remote: Counting objects:  48% (22/45)[K
+remote: Counting objects:  51% (23/45)[K
+remote: Counting objects:  53% (24/45)[K
+remote: Counting objects:  55% (25/45)[K
+remote: Counting objects:  57% (26/45)[K
+remote: Counting objects:  60% (27/45)[K
+remote: Counting objects:  62% (28/45)[K
+remote: Counting objects:  64% (29/45)[K
+remote: Counting objects:  66% (30/45)[K
+remote: Counting objects:  68% (31/45)[K
+remote: Counting objects:  71% (32/45)[K
+remote: Counting objects:  73% (33/45)[K
+remote: Counting objects:  75% (34/45)[K
+remote: Counting objects:  77% (35/45)[K
+remote: Counting objects:  80% (36/45)[K
+remote: Counting objects:  82% (37/45)[K
+remote: Counting objects:  84% (38/45)[K
+remote: Counting objects:  86% (39/45)[K
+remote: Counting objects:  88% (40/45)[K
+remote: Counting objects:  91% (41/45)[K
+remote: Counting objects:  93% (42/45)[K
+remote: Counting objects:  95% (43/45)[K
+remote: Counting objects:  97% (44/45)[K
+remote: Counting objects: 100% (45/45)[K
+remote: Counting objects: 100% (45/45), done.[K
+    remote: Compressing objects:   2% (1/36)[K
+remote: Compressing objects:   5% (2/36)[K
+remote: Compressing objects:   8% (3/36)[K
+remote: Compressing objects:  11% (4/36)[K
+remote: Compressing objects:  13% (5/36)[K
+remote: Compressing objects:  16% (6/36)[K
+remote: Compressing objects:  19% (7/36)[K
+remote: Compressing objects:  22% (8/36)[K
+remote: Compressing objects:  25% (9/36)[K
+remote: Compressing objects:  27% (10/36)[K
+remote: Compressing objects:  30% (11/36)[K
+remote: Compressing objects:  33% (12/36)[K
+remote: Compressing objects:  36% (13/36)[K
+remote: Compressing objects:  38% (14/36)[K
+remote: Compressing objects:  41% (15/36)[K
+remote: Compressing objects:  44% (16/36)[K
+remote: Compressing objects:  47% (17/36)[K
+remote: Compressing objects:  50% (18/36)[K
+remote: Compressing objects:  52% (19/36)[K
+remote: Compressing objects:  55% (20/36)[K
+remote: Compressing objects:  58% (21/36)[K
+remote: Compressing objects:  61% (22/36)[K
+remote: Compressing objects:  63% (23/36)[K
+remote: Compressing objects:  66% (24/36)[K
+remote: Compressing objects:  69% (25/36)[K
+remote: Compressing objects:  72% (26/36)[K
+remote: Compressing objects:  75% (27/36)[K
+remote: Compressing objects:  77% (28/36)[K
+remote: Compressing objects:  80% (29/36)[K
+remote: Compressing objects:  83% (30/36)[K
+remote: Compressing objects:  86% (31/36)[K
+remote: Compressing objects:  88% (32/36)[K
+remote: Compressing objects:  91% (33/36)[K
+remote: Compressing objects:  94% (34/36)[K
+remote: Compressing objects:  97% (35/36)[K
+remote: Compressing objects: 100% (36/36)[K
+remote: Compressing objects: 100% (36/36), done.[K
+    Unpacking objects:   2% (1/45)
+Unpacking objects:   4% (2/45)
+Unpacking objects:   6% (3/45)
+Unpacking objects:   8% (4/45)
+Unpacking objects:  11% (5/45)
+Unpacking objects:  13% (6/45)
 
 .. parsed-literal::
 
-    Unpacking objects:  15% (7/45)Unpacking objects:  17% (8/45)Unpacking objects:  20% (9/45)Unpacking objects:  22% (10/45)Unpacking objects:  24% (11/45)Unpacking objects:  26% (12/45)
+    Unpacking objects:  15% (7/45)
+Unpacking objects:  17% (8/45)
+Unpacking objects:  20% (9/45)
+Unpacking objects:  22% (10/45)
+Unpacking objects:  24% (11/45)
+Unpacking objects:  26% (12/45)
 
 .. parsed-literal::
 
     remote: Total 45 (delta 9), reused 44 (delta 8), pack-reused 0[K
-    Unpacking objects:  28% (13/45)Unpacking objects:  31% (14/45)Unpacking objects:  33% (15/45)Unpacking objects:  35% (16/45)Unpacking objects:  37% (17/45)Unpacking objects:  40% (18/45)Unpacking objects:  42% (19/45)Unpacking objects:  44% (20/45)Unpacking objects:  46% (21/45)Unpacking objects:  48% (22/45)Unpacking objects:  51% (23/45)Unpacking objects:  53% (24/45)Unpacking objects:  55% (25/45)Unpacking objects:  57% (26/45)Unpacking objects:  60% (27/45)Unpacking objects:  62% (28/45)Unpacking objects:  64% (29/45)Unpacking objects:  66% (30/45)Unpacking objects:  68% (31/45)Unpacking objects:  71% (32/45)Unpacking objects:  73% (33/45)Unpacking objects:  75% (34/45)Unpacking objects:  77% (35/45)Unpacking objects:  80% (36/45)Unpacking objects:  82% (37/45)Unpacking objects:  84% (38/45)Unpacking objects:  86% (39/45)Unpacking objects:  88% (40/45)Unpacking objects:  91% (41/45)Unpacking objects:  93% (42/45)Unpacking objects:  95% (43/45)Unpacking objects:  97% (44/45)Unpacking objects: 100% (45/45)Unpacking objects: 100% (45/45), 428.50 KiB | 3.04 MiB/s, done.
+    Unpacking objects:  28% (13/45)
+Unpacking objects:  31% (14/45)
+Unpacking objects:  33% (15/45)
+Unpacking objects:  35% (16/45)
+Unpacking objects:  37% (17/45)
+Unpacking objects:  40% (18/45)
+Unpacking objects:  42% (19/45)
+Unpacking objects:  44% (20/45)
+Unpacking objects:  46% (21/45)
+Unpacking objects:  48% (22/45)
+Unpacking objects:  51% (23/45)
+Unpacking objects:  53% (24/45)
+Unpacking objects:  55% (25/45)
+Unpacking objects:  57% (26/45)
+Unpacking objects:  60% (27/45)
+Unpacking objects:  62% (28/45)
+Unpacking objects:  64% (29/45)
+Unpacking objects:  66% (30/45)
+Unpacking objects:  68% (31/45)
+Unpacking objects:  71% (32/45)
+Unpacking objects:  73% (33/45)
+Unpacking objects:  75% (34/45)
+Unpacking objects:  77% (35/45)
+Unpacking objects:  80% (36/45)
+Unpacking objects:  82% (37/45)
+Unpacking objects:  84% (38/45)
+Unpacking objects:  86% (39/45)
+Unpacking objects:  88% (40/45)
+Unpacking objects:  91% (41/45)
+Unpacking objects:  93% (42/45)
+Unpacking objects:  95% (43/45)
+Unpacking objects:  97% (44/45)
+Unpacking objects: 100% (45/45)
+Unpacking objects: 100% (45/45), 428.50 KiB | 3.04 MiB/s, done.
 
 
 .. code:: ipython3
@@ -120,7 +244,7 @@ Prerequisites
 Select model
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For starting work, we should select model that will be used in our
 demonstration. By default, we will use the MobileCLIP model, but for
@@ -284,7 +408,7 @@ comparison purposes, you can select different models among:
 Run model inference
 -------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, let’s see model in action. We will try to find image, where some
 specific object is represented using embeddings. Embeddings are a
@@ -305,7 +429,7 @@ represent are.
 Prepare image gallery
 ~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -398,7 +522,7 @@ Prepare image gallery
 Prepare model
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The code bellow download model weights, create model class instance and
 preprocessing utilities
@@ -434,7 +558,7 @@ preprocessing utilities
 Perform search
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -478,7 +602,7 @@ Perform search
 Convert Model to OpenVINO Intermediate Representation format
 ------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For best results with OpenVINO, it is recommended to convert the model
 to OpenVINO IR format. OpenVINO supports PyTorch via Model conversion
@@ -553,12 +677,12 @@ be used separately. Let’s convert each part to OpenVINO.
 Run OpenVINO model inference
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select device for image encoder
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -592,7 +716,7 @@ Select device for image encoder
 Select device for text encoder
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -615,7 +739,7 @@ Select device for text encoder
 Perform search
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -649,7 +773,7 @@ Perform search
 Interactive Demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 In this part, you can try different supported by tutorial models in
 searching frames in the video by text query or image. Upload v
@@ -931,7 +1055,7 @@ searching frames in the video by text query or image. Upload v
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

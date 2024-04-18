@@ -56,34 +56,34 @@ purposes, use a representative dataset for quantizing the model.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Imports <#Imports>`__
--  `Settings <#Settings>`__
--  `Load PyTorch Model <#Load-PyTorch-Model>`__
--  `Download CT-scan Data <#Download-CT-scan-Data>`__
--  `Configuration <#Configuration>`__
+-  `Imports <#imports>`__
+-  `Settings <#settings>`__
+-  `Load PyTorch Model <#load-pytorch-model>`__
+-  `Download CT-scan Data <#download-ct-scan-data>`__
+-  `Configuration <#configuration>`__
 
-   -  `Dataset <#Dataset>`__
-   -  `Metric <#Metric>`__
+   -  `Dataset <#dataset>`__
+   -  `Metric <#metric>`__
 
--  `Quantization <#Quantization>`__
--  `Compare FP32 and INT8 Model <#Compare-FP32-and-INT8-Model>`__
+-  `Quantization <#quantization>`__
+-  `Compare FP32 and INT8 Model <#compare-fp32-and-int8-model>`__
 
-   -  `Compare File Size <#Compare-File-Size>`__
+   -  `Compare File Size <#compare-file-size>`__
    -  `Compare Metrics for the original model and the quantized model to
       be sure that there no
-      degradation. <#Compare-Metrics-for-the-original-model-and-the-quantized-model-to-be-sure-that-there-no-degradation.>`__
+      degradation. <#compare-metrics-for-the-original-model-and-the-quantized-model-to-be-sure-that-there-no-degradation->`__
    -  `Compare Performance of the FP32 IR Model and Quantized
-      Models <#Compare-Performance-of-the-FP32-IR-Model-and-Quantized-Models>`__
+      Models <#compare-performance-of-the-fp32-ir-model-and-quantized-models>`__
    -  `Visually Compare Inference
-      Results <#Visually-Compare-Inference-Results>`__
+      Results <#visually-compare-inference-results>`__
 
--  `Show Live Inference <#Show-Live-Inference>`__
+-  `Show Live Inference <#show-live-inference>`__
 
    -  `Load Model and List of Image
-      Files <#Load-Model-and-List-of-Image-Files>`__
-   -  `Show Inference <#Show-Inference>`__
+      Files <#load-model-and-list-of-image-files>`__
+   -  `Show Inference <#show-inference>`__
 
--  `References <#References>`__
+-  `References <#references>`__
 
 .. code:: ipython3
 
@@ -110,7 +110,7 @@ Table of contents:
 Imports
 -------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -168,7 +168,7 @@ Imports
 Settings
 --------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 By default, this notebook will download one CT scan from the KITS19
 dataset that will be used for quantization. To use the full dataset, set
@@ -186,7 +186,7 @@ dataset that will be used for quantization. To use the full dataset, set
 Load PyTorch Model
 ------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Download the pre-trained model weights, load the PyTorch model and the
 ``state_dict`` that was saved after training. The model used in this
@@ -234,7 +234,7 @@ notebook <pytorch-monai-training.ipynb>`__.
 Download CT-scan Data
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -260,12 +260,12 @@ Download CT-scan Data
 Configuration
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Dataset
 ~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The ``KitsDataset`` class in the next cell expects images and masks in
 the *``basedir``* directory, in a folder per patient. It is a simplified
@@ -273,7 +273,7 @@ version of the Dataset class in the `training
 notebook <pytorch-monai-training.ipynb>`__.
 
 Images are loaded with MONAI’s
-```LoadImage`` <https://docs.monai.io/en/stable/transforms.html#loadimage>`__,
+`LoadImage <https://docs.monai.io/en/stable/transforms.html#loadimage>`__,
 to align with the image loading method in the training notebook. This
 method rotates and flips the images. We define a ``rotate_and_flip``
 method to display the images in the expected orientation:
@@ -360,7 +360,7 @@ kidney pixels to verify that the annotations look correct:
 Metric
 ~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Define a metric to determine the performance of the model.
 
@@ -397,7 +397,7 @@ library.
 Quantization
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Before quantizing the model, we compute the F1 score on the ``FP32``
 model, for comparison:
@@ -565,12 +565,12 @@ repository for more information.
 Compare FP32 and INT8 Model
 ---------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Compare File Size
 ~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -590,7 +590,7 @@ Compare File Size
 Select Inference Device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -621,7 +621,7 @@ Select Inference Device
 Compare Metrics for the original model and the quantized model to be sure that there no degradation.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -641,7 +641,7 @@ Compare Metrics for the original model and the quantized model to be sure that t
 Compare Performance of the FP32 IR Model and Quantized Models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To measure the inference performance of the ``FP32`` and ``INT8``
 models, we use `Benchmark
@@ -847,7 +847,7 @@ be run in the notebook with ``! benchmark_app`` or
 Visually Compare Inference Results
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Visualize the results of the model on four slices of the validation set.
 Compare the results of the ``FP32`` IR model with the results of the
@@ -936,7 +936,7 @@ seed is displayed to enable reproducing specific runs of this cell.
 Show Live Inference
 -------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To show live inference on the model in the notebook, we will use the
 asynchronous processing feature of OpenVINO.
@@ -956,7 +956,7 @@ printed.
 Load Model and List of Image Files
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We load the segmentation model to OpenVINO Runtime with
 ``SegmentationModel``, based on the `Open Model
@@ -983,7 +983,7 @@ overlay of the segmentation mask on the original image/frame.
 Show Inference
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 In the next cell, we run the ``show_live_inference`` function, which
 loads the ``segmentation_model`` to the specified ``device`` (using
@@ -1016,7 +1016,7 @@ performs inference, and displays the results on the frames loaded in
 References
 ----------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 **OpenVINO** - `NNCF
 Repository <https://github.com/openvinotoolkit/nncf/>`__ - `Neural

@@ -48,41 +48,41 @@ A similar notebook focused on the throughput mode is available
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
--  `Data <#Data>`__
--  `Model <#Model>`__
--  `Hardware <#Hardware>`__
--  `Helper functions <#Helper-functions>`__
--  `Optimizations <#Optimizations>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Data <#data>`__
+-  `Model <#model>`__
+-  `Hardware <#hardware>`__
+-  `Helper functions <#helper-functions>`__
+-  `Optimizations <#optimizations>`__
 
-   -  `PyTorch model <#PyTorch-model>`__
-   -  `ONNX model <#ONNX-model>`__
-   -  `OpenVINO IR model <#OpenVINO-IR-model>`__
-   -  `OpenVINO IR model on GPU <#OpenVINO-IR-model-on-GPU>`__
+   -  `PyTorch model <#pytorch-model>`__
+   -  `ONNX model <#onnx-model>`__
+   -  `OpenVINO IR model <#openvino-ir-model>`__
+   -  `OpenVINO IR model on GPU <#openvino-ir-model-on-gpu>`__
    -  `OpenVINO IR model + more inference
-      threads <#OpenVINO-IR-model-+-more-inference-threads>`__
+      threads <#openvino-ir-model--more-inference-threads>`__
    -  `OpenVINO IR model in latency
-      mode <#OpenVINO-IR-model-in-latency-mode>`__
+      mode <#openvino-ir-model-in-latency-mode>`__
    -  `OpenVINO IR model in latency mode + shared
-      memory <#OpenVINO-IR-model-in-latency-mode-+-shared-memory>`__
-   -  `Other tricks <#Other-tricks>`__
+      memory <#openvino-ir-model-in-latency-mode--shared-memory>`__
+   -  `Other tricks <#other-tricks>`__
 
--  `Performance comparison <#Performance-comparison>`__
--  `Conclusions <#Conclusions>`__
+-  `Performance comparison <#performance-comparison>`__
+-  `Conclusions <#conclusions>`__
 
 .. |image0| image:: https://user-images.githubusercontent.com/4547501/229120774-01f4f972-424d-4280-8395-220dd432985a.png
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     import platform
-    
+
     %pip install -q "openvino>=2023.1.0" seaborn "ultralytics<=8.0.178" onnx opencv-python --extra-index-url https://download.pytorch.org/whl/cpu
-    
+
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
     else:
@@ -105,21 +105,21 @@ Prerequisites
     import time
     from pathlib import Path
     from typing import Any, List, Tuple
-    
+
     # Fetch `notebook_utils` module
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-    
+
     open("notebook_utils.py", "w").write(r.text)
     import notebook_utils as utils
 
 Data
 ----
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We will use the same image of the dog sitting on a bicycle for all
 experiments below. The image is resized and preprocessed to fulfill the
@@ -129,19 +129,19 @@ requirements of this particular object detection model.
 
     import numpy as np
     import cv2
-    
+
     IMAGE_WIDTH = 640
     IMAGE_HEIGHT = 480
-    
+
     # load image
     image = utils.load_image("https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bike.jpg")
     image = cv2.resize(image, dsize=(IMAGE_WIDTH, IMAGE_HEIGHT), interpolation=cv2.INTER_AREA)
-    
+
     # preprocess it for YOLOv5
     input_image = image / 255.0
     input_image = np.transpose(input_image, axes=(2, 0, 1))
     input_image = np.expand_dims(input_image, axis=0)
-    
+
     # show the image
     utils.show_array(image)
 
@@ -161,7 +161,7 @@ requirements of this particular object detection model.
 Model
 -----
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We decided to go with
 `YOLOv5n <https://github.com/ultralytics/yolov5>`__, one of the
@@ -172,13 +172,13 @@ PyTorch Hub and small enough to see the difference in performance.
 
     import torch
     from IPython.utils import io
-    
+
     # directory for all models
     base_model_dir = Path("model")
-    
+
     model_name = "yolov5n"
     model_path = base_model_dir / model_name
-    
+
     # load YOLOv5n from PyTorch Hub
     pytorch_model = torch.hub.load("ultralytics/yolov5", "custom", path=model_path, device="cpu", skip_validation=True)
     # don't print full model architecture
@@ -194,7 +194,7 @@ PyTorch Hub and small enough to see the difference in performance.
 .. parsed-literal::
 
     YOLOv5 🚀 2023-4-21 Python-3.8.10 torch-2.2.2+cpu CPU
-    
+
 
 
 .. parsed-literal::
@@ -209,29 +209,33 @@ PyTorch Hub and small enough to see the difference in performance.
 
 .. parsed-literal::
 
-      0%|          | 0.00/3.87M [00:00<?, ?B/s]
+
+  0%|          | 0.00/3.87M [00:00<?, ?B/s]
 
 .. parsed-literal::
 
-     12%|█▏        | 480k/3.87M [00:00<00:00, 4.89MB/s]
+
+ 12%|█▏        | 480k/3.87M [00:00<00:00, 4.89MB/s]
 
 .. parsed-literal::
 
-     81%|████████  | 3.14M/3.87M [00:00<00:00, 18.5MB/s]
+
+ 81%|████████  | 3.14M/3.87M [00:00<00:00, 18.5MB/s]
 
 .. parsed-literal::
 
-    100%|██████████| 3.87M/3.87M [00:00<00:00, 19.5MB/s]
+
+    100%|██████████| 3.87M/3.87M [00:00<00:00, 19.5MB/s]
+
+
+
+
+
+
 
 .. parsed-literal::
 
-    
-    
-
-
-.. parsed-literal::
-
-    Fusing layers... 
+    Fusing layers...
 
 
 .. parsed-literal::
@@ -241,13 +245,13 @@ PyTorch Hub and small enough to see the difference in performance.
 
 .. parsed-literal::
 
-    Adding AutoShape... 
+    Adding AutoShape...
 
 
 Hardware
 --------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The code below lists the available hardware we will use in the
 benchmarking process.
@@ -258,10 +262,10 @@ benchmarking process.
 .. code:: ipython3
 
     import openvino as ov
-    
+
     # initialize OpenVINO
     core = ov.Core()
-    
+
     # print available devices
     for device in core.available_devices:
         device_name = core.get_property(device, "FULL_DEVICE_NAME")
@@ -276,7 +280,7 @@ benchmarking process.
 Helper functions
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We’re defining a benchmark model function to use for all optimized
 models below. It runs inference 1000 times, averages the latency time,
@@ -285,8 +289,8 @@ and prints two measures: seconds per image and frames per second (FPS).
 .. code:: ipython3
 
     INFER_NUMBER = 1000
-    
-    
+
+
     def benchmark_model(model: Any, input_data: np.ndarray, benchmark_name: str, device_name: str = "CPU") -> float:
         """
         Helper function for benchmarking the model. It measures the time and prints results.
@@ -297,21 +301,21 @@ and prints two measures: seconds per image and frames per second (FPS).
         end = time.perf_counter()
         first_infer_time = end - start
         print(f"{benchmark_name} on {device_name}. First inference time: {first_infer_time :.4f} seconds")
-    
+
         # benchmarking
         start = time.perf_counter()
         for _ in range(INFER_NUMBER):
             model(input_data)
         end = time.perf_counter()
-    
+
         # elapsed time
         infer_time = end - start
-    
+
         # print second per image and FPS
         mean_infer_time = infer_time / INFER_NUMBER
         mean_fps = INFER_NUMBER / infer_time
         print(f"{benchmark_name} on {device_name}: {mean_infer_time :.4f} seconds per image ({mean_fps :.2f} FPS)")
-    
+
         return mean_infer_time
 
 The following functions aim to post-process results and draw boxes on
@@ -402,21 +406,21 @@ the image.
         "hair drier",
         "toothbrush",
     ]
-    
+
     # Colors for the classes above (Rainbow Color Map).
     colors = cv2.applyColorMap(
         src=np.arange(0, 255, 255 / len(classes), dtype=np.float32).astype(np.uint8),
         colormap=cv2.COLORMAP_RAINBOW,
     ).squeeze()
-    
-    
+
+
     def postprocess(detections: np.ndarray) -> List[Tuple]:
         """
         Postprocess the raw results from the model.
         """
         # candidates - probability > 0.25
         detections = detections[detections[..., 4] > 0.25]
-    
+
         boxes = []
         labels = []
         scores = []
@@ -428,20 +432,20 @@ the image.
             boxes.append(tuple(map(int, (xmin - ww // 2, ymin - hh // 2, ww, hh))))
             labels.append(int(label))
             scores.append(float(score))
-    
+
         # Apply non-maximum suppression to get rid of many overlapping entities.
         # See https://paperswithcode.com/method/non-maximum-suppression
         # This algorithm returns indices of objects to keep.
         indices = cv2.dnn.NMSBoxes(bboxes=boxes, scores=scores, score_threshold=0.25, nms_threshold=0.5)
-    
+
         # If there are no boxes.
         if len(indices) == 0:
             return []
-    
+
         # Filter detected objects.
         return [(labels[idx], scores[idx], boxes[idx]) for idx in indices.flatten()]
-    
-    
+
+
     def draw_boxes(img: np.ndarray, boxes):
         """
         Draw detected boxes on the image.
@@ -453,7 +457,7 @@ the image.
             x2 = box[0] + box[2]
             y2 = box[1] + box[3]
             cv2.rectangle(img=img, pt1=box[:2], pt2=(x2, y2), color=color, thickness=2)
-    
+
             # Draw a label name inside the box.
             cv2.putText(
                 img=img,
@@ -465,23 +469,23 @@ the image.
                 thickness=1,
                 lineType=cv2.LINE_AA,
             )
-    
-    
+
+
     def show_result(results: np.ndarray):
         """
         Postprocess the raw results, draw boxes and show the image.
         """
         output_img = image.copy()
-    
+
         detections = postprocess(results)
         draw_boxes(output_img, detections)
-    
+
         utils.show_array(output_img)
 
 Optimizations
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Below, we present the performance tricks for faster inference in the
 latency mode. We release resources after every benchmarking to be sure
@@ -490,7 +494,7 @@ the same amount of resource is available for every experiment.
 PyTorch model
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 First, we’re benchmarking the original PyTorch model without any
 optimizations applied. We will treat it as our baseline.
@@ -498,7 +502,7 @@ optimizations applied. We will treat it as our baseline.
 .. code:: ipython3
 
     import torch
-    
+
     with torch.no_grad():
         result = pytorch_model(torch.as_tensor(input_image)).detach().numpy()[0]
         show_result(result)
@@ -526,7 +530,7 @@ optimizations applied. We will treat it as our baseline.
 ONNX model
 ~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The first optimization is exporting the PyTorch model to ONNX and
 running it in OpenVINO. It’s possible, thanks to the ONNX frontend. It
@@ -536,12 +540,12 @@ Representation (IR) to leverage the OpenVINO Runtime.
 .. code:: ipython3
 
     onnx_path = base_model_dir / Path(f"{model_name}_{IMAGE_WIDTH}_{IMAGE_HEIGHT}").with_suffix(".onnx")
-    
+
     # export PyTorch model to ONNX if it doesn't already exist
     if not onnx_path.exists():
         dummy_input = torch.randn(1, 3, IMAGE_HEIGHT, IMAGE_WIDTH)
         torch.onnx.export(pytorch_model, dummy_input, onnx_path)
-    
+
     # load and compile in OpenVINO
     onnx_model = core.read_model(onnx_path)
     onnx_model = core.compile_model(onnx_model, device_name="CPU")
@@ -560,7 +564,7 @@ Representation (IR) to leverage the OpenVINO Runtime.
     result = onnx_model(input_image)[onnx_model.output(0)][0]
     show_result(result)
     onnx_infer_time = benchmark_model(model=onnx_model, input_data=input_image, benchmark_name="ONNX model")
-    
+
     del onnx_model  # release resources
 
 
@@ -581,7 +585,7 @@ Representation (IR) to leverage the OpenVINO Runtime.
 OpenVINO IR model
 ~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Let’s convert the ONNX model to OpenVINO Intermediate Representation
 (IR) FP16 and run it. Reducing the precision is one of the well-known
@@ -596,13 +600,13 @@ accuracy drop. That’s why we skip that step in this notebook.
     ov_model = ov.convert_model(onnx_path)
     # save the model on disk
     ov.save_model(ov_model, str(onnx_path.with_suffix(".xml")))
-    
+
     ov_cpu_model = core.compile_model(ov_model, device_name="CPU")
-    
+
     result = ov_cpu_model(input_image)[ov_cpu_model.output(0)][0]
     show_result(result)
     ov_cpu_infer_time = benchmark_model(model=ov_cpu_model, input_data=input_image, benchmark_name="OpenVINO model")
-    
+
     del ov_cpu_model  # release resources
 
 
@@ -623,7 +627,7 @@ accuracy drop. That’s why we skip that step in this notebook.
 OpenVINO IR model on GPU
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Usually, a GPU device is faster than a CPU, so let’s run the above model
 on the GPU. Please note you need to have an Intel GPU and `install
@@ -639,7 +643,7 @@ execution.
     ov_gpu_infer_time = 0.0
     if "GPU" in core.available_devices:
         ov_gpu_model = core.compile_model(ov_model, device_name="GPU")
-    
+
         result = ov_gpu_model(input_image)[ov_gpu_model.output(0)][0]
         show_result(result)
         ov_gpu_infer_time = benchmark_model(
@@ -648,13 +652,13 @@ execution.
             benchmark_name="OpenVINO model",
             device_name="GPU",
         )
-    
+
         del ov_gpu_model  # release resources
 
 OpenVINO IR model + more inference threads
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 There is a possibility to add a config for any device (CPU in this
 case). We will increase the number of threads to an equal number of our
@@ -667,9 +671,9 @@ If it is the case, don’t use it.
 .. code:: ipython3
 
     num_cores = os.cpu_count()
-    
+
     ov_cpu_config_model = core.compile_model(ov_model, device_name="CPU", config={"INFERENCE_NUM_THREADS": num_cores})
-    
+
     result = ov_cpu_config_model(input_image)[ov_cpu_config_model.output(0)][0]
     show_result(result)
     ov_cpu_config_infer_time = benchmark_model(
@@ -677,7 +681,7 @@ If it is the case, don’t use it.
         input_data=input_image,
         benchmark_name="OpenVINO model + more threads",
     )
-    
+
     del ov_cpu_config_model  # release resources
 
 
@@ -698,7 +702,7 @@ If it is the case, don’t use it.
 OpenVINO IR model in latency mode
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 OpenVINO offers a virtual device called
 `AUTO <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/auto-device-selection.html>`__,
@@ -711,7 +715,7 @@ devices as well.
 .. code:: ipython3
 
     ov_auto_model = core.compile_model(ov_model, device_name="AUTO", config={"PERFORMANCE_HINT": "LATENCY"})
-    
+
     result = ov_auto_model(input_image)[ov_auto_model.output(0)][0]
     show_result(result)
     ov_auto_infer_time = benchmark_model(
@@ -739,7 +743,7 @@ devices as well.
 OpenVINO IR model in latency mode + shared memory
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 OpenVINO is a C++ toolkit with Python wrappers (API). The default
 behavior in the Python API is copying the input to the additional buffer
@@ -754,7 +758,7 @@ performance!
     # it must be assigned to a variable, not to be garbage collected
     c_input_image = np.ascontiguousarray(input_image, dtype=np.float32)
     input_tensor = ov.Tensor(c_input_image, shared_memory=True)
-    
+
     result = ov_auto_model(input_tensor)[ov_auto_model.output(0)][0]
     show_result(result)
     ov_auto_shared_infer_time = benchmark_model(
@@ -763,7 +767,7 @@ performance!
         benchmark_name="OpenVINO model + shared memory",
         device_name="AUTO",
     )
-    
+
     del ov_auto_model  # release resources
 
 
@@ -784,7 +788,7 @@ performance!
 Other tricks
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 There are other tricks for performance improvement, such as quantization
 and pre-post-processing or dedicated to throughput mode. To get even
@@ -795,7 +799,7 @@ more from your model, please visit
 Performance comparison
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The following graphical comparison is valid for the selected model and
 hardware simultaneously. If you cannot see any improvement between some
@@ -808,7 +812,7 @@ steps, just skip them.
 .. code:: ipython3
 
     from matplotlib import pyplot as plt
-    
+
     labels = [
         "PyTorch model",
         "ONNX model",
@@ -833,15 +837,15 @@ steps, just skip them.
             ],
         )
     )
-    
+
     bar_colors = colors[::10] / 255.0
-    
+
     fig, ax = plt.subplots(figsize=(16, 8))
     ax.bar(labels, times, color=bar_colors)
-    
+
     ax.set_ylabel("Inference time [ms]")
     ax.set_title("Performance difference")
-    
+
     plt.xticks(rotation="vertical")
     plt.show()
 
@@ -853,7 +857,7 @@ steps, just skip them.
 Conclusions
 -----------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We already showed the steps needed to improve the performance of an
 object detection model. Even if you experience much better performance

@@ -25,26 +25,26 @@ and `paper <https://arxiv.org/abs/2312.16886>`__.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Install requirements <#Install-requirements>`__
--  `Clone MobileVLM repository <#Clone-MobileVLM-repository>`__
--  `Import required packages <#Import-required-packages>`__
--  `Load the model <#Load-the-model>`__
+-  `Install requirements <#install-requirements>`__
+-  `Clone MobileVLM repository <#clone-mobilevlm-repository>`__
+-  `Import required packages <#import-required-packages>`__
+-  `Load the model <#load-the-model>`__
 -  `Convert model to OpenVINO Intermediate Representation
-   (IR) <#Convert-model-to-OpenVINO-Intermediate-Representation-(IR)>`__
--  `Inference <#Inference>`__
+   (IR) <#convert-model-to-openvino-intermediate-representation-ir>`__
+-  `Inference <#inference>`__
 
-   -  `Load OpenVINO model <#Load-OpenVINO-model>`__
-   -  `Prepare input data <#Prepare-input-data>`__
-   -  `Run generation process <#Run-generation-process>`__
+   -  `Load OpenVINO model <#load-openvino-model>`__
+   -  `Prepare input data <#prepare-input-data>`__
+   -  `Run generation process <#run-generation-process>`__
 
--  `Interactive inference <#Interactive-inference>`__
+-  `Interactive inference <#interactive-inference>`__
 
 .. |image0| image:: https://github.com/Meituan-AutoML/MobileVLM/raw/main/assets/mobilevlm_arch.png
 
 Install requirements
 --------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -78,7 +78,7 @@ Install requirements
 Clone MobileVLM repository
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -93,7 +93,7 @@ Clone MobileVLM repository
 Import required packages
 ------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -166,7 +166,7 @@ Import required packages
 Load the model
 --------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To load the model, we use pre-defined ``load_pretrained_model`` function
 in ``mobilevlm`` module. It returns the model itself, tokenizer, and
@@ -190,7 +190,7 @@ image processor to convert images to appropriate tensors.
 Convert model to OpenVINO Intermediate Representation (IR)
 ----------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -524,7 +524,7 @@ compression instead of INT8 weight compression.
 Inference
 ---------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 ``OVMobileLlamaForCausalLM`` class provides ease-to-use interface for
 using model in generation scenario. It is based on
@@ -650,7 +650,7 @@ Select device from dropdown list for running inference using OpenVINO.
 Load OpenVINO model
 ~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -659,7 +659,7 @@ Load OpenVINO model
 Prepare input data
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -697,7 +697,7 @@ Prepare input data
 Run generation process
 ~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -732,7 +732,7 @@ Run generation process
 Interactive inference
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -797,7 +797,7 @@ Interactive inference
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

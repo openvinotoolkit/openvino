@@ -2,7 +2,7 @@ Semantic segmentation with LRASPP MobileNet v3 and OpenVINO
 ===========================================================
 
 The
-```torchvision.models`` <https://pytorch.org/vision/stable/models.html>`__
+`torchvision.models <https://pytorch.org/vision/stable/models.html>`__
 subpackage contains definitions of models for addressing different
 tasks, including: image classification, pixelwise semantic segmentation,
 object detection, instance segmentation, person keypoint detection,
@@ -25,25 +25,25 @@ documentation <https://pytorch.org/vision/main/models/lraspp.html>`__
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites) <#Prerequisites>`__
--  `Get a test image <#Get-a-test-image>`__
--  `Download and prepare a model <#Download-and-prepare-a-model>`__
+-  `Prerequisites) <#prerequisites>`__
+-  `Get a test image <#get-a-test-image>`__
+-  `Download and prepare a model <#download-and-prepare-a-model>`__
 -  `Define a preprocessing and prepare an input
-   data <#Define-a-preprocessing-and-prepare-an-input-data>`__
+   data <#define-a-preprocessing-and-prepare-an-input-data>`__
 -  `Run an inference on the PyTorch
-   model) <#Run-an-inference-on-the-PyTorch-model>`__
+   model) <#run-an-inference-on-the-pytorch-model>`__
 -  `Convert the original model to OpenVINO IR
-   Format <#Convert-the-original-model-to-OpenVINO-IR-Format>`__
+   Format <#convert-the-original-model-to-openvino-ir-format>`__
 -  `Run an inference on the OpenVINO
-   model) <#Run-an-inference-on-the-OpenVINO-model>`__
--  `Show results <#Show-results>`__
+   model) <#run-an-inference-on-the-openvino-model>`__
+-  `Show results <#show-results>`__
 -  `Show results for the OpenVINO IR
-   model) <#Show-results-for-the-OpenVINO-IR-model>`__
+   model) <#show-results-for-the-openvino-ir-model>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -99,7 +99,7 @@ Prerequisites
 Get a test image
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 First of all lets get a test image from an open dataset.
 
@@ -130,7 +130,7 @@ First of all lets get a test image from an open dataset.
 Download and prepare a model
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Define width and height of the image that will be used by the network
 during inference. According to the input transforms function, the model
@@ -183,7 +183,7 @@ but there is only one for this model.
 Define a preprocessing and prepare an input data
 ------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 You can use ``torchvision.transforms`` to make a preprocessing or
 use\ `preprocessing transforms from the model
@@ -203,7 +203,7 @@ wight <https://pytorch.org/vision/stable/models.html#using-the-pre-trained-model
 Run an inference on the PyTorch model
 -------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -214,7 +214,7 @@ Run an inference on the PyTorch model
 Convert the original model to OpenVINO IR Format
 ------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To convert the original model to OpenVINO IR with ``FP16`` precision,
 use model conversion API. The models are saved inside the current
@@ -237,7 +237,7 @@ directory. For more information on how to convert models, see this
 Run an inference on the OpenVINO model
 --------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select device from dropdown list for running inference using OpenVINO
 
@@ -277,7 +277,7 @@ Run an inference
 Show results
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Confirm that the segmentation results look as expected by comparing
 model predictions on the OpenVINO IR and PyTorch models.
@@ -376,7 +376,7 @@ And now we can plot a boolean mask on top of the original image.
 Show results for the OpenVINO IR model
 --------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 

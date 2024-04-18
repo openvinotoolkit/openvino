@@ -32,19 +32,19 @@ scan to use for inference.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Imports <#Imports>`__
--  `Settings <#Settings>`__
--  `Benchmark Model Performance <#Benchmark-Model-Performance>`__
--  `Download and Prepare Data <#Download-and-Prepare-Data>`__
--  `Show Live Inference <#Show-Live-Inference>`__
+-  `Imports <#imports>`__
+-  `Settings <#settings>`__
+-  `Benchmark Model Performance <#benchmark-model-performance>`__
+-  `Download and Prepare Data <#download-and-prepare-data>`__
+-  `Show Live Inference <#show-live-inference>`__
 
    -  `Load Model and List of Image
-      Files <#Load-Model-and-List-of-Image-Files>`__
-   -  `Prepare images <#Prepare-images>`__
-   -  `Specify device <#Specify-device>`__
-   -  `Setting callback function <#Setting-callback-function>`__
+      Files <#load-model-and-list-of-image-files>`__
+   -  `Prepare images <#prepare-images>`__
+   -  `Specify device <#specify-device>`__
+   -  `Setting callback function <#setting-callback-function>`__
    -  `Create asynchronous inference queue and perform
-      it <#Create-asynchronous-inference-queue-and-perform-it>`__
+      it <#create-asynchronous-inference-queue-and-perform-it>`__
 
 .. code:: ipython3
 
@@ -59,7 +59,7 @@ Table of contents:
 Imports
 -------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -96,7 +96,7 @@ Imports
 Settings
 --------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To use the pre-trained models, set ``IR_PATH`` to
 ``"pretrained_model/unet44.xml"`` and ``COMPRESSED_MODEL_PATH`` to
@@ -136,7 +136,7 @@ trained or optimized yourself, adjust the model paths.
 Benchmark Model Performance
 ---------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__ To measure the inference
+ To measure the inference
 performance of the IR model, use `Benchmark
 Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
 - an inference performance measurement tool in OpenVINO. Benchmark tool
@@ -278,7 +278,7 @@ is a command-line application that can be run in the notebook with
 Download and Prepare Data
 -------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Download one validation video for live inference.
 
@@ -325,7 +325,7 @@ downloaded and extracted in the next cell.
 Show Live Inference
 -------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To show live inference on the model in the notebook, use the
 asynchronous processing feature of OpenVINO Runtime.
@@ -339,7 +339,7 @@ Caching, refer to the `OpenVINO API
 tutorial <openvino-api-with-output.html>`__.
 
 We will use
-```AsyncInferQueue`` <https://docs.openvino.ai/2024/openvino-workflow/running-inference/integrate-openvino-with-your-application/python-api-exclusives.html#asyncinferqueue>`__
+`AsyncInferQueue <https://docs.openvino.ai/2024/openvino-workflow/running-inference/integrate-openvino-with-your-application/python-api-exclusives.html#asyncinferqueue>`__
 to perform asynchronous inference. It can be instantiated with compiled
 model and a number of jobs - parallel execution threads. If you don’t
 pass a number of jobs or pass ``0``, then OpenVINO will pick the optimal
@@ -358,7 +358,7 @@ Everything else will be handled by the ``AsyncInferQueue`` instance.
 Load Model and List of Image Files
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Load the segmentation model to OpenVINO Runtime with
 ``SegmentationModel``, based on the Model API from `Open Model
@@ -385,7 +385,7 @@ to see the implementation.
 Prepare images
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Use the ``reader = LoadImage()`` function to read the images in the same
 way as in the
@@ -408,7 +408,7 @@ tutorial.
 Specify device
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -426,7 +426,7 @@ Specify device
 Setting callback function
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 When ``callback`` is set, any job that ends the inference, calls the
 Python function. The ``callback`` function must have two arguments: one
@@ -466,7 +466,7 @@ The ``callback`` function will show the results of inference.
 Create asynchronous inference queue and perform it
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 

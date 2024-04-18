@@ -29,28 +29,28 @@ Segmentation <https://arxiv.org/abs/2105.05633>`__ or in the
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Get and prepare PyTorch model <#Get-and-prepare-PyTorch-model>`__
+-  `Get and prepare PyTorch model <#get-and-prepare-pytorch-model>`__
 
-   -  `Prerequisites <#Prerequisites>`__
-   -  `Loading PyTorch model <#Loading-PyTorch-model>`__
+   -  `Prerequisites <#prerequisites>`__
+   -  `Loading PyTorch model <#loading-pytorch-model>`__
 
 -  `Preparing preprocessing and visualization
-   functions <#Preparing-preprocessing-and-visualization-functions>`__
+   functions <#preparing-preprocessing-and-visualization-functions>`__
 
-   -  `Preprocessing <#Preprocessing>`__
-   -  `Visualization <#Visualization>`__
+   -  `Preprocessing <#preprocessing>`__
+   -  `Visualization <#visualization>`__
 
 -  `Validation of inference of original
-   model <#Validation-of-inference-of-original-model>`__
+   model <#validation-of-inference-of-original-model>`__
 -  `Convert PyTorch model to OpenVINO Intermediate Representation
-   (IR) <#Convert-PyTorch-model-to-OpenVINO-Intermediate-Representation-(IR)>`__
+   (IR) <#convert-pytorch-model-to-openvino-intermediate-representation-ir>`__
 -  `Verify converted model
-   inference <#Verify-converted-model-inference>`__
+   inference <#verify-converted-model-inference>`__
 
-   -  `Select inference device <#Select-inference-device>`__
+   -  `Select inference device <#select-inference-device>`__
 
 -  `Benchmarking performance of converted
-   model <#Benchmarking-performance-of-converted-model>`__
+   model <#benchmarking-performance-of-converted-model>`__
 
 .. |Segmenter diagram| image:: https://github.com/openvinotoolkit/openvino_notebooks/assets/93932510/f57979e7-fd3b-449f-bf01-afe0f965abbc
 
@@ -67,7 +67,7 @@ notebook consists of the following steps:
 Get and prepare PyTorch model
 -----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The first thing we’ll need to do is clone
 `repository <https://github.com/rstrudel/segmenter>`__ containing model
@@ -84,7 +84,7 @@ weights (checkpoint) file and add some additional helper functions.
 Prerequisites
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -109,7 +109,29 @@ Prerequisites
 .. parsed-literal::
 
     remote: Enumerating objects: 268, done.[K
-    Receiving objects:   0% (1/268)Receiving objects:   1% (3/268)Receiving objects:   2% (6/268)Receiving objects:   3% (9/268)Receiving objects:   4% (11/268)Receiving objects:   5% (14/268)Receiving objects:   6% (17/268)Receiving objects:   7% (19/268)Receiving objects:   8% (22/268)Receiving objects:   9% (25/268)Receiving objects:  10% (27/268)Receiving objects:  11% (30/268)Receiving objects:  12% (33/268)Receiving objects:  13% (35/268)Receiving objects:  14% (38/268)Receiving objects:  15% (41/268)Receiving objects:  16% (43/268)Receiving objects:  17% (46/268)Receiving objects:  18% (49/268)Receiving objects:  19% (51/268)Receiving objects:  20% (54/268)Receiving objects:  21% (57/268)Receiving objects:  22% (59/268)
+    Receiving objects:   0% (1/268)
+Receiving objects:   1% (3/268)
+Receiving objects:   2% (6/268)
+Receiving objects:   3% (9/268)
+Receiving objects:   4% (11/268)
+Receiving objects:   5% (14/268)
+Receiving objects:   6% (17/268)
+Receiving objects:   7% (19/268)
+Receiving objects:   8% (22/268)
+Receiving objects:   9% (25/268)
+Receiving objects:  10% (27/268)
+Receiving objects:  11% (30/268)
+Receiving objects:  12% (33/268)
+Receiving objects:  13% (35/268)
+Receiving objects:  14% (38/268)
+Receiving objects:  15% (41/268)
+Receiving objects:  16% (43/268)
+Receiving objects:  17% (46/268)
+Receiving objects:  18% (49/268)
+Receiving objects:  19% (51/268)
+Receiving objects:  20% (54/268)
+Receiving objects:  21% (57/268)
+Receiving objects:  22% (59/268)
 
 .. parsed-literal::
 
@@ -125,13 +147,108 @@ Prerequisites
 
 .. parsed-literal::
 
-    Receiving objects:  26% (70/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  27% (73/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  28% (76/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  29% (78/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  30% (81/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  31% (84/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  32% (86/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  33% (89/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  34% (92/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  35% (94/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  36% (97/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  37% (100/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  38% (102/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  39% (105/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  40% (108/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  41% (110/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  42% (113/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  43% (116/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  44% (118/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  45% (121/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  46% (124/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  47% (126/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  48% (129/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  49% (132/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  50% (134/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  51% (137/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  52% (140/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  53% (143/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  54% (145/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  55% (148/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  56% (151/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  57% (153/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  58% (156/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  59% (159/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  60% (161/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  61% (164/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  62% (167/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  63% (169/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  64% (172/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  65% (175/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  66% (177/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  67% (180/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  68% (183/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  69% (185/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  70% (188/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  71% (191/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  72% (193/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  73% (196/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  74% (199/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  75% (201/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  76% (204/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  77% (207/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  78% (210/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  79% (212/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  80% (215/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  81% (218/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  82% (220/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  83% (223/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  84% (226/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  85% (228/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  86% (231/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  87% (234/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  88% (236/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  89% (239/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  90% (242/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  91% (244/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  92% (247/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  93% (250/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  94% (252/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  95% (255/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  96% (258/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  97% (260/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  98% (263/268), 5.86 MiB | 11.28 MiB/sReceiving objects:  99% (266/268), 5.86 MiB | 11.28 MiB/s
+    Receiving objects:  26% (70/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  27% (73/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  28% (76/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  29% (78/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  30% (81/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  31% (84/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  32% (86/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  33% (89/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  34% (92/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  35% (94/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  36% (97/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  37% (100/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  38% (102/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  39% (105/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  40% (108/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  41% (110/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  42% (113/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  43% (116/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  44% (118/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  45% (121/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  46% (124/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  47% (126/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  48% (129/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  49% (132/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  50% (134/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  51% (137/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  52% (140/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  53% (143/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  54% (145/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  55% (148/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  56% (151/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  57% (153/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  58% (156/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  59% (159/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  60% (161/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  61% (164/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  62% (167/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  63% (169/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  64% (172/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  65% (175/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  66% (177/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  67% (180/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  68% (183/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  69% (185/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  70% (188/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  71% (191/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  72% (193/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  73% (196/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  74% (199/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  75% (201/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  76% (204/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  77% (207/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  78% (210/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  79% (212/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  80% (215/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  81% (218/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  82% (220/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  83% (223/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  84% (226/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  85% (228/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  86% (231/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  87% (234/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  88% (236/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  89% (239/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  90% (242/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  91% (244/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  92% (247/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  93% (250/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  94% (252/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  95% (255/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  96% (258/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  97% (260/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  98% (263/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects:  99% (266/268), 5.86 MiB | 11.28 MiB/s
 
 .. parsed-literal::
 
     remote: Total 268 (delta 0), reused 0 (delta 0), pack-reused 268[K
-    Receiving objects: 100% (268/268), 5.86 MiB | 11.28 MiB/sReceiving objects: 100% (268/268), 15.34 MiB | 21.23 MiB/s, done.
-    Resolving deltas:   0% (0/117)Resolving deltas:   1% (2/117)Resolving deltas:   2% (3/117)Resolving deltas:   5% (6/117)Resolving deltas:   7% (9/117)Resolving deltas:   8% (10/117)Resolving deltas:   9% (11/117)Resolving deltas:  10% (12/117)Resolving deltas:  11% (13/117)Resolving deltas:  13% (16/117)Resolving deltas:  14% (17/117)Resolving deltas:  27% (32/117)Resolving deltas:  30% (36/117)Resolving deltas:  56% (66/117)Resolving deltas:  58% (69/117)Resolving deltas:  59% (70/117)Resolving deltas:  73% (86/117)Resolving deltas:  76% (90/117)Resolving deltas:  78% (92/117)Resolving deltas:  81% (95/117)Resolving deltas: 100% (117/117)Resolving deltas: 100% (117/117), done.
+    Receiving objects: 100% (268/268), 5.86 MiB | 11.28 MiB/s
+Receiving objects: 100% (268/268), 15.34 MiB | 21.23 MiB/s, done.
+    Resolving deltas:   0% (0/117)
+Resolving deltas:   1% (2/117)
+Resolving deltas:   2% (3/117)
+Resolving deltas:   5% (6/117)
+Resolving deltas:   7% (9/117)
+Resolving deltas:   8% (10/117)
+Resolving deltas:   9% (11/117)
+Resolving deltas:  10% (12/117)
+Resolving deltas:  11% (13/117)
+Resolving deltas:  13% (16/117)
+Resolving deltas:  14% (17/117)
+Resolving deltas:  27% (32/117)
+Resolving deltas:  30% (36/117)
+Resolving deltas:  56% (66/117)
+Resolving deltas:  58% (69/117)
+Resolving deltas:  59% (70/117)
+Resolving deltas:  73% (86/117)
+Resolving deltas:  76% (90/117)
+Resolving deltas:  78% (92/117)
+Resolving deltas:  81% (95/117)
+Resolving deltas: 100% (117/117)
+Resolving deltas: 100% (117/117), done.
 
 
 .. code:: ipython3
@@ -317,10 +434,10 @@ config for our model.
 Loading PyTorch model
 ~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 PyTorch models are usually an instance of
-```torch.nn.Module`` <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
+`torch.nn.Module <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
 class, initialized by a state dictionary containing model weights.
 Typical steps to get the model are therefore:
 
@@ -361,7 +478,7 @@ Load normalization settings from config file.
 Preparing preprocessing and visualization functions
 ---------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now we will define utility functions for preprocessing and visualizing
 the results.
@@ -369,7 +486,7 @@ the results.
 Preprocessing
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Inference input is tensor with shape ``[1, 3, H, W]`` in ``B, C, H, W``
 format, where:
@@ -416,7 +533,7 @@ normalized with given mean and standard deviation provided in
 Visualization
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Inference output contains labels assigned to each pixel, so the output
 in our case is ``[150, H, W]`` in ``CL, H, W`` format where:
@@ -462,7 +579,7 @@ corresponding to the inferred labels.
 Validation of inference of original model
 -----------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now that we have everything ready, we can perform segmentation on
 example image ``coco_hollywood.jpg``.
@@ -518,7 +635,7 @@ larger models, but it already shows nice segmentation performance.
 Convert PyTorch model to OpenVINO Intermediate Representation (IR)
 ------------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now that we’ve verified that the inference of PyTorch model works, we
 will convert it to OpenVINO IR format.
@@ -588,7 +705,7 @@ they are not a problem.
 Verify converted model inference
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To test that model was successfully converted, we can use same inference
 function from original repository, but we need to make custom class.
@@ -658,7 +775,7 @@ inference function.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -723,7 +840,7 @@ As we can see, we get the same results as with original model.
 Benchmarking performance of converted model
 -------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Finally, use the OpenVINO `Benchmark
 Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__

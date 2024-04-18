@@ -29,19 +29,19 @@ different styles, actions, and contexts.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Install Prerequisites <#Install-Prerequisites>`__
+-  `Install Prerequisites <#install-prerequisites>`__
 -  `Convert models to OpenVINO Intermediate representation (IR)
-   format <#Convert-models-to-OpenVINO-Intermediate-representation-(IR)-format>`__
+   format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
 
-   -  `Convert text_encoder <#Convert-text_encoder>`__
-   -  `The Object Transform <#The-Object-Transform>`__
-   -  `The Image Encoder <#The-Image-Encoder>`__
-   -  `Postfuse module <#Postfuse-module>`__
-   -  `Convert Unet <#Convert-Unet>`__
+   -  `Convert text_encoder <#convert-text_encoder>`__
+   -  `The Object Transform <#the-object-transform>`__
+   -  `The Image Encoder <#the-image-encoder>`__
+   -  `Postfuse module <#postfuse-module>`__
+   -  `Convert Unet <#convert-unet>`__
 
--  `Rebuild pipeline <#Rebuild-pipeline>`__
--  `Inference <#Inference>`__
--  `Run Gradio <#Run-Gradio>`__
+-  `Rebuild pipeline <#rebuild-pipeline>`__
+-  `Inference <#inference>`__
+-  `Run Gradio <#run-gradio>`__
 
 .. container:: alert alert-block alert-warning
 
@@ -52,7 +52,7 @@ Table of contents:
 Install Prerequisites
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__ Install required packages.
+ Install required packages.
 
 .. code:: ipython3
 
@@ -101,7 +101,7 @@ Download pretrained model.
 Convert models to OpenVINO Intermediate representation (IR) format
 ------------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Define a configuration and make instance of ``FastComposerModel``.
 
@@ -173,7 +173,7 @@ So, convert the models into OpenVINO IR format.
 Convert text_encoder
 ~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Model components are PyTorch modules, that can be converted with
 ``ov.convert_model`` function directly. We also use ``ov.save_model``
@@ -239,7 +239,7 @@ padded to the maximum length accepted by the model.
 The Object Transform
 ~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 It pads an incoming user image to square and resize it. An input is a
 tensor of size [3, height, width].
@@ -289,7 +289,7 @@ tensor of size [3, height, width].
 The Image Encoder
 ~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The image encoder is a CLIP (Contrastive Language-Image Pretraining)
 Image Encoder. It takes a transformed image from the previous step as
@@ -316,7 +316,7 @@ input and transforms it into a high-dimensional vector or embeddings.
 Postfuse module
 ~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 On this step it is employed a multilayer perceptron (MLP) to augment the
 text embeddings with visual features extracted from the reference
@@ -344,7 +344,7 @@ MLP.
 Convert Unet
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 U-Net model gradually denoises latent image representation guided by
 text encoder hidden state.
@@ -397,7 +397,7 @@ text encoder hidden state.
 Rebuild pipeline
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Also, it needs to modify some internal FastComposer entities, to use
 OpenVINO models. First of all, how to get results. For example, to
@@ -992,7 +992,7 @@ And replace all model in the pipeline by converted models.
 Inference
 ---------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 And now it is possible to make inference. You can provide 1 or 2 images
 (``image1`` and ``image2``). If you want to provide only one image pass
@@ -1058,7 +1058,7 @@ to display them.
 Run Gradio
 ----------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Also, it is possible to run with Gradio
 

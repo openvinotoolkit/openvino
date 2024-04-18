@@ -71,55 +71,55 @@ IR model representation *via* another format.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Imports <#Imports>`__
--  `Loading models and checkpoints <#Loading-models-and-checkpoints>`__
+-  `Imports <#imports>`__
+-  `Loading models and checkpoints <#loading-models-and-checkpoints>`__
 
    -  `Cleaning up the model
-      directory <#Cleaning-up-the-model-directory>`__
-   -  `Transformation of models <#Transformation-of-models>`__
+      directory <#cleaning-up-the-model-directory>`__
+   -  `Transformation of models <#transformation-of-models>`__
 
-      -  `Dummy input creation <#Dummy-input-creation>`__
+      -  `Dummy input creation <#dummy-input-creation>`__
       -  `Conversion of depth model to OpenVINO IR
-         format <#Conversion-of-depth-model-to-OpenVINO-IR-format>`__
+         format <#conversion-of-depth-model-to-openvino-ir-format>`__
 
-         -  `Select inference device <#Select-inference-device>`__
-         -  `Compilation of depth model <#Compilation-of-depth-model>`__
+         -  `Select inference device <#select-inference-device>`__
+         -  `Compilation of depth model <#compilation-of-depth-model>`__
          -  `Computation of scale and shift
-            parameters <#Computation-of-scale-and-shift-parameters>`__
+            parameters <#computation-of-scale-and-shift-parameters>`__
 
       -  `Conversion of Scale Map Learner model to OpenVINO IR
-         format <#Conversion-of-Scale-Map-Learner-model-to-OpenVINO-IR-format>`__
+         format <#conversion-of-scale-map-learner-model-to-openvino-ir-format>`__
 
-         -  `Select inference device <#Select-inference-device>`__
+         -  `Select inference device <#select-inference-device>`__
          -  `Compilation of the ScaleMapLearner(SML)
-            model <#Compilation-of-the-ScaleMapLearner(SML)-model>`__
+            model <#compilation-of-the-scalemaplearnersml-model>`__
 
       -  `Storing and visualizing dummy results
-         obtained <#Storing-and-visualizing-dummy-results-obtained>`__
+         obtained <#storing-and-visualizing-dummy-results-obtained>`__
 
    -  `Running inference on a test
-      image <#Running-inference-on-a-test-image>`__
+      image <#running-inference-on-a-test-image>`__
    -  `Store and visualize Inference
-      results <#Store-and-visualize-Inference-results>`__
+      results <#store-and-visualize-inference-results>`__
 
       -  `Cleaning up the data
-         directory <#Cleaning-up-the-data-directory>`__
+         directory <#cleaning-up-the-data-directory>`__
 
-   -  `Concluding notes <#Concluding-notes>`__
+   -  `Concluding notes <#concluding-notes>`__
 
 Imports
 ~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     import platform
-    
+
     # Download the correct version of the PyTorch deep learning library associated with image models
     # alongside the lightning module
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "openvino>=2024.0.0" torch torchvision  "pytorch-lightning" "timm>=0.6.12" tqdm
-    
+
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
     else:
@@ -148,17 +148,17 @@ Imports
     from pathlib import Path
     from shutil import rmtree
     from typing import Optional, Tuple
-    
+
     # Fetch `notebook_utils` module
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-    
+
     open("notebook_utils.py", "w").write(r.text)
     from notebook_utils import download_file
-    
+
     sys.path.append("vi_depth_utils")
     import data_loader
     import modules.midas.transforms as transforms
@@ -175,7 +175,7 @@ Imports
 Loading models and checkpoints
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The complete pipeline here requires only two models: one for depth
 estimation and a ScaleMapLearner model which is responsible for
@@ -192,26 +192,23 @@ link address”. We shall use this link in the next cell to download the
 ScaleMapLearner model. *Interestingly*, the ScaleMapLearner decides the
 depth prediction model as you will see.
 
-================
-===============================================================================================================================
-===============================================================================================================================
-================================================================================================================================
-Depth Predictor  SML on VOID 150                                                                                                                 SML on VOID 500                                                                                                                 SML on VOID 1500
-================
-===============================================================================================================================
-===============================================================================================================================
-================================================================================================================================
-DPT-BEiT-Large   `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_beit_large_512.nsamples.150.ckpt>`__  `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_beit_large_512.nsamples.500.ckpt>`__  `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_beit_large_512.nsamples.1500.ckpt>`__
-DPT-SwinV2-Large `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_swin2_large_384.nsamples.150.ckpt>`__ `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_swin2_large_384.nsamples.500.ckpt>`__ `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_swin2_large_384.nsamples.1500.ckpt>`__
-DPT-Large        `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_large.nsamples.150.ckpt>`__           `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_large.nsamples.500.ckpt>`__           `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_large.nsamples.1500.ckpt>`__
-DPT-Hybrid       `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_hybrid.nsamples.150.ckpt>`__\ \*      `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_hybrid.nsamples.500.ckpt>`__          `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_hybrid.nsamples.1500.ckpt>`__
-DPT-SwinV2-Tiny  `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_swin2_tiny_256.nsamples.150.ckpt>`__  `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_swin2_tiny_256.nsamples.500.ckpt>`__  `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_swin2_tiny_256.nsamples.1500.ckpt>`__
-DPT-LeViT        `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_levit_224.nsamples.150.ckpt>`__       `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_levit_224.nsamples.500.ckpt>`__       `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_levit_224.nsamples.1500.ckpt>`__
-MiDaS-small      `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.midas_small.nsamples.150.ckpt>`__         `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.midas_small.nsamples.500.ckpt>`__         `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.midas_small.nsamples.1500.ckpt>`__
-================
-===============================================================================================================================
-===============================================================================================================================
-================================================================================================================================
++------------------+---------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| Depth Predictor  | SML on VOID 150                                                                                                                 | SML on VOID 500                                                                                                                 | SML on VOID 1500                                                                                                                 |
++==================+=================================================================================================================================+=================================================================================================================================+==================================================================================================================================+
+| DPT-BEiT-Large   | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_beit_large_512.nsamples.150.ckpt>`__  | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_beit_large_512.nsamples.500.ckpt>`__  | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_beit_large_512.nsamples.1500.ckpt>`__  |
++------------------+---------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| DPT-SwinV2-Large | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_swin2_large_384.nsamples.150.ckpt>`__ | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_swin2_large_384.nsamples.500.ckpt>`__ | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_swin2_large_384.nsamples.1500.ckpt>`__ |
++------------------+---------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| DPT-Large        | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_large.nsamples.150.ckpt>`__           | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_large.nsamples.500.ckpt>`__           | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_large.nsamples.1500.ckpt>`__           |
++------------------+---------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| DPT-Hybrid       | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_hybrid.nsamples.150.ckpt>`__\ \*      | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_hybrid.nsamples.500.ckpt>`__          | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_hybrid.nsamples.1500.ckpt>`__          |
++------------------+---------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| DPT-SwinV2-Tiny  | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_swin2_tiny_256.nsamples.150.ckpt>`__  | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_swin2_tiny_256.nsamples.500.ckpt>`__  | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_swin2_tiny_256.nsamples.1500.ckpt>`__  |
++------------------+---------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| DPT-LeViT        | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_levit_224.nsamples.150.ckpt>`__       | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_levit_224.nsamples.500.ckpt>`__       | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_levit_224.nsamples.1500.ckpt>`__       |
++------------------+---------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| MiDaS-small      | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.midas_small.nsamples.150.ckpt>`__         | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.midas_small.nsamples.500.ckpt>`__         | `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.midas_small.nsamples.1500.ckpt>`__         |
++------------------+---------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
 
 \*Also available with pre-training on TartanAir:
 `model <https://github.com/isl-org/VI-Depth/releases/download/v1/sml_model.dpredictor.dpt_hybrid.nsamples.150.pretrained.ckpt>`__
@@ -220,7 +217,7 @@ MiDaS-small      `model <https://github.com/isl-org/VI-Depth/releases/download/v
 
     # Base directory in which models would be stored as a pathlib.Path variable
     MODEL_DIR = Path("model")
-    
+
     # Mapping between depth predictors and the corresponding scale map learners
     PREDICTOR_MODEL_MAP = {
         "dpt_beit_large_512": "DPT_BEiT_L_512",
@@ -236,7 +233,7 @@ MiDaS-small      `model <https://github.com/isl-org/VI-Depth/releases/download/v
 
     # Create the model directory adjacent to the notebook and suppress errors if the directory already exists
     MODEL_DIR.mkdir(exist_ok=True)
-    
+
     # Here we will be downloading the SML model corresponding to the MiDaS-small depth predictor for
     # the checkpoint captured after training on 1500 points of the density level. Suppress errors if the file already exists
     download_file(
@@ -244,7 +241,7 @@ MiDaS-small      `model <https://github.com/isl-org/VI-Depth/releases/download/v
         directory=MODEL_DIR,
         silent=True,
     )
-    
+
     # Take a note of the samples. It would be of major use later on
     NSAMPLES = 1500
 
@@ -260,23 +257,23 @@ MiDaS-small      `model <https://github.com/isl-org/VI-Depth/releases/download/v
     # Set the same model directory for downloading the depth predictor model which is available on
     # PyTorch hub
     torch.hub.set_dir(str(MODEL_DIR))
-    
-    
+
+
     # A utility function for utilising the mapping between depth predictors and
     # scale map learners so as to download the former
     def get_model_for_predictor(depth_predictor: str, remote_repo: str = "intel-isl/MiDaS") -> str:
         """
         Download a model from the pre-validated 'isl-org/MiDaS:2.1' set of releases on the GitHub repo
         while simultaneously trusting the repo permanently
-    
+
         :param: depth_predictor: Any depth estimation model amongst the ones given at https://github.com/isl-org/VI-Depth#setup
         :param: remote_repo: The remote GitHub repo from where the models will be downloaded
         :returns: A PyTorch model callable
         """
-    
+
         # Workaround for avoiding rate limit errors
         torch.hub._validate_not_a_forked_repo = lambda a, b, c: True
-    
+
         return torch.hub.load(
             remote_repo,
             PREDICTOR_MODEL_MAP[depth_predictor],
@@ -320,96 +317,113 @@ MiDaS-small      `model <https://github.com/isl-org/VI-Depth/releases/download/v
 
 .. parsed-literal::
 
-      0%|          | 0.00/81.8M [00:00<?, ?B/s]
+
+  0%|          | 0.00/81.8M [00:00<?, ?B/s]
 
 .. parsed-literal::
 
-      0%|          | 320k/81.8M [00:00<00:26, 3.27MB/s]
+
+  0%|          | 320k/81.8M [00:00<00:26, 3.27MB/s]
 
 .. parsed-literal::
 
-      3%|▎         | 2.72M/81.8M [00:00<00:05, 16.1MB/s]
+
+  3%|▎         | 2.72M/81.8M [00:00<00:05, 16.1MB/s]
 
 .. parsed-literal::
 
-     15%|█▌        | 12.4M/81.8M [00:00<00:01, 54.8MB/s]
+
+ 15%|█▌        | 12.4M/81.8M [00:00<00:01, 54.8MB/s]
 
 .. parsed-literal::
 
-     22%|██▏       | 17.6M/81.8M [00:00<00:01, 51.8MB/s]
+
+ 22%|██▏       | 17.6M/81.8M [00:00<00:01, 51.8MB/s]
 
 .. parsed-literal::
 
-     28%|██▊       | 22.6M/81.8M [00:00<00:01, 48.7MB/s]
+
+ 28%|██▊       | 22.6M/81.8M [00:00<00:01, 48.7MB/s]
 
 .. parsed-literal::
 
-     33%|███▎      | 27.2M/81.8M [00:00<00:01, 47.1MB/s]
+
+ 33%|███▎      | 27.2M/81.8M [00:00<00:01, 47.1MB/s]
 
 .. parsed-literal::
 
-     39%|███▉      | 31.8M/81.8M [00:00<00:01, 46.3MB/s]
+
+ 39%|███▉      | 31.8M/81.8M [00:00<00:01, 46.3MB/s]
 
 .. parsed-literal::
 
-     44%|████▍     | 36.2M/81.8M [00:00<00:01, 45.3MB/s]
+
+ 44%|████▍     | 36.2M/81.8M [00:00<00:01, 45.3MB/s]
 
 .. parsed-literal::
 
-     50%|████▉     | 40.5M/81.8M [00:00<00:00, 44.9MB/s]
+
+ 50%|████▉     | 40.5M/81.8M [00:00<00:00, 44.9MB/s]
 
 .. parsed-literal::
 
-     55%|█████▍    | 44.8M/81.8M [00:01<00:00, 45.0MB/s]
+
+ 55%|█████▍    | 44.8M/81.8M [00:01<00:00, 45.0MB/s]
 
 .. parsed-literal::
 
-     60%|██████    | 49.1M/81.8M [00:01<00:00, 44.8MB/s]
+
+ 60%|██████    | 49.1M/81.8M [00:01<00:00, 44.8MB/s]
 
 .. parsed-literal::
 
-     65%|██████▌   | 53.5M/81.8M [00:01<00:00, 45.1MB/s]
+
+ 65%|██████▌   | 53.5M/81.8M [00:01<00:00, 45.1MB/s]
 
 .. parsed-literal::
 
-     71%|███████   | 57.9M/81.8M [00:01<00:00, 45.3MB/s]
+
+ 71%|███████   | 57.9M/81.8M [00:01<00:00, 45.3MB/s]
 
 .. parsed-literal::
 
-     76%|███████▌  | 62.2M/81.8M [00:01<00:00, 45.0MB/s]
+
+ 76%|███████▌  | 62.2M/81.8M [00:01<00:00, 45.0MB/s]
 
 .. parsed-literal::
 
-     81%|████████▏ | 66.5M/81.8M [00:01<00:00, 44.8MB/s]
+
+ 81%|████████▏ | 66.5M/81.8M [00:01<00:00, 44.8MB/s]
 
 .. parsed-literal::
 
-     87%|████████▋ | 70.8M/81.8M [00:01<00:00, 44.7MB/s]
+
+ 87%|████████▋ | 70.8M/81.8M [00:01<00:00, 44.7MB/s]
 
 .. parsed-literal::
 
-     92%|█████████▏| 75.1M/81.8M [00:01<00:00, 44.7MB/s]
+
+ 92%|█████████▏| 75.1M/81.8M [00:01<00:00, 44.7MB/s]
 
 .. parsed-literal::
 
-     97%|█████████▋| 79.3M/81.8M [00:01<00:00, 33.3MB/s]
+
+ 97%|█████████▋| 79.3M/81.8M [00:01<00:00, 33.3MB/s]
 
 .. parsed-literal::
 
-    100%|██████████| 81.8M/81.8M [00:02<00:00, 41.9MB/s]
 
-.. parsed-literal::
+    100%|██████████| 81.8M/81.8M [00:02<00:00, 41.9MB/s]
 
-    
 
 
 Cleaning up the model directory
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 From the verbose of the previous step it is obvious that
-```torch.hub.load`` <https://pytorch.org/docs/stable/hub.html#torch.hub.load>`__
+`torch.hub.load <https://pytorch.org/docs/stable/hub.html#torch.hub.load>`__
 downloads a lot of unnecessary files. We shall move remove the
 unnecessary directories and files which were created during the download
 process.
@@ -423,7 +437,7 @@ process.
         ignore_errors=True,
     )
     rmtree(path=str(MODEL_DIR / "checkpoints"), ignore_errors=True)
-    
+
     # Check for the existence of the trusted list file and then remove
     list_file = Path(MODEL_DIR / "trusted_list")
     if list_file.is_file():
@@ -432,7 +446,7 @@ process.
 Transformation of models
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Each of the models need an appropriate transformation which can be
 invoked by the ``get_model_transforms`` function. It needs only the
@@ -452,7 +466,7 @@ model are always in direct correspondence with each other.
         """
         Construct the transformation of the depth prediction model and the
         associated ScaleMapLearner model
-    
+
         :param: depth_predictor: Any depth estimation model amongst the ones given at https://github.com/isl-org/VI-Depth#setup
         :param: nsamples: The no. of density levels for the depth map
         :returns: The transformed models as the resut of torchvision.transforms.Compose operations
@@ -468,7 +482,7 @@ model are always in direct correspondence with each other.
 Dummy input creation
 ^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Dummy inputs help during conversion. Although ``ov.convert_model``
 accepts any dummy input for a single pass through the model and thereby
@@ -485,7 +499,7 @@ dataset
 .. code:: ipython3
 
     IMAGE_H, IMAGE_W = 480, 640
-    
+
     # Although you can always verify the same by uncommenting and running
     # the following lines
     # img = cv2.imread('data/image/dummy_img.png')
@@ -495,13 +509,13 @@ dataset
 
     # Base directory in which data would be stored as a pathlib.Path variable
     DATA_DIR = Path("data")
-    
+
     # Create the data directory tree adjacent to the notebook and suppress errors if the directory already exists
     # Create a directory each for the images and their corresponding depth maps
     DATA_DIR.mkdir(exist_ok=True)
     Path(DATA_DIR / "image").mkdir(exist_ok=True)
     Path(DATA_DIR / "sparse_depth").mkdir(exist_ok=True)
-    
+
     # Download the dummy image and its depth scale (take a note of the image hashes for possible later use)
     # On the fly download is being done to avoid unnecessary memory/data load during testing and
     # creation of PRs
@@ -517,7 +531,7 @@ dataset
         directory=Path(DATA_DIR / "sparse_depth"),
         silent=True,
     )
-    
+
     # Load the dummy image and its depth scale
     dummy_input = data_loader.load_input_image("data/image/dummy_img.png")
     dummy_depth = data_loader.load_sparse_depth("data/sparse_depth/dummy_depth.png")
@@ -544,14 +558,14 @@ dataset
     ) -> torch.Tensor:
         """
         Transform the input_image for processing by a PyTorch depth estimation model
-    
+
         :param: input_image: The input image obtained as a result of data_loader.load_input_image
         :param: depth_model_transform: The transformed depth model
         :param: device: The device on which the image would be allocated
         :returns: The transformed image suitable to be used as an input to the depth estimation model
         """
         input_height, input_width = np.shape(input_image)[:2]
-    
+
         sample = {"image": input_image}
         sample = depth_model_transform(sample)
         im = sample["image"].to(device)
@@ -565,7 +579,7 @@ dataset
 Conversion of depth model to OpenVINO IR format
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Starting from 2023.0.0 release, OpenVINO supports PyTorch model via
 conversion to OpenVINO Intermediate Representation format (IR). To have
@@ -586,37 +600,37 @@ we shall follow the following steps:
 
     # Evaluate the model to switch some operations from training mode to inference.
     depth_model.eval()
-    
-    
+
+
     # Check PyTorch model work with dummy input
     _ = depth_model(transformed_dummy_image)
-    
+
     # convert model to OpenVINO IR
     ov_model = ov.convert_model(depth_model, example_input=(transformed_dummy_image,))
-    
+
     # save model for next usage
     ov.save_model(ov_model, "depth_model.xml")
 
 Select inference device
 '''''''''''''''''''''''
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -631,7 +645,7 @@ select device from dropdown list for running inference using OpenVINO
 Compilation of depth model
 ''''''''''''''''''''''''''
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now we can go ahead and compile our depth model.
 
@@ -651,18 +665,18 @@ Now we can go ahead and compile our depth model.
         """
         Run the compiled_depth_model on the transformed_image of dimensions
         input_image_w x input_image_h
-    
+
         :param: input_image_h: The height of the input image
         :param: input_image_w: The width of the input image
         :param: transformed_image: The transformed image suitable to be used as an input to the depth estimation model
         :returns:
                  depth_pred: The depth prediction on the image as an np.ndarray type
-    
+
         """
-    
+
         # Obtain the last output layer separately
         output_layer_depth_model = compiled_depth_model.output(0)
-    
+
         with torch.no_grad():
             # Perform computation like a standard OpenVINO compiled model
             depth_pred = torch.from_numpy(compiled_depth_model([transformed_image])[output_layer_depth_model])
@@ -677,7 +691,7 @@ Now we can go ahead and compile our depth model.
                 .cpu()
                 .numpy()
             )
-    
+
         return depth_pred
 
 .. code:: ipython3
@@ -695,7 +709,7 @@ Now we can go ahead and compile our depth model.
 Computation of scale and shift parameters
 '''''''''''''''''''''''''''''''''''''''''
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Computation of these parameters required the depth estimation model
 output from the previous step. These are the regression based parameters
@@ -717,7 +731,7 @@ purpose has already been created.
         Compute the global scale and shift alignment required for SML model to work on
         with the input_sparse_depth map being provided and the depth estimation output depth_pred
         being provided with an optional validity_map
-    
+
         :param: input_sparse_depth: The depth map of the input image
         :param: validity_map: An optional depth map associated with the original input image
         :param: depth_pred: The depth estimate obtained after running the depth model on the input image
@@ -728,24 +742,24 @@ purpose has already been created.
         :returns:
                  int_depth: The depth estimate for the SML regression model
                  int_scales: The scale to be used for the SML regression model
-    
+
         """
-    
+
         input_sparse_depth_valid = (input_sparse_depth < max_depth) * (input_sparse_depth > min_depth)
         if validity_map is not None:
             input_sparse_depth_valid *= validity_map.astype(np.bool)
-    
+
         input_sparse_depth_valid = input_sparse_depth_valid.astype(bool)
         input_sparse_depth[~input_sparse_depth_valid] = np.inf  # set invalid depth
         input_sparse_depth = 1.0 / input_sparse_depth
-    
+
         # global scale and shift alignment
         GlobalAlignment = LeastSquaresEstimator(estimate=depth_pred, target=input_sparse_depth, valid=input_sparse_depth_valid)
         GlobalAlignment.compute_scale_and_shift()
         GlobalAlignment.apply_scale_and_shift()
         GlobalAlignment.clamp_min_max(clamp_min=min_pred, clamp_max=max_pred)
         int_depth = GlobalAlignment.output.astype(np.float32)
-    
+
         # interpolation of scale map
         assert np.sum(input_sparse_depth_valid) >= 3, "not enough valid sparse points"
         ScaleMapInterpolator = Interpolator2D(
@@ -754,10 +768,10 @@ purpose has already been created.
             valid=input_sparse_depth_valid,
         )
         ScaleMapInterpolator.generate_interpolated_scale_map(interpolate_method="linear", fill_corners=False)
-    
+
         int_scales = ScaleMapInterpolator.interpolated_scale_map.astype(np.float32)
         int_scales = utils.normalize_unit_range(int_scales)
-    
+
         return int_depth, int_scales
 
 .. code:: ipython3
@@ -777,7 +791,7 @@ purpose has already been created.
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Transform the input_image for processing by a PyTorch SML model
-    
+
         :param: input_image: The input image obtained as a result of data_loader.load_input_image
         :param: scale_map_learner_transform: The transformed SML model
         :param: int_depth: The depth estimate for the SML regression model
@@ -785,7 +799,7 @@ purpose has already been created.
         :param: device: The device on which the image would be allocated
         :returns: The transformed tensor inputs suitable to be used with an SML model
         """
-    
+
         sample = {
             "image": input_image,
             "int_depth": int_depth,
@@ -796,7 +810,7 @@ purpose has already been created.
         x = torch.cat([sample["int_depth"], sample["int_scales"]], 0)
         x = x.to(device)
         d = sample["int_depth_no_tf"].to(device)
-    
+
         return x.unsqueeze(0), d.unsqueeze(0)
 
 .. code:: ipython3
@@ -814,7 +828,7 @@ purpose has already been created.
 Conversion of Scale Map Learner model to OpenVINO IR format
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The OpenVINO™ toolkit provides direct method of converting PyTorch
 models to the intermediate representation format. To have the associated
@@ -874,7 +888,7 @@ common format of all checkpoint files from the model releases.
         path=str(MODEL_DIR / "rwightman_gen-efficientnet-pytorch_master"),
         ignore_errors=True,
     )
-    
+
     # Check for the existence of the trusted list file and then remove
     list_file = Path(MODEL_DIR / "trusted_list")
     if list_file.is_file():
@@ -884,23 +898,23 @@ common format of all checkpoint files from the model releases.
 
     # Evaluate the model to switch some operations from training mode to inference.
     scale_map_learner.eval()
-    
+
     # Store the tuple of dummy variables into separate variables for easier reference
     x_dummy, d_dummy = transformed_dummy_image_scale
-    
+
     # Check that PyTorch model works with dummy input
     _ = scale_map_learner(x_dummy, d_dummy)
-    
+
     # Convert model to OpenVINO IR
     scale_map_learner = ov.convert_model(scale_map_learner, example_input=(x_dummy, d_dummy))
-    
+
     # Save model on disk for next usage
     ov.save_model(scale_map_learner, "scale_map_learner.xml")
 
 Select inference device
 '''''''''''''''''''''''
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -920,7 +934,7 @@ select device from dropdown list for running inference using OpenVINO
 Compilation of the ScaleMapLearner(SML) model
 '''''''''''''''''''''''''''''''''''''''''''''
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now we can go ahead and compile our SML model.
 
@@ -941,19 +955,19 @@ Now we can go ahead and compile our SML model.
         """
         Run the compiled_scale_map_learner on the transformed image of dimensions
         input_image_w x input_image_h suitable to be used on such a model
-    
+
         :param: input_image_h: The height of the input image
         :param: input_image_w: The width of the input image
         :param: transformed_image_for_depth_scale: The transformed image inputs suitable to be used as an input to the SML model
         :returns:
                  sml_pred: The regression based prediction of the SML model
-    
+
         """
-    
+
         # Obtain the last output layer separately
         output_layer_scale_map_learner = compiled_scale_map_learner.output(0)
         x_transform, d_transform = transformed_image_for_depth_scale
-    
+
         with torch.no_grad():
             # Perform computation like a standard OpenVINO compiled model
             sml_pred = torch.from_numpy(compiled_scale_map_learner([x_transform, d_transform])[output_layer_scale_map_learner])
@@ -968,7 +982,7 @@ Now we can go ahead and compile our SML model.
                 .cpu()
                 .numpy()
             )
-    
+
         return sml_pred
 
 .. code:: ipython3
@@ -984,16 +998,16 @@ Now we can go ahead and compile our SML model.
 Storing and visualizing dummy results obtained
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     # Base directory in which outputs would be stored as a pathlib.Path variable
     OUTPUT_DIR = Path("output")
-    
+
     # Create the output directory adjacent to the notebook and suppress errors if the directory already exists
     OUTPUT_DIR.mkdir(exist_ok=True)
-    
+
     # Utility functions are directly available in modules.midas.utils
     # Provide path names without any extension and let the write_depth
     # function provide them for you. Take note of the arguments.
@@ -1003,18 +1017,18 @@ Storing and visualizing dummy results obtained
 .. code:: ipython3
 
     plt.figure()
-    
+
     img_dummy_in = mpimg.imread("data/image/dummy_img.png")
     img_dummy_out = mpimg.imread(OUTPUT_DIR / "dummy_input.png")
     img_dummy_sml_out = mpimg.imread(OUTPUT_DIR / "dummy_input_sml.png")
-    
+
     f, axes = plt.subplots(1, 3)
     plt.subplots_adjust(right=2.0)
-    
+
     axes[0].imshow(img_dummy_in)
     axes[1].imshow(img_dummy_out)
     axes[2].imshow(img_dummy_sml_out)
-    
+
     axes[0].set_title("dummy input")
     axes[1].set_title("depth prediction on dummy input")
     axes[2].set_title("SML on depth estimate")
@@ -1041,7 +1055,7 @@ Storing and visualizing dummy results obtained
 Running inference on a test image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now role of both the dummy inputs i.e. the dummy image as well as its
 associated depth map is now over. Since we have access to the compiled
@@ -1056,10 +1070,10 @@ been arranged as follows. This allows us to comply to these
 .. code:: bash
 
       data
-      ├── image                   
+      ├── image
       │   ├── dummy_img.png       # RGB images
       │   └── <timestamp>.png
-      └── sparse_depth            
+      └── sparse_depth
           ├── dummy_img.png       # sparse metric depth maps
           └── <timestamp>.png     # as 16b PNG files
 
@@ -1101,14 +1115,14 @@ present*\ `here <https://drive.google.com/uc?id=1bbN46kR_hcH3GG8-jGRqAI433uddYrn
         directory=Path(DATA_DIR / "sparse_depth"),
         silent=True,
     )
-    
+
     # Load the image and its depth scale
     img_input = data_loader.load_input_image("data/image/1552097950.2672.png")
     img_depth_input = data_loader.load_sparse_depth("data/sparse_depth/1552097950.2672.png")
-    
+
     # Transform the input image for the depth model
     transformed_image = transform_image_for_depth(input_image=img_input, depth_model_transform=depth_model_transform)
-    
+
     # Run the depth model on the transformed input
     depth_pred = run_depth_model(
         input_image_h=IMAGE_H,
@@ -1116,12 +1130,12 @@ present*\ `here <https://drive.google.com/uc?id=1bbN46kR_hcH3GG8-jGRqAI433uddYrn
         transformed_image=transformed_image,
         compiled_depth_model=compiled_depth_model,
     )
-    
-    
+
+
     # Call the function on the sparse depth map
     # with all default settings and store in appropriate variables
     int_depth, int_scales = compute_global_scale_and_shift(input_sparse_depth=img_depth_input, validity_map=None, depth_pred=depth_pred)
-    
+
     # Transform the input image for the ScaleMapLearner model
     transformed_image_scale = transform_image_for_depth_scale(
         input_image=img_input,
@@ -1129,7 +1143,7 @@ present*\ `here <https://drive.google.com/uc?id=1bbN46kR_hcH3GG8-jGRqAI433uddYrn
         int_depth=int_depth,
         int_scales=int_scales,
     )
-    
+
     # Run the SML model using the set of inputs
     sml_pred = run_depth_scale_model(
         input_image_h=IMAGE_H,
@@ -1154,29 +1168,29 @@ present*\ `here <https://drive.google.com/uc?id=1bbN46kR_hcH3GG8-jGRqAI433uddYrn
 Store and visualize Inference results
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     # Store the depth and SML predictions
     utils.write_depth(path=str(OUTPUT_DIR / "1552097950.2672"), depth=int_depth, bits=2)
     utils.write_depth(path=str(OUTPUT_DIR / "1552097950.2672_sml"), depth=sml_pred, bits=2)
-    
-    
+
+
     # Display result
     plt.figure()
-    
+
     img_in = mpimg.imread("data/image/1552097950.2672.png")
     img_out = mpimg.imread(OUTPUT_DIR / "1552097950.2672.png")
     img_sml_out = mpimg.imread(OUTPUT_DIR / "1552097950.2672_sml.png")
-    
+
     f, axes = plt.subplots(1, 3)
     plt.subplots_adjust(right=2.0)
-    
+
     axes[0].imshow(img_in)
     axes[1].imshow(img_out)
     axes[2].imshow(img_sml_out)
-    
+
     axes[0].set_title("Input image")
     axes[1].set_title("Depth prediction on input")
     axes[2].set_title("SML on depth estimate")
@@ -1203,7 +1217,7 @@ Store and visualize Inference results
 Cleaning up the data directory
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We will *follow suit* for the directory in which we downloaded images
 and depth maps from another repo. We shall move remove the unnecessary
@@ -1217,7 +1231,7 @@ directories and files which were created during the download process.
 Concluding notes
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
    1. The code for this tutorial is adapted from the `VI-Depth
       repository <https://github.com/isl-org/VI-Depth>`__.

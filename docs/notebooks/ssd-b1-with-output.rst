@@ -33,37 +33,37 @@ used to convert the models to OpenVINO™ IR format.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Install prerequisites <#Install-prerequisites>`__
--  `SSD-1B Base model <#SSD-1B-Base-model>`__
+-  `Install prerequisites <#install-prerequisites>`__
+-  `SSD-1B Base model <#ssd-1b-base-model>`__
 
    -  `Select inference device SSD-1B Base
-      model <#Select-inference-device-SSD-1B-Base-model>`__
+      model <#select-inference-device-ssd-1b-base-model>`__
    -  `Run Text2Image generation
-      pipeline <#Run-Text2Image-generation-pipeline>`__
+      pipeline <#run-text2image-generation-pipeline>`__
    -  `Image2Image Generation Interactive
-      Demo <#Image2Image-Generation-Interactive-Demo>`__
+      Demo <#image2image-generation-interactive-demo>`__
 
--  `Latent Consistency Model (LCM) <#Latent-Consistency-Model-(LCM)>`__
+-  `Latent Consistency Model (LCM) <#latent-consistency-model-lcm>`__
 
-   -  `Infer the original model <#Infer-the-original-model>`__
+   -  `Infer the original model <#infer-the-original-model>`__
    -  `Convert the model to OpenVINO
-      IR <#Convert-the-model-to-OpenVINO-IR>`__
+      IR <#convert-the-model-to-openvino-ir>`__
 
-      -  `Imports <#Imports>`__
-      -  `Convert VAE <#Convert-VAE>`__
-      -  `Convert U-NET <#Convert-U-NET>`__
-      -  `Convert Encoders <#Convert-Encoders>`__
+      -  `Imports <#imports>`__
+      -  `Convert VAE <#convert-vae>`__
+      -  `Convert U-NET <#convert-u-net>`__
+      -  `Convert Encoders <#convert-encoders>`__
 
-   -  `Compiling models <#Compiling-models>`__
-   -  `Building the pipeline <#Building-the-pipeline>`__
-   -  `Inference <#Inference>`__
+   -  `Compiling models <#compiling-models>`__
+   -  `Building the pipeline <#building-the-pipeline>`__
+   -  `Inference <#inference>`__
    -  `Image2Image Generation with LCM Interactive
-      Demo <#Image2Image-Generation-with-LCM-Interactive-Demo>`__
+      Demo <#image2image-generation-with-lcm-interactive-demo>`__
 
 Install prerequisites
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -75,7 +75,7 @@ Install prerequisites
 SSD-1B Base model
 -----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We will start with the base model part, which is responsible for the
 generation of images of the desired output size.
@@ -105,7 +105,7 @@ You can save the model on disk using the ``save_pretrained`` method.
 Select inference device SSD-1B Base model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -162,7 +162,7 @@ select device from dropdown list for running inference using OpenVINO
 Run Text2Image generation pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, we can run the model for the generation of images using text
 prompts. To speed up evaluation and reduce the required memory we
@@ -229,7 +229,7 @@ loaded from disk.
 Image2Image Generation Interactive Demo
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -308,7 +308,7 @@ Image2Image Generation Interactive Demo
 Latent Consistency Model (LCM)
 ------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Latent Consistency Model (LCM) was proposed in `Latent Consistency
 Models: Synthesizing High-Resolution Images with Few-Step
@@ -325,7 +325,7 @@ number of inference steps to just 2 to 8 steps.
 Infer the original model
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -371,7 +371,7 @@ Infer the original model
 Convert the model to OpenVINO IR
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The pipeline consists of four important parts:
 
@@ -385,7 +385,7 @@ Let us convert each part:
 Imports
 ^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -419,7 +419,7 @@ file.
 Convert VAE
 ^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The VAE model has two parts, an encoder and a decoder. The encoder is
 used to convert the image into a low dimensional latent representation,
@@ -460,7 +460,7 @@ VAE decoder.
 Convert U-NET
 ^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 U-Net model gradually denoises latent image representation guided by
 text encoder hidden state.
@@ -510,7 +510,7 @@ text encoder hidden state.
 Convert Encoders
 ^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The text-encoder is responsible for transforming the input prompt into
 an embedding space that can be understood by the U-Net. It is usually a
@@ -564,7 +564,7 @@ a sequence of latent text embeddings.
 Compiling models
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select device from dropdown list for running inference using OpenVINO.
 
@@ -602,7 +602,7 @@ Select device from dropdown list for running inference using OpenVINO.
 Building the pipeline
 ~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Let’s create callable wrapper classes for compiled models to allow
 interaction with original ``DiffusionPipeline`` class.
@@ -684,7 +684,7 @@ And insert wrappers instances in the pipeline:
 Inference
 ~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -708,7 +708,7 @@ Inference
 Image2Image Generation with LCM Interactive Demo
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 

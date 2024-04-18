@@ -7,23 +7,23 @@ format to OpenVINO Intermediate Representation (IR).
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `OpenVINO IR format <#OpenVINO-IR-format>`__
--  `Fetching example models <#Fetching-example-models>`__
--  `Conversion <#Conversion>`__
+-  `OpenVINO IR format <#openvino-ir-format>`__
+-  `Fetching example models <#fetching-example-models>`__
+-  `Conversion <#conversion>`__
 
-   -  `Setting Input Shapes <#Setting-Input-Shapes>`__
-   -  `Compressing a Model to FP16 <#Compressing-a-Model-to-FP16>`__
-   -  `Convert Models from memory <#Convert-Models-from-memory>`__
+   -  `Setting Input Shapes <#setting-input-shapes>`__
+   -  `Compressing a Model to FP16 <#compressing-a-model-to-fp16>`__
+   -  `Convert Models from memory <#convert-models-from-memory>`__
 
 -  `Migration from Legacy conversion
-   API <#Migration-from-Legacy-conversion-API>`__
+   API <#migration-from-legacy-conversion-api>`__
 
-   -  `Specifying Layout <#Specifying-Layout>`__
-   -  `Changing Model Layout <#Changing-Model-Layout>`__
+   -  `Specifying Layout <#specifying-layout>`__
+   -  `Changing Model Layout <#changing-model-layout>`__
    -  `Specifying Mean and Scale
-      Values <#Specifying-Mean-and-Scale-Values>`__
-   -  `Reversing Input Channels <#Reversing-Input-Channels>`__
-   -  `Cutting Off Parts of a Model <#Cutting-Off-Parts-of-a-Model>`__
+      Values <#specifying-mean-and-scale-values>`__
+   -  `Reversing Input Channels <#reversing-input-channels>`__
+   -  `Cutting Off Parts of a Model <#cutting-off-parts-of-a-model>`__
 
 .. code:: ipython3
 
@@ -51,7 +51,7 @@ Table of contents:
 OpenVINO IR format
 ------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 OpenVINO `Intermediate Representation
 (IR) <https://docs.openvino.ai/2024/documentation/openvino-ir-format.html>`__
@@ -139,7 +139,7 @@ documentation.
 Fetching example models
 -----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 This notebook uses two models for conversion examples:
 
@@ -436,7 +436,7 @@ Convert PyTorch model to ONNX format:
 Conversion
 ----------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To convert a model to OpenVINO IR, use the following API:
 
@@ -485,7 +485,7 @@ To convert a model to OpenVINO IR, use the following API:
 Setting Input Shapes
 ^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Model conversion is supported for models with dynamic input shapes that
 contain undefined dimensions. However, if the shape of data is not going
@@ -617,7 +617,7 @@ sequence length dimension:
 Compressing a Model to FP16
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 By default model weights compressed to FP16 format when saving OpenVINO
 model to IR. This saves up to 2x storage space for the model file and in
@@ -653,7 +653,7 @@ disabled by setting ``compress_to_fp16`` flag to ``False``:
 Convert Models from memory
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Model conversion API supports passing original framework Python object
 directly. More details can be found in
@@ -705,7 +705,7 @@ frameworks conversion guides.
 Migration from Legacy conversion API
 ------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 In the 2023.1 OpenVINO release OpenVINO Model Conversion API was
 introduced with the corresponding Python API: ``openvino.convert_model``
@@ -724,7 +724,7 @@ Preprocessing API.
 Specifying Layout
 ^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Layout defines the meaning of dimensions in a shape and can be specified
 for both inputs and outputs. Some preprocessing requires to set input
@@ -768,7 +768,7 @@ Resnet50 model that was exported to the ONNX format:
 Changing Model Layout
 ^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Transposing of matrices/tensors is a typical operation in Deep Learning
 - you may have a BMP image ``640x480``, which is an array of
@@ -803,7 +803,7 @@ and the layout of an original model:
 Specifying Mean and Scale Values
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Using Preprocessing API ``mean`` and ``scale`` values can be set. Using
 these API, model embeds the corresponding preprocessing block for
@@ -841,7 +841,7 @@ more examples.
 Reversing Input Channels
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Sometimes, input images for your application can be of the ``RGB`` (or
 ``BGR``) format, and the model is trained on images of the ``BGR`` (or
@@ -871,7 +871,7 @@ the color channels before inference.
 Cutting Off Parts of a Model
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Cutting model inputs and outputs from a model is no longer available in
 the new conversion API. Instead, we recommend performing the cut in the
