@@ -344,11 +344,13 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         if (!hasHardwareSupport(ov::element::bf16))
             map.insert({ov::element::bf16, ov::element::f32});
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-        if (inferencePrecision != ov::element::f16) {
-                map.insert({ov::element::f16, ov::element::f32});
+        if (!one_of(inferencePrecision, element::f16, element::undefined)) {
+            map.insert({element::f16, element::f32});
         }
 #else
-        map.insert({ov::element::f16, ov::element::f32});
+        if (inferencePrecision != element::undefined) {
+            map.insert({element::f16, element::f32});
+        }
 #endif
         return map;
     };
@@ -511,7 +513,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                 // 2. GroupNormalizationDecomposition produce MVN, and MVN have a conditional pass MVN6Decomposition. If call MVN6Decomposition again after
                 //    snippets pipeline as well, where MVN is decomposed to simple ops, these simple ops will not tokenized into subgraph again.
                 // CVS-134277 to fully enable GN as snippets to disable this GroupNormalizationDecomposition entirly.
-                if (node->is_dynamic() || inferencePrecision != element::f32)
+                if (node->is_dynamic() || !one_of(inferencePrecision, element::f32, element::undefined))
                     return false;
                 const auto group_norm = ov::as_type_ptr<const ov::op::v12::GroupNormalization>(node);
                 if (!group_norm)
@@ -809,7 +811,7 @@ void Transformations::MainSnippets(void) {
     //  - CPU Node Subgraph requires bf16 on output when inference precision is bf16.
     // To avoid sitations when Transpose is not alone node between MatMul and Result,
     // Plugin disables Transpose tokenization on output
-    bool mha_token_enable_transpose_on_output = (inferencePrecision == ov::element::f32);
+    bool mha_token_enable_transpose_on_output = one_of(inferencePrecision, element::f32, element::undefined);
     size_t concurrency = config.streamExecutorConfig.get_threads_per_stream();
     if (concurrency == 0)
         concurrency = parallel_get_max_threads();
@@ -836,7 +838,7 @@ void Transformations::MainSnippets(void) {
 #if defined(OPENVINO_ARCH_ARM64)
         CPU_REGISTER_PASS_ARM(snippetsManager, SnippetsMarkSkipped);
 #else
-        CPU_REGISTER_PASS_X64(snippetsManager, SnippetsMarkSkipped, inferencePrecision != ov::element::f32);
+        CPU_REGISTER_PASS_X64(snippetsManager, SnippetsMarkSkipped, !one_of(inferencePrecision, element::f32, element::undefined));
 #endif
     }
     CPU_REGISTER_PASS_X64(snippetsManager, snippets::pass::SnippetsTokenization, tokenization_config);
@@ -855,7 +857,7 @@ void Transformations::MainSnippets(void) {
             false;
 #else
             dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
-            one_of(inferencePrecision, ov::element::bf16, ov::element::f32);
+            one_of(inferencePrecision, ov::element::bf16, ov::element::f32, element::undefined);
 #endif
     if (!isMHASupported) {
         CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeMHASnippets);
@@ -869,7 +871,7 @@ void Transformations::MainSnippets(void) {
             return false;
         const auto in_type0 = matmul->get_input_element_type(0);
         const auto in_type1 = matmul->get_input_element_type(1);
-        if (in_type0 == ov::element::f32 && in_type1 == ov::element::f32 && inferencePrecision == ov::element::f32)
+        if (in_type0 == ov::element::f32 && in_type1 == ov::element::f32 && one_of(inferencePrecision, element::f32, element::undefined))
             return true;
         // [114487] brgemm kernel in oneDNN requires brgemm_copy_b kernel if MatMul node has transposed_b=True
         // The current solution with ExtractExplicitMatMulTranspose pass is slower for non-f32 cases than using of brgemm_copy_b kernel
