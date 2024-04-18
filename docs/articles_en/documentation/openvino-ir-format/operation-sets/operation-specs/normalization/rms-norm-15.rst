@@ -1,13 +1,13 @@
-.. {#openvino_docs_ops_normalization_RMS_14}
+.. {#openvino_docs_ops_normalization_RMS_15}
 
 RMS
 ===
 
 
 .. meta::
-  :description: Learn about RMS-14 - a normalization operation.
+  :description: Learn about RMS-15 - a normalization operation.
 
-**Versioned name**: *RMS-14*
+**Versioned name**: *RMS-15*
 
 **Category**: *Normalization*
 
@@ -18,14 +18,14 @@ RMS
 *RMSNorm* operation performs Root Mean Square (RMS) normalization on a given input ``data`` along dimensions specified by ``axes`` input.
 `Reference <https://arxiv.org/abs/1910.07467>`__.
 
-.. math::
+.. code-block:: py
 
     (x / Sqrt(ReduceMean(x^2, axes) + eps))
 
 
  -   If the optional ``scale`` input is provided:
 
-.. math::
+.. code-block:: py
 
     (x / Sqrt(ReduceMean(x^2, axes) + eps)) * scale
 
