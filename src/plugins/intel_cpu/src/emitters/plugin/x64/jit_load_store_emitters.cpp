@@ -788,11 +788,6 @@ void jit_store_emitter::store_bytes(const Xbyak::Reg64 &reg, int offset, int sto
         return ptr[reg + offset + bytes_offset * sizeof(int8_t)];
     };
 
-    auto store_one_byte = [&](int start_bytes, int bytes_offset, int gpr_idx) {
-        auto ext8bit = one_of(gpr_idx, Operand::RSP, Operand::RBP, Operand::RSI, Operand::RDI);
-        h->mov(addr(start_bytes + bytes_offset), Reg8(gpr_idx, ext8bit));
-    };
-
     auto store_byte_base = [&]() {
         int start_bytes = 0;
         int bytes_to_store = store_size;
@@ -820,11 +815,17 @@ void jit_store_emitter::store_bytes(const Xbyak::Reg64 &reg, int offset, int sto
 
         // 64/32/16/8 with one go
         // tail 7 bytes for lower or upper xmm
+        auto store_one_byte = [&](int bytes_offset, int gpr_idx) {
+            bool ext8bit = false;
+            if (one_of(gpr_idx, Operand::RSP, Operand::RBP, Operand::RSI, Operand::RDI))
+                ext8bit = true;
+            h->mov(addr(start_bytes + bytes_offset), Reg8(gpr_idx, ext8bit));
+        };
         switch (bytes_to_store) {
             case 0: break;
             case 1:
                 h->uni_vmovq(Reg64(aux_gpr_idxs[0]), xmm);
-                store_one_byte(start_bytes, 0, aux_gpr_idxs[0]);
+                store_one_byte(0, aux_gpr_idxs[0]);
                 break;
             case 2:
                 h->uni_vmovq(Reg64(aux_gpr_idxs[0]), xmm);
@@ -834,7 +835,7 @@ void jit_store_emitter::store_bytes(const Xbyak::Reg64 &reg, int offset, int sto
                 h->uni_vmovq(Reg64(aux_gpr_idxs[0]), xmm);
                 h->mov(addr(start_bytes), Reg16(aux_gpr_idxs[0]));
                 h->shr(Reg64(aux_gpr_idxs[0]), 16);
-                store_one_byte(start_bytes, 2, aux_gpr_idxs[0]);
+                store_one_byte(2, aux_gpr_idxs[0]);
                 break;
             case 4: h->uni_vmovss(addr(start_bytes), xmm); break;
             case 5:

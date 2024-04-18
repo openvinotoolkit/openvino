@@ -9,12 +9,6 @@
 #include "openvino/reference/utils/coordinate_index.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 
-#if defined(__GNUC__) && (__GNUC__ >= 4) || defined(__clang__)
-#    define VISIBILITY_DEFAULT __attribute__((visibility("default")))
-#else
-#    define VISIBILITY_DEFAULT
-#endif
-
 namespace ov {
 namespace reference {
 
@@ -104,10 +98,10 @@ bool scalar_or_single_element(const Shape& s) {
 }  // namespace
 
 template <typename Data_t, typename Index_t, typename Count_t = int64_t>
-VISIBILITY_DEFAULT UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
-                                                                         const Shape& data_shape,
-                                                                         std::unique_ptr<int64_t> axis,
-                                                                         const bool sorted) {
+UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
+                                                      const Shape& data_shape,
+                                                      std::unique_ptr<int64_t> axis,
+                                                      const bool sorted) {
     using std::begin;
     using std::end;
 

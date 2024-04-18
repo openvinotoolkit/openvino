@@ -24,16 +24,10 @@ class TRANSFORMATIONS_API ConvertReduceSumToPooling;
 }  // namespace pass
 }  // namespace ov
 
-#if defined(__GNUC__) && (__GNUC__ >= 4) || defined(__clang__)
-#    define VISIBILITY_DEFAULT __attribute__((visibility("default")))
-#else
-#    define VISIBILITY_DEFAULT
-#endif
-
 class ConvertReduceBase : public ov::pass::MatcherPass {
 public:
     template <class T>
-    VISIBILITY_DEFAULT ov::matcher_pass_callback convert_reduce_to_pooling();
+    ov::matcher_pass_callback convert_reduce_to_pooling();
 };
 
 class ov::pass::ConvertReduceMeanToPooling : public ConvertReduceBase {
