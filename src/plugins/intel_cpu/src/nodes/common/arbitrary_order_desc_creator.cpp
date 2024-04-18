@@ -3,6 +3,7 @@
 //
 
 #include "arbitrary_order_desc_creator.h"
+#include "utils/general_utils.h"
 
 namespace ov {
 namespace intel_cpu {
