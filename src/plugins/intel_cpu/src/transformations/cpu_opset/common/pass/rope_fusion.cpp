@@ -62,7 +62,7 @@ ov::intel_cpu::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
         if (!validator) {
             return false;
         }
-
+        std::cout << matcher_name << " matched" << std::endl;
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
 
@@ -99,7 +99,7 @@ ov::intel_cpu::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
 
         // this new node may match following additional matchers
         register_new_node(new_node);
-
+        std::cout << matcher_name << " replaced" << std::endl;
         return true;
     };
 
@@ -193,6 +193,7 @@ ov::intel_cpu::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
         }
         rope_node->validate_and_infer_types();
         register_new_node(rope_node);
+        std::cout << matcher_name << " matched and replaced" << std::endl;
         return true;
     };
     auto m = std::make_shared<ov::pass::pattern::Matcher>(rope, matcher_name);
@@ -223,6 +224,7 @@ ov::intel_cpu::RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
         if (!validator) {
             return false;
         }
+        std::cout << matcher_name << " matched" << std::endl;
         auto ndims = validator["ndims"];
 
         auto& config = rope_node->get_config();
@@ -239,6 +241,7 @@ ov::intel_cpu::RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
 
         rope_node->validate_and_infer_types();
         register_new_node(rope_node);
+        std::cout << matcher_name << " replaced" << std::endl;
         return true;
     };
     auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
@@ -267,7 +270,7 @@ ov::intel_cpu::RoPEFusionPreprocess::RoPEFusionPreprocess() {
         if (!validator) {
             return false;
         }
-
+        std::cout << matcher_name << " matched" << std::endl;
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
         auto rope_node = as_type_ptr<RoPENode>(root);
@@ -289,6 +292,7 @@ ov::intel_cpu::RoPEFusionPreprocess::RoPEFusionPreprocess() {
         }
         rope_node->validate_and_infer_types();
         register_new_node(rope_node);
+        std::cout << matcher_name << " replaced" << std::endl;
         return true;
     };
     auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
@@ -445,7 +449,6 @@ ov::intel_cpu::RoPEFusionGPTJ::RoPEFusionGPTJ() {
         if (!validator) {
             return false;
         }
-
         RoPENode::Config config;
         OutputVector new_args;
         config.rotary_ndims = validator["ndims"];
@@ -487,6 +490,7 @@ ov::intel_cpu::RoPEFusionGPTJ::RoPEFusionGPTJ() {
                 }
             }
         }
+        std::cout << matcher_name << " matched and replaced" << std::endl;
         return true;
     };
 
@@ -616,6 +620,7 @@ ov::intel_cpu::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id) {
                         pattern_map.at(cat_Concat_505).get_node_shared_ptr()},
                         new_node);
         ov::replace_node(old_node, new_node);
+        std::cout << matcher_name << " matched and replaced" << std::endl;
         return true;
     };
 
@@ -762,6 +767,7 @@ ov::intel_cpu::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
                         pattern_map.at(add_Add_597).get_node_shared_ptr()},
                         new_node);
         ov::replace_node(old_node, new_node);
+        std::cout << matcher_name << " matched and replaced" << std::endl;
         return true;
     };
 
@@ -801,6 +807,7 @@ ov::intel_cpu::RoPEShareCosSin::RoPEShareCosSin() {
         if (!validator) {
             return false;
         }
+        std::cout << matcher_name << " matched" << std::endl;
         auto it = pattern_map.find(const_inv_freq);
         auto cur_inv_freq = std::dynamic_pointer_cast<opset1::Constant>(it->second.get_node_shared_ptr());
 
@@ -855,6 +862,7 @@ ov::intel_cpu::RoPEShareCosSin::RoPEShareCosSin() {
             replacement = m_shared_sin0;
         }
         ov::replace_node(root, replacement);
+        std::cout << matcher_name << " replaced" << std::endl;
         return true;
     };
 
