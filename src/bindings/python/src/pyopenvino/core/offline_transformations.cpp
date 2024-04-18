@@ -18,6 +18,7 @@
 #include <transformations/flush_fp32_subnormals_to_zero.hpp>
 #include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
 #include <transformations/smart_reshape/smart_reshape.hpp>
+#include <openvino/pass/sdpa_to_paged_attention.hpp>
 
 #include "openvino/pass/low_latency.hpp"
 #include "openvino/pass/manager.hpp"
@@ -124,6 +125,16 @@ void regmodule_offline_transformations(py::module m) {
         [](std::shared_ptr<ov::Model> model) {
             ov::pass::Manager manager;
             manager.register_pass<ov::pass::FusedNamesCleanup>();
+            manager.run_passes(model);
+        },
+        py::arg("model"));
+
+
+    m_offline_transformations.def(
+        "paged_attention_transformation",
+        [](std::shared_ptr<ov::Model> model) {
+            ov::pass::Manager manager;
+            manager.register_pass<ov::pass::SDPAToPagedAttention>();
             manager.run_passes(model);
         },
         py::arg("model"));
