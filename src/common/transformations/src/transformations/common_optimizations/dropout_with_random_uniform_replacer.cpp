@@ -28,7 +28,7 @@ ov::pass::DropoutWithRandomUniformReplacer::DropoutWithRandomUniformReplacer() {
         {shape_pattern, ru_min_const_pattern, ru_max_const_pattern},
         pattern::consumers_count(1));
 
-    const auto optional_convert = pattern::optional<ov::op::v0::Convert>({random_uniform_pattern});
+    const auto optional_convert = pattern::optional<ov::op::v0::Convert>(random_uniform_pattern);
     const auto add_const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
 
     const auto add_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Add>({optional_convert, add_const_pattern});

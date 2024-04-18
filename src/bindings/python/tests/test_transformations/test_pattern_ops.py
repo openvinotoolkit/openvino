@@ -98,20 +98,6 @@ def test_optional_full_match():
     assert matcher.match(model_relu)
 
 
-@pytest.mark.skip("Optional is not working properly yet CVS-136454")
-def test_optional_half_match():
-    model_input = ops.parameter(PartialShape.dynamic())
-    model_relu = ops.relu(model_input)
-    model_relu1 = ops.relu(model_relu.output(0))
-
-    pattern_abs = Optional(["opset13.Abs"])
-    pattern_relu = ops.relu(pattern_abs.output(0))
-
-    matcher = Matcher(pattern_relu, "FindRelu")
-    assert matcher.match(model_relu1)
-
-
-@pytest.mark.skip("Optional is not working properly yet CVS-136454")
 def test_optional_one_node():
     model_input = ops.parameter(PartialShape.dynamic())
     model_relu = ops.relu(model_input)
@@ -126,7 +112,6 @@ def test_optional_one_node():
     assert not Matcher(Optional(["opset13.Relu"]), "OneNodeTest").match(ops.parameter(PartialShape.dynamic()))
 
 
-@pytest.mark.skip("Optional is not working properly yet CVS-136454")
 def test_optional_predicate():
     model_input = ops.parameter(PartialShape.dynamic())
     model_add = ops.add(model_input, model_input)
@@ -177,6 +162,21 @@ def test_optional_with_input_node_and_predicate():
     assert Matcher(Optional(["opset13.Relu"], model_add, lambda x: True), "TestInputNodePredicate").match(model_relu)
     assert not Matcher(Optional(["opset13.Relu"], model_add, lambda x: False), "TestInputNodePredicate").match(model_relu)
     assert not Matcher(Optional(["opset13.Cos"], model_add, lambda x: True), "TestInputNodePredicate").match(model_relu)
+
+
+def test_optional_with_multi_input_node():
+    model_input_0 = ops.parameter(PartialShape.dynamic())
+    model_relu = ops.relu(model_input_0.output(0))
+    model_input_1 = ops.parameter(PartialShape.dynamic())
+    model_add = ops.add(model_relu, model_input_1)
+
+    assert Matcher(Optional(["opset13.Add"], [model_relu, model_input_1]), "MultiInNode").match(model_add)
+    assert Matcher(Optional(["opset13.Add"], [model_relu, model_input_1]), "MultiInNode").match(model_relu)
+    assert not Matcher(Optional(["opset13.Add"], [model_relu, model_input_1]), "MultiInNode").match(model_input_1)
+    assert not Matcher(Optional(["opset13.Add"], [model_relu, model_input_1]), "MultiInNode").match(model_input_0)
+
+    assert not Matcher(Optional(["opset13.Add"], [model_relu, model_input_1], lambda x: False), "MultiInNodePredicate").match(model_add)
+    assert Matcher(Optional(["opset13.Add"], [model_relu, model_input_1], lambda x: True), "MultiInNodePredicate").match(model_add)
 
 
 def test_all_predicates():
