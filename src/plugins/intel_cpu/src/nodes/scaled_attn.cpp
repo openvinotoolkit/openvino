@@ -1848,8 +1848,8 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
         std::vector<size_t> new_shape = reverse({B, H, (L0 + L1), S});
         VectorDims strides(new_shape.size(), 1);
         auto real_shape = permute_axes(new_shape, real_order);
-        for (size_t i = real_shape.size() - 2; i >= 0; i++) {
-            strides[i] *= real_shape[i - 1];
+        for (size_t i = 2; i <= real_shape.size(); i++) {
+            strides[real_shape.size() - i] = strides[real_shape.size() - (i-1)] * real_shape[real_shape.size() - (i-1)];
         }
         auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(kvcache_precision,
             Shape(new_shape),
