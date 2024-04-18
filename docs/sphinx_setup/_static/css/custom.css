@@ -20,18 +20,8 @@ main  .searchForm {
 pre {
     white-space: pre-wrap;
     word-wrap: break-word;
-    background-color: #efefef;
 }
 
-.notebook-badge {
-    margin-right: 3px;
-}
-
-.notebook-badge-p {
-    height: 25px!important;
-    width: auto!important;
-    margin-right: 3px;
-}
 
 /* cookie wap requirement */
 a#wap_dns {display: none;}
@@ -44,6 +34,7 @@ a#wap_dns {display: none;}
     border: solid 1px #bdbdbd;
     border-bottom: solid 0px;
     margin-bottom: -1px;
+    border-color: #bdbdbd!important;
 }
 
 .sd-tab-set>input:checked+label:hover {
@@ -85,7 +76,6 @@ a#wap_dns {display: none;}
     padding-left: 4px;
     padding-bottom: 6px;
     margin: 0 0 0 0;
-
 }
 
 .sd-tab-content .sd-tab-content {
@@ -96,46 +86,115 @@ a#wap_dns {display: none;}
     background-color: #f8f8f8
 }
 
+
 /* Navigation panels override */
 /* =================================================== */
-/* Hide home item in the top bar */
-ul#navbar-main-elements li:first-of-type {
-    display: none;
+
+
+/* Right sidebar settings */
+.toc-entry a.nav-link.active {
+    background-color: transparent;
+    box-shadow: none;
+    color: black;
+    font-weight: 600;
 }
 
-/* items on hover */
+/* Underline width */
+a:hover,
+.toc-entry a.nav-link:hover,
+nav.bd-links li > a:hover {
+    text-decoration-thickness: 1px;
+}
+
+
 #bd-docs-nav div ul a:hover {
-    text-decoration: underline;
+    color: white;
+    text-decoration: underline
 }
 
-ul#navbar-main-elements > li:hover {
+ul#navbar-main-elements > li:hover { 
     text-decoration: underline;
     color: #fff;
 }
 
-
-/* First-level items in the side menu */
-#bd-docs-nav > div > ul > li {
-    padding-bottom: 15px;
+nav.bd-links .current>a {
+    box-shadow: none;
+    font-weight: bold;
+    color: black;
 }
 
-#bd-docs-nav > div > ul > li > a {
-    color: #000000;
-    font-weight: bold;
+.bd-header .navbar-nav li a.nav-link {
+    color: #fff;
+    font-size: 1rem;
+    white-space: nowrap;
+    padding-right: 0;
+    padding: 0 0.8rem;
+}
+
+/* Github icon size */
+.nav-link[data-bs-original-title="GitHub"] {
+    font-size: 2rem!important;
+}
+
+.bd-header .navbar-nav li a.nav-link:hover {
+    color: white;
+    text-decoration: none;
+}
+
+.bd-links__title {
+    display: none;
+}
+
+li.toctree-l1.has-children  > a.reference.internal {
+    font-weight: 700;
+    color: black;
+}
+
+.rotate {
+    transform: rotate(270deg);
 }
 
 /* Move sidebar menu arrows to the left */
 .bd-sidebar label {
-    left: 0px;
+    left: 5px;
     height: 20px;
     width: 20px;
     top: 5px;
+}
+
+nav.bd-links li>a {
+    padding-left: 35px;
+}
+
+.bd-main .bd-content {
+    justify-content: flex-start;
+}
+
+.bd-main .bd-content .bd-article-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: start;
+    max-width: 65em;
+    overflow-x: auto;
+    padding: 1rem;
+    width: 100%;
+}
+
+.nav.bd-links {
+    box-shadow: none
+}
+
+@media (min-width: 960px) {
+    .bd-page-width {
+        max-width: 113rem;
+    }
 }
 
 /* Moving dropdown arrows to the left */
 details.sd-dropdown .sd-summary-up,
 details.sd-dropdown .sd-summary-down {
     left: 10px;
+    top: 10px!important;
 }
 
 
@@ -155,20 +214,22 @@ details.sd-dropdown .sd-summary-title {
     padding-left: 40px;
 }
 
+
+
 /* Second level items                 */
 #bd-docs-nav > div > ul > li > ul {
     padding-left: 0.3rem;
 }
 
+
 /* Overwrite menu chevron directions for open and closed states  */
-.toctree-checkbox~label i {
+.label.toctree-toggle {
     transform: rotate(270deg);
 }
 
-.toctree-checkbox:checked~label i {
+.label.toctree-toggle:checked~label i {
     transform: rotate(0deg);
 }
-
 
 /* Doc version dropdown formatting override */
 /* =================================================== */
@@ -181,7 +242,7 @@ details.sd-dropdown .sd-summary-title {
     min-width: 125px!important;
 }
 
-[aria-labelledby="version-selector"]  .dropdown-item {
+[aria-labelledby="version-selector"]  .dropdown-item { 
     padding: 0.25rem 0.5rem!important;
 }
 
@@ -267,37 +328,62 @@ div.highlight {
     color: #fff;
 }
 
-.bd-sidebar {
-    top: calc(var(--pst-header-height));
+
+/* Transition banner */
+/* =================================================== */
+.transition-banner {
+    top: 60px;
+    background: #76CEFF;
+    position: fixed;
+    text-align: center;
+    color: white;
+    z-index: 1001;
+    display: block;
+    padding:0 2rem;
+    font-size: var(--pst-sidebar-font-size);
+    border: none;
+    border-radius: 0;
+    font-weight: bold;
+    width: 100%;
+    margin-right: auto;
+    margin-left: auto;
 }
 
-.bd-links {
-    margin-top: 10px;
+.transition-banner > p {
+    margin-bottom: 0;
 }
 
-body {
-    padding-top: calc(var(--pst-header-height));
+.transition-banner .close-banner {
+    position:absolute;
+    top:0;
+    right:0;
+    padding: 0 1.25rem;
+    color: #000;
+    background-color: transparent;
+    border: 0;
+    float: right;
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1;
+    text-shadow: 0 1px 0 #fff;
+    opacity: .5;
 }
 
-.bd-toc {
-    border-left: 1px solid #eee;
-    top: calc(var(--pst-header-height) );
-    padding-left: 0px;
-}
-.tocsection {
-    border-left: 0px solid #eee;
-
+.hidden-banner {
+    display: none!important;
 }
 
-.section-nav {
-    border-left: 0px solid #eee;
-
-}
 
 /* Responsiveness */
 /* =================================================== */
+@media (max-width: 720px) {
+    .transition-banner {
+        margin-top: 2rem;
+    }
+}
+
 @media (min-width: 1200px) {
-    .container,
+    .container, 
     .container-lg,
     .container-md,
     .container-sm,
@@ -575,17 +661,13 @@ body {
     grid-template-columns: 1fr;
 }
 
-.modal-content-grid p {
-    font-size: 0.6rem;
-}
-
 .modal-content-grid-container .column {
   min-width: 100px;
 }
 
 .modal-content-grid-container label {
     margin-bottom: 0;
-    padding-right: 6px;
+    padding-right: 4px;
 }
 
 .modal-content-grid-container input {
@@ -624,13 +706,6 @@ body {
     color: #00000098;
     font-size: 0.8rem;
     margin-bottom: 0rem;
-}
-
-.ul {
-    display: flex;
-    flex-direction: row !important;
-    margin: 0px;
-    padding: 0px 0px 0px 10px;
 }
 
 .benchmark-graph-results-header {
@@ -1080,7 +1155,7 @@ table#model-accuracy-and-perf-int8-fp32-table td.data {
 
 .newsletter-submit-btn:before {
     font-family: "Font Awesome 5 Free";
-    content: "\f0e0\00a0";
+    content: "\f0e0\00a0"; 
     font-size: 1rem;
 }
 
