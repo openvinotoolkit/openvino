@@ -203,7 +203,7 @@ public:
                      shape,
                      [&shape, &element_type, &allocator] {
                          OPENVINO_ASSERT(allocator, "Allocator was not initialized");
-                         const auto byte_size = element::get_byte_size(element_type, shape_size(shape));
+                         const auto byte_size = element::get_memory_size(element_type, shape_size(shape));
                          auto data = const_cast<Allocator&>(allocator).allocate(byte_size);
                          initialize_elements(data, element_type, shape);
                          return data;
@@ -264,7 +264,7 @@ private:
     }
 
     size_t get_bytes_capacity() const {
-        return element::get_byte_size(get_element_type(), get_capacity());
+        return element::get_memory_size(get_element_type(), get_capacity());
     }
 
     Allocator m_allocator;
