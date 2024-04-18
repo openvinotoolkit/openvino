@@ -86,12 +86,6 @@ jobs:
       - name: System info
         uses: ./openvino/.github/actions/system_info
 
-      # TODO: step for the 1st run only, needd to be removed then
-      - name: Copy caches
-        run: |
-          mkdir -p ${CCACHE_REMOTE_DIR}
-          cp ${CCACHE_REMOTE_DIR}/../*.cache ${CCACHE_REMOTE_DIR}
-
       - name: Setup ccache
         id: ccache_restore
         uses: ./openvino/.github/actions/cache
