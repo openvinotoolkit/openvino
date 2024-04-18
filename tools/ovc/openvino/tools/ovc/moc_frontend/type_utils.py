@@ -63,7 +63,7 @@ def to_ov_type(val):
                 torch.int16: ov.Type.i16,
                 torch.int32: ov.Type.i32,
                 torch.int64: ov.Type.i64,
-                torch.bool: ov.Type.boolean
+                torch.bool: ov.Type.boolean,
             }
             if val not in torch_to_ov_type:
                 raise Exception("The provided data time is not supported {}.".format(val))

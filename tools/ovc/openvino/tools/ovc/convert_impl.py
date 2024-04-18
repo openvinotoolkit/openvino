@@ -23,7 +23,6 @@ except ImportError:
 from openvino.tools.ovc.moc_frontend.check_config import any_extensions_used
 from openvino.tools.ovc.moc_frontend.pipeline import moc_pipeline
 from openvino.tools.ovc.moc_frontend.moc_emit_ir import moc_emit_ir
-from openvino.tools.ovc.convert_data_type import destination_type_to_np_data_type
 from openvino.tools.ovc.cli_parser import get_available_front_ends, get_common_cli_options, depersonalize, \
     get_mo_convert_params, input_to_input_cut_info, parse_inputs
 from openvino.tools.ovc.help import get_convert_model_help_specifics
