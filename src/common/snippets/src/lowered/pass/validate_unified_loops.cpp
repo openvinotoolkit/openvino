@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/lowered/pass/validate_loops.hpp"
+#include "snippets/lowered/pass/validate_unified_loops.hpp"
 
 #include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
@@ -14,10 +14,8 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-ValidateLoops::ValidateLoops() {}
-
-bool ValidateLoops::run(LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::ValidateLoops")
+bool ValidateUnifiedLoops::run(LinearIR& linear_ir) {
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::ValidateUnifiedLoops")
     if (linear_ir.empty())
         return false;
 
@@ -82,7 +80,9 @@ bool ValidateLoops::run(LinearIR& linear_ir) {
     };
 
     for (const auto& pair : loops) {
-        const auto& loop_info = pair.second;
+        const auto& loop_info = std::dynamic_pointer_cast<UnifiedLoopInfo>(pair.second);
+        OPENVINO_ASSERT(loop_info,
+                        "ValidateUnifiedLoops expects only UnifiedLoopInfo in LoopManager");
         const auto& entry_points = loop_info->get_entry_points();
         const auto& exit_points = loop_info->get_exit_points();
         validate_loop_ports(entry_points);
