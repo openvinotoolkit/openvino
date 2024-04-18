@@ -63,7 +63,7 @@ void DynamicOutputInferenceTest::SetUp() {
     std::tie(priorityList, targetList) = GetParam();
     ON_CALL(*core,
             compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                          ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_GPU)),
+                          ::testing::Matcher<const std::string&>(HasSubstr(ov::test::utils::DEVICE_GPU)),
                           _))
         .WillByDefault(InvokeWithoutArgs([this]() {
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -88,17 +88,12 @@ TEST_P(DynamicOutputInferenceTest, CanSelectCorrectTargetDeviceandInitizeBlobWit
                                   ::testing::Matcher<const ov::AnyMap&>(_)))
             .Times(1);
     }
-    EXPECT_CALL(*core,
-                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                              ::testing::Matcher<const std::string&>(HasSubstr("GPU")),
-                              ::testing::Matcher<const ov::AnyMap&>(_)))
-        .Times(0);
     ASSERT_NO_THROW(exeNetwork = plugin->compile_model(model, config));
 }
 
 const std::vector<DynamicOutputConfigParams> testConfigs = {
-    DynamicOutputConfigParams{"CPU,GPU", std::vector<std::string>{"CPU"}},
-    DynamicOutputConfigParams{"GPU,CPU", std::vector<std::string>{"CPU"}},
+    DynamicOutputConfigParams{"CPU,GPU", std::vector<std::string>{"CPU", "GPU"}},
+    DynamicOutputConfigParams{"GPU,CPU", std::vector<std::string>{"CPU", "GPU"}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
