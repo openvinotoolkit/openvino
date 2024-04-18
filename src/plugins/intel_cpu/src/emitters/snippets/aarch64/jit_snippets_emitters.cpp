@@ -75,7 +75,7 @@ jit_scalar_emitter::jit_scalar_emitter(jit_generator* h, cpu_isa_t isa, const Ex
             OV_CPU_JIT_EMITTER_THROW("Doesn't support precision ", precision);
         }
     }
-    push_arg_entry_of("scalar", value, true);
+    push_arg_entry_of("scalar", value, true, exec_prc_);
     prepare_table();
 }
 

@@ -57,12 +57,18 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
     int32_t resolution = 0;
 
     if (activationType == utils::ActivationTypes::Exp) {
-        if (netPrecision == ov::element::bf16) {
+        if ((netPrecision == ov::element::bf16) || (netPrecision == ov::element::f16)) {
             startFrom = 0;
             range = 2;
         } else {
             startFrom = -10;
             range = 25;
+        }
+        resolution = 32768;
+    } else if (activationType == utils::ActivationTypes::Mish) {
+        if (netPrecision == ov::element::f16) {
+            startFrom = 0;
+            range = 2;
         }
         resolution = 32768;
     } else if (activationType == utils::ActivationTypes::Acosh) {
@@ -124,10 +130,22 @@ void ActivationLayerCPUTest::SetUp() {
     selectedType = primitiveType.empty() ? "" : primitiveType + "_" + netPrecision.to_string();
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-#    if defined(OPENVINO_ARCH_ARM)
+#if defined(OPENVINO_ARCH_ARM)
     if (activationType == utils::ActivationTypes::GeluErf) // @todo tmp fallback to ref, gelu erf is disabled for 32bit ARM
         selectedType = std::string("ref_") + netPrecision.to_string();
-#    endif
+
+    // ACL doesn't support fp16 for some operations
+    if ((primitiveType == "acl") && (netPrecision == ov::element::f16) &&
+        ((activationType == utils::ActivationTypes::Sigmoid) ||
+        (activationType == utils::ActivationTypes::Tanh) ||
+        (activationType == utils::ActivationTypes::Relu) ||
+        (activationType == utils::ActivationTypes::Exp) ||
+        (activationType == utils::ActivationTypes::PReLu) ||
+        (activationType == utils::ActivationTypes::HSwish) ||
+        (activationType == utils::ActivationTypes::Swish))) {
+        selectedType = std::string("acl_") + ov::element::f32.to_string();
+    }
+#endif
     if ((primitiveType != "jit") &&
         (activationType == utils::ActivationTypes::SoftSign || // @todo not supported by ACL, can be decomposed with transformation
 #if defined(OPENVINO_ARCH_ARM)
@@ -155,6 +173,9 @@ void ActivationLayerCPUTest::SetUp() {
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     if (netPrecision == ov::element::f32 && outPrecision == ov::element::f32) {
         abs_threshold = 8e-4;
+    } else if (netPrecision == ov::element::f16) {
+        abs_threshold = 6e-3;
+        configuration.insert({hint::inference_precision.name(), netPrecision.to_string()});
     }
 #endif
     if (netPrecision == ov::element::bf16 && outPrecision == ov::element::f32) {
@@ -178,6 +199,19 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         (activation_type == utils::ActivationTypes::Mish) ||
         (activation_type == utils::ActivationTypes::GeluErf) ||
         (activation_type == utils::ActivationTypes::GeluTanh) ||
+        (activation_type == utils::ActivationTypes::Relu) ||
+        (activation_type == utils::ActivationTypes::Sigmoid) ||
+        (activation_type == utils::ActivationTypes::Swish) ||
+        (activation_type == utils::ActivationTypes::Tanh))) {
+        return "jit";
+    }
+
+    if ((element_type == ov::element::f16) &&
+        ((activation_type == utils::ActivationTypes::Elu) ||
+        (activation_type == utils::ActivationTypes::Exp) ||
+        (activation_type == utils::ActivationTypes::GeluErf) ||
+        (activation_type == utils::ActivationTypes::GeluTanh) ||
+        (activation_type == utils::ActivationTypes::HSwish) ||
         (activation_type == utils::ActivationTypes::Relu) ||
         (activation_type == utils::ActivationTypes::Sigmoid) ||
         (activation_type == utils::ActivationTypes::Swish) ||
@@ -222,6 +256,9 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {Floor,       {{}}},
         {Swish,       {{0.1f}}},
         {HSwish,      {{}}},
+#if defined(OPENVINO_ARCH_ARM64)
+        {Mish,        {{}}},
+#endif
         {PReLu,       {{-0.01f}}},
         {GeluErf,     {{}}},
         {GeluTanh,    {{}}},
@@ -246,6 +283,23 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
 #if defined(OPENVINO_ARCH_ARM64)
         {Mish,        {{}}},
 #endif
+        {Sigmoid,     {{}}},
+        {Swish,       {{0.1f}}},
+        {Tanh,        {{}}},
+    };
+
+    return activationTypes;
+}
+
+const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activationTypesFp16() {
+    static const std::map<utils::ActivationTypes, std::vector<std::vector<float>>> activationTypes {
+        {Elu,         {{0.1f}}},
+        {Exp,         {{}}},
+        {GeluErf,     {{}}},
+        {GeluTanh,    {{}}},
+        {HSwish,      {{}}},
+        {PReLu,       {{-0.01f}}},
+        {Relu,        {{}}},
         {Sigmoid,     {{}}},
         {Swish,       {{0.1f}}},
         {Tanh,        {{}}},
