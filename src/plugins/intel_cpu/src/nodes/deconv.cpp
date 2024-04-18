@@ -311,11 +311,17 @@ bool Deconvolution::canBeExecutedInInt8() const {
 }
 
 bool Deconvolution::canFuse(const NodePtr& node) const {
-    // Deconv implement list in onednn has 2 kinds of implements: deconv implement and previous conv_data_backwards implment.
-    // deconv implement can support multiple kinds of post ops,
-    // non-quantized conv_data_backwards implement can only support depthwise legacy post ops for bias fusing.
-    // Usually for most non-quantized models, deconv only has bias no other post ops.
-    return canFuseSimpleOperation(node);
+    if (canBeExecutedInInt8())
+        return canFuseSimpleOperation(node);
+    // Upstream ONEDNN conv_backward_data primitive can't support any post-ops, fork onednn added depthwise support for conv_backward_data JIT implement.
+    // ONEDNN deconv primitive can support most of post-ops , but the post-ops implement detail is different for now. 
+    // Deconv implement list in onednn has 2 kinds of implements in onednn: deconv implement with JIT post-ops supported(such as brgdeconv) 
+    //                                                                      forked conv_data_backwards implemen with JIT depthwise post-ops + reference implement other post ops.
+    // Considering some deconv would fallback on JIT implement. So limit the post ops to avoid regression. Such as : stylegan2 int8 modles pattern:
+    // none-quantzied deconv(with none-const weight) + FQ pattern fall back on JIT because of onednn limitation. (MFDNN-11577). once fused FQ, would run with ref post-ops implement.
+    // Current just keep this piece code as it was.
+    // @todo: if onednn can ensure all the deconv run with brgemm implement. we can unify the fuse criteria between int8 and fp32.
+    return (fusedWith.empty() && node->canBePerformedAsScaleShift(this));
 }
 
 std::pair<VectorDims, VectorDims> Deconvolution::makeDummyInOutShape() {
@@ -1068,9 +1074,10 @@ std::vector<int32_t> Deconvolution::readOutputSpatialDims() const {
 
 bool Deconvolution::canFuseBias() const {
     //ONEDNN deconvolution_fwd_t primitive can support bias fusing.
-    //For the brgdeconv implement in the deconv implement list, bias would be implmented via JIT kernel.
-    //For the fall back ref implment entry(previous conv_backward_data), bias would be implmented without JIT support.
-    //In theory, all the deconv with bias should run with brg implment.
+    //For the brgdeconv implement in the deconv implement list, bias would be implemented via JIT kernel.
+    //For the fall back ref implement entry(previous conv_backward_data), bias would be implemented without JIT support.
+    //In theory, all the deconv with bias should run with brg implement.
+    //Deconv OPs with bias don't consume too much with the all the model zoos with deconv.
     return  (externOutShape ? getParentEdges().size() == 3 : getParentEdges().size() == 2);
 }
 

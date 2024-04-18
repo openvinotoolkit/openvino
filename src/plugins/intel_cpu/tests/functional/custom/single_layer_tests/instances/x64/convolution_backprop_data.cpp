@@ -14,8 +14,9 @@ using namespace ov::test;
 /* COMMON PARAMS */
 const std::vector<fusingSpecificParams> brgDeconvFusingParamsSet{
     emptyFusingSpec,
+    //bias fusing
     fusingAddPerChannel,
-    fusingReluScaleShift
+    fusingMultiplyPerChannel
 };
 
 

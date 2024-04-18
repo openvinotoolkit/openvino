@@ -324,7 +324,15 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice_AMX_BF16(std::vector<CPUSp
 /* COMMON PARAMS */
 std::vector<fusingSpecificParams> fusingParamsSet{
     emptyFusingSpec,
+    //bias fusing
     fusingAddPerChannel,
+};
+
+std::vector<fusingSpecificParams> fusingParamsSetBrgAmx{
+    emptyFusingSpec,
+    // Bias fusing
+    fusingAddPerChannel,
+    fusingMultiplyPerChannel
 };
 
 const std::vector<std::vector<size_t>> emptyOutputShape = {{}};
@@ -600,7 +608,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_2D_AMX_BF16,
                          ::testing::Combine(groupConvParams_ExplicitPadding_nspc_2D,
                                             ::testing::ValuesIn(nspc_2D_inputs_smoke),
                                             ::testing::Values(ElementType::f32),
-                                            ::testing::Values(emptyFusingSpec),
+                                            ::testing::Values(fusingParamsSetBrgAmx),
                                             ::testing::ValuesIn(filterCPUInfoForDevice_AMX_BF16({conv_avx512_2D_nspc_brgconv_amx})),
                                             ::testing::Values(cpu_bf16_plugin_config)),
                          GroupDeconvolutionLayerCPUTest::getTestCaseName);
@@ -695,7 +703,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_3D_nspc_BF16,
                          ::testing::Combine(groupConvParams_ExplicitPadding_nspc_3D,
                                             ::testing::ValuesIn(nspc_3D_inputs_smoke),
                                             ::testing::Values(ElementType::f32),
-                                            ::testing::Values(emptyFusingSpec),
+                                            ::testing::Values(fusingParamsSetBrgAmx),
                                             ::testing::ValuesIn(filterCPUInfoForDevice_AMX_BF16({conv_avx512_3D_nspc_brgconv_amx})),
                                             ::testing::Values(cpu_bf16_plugin_config)),
                          GroupDeconvolutionLayerCPUTest::getTestCaseName);
