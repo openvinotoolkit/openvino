@@ -70,11 +70,11 @@ protected:
                                                          squeeze,
                                                          ov::opset8::Constant::create(element::i64, Shape{}, {1}),
                                                          ov::element::i64);
-        auto create_conv = [](const std::shared_ptr<ov::Node>& input_node) {
+        auto create_conv = [&](const std::shared_ptr<ov::Node>& input_node) {
             auto conv = std::make_shared<ov::opset8::Convolution>(
                 input_node,
                 ov::test::utils::deprecated::make_constant(ov::element::f16,
-                                                           Shape{1, const1 / 2, 3, 3},
+                                                           Shape{1, const1 / 2u, 3, 3},
                                                            std::vector<float>{},
                                                            true,
                                                            0.1f,
