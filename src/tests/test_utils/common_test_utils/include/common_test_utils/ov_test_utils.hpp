@@ -19,7 +19,7 @@ using TransformationTests = ov::test::TestsCommon;
 class TransformationTestsF : public ov::test::TestsCommon {
 public:
     TransformationTestsF();
-
+    
     void SetUp() override;
 
     void TearDown() override;
