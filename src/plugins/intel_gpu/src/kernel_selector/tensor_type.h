@@ -112,6 +112,7 @@ enum WeightsLayout {
     os_i_osv16__ai8,
     os_i_osv16,
     os_is_yx_osv16_isv16,           // weights for int8 blocked conv
+    os_is_yx_osv32_isv2,            // weights for fully connected kernels with int4 compressed data type
     os_is_zyx_osv16_isv16,
     os_is_zyx_osv32_isv16,
     os_is_zyx_osv64_isv16,
