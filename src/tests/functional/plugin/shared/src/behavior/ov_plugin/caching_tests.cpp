@@ -428,7 +428,6 @@ void CompileModelCacheRuntimePropertiesTestBase::SetUp() {
         ss << "_" << iter.first << "_" << iter.second.as<std::string>() << "_";
     }
     m_cacheFolderName = ss.str();
-    core->set_property(ov::cache_dir());
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::Serialize>(m_modelName, m_weightsName);
     manager.run_passes(ov::test::utils::make_conv_pool_relu({1, 3, 227, 227}, ov::element::f32));
@@ -438,7 +437,6 @@ void CompileModelCacheRuntimePropertiesTestBase::TearDown() {
     ov::test::utils::removeFilesWithExt(m_cacheFolderName, "blob");
     ov::test::utils::removeIRFiles(m_modelName, m_weightsName);
     std::remove(m_cacheFolderName.c_str());
-    core->set_property(ov::cache_dir());
     ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
 }
@@ -451,7 +449,7 @@ void CompileModelCacheRuntimePropertiesTestBase::run() {
     }
     m_compiled_model_runtime_properties =
         core->get_property(target_device, ov::internal::compiled_model_runtime_properties);
-    core->set_property(ov::cache_dir(m_cacheFolderName));
+    configuration.insert(ov::cache_dir(m_cacheFolderName));
 
     // First compile model to generate model cache blob.
     // Second compile model will load from model cache.
