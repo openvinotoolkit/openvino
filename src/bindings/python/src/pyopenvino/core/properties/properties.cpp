@@ -72,7 +72,8 @@ void regmodule_properties(py::module m) {
         .value("ECORE_ONLY", ov::hint::SchedulingCoreType::ECORE_ONLY);
 
     py::enum_<ov::hint::ModelDistributionPolicy>(m_hint, "ModelDistributionPolicy", py::arithmetic())
-        .value("TENSOR_PARALLEL", ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL);
+        .value("TENSOR_PARALLEL", ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL)
+        .value("PIPELINE_PARALLEL", ov::hint::ModelDistributionPolicy::PIPELINE_PARALLEL);
 
     py::enum_<ov::hint::ExecutionMode>(m_hint, "ExecutionMode", py::arithmetic())
         .value("PERFORMANCE", ov::hint::ExecutionMode::PERFORMANCE)

@@ -16,8 +16,8 @@ using namespace ov;
 using namespace ov::pass;
 using namespace ov::frontend::paddle::op::default_opset;
 
-// Transform Paddle "conditonal_block" to OpenVINO If op.
-// The contional_block only has "then" branch, while If op requires both "then" and "else" branch the same time.
+// Transform Paddle "conditional_block" to OpenVINO If op.
+// The conditional_block only has "then" branch, while If op requires both "then" and "else" branch the same time.
 // Thus a "pass-through" model is built on purpose for "else" branch with the same outputs as "then" branch.
 ov::frontend::paddle::pass::TransformIf::TransformIf(std::vector<std::shared_ptr<Model>> funcs) {
     const auto cond_label = pattern::wrap_type<ov::op::internal::ConditionalBlock>();

@@ -186,7 +186,7 @@ bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
             };
         }
     }
-    ifunc = exec_func();
+    configureThreadSafe([&] { ifunc = exec_func(); });
     return true;
 }
 

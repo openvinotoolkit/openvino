@@ -156,6 +156,47 @@ VectorDims get_planar_vdims(const snippets::lowered::ExpressionPort& expr_port);
 VectorDims get_preordered_vdims(const snippets::lowered::ExpressionPort& expr_port);
 /* --------------------------- */
 
+/**
+ * @brief Returns element count of a shape
+ * @param shape input shape
+ * @return element count of input shape
+ */
+inline auto get_shape_size(const VectorDims& shape) -> size_t {
+    return std::accumulate(shape.begin(), shape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+}
+
+/**
+ * @brief Get zero to several consecutive child shape infer exprs(such as reshape, rankNormalization) from start_expr.
+ *        As Node maybe have multiple output. This functions return the first(left) legal sequence.
+ * @param start_expr Collect from start_expr.
+ * @return shape infer expression consumers as a sequence.
+ */
+std::vector<lowered::ExpressionPtr> get_first_child_shape_infer_expr_seq(const lowered::ExpressionPtr& start_expr);
+
+/**
+ * @brief Get zero to several consecutive parent shape infer exprs(such as reshape, rankNormalization) from start_expr.
+ *        As Node maybe have multiple input. This functions return the first(left) legal sequence.
+ * @param start_expr Collect from start_expr.
+ * @return shape infer expression sources as a sequence.
+ */
+std::vector<lowered::ExpressionPtr> get_first_parent_shape_infer_expr_seq(const lowered::ExpressionPtr& start_expr);
+
+/**
+ * @brief Get leaf shape infer node in first child shape infer sequence from(include) start_node.
+ *        If start_node is a not shape infer node and start_node has no child shape infer node, function will return nullptr.
+ * @param start_node Search from start_node.
+ * @return the leaf shape infer node of first child shape infer sequence or nullptr.
+ */
+std::shared_ptr<ov::Node> get_leaf_node_of_first_child_shape_infer_seq(const std::shared_ptr<ov::Node>& start_node);
+
+/**
+ * @brief Get leaf shape infer node in first parent shape infer sequence from(include) start_node.
+ *        If start_node is a not shape infer node and start_node has no parent shape infer node, function will return nullptr.
+ * @param start_node Search from start_node.
+ * @return the first leaf shape infer node or nullptr.
+ */
+std::shared_ptr<ov::Node> get_leaf_node_of_first_parent_shape_infer_seq(const std::shared_ptr<ov::Node>& start_node);
+
 } // namespace utils
 } // namespace snippets
 } // namespace ov
