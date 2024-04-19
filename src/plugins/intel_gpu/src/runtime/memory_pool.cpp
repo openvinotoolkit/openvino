@@ -238,10 +238,20 @@ memory::ptr memory_pool::get_memory(const layout& layout,
             return get_from_padded_pool(layout, prim_id, unique_id, network_id, restrictions, type);
         } else {
             // images (reuse not yet implemented)
-            return alloc_memory(layout, type, reset);
+            auto mem = alloc_memory(layout, type, reset);
+            {
+                _no_reusable_pool.emplace(layout.bytes_count(),
+                                        memory_record({{unique_id, network_id, prim_id, layout.bytes_count()}}, mem, network_id, type));
+            }
+            return mem;
         }
     } else {
-        return alloc_memory(layout, type, reset);
+        auto mem = alloc_memory(layout, type, reset);
+        {
+            _no_reusable_pool.emplace(layout.bytes_count(),
+                                    memory_record({{unique_id, network_id, prim_id, layout.bytes_count()}}, mem, network_id, type));
+        }
+        return mem;
     }
 }
 
@@ -322,6 +332,9 @@ size_t memory_pool::get_total_mem_pool_size() {
             total_mem_pool_size += record._memory->size();
         }
     }
+    for (auto mem : _no_reusable_pool) {
+        total_mem_pool_size += mem.first;
+    }
     return total_mem_pool_size;
 }
 
@@ -352,6 +365,12 @@ void memory_pool::dump_to_file(uint32_t net_id, uint32_t iter, std::string dump_
                     of << "padded_pool," << mem.first.to_short_string() << "," << record._memory->buffer_ptr() << "," << record._type << ","
                         << mem_pool_szie << "," << user._prim_id << "," << user._unique_id << "," << user._mem_size << std::endl;
                 }
+            }
+        }
+        for (auto mem : _no_reusable_pool) {
+            for (auto user : mem.second._users) {
+                of << "no_reused_pool,," << mem.second._memory->buffer_ptr() << "," << mem.second._type << ","
+                    << mem.first << "," << user._prim_id << "," << user._unique_id << "," << user._mem_size << std::endl;
             }
         }
         std::cout << "Dump file to " << dump_path << std::endl;
@@ -386,6 +405,7 @@ void memory_pool::dump_to_screen(uint32_t net_id, uint32_t iter) {
             << " (Total memory request : " << get_mb_size(total_mem_request) << "MB"
             << " / Total meomry pool size : " << get_mb_size(total_mem_pool_size) << "MB) ==========" << std::endl;
     }
+    float total_non_padded_pool_size = total_mem_pool_size;
     GPU_DEBUG_COUT << "========== padded pool (" << _padded_pool.size() << " records) ==========" << std::endl;
     total_mem_request = 0.f;
     total_mem_pool_size = 0.f;
@@ -416,5 +436,20 @@ void memory_pool::dump_to_screen(uint32_t net_id, uint32_t iter) {
             << " (Total memory request : " << get_mb_size(total_mem_request) << "MB"
             << " / Total meomry pool size : " << get_mb_size(total_mem_pool_size) << "MB) ==========" << std::endl;
     }
+    float total_padded_pool_size = total_mem_pool_size;
+    GPU_DEBUG_COUT << "========== no reused memory (" << _no_reusable_pool.size() << " records) ==========" << std::endl;
+    float total_no_used_mem_size = 0.f;
+    for (auto mem : _no_reusable_pool) {
+        GPU_DEBUG_COUT << mem.second._memory->buffer_ptr() << std::fixed << " (size: " << get_mb_size(mem.first)
+            << "MB, type: " << mem.second._type << ")'s users: " << std::endl;
+        total_no_used_mem_size += mem.first;
+        for (auto user : mem.second._users) {
+            GPU_DEBUG_COUT << "    --- " << user._prim_id << " (" << user._unique_id << "), "
+                << std::fixed << get_mb_size(user._mem_size) << "MB" << std::endl;
+        }
+    }
+    GPU_DEBUG_COUT << "========== non_padded_pool memory: " << get_mb_size(total_non_padded_pool_size) << "MB" << std::endl;
+    GPU_DEBUG_COUT << "========== padded_pool memory    : " << get_mb_size(total_padded_pool_size) << "MB" << std::endl;
+    GPU_DEBUG_COUT << "========== no reused memory      : " << get_mb_size(total_no_used_mem_size) << "MB" << std::endl;
 }
 }  // namespace cldnn

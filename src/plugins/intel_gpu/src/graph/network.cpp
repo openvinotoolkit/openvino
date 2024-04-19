@@ -1268,12 +1268,12 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
             auto get_mb_size = [&](int64_t size) -> float {
                 return (static_cast<float>(size) / (1024 * 1024));
             };
-            int64_t const_mem_size     = get_constants_mem_size();
-            int64_t var_mem_size       = get_variables_mem_size();
-            int64_t host_mem_size      = get_engine().get_used_device_memory(allocation_type::usm_host);
-            int64_t device_mem_size    = get_engine().get_used_device_memory(allocation_type::usm_device);
-            int64_t mem_pool_size      = get_memory_pool().get_total_mem_pool_size();
-            int64_t etc_size           = device_mem_size - mem_pool_size - const_mem_size - var_mem_size;
+            int64_t const_mem_size  = get_constants_mem_size();
+            int64_t var_mem_size    = get_variables_mem_size();
+            int64_t host_mem_size   = get_engine().get_used_device_memory(allocation_type::usm_host);
+            int64_t device_mem_size = get_engine().get_used_device_memory(allocation_type::usm_device);
+            int64_t mem_pool_size   = get_memory_pool().get_total_mem_pool_size();
+            int64_t etc_size        = device_mem_size - mem_pool_size - const_mem_size - var_mem_size;
             GPU_DEBUG_COUT << "Memory statistics for (net_id:" << get_id() << ", iter:" << curr_iter << ") host_mem_size: " << get_mb_size(host_mem_size)
                     << "MB, device_mem_size: " << get_mb_size(device_mem_size) << "MB (mem_pool_size: " << get_mb_size(mem_pool_size)
                     << "MB, const_mem_size: " << get_mb_size(const_mem_size) << "MB, var_mem_size: " << get_mb_size(var_mem_size)
