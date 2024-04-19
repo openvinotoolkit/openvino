@@ -30,3 +30,4 @@ def rename_tf_fe_libs(request):
     if request.config.getoption('use_legacy_frontend'):
         log.info('Using new frontend...')
         copy_files_by_pattern(openvino_lib_path, tf_fe_lib_names[0], tf_fe_lib_names[1])
+

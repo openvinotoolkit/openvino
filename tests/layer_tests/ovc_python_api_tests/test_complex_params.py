@@ -11,7 +11,7 @@ import pytest
 from openvino.runtime import PartialShape, Type, Dimension
 
 from common.mo_convert_test_class import CommonMOConvertTest
-from common.tf_layer_test_class import save_to_pb
+from common.utils.tf_utils import save_to_pb
 
 
 class TestComplexParams(CommonMOConvertTest):

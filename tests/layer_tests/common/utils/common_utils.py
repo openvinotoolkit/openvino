@@ -58,17 +58,6 @@ def generate_ir_python_api(coverage=False, **kwargs):
         serialize(ov_model, out_dir)
     else:
         from openvino import convert_model, save_model
-        try:
-            # noinspection PyUnresolvedReferences
-            import openvino_tokenizers  # do not delete, needed for validation of OpenVINO tokenizers extensions
-        except:
-            # TODO 132908: add build OpenVINO Tokenizers in GHA for MacOS and ARM64
-            # TODO 132909: add build OpenVINO Tokenizers in Jenkins for layer_ubuntu20_release tests
-            assert platform.system() in ('Linux', 'Darwin') or platform.machine() in ('arm', 'armv7l',
-                                                                                      'aarch64',
-                                                                                      'arm64', 'ARM64')
-            # CI Jenkins job and ARM64 has no openvino_tokenizers available
-            pass
 
         # cleanup parameters for convert
         if 'output_dir' in kwargs:
