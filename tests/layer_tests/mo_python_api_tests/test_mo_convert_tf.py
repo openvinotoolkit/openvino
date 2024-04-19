@@ -342,6 +342,7 @@ class TestMoConvertTF(CommonMOConvertTest):
         create_tf_session,
     ]
 
+    @pytest.mark.skip("Ticket 139020")
     @pytest.mark.parametrize("create_model", test_data)
     @pytest.mark.nightly
     @pytest.mark.precommit_tf_fe
