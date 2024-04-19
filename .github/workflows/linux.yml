@@ -91,6 +91,10 @@ jobs:
       - name: Setup apt
         uses: ./.github/actions/setup_apt
 
+      # TODO: remove before merge
+      - name: Cleanup cache
+        run: rm -rf ${{ env.APT_CACHE_PATH }}/*.cache
+
       - name: Setup apt cache
         uses: ./.github/actions/cache
         with:
@@ -430,8 +434,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          sudo -E ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
-
+          ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
           python3 -m pip install -r ${CONFORMANCE_TOOLS_DIR}/requirements.txt
 
       #
