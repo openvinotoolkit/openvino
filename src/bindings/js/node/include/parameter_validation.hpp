@@ -6,20 +6,32 @@
 #include <napi.h>
 
 namespace NapiTypename {
-    const std::string UNDEFINED_STR = "Undefined";
-    const std::string NULL_STR = "Null";
-    const std::string BOOLEAN_STR = "Boolean";
-    const std::string NUMBER_STR = "Number";
-    const std::string STIRNG_STR = "String";
-    const std::string SYMBOL_STR = "Symbol";
-    const std::string OBJECT_STR = "Object";
-    const std::string FUNCTION_STR = "Function";
-    const std::string EXTERNAL_STR = "External";
-    const std::string BIGINT_STR = "BigInt";
-    const std::string UNKNOWN_STR = "Unknown";
+const std::string UNDEFINED_STR = "Undefined";
+const std::string NULL_STR = "Null";
+const std::string BOOLEAN_STR = "Boolean";
+const std::string NUMBER_STR = "Number";
+const std::string STIRNG_STR = "String";
+const std::string SYMBOL_STR = "Symbol";
+const std::string OBJECT_STR = "Object";
+const std::string FUNCTION_STR = "Function";
+const std::string EXTERNAL_STR = "External";
+const std::string BIGINT_STR = "BigInt";
+const std::string UNKNOWN_STR = "Unknown";
+}  // namespace NapiTypename
+
+std::string join_array_to_str(std::vector<std::string> array, std::string separator) {
+    if (array.empty())
+        return "";
+
+    std::string result = array[0];
+    for (size_t i = 1; i < array.size(); ++i) {
+        result += separator + array[i];
+    }
+
+    return result;
 }
 
-std::string get_type_name(napi_valuetype type) {
+const std::string& get_type_name(napi_valuetype type) {
     switch (type) {
     case napi_undefined:
         return NapiTypename::UNDEFINED_STR;
@@ -63,7 +75,8 @@ public:
     bool validate(const Napi::CallbackInfo& info, std::vector<std::string>& error_messages) {
         std::string validation_errors;
 
-        if (info.Length() != attributes_validators.size()) return false;
+        if (info.Length() != attributes_validators.size())
+            return false;
 
         size_t index = 0;
 
@@ -159,15 +172,17 @@ public:
     }
 
     static const std::string create_error_message(std::string key,
-                                               napi_valuetype expected_type,
-                                               napi_valuetype real_type) {
+                                                  napi_valuetype expected_type,
+                                                  napi_valuetype real_type) {
         std::string expected_type_str = get_type_name(expected_type);
         std::string real_type_str = get_type_name(real_type);
 
         return create_error_message(key, expected_type_str, real_type_str);
     }
 
-    static const std::string create_error_message(const std::string& key, const std::string& expected, const napi_valuetype& real_type) {
+    static const std::string create_error_message(const std::string& key,
+                                                  const std::string& expected,
+                                                  const napi_valuetype& real_type) {
         std::string real_type_str = get_type_name(real_type);
 
         return create_error_message(key, expected, real_type_str);
