@@ -16,43 +16,37 @@ public:
     OPENVINO_OP("Col2Im", "opset15", ov::op::Op);
 
     Col2Im() = default;
-    /// \brief Constructs an RMSNorm operation without scaling.
+    /// \brief Constructs a Col2Im operation.
     ///
     /// \param data Input tensor with data
-    /// \param axes Axes for reduce mean calculation
-    /// \param eps Epsilon for not dividing by zero while normalizing the value
-    /// \param compute_type Precision for the internal computation, if undefined it's the same as the input type
+    /// \param output_size Shape of the spatial dimensions of the output image
+    /// \param kernel_size Size of the sliding blocks
+    /// \param strides Stride in the sliding blocks in the input spatial dimensions
+    /// \param dilations Local stride of the elements
+    /// \param pads_begin Paddings at the beginning of each spatial axis, if undefined no padding is applied
+    /// \param pads_end Paddings at the end of each spatial axis, if undefined no padding is applied
     Col2Im(const Output<Node>& data,
-            const ov::Shape& output_size,
-            const ov::Shape& kernel_size,
-            const Strides& strides = Strides{1, 1},
-            const Strides& dilations = Strides{1, 1},
-            const Shape& pads_begin = Shape{0, 0},
-            const Shape& pads_end = Shape{0, 0});
+           const Output<Node>& output_size,
+           const Output<Node>& kernel_size,
+           const Strides& strides = Strides{1, 1},
+           const Strides& dilations = Strides{1, 1},
+           const Shape& pads_begin = Shape{0, 0},
+           const Shape& pads_end = Shape{0, 0});
 
-    /// \brief Constructs an RMSNorm operation with scaling.
-    ///
-    /// \param data Input tensor with data
-    /// \param axes Axes for reduce mean calculation
-    /// \param scale Scale values for weight
-    /// \param eps Epsilon for not dividing by zero while normalizing the value
-    /// \param compute_type Precision for the internal computation, if undefined it's the same as the input type
-    Col2Im(const Output<Node>& data,
-            const Output<Node>& axes,
-            const Output<Node>& scale,
-            double epsilson,
-            const ov::element::Type& compute_type = ov::element::undefined);
-
-    bool visit_attributes(ov::AttributeVisitor& visitor) override;
+    bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
-    std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    double get_epsilon() const;
-    const ov::element::Type& get_compute_type() const;
+    Strides get_strides() const;
+    Strides get_dilations() const;
+    Shape get_pads_begin() const;
+    Shape get_pads_end() const;
 
 private:
-    double m_epsilon{0};
-    ov::element::Type m_compute_type{ov::element::undefined};
+    Strides m_strides;
+    Strides m_dilations;
+    Shape m_pads_begin;
+    Shape m_pads_end;
 };
 
 }  // namespace v15
