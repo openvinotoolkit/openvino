@@ -70,8 +70,7 @@ jobs:
     steps:
       - name: Setup apt ()
         run: |
-          cat /etc/apt/apt.conf
-          echo 'APT::Get::Assume-Yes "true";' >> /etc/apt/apt.conf
+          echo 'APT::Get::Assume-Yes "true";' > /etc/apt/apt.conf
           echo 'APT::Get::Fix-Broken "true";' >> /etc/apt/apt.conf
           echo 'APT::Get::no-install-recommends "true";' >> /etc/apt/apt.conf
           echo 'Acquire::Retries "10";' >> /etc/apt/apt.conf
