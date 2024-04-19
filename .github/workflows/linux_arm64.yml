@@ -125,6 +125,9 @@ jobs:
           update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 30
           update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 30
 
+          # For building the latest h5py
+          apt install --assume-yes --no-install-recommends libhdf5-dev
+
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.4
         with:

@@ -907,14 +907,20 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryD
 }
 
 void Node::toNumaNode(int numaNodeID) {
+    if (!isExecutable())
+        return;
+
+    return toNumaNodeImpl(numaNodeID);
+}
+
+void Node::toNumaNodeImpl(int numaNodeID) {
     if (curNumaNode == numaNodeID)
         return;
 
     // create scratch pad from specified numa node
     if (scratchpadMem) {
         scratchpadMem = context->getScratchPad(numaNodeID)->createScratchPadMem(scratchpadMem->getDescPtr());
-        auto mem = scratchpadMem->getPrimitive();
-        primArgs[DNNL_ARG_SCRATCHPAD] = mem;
+        primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
     }
 
     // mbind constant prim args to numa nodes

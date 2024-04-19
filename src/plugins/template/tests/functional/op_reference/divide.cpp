@@ -15,8 +15,9 @@ namespace {
 
 struct DivideParams {
     template <class IT>
-    DivideParams(const PartialShape& iShape1,
-                 const PartialShape& iShape2,
+    DivideParams(const Shape& iShape1,
+                 const Shape& iShape2,
+                 const Shape& oShape,
                  const element::Type& iType,
                  const std::vector<IT>& iValues1,
                  const std::vector<IT>& iValues2,
@@ -25,12 +26,12 @@ struct DivideParams {
           pshape2(iShape2),
           inType(iType),
           outType(iType),
-          inputData1(CreateTensor(iType, iValues1)),
-          inputData2(CreateTensor(iType, iValues2)),
-          refData(CreateTensor(iType, oValues)) {}
+          inputData1(CreateTensor(iShape1, iType, iValues1)),
+          inputData2(CreateTensor(iShape2, iType, iValues2)),
+          refData(CreateTensor(oShape, iType, oValues)) {}
 
-    PartialShape pshape1;
-    PartialShape pshape2;
+    Shape pshape1;
+    Shape pshape2;
     element::Type inType;
     element::Type outType;
     ov::Tensor inputData1;
@@ -40,14 +41,15 @@ struct DivideParams {
 
 struct DivideRoundingParams : public DivideParams {
     template <class IT>
-    DivideRoundingParams(const PartialShape& iShape1,
-                         const PartialShape& iShape2,
+    DivideRoundingParams(const Shape& iShape1,
+                         const Shape& iShape2,
+                         const Shape& oShape,
                          const element::Type& iType,
                          const std::vector<IT>& iValues1,
                          const std::vector<IT>& iValues2,
                          const std::vector<IT>& oValues,
                          const bool pythondiv)
-        : DivideParams(iShape1, iShape2, iType, iValues1, iValues2, oValues),
+        : DivideParams(iShape1, iShape2, oShape, iType, iValues1, iValues2, oValues),
           pythonDivision(pythondiv) {}
 
     bool pythonDivision;
@@ -73,8 +75,8 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape1,
-                                                 const PartialShape& input_shape2,
+    static std::shared_ptr<Model> CreateFunction(const Shape& input_shape1,
+                                                 const Shape& input_shape2,
                                                  const element::Type& input_type,
                                                  const element::Type& expected_output_type) {
         const auto in1 = std::make_shared<op::v0::Parameter>(input_type, input_shape1);
@@ -105,8 +107,8 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape1,
-                                                 const PartialShape& input_shape2,
+    static std::shared_ptr<Model> CreateFunction(const Shape& input_shape1,
+                                                 const Shape& input_shape2,
                                                  const element::Type& input_type,
                                                  const element::Type& expected_output_type,
                                                  const bool pythondiv) {
@@ -129,8 +131,9 @@ template <element::Type_t IN_ET>
 std::vector<DivideParams> generateParamsForDivide() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<DivideParams> params{DivideParams(ov::PartialShape{2, 2},
-                                                  ov::PartialShape{2, 2},
+    std::vector<DivideParams> params{DivideParams(ov::Shape{2, 2},
+                                                  ov::Shape{2, 2},
+                                                  ov::Shape{2, 2},
                                                   IN_ET,
                                                   std::vector<T>{2, 4, 8, 16},
                                                   std::vector<T>{1, 2, 4, 8},
@@ -142,14 +145,16 @@ template <element::Type_t IN_ET>
 std::vector<DivideParams> generateParamsForDivideFloat32() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<DivideParams> params{DivideParams(ov::PartialShape{1},
-                                                  ov::PartialShape{1},
+    std::vector<DivideParams> params{DivideParams(ov::Shape{1},
+                                                  ov::Shape{1},
+                                                  ov::Shape{1},
                                                   IN_ET,
                                                   std::vector<T>{18},
                                                   std::vector<T>{8},
                                                   std::vector<T>{2.25}),
-                                     DivideParams(ov::PartialShape{2, 2},
-                                                  ov::PartialShape{2, 2},
+                                     DivideParams(ov::Shape{2, 2},
+                                                  ov::Shape{2, 2},
+                                                  ov::Shape{2, 2},
                                                   IN_ET,
                                                   std::vector<T>{2, 4, 8, 16},
                                                   std::vector<T>{0, 0, 0, 0},
@@ -164,14 +169,16 @@ template <element::Type_t IN_ET>
 std::vector<DivideParams> generateParamsForDivideInt32() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<DivideParams> params{DivideParams(ov::PartialShape{2, 2},
-                                                  ov::PartialShape{2, 2},
+    std::vector<DivideParams> params{DivideParams(ov::Shape{2, 2},
+                                                  ov::Shape{2, 2},
+                                                  ov::Shape{2, 2},
                                                   IN_ET,
                                                   std::vector<T>{0x40000140, 0x40000001, 8, 16},
                                                   std::vector<T>{2, 5, 4, 8},
                                                   std::vector<T>{536871072, 214748365, 2, 2}),
-                                     DivideParams(ov::PartialShape{1},
-                                                  ov::PartialShape{1},
+                                     DivideParams(ov::Shape{1},
+                                                  ov::Shape{1},
+                                                  ov::Shape{1},
                                                   IN_ET,
                                                   std::vector<T>{18},
                                                   std::vector<T>{8},
@@ -184,8 +191,9 @@ std::vector<DivideParams> generateParamsForDivideBroadcast() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<DivideParams> params{
-        DivideParams(ov::PartialShape{3, 2, 1},
-                     ov::PartialShape{1, 6},
+        DivideParams(ov::Shape{3, 2, 1},
+                     ov::Shape{1, 6},
+                     ov::Shape{3, 2, 6},
                      IN_ET,
                      std::vector<T>{12, 24, 36, 48, 60, 72},
                      std::vector<T>{1, 2, 3, 4, 6, 1},
@@ -198,8 +206,9 @@ template <element::Type_t IN_ET>
 std::vector<DivideParams> generateParamsForDividePythonRoundingInt32() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<DivideParams> params{DivideParams(ov::PartialShape{2, 2},
-                                                  ov::PartialShape{2, 2},
+    std::vector<DivideParams> params{DivideParams(ov::Shape{2, 2},
+                                                  ov::Shape{2, 2},
+                                                  ov::Shape{2, 2},
                                                   IN_ET,
                                                   std::vector<T>{-10, -10, 10, 10},
                                                   std::vector<T>{-3, 3, -3, 3},
@@ -211,8 +220,9 @@ template <element::Type_t IN_ET>
 std::vector<DivideRoundingParams> generateParamsForDivideCppRoundingInt32() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<DivideRoundingParams> params{DivideRoundingParams(ov::PartialShape{2, 2},
-                                                                  ov::PartialShape{2, 2},
+    std::vector<DivideRoundingParams> params{DivideRoundingParams(ov::Shape{2, 2},
+                                                                  ov::Shape{2, 2},
+                                                                  ov::Shape{2, 2},
                                                                   IN_ET,
                                                                   std::vector<T>{-10, -10, 10, 10},
                                                                   std::vector<T>{-3, 3, -3, 3},

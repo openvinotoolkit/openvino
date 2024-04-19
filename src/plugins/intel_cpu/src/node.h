@@ -659,7 +659,9 @@ protected:
 
     std::vector <NodePtr> parallelWith;
     int curNumaNode = -1;
-    virtual void toNumaNode(int numaID);
+
+    void toNumaNode(int numaID);
+    virtual void toNumaNodeImpl(int numaID);
 
     std::string primitivesPriority;
     std::vector <impl_desc_type> customImplPriorities;

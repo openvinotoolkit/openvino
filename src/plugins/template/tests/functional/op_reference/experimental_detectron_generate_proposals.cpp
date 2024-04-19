@@ -35,13 +35,15 @@ struct ExperimentalGPParams {
           anchorsData(CreateTensor(iType, anchorsValues)),
           deltasData(CreateTensor(iType, deltasValues)),
           scoresData(CreateTensor(iType, scoresValues)),
-          refRoisData(CreateTensor(iType, refRoisValues)),
-          refScoresData(CreateTensor(iType, refScoresValues)),
           testcaseName(testcaseName) {
         imageSizeInfoShape = Shape{3};
         anchorsShape = Shape{height * width * number_of_channels, 4};
         deltasShape = Shape{number_of_channels * 4, height, width};
         scoresShape = Shape{number_of_channels, height, width};
+
+        const auto post_nms = static_cast<size_t>(attrs.post_nms_count);
+        refRoisData = CreateTensor(Shape{post_nms, 4}, iType, refRoisValues);
+        refScoresData = CreateTensor(Shape{post_nms}, iType, refScoresValues);
     }
 
     Attrs attrs;
@@ -64,13 +66,13 @@ class ReferenceExperimentalGPLayerTest : public testing::TestWithParam<Experimen
                                          public CommonReferenceTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params);
         inputData = {params.imageSizeInfoData, params.anchorsData, params.deltasData, params.scoresData};
         refOutData = {params.refRoisData, params.refScoresData};
     }
     static std::string getTestCaseName(const testing::TestParamInfo<ExperimentalGPParams>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
         result << "imageSizeInfoShape=" << param.imageSizeInfoShape << "_";
         result << "anchorsShape=" << param.anchorsShape << "_";

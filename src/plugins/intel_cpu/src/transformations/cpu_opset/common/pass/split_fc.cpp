@@ -41,6 +41,7 @@ ov::intel_cpu::SplitFC::SplitFC(int sub_stream_num) {
 
         // needn't to split fc when the dim is 0.
         const auto& wgt_shape = fc_weight_node->get_shape();
+        // weight shape size 660000 is a trade-off value, which is summarized and verified by LLMs.
         if (wgt_shape[split_dim] <= 1 || ov::shape_size(wgt_shape) < 6600000) {
             return false;
         }
@@ -185,7 +186,7 @@ ov::intel_cpu::SplitFC::SplitFC(int sub_stream_num) {
         }
 
         // concat all small fc for result.
-        ov::NodeVector concat_args(fc_node_vec);
+        ov::NodeVector concat_args(std::move(fc_node_vec));
         // concat happens on the latest dimension.
         constexpr size_t concat_dim = -1;
         auto concat_node = std::make_shared<ov::op::v0::Concat>(concat_args, concat_dim);
