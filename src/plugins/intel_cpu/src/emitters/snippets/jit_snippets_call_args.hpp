@@ -67,7 +67,8 @@ public:
 };
 
 struct jit_snippets_compile_args {
-    size_t parallel_executor_ndims = 1;
+    std::vector<std::vector<size_t>> data_offsets = {};
+    std::vector<size_t> master_shape = {};
 };
 
 }   // namespace intel_cpu
