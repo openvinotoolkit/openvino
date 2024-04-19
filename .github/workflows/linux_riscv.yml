@@ -76,11 +76,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
-            .github/actions/setup-apt
+            .github/actions/setup_apt
             .github/actions/cache
 
       - name: Setup apt
-        uses: ./.github/actions/setup-apt
+        uses: ./.github/actions/setup_apt
 
       - name: Setup apt cache
         uses: ./.github/actions/cache
