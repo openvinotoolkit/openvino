@@ -9,7 +9,7 @@
 #include "node/include/errors.hpp"
 #include "node/include/helper.hpp"
 #include "node/include/model_wrap.hpp"
-#include "node/include/parameter_validation.hpp"
+#include "node/include/napi_arg.hpp"
 #include "node/include/read_model_args.hpp"
 
 void validate_set_property_args(const Napi::CallbackInfo& info) {
