@@ -329,7 +329,7 @@ Plugin::Plugin()
          {true,
           ov::PropertyMutability::RO,
           [&](const Config& config) {
-              return _metrics->GetDriverVersion();
+              return _metrics->GetDriverVersion(get_specified_device_name(config));
           }}},
         // NPU Private
         // =========
@@ -416,6 +416,12 @@ Plugin::Plugin()
           ov::PropertyMutability::RW,
           [](const Config& config) {
               return config.get<PROFILING_TYPE>();
+          }}},
+        {ov::intel_npu::backend_compilation_params.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.getString<BACKEND_COMPILATION_PARAMS>();
           }}},
     };
 
