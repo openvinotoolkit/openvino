@@ -772,13 +772,12 @@ void CompiledKernelsCacheTest::SetUp() {
 
 void CompiledKernelsCacheTest::TearDown() {
     std::remove(cache_path.c_str());
-    core->set_property(ov::cache_dir());
     ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
 }
 
 TEST_P(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinaries) {
-    core->set_property(ov::cache_dir(cache_path));
+    configuration.insert(ov::cache_dir(cache_path));
     try {
         // Load CNNNetwork to target plugins
         auto execNet = core->compile_model(function, targetDevice, configuration);
@@ -807,7 +806,7 @@ TEST_P(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinaries) {
 }
 
 TEST_P(CompiledKernelsCacheTest, TwoNetworksWithSameModelCreatesSameCache) {
-    core->set_property(ov::cache_dir(cache_path));
+    configuration.insert(ov::cache_dir(cache_path));
     try {
         // Load 1st CNNNetwork
         auto execNet1 = core->compile_model(function, targetDevice, configuration);
@@ -858,10 +857,11 @@ TEST_P(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinariesUnicodePath) {
 
         try {
             auto cache_path_mb = ov::util::wstring_to_string(cache_path_w);
-            core->set_property(ov::cache_dir(cache_path_mb));
+            configuration.insert(ov::cache_dir(cache_path_mb));
             // Load CNNNetwork to target plugins
             auto execNet = core->compile_model(function, targetDevice, configuration);
             execNet = {};
+            configuration.erase(ov::cache_dir.name());
             // Check that directory with cached kernels exists after loading network
             ASSERT_TRUE(ov::util::directory_exists(cache_path_w)) << "Directory with cached kernels doesn't exist";
             // Check that folder contains cache files and remove them
