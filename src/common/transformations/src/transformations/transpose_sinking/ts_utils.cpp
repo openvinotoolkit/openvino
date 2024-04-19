@@ -32,6 +32,13 @@
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/utils/utils.hpp"
 
+namespace {
+bool has_empty_axis_vector(const std::shared_ptr<ov::op::v0::Constant>& node) {
+    const auto axis_vector = node->get_axis_vector_val();
+    return axis_vector.empty();
+}
+}  // namespace
+
 namespace ov {
 namespace pass {
 namespace transpose_sinking {
@@ -83,7 +90,7 @@ TransposeInputsInfo GetFirstTransposeInput(const NodePtr& node,
         if (!transpose_node)
             continue;
         auto constant_node = as_type_ptr<ov::op::v0::Constant>(transpose_node->input_value(1).get_node_shared_ptr());
-        if (const_transpose_order && !constant_node)
+        if (const_transpose_order && (!constant_node || has_empty_axis_vector(constant_node)))
             continue;
         {
             TransposeInputsInfo input_info;
