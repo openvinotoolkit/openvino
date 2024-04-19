@@ -120,6 +120,14 @@ describe('Tensor shape', () => {
       /Cannot convert argument./
     );
   });
+
+  it('getShape() method does not accept parameters', () => {
+    const tensor = new ov.Tensor(ov.element.f32, [1, 3, 224, 224], data);
+    assert.throws(
+      () => tensor.getShape(1, 2, 3),
+      { message: 'No parameters are allowed for the getShape() method.'}
+    );
+  });
 });
 
 describe('Tensor element type', () => {

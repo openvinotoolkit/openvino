@@ -10,20 +10,20 @@ inline void FUNC(get_slice_step)(OPTIONAL_SHAPE_INFO_ARG
                                  int* step_batch, int* step_feature,
                                  int* step_w, int* step_z, int* step_y, int* step_x)
 {
-    const uint batch_index = 0;
-    const uint feature_index = 1;
+    const uint batch_index = DIM_IDX_BATCH;
+    const uint feature_index = DIM_IDX_FEATURE;
 #ifdef OUTPUT_LAYOUT_BFYX
-    const uint y_index = 2;
-    const uint x_index = 3;
+    const uint y_index = DIM_IDX_Y;
+    const uint x_index = DIM_IDX_X;
 #elif OUTPUT_LAYOUT_BFZYX
-    const uint z_index = 2;
-    const uint y_index = 3;
-    const uint x_index = 4;
+    const uint z_index = DIM_IDX_Z;
+    const uint y_index = DIM_IDX_Y;
+    const uint x_index = DIM_IDX_X;
 #elif OUTPUT_LAYOUT_BFWZYX
-    const uint w_index = 2;
-    const uint z_index = 3;
-    const uint y_index = 4;
-    const uint x_index = 5;
+    const uint w_index = DIM_IDX_W;
+    const uint z_index = DIM_IDX_Z;
+    const uint y_index = DIM_IDX_Y;
+    const uint x_index = DIM_IDX_X;
 #endif
 
     *step_batch = batch_index < STRIDE_DIMS ? stride[batch_index] : 1;
@@ -55,20 +55,20 @@ inline void FUNC(get_slice_end)(OPTIONAL_SHAPE_INFO_ARG
     const uint out_z_num = INPUT0_SIZE_Z;
     const uint out_y_num = INPUT0_SIZE_Y;
     const uint out_x_num = INPUT0_SIZE_X;
-    const uint batch_index = 0;
-    const uint feature_index = 1;
+    const uint batch_index = DIM_IDX_BATCH;
+    const uint feature_index = DIM_IDX_FEATURE;
 #ifdef OUTPUT_LAYOUT_BFYX
-    const uint y_index = 2;
-    const uint x_index = 3;
+    const uint y_index = DIM_IDX_Y;
+    const uint x_index = DIM_IDX_X;
 #elif OUTPUT_LAYOUT_BFZYX
-    const uint z_index = 2;
-    const uint y_index = 3;
-    const uint x_index = 4;
+    const uint z_index = DIM_IDX_Z;
+    const uint y_index = DIM_IDX_Y;
+    const uint x_index = DIM_IDX_X;
 #elif OUTPUT_LAYOUT_BFWZYX
-    const uint w_index = 2;
-    const uint z_index = 3;
-    const uint y_index = 4;
-    const uint x_index = 5;
+    const uint w_index = DIM_IDX_W;
+    const uint z_index = DIM_IDX_Z;
+    const uint y_index = DIM_IDX_Y;
+    const uint x_index = DIM_IDX_X;
 #endif
     END_TYPE batch = batch_index < END_DIMS ? end[batch_index] : 0;
     END_TYPE feature = feature_index < END_DIMS ? end[feature_index] : 0;
@@ -100,20 +100,20 @@ inline void FUNC(get_slice_begin)(OPTIONAL_SHAPE_INFO_ARG
                                   int* begin_batch, int* begin_feature,
                                   int* begin_w, int* begin_z, int* begin_y, int* begin_x)
 {
-    const uint batch_index = 0;
-    const uint feature_index = 1;
+    const uint batch_index = DIM_IDX_BATCH;
+    const uint feature_index = DIM_IDX_FEATURE;
 #ifdef OUTPUT_LAYOUT_BFYX
-    const uint y_index = 2;
-    const uint x_index = 3;
+    const uint y_index = DIM_IDX_Y;
+    const uint x_index = DIM_IDX_X;
 #elif OUTPUT_LAYOUT_BFZYX
-    const uint z_index = 2;
-    const uint y_index = 3;
-    const uint x_index = 4;
+    const uint z_index = DIM_IDX_Z;
+    const uint y_index = DIM_IDX_Y;
+    const uint x_index = DIM_IDX_X;
 #elif OUTPUT_LAYOUT_BFWZYX
-    const uint w_index = 2;
-    const uint z_index = 3;
-    const uint y_index = 4;
-    const uint x_index = 5;
+    const uint w_index = DIM_IDX_W;
+    const uint z_index = DIM_IDX_Z;
+    const uint y_index = DIM_IDX_Y;
+    const uint x_index = DIM_IDX_X;
 #endif
 
     BEGIN_TYPE batch = batch_index < BEGIN_DIMS ? begin[batch_index] : 0;
@@ -160,7 +160,7 @@ inline void FUNC(calculate_index)(int* step, int* begin_num, int* end_num, const
     {
         int real_begin = *begin_num < 0 ? *begin_num + out_num : *begin_num;
         int real_end = *end_num < 0 ? *end_num + out_num : *end_num;
-        if (*step < 0) {    
+        if (*step < 0) {
             real_begin = max((int)(0), min((int)(out_num - 1), real_begin));
             real_end = max((int)(-1), min((int)out_num, real_end));
             if (real_begin < real_end) { // for reversing
@@ -289,33 +289,62 @@ KERNEL(strided_slice_ref)(OPTIONAL_SHAPE_INFO_ARG
 
 #if NEW_AXIS_MODE
     // If NEW_AXIS_MODE that just copy input to output
-#ifdef OUTPUT_LAYOUT_BFYX
+#ifdef INPUT0_LAYOUT_BFYX
+    const uint index_in_batch = (feature * (uint)get_global_size(2) + (uint)get_global_id(2)) % (OUTPUT_SIZE_X * OUTPUT_SIZE_Y);
+    const uint input_feature_id = (feature * (uint)get_global_size(2) + (uint)get_global_id(2)) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y);
     const uint w_input = 0;
     const uint z_input = 0;
-    const uint y_input = (uint)get_global_id(2) / INPUT0_SIZE_X;
-    const uint x_input = (uint)get_global_id(2) % INPUT0_SIZE_X;
-#elif OUTPUT_LAYOUT_BFZYX
+    const uint y_input = index_in_batch / OUTPUT_SIZE_X;
+    const uint x_input = index_in_batch % OUTPUT_SIZE_X;
+#elif INPUT0_LAYOUT_BFZYX
+    const uint index_in_batch = (feature * (uint)get_global_size(2) + (uint)get_global_id(2)) % (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z);
+    const uint input_feature_id = (feature * (uint)get_global_size(2) + (uint)get_global_id(2)) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z);
     const uint w_input = 0;
-    const uint yx_input = (uint)get_global_id(2) % (INPUT0_SIZE_X * INPUT0_SIZE_Y);
-    const uint z_input = (uint)get_global_id(2) / (INPUT0_SIZE_X * INPUT0_SIZE_Y);
-    const uint y_input = yx_input / INPUT0_SIZE_X;
-    const uint x_input = yx_input % INPUT0_SIZE_X;
-#elif OUTPUT_LAYOUT_BFWZYX
-    const uint zyx_input = (uint)get_global_id(2) % (INPUT0_SIZE_X * INPUT0_SIZE_Y * INPUT0_SIZE_Z);
-    const uint w_input = (uint)get_global_id(2) / (INPUT0_SIZE_X * INPUT0_SIZE_Y * INPUT0_SIZE_Z);
-    const uint z_input = zyx_input / (INPUT0_SIZE_X * INPUT0_SIZE_Y);
-    const uint yx_input = zyx_input % (INPUT0_SIZE_X * INPUT0_SIZE_Y);
-    const uint y_input = yx_input / INPUT0_SIZE_X;
-    const uint x_input = yx_input % INPUT0_SIZE_X;
+    const uint yx_input = index_in_batch % (OUTPUT_SIZE_X * OUTPUT_SIZE_Y);
+    const uint z_input = index_in_batch / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y);
+    const uint y_input = yx_input / OUTPUT_SIZE_X;
+    const uint x_input = yx_input % OUTPUT_SIZE_X;
+#elif INPUT0_LAYOUT_BFWZYX
+    const uint index_in_batch = (feature * (uint)get_global_size(2) + (uint)get_global_id(2)) % (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z * OUTPUT_SIZE_W);
+    const uint input_feature_id = (feature * (uint)get_global_size(2) + (uint)get_global_id(2)) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z * OUTPUT_SIZE_W);
+    const uint zyx_input = index_in_batch % (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z);
+    const uint w_input = index_in_batch / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z);
+    const uint z_input = zyx_input / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y);
+    const uint yx_input = zyx_input % (OUTPUT_SIZE_X * OUTPUT_SIZE_Y);
+    const uint y_input = yx_input / OUTPUT_SIZE_X;
+    const uint x_input = yx_input % OUTPUT_SIZE_X;
 #endif
+    
     const uint input_index = INPUT0_OFFSET +
         batch * INPUT0_BATCH_PITCH +
-        feature * INPUT0_FEATURE_PITCH +
-        w_input * INPUT0_W_PITCH +
-        z_input * INPUT0_Z_PITCH +
-        y_input * INPUT0_Y_PITCH +
-        x_input * INPUT0_X_PITCH;
-    output[input_index] = input[input_index];
+        input_feature_id * INPUT0_FEATURE_PITCH +
+        w_input * OUTPUT_W_PITCH +
+        z_input * OUTPUT_Z_PITCH +
+        y_input * OUTPUT_Y_PITCH +
+        x_input * OUTPUT_X_PITCH;
+
+#ifdef OUTPUT_LAYOUT_BFYX
+    const uint y = (uint)get_global_id(2) / OUTPUT_SIZE_X;
+    const uint x = (uint)get_global_id(2) % OUTPUT_SIZE_X;
+    const uint output_index = OUTPUT_GET_INDEX(batch, feature, y, x);
+#elif OUTPUT_LAYOUT_BFZYX
+    const uint yx = (uint)get_global_id(2) % (OUTPUT_SIZE_X * OUTPUT_SIZE_Y);
+    const uint z = (uint)get_global_id(2) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y);
+    const uint y = yx / OUTPUT_SIZE_X;
+    const uint x = yx % OUTPUT_SIZE_X;
+    const uint output_index = OUTPUT_GET_INDEX(batch, feature, z, y, x);
+#elif OUTPUT_LAYOUT_BFWZYX
+    const uint zyx = (uint)get_global_id(2) % (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z);
+    const uint w = (uint)get_global_id(2) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z);
+    const uint z = zyx / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y);
+    const uint yx = zyx % (OUTPUT_SIZE_X * OUTPUT_SIZE_Y);
+    const uint y = yx / OUTPUT_SIZE_X;
+    const uint x = yx % OUTPUT_SIZE_X;
+    const uint output_index = OUTPUT_GET_INDEX(batch, feature, w, z, y, x);
+#endif
+    
+    output[output_index] = input[input_index];
+
 #else // NEW_AXIS_MODE
 #ifdef OUTPUT_LAYOUT_BFYX
     const uint w = 0;
@@ -359,7 +388,7 @@ KERNEL(strided_slice_ref)(OPTIONAL_SHAPE_INFO_ARG
     const uint input_index = INPUT0_OFFSET +
             (slice_begin_batch + batch * slice_steps_batch) * INPUT0_BATCH_PITCH +
             (slice_begin_feature + feature * slice_steps_feature) * INPUT0_FEATURE_PITCH +
-    #if INPUT0_LAYOUT_BFWZYX        
+    #if INPUT0_LAYOUT_BFWZYX
             (slice_begin_w + w * slice_steps_w) * INPUT0_W_PITCH +
             (slice_begin_z + z * slice_steps_z) * INPUT0_Z_PITCH +
             (slice_begin_y + y * slice_steps_y) * INPUT0_Y_PITCH +

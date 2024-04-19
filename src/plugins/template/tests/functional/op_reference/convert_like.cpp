@@ -144,6 +144,12 @@ INSTANTIATE_TEST_SUITE_P(
                       ov::element::f16,
                       std::vector<uint8_t>{0, 10, 15, 20, 43, 56, 78, 99, 102, 130, 142},
                       std::vector<float16>{0, 10, 15, 20, 43, 56, 78, 99, 102, 130, 142}),
+        ConvertParams(ConversionTypes::CONVERT_LIKE,
+                      ov::PartialShape{4},
+                      ov::element::nf4,
+                      ov::element::f16,
+                      std::vector<uint8_t>{0xE1, 0x1F},
+                      std::vector<float16>{-0.6961928009986877f, 0.7229568362236023f, 1.0f, -0.6961928009986877f}),
 
         // destination f32
         ConvertParams(ConversionTypes::CONVERT_LIKE,
@@ -307,6 +313,12 @@ INSTANTIATE_TEST_SUITE_P(
                 vector<float>{0.5f, 1.5f, 0.5f, 2.5f, 1.5f, 0.5f, 3.5f, 2.5f, 0.5f, 0.5f, 2.5f, 0.5f, 0.5f, 0.5f, 1.5f},
             std::vector<
                 float>{0.5f, 1.5f, 0.5f, 2.5f, 1.5f, 0.5f, 3.5f, 2.5f, 0.5f, 0.5f, 2.5f, 0.5f, 0.5f, 0.5f, 1.5f}),
+        ConvertParams(ConversionTypes::CONVERT_LIKE,
+                      ov::PartialShape{4},
+                      ov::element::nf4,
+                      ov::element::f32,
+                      std::vector<uint8_t>{0xE1, 0x1F},
+                      std::vector<float>{-0.6961928009986877f, 0.7229568362236023f, 1.0f, -0.6961928009986877f}),
         // destination i4
         ConvertParams(ConversionTypes::CONVERT_LIKE,
                       ov::PartialShape{4},
@@ -1448,9 +1460,15 @@ INSTANTIATE_TEST_SUITE_P(
         // destination nf4 (use quantization)
         ConvertParams(ConversionTypes::CONVERT_LIKE,
                       ov::PartialShape{4},
-                      ov::element::f32,
+                      ov::element::f16,
                       ov::element::nf4,
-                      std::vector<float>{-0.6961928009986877f, 0.7229568362236023f, 1.0f, -0.5250730514526367f},
+                      std::vector<float16>{-0.6961928009986877f, 0.7229568362236023f, 1.0f, -0.5250730514526367f},
+                      std::vector<uint8_t>{0xE1, 0x2F}),
+        ConvertParams(ConversionTypes::CONVERT_LIKE,
+                      ov::PartialShape{4},
+                      ov::element::nf4,
+                      ov::element::nf4,
+                      std::vector<uint8_t>{0xE1, 0x2f},
                       std::vector<uint8_t>{0xE1, 0x2F}),
         // destination u2
         ConvertParams(ConversionTypes::CONVERT_LIKE,
