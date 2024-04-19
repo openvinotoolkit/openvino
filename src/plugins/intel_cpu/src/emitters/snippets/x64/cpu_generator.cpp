@@ -509,7 +509,7 @@ void intel_cpu::CPURuntimeConfigurator::update_loop_args(const std::shared_ptr<o
 
 void intel_cpu::CPURuntimeConfigurator::update_parallel_domain(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir,
                                                                const std::shared_ptr<CPURuntimeConfig>& cpu_config) const {
-    cpu_config->parallel_domain.resize(cpu_config->tensor_rank);
+    cpu_config->parallel_domain.resize(cpu_config->tensor_rank, 1);
     const auto parallel_exec_domain = linear_ir->get_parallel_domain();
     std::copy(parallel_exec_domain.cbegin(), parallel_exec_domain.cend(),
               cpu_config->parallel_domain.begin() + (cpu_config->tensor_rank - parallel_exec_domain.size()));

@@ -498,10 +498,7 @@ void Subgraph::pre_generation_transformations() const {
 }
 
 void Subgraph::lower(const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config,
-                     const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes,
-                     size_t min_parallel_work_amount, size_t min_kernel_work_amount,
-                     const std::shared_ptr<IShapeInferSnippetsFactory>& factory) {
-    convert_body_to_linear_ir(min_parallel_work_amount, min_kernel_work_amount, factory);
+                     const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes) {
     control_flow_transformations(lowered_pass_config, lowered_backend_passes);
     init_shape_infer_linear_ir();
     pre_generation_transformations();
@@ -518,7 +515,7 @@ snippets::Schedule Subgraph::generate(const BlockedShapeVector& blocked_input_sh
                                       const void* compile_params) {
     data_flow_transformations(blocked_input_shapes, input_precisions, output_precisions, data_flow_backend_passes);
     convert_body_to_linear_ir(min_parallel_work_amount, min_kernel_work_amount, factory);
-    lower(lowered_pass_config, lowered_backend_passes, min_parallel_work_amount, min_kernel_work_amount, factory);
+    lower(lowered_pass_config, lowered_backend_passes);
     return generate_from_linear_ir(compile_params);
 }
 

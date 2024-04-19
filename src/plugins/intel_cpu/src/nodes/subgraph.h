@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "emitters/snippets/x64/jit_kernel_emitter.hpp"
 #include "node.h"
-#include "onednn/dnnl.h"
+
+#include "emitters/snippets/x64/cpu_generator.hpp"
 #include "snippets/op/subgraph.hpp"
 
 #include <array>
@@ -15,10 +15,12 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-/// Subgraph represents subgraph node in CPU plugin
-/// potentially, snippet can be placed as a postop to any support operation while it doesn't support postops itself
-/// precision: fp32
 class Subgraph : public Node {
+    class SubgraphExecutor;
+    class SubgraphJitExecutor;
+    class SubgraphJitStaticExecutor;
+    class SubgraphJitShapeAgnosticExecutor;
+    class SubgraphJitDynamicSpecializedExecutor;
 public:
     Subgraph(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
     ~Subgraph() override = default;
@@ -26,12 +28,10 @@ public:
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void selectOptimalPrimitiveDescriptor() override;
-    void initOptimalPrimitiveDescriptor() override;
     ov::element::Type getRuntimePrecision() const override;
 
-    // Here we convert to canonical for & jit everything
+    void createPrimitive() override;
     void prepareParams() override;
-    bool needPrepareParams() const override;
 
     bool canBeInPlace() const override;
     bool created() const override;
@@ -44,92 +44,153 @@ public:
         // Local copy of subgraph node for canonization & code generation
         std::shared_ptr<snippets::op::Subgraph> snippet;
         uint64_t bodyHash;
-        std::vector<VectorDims> inMemBlockedDims;
         std::vector<VectorDims> inMemOrders;
-        std::vector<ov::element::Type> inMemPrecs;
-        std::vector<VectorDims> outMemBlockedDims;
         std::vector<VectorDims> outMemOrders;
+        std::vector<ov::element::Type> inMemPrecs;
         std::vector<ov::element::Type> outMemPrecs;
-        // todo: used flag if we need extra shape infer, can be removed after [121670]
-        bool has_non_planar_inputs;
     };
 
 private:
-    typedef void (*kernel)(const void *, const void *);
-
     static uint64_t get_body_hash(const std::shared_ptr<snippets::op::Subgraph>& snippet);
+
+    void init_memory_ptrs();
+    void init_attrs();
+    void init_start_offsets();
+    void init_snippets_blocked_shapes(snippets::op::Subgraph::BlockedShapeVector& in_blocked_shapes) const;
+    void init_precisions(std::vector<ov::element::Type>& input_types, std::vector<ov::element::Type>& output_types) const;
+    void lower();
+
+    uint8_t get_broadcasting_mask(const std::vector<VectorDims>& input_shapes) const;
+
+    using DataFlowPasses = std::vector<ov::snippets::pass::Manager::PositionedPassBase>;
+    using ControlFlowPasses = std::vector<ov::snippets::lowered::pass::PassPipeline::PositionedPassLowered>;
+    using ControlFlowConfig = std::shared_ptr<ov::snippets::lowered::pass::PassConfig>;
+
+    DataFlowPasses get_data_flow_passes() const;
+    std::pair<ControlFlowConfig, ControlFlowPasses> get_control_flow_passes() const;
 
     size_t inputNum = 0;
     size_t outputNum = 0;
 
     // Holds ISA version used is codeGeneration target
     dnnl::impl::cpu::x64::cpu_isa_t host_isa;
+    std::shared_ptr<SubgraphAttrs> snippetAttrs;
+
+    size_t input_num = 0;
+    size_t output_num = 0;
 
     std::vector<MemoryPtr> srcMemPtrs = {};
     std::vector<MemoryPtr> dstMemPtrs = {};
 
-    mutable SubgraphAttrs snippetAttrs;
+    std::vector<ptrdiff_t> start_offset_in = {};
+    std::vector<ptrdiff_t> start_offset_out = {};
+
     bool is_dynamic = false;
-
-    class SubgraphExecutor {
-        public:
-            SubgraphExecutor(SubgraphAttrs attrs, bool is_dynamic);
-            virtual void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) = 0;
-            virtual ~SubgraphExecutor() = default;
-            std::shared_ptr<IShapeInfer> shapeInference = nullptr;
-
-        protected:
-            SubgraphAttrs snippetAttrs;
-            bool is_dynamic = false;
-    };
+    // Input shapes that are used in PrepareParams to avoid frequent memory allocation
+    std::vector<VectorDims> in_shapes;
 
     std::shared_ptr<SubgraphExecutor> execPtr = nullptr;
+};
 
-    class SubgraphJitExecutor : public SubgraphExecutor {
-        public:
-            SubgraphJitExecutor(SubgraphAttrs attrs, bool is_dynamic);
-            void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
+// Base class for all Executors
+class Subgraph::SubgraphExecutor {
+public:
+    SubgraphExecutor() = default;
+    virtual ~SubgraphExecutor() = default;
 
-            bool schedule_created();
+    virtual void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) = 0;
+};
 
-        private:
-            static const size_t rank6D {6};
+// Base class for Jit Executors
+class Subgraph::SubgraphJitExecutor : public Subgraph::SubgraphExecutor {
+public:
+    SubgraphJitExecutor(const std::shared_ptr<SubgraphAttrs>& snippet_attrs);
+    virtual ~SubgraphJitExecutor() = default;
 
-            typedef void (*kernel)(const void *, const void *);
+    void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
 
-            size_t numInput = 0;
-            size_t numOutput = 0;
+protected:
+    // Evaluates generated snippet using parallel backend
+    virtual void schedule_6d(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) = 0;
+    virtual void schedule_nt(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) = 0;
 
-            void generate(const jit_snippets_compile_args*);
-            inline void update_ptrs(jit_snippets_call_args&, const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs);
-            // Evaluates generated snippet using parallel backend
-            void schedule_6d(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs);
-            void schedule_nt(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs);
+    virtual void init_runtime_params(const std::shared_ptr<CPURuntimeConfig>& cpu_config);
+    void generate(const std::shared_ptr<SubgraphAttrs>& snippet_attrs, const std::shared_ptr<CPURuntimeConfig>& cpu_config);
 
-            // Holds generated snippet with information about how to schedule it
-            snippets::Schedule schedule;
+    std::shared_ptr<snippets::Schedule> schedule;
+    // Holds index of output used as in execution domain
+    // it should be compatible with a schedule's work size
+    std::vector<size_t> parallel_exec_domain = {};
+    size_t harness_work_amount = 0;
 
-            // Holds index of output used as in execution domain
-            // it should be compatible with a schedule's work size
-            std::vector<size_t> parallel_exec_domain = {};
+    // Buffer scratchpad
+    std::vector<uint8_t> buffer_scratchpad = {};
+    size_t buffer_scratchpad_size = 0;
 
-            /// scheduling info
-            size_t tensorRank = 0;
-            size_t harnessWorkAmount = 0;
-
-            std::vector<size_t> dataSize = {};
-
-            std::vector<ptrdiff_t> start_offset_in = {};
-            std::vector<ptrdiff_t> start_offset_out = {};
-
-            // Buffer scratchpad
-            std::vector<uint8_t> buffer_scratchpad = {};
-            size_t buffer_scratchpad_size = 0;
+    const size_t rank6D = 6;
 
 #ifdef SNIPPETS_DEBUG_CAPS
-            inline void segfault_detector();
+    bool enabled_segfault_detector = false;
+    inline void segfault_detector();
 #endif
-    };
+};
+
+// Class for Subgraphs with static shapes
+class Subgraph::SubgraphJitStaticExecutor : public Subgraph::SubgraphJitExecutor {
+public:
+    SubgraphJitStaticExecutor(const std::shared_ptr<SubgraphAttrs>& snippet_attrs,
+                              const std::vector<ptrdiff_t>& start_offset_in,
+                              const std::vector<ptrdiff_t>& start_offset_out);
+
+protected:
+    typedef void (*kernel)(const void*, const void*);
+
+    void schedule_6d(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
+    void schedule_nt(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
+
+    inline void update_ptrs(jit_snippets_call_args& call_args, const std::vector<MemoryPtr>& srcMemPtrs, const std::vector<MemoryPtr>& dstMemPtrs);
+
+    std::vector<ptrdiff_t> start_offset_in = {};
+    std::vector<ptrdiff_t> start_offset_out = {};
+};
+
+// Class for dynamic Subgraph with shape-agnostic that just generate lowered code
+class Subgraph::SubgraphJitShapeAgnosticExecutor : public Subgraph::SubgraphJitExecutor {
+    friend class Subgraph::SubgraphJitDynamicSpecializedExecutor;
+public:
+    SubgraphJitShapeAgnosticExecutor(const std::shared_ptr<SubgraphAttrs>& snippet_attrs);
+
+protected:
+    void schedule_6d(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
+    void schedule_nt(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
+};
+
+// Specialized dynamic executor based on shape agnostic kernel for the specific input shapes
+class Subgraph::SubgraphJitDynamicSpecializedExecutor : public Subgraph::SubgraphJitExecutor {
+public:
+    SubgraphJitDynamicSpecializedExecutor(const std::shared_ptr<SubgraphAttrs>& snippet_attrs,
+                                         const std::vector<ptrdiff_t>& start_offset_in,
+                                         const std::vector<ptrdiff_t>& start_offset_out,
+                                         const std::shared_ptr<SubgraphJitShapeAgnosticExecutor>& agnostic);
+
+protected:
+    typedef void (*dynamic_kernel)(const void *);
+
+    inline void init_original_ptrs(const std::vector<MemoryPtr>& srcMemPtrs, const std::vector<MemoryPtr>& dstMemPtrs,
+                                   std::vector<const uint8_t*>& src_ptrs, std::vector<uint8_t*>& dst_ptrs);
+    inline void init_call_args(jit_snippets_call_args& call_args);
+    inline void update_ptrs(jit_snippets_call_args& call_args, const std::vector<const uint8_t*>& src_ptrs,
+                            const std::vector<uint8_t*>& dst_ptrs, const size_t* indexes) const;
+    void init_runtime_params(const std::shared_ptr<CPURuntimeConfig>& cpu_config) override;
+    // Evaluates generated snippet using parallel backend
+    void schedule_6d(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
+    void schedule_nt(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
+
+    std::vector<std::vector<size_t>> data_offsets = {};
+    std::vector<jit_snippets_call_args::loop_args_t> loop_args = {};
+
+    std::vector<ptrdiff_t> start_offset_in = {};
+    std::vector<ptrdiff_t> start_offset_out = {};
 };
 
 }   // namespace node

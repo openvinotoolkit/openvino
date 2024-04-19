@@ -142,9 +142,7 @@ public:
     void pre_generation_transformations() const;
 
     void lower(const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config = std::make_shared<lowered::pass::PassConfig>(),
-               const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes = {},
-               size_t min_parallel_work_amount = 8, size_t min_kernel_work_amount = 256,
-               const std::shared_ptr<IShapeInferSnippetsFactory>& factory = nullptr);
+               const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes = {});
 
     std::shared_ptr<lowered::LinearIR>
     convert_body_to_linear_ir(size_t min_parallel_work_amount = 8, size_t min_kernel_work_amount = 256,
