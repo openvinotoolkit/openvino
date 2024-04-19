@@ -76,6 +76,31 @@ void check_type(const napi_valuetype expected_type, const std::string key, const
     OPENVINO_ASSERT(real_type == expected_type, create_error_message(key, expected_type, real_type));
 }
 
+const bool Validator::validate(const Napi::CallbackInfo& info) {
+    std::string validation_errors;
+
+    if (info.Length() != attributes_validators.size())
+        return false;
+
+    size_t index = 0;
+
+    for (const auto& validator : attributes_validators) {
+        try {
+            validator(std::to_string(index + 1), info[index]);
+        } catch (std::runtime_error& err) {
+            validation_errors.append("\t" + std::string(err.what()) + "\n");
+        }
+
+        index++;
+    }
+
+    bool no_errors = validation_errors.empty();
+
+    OPENVINO_ASSERT(no_errors, validation_errors);
+
+    return no_errors;
+}
+
 const bool Validator::validate(const Napi::CallbackInfo& info, std::vector<std::string>& error_messages) {
     std::string validation_errors;
 

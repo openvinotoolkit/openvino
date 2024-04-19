@@ -9,6 +9,7 @@
 #include "node/include/compiled_model.hpp"
 #include "node/include/errors.hpp"
 #include "node/include/helper.hpp"
+#include "node/include/napi_arg.hpp"
 #include "node/include/node_output.hpp"
 #include "node/include/tensor.hpp"
 
@@ -152,29 +153,39 @@ Napi::Value InferRequestWrap::get_output_tensors(const Napi::CallbackInfo& info)
 }
 
 Napi::Value InferRequestWrap::infer_dispatch(const Napi::CallbackInfo& info) {
-    if (info.Length() == 0)
-        _infer_request.infer();
-    else if (info.Length() == 1 && info[0].IsTypedArray()) {
-        reportError(info.Env(), "TypedArray cannot be passed directly into infer() method.");
-        return info.Env().Null();
-    } else if (info.Length() == 1 && info[0].IsArray()) {
-        try {
+    std::vector<std::string> errors_messages;
+
+    // Allowed signatures list
+    auto empty_attrs = NapiArg::Validator();
+    auto single_array = NapiArg::Validator().add_array_arg();
+    auto single_object = NapiArg::Validator().add_object_arg();
+
+    try {
+        OPENVINO_ASSERT(!info[0].IsTypedArray(),
+                        "Argument #1 is TypedArray. It cannot be passed directly into infer() method.");
+
+        if (empty_attrs.validate(info, errors_messages)) {
+            _infer_request.infer();
+
+            return get_output_tensors(info);
+        } else if (single_array.validate(info, errors_messages)) {
             infer(info[0].As<Napi::Array>());
-        } catch (std::exception& e) {
-            reportError(info.Env(), e.what());
-            return info.Env().Null();
-        }
-    } else if (info.Length() == 1 && info[0].IsObject()) {
-        try {
+
+            return get_output_tensors(info);
+        } else if (single_object.validate(info, errors_messages)) {
             infer(info[0].As<Napi::Object>());
-        } catch (std::exception& e) {
-            reportError(info.Env(), e.what());
-            return info.Env().Null();
+
+            return get_output_tensors(info);
         }
-    } else {
-        reportError(info.Env(), "Infer method takes as an argument an array or an object.");
+
+        std::string arguments_error_message = NapiArg::join_array_to_str(errors_messages, "\nor\n ");
+
+        OPENVINO_THROW(arguments_error_message.empty() ? "Invalid number of arguments" : arguments_error_message);
+    } catch (std::exception& e) {
+        reportError(info.Env(), e.what());
     }
-    return get_output_tensors(info);
+
+    return info.Env().Undefined();
 }
 
 void InferRequestWrap::infer(const Napi::Array& inputs) {
