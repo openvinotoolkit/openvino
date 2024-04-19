@@ -24,7 +24,6 @@ void intel_npu::registerCompilerOptions(OptionsDesc& desc) {
     desc.add<DMA_ENGINES>();
     desc.add<USE_ELF_COMPILER_BACKEND>();
     desc.add<DYNAMIC_SHAPE_TO_STATIC>();
-    desc.add<BATCH_MODE>();
 }
 
 //
@@ -117,30 +116,6 @@ std::string intel_npu::USE_ELF_COMPILER_BACKEND::toString(const ov::intel_npu::E
     } else {
         OPENVINO_THROW("No valid string for current USE_ELF_COMPILER_BACKEND option");
     }
-
-    return strStream.str();
-}
-
-//
-// BATCH_MODE
-//
-
-ov::intel_npu::BatchMode intel_npu::BATCH_MODE::parse(std::string_view val) {
-    if (val == "AUTO") {
-        return ov::intel_npu::BatchMode::AUTO;
-    } else if (val == "COMPILER") {
-        return ov::intel_npu::BatchMode::COMPILER;
-    } else if (val == "PLUGIN") {
-        return ov::intel_npu::BatchMode::PLUGIN;
-    }
-
-    OPENVINO_THROW("Value '{0}' is not a valid BATCH_TYPE option", val);
-}
-
-std::string intel_npu::BATCH_MODE::toString(const ov::intel_npu::BatchMode& val) {
-    std::stringstream strStream;
-
-    strStream << val;
 
     return strStream.str();
 }

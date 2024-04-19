@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME openvino_npu_zero_utils)
+set(TARGET_NAME openvino_npu_zero_result_parser)
 
 file(GLOB_RECURSE SOURCES *.cpp)
 

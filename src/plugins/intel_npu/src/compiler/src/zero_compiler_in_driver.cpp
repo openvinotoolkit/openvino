@@ -11,7 +11,7 @@
 #include "intel_npu/al/config/runtime.hpp"
 #include "intel_npu/al/itt.hpp"
 #include "intel_npu/al/prefix.hpp"
-#include "intel_npu/utils/zero/zero_utils.hpp"
+#include "intel_npu/utils/zero/zero_result.hpp"
 #include "openvino/core/model.hpp"
 
 namespace {
@@ -992,10 +992,10 @@ static void getNodeDescriptor(IONodeDescriptorMap& nodeDescriptors,
         {legacyName, metadata.friendly_name, std::move(outputTensorNames), precision, shape, shape};
 }
 
-void getNodeDescriptor(IONodeDescriptorMap& nodeDescriptors,
-                       std::vector<std::string>& names,
-                       ze_graph_argument_properties_3_t& arg,
-                       ze_graph_argument_metadata_t& metadata) {
+static void getNodeDescriptor(IONodeDescriptorMap& nodeDescriptors,
+                              std::vector<std::string>& names,
+                              ze_graph_argument_properties_3_t& arg,
+                              ze_graph_argument_metadata_t& metadata) {
     ov::element::Type_t precision = toOVElementType(arg.devicePrecision);
     ov::Shape transposedShape, originalShape;
     std::unordered_set<std::string> outputTensorNames;

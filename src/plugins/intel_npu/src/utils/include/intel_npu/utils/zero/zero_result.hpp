@@ -14,6 +14,4 @@ const std::string ze_result_to_string(const ze_result_t result);
 
 const std::string ze_result_to_description(const ze_result_t result);
 
-bool support_batching_on_plugin(const uint32_t driver_ext_version);
-
 }  // namespace intel_npu

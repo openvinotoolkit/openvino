@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_npu/utils/zero/zero_utils.hpp"
+#include "intel_npu/utils/zero/zero_result.hpp"
 
 #include <ze_api.h>
-#include <ze_graph_ext.h>
 
 #include <string>
 
@@ -324,13 +323,6 @@ const std::string ze_result_to_description(const ze_result_t result) {
     }
 
     return as_string;
-}
-
-bool support_batching_on_plugin(const uint32_t driver_ext_version) {
-    if (driver_ext_version < ZE_GRAPH_EXT_VERSION_1_6) {
-        return false;
-    }
-    return true;
 }
 
 }  // namespace intel_npu

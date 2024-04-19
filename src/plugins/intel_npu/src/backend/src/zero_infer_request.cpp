@@ -144,7 +144,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
         try {
             _batch_size = get_batch_size(_metadata, executorInputDescriptors, executorOutputDescriptors);
         } catch (const std::exception& ex) {
-            _logger.warning("Got an error when checking the batch size: {0}", ex.what());
+            _logger.info("Got an error when checking the batch size: \n%s", ex.what());
         }
     }
 
@@ -153,7 +153,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
             OPENVINO_THROW("Invalid graph input descriptor key: " + inputName);
         }
 
-        IONodeDescriptor parameterDescriptor = _metadata.parameters.at(inputName);
+        IONodeDescriptor& parameterDescriptor = _metadata.parameters.at(inputName);
         check_level_zero_attributes_match(parameterDescriptor, executorInputDescriptors.at(inputName), inputName);
 
         ov::Allocator inputAllocator;
@@ -189,7 +189,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
             OPENVINO_THROW("Invalid graph output descriptor key: " + outputName);
         }
 
-        IONodeDescriptor resultDescriptor = _metadata.results.at(outputName);
+        IONodeDescriptor& resultDescriptor = _metadata.results.at(outputName);
         check_level_zero_attributes_match(resultDescriptor, executorOutputDescriptors.at(outputName), outputName);
 
         // When batching is handled by the plugin we need to modify transposed shape with the original batch size since
