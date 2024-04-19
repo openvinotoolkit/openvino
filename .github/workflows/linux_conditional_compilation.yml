@@ -76,16 +76,31 @@ jobs:
     if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
 
     steps:
-      - name: Set apt retries
-        run: |
-          echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
-          # do not remove deb packages:
-          rm /etc/apt/apt.conf.d/docker-clean
+      - name: Checkout local actions
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_apt
+            .github/actions/cache
+
+      - name: Setup apt
+        uses: ./.github/actions/setup_apt
+
+      - name: Setup apt cache
+        uses: ./openvino/.github/actions/cache
+        with:
+          save-always: true # TODO: for the 1st run only
+          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          cache-path: ${{ env.APT_CACHE_PATH }}
+          path: '/var/cache/apt/archives'
+          key: ${{ runner.os }}-${{ runner.arch }}-apt-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-apt
 
       - name: Install git
         run: |
-          apt-get update
-          apt-get install --assume-yes --no-install-recommends git ca-certificates git-lfs
+          apt update
+          apt install git ca-certificates git-lfs
 
       - name: Clone OpenVINO
         uses: actions/checkout@v4
@@ -282,14 +297,29 @@ jobs:
       SCCACHE_AZURE_KEY_PREFIX: ubuntu22_x86_64_cc_Release
 
     steps:
-      - name: Set apt retries
-        run: |
-          echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
-          # do not remove deb packages:
-          rm /etc/apt/apt.conf.d/docker-clean
+      - name: Checkout local actions
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_apt
+            .github/actions/cache
+
+      - name: Setup apt
+        uses: ./.github/actions/setup_apt
+
+      - name: Setup apt cache
+        uses: ./openvino/.github/actions/cache
+        with:
+          save-always: true # TODO: for the 1st run only
+          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          cache-path: ${{ env.APT_CACHE_PATH }}
+          path: '/var/cache/apt/archives'
+          key: ${{ runner.os }}-${{ runner.arch }}-apt-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-apt
 
       - name: Install git
-        run: apt-get update && apt-get install --assume-yes --no-install-recommends git ca-certificates git-lfs
+        run: apt update && apt install git ca-certificates git-lfs
 
       - name: Clone OpenVINO
         uses: actions/checkout@v4
@@ -313,17 +343,6 @@ jobs:
 
       - name: Extract selective build statistics package
         run: tar -xvzf ${SELECTIVE_BUILD_STAT_DIR}/openvino_selective_build_stat.tar.gz -C ${SELECTIVE_BUILD_STAT_DIR}
-
-      - name: Setup apt cache
-        uses: ./openvino/.github/actions/cache
-        with:
-          save-always: true # TODO: for the 1st run only
-          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cache-path: ${{ env.APT_CACHE_PATH }}
-          path: '/var/cache/apt/archives'
-          key: ${{ runner.os }}-${{ runner.arch }}-apt-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-apt
 
       #
       # Dependencies

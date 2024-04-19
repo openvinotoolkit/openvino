@@ -94,7 +94,7 @@ jobs:
             ${{ runner.os }}-${{ runner.arch }}-apt
 
       - name: Install git
-        run: apt update && apt install --no-install-recommends git ca-certificates
+        run: apt update && apt install git ca-certificates
 
       - name: Clone OpenVINO
         uses: actions/checkout@v4
