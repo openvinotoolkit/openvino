@@ -44,7 +44,7 @@ std::string ConvolutionKernel_bfyx_GEMMLike::GetKernelName(const convolution_par
 
 JitConstants ConvolutionKernel_bfyx_GEMMLike::GetJitConstants(const convolution_params& params,
                                                               const DispatchData& dispatchData) const {
-    JitConstants jit = Parent::GetJitConstants(params, dispatchData);
+    JitConstants jit = Parent::GetJitConstantsWithLoopUnroll(params, dispatchData);
 
     jit.AddConstants({
         MakeJitConstant("ALIGNED_OFM_PER_GROUP", RoundUp(params.outputs[0].Feature().v / params.groups, dispatchData.gemmStyle.subBlockDimN)),
@@ -110,8 +110,9 @@ bool ConvolutionKernel_bfyx_GEMMLike::Validate(const Params& p) const {
         return false;
     }
 
-    // To prevent big sized filter which causes lots of CL build time.
-    const size_t acceptable_filter_x_size = 64;     // This acceptable size was decided by heuristics
+    // Limit filter_x_size to 32 becasue convolution ref kernel is faster than GEMMLike kernel when filter size is bigger.
+    // 32 is chosen from filter size of customer model. May need to more measurement to pick optimal value
+    const size_t acceptable_filter_x_size = 32;
     if (params.filterSize.x > acceptable_filter_x_size) {
         return false;
     }
