@@ -341,7 +341,11 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-20.04-8-cores
+    runs-on: aks-linux-8-cores-32gb
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      volumes:
+        - /mount:/mount
     strategy:
       max-parallel: 2
       fail-fast: false
@@ -366,6 +370,27 @@ jobs:
       #
       # Dependencies
       #
+
+      - name: checkout action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_apt
+            .github/actions/cache
+
+      - name: Setup apt
+        uses: ./.github/actions/setup_apt
+
+      - name: Setup apt cache
+        uses: ./.github/actions/cache
+        with:
+          save-always: true # TODO: for the 1st run only
+          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          cache-path: ${{ env.APT_CACHE_PATH }}
+          path: '/var/cache/apt/archives'
+          key: ${{ runner.os }}-${{ runner.arch }}-apt-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-apt
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v4
@@ -400,8 +425,8 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
-          should-setup-pip-paths: 'false'
-          self-hosted-runner: 'false'
+          should-setup-pip-paths: 'true'
+          self-hosted-runner: 'true'
 
       - name: Install Dependencies
         run: |
