@@ -1426,8 +1426,8 @@ std::shared_ptr<ov::Model> generateScatterNDBase(const std::shared_ptr<ov::op::O
     std::shared_ptr<ov::Node> scatterNode;
     if (ov::is_type<ov::op::v3::ScatterNDUpdate>(node)) {
         scatterNode = std::make_shared<ov::op::v3::ScatterNDUpdate>(data, indices, updates);
-    } else if (ov::is_type<ov::op::v14::ScatterNDUpdate>(node)) {
-        scatterNode = std::make_shared<ov::op::v14::ScatterNDUpdate>(data, indices, updates, ov::op::v14::ScatterNDUpdate::Reduction::SUM);
+    } else if (ov::is_type<ov::op::v15::ScatterNDUpdate>(node)) {
+        scatterNode = std::make_shared<ov::op::v15::ScatterNDUpdate>(data, indices, updates, ov::op::v15::ScatterNDUpdate::Reduction::SUM);
     } else {
         return nullptr;
     }

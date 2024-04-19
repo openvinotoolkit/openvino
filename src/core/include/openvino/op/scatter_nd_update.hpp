@@ -29,12 +29,12 @@ public:
     bool has_evaluate() const override;
 };
 }  // namespace v3
-namespace v14 {
+namespace v15 {
 /// \brief Add updates to slices from inputs addressed by indices
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ScatterNDUpdate : public util::ScatterNDBase {
 public:
-    OPENVINO_OP("ScatterNDUpdate", "opset14", util::ScatterNDBase);
+    OPENVINO_OP("ScatterNDUpdate", "opset15", util::ScatterNDBase);
 
     /// \brief Lists the supported reduction types for this version of the operator.
     ///        See the specification for the description of how reduction works with ScatterNDUpdate.
@@ -65,19 +65,19 @@ public:
 private:
     Reduction m_reduction = Reduction::NONE;
 };
-}  // namespace v14
+}  // namespace v15
 }  // namespace op
 
 OPENVINO_API
-std::ostream& operator<<(std::ostream& s, const op::v14::ScatterNDUpdate::Reduction& reduction);
+std::ostream& operator<<(std::ostream& s, const op::v15::ScatterNDUpdate::Reduction& reduction);
 
 template <>
-class OPENVINO_API AttributeAdapter<op::v14::ScatterNDUpdate::Reduction>
-    : public EnumAttributeAdapterBase<op::v14::ScatterNDUpdate::Reduction> {
+class OPENVINO_API AttributeAdapter<op::v15::ScatterNDUpdate::Reduction>
+    : public EnumAttributeAdapterBase<op::v15::ScatterNDUpdate::Reduction> {
 public:
-    AttributeAdapter(op::v14::ScatterNDUpdate::Reduction& value)
-        : EnumAttributeAdapterBase<op::v14::ScatterNDUpdate::Reduction>(value) {}
+    AttributeAdapter(op::v15::ScatterNDUpdate::Reduction& value)
+        : EnumAttributeAdapterBase<op::v15::ScatterNDUpdate::Reduction>(value) {}
 
-    OPENVINO_RTTI("AttributeAdapter<v14::ScatterNDUpdate::Reduction>");
+    OPENVINO_RTTI("AttributeAdapter<v15::ScatterNDUpdate::Reduction>");
 };
 }  // namespace ov

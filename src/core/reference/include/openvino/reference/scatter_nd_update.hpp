@@ -17,7 +17,7 @@
 
 namespace ov {
 namespace reference {
-using Reduction = ov::op::v14::ScatterNDUpdate::Reduction;
+using Reduction = ov::op::v15::ScatterNDUpdate::Reduction;
 template <typename T>
 using reduction_function = T (*)(const T, const T);
 
