@@ -94,7 +94,7 @@ jobs:
         uses: ./.github/actions/setup_apt
 
       - name: Setup apt cache
-        uses: ./openvino/.github/actions/cache
+        uses: ./.github/actions/cache
         with:
           save-always: true # TODO: for the 1st run only
           cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
