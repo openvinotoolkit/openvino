@@ -68,12 +68,12 @@ void NmsLayerTest::SetUp() {
              targetDevice) = this->GetParam();
 
     size_t num_classes;
-    std::tie(num_batches, num_boxes, num_classes) = input_shape_params;
+    std::tie(m_num_batches, m_num_boxes, num_classes) = input_shape_params;
 
     ov::element::Type params_type, max_box_type, thr_type;
     std::tie(params_type, max_box_type, thr_type) = input_types;
 
-    const ov::Shape boxes_shape{num_batches, num_boxes, 4}, scores_shape{num_batches, num_classes, num_boxes};
+    const ov::Shape boxes_shape{m_num_batches, m_num_boxes, 4}, scores_shape{m_num_batches, num_classes, m_num_boxes};
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(params_type, ov::Shape(boxes_shape)),
                                std::make_shared<ov::op::v0::Parameter>(params_type, ov::Shape(scores_shape))};
@@ -123,12 +123,12 @@ void Nms9LayerTest::SetUp() {
                           : op::v9::NonMaxSuppression::BoxEncodingType::CORNER;
 
     size_t num_classes;
-    std::tie(num_batches, num_boxes, num_classes) = input_shape_params;
+    std::tie(m_num_batches, m_num_boxes, num_classes) = input_shape_params;
 
     ov::element::Type params_type, max_box_type, thr_type;
     std::tie(params_type, max_box_type, thr_type) = input_types;
 
-    const std::vector<size_t> boxes_shape{num_batches, num_boxes, 4}, scores_shape{num_batches, num_classes, num_boxes};
+    const std::vector<size_t> boxes_shape{m_num_batches, m_num_boxes, 4}, scores_shape{m_num_batches, num_classes, m_num_boxes};
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(params_type, ov::Shape(boxes_shape)),
                                std::make_shared<ov::op::v0::Parameter>(params_type, ov::Shape(scores_shape))};
@@ -154,7 +154,7 @@ void Nms9LayerTest::SetUp() {
 }
 
 void NmsLayerTest::compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) {
-    CompareBBoxes(expected, actual, inputs[function->get_parameters().at(0)], num_batches, num_boxes);
+    compare_b_boxes(expected, actual, inputs[function->get_parameters().at(0)], m_num_batches, m_num_boxes);
 }
 
 namespace {
@@ -189,7 +189,7 @@ void convert(fromT* src, toT* dst, size_t size) {
 // and shape [number of selected boxes, 3] containing information about scores for each selected box as triplets
 //    [batch_index, class_index, box_score].
 // 3: valid_outputs - 1D tensor with 1 element of type T_IND representing the total number of selected boxes.
-void CompareBBoxes(const std::vector<ov::Tensor>& expected,
+void compare_b_boxes(const std::vector<ov::Tensor>& expected,
                    const std::vector<ov::Tensor>& actual,
                    const ov::Tensor& input,
                    size_t num_batches,

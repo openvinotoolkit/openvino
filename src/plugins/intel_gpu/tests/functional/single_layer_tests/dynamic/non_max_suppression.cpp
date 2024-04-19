@@ -117,7 +117,7 @@ public:
         }
         size_t numBatches, numBoxes, numClasses;
         std::tie(numBatches, numBoxes, numClasses) = targetInDims[inferRequestNum];
-        ov::test::CompareBBoxes(expected, actual, bboxes.second, numBatches, numBoxes);
+        ov::test::compare_b_boxes(expected, actual, bboxes.second, numBatches, numBoxes);
         inferRequestNum++;
     }
 

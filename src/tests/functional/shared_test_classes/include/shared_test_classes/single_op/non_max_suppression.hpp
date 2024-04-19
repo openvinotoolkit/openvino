@@ -38,8 +38,8 @@ protected:
     void SetUp() override;
     void compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) override;
 
-    size_t num_batches;
-    size_t num_boxes;
+    size_t m_num_batches;
+    size_t m_num_boxes;
 };
 
 class Nms9LayerTest : public NmsLayerTest {
@@ -48,7 +48,7 @@ protected:
 };
 
 // free function to compare BBoxes. It is used in shared, CPU, and GPU tests.
-void CompareBBoxes(const std::vector<ov::Tensor>& expected,
+void compare_b_boxes(const std::vector<ov::Tensor>& expected,
                    const std::vector<ov::Tensor>& actual,
                    const ov::Tensor& input,
                    size_t num_batches,
