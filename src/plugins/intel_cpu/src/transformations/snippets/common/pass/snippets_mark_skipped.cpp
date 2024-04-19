@@ -69,7 +69,7 @@ bool isFullyConnected(const std::shared_ptr<const ov::Node>& node) {
     return out_weights.get_partial_shape().is_static() &&
            rank_a.is_static() && rank_w.is_static() &&
            rank_a.get_length() != 1 && rank_w.get_length() != 1 &&
-           rank_a.get_length() <= 3 && rank_w.get_length() <= 3 &&
+           rank_w.get_length() <= 3 &&
            ov::op::util::is_on_constant_path(out_weights);
 }
 bool SupportsFusingWithConvolution_SumActivation(const std::shared_ptr<const Node> &node) {
@@ -519,18 +519,10 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
             const auto out_rank = node->get_output_partial_shape(0).rank();
             if (is_fc) {
                 SetNodeFusingType(node, is_i8 ? NodeFusingType::FusedWithFCI8 : NodeFusingType::FusedWithFC);
-#if defined(OPENVINO_ARCH_ARM64)
-                channelAxis = DEFAULT_AXIS;
-#else
                 channelAxis = out_rank.is_static() ? (out_rank.get_length() == 3 ? 2 : 1) : DEFAULT_AXIS;
-#endif
             } else {
                 SetNodeFusingType(node, is_i8 ? NodeFusingType::FusedWithMatMulI8 : NodeFusingType::FusedWithMatMul);
-#if defined(OPENVINO_ARCH_ARM64)
-                channelAxis = DEFAULT_AXIS;
-#else
                 channelAxis = out_rank.is_static() ? out_rank.get_length() - 1 : DEFAULT_AXIS;
-#endif
             }
         } else if (isSuitableSubtractAsZeroPointsParent(node)) {
             SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
