@@ -72,22 +72,18 @@ jobs:
 
     if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
     steps:
-      - name: Set apt retries
-        run: |
-          echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
-          # do not remove deb packages:
-          rm /etc/apt/apt.conf.d/docker-clean
-
-      - name: Install git
-        run: apt-get update && apt-get install --assume-yes --no-install-recommends git ca-certificates
-
-      - name: Clone OpenVINO
+      - name: checkout action
         uses: actions/checkout@v4
         with:
-          path: 'openvino'
+          sparse-checkout: |
+            .github/actions/setup-apt
+            .github/actions/cache
+
+      - name: Setup apt
+        uses: ./.github/actions/setup-apt
 
       - name: Setup apt cache
-        uses: ./openvino/.github/actions/cache
+        uses: ./.github/actions/cache
         with:
           save-always: true # TODO: for the 1st run only
           cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
@@ -96,6 +92,14 @@ jobs:
           key: ${{ runner.os }}-${{ runner.arch }}-apt-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-apt
+
+      - name: Install git
+        run: apt-get update && apt-get install --assume-yes --no-install-recommends git ca-certificates
+
+      - name: Clone OpenVINO
+        uses: actions/checkout@v4
+        with:
+          path: 'openvino'
 
       #
       # Print system info
