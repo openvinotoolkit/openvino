@@ -154,10 +154,10 @@ Napi::Value CoreWrap::compile_model_sync_dispatch(const Napi::CallbackInfo& info
     std::vector<std::string> errors_messages;
 
     // Allowed signatures list
-    auto path_and_device = NapiArgValidator().add_string_arg().add_string_arg();
-    auto path_device_and_config = NapiArgValidator().add_string_arg().add_string_arg().add_object_arg();
-    auto model_and_device = NapiArgValidator().add_object_arg().add_string_arg();
-    auto model_device_and_config = NapiArgValidator().add_object_arg().add_string_arg().add_object_arg();
+    auto path_and_device = NapiArg::Validator().add_string_arg().add_string_arg();
+    auto path_device_and_config = NapiArg::Validator().add_string_arg().add_string_arg().add_object_arg();
+    auto model_and_device = NapiArg::Validator().add_object_arg().add_string_arg();
+    auto model_device_and_config = NapiArg::Validator().add_object_arg().add_string_arg().add_object_arg();
 
     try {
         if (path_and_device.validate(info, errors_messages)) {
@@ -174,7 +174,7 @@ Napi::Value CoreWrap::compile_model_sync_dispatch(const Napi::CallbackInfo& info
             return compile_model_sync(info, info[0].ToObject(), info[1].ToString(), config);
         }
 
-        std::string arguments_error_message = join_array_to_str(errors_messages, "\nor\n ");
+        std::string arguments_error_message = NapiArg::join_array_to_str(errors_messages, "\nor\n ");
 
         OPENVINO_THROW(arguments_error_message.empty() ? "Invalid number of arguments" : arguments_error_message);
     } catch (std::exception& e) {
