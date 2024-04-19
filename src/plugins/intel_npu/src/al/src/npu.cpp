@@ -21,6 +21,12 @@ const std::shared_ptr<IDevice> IEngineBackend::getDevice(const ov::AnyMap&) cons
 const std::vector<std::string> IEngineBackend::getDeviceNames() const {
     OPENVINO_THROW("Get all device names not implemented");
 }
+uint32_t IEngineBackend::getDriverVersion() const {
+    OPENVINO_THROW("Get NPU driver version is not supported with this backend");
+}
+uint32_t IEngineBackend::getDriverExtVersion() const {
+    OPENVINO_THROW("Get NPU driver extension version is not supported with this backend");
+}
 
 void IEngineBackend::registerOptions(OptionsDesc&) const {}
 
@@ -42,10 +48,6 @@ uint64_t IDevice::getAllocMemSize() const {
 
 uint64_t IDevice::getTotalMemSize() const {
     OPENVINO_THROW("Get TotalMemSize is not supported");
-}
-
-uint32_t IDevice::getDriverVersion() const {
-    OPENVINO_THROW("Get NPU driver version is not supported with this backend");
 }
 
 }  // namespace intel_npu

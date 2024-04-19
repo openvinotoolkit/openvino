@@ -29,6 +29,8 @@ public:
     std::shared_ptr<IDevice> getDevice(const ov::AnyMap& paramMap) const;
     std::vector<std::string> getAvailableDevicesNames() const;
     std::string getBackendName() const;
+    uint32_t getDriverVersion() const;
+    uint32_t getDriverExtVersion() const;
     void registerOptions(OptionsDesc& options) const;
     std::string getCompilationPlatform(const std::string_view platform, const std::string& deviceId) const;
 

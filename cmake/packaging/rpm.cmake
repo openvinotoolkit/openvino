@@ -39,6 +39,8 @@ macro(ov_cpack_settings)
            (NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_python.*" OR ENABLE_PYTHON_PACKAGING) AND
            # temporary block nvidia
            NOT item STREQUAL "nvidia" AND
+           # don't install node_addon
+           NOT item MATCHES "node_addon" AND
            # temporary block npu
            NOT item STREQUAL "npu" AND
            # don't install Intel OpenMP
@@ -78,6 +80,7 @@ macro(ov_cpack_settings)
         2023.2.0
         2023.3.0 2023.3.1 2023.3.2 2023.3.3 2023.3.4 2023.3.5
         2024.0
+        2024.1
         )
 
     find_host_program(rpmlint_PROGRAM NAMES rpmlint DOC "Path to rpmlint")

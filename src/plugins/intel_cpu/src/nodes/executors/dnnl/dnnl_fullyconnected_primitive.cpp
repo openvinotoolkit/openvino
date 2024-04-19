@@ -83,9 +83,7 @@ std::shared_ptr<DnnlFCPrimitive> DnnlFCPrimitive::create(const MemoryArgs& memor
                                                          const DnnlShapeAgnosticDataPtr& shapeAgnosticData) {
     const auto& srcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_SRC)->getDescPtr());
     const auto& weiDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_WEI)->getDescPtr());
-    const DnnlMemoryDescPtr biaDesc = memory.at(ARG_BIAS)->getDescPtr()->getCurrentMemSize() != 0
-                                          ? MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_BIAS)->getDescPtr())
-                                          : DnnlExtensionUtils::makeDescriptor(dnnl::memory::desc{});
+    const auto& biaDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_BIAS)->getDescPtr());
     const auto& dstDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_DST)->getDescPtr());
 
     Key dnnlFCKey{
@@ -188,7 +186,7 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
                                 isINT8,
                                 1 << 0,
                                 attrs.dequantizationScales,
-                                attrs.withBias,
+                                !memory.at(ARG_BIAS)->getDesc().empty(),
                                 outputDataType);
 
     if (attrs.decompressionMultiplyPtr)
@@ -314,6 +312,7 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
     DEBUG_LOG("Creating shape agnostic data");
     auto srcDesc = memory.at(ARG_SRC)->getDescPtr();
     const auto& weiDesc = memory.at(ARG_WEI)->getDescPtr();
+    const auto& biasDesc = memory.at(ARG_BIAS)->getDescPtr();
     auto dstDesc = memory.at(ARG_DST)->getDescPtr();
 
     const auto useWeightsDecompression = useWeightsDecompressionImpl(srcDesc->getPrecision(), weiDesc->getPrecision());
@@ -339,13 +338,9 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
     const dnnl::memory::desc srcDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(srcDesc)->getDnnlDesc();
     const dnnl::memory::desc weiDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weiDesc)->getDnnlDesc();
     const dnnl::memory::desc dstDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstDesc)->getDnnlDesc();
+    const dnnl::memory::desc biaDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(biasDesc)->getDnnlDesc();
+
     const auto useSparseWeights = attrs.sparseWeights;
-
-    const dnnl::memory::desc biaDnnlDesc =
-        memory.at(ARG_BIAS)->getDescPtr()->getCurrentMemSize() != 0
-            ? MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_BIAS)->getDescPtr())->getDnnlDesc()
-            : dnnl::memory::desc{};
-
     const auto primDesc = createPrimitiveDesc(srcDnnlDesc,
                                               weiDnnlDesc,
                                               biaDnnlDesc,

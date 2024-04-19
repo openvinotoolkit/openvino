@@ -24,7 +24,7 @@ Install OpenVINO™ Runtime from Conda Forge
       :sync: system-requirements
 
       | Full requirement listing is available in:
-      | :doc:`System Requirements Page <../../../about-openvino/system-requirements>`
+      | :doc:`System Requirements Page <../../../about-openvino/release-notes-openvino/system-requirements>`
 
 
    .. tab-item:: Processor Notes
@@ -74,8 +74,7 @@ to see if your case needs any of them.
 Compiling with OpenVINO Runtime from Conda-Forge on Linux
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-When linking OpenVINO libraries from Conda on Linux, ensure that you have the necessary Conda
-compilers installed and Conda standard libraries are used.
+When linking OpenVINO libraries from Conda on Linux, ensure that you have the necessary Conda compilers installed and Conda standard libraries are used.
 To do so, run the following command in your Conda environment:
 
 .. code-block:: sh

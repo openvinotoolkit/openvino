@@ -760,16 +760,114 @@ jobs:
           path: ${{ env.EXTENSION_BUILD_DIR }}/*.whl
           if-no-files-found: 'error'
 
-  GPU_Stub:
+  GPU:
+    name: GPU ${{ matrix.TEST_TYPE }} Tests
     needs: [ Build, Smart_CI ]
-    runs-on: ubuntu-latest
     if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
-    steps:
-      - name: GPU stub
-        run: |
-          echo "This is only a stub to collect statistics of GPU runs filtered by Smart CI.
-          It will help us to estimate hardware requirements"
+    timeout-minutes: 80
+    runs-on: [ self-hosted, gpu ]
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix:
+        TEST_TYPE: ['unit', 'func']
+    container:
+      image: ubuntu:20.04
+      options: --device /dev/dri:/dev/dri --group-add 109 --group-add 44
+      volumes:
+        - /dev/dri:/dev/dri
+    defaults:
+      run:
         shell: bash
+    env:
+      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      GTEST_PARALLEL_SCRIPT: ${{ github.workspace }}/gtest_parallel.py
+    steps:
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@v4
+        with:
+          name: 'openvino_package'
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package
+        uses: actions/download-artifact@v4
+        with:
+          name: 'openvino_tests'
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      # Needed as ${{ github.workspace }} is not working correctly when using Docker
+      - name: Setup Variables
+        run: |
+          echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
+          echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
+          echo "GTEST_PARALLEL_SCRIPT=$GITHUB_WORKSPACE/gtest_parallel.py" >> "$GITHUB_ENV"
+
+      - name: Extract OpenVINO packages
+        run: |
+          pushd $INSTALL_DIR
+            tar -xzf openvino_package.tar.gz -C $INSTALL_DIR
+          popd
+          pushd $INSTALL_TEST_DIR
+            tar -xzf openvino_tests.tar.gz -C $INSTALL_DIR
+          popd
+
+      - name: Install dependencies (Linux)
+        run: |
+          $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -c=gpu -y
+
+          apt-get update && apt-get install -y wget software-properties-common ca-certificates gpg-agent tzdata
+        env:
+          DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+          TZ: "Europe/London" # to prevent tzdata from waiting user input
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Get gtest-parallel script
+        run: wget https://raw.githubusercontent.com/google/gtest-parallel/master/gtest_parallel.py
+
+      - name: Install GPU Drivers
+        run: |
+          wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-core_1.0.15985.7_amd64.deb
+          wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-opencl_1.0.15985.7_amd64.deb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-level-zero-gpu-dbgsym_1.3.28454.6_amd64.ddeb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-level-zero-gpu_1.3.28454.6_amd64.deb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-opencl-icd-dbgsym_24.05.28454.6_amd64.ddeb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-opencl-icd_24.05.28454.6_amd64.deb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/libigdgmm12_22.3.11_amd64.deb
+          dpkg -i *.deb
+
+      #
+      # Tests
+      #
+
+      - name: OpenVINO GPU ${{ matrix.TEST_TYPE }} Tests
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+
+          rm -rf ${INSTALL_TEST_DIR}/gpu_${{ matrix.TEST_TYPE }}_tests && mkdir -p ${INSTALL_TEST_DIR}/gpu_${{ matrix.TEST_TYPE }}_tests
+          
+          test_filter=''
+          if [[ "${{ matrix.TEST_TYPE }}" == "unit" ]]; then
+            # Ticket: 138018
+            test_filter='-*scatter_nd_update_gpu.dynamic_padded_output*:*border_gpu.basic_zero_input*:*bicubic_zeros_no_align_data1x1*:*bicubic_border_align_batches*:*bilinear_zeros_no_align_data1x1*:*non_zero_gpu.empty_input*:*mark_shape_of_subgraphs.concat_with_empty_tensor_inputs*:*concat_cpu_impl.dynamic_4d_f*:*border_gpu.basic_zero_input_dynamic*:*network_test.model_with_empty_input_is_not_dynamic*:*bicubic_zeros_align_data1x1*'
+          else
+            test_filter='*smoke*'
+          fi
+          python3 ${GTEST_PARALLEL_SCRIPT} ${INSTALL_TEST_DIR}/ov_gpu_${{ matrix.TEST_TYPE }}_tests --dump_json_test_results=${INSTALL_TEST_DIR}/gpu_${{ matrix.TEST_TYPE }}_tests/ov_gpu_${{ matrix.TEST_TYPE }}_tests.json -- --report_unique_name --gtest_filter=$test_filter
+          
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-${{ matrix.TEST_TYPE }}-gpu
+          path: ${{ env.INSTALL_TEST_DIR }}/gpu_${{ matrix.TEST_TYPE }}_tests
+          if-no-files-found: 'error'
 
   Overall_Status:
     name: ci/gha_overall_status
