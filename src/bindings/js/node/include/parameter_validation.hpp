@@ -57,8 +57,8 @@ std::string get_type_name(napi_valuetype type) {
 }
 
 struct NapiArgValidator {
+public:
     typedef std::function<void(const std::string& key, const Napi::Value&)> ValidatorType;
-    std::vector<ValidatorType> attributes_validators;
 
     bool validate(const Napi::CallbackInfo& info, std::vector<std::string>& error_messages) {
         std::string validation_errors;
@@ -82,8 +82,10 @@ struct NapiArgValidator {
         return validation_errors.empty();
     }
 
-    void add_arg(ValidatorType validator) {
+    NapiArgValidator& add_arg(ValidatorType validator) {
         attributes_validators.push_back(validator);
+
+        return *this;
     }
 
     NapiArgValidator& add_boolean_arg() {
@@ -174,4 +176,7 @@ struct NapiArgValidator {
     static std::string create_error_message(std::string key, std::string expected, std::string real) {
         return "Argument #" + key + " has type '" + real + "', expected '" + expected + "'";
     }
+
+private:
+    std::vector<ValidatorType> attributes_validators;
 };
