@@ -539,7 +539,6 @@ void CompileModelLoadFromCacheTest::SetUp() {
         ss << "_" << iter.first << "_" << iter.second.as<std::string>() << "_";
     }
     m_cacheFolderName = ss.str();
-    core->set_property(ov::cache_dir());
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::Serialize>(m_modelName, m_weightsName);
     manager.run_passes(ov::test::utils::make_conv_pool_relu({1, 3, 227, 227}, ov::element::f32));
@@ -550,14 +549,13 @@ void CompileModelLoadFromCacheTest::TearDown() {
     ov::test::utils::removeFilesWithExt(m_cacheFolderName, "cl_cache");
     ov::test::utils::removeIRFiles(m_modelName, m_weightsName);
     std::remove(m_cacheFolderName.c_str());
-    core->set_property(ov::cache_dir());
     ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
 }
 
 void CompileModelLoadFromCacheTest::run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    core->set_property(ov::cache_dir(m_cacheFolderName));
+    configuration.insert(ov::cache_dir(m_cacheFolderName));
     compiledModel = core->compile_model(m_modelName, targetDevice, configuration);
     EXPECT_EQ(false, compiledModel.get_property(ov::loaded_from_cache.name()).as<bool>());
 
