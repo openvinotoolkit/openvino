@@ -24,6 +24,8 @@ jobs:
     runs-on: ${{ inputs.runner }}
     container:
       image: ${{ inputs.image }}
+      volumes:
+        - /mount:/mount
     defaults:
       run:
         shell: bash
