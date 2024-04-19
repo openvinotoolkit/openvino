@@ -74,9 +74,6 @@ jobs:
           echo 'APT::Get::Fix-Broken "true";' >> /etc/apt/apt.conf
           echo 'APT::Get::no-install-recommends "true";' >> /etc/apt/apt.conf
           echo 'Acquire::Retries "10";' >> /etc/apt/apt.conf
-          # test broken apt
-          echo 'Acquire::http::Proxy "http://proxy.com:911";' >> /etc/apt/apt.conf
-          echo 'Acquire::https::Proxy "http://proxy.com:911";' >> /etc/apt/apt.conf
 
       - name: Install git
         run: apt update && apt install git ca-certificates
