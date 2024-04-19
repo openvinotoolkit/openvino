@@ -1,14 +1,15 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
 #include <napi.h>
+
 #include <thread>
 
 #include "openvino/runtime/infer_request.hpp"
 
 struct TsfnContext {
-    TsfnContext(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)){};
+    TsfnContext(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)), _ir(nullptr){};
 
     std::thread native_thread;
 
@@ -32,12 +33,7 @@ public:
      * @param env The environment in which to construct a JavaScript class.
      * @return Napi::Function representing the constructor function for the Javascript InferRequest class.
      */
-    static Napi::Function get_class_constructor(Napi::Env env);
-
-    /** @brief This method is called during initialization of OpenVino native add-on.
-     * It exports JavaScript InferRequest class.
-     */
-    static Napi::Object init(Napi::Env env, Napi::Object exports);
+    static Napi::Function get_class(Napi::Env env);
 
     void set_infer_request(const ov::InferRequest& infer_request);
     /**

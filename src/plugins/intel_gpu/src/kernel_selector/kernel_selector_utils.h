@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,6 @@
 
 namespace kernel_selector {
 struct weight_bias_params;
-struct optional_params;
 struct WeightsReorderParams;
 
 struct DimensionAccessHelper {
@@ -65,7 +64,6 @@ struct DimensionAccessHelper {
 std::vector<size_t> GetImageSizes(const kernel_selector::WeightsTensor& dimensions, const WeightsLayout layout);
 bool CheckImageSize(const weight_bias_params& newParams, const WeightsLayout layout);
 bool UpdateWeightsParams(weight_bias_params& newParams,
-                         const optional_params& options,
                          WeightsLayout layout,
                          WeightsReorderParams& weightsReorderParams,
                          const ParamsKey& paramsKey = ParamsKey(),

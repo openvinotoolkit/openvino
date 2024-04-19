@@ -24,7 +24,7 @@ The advanced quantization flow allows to apply 8-bit quantization to the
 model with control of accuracy metric. This is achieved by keeping the
 most impactful operations within the model in the original precision.
 The flow is based on the `Basic 8-bit
-quantization <https://docs.openvino.ai/2023.0/basic_quantization_flow.html>`__
+quantization <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/quantizing-models-post-training/basic-quantization-flow.html>`__
 and has the following differences:
 
 -  Besides the calibration dataset, a validation dataset is required to
@@ -48,17 +48,19 @@ and has the following differences:
 The steps for the quantization with accuracy control are described
 below.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-
-- `Imports <#>`__
-- `Prepare the Model <#>`__
-- `Prepare LibriSpeech Dataset <#>`__
-- `Prepare calibration and validation datasets <#>`__
-- `Prepare validation function <#>`__
-- `Run quantization with accuracy control <#>`__
-- `Model Usage Example <#>`__
-- `Compare Performance of the Original and Quantized Models <#>`__
+-  `Imports <#imports>`__
+-  `Prepare the Model <#prepare-the-model>`__
+-  `Prepare LibriSpeech Dataset <#prepare-librispeech-dataset>`__
+-  `Prepare calibration dataset <#prepare-calibration-dataset>`__
+-  `Prepare validation function <#prepare-validation-function>`__
+-  `Run quantization with accuracy
+   control <#run-quantization-with-accuracy-control>`__
+-  `Model Usage Example <#model-usage-example>`__
+-  `Compare Accuracy of the Original and Quantized
+   Models <#compare-accuracy-of-the-original-and-quantized-models>`__
 
 .. code:: ipython3
 
@@ -67,7 +69,9 @@ below.
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu soundfile librosa transformers torch datasets torchmetrics
 
 Imports
-----------------------------------
+-------
+
+
 
 .. code:: ipython3
 
@@ -86,14 +90,16 @@ Imports
 
 
 Prepare the Model
-----------------------------------
+-----------------
 
-For instantiating PyTorch model class,
-we should use ``Wav2Vec2ForCTC.from_pretrained`` method with providing
-model ID for downloading from HuggingFace hub. Model weights and
-configuration files will be downloaded automatically in first time
-usage. Keep in mind that downloading the files can take several minutes
-and depends on your internet connection.
+
+
+For instantiating PyTorch model class, we should use
+``Wav2Vec2ForCTC.from_pretrained`` method with providing model ID for
+downloading from HuggingFace hub. Model weights and configuration files
+will be downloaded automatically in first time usage. Keep in mind that
+downloading the files can take several minutes and depends on your
+internet connection.
 
 Additionally, we can create processor class which is responsible for
 model specific pre- and post-processing steps.
@@ -140,7 +146,9 @@ Convert it to the OpenVINO Intermediate Representation (OpenVINO IR)
 
 
 Prepare LibriSpeech Dataset
----------------------------------------------------
+---------------------------
+
+
 
 For demonstration purposes, we will use short dummy version of
 LibriSpeech dataset - ``patrickvonplaten/librispeech_asr_dummy`` to
@@ -176,7 +184,9 @@ dataset.
 
 
 Prepare calibration dataset
-----------------------------------
+---------------------------
+
+
 
 .. code:: ipython3
 
@@ -201,7 +211,9 @@ Prepare calibration dataset
 
 
 Prepare validation function
-----------------------------------
+---------------------------
+
+
 
 Define the validation function.
 
@@ -231,26 +243,22 @@ Define the validation function.
         return 1 - result
 
 Run quantization with accuracy control
----------------------------------------------------
+--------------------------------------
 
-You should provide
-the calibration dataset and the validation dataset. It can be the same
-dataset. 
 
-- parameter ``max_drop`` defines the accuracy drop threshold.
-  The quantization process stops when the degradation of accuracy metric
-  on the validation dataset is less than the ``max_drop``. The default
-  value is 0.01. NNCF will stop the quantization and report an error if
-  the ``max_drop`` value can’t be reached.
 
-- ``drop_type`` defines how the
-  accuracy drop will be calculated: ABSOLUTE (used by default) or
-  RELATIVE.
-
-- ``ranking_subset_size`` - size of a subset that is used to
-  rank layers by their contribution to the accuracy drop. Default value is
-  300, and the more samples it has the better ranking, potentially. Here
-  we use the value 25 to speed up the execution.
+You should provide the calibration dataset and the validation dataset.
+It can be the same dataset. - parameter ``max_drop`` defines the
+accuracy drop threshold. The quantization process stops when the
+degradation of accuracy metric on the validation dataset is less than
+the ``max_drop``. The default value is 0.01. NNCF will stop the
+quantization and report an error if the ``max_drop`` value can’t be
+reached. - ``drop_type`` defines how the accuracy drop will be
+calculated: ABSOLUTE (used by default) or RELATIVE. -
+``ranking_subset_size`` - size of a subset that is used to rank layers
+by their contribution to the accuracy drop. Default value is 300, and
+the more samples it has the better ranking, potentially. Here we use the
+value 25 to speed up the execution.
 
    **NOTE**: Execution can take tens of minutes and requires up to 10 GB
    of free memory
@@ -295,6 +303,11 @@ dataset.
     INFO:nncf:Validation of initial model was started
 
 
+
+
+    
+
+
 .. parsed-literal::
 
     INFO:nncf:Elapsed Time: 00:00:00
@@ -332,7 +345,9 @@ dataset.
 
 
 Model Usage Example
-----------------------------------
+-------------------
+
+
 
 .. code:: ipython3
 
@@ -355,11 +370,26 @@ Model Usage Example
 
 
 
+Select device for inference
+
 .. code:: ipython3
 
+    import ipywidgets as widgets
+    
     core = ov.Core()
     
-    compiled_quantized_model = core.compile_model(model=quantized_model, device_name='CPU')
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='CPU',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+.. code:: ipython3
+
+    compiled_quantized_model = core.compile_model(model=quantized_model, device_name=device.value)
     
     input_data = np.expand_dims(test_sample["array"], axis=0)
 
@@ -382,7 +412,9 @@ Next, make a prediction.
 
 
 Compare Accuracy of the Original and Quantized Models
---------------------------------------------------------------------
+-----------------------------------------------------
+
+
 
 -  Define dataloader for test dataset.
 -  Define functions to get inference for PyTorch and OpenVINO models.

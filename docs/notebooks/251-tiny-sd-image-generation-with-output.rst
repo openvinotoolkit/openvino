@@ -39,8 +39,8 @@ The notebook contains the following steps:
 3. Run Inference pipeline with OpenVINO.
 4. Run Interactive demo for Tiny-SD model
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Prerequisites <#prerequisites>`__
 -  `Create PyTorch Models pipeline <#create-pytorch-models-pipeline>`__
@@ -54,6 +54,8 @@ The notebook contains the following steps:
 -  `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
 -  `Configure Inference Pipeline <#configure-inference-pipeline>`__
 
+   -  `Calibrate UNet for GPU
+      inference <#calibrate-unet-for-gpu-inference>`__
    -  `Text-to-Image generation <#text-to-image-generation>`__
    -  `Image-to-Image generation <#image-to-image-generation>`__
    -  `Interactive Demo <#interactive-demo>`__
@@ -67,7 +69,7 @@ Install required dependencies
 
 .. code:: ipython3
 
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu torch torchvision "openvino>=2023.1.0" "diffusers>=0.18.0" "transformers>=4.30.2" "gradio" 
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu torch torchvision "openvino>=2023.3.0" "diffusers>=0.18.0" "transformers>=4.30.2" "gradio"
 
 Create PyTorch Models pipeline
 ------------------------------
@@ -859,6 +861,50 @@ Select device from dropdown list for running inference using OpenVINO.
 
     text_enc = core.compile_model(TEXT_ENCODER_OV_PATH, device.value)
 
+Calibrate UNet for GPU inference
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+On a GPU device a model is executed in FP16 precision. For Tiny-SD UNet
+model there known to be accuracy issues caused by this. Therefore, a
+special calibration procedure is used to selectively mark some
+operations to be executed in full precision.
+
+.. code:: ipython3
+
+    import pickle
+    import urllib.request
+    import os
+    
+    # Fetch `model_upcast_utils` which helps to restore accuracy when inferred on GPU
+    urllib.request.urlretrieve(
+        url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/utils/model_upcast_utils.py',
+        filename='model_upcast_utils.py'
+    )
+    
+    # Fetch an example input for UNet model needed for upcasting calibration process
+    urllib.request.urlretrieve(
+        url='https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/pkl/unet_calibration_example_input.pkl',
+        filename='unet_calibration_example_input.pkl'
+    )
+    from model_upcast_utils import is_model_partially_upcasted, partially_upcast_nodes_to_fp32
+    
+    unet_model = core.read_model(UNET_OV_PATH)
+    if 'GPU' in core.available_devices and not is_model_partially_upcasted(unet_model):
+        with open("unet_calibration_example_input.pkl", "rb") as f:
+            example_input = pickle.load(f)
+        unet_model = partially_upcast_nodes_to_fp32(unet_model, example_input, upcast_ratio=0.7,
+                                                    operation_types=["Convolution"])
+    
+        ov.save_model(unet_model, UNET_OV_PATH.with_suffix("._tmp.xml"))
+        del unet_model
+        os.remove(UNET_OV_PATH)
+        os.remove(str(UNET_OV_PATH).replace(".xml", ".bin"))
+        UNET_OV_PATH.with_suffix("._tmp.xml").rename(UNET_OV_PATH)
+        UNET_OV_PATH.with_suffix("._tmp.bin").rename(UNET_OV_PATH.with_suffix('.bin'))
+
+
 .. code:: ipython3
 
     unet_model = core.compile_model(UNET_OV_PATH, device.value)
@@ -960,7 +1006,7 @@ Now is show time!
 
 
 
-.. image:: 251-tiny-sd-image-generation-with-output_files/251-tiny-sd-image-generation-with-output_33_1.png
+.. image:: 251-tiny-sd-image-generation-with-output_files/251-tiny-sd-image-generation-with-output_35_1.png
 
 
 Nice. As you can see, the picture has quite a high definition 🔥.
@@ -1036,7 +1082,7 @@ found in this
 
 
 
-.. image:: 251-tiny-sd-image-generation-with-output_files/251-tiny-sd-image-generation-with-output_37_1.png
+.. image:: 251-tiny-sd-image-generation-with-output_files/251-tiny-sd-image-generation-with-output_39_1.png
 
 
 
@@ -1065,7 +1111,7 @@ found in this
 
 
 
-.. image:: 251-tiny-sd-image-generation-with-output_files/251-tiny-sd-image-generation-with-output_39_1.png
+.. image:: 251-tiny-sd-image-generation-with-output_files/251-tiny-sd-image-generation-with-output_41_1.png
 
 
 Interactive Demo
@@ -1146,7 +1192,7 @@ Interactive Demo
 
 
 
-.. .. raw:: html
 
-..    <div><iframe src="http://127.0.0.1:7863/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

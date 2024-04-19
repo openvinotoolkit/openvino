@@ -19,8 +19,8 @@ music.
 In this tutorial we will try out the pipeline, convert the models
 backing it one by one and will run an interactive app with Gradio!
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Prerequisites <#prerequisites>`__
 -  `Instantiating Generation
@@ -28,17 +28,16 @@ backing it one by one and will run an interactive app with Gradio!
 -  `Convert models to OpenVINO Intermediate representation (IR)
    format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
 
-   -  `Text Encoder <#text-encoder>`__
-   -  `Second text encoder
-      conversion <#second-text-encoder-conversion>`__
-   -  `Vocoder conversion <#vocoder-conversion>`__
-   -  `GPT-2 conversion <#gpt--conversion>`__
+   -  `CLAP Text Encoder Conversion <#clap-text-encoder-conversion>`__
+   -  `T5 Text Encoder Conversion <#t5-text-encoder-conversion>`__
    -  `Projection model conversion <#projection-model-conversion>`__
+   -  `GPT-2 conversion <#gpt-2-conversion>`__
+   -  `Vocoder conversion <#vocoder-conversion>`__
    -  `UNet conversion <#unet-conversion>`__
    -  `VAE Decoder conversion <#vae-decoder-conversion>`__
 
--  `Select inference device for Stable Diffusion
-   pipeline <#select-inference-device-for-stable-diffusion-pipeline>`__
+-  `Select inference device for AudioLDM2
+   pipeline <#select-inference-device-for-audioldm2-pipeline>`__
 -  `Adapt OpenVINO models to the original
    pipeline <#adapt-openvino-models-to-the-original-pipeline>`__
 -  `Try out the converted pipeline <#try-out-the-converted-pipeline>`__
@@ -52,8 +51,8 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q accelerate "diffusers>=0.21.0" transformers torch gradio --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "openvino>=2023.2.0"
+    %pip install -q accelerate "diffusers>=0.21.0" transformers torch gradio "peft==0.6.2" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "openvino>=2024.0.0"
 
 
 .. parsed-literal::
@@ -136,7 +135,7 @@ Convert models to OpenVINO Intermediate representation (IR) format
 
 
 `Model conversion
-API <https://docs.openvino.ai/2023.2/openvino_docs_model_processing_introduction.html>`__
+API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__
 enables direct conversion of PyTorch models backing the pipeline. We
 need to provide a model object, input data for model tracing to
 ``ov.convert_model`` function to obtain OpenVINO ``ov.Model`` object
@@ -496,8 +495,8 @@ diffusion
     VAE decoder will be loaded from vae.xml
 
 
-Select inference device for Stable Diffusion pipeline
------------------------------------------------------
+Select inference device for AudioLDM2 pipeline
+----------------------------------------------
 
 
 
@@ -509,14 +508,14 @@ select device from dropdown list for running inference using OpenVINO
     
     core = ov.Core()
     
-    DEVICE = widgets.Dropdown(
+    device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="CPU",
         description="Device:",
         disabled=False,
     )
     
-    DEVICE
+    device
 
 
 
@@ -551,7 +550,7 @@ model inference into the ``get_text_features`` method.
 
     class OVClapEncoderWrapper:
         def __init__(self, encoder_ir, config):
-            self.encoder = core.compile_model(encoder_ir, DEVICE.value)
+            self.encoder = core.compile_model(encoder_ir, device.value)
             self.config = config
     
         def get_text_features(self, input_ids, attention_mask, **_):
@@ -560,7 +559,7 @@ model inference into the ``get_text_features`` method.
     
     class OVT5EncoderWrapper:
         def __init__(self, encoder_ir, config):
-            self.encoder = core.compile_model(encoder_ir, DEVICE.value)
+            self.encoder = core.compile_model(encoder_ir, device.value)
             self.config = config
             self.dtype = self.config.torch_dtype
     
@@ -570,7 +569,7 @@ model inference into the ``get_text_features`` method.
         
     class OVVocoderWrapper:
         def __init__(self, vocoder_ir, config):
-            self.vocoder = core.compile_model(vocoder_ir, DEVICE.value)
+            self.vocoder = core.compile_model(vocoder_ir, device.value)
             self.config = config
     
         def __call__(self, mel_spectrogram, **_):
@@ -579,7 +578,7 @@ model inference into the ``get_text_features`` method.
         
     class OVProjectionModelWrapper:
         def __init__(self, proj_model_ir, config):
-            self.proj_model = core.compile_model(proj_model_ir, DEVICE.value)
+            self.proj_model = core.compile_model(proj_model_ir, device.value)
             self.config = config
             self.output_type = namedtuple("ProjectionOutput", ["hidden_states", "attention_mask"])
     
@@ -599,7 +598,7 @@ model inference into the ``get_text_features`` method.
         
     class OVUnetWrapper:
         def __init__(self, unet_ir, config):
-            self.unet = core.compile_model(unet_ir, DEVICE.value)
+            self.unet = core.compile_model(unet_ir, device.value)
             self.config = config
     
         def __call__(
@@ -620,7 +619,7 @@ model inference into the ``get_text_features`` method.
     
     class OVVaeDecoderWrapper:
         def __init__(self, vae_ir, config):
-            self.vae = core.compile_model(vae_ir, DEVICE.value)
+            self.vae = core.compile_model(vae_ir, device.value)
             self.config = config
             self.output_type = namedtuple("VaeOutput", ["sample"])
     
@@ -672,7 +671,7 @@ Now we initialize the wrapper objects and load them to the HF pipeline
     pipe.unet = OVUnetWrapper(unet_ir_path, pipe.unet.config)
     pipe.vae = OVVaeDecoderWrapper(vae_ir_path, pipe.vae.config)
     
-    pipe.generate_language_model = partial(generate_language_model, core.compile_model(language_model_ir_path, DEVICE.value))
+    pipe.generate_language_model = partial(generate_language_model, core.compile_model(language_model_ir_path, device.value))
     
     gc.collect()
     

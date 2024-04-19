@@ -28,17 +28,17 @@ public:
     class Actual {
     public:
         ov::element::Type input_type;
-        ngraph::builder::subgraph::DequantizationOperations dequantization_before;
+        ov::builder::subgraph::DequantizationOperations dequantization_before;
         ov::element::Type preicsionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantization_after;
+        ov::builder::subgraph::DequantizationOperations dequantization_after;
     };
 
     class Expected {
     public:
         ov::element::Type input_type;
-        ngraph::builder::subgraph::DequantizationOperations dequantization_before;
+        ov::builder::subgraph::DequantizationOperations dequantization_before;
         ov::element::Type preicsionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantization_after;
+        ov::builder::subgraph::DequantizationOperations dequantization_after;
     };
 
     TestTransformationParams params;
@@ -60,7 +60,7 @@ public:
         const ov::PartialShape input_shape = std::get<0>(GetParam());
         const BatchToSpaceTransformationTestValues test_values = std::get<1>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::BatchToSpaceFunction::get(
+        actualFunction = ov::builder::subgraph::BatchToSpaceFunction::get(
             input_shape,
             test_values.actual.input_type,
             test_values.actual.dequantization_before,
@@ -73,7 +73,7 @@ public:
         transform.add<ov::pass::low_precision::BatchToSpaceTransformation>(test_values.params);
         transform.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::BatchToSpaceFunction::get(
+        referenceFunction = ov::builder::subgraph::BatchToSpaceFunction::get(
             input_shape,
             test_values.expected.input_type,
             test_values.expected.dequantization_before,

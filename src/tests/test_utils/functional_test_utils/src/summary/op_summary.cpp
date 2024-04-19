@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -236,8 +236,8 @@ void OpSummary::saveReport() {
     }
     filename += ov::test::utils::REPORT_EXTENSION;
 
-    if (!ov::test::utils::directoryExists(outputFolder)) {
-        ov::test::utils::createDirectoryRecursive(outputFolder);
+    if (!ov::util::directory_exists(outputFolder)) {
+        ov::util::create_directory_recursive(outputFolder);
     }
 
     std::string outputFilePath = outputFolder + std::string(ov::test::utils::FileSeparator) + filename;

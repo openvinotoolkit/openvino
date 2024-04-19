@@ -204,6 +204,16 @@ INSTANTIATE_TEST_SUITE_P(TSCommonGatherBackward_1, TSTestFixture, test_backward_
 auto test_backward_gather_optimization = [](const GatherBackwardArguments& test_arguments) {
     TestCase test_case;
 
+    auto custom_transpose = [&](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
+        const auto& order_val = test_arguments.ref_transpose_order;
+        auto order = constant<size_t>(i32, {order_val.size()}, order_val);
+        OutputVector new_outputs = out_vec;
+        for (const auto& idx : idxs) {
+            new_outputs[idx] = make_shared<Transpose>(out_vec[idx], order);
+        }
+        return new_outputs;
+    };
+
     // Initialize common attributes
     test_case.transformation = CREATE_PASS_FACTORY(TSGatherBackward);
     test_case.num_main_ops = {1};
@@ -229,7 +239,7 @@ auto test_backward_gather_optimization = [](const GatherBackwardArguments& test_
         return {make_shared<Unsqueeze>(out_vec[0], axes)};
     };
 
-    test_case.model_ref.preprocess_inputs_to_main = {{set_transpose_for, update_gather_inputs}, {{0}, {1, 2}}};
+    test_case.model_ref.preprocess_inputs_to_main = {{custom_transpose, update_gather_inputs}, {{0}, {1, 2}}};
     test_case.model_ref.main_op = {CREATE_GATHER_FACTORY(Gather)};
     test_case.model_ref.preprocess_outputs_of_main = {{unsqueeze_for}, {{0}}};
     test_case.model_ref.model_template = create_model;
@@ -240,16 +250,20 @@ auto test_backward_gather_optimization = [](const GatherBackwardArguments& test_
 vector<GatherBackwardArguments> tests_arguments_bw_optimization{
     {{parameter(f32, {257, 8}), constant<int>(i32, {1, 2}, {0}), constant<int>(i32, {1}, {0})},
      constant<int>(i32, {1}, {1}),
-     AxisVector{},
-     AxisVector{0}},
+     AxisVector{1, 0},
+     AxisVector{2}},
     {{parameter(f32, {4}), constant<int>(i32, {1}, {0}), constant<int>(i32, {1}, {0})},
      constant<int>(i32, {1}, {0}),
-     AxisVector{},
+     AxisVector{0},
      AxisVector{0}},
     {{parameter(f32, {4}), constant<int>(i32, {1, 1, 1}, {0}), constant<int>(i32, {1}, {0})},
      constant<int>(i32, {1}, {0}),
-     AxisVector{},
-     AxisVector{0, 1, 2}},
+     AxisVector{0},
+     AxisVector{2, 1, 0}},
+    {{parameter(f32, {32, 100}), constant<int>(i32, {1, 60}, {0}), constant<int>(i32, {1}, {0})},
+     constant<int>(i32, {1}, {1}),
+     AxisVector{1, 0},
+     AxisVector{2}},
 };
 
 INSTANTIATE_TEST_SUITE_P(TSCommonGatherBackwardOptimization_0,
@@ -261,6 +275,9 @@ INSTANTIATE_TEST_SUITE_P(TSCommonGatherBackwardOptimization_1,
 INSTANTIATE_TEST_SUITE_P(TSCommonGatherBackwardOptimization_2,
                          TSTestFixture,
                          test_backward_gather_optimization(tests_arguments_bw_optimization[2]));
+INSTANTIATE_TEST_SUITE_P(TSCommonGatherBackwardOptimization_3,
+                         TSTestFixture,
+                         test_backward_gather_optimization(tests_arguments_bw_optimization[3]));
 }  // namespace gather
 }  // namespace testing
 }  // namespace transpose_sinking

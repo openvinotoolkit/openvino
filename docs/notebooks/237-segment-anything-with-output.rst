@@ -1,8 +1,8 @@
 Object masks from prompts with SAM and OpenVINO
 ===============================================
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Background <#background>`__
 -  `Prerequisites <#prerequisites>`__
@@ -141,7 +141,7 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q "segment_anything" "gradio>=3.25" "openvino>=2023.1.0" "nncf>=2.5.0" "torch>=2.1" "torchvision>=0.16"  --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "segment_anything" "gradio>=4.13" "openvino>=2023.1.0" "nncf>=2.7.0" "torch>=2.1" "torchvision>=0.16"  --extra-index-url https://download.pytorch.org/whl/cpu
 
 Convert model to OpenVINO Intermediate Representation
 -----------------------------------------------------
@@ -919,9 +919,9 @@ point.
 
 
 
-.. .. raw:: html
 
-..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 
 
 Run OpenVINO model in automatic mask generation mode
@@ -1423,7 +1423,7 @@ activations.
     quantized_model = nncf.quantize(model,
                                     calibration_dataset,
                                     model_type=nncf.parameters.ModelType.TRANSFORMER,
-                                    preset=nncf.common.quantization.structs.QuantizationPreset.MIXED, subset_size=128)
+                                    subset_size=128)
     print("model quantization finished")
 
 
@@ -1450,6 +1450,11 @@ activations.
 .. parsed-literal::
 
     model quantization finished
+
+
+
+
+    
 
 
 .. code:: ipython3
@@ -1528,7 +1533,7 @@ Compare Performance of the Original and Quantized Models
 
 Finally, use the OpenVINO
 `Benchmark
-Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
 to measure the inference performance of the ``FP32`` and ``INT8``
 models.
 

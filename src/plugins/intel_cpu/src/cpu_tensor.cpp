@@ -1,11 +1,12 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "cpu_tensor.h"
-#include "ie_ngraph_utils.hpp"
 
+#include "memory_desc/blocked_memory_desc.h"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 namespace ov {
 namespace intel_cpu {

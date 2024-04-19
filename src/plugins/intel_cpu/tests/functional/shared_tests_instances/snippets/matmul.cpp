@@ -3,8 +3,9 @@
 //
 
 #include "snippets/matmul.hpp"
+
 #include "common_test_utils/test_constants.hpp"
-#include "ie_system_conf.h"
+#include "openvino/runtime/system_conf.hpp"
 
 namespace ov {
 namespace test {
@@ -20,7 +21,9 @@ std::vector<std::vector<ov::PartialShape>> input_shapes{
         {{1, 1, 32, 23}, {1, 1, 23, 68}},
         {{1, 16, 384, 64}, {1, 16, 64, 384}},
         {{1, 1, 100, 700}, {1, 1, 700, 100}},
+        {{1, 1, 100, 1024}, {1, 1, 1024, 100}},
         {{1, 1, 100, 2500}, {1, 1, 2500, 100}},
+        {{1, 1, 100, 4500}, {1, 1, 4500, 100}},
 };
 
 static inline std::vector<std::vector<element::Type>> quantized_precisions() {

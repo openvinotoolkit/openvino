@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -10,6 +10,7 @@ Low level wrappers for the c++ api in ov::op.
 
 from openvino._pyopenvino.op import Constant
 from openvino._pyopenvino.op import assign
+from openvino._pyopenvino.op import _PagedAttentionExtension
 from openvino._pyopenvino.op import Parameter
 from openvino._pyopenvino.op import if_op
 from openvino._pyopenvino.op import loop

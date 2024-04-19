@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ using namespace ov;
 namespace {
 struct ConstantParams {
     template <class IT, class OT>
-    ConstantParams(const PartialShape& inputShape,
+    ConstantParams(const Shape& inputShape,
                    const element::Type& inType,
                    const element::Type& refType,
                    const std::vector<IT>& inputData,
@@ -28,11 +28,11 @@ struct ConstantParams {
         : inputShape(inputShape),
           inType(inType),
           refType(refType),
-          inputData(CreateTensor(inType, inputData)),
-          refData(CreateTensor(refType, refData)),
+          inputData(CreateTensor(inputShape, inType, inputData)),
+          refData(CreateTensor(inputShape, refType, refData)),
           testcaseName(test_name) {}
 
-    PartialShape inputShape;
+    Shape inputShape;
     element::Type inType;
     element::Type refType;
     ov::Tensor inputData;
@@ -64,7 +64,7 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const ParamType& params) {
-        auto A = op::v0::Constant::create(params.inType, params.inputShape.to_shape(), params.inputData.data());
+        auto A = op::v0::Constant::create(params.inType, params.inputShape, params.inputData.data());
         return std::make_shared<Model>(A, ParameterVector{});
     }
 };
@@ -79,8 +79,8 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const ParamType& params) {
-        auto A = op::v0::Constant::create(params.inType, params.inputShape.to_shape(), params.inputData.data());
-        auto B = op::v0::Constant::create(params.inType, params.inputShape.to_shape(), params.inputData.data());
+        auto A = op::v0::Constant::create(params.inType, params.inputShape, params.inputData.data());
+        auto B = op::v0::Constant::create(params.inType, params.inputShape, params.inputData.data());
         return std::make_shared<Model>(NodeVector{A, B}, ParameterVector{});
     }
 };
@@ -95,7 +95,7 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const ParamType& params) {
-        auto A = op::v0::Constant::create(params.inType, params.inputShape.to_shape(), params.inputData.data());
+        auto A = op::v0::Constant::create(params.inType, params.inputShape, params.inputData.data());
         return std::make_shared<Model>(std::make_shared<op::v0::Abs>(A), ParameterVector{});
     }
 };
@@ -112,7 +112,7 @@ private:
     static std::shared_ptr<Model> CreateFunction(const ParamType& params) {
         const auto A = std::make_shared<op::v0::Constant>(
             params.inType,
-            params.inputShape.to_shape(),
+            params.inputShape,
             std::vector<std::string>{std::to_string(*reinterpret_cast<int*>(params.inputData.data()))});
         return std::make_shared<Model>(A, ParameterVector{});
     }
@@ -128,8 +128,8 @@ public:
 
 protected:
     static std::shared_ptr<Model> CreateFunction(const ParamType& params) {
-        auto A = op::v0::Constant::create(params.inType, params.inputShape.to_shape(), params.inputData.data());
-        auto B = op::v0::Constant::create(params.inType, params.inputShape.to_shape(), {true, true, true, true});
+        auto A = op::v0::Constant::create(params.inType, params.inputShape, params.inputData.data());
+        auto B = op::v0::Constant::create(params.inType, params.inputShape, {true, true, true, true});
         return std::make_shared<Model>(std::make_shared<op::v1::Equal>(A, B), ParameterVector{});
     }
 };
@@ -201,6 +201,50 @@ std::vector<ConstantParams> generateConstantDefinedTypeParams() {
                        std::vector<int64_t>{0x4000000000000001, 0x4000000000000002},
                        std::vector<int64_t>{0x4000000000000001, 0x4000000000000002},
                        "tensor_constant_int64"),
+        ConstantParams(
+            {3, 9},
+            element::Type_t::f8e4m3,
+            element::Type_t::f8e4m3,
+            std::vector<ov::float8_e4m3>{4.75f, 4.5f,  -5.25f, 0.0f,  0.1f,  0.2f,  0.3f,  0.4f,         0.5f,
+                                         0.6f,  0.7f,  0.8f,   0.9f,  1.f,   -0.0f, -0.1f, -0.2f,        -0.3f,
+                                         -0.4f, -0.5f, -0.6f,  -0.7f, -0.8f, -0.9f, -1.f,  0.001953125f, 448.f},
+            std::vector<ov::float8_e4m3>{5.0f,     4.5f,        -5.0f,      0.0f,     0.1015625f,   0.203125f, 0.3125f,
+                                         0.40625f, 0.5f,        0.625f,     0.6875f,  0.8125f,      0.875f,    1.f,
+                                         -0.f,     -0.1015625f, -0.203125f, -0.3125f, -0.40625f,    -0.5f,     -0.625f,
+                                         -0.6875f, -0.8125f,    -0.875f,    -1.f,     0.001953125f, 448.f},
+            "tensor_constant_f8e4m3"),
+        ConstantParams({3, 9},
+                       element::Type_t::f8e5m2,
+                       element::Type_t::f8e5m2,
+                       std::vector<ov::float8_e5m2>{4.75f,  4.5f,
+                                                    -5.25f, 0.0f,
+                                                    0.1f,   0.2f,
+                                                    0.3f,   0.4f,
+                                                    0.5f,   0.6f,
+                                                    0.7f,   0.8f,
+                                                    0.9f,   1.f,
+                                                    -0.0f,  -0.1f,
+                                                    -0.2f,  -0.3f,
+                                                    -0.4f,  -0.5f,
+                                                    -0.6f,  -0.7f,
+                                                    -0.8f,  -0.9f,
+                                                    -1.f,   0.0000152587890625f,
+                                                    57344.f},
+                       std::vector<ov::float8_e5m2>{4.75f,    4.5f,
+                                                    -5.25f,   0.0f,
+                                                    0.09375f, 0.1875f,
+                                                    0.3125f,  0.375f,
+                                                    0.5f,     0.625f,
+                                                    0.75f,    0.75f,
+                                                    0.875f,   1.f,
+                                                    -0.f,     -0.09375f,
+                                                    -0.1875f, -0.3125f,
+                                                    -0.375f,  -0.5f,
+                                                    -0.625f,  -0.75f,
+                                                    -0.75f,   -0.875f,
+                                                    -1.f,     0.0000152587890625f,
+                                                    57344.f},
+                       "tensor_constant_f8e5m2"),
     };
     return constantParams;
 }

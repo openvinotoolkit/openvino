@@ -44,7 +44,7 @@ bool ValidateLoops::run(LinearIR& linear_ir) {
     auto validate_loop_ports = [&loop_manager, &dim_indexes, &validated_nested_loops, &is_already_verified](const std::vector<LoopPort>& loop_ports) {
         for (const auto& loop_port : loop_ports) {
             const auto expr = loop_port.expr_port->get_expr();
-            const auto loop_ids = expr->get_loop_ids();
+            const auto& loop_ids = expr->get_loop_ids();
             // If loop_ids of the current port is subsequence of already validated IDs, skip
             if (is_already_verified(loop_ids))
                 continue;
@@ -63,8 +63,6 @@ bool ValidateLoops::run(LinearIR& linear_ir) {
                                     "Incorrect Loop ID configuration: the Loops with splitted dimension should be successively nested");
                     OPENVINO_ASSERT(loop_manager->get_loop_info(loop_ids[i - 1])->get_increment() == loop_manager->get_loop_info(id)->get_work_amount(),
                                     "Incorrect Loop ID configuration: the Loops with splitted dimension should be successively nested");
-                    OPENVINO_ASSERT(loop_manager->get_loop_info(loop_ids[i - 1])->get_outer_splited_loop(),
-                                    "Incorrect Loop ID configuration: the outer Loop with splitted dimension should have `outer_splited_loop=True`");
                 }
                 dim_indexes.push_back(dim_idx);
             }
@@ -80,7 +78,7 @@ bool ValidateLoops::run(LinearIR& linear_ir) {
                                                : ov::snippets::utils::get_preordered_vdims(*loop_port.expr_port);
             const auto& dim = *(planar_shape.rbegin() + loop_port.dim_idx);
             // Since dim == 1 can be broadcasted to any value, it's not necessary to add it to unique dims
-            if (dim != 1)
+            if (!utils::is_dynamic_value(dim) && dim != 1)
                 unique_dims.insert(dim);
         }
     };

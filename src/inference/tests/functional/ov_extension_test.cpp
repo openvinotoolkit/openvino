@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,19 +8,14 @@
 #include "openvino/util/file_util.hpp"
 
 using namespace testing;
-using namespace InferenceEngine;
 using namespace ov::test::utils;
 
+#if defined(ENABLE_OV_IR_FRONTEND)
 namespace {
 
 std::string getOVExtensionPath() {
     return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                               std::string("openvino_template_extension") + OV_BUILD_POSTFIX);
-}
-
-std::string getOldExtensionPath() {
-    return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                              std::string("template_extension") + OV_BUILD_POSTFIX);
 }
 
 std::string getIncorrectExtensionPath() {
@@ -36,6 +31,7 @@ std::string getRelativeOVExtensionPath() {
 }
 
 }  // namespace
+#endif
 
 class CustomNewIdentity : public ov::op::Op {
 public:
@@ -140,10 +136,6 @@ TEST_F(OVExtensionTests, ReshapeIRWithSeveralNewOps) {
 
 TEST_F(OVExtensionTests, load_new_extension) {
     EXPECT_NO_THROW(core.add_extension(getOVExtensionPath()));
-}
-
-TEST_F(OVExtensionTests, load_old_extension) {
-    EXPECT_NO_THROW(core.add_extension(getOldExtensionPath()));
 }
 
 TEST_F(OVExtensionTests, load_incorrect_extension) {

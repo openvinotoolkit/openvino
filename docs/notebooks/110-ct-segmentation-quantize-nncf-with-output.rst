@@ -14,7 +14,7 @@ scratch; the data is from
 This third tutorial in the series shows how to:
 
 -  Convert an Original model to OpenVINO IR with `model conversion
-   API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
+   API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__
 -  Quantize a PyTorch model with NNCF
 -  Evaluate the F1 score metric of the original model and the quantized
    model
@@ -30,7 +30,7 @@ All notebooks in this series:
 -  Convert and Quantize a Segmentation Model and Show Live Inference
    (this notebook)
 -  `Live Inference and Benchmark CT-scan
-   data <110-ct-scan-live-inference.ipynb>`__
+   data <110-ct-scan-live-inference-with-output.html>`__
 
 Instructions
 ------------
@@ -53,8 +53,8 @@ demonstration purposes, this tutorial will download one converted CT
 scan and use that scan for quantization and inference. For production
 purposes, use a representative dataset for quantizing the model.
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Imports <#imports>`__
 -  `Settings <#settings>`__
@@ -66,14 +66,14 @@ purposes, use a representative dataset for quantizing the model.
    -  `Metric <#metric>`__
 
 -  `Quantization <#quantization>`__
--  `Compare FP32 and INT8 Model <#compare-fp-and-int-model>`__
+-  `Compare FP32 and INT8 Model <#compare-fp32-and-int8-model>`__
 
    -  `Compare File Size <#compare-file-size>`__
    -  `Compare Metrics for the original model and the quantized model to
       be sure that there no
-      degradation. <#compare-metrics-for-the-original-model-and-the-quantized-model-to-be-sure-that-there-no-degradation>`__
+      degradation. <#compare-metrics-for-the-original-model-and-the-quantized-model-to-be-sure-that-there-no-degradation->`__
    -  `Compare Performance of the FP32 IR Model and Quantized
-      Models <#compare-performance-of-the-fp-ir-model-and-quantized-models>`__
+      Models <#compare-performance-of-the-fp32-ir-model-and-quantized-models>`__
    -  `Visually Compare Inference
       Results <#visually-compare-inference-results>`__
 
@@ -87,7 +87,7 @@ purposes, use a representative dataset for quantizing the model.
 
 .. code:: ipython3
 
-    %pip install -q "openvino>=2023.1.0" "monai>=0.9.1,<1.0.0" "torchmetrics>=0.11.0" "nncf>=2.6.0" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "openvino>=2023.3.0" "monai>=0.9.1" "torchmetrics>=0.11.0" "nncf>=2.8.0" torch --extra-index-url https://download.pytorch.org/whl/cpu
 
 
 .. parsed-literal::
@@ -99,52 +99,6 @@ Imports
 -------
 
 
-
-.. code:: ipython3
-
-    # On Windows, try to find the directory that contains x64 cl.exe and add it to the PATH to enable PyTorch
-    # to find the required C++ tools. This code assumes that Visual Studio is installed in the default
-    # directory. If you have a different C++ compiler, please add the correct path to os.environ["PATH"]
-    # directly. Note that the C++ Redistributable is not enough to run this notebook.
-    
-    # Adding the path to os.environ["LIB"] is not always required - it depends on the system's configuration
-    
-    import sys
-    
-    if sys.platform == "win32":
-        import distutils.command.build_ext
-        import os
-        from pathlib import Path
-    
-        if sys.getwindowsversion().build >= 20000:  # Windows 11
-            search_path = "**/Hostx64/x64/cl.exe"
-        else:
-            search_path = "**/Hostx86/x64/cl.exe"
-    
-        VS_INSTALL_DIR_2019 = r"C:/Program Files (x86)/Microsoft Visual Studio"
-        VS_INSTALL_DIR_2022 = r"C:/Program Files/Microsoft Visual Studio"
-    
-        cl_paths_2019 = sorted(list(Path(VS_INSTALL_DIR_2019).glob(search_path)))
-        cl_paths_2022 = sorted(list(Path(VS_INSTALL_DIR_2022).glob(search_path)))
-        cl_paths = cl_paths_2019 + cl_paths_2022
-    
-        if len(cl_paths) == 0:
-            raise ValueError(
-                "Cannot find Visual Studio. This notebook requires an x64 C++ compiler. If you installed "
-                "a C++ compiler, please add the directory that contains cl.exe to `os.environ['PATH']`."
-            )
-        else:
-            # If multiple versions of MSVC are installed, get the most recent version
-            cl_path = cl_paths[-1]
-            vs_dir = str(cl_path.parent)
-            os.environ["PATH"] += f"{os.pathsep}{vs_dir}"
-            # Code for finding the library dirs from
-            # https://stackoverflow.com/questions/47423246/get-pythons-lib-path
-            d = distutils.core.Distribution()
-            b = distutils.command.build_ext.build_ext(d)
-            b.finalize_options()
-            os.environ["LIB"] = os.pathsep.join(b.library_dirs)
-            print(f"Added {vs_dir} to PATH")
 
 .. code:: ipython3
 
@@ -182,10 +136,14 @@ Imports
 
 .. parsed-literal::
 
-    2023-12-06 22:47:51.629108: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-12-06 22:47:51.662883: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-03-12 22:35:56.579274: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-03-12 22:35:56.613310: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-12-06 22:47:52.221639: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+
+
+.. parsed-literal::
+
+    2024-03-12 22:35:57.179215: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -389,7 +347,7 @@ kidney pixels to verify that the annotations look correct:
 
 
 
-.. image:: 110-ct-segmentation-quantize-nncf-with-output_files/110-ct-segmentation-quantize-nncf-with-output_15_1.png
+.. image:: 110-ct-segmentation-quantize-nncf-with-output_files/110-ct-segmentation-quantize-nncf-with-output_14_1.png
 
 
 Metric
@@ -468,8 +426,16 @@ this notebook.
 .. parsed-literal::
 
     [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
+
+
+.. parsed-literal::
+
     No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/monai/networks/nets/basic_unet.py:179: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/monai/networks/nets/basic_unet.py:168: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if x_e.shape[-i - 1] != x_0.shape[-i - 1]:
 
 
@@ -555,27 +521,36 @@ steps:
 
 
 
-Export the quantized model to ONNX and then convert it to OpenVINO IR
-model and save it.
+Convert quantized model to OpenVINO IR model and save it.
 
 .. code:: ipython3
 
     dummy_input = torch.randn(1, 1, 512, 512)
     int8_onnx_path = MODEL_DIR / "unet_kits19_int8.onnx"
     int8_ir_path = Path(int8_onnx_path).with_suffix(".xml")
-    torch.onnx.export(quantized_model, dummy_input, int8_onnx_path)
-    int8_ir_model = ov.convert_model(int8_onnx_path)
+    int8_ir_model = ov.convert_model(quantized_model, example_input=dummy_input, input=dummy_input.shape)
     ov.save_model(int8_ir_model, str(int8_ir_path))
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:333: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:337: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       return self._level_low.item()
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:341: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:345: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       return self._level_high.item()
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/monai/networks/nets/basic_unet.py:179: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/monai/networks/nets/basic_unet.py:168: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if x_e.shape[-i - 1] != x_0.shape[-i - 1]:
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:1093: TracerWarning: Output nr 1. of the traced function does not match the corresponding output of the Python function. Detailed error:
+    Tensor-likes are not close!
+    
+    Mismatched elements: 248084 / 262144 (94.6%)
+    Greatest absolute difference: 3.0810165405273438 at index (0, 0, 135, 41) (up to 1e-05 allowed)
+    Greatest relative difference: 29099.340127879757 at index (0, 0, 139, 287) (up to 1e-05 allowed)
+      _check_trace(
 
 
 This notebook demonstrates post-training quantization with NNCF.
@@ -607,7 +582,38 @@ Compare File Size
 .. parsed-literal::
 
     FP32 IR model size: 3864.14 KB
-    INT8 model size: 1940.55 KB
+    INT8 model size: 1940.40 KB
+
+
+Select Inference Device
+~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+.. code:: ipython3
+
+    core = ov.Core()
+    # By default, benchmark on MULTI:CPU,GPU if a GPU is available, otherwise on CPU.
+    device_list = ["MULTI:CPU,GPU" if "GPU" in core.available_devices else "AUTO"]
+    
+    import ipywidgets as widgets
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + device_list,
+        value=device_list[0],
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
 
 
 Compare Metrics for the original model and the quantized model to be sure that there no degradation.
@@ -617,9 +623,9 @@ Compare Metrics for the original model and the quantized model to be sure that t
 
 .. code:: ipython3
 
-    core = ov.Core()
     
-    int8_compiled_model = core.compile_model(int8_ir_model)
+    
+    int8_compiled_model = core.compile_model(int8_ir_model, device.value)
     int8_f1 = compute_f1(int8_compiled_model, dataset)
     
     print(f"FP32 F1: {fp32_f1:.3f}")
@@ -639,7 +645,7 @@ Compare Performance of the FP32 IR Model and Quantized Models
 
 To measure the inference performance of the ``FP32`` and ``INT8``
 models, we use `Benchmark
-Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
 - OpenVINO’s inference performance measurement tool. Benchmark tool is a
 command line application, part of OpenVINO development tools, that can
 be run in the notebook with ``! benchmark_app`` or
@@ -658,12 +664,8 @@ be run in the notebook with ``! benchmark_app`` or
 
 .. code:: ipython3
 
-    device = "CPU"
-
-.. code:: ipython3
-
     # Benchmark FP32 model
-    ! benchmark_app -m $fp32_ir_path -d $device -t 15 -api sync
+    ! benchmark_app -m $fp32_ir_path -d $device.value -t 15 -api sync
 
 
 .. parsed-literal::
@@ -672,56 +674,71 @@ be run in the notebook with ``! benchmark_app`` or
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2023.2.0-13089-cfd42bd2cb0-HEAD
+    [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
     [ INFO ] 
     [ INFO ] Device info:
-    [ INFO ] CPU
-    [ INFO ] Build ................................. 2023.2.0-13089-cfd42bd2cb0-HEAD
+    [ INFO ] AUTO
+    [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
-    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.LATENCY.
+    [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.LATENCY.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 26.10 ms
+    [ INFO ] Read model took 8.66 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [?,?,?,?]
     [ INFO ] Model outputs:
-    [ INFO ]     ***NO_NAME*** (node: __module.final_conv/aten::_convolution/Add_425) : f32 / [...] / [?,1,16..,16..]
+    [ INFO ]     ***NO_NAME*** (node: __module.final_conv/aten::_convolution/Add) : f32 / [...] / [?,1,16..,16..]
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [?,?,?,?]
     [ INFO ] Model outputs:
-    [ INFO ]     ***NO_NAME*** (node: __module.final_conv/aten::_convolution/Add_425) : f32 / [...] / [?,1,16..,16..]
+    [ INFO ]     ***NO_NAME*** (node: __module.final_conv/aten::_convolution/Add) : f32 / [...] / [?,1,16..,16..]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 80.42 ms
+
+
+.. parsed-literal::
+
+    [ INFO ] Compile model took 136.91 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
-    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
-    [ INFO ]   NUM_STREAMS: 1
-    [ INFO ]   AFFINITY: Affinity.CORE
-    [ INFO ]   INFERENCE_NUM_THREADS: 12
-    [ INFO ]   PERF_COUNT: False
-    [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
-    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
-    [ INFO ]   EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
-    [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
-    [ INFO ]   ENABLE_CPU_PINNING: True
-    [ INFO ]   SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
-    [ INFO ]   ENABLE_HYPER_THREADING: False
     [ INFO ]   EXECUTION_DEVICES: ['CPU']
-    [ INFO ]   CPU_DENORMALS_OPTIMIZATION: False
-    [ INFO ]   CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
+    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+    [ INFO ]   MULTI_DEVICE_PRIORITIES: CPU
+    [ INFO ]   CPU:
+    [ INFO ]     AFFINITY: Affinity.CORE
+    [ INFO ]     CPU_DENORMALS_OPTIMIZATION: False
+    [ INFO ]     CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
+    [ INFO ]     DYNAMIC_QUANTIZATION_GROUP_SIZE: 0
+    [ INFO ]     ENABLE_CPU_PINNING: True
+    [ INFO ]     ENABLE_HYPER_THREADING: False
+    [ INFO ]     EXECUTION_DEVICES: ['CPU']
+    [ INFO ]     EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
+    [ INFO ]     INFERENCE_NUM_THREADS: 12
+    [ INFO ]     INFERENCE_PRECISION_HINT: <Type: 'float32'>
+    [ INFO ]     KV_CACHE_PRECISION: <Type: 'float16'>
+    [ INFO ]     LOG_LEVEL: Level.NO
+    [ INFO ]     NETWORK_NAME: Model0
+    [ INFO ]     NUM_STREAMS: 1
+    [ INFO ]     OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+    [ INFO ]     PERFORMANCE_HINT: LATENCY
+    [ INFO ]     PERFORMANCE_HINT_NUM_REQUESTS: 0
+    [ INFO ]     PERF_COUNT: NO
+    [ INFO ]     SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
+    [ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+    [ INFO ]   LOADED_FROM_CACHE: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ ERROR ] Input x is dynamic. Provide data shapes!
     Traceback (most recent call last):
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 485, in main
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 486, in main
         data_queue = get_input_data(paths_to_input, app_inputs_info)
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/utils/inputs_filling.py", line 123, in get_input_data
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/utils/inputs_filling.py", line 123, in get_input_data
         raise Exception(f"Input {info.name} is dynamic. Provide data shapes!")
     Exception: Input x is dynamic. Provide data shapes!
 
@@ -729,7 +746,7 @@ be run in the notebook with ``! benchmark_app`` or
 .. code:: ipython3
 
     # Benchmark INT8 model
-    ! benchmark_app -m $int8_ir_path -d $device -t 15 -api sync
+    ! benchmark_app -m $int8_ir_path -d $device.value -t 15 -api sync
 
 
 .. parsed-literal::
@@ -738,66 +755,93 @@ be run in the notebook with ``! benchmark_app`` or
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2023.2.0-13089-cfd42bd2cb0-HEAD
+    [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
     [ INFO ] 
     [ INFO ] Device info:
-    [ INFO ] CPU
-    [ INFO ] Build ................................. 2023.2.0-13089-cfd42bd2cb0-HEAD
+    [ INFO ] AUTO
+    [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
-    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.LATENCY.
+    [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.LATENCY.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 12.76 ms
+
+
+.. parsed-literal::
+
+    [ INFO ] Read model took 13.46 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
-    [ INFO ]     x.1 (node: x.1) : f32 / [...] / [1,1,512,512]
+    [ INFO ]     x (node: x) : f32 / [...] / [1,1,512,512]
     [ INFO ] Model outputs:
-    [ INFO ]     571 (node: 571) : f32 / [...] / [1,1,512,512]
+    [ INFO ]     ***NO_NAME*** (node: __module.final_conv/aten::_convolution/Add) : f32 / [...] / [1,1,512,512]
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
-    [ INFO ]     x.1 (node: x.1) : f32 / [N,C,H,W] / [1,1,512,512]
+    [ INFO ]     x (node: x) : f32 / [N,C,H,W] / [1,1,512,512]
     [ INFO ] Model outputs:
-    [ INFO ]     571 (node: 571) : f32 / [...] / [1,1,512,512]
+    [ INFO ]     ***NO_NAME*** (node: __module.final_conv/aten::_convolution/Add) : f32 / [...] / [1,1,512,512]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 188.00 ms
+
+
+.. parsed-literal::
+
+    [ INFO ] Compile model took 274.86 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
-    [ INFO ]   NETWORK_NAME: main_graph
-    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
-    [ INFO ]   NUM_STREAMS: 1
-    [ INFO ]   AFFINITY: Affinity.CORE
-    [ INFO ]   INFERENCE_NUM_THREADS: 12
-    [ INFO ]   PERF_COUNT: False
-    [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
-    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
-    [ INFO ]   EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
-    [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
-    [ INFO ]   ENABLE_CPU_PINNING: True
-    [ INFO ]   SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
-    [ INFO ]   ENABLE_HYPER_THREADING: False
+    [ INFO ]   NETWORK_NAME: Model49
     [ INFO ]   EXECUTION_DEVICES: ['CPU']
-    [ INFO ]   CPU_DENORMALS_OPTIMIZATION: False
-    [ INFO ]   CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
+    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+    [ INFO ]   MULTI_DEVICE_PRIORITIES: CPU
+    [ INFO ]   CPU:
+    [ INFO ]     AFFINITY: Affinity.CORE
+    [ INFO ]     CPU_DENORMALS_OPTIMIZATION: False
+    [ INFO ]     CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
+    [ INFO ]     DYNAMIC_QUANTIZATION_GROUP_SIZE: 0
+    [ INFO ]     ENABLE_CPU_PINNING: True
+    [ INFO ]     ENABLE_HYPER_THREADING: False
+    [ INFO ]     EXECUTION_DEVICES: ['CPU']
+    [ INFO ]     EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
+    [ INFO ]     INFERENCE_NUM_THREADS: 12
+    [ INFO ]     INFERENCE_PRECISION_HINT: <Type: 'float32'>
+    [ INFO ]     KV_CACHE_PRECISION: <Type: 'float16'>
+    [ INFO ]     LOG_LEVEL: Level.NO
+    [ INFO ]     NETWORK_NAME: Model49
+    [ INFO ]     NUM_STREAMS: 1
+    [ INFO ]     OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+    [ INFO ]     PERFORMANCE_HINT: LATENCY
+    [ INFO ]     PERFORMANCE_HINT_NUM_REQUESTS: 0
+    [ INFO ]     PERF_COUNT: NO
+    [ INFO ]     SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
+    [ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+    [ INFO ]   LOADED_FROM_CACHE: False
     [Step 9/11] Creating infer requests and preparing input tensors
-    [ WARNING ] No input files were given for input 'x.1'!. This input will be filled with random values!
-    [ INFO ] Fill input 'x.1' with random values 
+    [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
+    [ INFO ] Fill input 'x' with random values 
     [Step 10/11] Measuring performance (Start inference synchronously, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 30.70 ms
+
+
+.. parsed-literal::
+
+    [ INFO ] First inference took 30.24 ms
+
+
+.. parsed-literal::
+
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            971 iterations
-    [ INFO ] Duration:         15006.86 ms
+    [ INFO ] Count:            972 iterations
+    [ INFO ] Duration:         15004.50 ms
     [ INFO ] Latency:
     [ INFO ]    Median:        15.20 ms
     [ INFO ]    Average:       15.24 ms
     [ INFO ]    Min:           14.91 ms
-    [ INFO ]    Max:           16.90 ms
-    [ INFO ] Throughput:   64.70 FPS
+    [ INFO ]    Max:           16.93 ms
+    [ INFO ] Throughput:   64.78 FPS
 
 
 Visually Compare Inference Results
@@ -840,8 +884,8 @@ seed is displayed to enable reproducing specific runs of this cell.
     core = ov.Core()
     fp_model = core.read_model(fp32_ir_path)
     int8_model = core.read_model(int8_ir_path)
-    compiled_model_fp = core.compile_model(fp_model, device_name="CPU")
-    compiled_model_int8 = core.compile_model(int8_model, device_name="CPU")
+    compiled_model_fp = core.compile_model(fp_model, device_name=device.value)
+    compiled_model_int8 = core.compile_model(int8_model, device_name=device.value)
     output_layer_fp = compiled_model_fp.output(0)
     output_layer_int8 = compiled_model_int8.output(0)
     
@@ -882,7 +926,7 @@ seed is displayed to enable reproducing specific runs of this cell.
 
 .. parsed-literal::
 
-    Visualizing results with seed 1701899334
+    Visualizing results with seed 1710279421
 
 
 
@@ -951,11 +995,9 @@ performs inference, and displays the results on the frames loaded in
 
 .. code:: ipython3
 
-    # Possible options for device include "CPU", "GPU", "AUTO", "MULTI:CPU,GPU"
-    device = "CPU"
     reader = LoadImage(image_only=True, dtype=np.uint8)
     show_live_inference(
-        ie=core, image_paths=image_paths, model=segmentation_model, device=device, reader=reader
+        ie=core, image_paths=image_paths, model=segmentation_model, device=device.value, reader=reader
     )
 
 
@@ -965,8 +1007,8 @@ performs inference, and displays the results on the frames loaded in
 
 .. parsed-literal::
 
-    Loaded model to CPU in 0.18 seconds.
-    Total time for 68 frames: 2.73 seconds, fps:25.30
+    Loaded model to AUTO in 0.22 seconds.
+    Total time for 68 frames: 2.67 seconds, fps:25.87
 
 
 References

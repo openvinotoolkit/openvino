@@ -25,11 +25,6 @@ struct multiclass_nms_params : public base_params {
     bool has_roisnum = false;
 };
 
-struct multiclass_nms_optional_params : public optional_params {
-    multiclass_nms_optional_params()
-        : optional_params(KernelType::MULTICLASS_NMS) {}
-};
-
 class MulticlassNmsKernelRef : public KernelBaseOpenCL {
 public:
     MulticlassNmsKernelRef() : KernelBaseOpenCL("multiclass_nms_ref") {}
@@ -39,10 +34,10 @@ public:
     using DispatchData = CommonDispatchData;
 
 protected:
-    bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p) const override;
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
     void SetKernelArguments(const multiclass_nms_params& params, size_t idx, cldnn::arguments_desc& kernel) const;
 

@@ -22,8 +22,8 @@ quantization, not demanding the fine-tuning of the model.
    the default binary search path of the OS you are running the
    notebook.
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Preparations <#preparations>`__
 
@@ -41,14 +41,14 @@ quantization, not demanding the fine-tuning of the model.
 -  `Model quantization and
    benchmarking <#model-quantization-and-benchmarking>`__
 
-   -  `I. Evaluate the loaded model <#i-evaluate-the-loaded-model>`__
+   -  `I. Evaluate the loaded model <#i--evaluate-the-loaded-model>`__
    -  `II. Create and initialize
-      quantization <#ii-create-and-initialize-quantization>`__
+      quantization <#ii--create-and-initialize-quantization>`__
    -  `III. Convert the models to OpenVINO Intermediate Representation
       (OpenVINO
-      IR) <#iii-convert-the-models-to-openvino-intermediate-representation-openvino-ir>`__
+      IR) <#iii--convert-the-models-to-openvino-intermediate-representation-openvino-ir>`__
    -  `IV. Compare performance of INT8 model and FP32 model in
-      OpenVINO <#iv-compare-performance-of-int-model-and-fp-model-in-openvino>`__
+      OpenVINO <#iv--compare-performance-of-int8-model-and-fp32-model-in-openvino>`__
 
 Preparations
 ------------
@@ -58,52 +58,19 @@ Preparations
 .. code:: ipython3
 
     # Install openvino package
-    %pip install -q "openvino>=2023.1.0" torch torchvision --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "nncf>=2.6.0"
+    %pip install -q "openvino>=2024.0.0" torch torchvision --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "nncf>=2.9.0"
 
 
 .. parsed-literal::
 
     Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
 
-
-.. code:: ipython3
-
-    # On Windows, this script adds the directory that contains cl.exe to the PATH to enable PyTorch to find the
-    # required C++ tools. This code assumes that Visual Studio 2019 is installed in the default
-    # directory. If you have a different C++ compiler, add the correct path to os.environ["PATH"]
-    # directly.
-    
-    # Adding the path to os.environ["LIB"] is not always required - it depends on the system configuration.
-    
-    import sys
-    
-    if sys.platform == "win32":
-        import distutils.command.build_ext
-        import os
-        from pathlib import Path
-    
-        VS_INSTALL_DIR = r"C:/Program Files (x86)/Microsoft Visual Studio"
-        cl_paths = sorted(list(Path(VS_INSTALL_DIR).glob("**/Hostx86/x64/cl.exe")))
-        if len(cl_paths) == 0:
-            raise ValueError(
-                "Cannot find Visual Studio. This notebook requires C++. If you installed "
-                "a C++ compiler, please add the directory that contains cl.exe to "
-                "`os.environ['PATH']`"
-            )
-        else:
-            # If multiple versions of MSVC are installed, get the most recent one.
-            cl_path = cl_paths[-1]
-            vs_dir = str(cl_path.parent)
-            os.environ["PATH"] += f"{os.pathsep}{vs_dir}"
-            # The code for finding the library dirs is from
-            # https://stackoverflow.com/questions/47423246/get-pythons-lib-path
-            d = distutils.core.Distribution()
-            b = distutils.command.build_ext.build_ext(d)
-            b.finalize_options()
-            os.environ["LIB"] = os.pathsep.join(b.library_dirs)
-            print(f"Added {vs_dir} to PATH")
 
 Imports
 ~~~~~~~
@@ -113,6 +80,7 @@ Imports
 .. code:: ipython3
 
     import os
+    import sys
     import time
     import zipfile
     from pathlib import Path
@@ -178,7 +146,7 @@ Settings
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/112-pytorch-post-training-quantization-nncf/model/resnet50_fp32.pth')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/112-pytorch-post-training-quantization-nncf/model/resnet50_fp32.pth')
 
 
 
@@ -471,15 +439,47 @@ I. Evaluate the loaded model
 
 .. parsed-literal::
 
-    Test: [ 0/79]	Time 0.257 (0.257)	Acc@1 81.25 (81.25)	Acc@5 92.19 (92.19)
-    Test: [10/79]	Time 0.233 (0.231)	Acc@1 56.25 (66.97)	Acc@5 86.72 (87.50)
-    Test: [20/79]	Time 0.223 (0.231)	Acc@1 67.97 (64.29)	Acc@5 85.16 (87.35)
-    Test: [30/79]	Time 0.231 (0.231)	Acc@1 53.12 (62.37)	Acc@5 77.34 (85.33)
-    Test: [40/79]	Time 0.232 (0.234)	Acc@1 67.19 (60.86)	Acc@5 90.62 (84.51)
-    Test: [50/79]	Time 0.226 (0.233)	Acc@1 60.16 (60.80)	Acc@5 88.28 (84.42)
-    Test: [60/79]	Time 0.225 (0.233)	Acc@1 66.41 (60.46)	Acc@5 86.72 (83.79)
-    Test: [70/79]	Time 0.232 (0.234)	Acc@1 52.34 (60.21)	Acc@5 80.47 (83.33)
-     * Acc@1 60.740 Acc@5 83.960 Total time: 18.296
+    Test: [ 0/79]	Time 0.266 (0.266)	Acc@1 81.25 (81.25)	Acc@5 92.19 (92.19)
+
+
+.. parsed-literal::
+
+    Test: [10/79]	Time 0.237 (0.240)	Acc@1 56.25 (66.97)	Acc@5 86.72 (87.50)
+
+
+.. parsed-literal::
+
+    Test: [20/79]	Time 0.226 (0.238)	Acc@1 67.97 (64.29)	Acc@5 85.16 (87.35)
+
+
+.. parsed-literal::
+
+    Test: [30/79]	Time 0.289 (0.240)	Acc@1 53.12 (62.37)	Acc@5 77.34 (85.33)
+
+
+.. parsed-literal::
+
+    Test: [40/79]	Time 0.239 (0.239)	Acc@1 67.19 (60.86)	Acc@5 90.62 (84.51)
+
+
+.. parsed-literal::
+
+    Test: [50/79]	Time 0.238 (0.239)	Acc@1 60.16 (60.80)	Acc@5 88.28 (84.42)
+
+
+.. parsed-literal::
+
+    Test: [60/79]	Time 0.239 (0.239)	Acc@1 66.41 (60.46)	Acc@5 86.72 (83.79)
+
+
+.. parsed-literal::
+
+    Test: [70/79]	Time 0.237 (0.239)	Acc@1 52.34 (60.21)	Acc@5 80.47 (83.33)
+
+
+.. parsed-literal::
+
+     * Acc@1 60.740 Acc@5 83.960 Total time: 18.642
     Test accuracy of FP32 model: 60.740
 
 
@@ -495,7 +495,7 @@ layers. The framework is designed so that modifications to your original
 training code are minor. Quantization is the simplest scenario and
 requires a few modifications. For more information about NNCF Post
 Training Quantization (PTQ) API, refer to the `Basic Quantization Flow
-Guide <https://docs.openvino.ai/2023.0/basic_qauntization_flow.html#doxid-basic-qauntization-flow>`__.
+Guide <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/quantizing-models-post-training/basic-quantization-flow.html>`__.
 
 1. Create a transformation function that accepts a sample from the
    dataset and returns data suitable for model inference. This enables
@@ -522,10 +522,23 @@ Guide <https://docs.openvino.ai/2023.0/basic_qauntization_flow.html#doxid-basic-
 
 .. parsed-literal::
 
-    2023-12-06 22:54:25.232060: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-12-06 22:54:25.263296: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-03-12 22:38:49.880763: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-03-12 22:38:49.911905: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-12-06 22:54:25.771528: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+
+
+.. parsed-literal::
+
+    2024-03-12 22:38:50.443391: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+
+
+.. parsed-literal::
+
+    WARNING:nncf:NNCF provides best results with torch==2.1.2, while current torch version is 2.1.0+cpu. If you encounter issues, consider switching to torch==2.1.2
+
+
+.. parsed-literal::
+
     No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
 
 
@@ -553,6 +566,10 @@ Guide <https://docs.openvino.ai/2023.0/basic_qauntization_flow.html#doxid-basic-
 .. parsed-literal::
 
     INFO:nncf:Compiling and loading torch extension: quantized_functions_cpu...
+
+
+.. parsed-literal::
+
     INFO:nncf:Finished loading torch extension: quantized_functions_cpu
 
 
@@ -590,16 +607,48 @@ Guide <https://docs.openvino.ai/2023.0/basic_qauntization_flow.html#doxid-basic-
 
 .. parsed-literal::
 
-    Test: [ 0/79]	Time 0.407 (0.407)	Acc@1 82.03 (82.03)	Acc@5 91.41 (91.41)
-    Test: [10/79]	Time 0.387 (0.389)	Acc@1 54.69 (66.69)	Acc@5 85.16 (87.43)
-    Test: [20/79]	Time 0.387 (0.387)	Acc@1 67.97 (63.99)	Acc@5 84.38 (87.17)
-    Test: [30/79]	Time 0.386 (0.386)	Acc@1 53.12 (62.42)	Acc@5 77.34 (84.93)
-    Test: [40/79]	Time 0.385 (0.385)	Acc@1 66.41 (60.96)	Acc@5 90.62 (84.24)
-    Test: [50/79]	Time 0.385 (0.386)	Acc@1 58.59 (60.71)	Acc@5 88.28 (84.18)
-    Test: [60/79]	Time 0.387 (0.386)	Acc@1 65.62 (60.26)	Acc@5 85.94 (83.62)
-    Test: [70/79]	Time 0.385 (0.386)	Acc@1 53.12 (60.00)	Acc@5 80.47 (83.16)
-     * Acc@1 60.450 Acc@5 83.800 Total time: 30.199
-    Accuracy of initialized INT8 model: 60.450
+    Test: [ 0/79]	Time 0.424 (0.424)	Acc@1 81.25 (81.25)	Acc@5 90.62 (90.62)
+
+
+.. parsed-literal::
+
+    Test: [10/79]	Time 0.401 (0.405)	Acc@1 53.12 (66.05)	Acc@5 86.72 (87.50)
+
+
+.. parsed-literal::
+
+    Test: [20/79]	Time 0.401 (0.404)	Acc@1 68.75 (63.62)	Acc@5 85.94 (87.20)
+
+
+.. parsed-literal::
+
+    Test: [30/79]	Time 0.404 (0.403)	Acc@1 52.34 (62.00)	Acc@5 77.34 (85.13)
+
+
+.. parsed-literal::
+
+    Test: [40/79]	Time 0.402 (0.403)	Acc@1 66.41 (60.52)	Acc@5 90.62 (84.49)
+
+
+.. parsed-literal::
+
+    Test: [50/79]	Time 0.404 (0.402)	Acc@1 59.38 (60.45)	Acc@5 88.28 (84.44)
+
+
+.. parsed-literal::
+
+    Test: [60/79]	Time 0.404 (0.402)	Acc@1 67.19 (60.17)	Acc@5 85.94 (83.88)
+
+
+.. parsed-literal::
+
+    Test: [70/79]	Time 0.401 (0.402)	Acc@1 53.12 (59.93)	Acc@5 80.47 (83.42)
+
+
+.. parsed-literal::
+
+     * Acc@1 60.420 Acc@5 84.050 Total time: 31.523
+    Accuracy of initialized INT8 model: 60.420
 
 
 It should be noted that the inference time for the quantized PyTorch
@@ -618,7 +667,7 @@ Python API. The models will be saved to the ‘OUTPUT’ directory for later
 benchmarking.
 
 For more information about model conversion, refer to this
-`page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__.
 
 .. code:: ipython3
 
@@ -648,16 +697,20 @@ For more information about model conversion, refer to this
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:333: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:337: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       return self._level_low.item()
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:341: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:345: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       return self._level_high.item()
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:1093: TracerWarning: Output nr 1. of the traced function does not match the corresponding output of the Python function. Detailed error:
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:1093: TracerWarning: Output nr 1. of the traced function does not match the corresponding output of the Python function. Detailed error:
     Tensor-likes are not close!
     
-    Mismatched elements: 25580 / 25600 (99.9%)
-    Greatest absolute difference: 0.45703113079071045 at index (99, 85) (up to 1e-05 allowed)
-    Greatest relative difference: 134.48766541727224 at index (92, 158) (up to 1e-05 allowed)
+    Mismatched elements: 25584 / 25600 (99.9%)
+    Greatest absolute difference: 0.4242134094238281 at index (97, 14) (up to 1e-05 allowed)
+    Greatest relative difference: 313.25925327299177 at index (60, 158) (up to 1e-05 allowed)
       _check_trace(
 
 
@@ -698,15 +751,47 @@ Evaluate the FP32 and INT8 models.
 
 .. parsed-literal::
 
-    Test: [ 0/79]	Time 0.192 (0.192)	Acc@1 81.25 (81.25)	Acc@5 92.19 (92.19)
-    Test: [10/79]	Time 0.135 (0.142)	Acc@1 56.25 (66.97)	Acc@5 86.72 (87.50)
+    Test: [ 0/79]	Time 0.176 (0.176)	Acc@1 81.25 (81.25)	Acc@5 92.19 (92.19)
+
+
+.. parsed-literal::
+
+    Test: [10/79]	Time 0.138 (0.142)	Acc@1 56.25 (66.97)	Acc@5 86.72 (87.50)
+
+
+.. parsed-literal::
+
     Test: [20/79]	Time 0.138 (0.140)	Acc@1 67.97 (64.29)	Acc@5 85.16 (87.35)
-    Test: [30/79]	Time 0.136 (0.139)	Acc@1 53.12 (62.37)	Acc@5 77.34 (85.33)
-    Test: [40/79]	Time 0.138 (0.139)	Acc@1 67.19 (60.86)	Acc@5 90.62 (84.51)
-    Test: [50/79]	Time 0.138 (0.138)	Acc@1 60.16 (60.80)	Acc@5 88.28 (84.42)
-    Test: [60/79]	Time 0.137 (0.138)	Acc@1 66.41 (60.46)	Acc@5 86.72 (83.79)
-    Test: [70/79]	Time 0.138 (0.138)	Acc@1 52.34 (60.21)	Acc@5 80.47 (83.33)
-     * Acc@1 60.740 Acc@5 83.960 Total time: 10.797
+
+
+.. parsed-literal::
+
+    Test: [30/79]	Time 0.139 (0.139)	Acc@1 53.12 (62.37)	Acc@5 77.34 (85.33)
+
+
+.. parsed-literal::
+
+    Test: [40/79]	Time 0.137 (0.139)	Acc@1 67.19 (60.86)	Acc@5 90.62 (84.51)
+
+
+.. parsed-literal::
+
+    Test: [50/79]	Time 0.138 (0.139)	Acc@1 60.16 (60.80)	Acc@5 88.28 (84.42)
+
+
+.. parsed-literal::
+
+    Test: [60/79]	Time 0.135 (0.139)	Acc@1 66.41 (60.46)	Acc@5 86.72 (83.79)
+
+
+.. parsed-literal::
+
+    Test: [70/79]	Time 0.138 (0.139)	Acc@1 52.34 (60.21)	Acc@5 80.47 (83.33)
+
+
+.. parsed-literal::
+
+     * Acc@1 60.740 Acc@5 83.960 Total time: 10.831
     Accuracy of FP32 IR model: 60.740
 
 
@@ -719,16 +804,48 @@ Evaluate the FP32 and INT8 models.
 
 .. parsed-literal::
 
-    Test: [ 0/79]	Time 0.138 (0.138)	Acc@1 81.25 (81.25)	Acc@5 92.19 (92.19)
-    Test: [10/79]	Time 0.077 (0.082)	Acc@1 53.91 (66.83)	Acc@5 85.94 (87.36)
-    Test: [20/79]	Time 0.076 (0.079)	Acc@1 67.19 (64.10)	Acc@5 83.59 (87.02)
-    Test: [30/79]	Time 0.076 (0.078)	Acc@1 53.12 (62.15)	Acc@5 76.56 (84.95)
-    Test: [40/79]	Time 0.076 (0.078)	Acc@1 67.19 (60.71)	Acc@5 89.06 (84.22)
-    Test: [50/79]	Time 0.074 (0.077)	Acc@1 58.59 (60.68)	Acc@5 88.28 (84.19)
-    Test: [60/79]	Time 0.080 (0.077)	Acc@1 65.62 (60.31)	Acc@5 87.50 (83.70)
-    Test: [70/79]	Time 0.074 (0.077)	Acc@1 53.12 (60.08)	Acc@5 79.69 (83.23)
-     * Acc@1 60.620 Acc@5 83.890 Total time: 6.027
-    Accuracy of INT8 IR model: 60.620
+    Test: [ 0/79]	Time 0.146 (0.146)	Acc@1 81.25 (81.25)	Acc@5 92.19 (92.19)
+
+
+.. parsed-literal::
+
+    Test: [10/79]	Time 0.078 (0.084)	Acc@1 54.69 (66.34)	Acc@5 85.94 (87.50)
+
+
+.. parsed-literal::
+
+    Test: [20/79]	Time 0.078 (0.081)	Acc@1 69.53 (63.88)	Acc@5 85.16 (87.17)
+
+
+.. parsed-literal::
+
+    Test: [30/79]	Time 0.076 (0.080)	Acc@1 53.12 (62.25)	Acc@5 75.78 (85.11)
+
+
+.. parsed-literal::
+
+    Test: [40/79]	Time 0.076 (0.079)	Acc@1 67.19 (60.86)	Acc@5 90.62 (84.36)
+
+
+.. parsed-literal::
+
+    Test: [50/79]	Time 0.073 (0.078)	Acc@1 60.16 (60.80)	Acc@5 88.28 (84.28)
+
+
+.. parsed-literal::
+
+    Test: [60/79]	Time 0.076 (0.078)	Acc@1 65.62 (60.32)	Acc@5 86.72 (83.72)
+
+
+.. parsed-literal::
+
+    Test: [70/79]	Time 0.075 (0.077)	Acc@1 51.56 (60.11)	Acc@5 79.69 (83.21)
+
+
+.. parsed-literal::
+
+     * Acc@1 60.640 Acc@5 83.860 Total time: 6.050
+    Accuracy of INT8 IR model: 60.640
 
 
 IV. Compare performance of INT8 model and FP32 model in OpenVINO
@@ -738,7 +855,7 @@ IV. Compare performance of INT8 model and FP32 model in OpenVINO
 
 Finally, measure the inference performance of the ``FP32`` and ``INT8``
 models, using `Benchmark
-Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
 - an inference performance measurement tool in OpenVINO. By default,
 Benchmark Tool runs inference for 60 seconds in asynchronous mode on
 CPU. It returns inference speed as latency (milliseconds per image) and
@@ -793,13 +910,29 @@ throughput (frames per second) values.
 .. parsed-literal::
 
     Benchmark FP32 model (OpenVINO IR)
-    [ INFO ] Throughput:   39.12 FPS
+
+
+.. parsed-literal::
+
+    [ INFO ] Throughput:   38.94 FPS
     Benchmark INT8 model (OpenVINO IR)
-    [ INFO ] Throughput:   155.73 FPS
+
+
+.. parsed-literal::
+
+    [ INFO ] Throughput:   154.81 FPS
     Benchmark FP32 model (OpenVINO IR) synchronously
-    [ INFO ] Throughput:   40.37 FPS
+
+
+.. parsed-literal::
+
+    [ INFO ] Throughput:   40.11 FPS
     Benchmark INT8 model (OpenVINO IR) synchronously
-    [ INFO ] Throughput:   137.36 FPS
+
+
+.. parsed-literal::
+
+    [ INFO ] Throughput:   137.11 FPS
 
 
 Show device Information for reference:

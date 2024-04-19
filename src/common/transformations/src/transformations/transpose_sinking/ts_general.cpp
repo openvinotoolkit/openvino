@@ -53,7 +53,6 @@ TSGeneralForward::TSGeneralForward() {
 TSGeneralBackward::TSGeneralBackward() {
     MATCHER_SCOPE(TSGeneralBackward);
     ADD_MATCHER(this, TSUnaryBackward);
-    ADD_MATCHER(this, TSUnaryBackward);
     ADD_MATCHER(this, TSBinaryBackward);
     ADD_MATCHER(this, TSConcatBackward);
     ADD_MATCHER(this, TSSplitBackward);

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from functools import singledispatch
@@ -80,6 +80,9 @@ def _(
         tensor_shape = tuple(tensor.shape)
         if tensor_dtype == value.dtype and tensor_shape == value.shape:
             return Tensor(value, shared_memory=is_shared)
+        elif tensor.size == 0:
+            # the first infer request for dynamic input cannot reshape to 0 shape
+            return Tensor(value.astype(tensor_dtype).reshape((1)), shared_memory=False)
         else:
             return Tensor(value.astype(tensor_dtype).reshape(tensor_shape), shared_memory=False)
     # WA for FP16-->BF16 edge-case, always copy.
@@ -134,7 +137,7 @@ def _(
 def to_c_style(value: Any, is_shared: bool = False) -> Any:
     if not isinstance(value, np.ndarray):
         if hasattr(value, "__array__"):
-            return to_c_style(np.array(value, copy=False)) if is_shared else np.array(value, copy=True)
+            return to_c_style(np.array(value, copy=False), is_shared) if is_shared else np.array(value, copy=True)
         return value
     return value if value.flags["C_CONTIGUOUS"] else np.ascontiguousarray(value)
 
@@ -149,7 +152,7 @@ def normalize_arrays(
 ) -> Any:
     # Check the special case of the array-interface
     if hasattr(inputs, "__array__"):
-        return to_c_style(np.array(inputs, copy=False)) if is_shared else np.array(inputs, copy=True)
+        return to_c_style(np.array(inputs, copy=False), is_shared) if is_shared else np.array(inputs, copy=True)
     # Error should be raised if type does not match any dispatchers
     raise TypeError(f"Incompatible inputs of type: {type(inputs)}")
 
@@ -159,7 +162,7 @@ def _(
     inputs: dict,
     is_shared: bool = False,
 ) -> dict:
-    return {k: to_c_style(v) if is_shared else v for k, v in inputs.items()}
+    return {k: to_c_style(v, is_shared) if is_shared else v for k, v in inputs.items()}
 
 
 @normalize_arrays.register(OVDict)
@@ -167,7 +170,7 @@ def _(
     inputs: OVDict,
     is_shared: bool = False,
 ) -> dict:
-    return {i: to_c_style(v) if is_shared else v for i, (_, v) in enumerate(inputs.items())}
+    return {i: to_c_style(v, is_shared) if is_shared else v for i, (_, v) in enumerate(inputs.items())}
 
 
 @normalize_arrays.register(list)
@@ -176,7 +179,7 @@ def _(
     inputs: Union[list, tuple],
     is_shared: bool = False,
 ) -> dict:
-    return {i: to_c_style(v) if is_shared else v for i, v in enumerate(inputs)}
+    return {i: to_c_style(v, is_shared) if is_shared else v for i, v in enumerate(inputs)}
 
 
 @normalize_arrays.register(np.ndarray)
@@ -184,7 +187,7 @@ def _(
     inputs: dict,
     is_shared: bool = False,
 ) -> Any:
-    return to_c_style(inputs) if is_shared else inputs
+    return to_c_style(inputs, is_shared) if is_shared else inputs
 ###
 # End of array normalization.
 ###

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import copy
@@ -244,6 +244,13 @@ def test_partial_shape():
     copied_shape = copy.deepcopy(shape)
     assert shape == copied_shape, "Copied shape {0} is not equal to original shape {1}.".format(copied_shape, shape)
 
+    ps = PartialShape.dynamic(rank=3)
+    assert not ps.is_static
+    assert ps.is_dynamic
+    assert ps.rank == 3
+    assert list(ps.get_min_shape()) == [0, 0, 0]
+    assert repr(ps) == "<PartialShape: [?,?,?]>"
+
 
 def test_partial_shape_compatible():
     ps1 = PartialShape.dynamic()
@@ -326,6 +333,10 @@ def test_partial_shape_equals():
     assert shape == ps
     assert shape == ps.to_shape()
 
+    ps1 = PartialShape.dynamic(rank=3)
+    ps2 = PartialShape.dynamic(rank=3)
+    assert ps1 == ps2
+
 
 def test_input_shape_read_only():
     shape = Shape([1, 10])
@@ -380,3 +391,22 @@ def test_discrete_type_info():
     assert n1.get_type_info().name >= n3.get_type_info().name
     assert n3.get_type_info().name < n1.get_type_info().name
     assert n3.get_type_info().name <= n1.get_type_info().name
+
+
+@pytest.mark.parametrize("shape_type", [Shape, PartialShape])
+def test_shape_negative_index(shape_type):
+    shape = shape_type([1, 2, 3, 4, 5])
+    assert shape[-1] == 5
+    assert shape[-3] == 3
+    assert shape[-5] == 1
+
+
+@pytest.mark.parametrize("shape_type", [Shape, PartialShape])
+def test_shape_slicing_step(shape_type):
+    shape = shape_type([1, 2, 3, 4, 5])
+    assert list(shape[0:2]) == [1, 2]
+    assert list(shape[0:3:2]) == [1, 3]
+    assert list(shape[::2]) == [1, 3, 5]
+    assert list(shape[1::2]) == [2, 4]
+    assert list(shape[::-1]) == [5, 4, 3, 2, 1]
+    assert list(shape[::-2]) == [5, 3, 1]

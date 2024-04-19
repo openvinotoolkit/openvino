@@ -17,30 +17,39 @@ This tutorial shows how to convert a TensorFlow `Mask R-CNN with
 Inception ResNet
 V2 <https://tfhub.dev/tensorflow/mask_rcnn/inception_resnet_v2_1024x1024/1>`__
 instance segmentation model to OpenVINO `Intermediate
-Representation <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_IR_and_opsets.html>`__
-(OpenVINO IR) format, using `Model
-Optimizer <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
+Representation <https://docs.openvino.ai/2024/documentation/openvino-ir-format/operation-sets.html>`__
+(OpenVINO IR) format, using `Model Conversion
+API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__.
 After creating the OpenVINO IR, load the model in `OpenVINO
-Runtime <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
-and do inference with a sample image. 
+Runtime <https://docs.openvino.ai/2024/openvino-workflow/running-inference.html>`__
+and do inference with a sample image.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-- `Prerequisites <#prerequisites>`__
-- `Imports <#imports>`__
-- `Settings <#settings>`__
-- `Download Model from TensorFlow Hub <#download-model-from-tensorflow-hub>`__
-- `Convert Model to OpenVINO IR <#convert-model-to-openvino-ir>`__
-- `Test Inference on the Converted Model <#test-inference-on-the-converted-model>`__
-- `Select inference device <#select-inference-device>`__
-- `Load the Model <#load-the-model>`__
-- `Get Model Information <#get-model-information>`__
-- `Get an Image for Test Inference <#get-an-image-for-test-inference>`__
-- `Perform Inference <#perform-inference>`__
-- `Inference Result Visualization <#inference-result-visualization>`__
-- `Next Steps <#next-steps>`__
-- `Async inference pipeline <#async-inference-pipeline>`__
-- `Integration preprocessing to model <#integration-preprocessing-to-model>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Imports <#imports>`__
+-  `Settings <#settings>`__
+-  `Download Model from TensorFlow
+   Hub <#download-model-from-tensorflow-hub>`__
+-  `Convert Model to OpenVINO IR <#convert-model-to-openvino-ir>`__
+-  `Test Inference on the Converted
+   Model <#test-inference-on-the-converted-model>`__
+-  `Select inference device <#select-inference-device>`__
+
+   -  `Load the Model <#load-the-model>`__
+   -  `Get Model Information <#get-model-information>`__
+   -  `Get an Image for Test
+      Inference <#get-an-image-for-test-inference>`__
+   -  `Perform Inference <#perform-inference>`__
+   -  `Inference Result
+      Visualization <#inference-result-visualization>`__
+
+-  `Next Steps <#next-steps>`__
+
+   -  `Async inference pipeline <#async-inference-pipeline>`__
+   -  `Integration preprocessing to
+      model <#integration-preprocessing-to-model>`__
 
 Prerequisites
 -------------
@@ -51,7 +60,19 @@ Install required packages:
 
 .. code:: ipython3
 
-    %pip install -q "openvino>=2023.1.0" "numpy>=1.21.0" "opencv-python" "matplotlib>=3.4"
+    import platform
+    
+    %pip install -q "openvino>=2023.1.0" "numpy>=1.21.0" "opencv-python"
+    
+    if platform.system() != "Windows":
+        %pip install -q "matplotlib>=3.4"
+    else:
+        %pip install -q "matplotlib>=3.4,<3.7"
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
 
 
 .. parsed-literal::
@@ -355,7 +376,7 @@ Read the image, resize and convert it to the input shape of the network:
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f53cb91bca0>
+    <matplotlib.image.AxesImage at 0x7fd56a6e5b80>
 
 
 
@@ -689,4 +710,4 @@ utilization.
 For more information, refer to the `Optimize Preprocessing
 tutorial <118-optimize-preprocessing-with-output.html>`__
 and to the overview of `Preprocessing
-API <https://docs.openvino.ai/2023.0/openvino_docs_OV_Runtime_UG_Preprocessing_Overview.html>`__.
+API <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/optimize-preprocessing/preprocessing-api-details.html>`__.

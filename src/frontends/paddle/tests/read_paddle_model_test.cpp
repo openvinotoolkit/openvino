@@ -1,13 +1,11 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <file_utils.h>
 #include <gtest/gtest.h>
-#include <ie_blob.h>
 
 #include <fstream>
-#include <ie_core.hpp>
+#include <openvino/util/file_util.hpp>
 #include <set>
 #include <string>
 

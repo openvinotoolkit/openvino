@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -53,5 +53,6 @@ def test_fake_convert_const_inputs(data_array, scale_array, shift_array, input_t
     op = ops.fake_convert(**input_kwargs)
     assert op.get_output_size() == 1
     assert op.get_type_name() == "FakeConvert"
+    assert op.get_destination_type() == (destination_type if destination_type else "f8e4m3")
     assert op.get_output_partial_shape(0) == PartialShape(data_array.shape)
     assert op.get_output_element_type(0) == Type(input_type)

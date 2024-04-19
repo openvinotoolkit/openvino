@@ -1,15 +1,14 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transpose.hpp"
 #include "utils.hpp"
-#include "ie_ngraph_utils.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
-using namespace InferenceEngine;
+
 TransposeShapeInfer::TransposeShapeInfer(const size_t& out_rank, const std::vector<size_t>& axes_vec)
     : m_out_rank(out_rank), m_axes_vec(axes_vec), m_outputShape(out_rank, 1), m_needReverse(axes_vec.empty()) {}
 

@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "test_utils.h"
 #include "random_generator.hpp"
 #include "concatenation_inst.h"
+#include "permute_inst.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/convolution.hpp>
@@ -713,6 +714,61 @@ TEST(concat_gpu, i8_optimization_with_pool_conv) {
     for (size_t x = 0; x < output_layout.count(); ++x) {
         ASSERT_EQ(output_vec[x], output_ptr[x]);
     }
+}
+
+TEST(concat_gpu, no_exception_in_input_order_opt_b_fs_yx_fsv16_with_conv_port2) {
+    auto& engine = get_test_engine();
+
+    auto concat_input0 = engine.allocate_memory({ data_types::f32, format::b_fs_yx_fsv16, { 1, 24, 6, 6 }});
+    auto concat_input1 = engine.allocate_memory({ data_types::f32, format::b_fs_yx_fsv16, { 1, 48, 6, 6 }});
+    auto concat_input2 = engine.allocate_memory({ data_types::f32, format::b_fs_yx_fsv16, { 1, 96, 6, 6 }});
+    auto concat_input3 = engine.allocate_memory({ data_types::f32, format::b_fs_yx_fsv16, { 1, 128, 6, 6 }});
+    auto weights0 = engine.allocate_memory({ data_types::f32, format::bfyx, { 296, 296, 1, 1 } });
+
+    std::vector<float> concat_input0_data(concat_input0->get_layout().count());
+    std::vector<float> concat_input1_data(concat_input1->get_layout().count());
+    std::vector<float> concat_input2_data(concat_input2->get_layout().count());
+    std::vector<float> concat_input3_data(concat_input3->get_layout().count());
+    std::vector<float> weights0_data(weights0->get_layout().count());
+
+    std::iota(concat_input0_data.begin(), concat_input0_data.end(), 0.f);
+    std::iota(concat_input1_data.begin(), concat_input1_data.end(), 0.f);
+    std::iota(concat_input2_data.begin(), concat_input2_data.end(), 0.f);
+    std::iota(concat_input3_data.begin(), concat_input3_data.end(), 0.f);
+    std::iota(weights0_data.begin(), weights0_data.end(), 0.f);
+
+    set_values(concat_input0, concat_input0_data);
+    set_values(concat_input1, concat_input1_data);
+    set_values(concat_input2, concat_input2_data);
+    set_values(concat_input3, concat_input3_data);
+    set_values(weights0, weights0_data);
+
+    layout reorder_layout(data_types::f32, format::b_fs_yx_fsv16, {1, 296, 6, 6});
+
+    topology topology(input_layout("concat_input0", concat_input0->get_layout()),
+                      input_layout("concat_input1", concat_input1->get_layout()),
+                      input_layout("concat_input2", concat_input2->get_layout()),
+                      input_layout("concat_input3", concat_input3->get_layout()),
+                      concatenation("concat",
+                                    { input_info("concat_input0"), input_info("concat_input1"), input_info("concat_input2"), input_info("concat_input3")  },
+                                    1,
+                                    data_types::f32,
+                                    padding{{0, 0, 0, 0}, 0}),
+                      pooling("pooling", input_info("concat"), pooling_mode::max, { 2, 2 }, { 1, 1 }),
+                      data("weights0", weights0),
+                      convolution("conv0", input_info("pooling"), "weights0", "", 1, { 1, 1 }, {1, 1}, {0, 0}, {0, 0}, false),
+                      permute("permute", input_info("conv0"), {0, 1, 2, 3}));
+
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("concat_input0", concat_input0);
+    network.set_input_data("concat_input1", concat_input1);
+    network.set_input_data("concat_input2", concat_input2);
+    network.set_input_data("concat_input3", concat_input3);
+
+    ASSERT_NO_FATAL_FAILURE(network.execute());
 }
 
 using TestParamType_concat = ::testing::tuple<size_t,   // 0 - Input Batch size

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,9 @@
 #pragma once
 
 #ifdef _WIN32
-#    error "OpenCL VA-API interoperability is supported only on Linux-based platforms"
+#    if !defined(__MINGW32__) && !defined(__MINGW64__)
+#        error "OpenCL VA-API interoperability is supported only on Linux-based platforms"
+#    endif
 #endif
 
 #include <memory>

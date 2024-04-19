@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, multinomial) {
-    NodeBuilder::get_ops().register_factory<ov::op::v13::Multinomial>();
+    NodeBuilder::opset().insert<ov::op::v13::Multinomial>();
     const auto probs = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
     const auto num_samples = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{1});
 

@@ -16,7 +16,7 @@ class TRANSFORMATIONS_API ReduceReshapeFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ReduceReshapeFusion transformation
  * Fuse ReduceOp(keep_dims=false)+Reshape to ReduceOp(keep_dims=true)
  */

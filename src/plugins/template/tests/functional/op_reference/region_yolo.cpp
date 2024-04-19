@@ -67,14 +67,15 @@ struct RegionYoloParams {
     ov::PartialShape inputShape;
     ov::element::Type inType;
     ov::element::Type outType;
-    ov::runtime::Tensor inputData;
-    ov::runtime::Tensor refData;
+    ov::Tensor inputData;
+    ov::Tensor refData;
     std::string testcaseName;
 };
 
 class ReferenceRegionYoloLayerTest : public testing::TestWithParam<RegionYoloParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params);
         inputData = {params.inputData};

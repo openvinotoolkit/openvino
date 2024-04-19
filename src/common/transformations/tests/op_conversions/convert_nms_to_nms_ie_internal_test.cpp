@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,52 +25,6 @@
 
 using namespace testing;
 using namespace ov;
-
-TEST_F(TransformationTestsF, ConvertNMS1ToNMSIEInternal) {
-    {
-        auto boxes = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1000, 4});
-        auto scores = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1, 1000});
-        auto max_output_boxes_per_class = opset1::Constant::create(element::i64, Shape{}, {10});
-        auto iou_threshold = opset1::Constant::create(element::f32, Shape{}, {0.75});
-        auto score_threshold = opset1::Constant::create(element::f32, Shape{}, {0.7});
-        auto nms = std::make_shared<opset1::NonMaxSuppression>(boxes,
-                                                               scores,
-                                                               max_output_boxes_per_class,
-                                                               iou_threshold,
-                                                               score_threshold,
-                                                               op::v1::NonMaxSuppression::BoxEncodingType::CORNER,
-                                                               true);
-
-        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
-
-        manager.register_pass<ov::pass::ConvertNMS1ToNMS5>();
-        manager.register_pass<ov::pass::ConvertNMSToNMSIEInternal>();
-        manager.register_pass<pass::ConstantFolding>();
-
-        // as inside test infrastructure we can not predict output names for given Model
-        // we have to enable soft names comparison manually
-        enable_soft_names_comparison();
-    }
-
-    {
-        auto boxes = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1000, 4});
-        auto scores = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1, 1000});
-        auto max_output_boxes_per_class = opset1::Constant::create(element::i64, Shape{1}, {10});
-        auto iou_threshold = opset1::Constant::create(element::f32, Shape{1}, {0.75});
-        auto score_threshold = opset1::Constant::create(element::f32, Shape{1}, {0.7});
-        auto nms = std::make_shared<ov::op::internal::NonMaxSuppressionIEInternal>(boxes,
-                                                                                   scores,
-                                                                                   max_output_boxes_per_class,
-                                                                                   iou_threshold,
-                                                                                   score_threshold,
-                                                                                   0,
-                                                                                   true,
-                                                                                   element::i32);
-        auto convert = std::make_shared<opset1::Convert>(nms->output(0), element::i64);
-
-        model_ref = std::make_shared<Model>(NodeVector{convert}, ParameterVector{boxes, scores});
-    }
-}
 
 TEST_F(TransformationTestsF, ConvertNMS3ToNMSIEInternal) {
     {

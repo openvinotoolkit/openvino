@@ -3,7 +3,7 @@
 ------------------------------------------------------------------------
 Components and their third party programs:
 
-    * OpenVINO(TM) Runtime (Apache 2.0): <install_root>/runtime-third-party-programs.txt, <install_root>/onednn_third-party-programs.txt, <install_root>/tbb_third-party-programs.txt
+    * OpenVINO(TM) Runtime (Apache 2.0): <install_root>/runtime-third-party-programs.txt, <install_root>/onednn_third-party-programs.txt, <install_root>/onetbb_third-party-programs.txt
 
 ------------------------------------------------------------------------
 Licenses:

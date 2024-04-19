@@ -21,12 +21,12 @@ struct PoolingExecutorDesc {
 
 const std::vector<PoolingExecutorDesc>& getPoolingExecutorsList();
 
-class PoolingExecutorFactory : public ExecutorFactory {
+class PoolingExecutorFactory : public ExecutorFactoryLegacy {
 public:
     PoolingExecutorFactory(const PoolingAttrs& poolingAttrs,
                           const std::vector<MemoryDescPtr>& srcDescs,
                           const std::vector<MemoryDescPtr>& dstDescs,
-                          const ExecutorContext::CPtr context) : ExecutorFactory(context) {
+                          const ExecutorContext::CPtr context) : ExecutorFactoryLegacy(context) {
         for (auto& desc : getPoolingExecutorsList()) {
             if (desc.builder->isSupported(poolingAttrs, srcDescs, dstDescs)) {
                 supportedDescs.push_back(desc);

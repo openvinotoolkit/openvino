@@ -70,7 +70,8 @@ above. The Generated response is added to the history with the
 ``eos_token`` at the end. Additional user input is added to the history,
 and the sequence is passed back into the model.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Model Selection <#model-selection>`__
 -  `Load Model <#load-model>`__
@@ -90,7 +91,7 @@ and the sequence is passed back into the model.
    -  `Top-K sampling <#top-k-sampling>`__
    -  `Main Processing Function <#main-processing-function>`__
 
--  `Inference with GPT-Neo/GPT-2 <#inference-with-gpt-neogpt->`__
+-  `Inference with GPT-Neo/GPT-2 <#inference-with-gpt-neogpt-2>`__
 -  `Conversation with PersonaGPT using
    OpenVINO <#conversation-with-personagpt-using-openvino>`__
 -  `Converse Function <#converse-function>`__
@@ -114,13 +115,31 @@ used for text generation whereas PersonaGPT is used for Conversation.
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    paddlepaddle 2.5.2 requires protobuf>=3.20.2; platform_system != "Windows", but you have protobuf 3.20.1 which is incompatible.
+
+
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+
+
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -178,7 +197,7 @@ converted to OpenVINO Intermediate Representation (IR) format.
 HuggingFace provides a GPT-Neo model in PyTorch format, which is
 supported in OpenVINO via Model Conversion API. The ``ov.convert_model``
 Python function of `model conversion
-API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
+API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__
 can be used for converting the model. The function returns instance of
 OpenVINO Model class, which is ready to use in Python interface. The
 Model can also be save on device in OpenVINO IR format for future
@@ -212,7 +231,13 @@ consumption.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-545/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/gpt2/modeling_gpt2.py:801: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4193: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+      warnings.warn(
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/gpt2/modeling_gpt2.py:801: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if batch_size <= 0:
 
 
@@ -322,16 +347,20 @@ at later stage.
 
 .. parsed-literal::
 
-    2023-11-14 23:32:14.663057: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-11-14 23:32:14.696431: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-03-12 23:30:05.170186: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-03-12 23:30:05.202013: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-11-14 23:32:15.262361: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+
+
+.. parsed-literal::
+
+    2024-03-12 23:30:05.770717: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Define Softmax layer
 ~~~~~~~~~~~~~~~~~~~~
 
- A softmax function is used to
+A softmax function is used to
 convert top-k logits into a probability distribution.
 
 .. code:: ipython3
@@ -672,23 +701,59 @@ The style of inference can be selected in the next cell.
 .. parsed-literal::
 
     Person: Hi,How are you?
-    PersonaGPT: a bit tired, since i'm off at the weekend. i hope you are well
+    PersonaGPT: good how are you?
+
+
+.. parsed-literal::
+
     Person: What are you doing?
-    PersonaGPT: i'm taking a break from playing my xbox. how about you?
+    PersonaGPT: good just hanging out with my friends
+
+
+.. parsed-literal::
+
     Person: I like to dance,do you?
-    PersonaGPT: i've danced, do you play any games?
+    PersonaGPT: not really but i like to play
+
+
+.. parsed-literal::
+
     Person: Can you recommend me some books?
-    PersonaGPT: probably not, do you like movies or television?
+    PersonaGPT: any good suggestions i like romance movies
+
+
+.. parsed-literal::
+
     Person: Hi,How are you?
-    PersonaGPT: doing very well, thank you for asking. what do you do for a living?
+    PersonaGPT: good thanks for asking. what do you do for fun?
+
+
+.. parsed-literal::
+
     Person: What are you doing?
-    PersonaGPT: i'm a stay at home mom.
+    PersonaGPT: i like to read. what about you?
+
+
+.. parsed-literal::
+
     Person: I like to dance,do you?
-    PersonaGPT: i dance, but not as a job. i play video games sometimes
+    PersonaGPT: not really but i do play games.
+
+
+.. parsed-literal::
+
     Person: Can you recommend me some books?
-    PersonaGPT: maybe you can try playing warcraft, but i don't think i would like it
+    PersonaGPT: sure what kind of games do you play
+
+
+.. parsed-literal::
+
     Person: Hi,How are you?
-    PersonaGPT: i'm fine, thanks for asking
+    PersonaGPT: i am good do you like movies?
+
+
+.. parsed-literal::
+
     Person: What are you doing?
-    PersonaGPT: i'm relaxing at home since i'm off at work
+    PersonaGPT: reading a romance movie. you seen any good ones lately?
 

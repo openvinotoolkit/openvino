@@ -1,6 +1,8 @@
 Convert of TensorFlow Hub models to OpenVINO Intermediate Representation (IR)
 =============================================================================
 
+|Colab| |Binder|
+
 This tutorial demonstrates step-by-step instructions on how to convert
 models loaded from TensorFlow Hub using OpenVINO Runtime.
 
@@ -19,24 +21,35 @@ the community.
 
 You have the flexibility to run this tutorial notebook in its entirety
 or selectively execute specific sections, as each section operates
-independently. 
+independently.
 
-**Table of contents:** 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-- `Image classification <#image-classification>`__
-- `Install required packages <#install-required-packages>`__
-- `Import libraries <#import-libraries>`__
-- `Download the classifier <#download-the-classifier>`__
-- `Download a single image to try the model on <#download-a-single-image-to-try-the-model-on>`__
-- `Convert model to OpenVINO IR <#convert-model-to-openvino-ir>`__
-- `Select inference device <#select-inference-device>`__
-- `Inference <#inference>`__
-- `Image style transfer <#image-style-transfer>`__
-- `Install required packages <#install-required-packages>`__
-- `Load the model <#load-the-model>`__
-- `Convert the model to OpenVINO IR <#convert-the-model-to-openvino-ir>`__
-- `Select inference device <#select-inference-device>`__
-- `Inference <#inference>`__
+-  `Image classification <#image-classification>`__
+
+   -  `Install required packages <#install-required-packages>`__
+   -  `Import libraries <#import-libraries>`__
+   -  `Download the classifier <#download-the-classifier>`__
+   -  `Download a single image to try the model
+      on <#download-a-single-image-to-try-the-model-on>`__
+   -  `Convert model to OpenVINO IR <#convert-model-to-openvino-ir>`__
+   -  `Select inference device <#select-inference-device>`__
+   -  `Inference <#inference>`__
+
+-  `Image style transfer <#image-style-transfer>`__
+
+   -  `Install required packages <#install-required-packages>`__
+   -  `Load the model <#load-the-model>`__
+   -  `Convert the model to OpenVINO
+      IR <#convert-the-model-to-openvino-ir>`__
+   -  `Select inference device <#select-inference-device>`__
+   -  `Inference <#inference>`__
+
+.. |Colab| image:: https://colab.research.google.com/assets/colab-badge.svg
+   :target: https://colab.research.google.com/github/openvinotoolkit/openvino_notebooks/blob/main/notebooks/126-tensorflow-hub/126-tensorflow-hub.ipynb
+.. |Binder| image:: https://mybinder.org/badge_logo.svg
+   :target: https://mybinder.org/v2/gh/eaidova/openvino_notebooks_binder.git/main?urlpath=git-pull%3Frepo%3Dhttps%253A%252F%252Fgithub.com%252Fopenvinotoolkit%252Fopenvino_notebooks%26urlpath%3Dtree%252Fopenvino_notebooks%252Fnotebooks%2F126-tensorflow-hub%2F126-tensorflow-hub.ipynb
 
 Image classification
 --------------------
@@ -68,16 +81,29 @@ Install required packages
 
 .. code:: ipython3
 
-    %pip install -q tensorflow_hub tensorflow pillow numpy matplotlib
+    import platform
+    
+    %pip install -q tensorflow_hub tensorflow pillow numpy
     %pip install -q "openvino>=2023.2.0"
+    
+    if platform.system() != "Windows":
+        %pip install -q "matplotlib>=3.4"
+    else:
+        %pip install -q "matplotlib>=3.4,<3.7"
 
 
 .. parsed-literal::
 
-    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    onnxconverter-common 1.14.0 requires protobuf==3.20.2, but you have protobuf 4.25.1 which is incompatible.
-    tf2onnx 1.15.1 requires protobuf~=3.20.2, but you have protobuf 4.25.1 which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -124,8 +150,8 @@ and wrap it as a Keras layer with ``hub.KerasLayer``.
 
 .. parsed-literal::
 
-    2023-12-06 23:12:55.307954: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
-    2023-12-06 23:12:55.308138: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
+    2024-03-12 22:55:04.217869: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
+    2024-03-12 22:55:04.218046: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
 
 
 Download a single image to try the model on
@@ -322,6 +348,10 @@ Install required packages
 .. parsed-literal::
 
     Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
 
 

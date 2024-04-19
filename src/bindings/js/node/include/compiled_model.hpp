@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
@@ -19,11 +19,7 @@ public:
      * @param env The environment in which to construct a JavaScript class.
      * @return Napi::Function representing the constructor function for the Javascript CompiledModel class.
      */
-    static Napi::Function get_class_constructor(Napi::Env env);
-    /** @brief This method is called during initialization of OpenVino native add-on.
-     * It exports JavaScript CompiledModel class.
-     */
-    static Napi::Object init(Napi::Env env, Napi::Object exports);
+    static Napi::Function get_class(Napi::Env env);
 
     /**
      * @brief Creates JavaScript CompiledModel object and wraps inside of it ov::CompiledModel object.
@@ -72,6 +68,15 @@ public:
      */
     Napi::Value get_inputs(const Napi::CallbackInfo& info);
 
+    /** @brief Exports the compiled model to bytes/output stream. */
+    Napi::Value export_model(const Napi::CallbackInfo& info);
+
 private:
+    /** @brief Gets node of a compiled model specified in CallbackInfo. */
+    Napi::Value get_node(const Napi::CallbackInfo& info,
+                         const ov::Output<const ov::Node>& (ov::CompiledModel::*func)() const,
+                         const ov::Output<const ov::Node>& (ov::CompiledModel::*func_tname)(const std::string&)const,
+                         const ov::Output<const ov::Node>& (ov::CompiledModel::*func_idx)(size_t) const);
+
     ov::CompiledModel _compiled_model;
 };

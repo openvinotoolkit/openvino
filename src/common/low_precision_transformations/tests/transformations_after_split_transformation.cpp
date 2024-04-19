@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -154,7 +154,7 @@ class TransformationsAfterSplitTransformation : public LayerTransformation, publ
 public:
     void SetUp() override {
         const auto layerName = GetParam();
-        model = ngraph::builder::subgraph::TransformationsAfterSplitFunction::get(layerName);
+        model = ov::builder::subgraph::TransformationsAfterSplitFunction::get(layerName);
         model->validate_nodes_and_infer_types();
     }
 

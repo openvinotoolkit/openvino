@@ -21,11 +21,13 @@ namespace pass {
 class AssignRegisters : public Pass {
 public:
     OPENVINO_RTTI("AssignRegisters", "Pass")
-    explicit AssignRegisters(const std::function<Generator::opRegType(const std::shared_ptr<Node>& op)>& mapper) : m_reg_type_mapper(mapper) {}
+    explicit AssignRegisters(const std::function<RegType(const ov::Output<Node>& out)>& mapper) : m_reg_type_mapper(mapper) {}
     bool run(LinearIR& linear_ir) override;
 
 private:
-    std::function<Generator::opRegType(const std::shared_ptr<Node>& op)> m_reg_type_mapper;
+    void set_reg_types(LinearIR& linear_ir);
+
+    std::function<RegType(const ov::Output<Node>& out)> m_reg_type_mapper;
     static constexpr size_t reg_count = 16lu;
 };
 

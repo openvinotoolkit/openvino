@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,6 +42,8 @@ namespace utils {
     std::string convert_path_to_string(const py::object& path);
 
     void deprecation_warning(const std::string& function_name, const std::string& version = std::string(), const std::string& message = std::string(), int stacklevel=2);
+
+    void raise_not_implemented();
 
     bool py_object_is_any_map(const py::object& py_obj);
 

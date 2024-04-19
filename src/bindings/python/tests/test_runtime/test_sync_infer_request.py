@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from contextlib import nullcontext as does_not_raise
@@ -8,6 +8,7 @@ import numpy as np
 import os
 import pytest
 import datetime
+import openvino.properties as props
 
 import openvino.runtime.opset13 as ops
 from openvino import (
@@ -88,7 +89,7 @@ def test_get_profiling_info(device):
     softmax = ops.softmax(param, 1, name="fc_out")
     model = Model([softmax], [param], "test_model")
 
-    core.set_property(device, {"PERF_COUNT": "YES"})
+    core.set_property(device, {props.enable_profiling: True})
     compiled_model = core.compile_model(model, device)
     img = generate_image()
     request = compiled_model.create_infer_request()

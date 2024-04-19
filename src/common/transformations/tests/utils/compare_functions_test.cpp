@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -525,12 +525,6 @@ public:
         visitor.on_attribute("member", m_member);
         return true;
     }
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override {
-        return true;
-    }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     // Don't constant fold a constant; it would make a copy
     bool constant_fold(OutputVector& outputs, const OutputVector& inputs) override {

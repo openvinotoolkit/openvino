@@ -1,17 +1,12 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
-#include <memory>
-#include <string>
-#include <vector>
 #include "common/dnnl_executor.h"
-
 #include "executors/deconv_list.hpp"
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -100,7 +95,7 @@ private:
     bool useACL = false;
     DeconvAttrs deconvAttrs;
 
-    Shape inShape;
+    Shape inShape, outShape;
 
     AttrPtr pAttr;
 

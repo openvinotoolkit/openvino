@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,12 +8,10 @@
 #include <iostream>
 #include <vector>
 
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/dimension.hpp"
+#include "openvino/core/shape_util.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/util/common_util.hpp"
-
-namespace {
-static constexpr char dim_out_range_access_txt[] = "Accessing out-of-range dimension in Dimension[]";
-}
 
 ov::PartialShape::PartialShape() : PartialShape(std::initializer_list<Dimension>{}) {}
 
@@ -160,8 +158,6 @@ std::ostream& ov::operator<<(std::ostream& str, const PartialShape& shape) {
             if (!first) {
                 str << ",";
             }
-            if (const auto& l = ov::DimensionTracker::get_label(d))
-                str << "<" << l << ">";
             str << d;
             first = false;
         }
@@ -374,17 +370,11 @@ bool ov::PartialShape::all_non_negative() const {
     return true;
 }
 
-const ov::Dimension& ov::PartialShape::operator[](size_t i) const {
-    if (i >= m_dimensions.size()) {
-        OPENVINO_THROW(dim_out_range_access_txt);
-    }
-    return m_dimensions[i];
+const ov::Dimension& ov::PartialShape::operator[](std::ptrdiff_t i) const {
+    return m_dimensions[util::normalize_shape_index(i, m_dimensions.size())];
 }
 
-ov::Dimension& ov::PartialShape::operator[](size_t i) {
-    if (i >= m_dimensions.size()) {
-        OPENVINO_THROW(dim_out_range_access_txt);
-    }
+ov::Dimension& ov::PartialShape::operator[](std::ptrdiff_t i) {
     m_shape_type = ShapeType::SHAPE_IS_UPDATED;  // We can't guarantee that the shape remains static or dynamic.
-    return m_dimensions[i];
+    return m_dimensions[util::normalize_shape_index(i, m_dimensions.size())];
 }

@@ -43,7 +43,7 @@ PortDescriptorPtr PortDescriptor::clone() const {
     return desc;
 }
 
-std::string  PortDescriptor::serialize() const {
+std::string PortDescriptor::serialize() const {
     std::stringstream ss;
     ss << m_tensor_shape.size() << " ";
     for (auto val : m_tensor_shape)
@@ -54,12 +54,14 @@ std::string  PortDescriptor::serialize() const {
     ss << m_layout.size() << " ";
     for (auto val : m_layout)
         ss << val << " ";
+    ss << regTypeToStr(m_reg.type) << "["<< m_reg.idx << "]";
     return ss.str();
 }
 bool operator==(const PortDescriptor& lhs, const PortDescriptor& rhs) {
     return lhs.m_tensor_shape == rhs.m_tensor_shape &&
            lhs.m_layout == rhs.m_layout &&
-           lhs.m_subtensor_shape == rhs.m_subtensor_shape;
+           lhs.m_subtensor_shape == rhs.m_subtensor_shape &&
+           lhs.m_reg == rhs.m_reg;
 }
 
 void PortDescriptorUtils::init_default(std::vector<PortDescriptorPtr>& in_descs,

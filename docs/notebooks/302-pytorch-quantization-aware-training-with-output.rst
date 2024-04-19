@@ -11,7 +11,7 @@ optimize a PyTorch model for inference with OpenVINO Toolkit. The
 optimization process contains the following steps:
 
 -  Transforming the original ``FP32`` model to ``INT8``
--  Using fine-tuning to restore the accuracy.
+-  Using fine-tuning to improve the accuracy.
 -  Exporting optimized and original models to OpenVINO IR
 -  Measuring and comparing the performance of models.
 
@@ -34,8 +34,8 @@ hub <https://pytorch.org/hub/pytorch_vision_resnet/>`__.
    tools, including C++. For Linux you can install gcc with your
    distribution’s package manager.
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Imports and Settings <#imports-and-settings>`__
 -  `Pre-train Floating-Point Model <#pre-train-floating-point-model>`__
@@ -43,27 +43,39 @@ hub <https://pytorch.org/hub/pytorch_vision_resnet/>`__.
    -  `Train Function <#train-function>`__
    -  `Validate Function <#validate-function>`__
    -  `Helpers <#helpers>`__
-   -  `Get a Pre-trained FP32 Model <#get-a-pre-trained-fp-model>`__
+   -  `Get a Pre-trained FP32 Model <#get-a-pre-trained-fp32-model>`__
 
 -  `Create and Initialize
    Quantization <#create-and-initialize-quantization>`__
 -  `Fine-tune the Compressed Model <#fine-tune-the-compressed-model>`__
 -  `Export INT8 Model to OpenVINO
-   IR <#export-int-model-to-openvino-ir>`__
+   IR <#export-int8-model-to-openvino-ir>`__
 -  `Benchmark Model Performance by Computing Inference
    Time <#benchmark-model-performance-by-computing-inference-time>`__
 
 .. code:: ipython3
 
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu  "openvino>=2023.1.0" "torch" "torchvision"
-    %pip install -q "nncf>=2.6.0"
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu  "openvino>=2024.0.0" "torch" "torchvision"
+    %pip install -q "nncf>=2.9.0"
 
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+
+
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -86,51 +98,13 @@ models will be stored.
 
 .. code:: ipython3
 
-    # On Windows, add the directory that contains cl.exe to the PATH to enable PyTorch to find the
-    # required C++ tools. This code assumes that Visual Studio 2019 is installed in the default
-    # directory. If you have a different C++ compiler, add the correct path to os.environ["PATH"]
-    # directly. Note that the C++ Redistributable is not enough to run this notebook.
-    
-    # Adding the path to os.environ["LIB"] is not always required - it depends on the system configuration
-    
-    import sys
-    
-    if sys.platform == "win32":
-        import distutils.command.build_ext
-        import os
-        from pathlib import Path
-    
-        VS_INSTALL_DIR = r"C:/Program Files (x86)/Microsoft Visual Studio"
-        cl_paths = sorted(list(Path(VS_INSTALL_DIR).glob("**/Hostx86/x64/cl.exe")))
-        if len(cl_paths) == 0:
-            raise ValueError(
-                "Cannot find Visual Studio. This notebook requires a C++ compiler. If you installed "
-                "a C++ compiler, please add the directory that contains cl.exe to `os.environ['PATH']`."
-            )
-        else:
-            # If multiple versions of MSVC are installed, get the most recent one.
-            cl_path = cl_paths[-1]
-            vs_dir = str(cl_path.parent)
-            os.environ["PATH"] += f"{os.pathsep}{vs_dir}"
-            # The code for finding the library dirs is from:
-            # https://stackoverflow.com/questions/47423246/get-pythons-lib-path
-            d = distutils.core.Distribution()
-            b = distutils.command.build_ext.build_ext(d)
-            b.finalize_options()
-            os.environ["LIB"] = os.pathsep.join(b.library_dirs)
-            print(f"Added {vs_dir} to PATH")
-
-.. code:: ipython3
-
     import sys
     import time
     import warnings  # To disable warnings on export model
     import zipfile
     from pathlib import Path
-    import logging
     
     import torch
-    import nncf  # Important - should be imported directly after torch.
     
     import torch.nn as nn
     import torch.nn.parallel
@@ -141,10 +115,6 @@ models will be stored.
     import torchvision.models as models
     import torchvision.transforms as transforms
     
-    from nncf.common.logging.logger import set_log_level
-    set_log_level(logging.ERROR)  # Disables all NNCF info and warning messages.
-    from nncf import NNCFConfig
-    from nncf.torch import create_compressed_model, register_default_init_args
     import openvino as ov
     from torch.jit import TracerWarning
     
@@ -178,16 +148,6 @@ models will be stored.
 
 .. parsed-literal::
 
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-
-
-.. parsed-literal::
-
-    No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
-
-
-.. parsed-literal::
-
     Using cpu device
 
 
@@ -201,7 +161,7 @@ models will be stored.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/notebooks/302-pytorch-quantization-aware-training/model/resnet18_fp32.pth')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/302-pytorch-quantization-aware-training/model/resnet18_fp32.pth')
 
 
 
@@ -500,9 +460,9 @@ section at the top of this notebook.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
       warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-561/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=None`.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=None`.
       warnings.warn(msg)
 
 
@@ -534,7 +494,7 @@ section at the top of this notebook.
                 checkpoint = {"state_dict": model.state_dict(), "acc1": acc1}
                 torch.save(checkpoint, fp32_pth_path)
         acc1_fp32 = best_acc1
-        
+    
     print(f"Accuracy of FP32 model: {acc1_fp32:.3f}")
 
 
@@ -567,44 +527,121 @@ Create and Initialize Quantization
 
 NNCF enables compression-aware training by integrating into regular
 training pipelines. The framework is designed so that modifications to
-your original training code are minor. Quantization is the simplest
-scenario and requires only 3 modifications.
+your original training code are minor. Quantization requires only 2
+modifications.
 
-1. Configure NNCF parameters to specify compression
-
-.. code:: ipython3
-
-    nncf_config_dict = {
-        "input_info": {"sample_size": [1, 3, image_size, image_size]},
-        "log_dir": str(OUTPUT_DIR),  # The log directory for NNCF-specific logging outputs.
-        "compression": {
-            "algorithm": "quantization",  # Specify the algorithm here.
-        },
-    }
-    nncf_config = NNCFConfig.from_dict(nncf_config_dict)
-
-2. Provide a data loader to initialize the values of quantization ranges
-   and determine which activation should be signed or unsigned from the
-   collected statistics, using a given number of samples.
+1. Create a quantization data loader with batch size equal to one and
+   wrap it by the ``nncf.Dataset``, specifying a transformation function
+   which prepares input data to fit into model during quantization. In
+   our case, to pick input tensor from pair (input tensor and label).
 
 .. code:: ipython3
 
-    nncf_config = register_default_init_args(nncf_config, train_loader)
-
-3. Create a wrapped model ready for compression fine-tuning from a
-   pre-trained ``FP32`` model and a configuration object.
-
-.. code:: ipython3
-
-    compression_ctrl, model = create_compressed_model(model, nncf_config)
+    import nncf
+    
+    def transform_fn(data_item):
+        return data_item[0]
+    
+    # Creating separate dataloader with batch size = 1
+    # as dataloaders with batches > 1 is not supported yet.
+    quantization_loader = torch.utils.data.DataLoader(
+        val_dataset, batch_size=1, shuffle=False, num_workers=0, pin_memory=True
+    )
+    
+    quantization_dataset = nncf.Dataset(quantization_loader, transform_fn)
 
 
 .. parsed-literal::
 
-    2023-12-07 00:28:30.511089: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-12-07 00:28:30.544997: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
+
+
+2. Run ``nncf.quantize`` for Getting an Optimized Model.
+
+``nncf.quantize`` function accepts model and prepared quantization
+dataset for performing basic quantization. Optionally, additional
+parameters like ``subset_size``, ``preset``, ``ignored_scope`` can be
+provided to improve quantization result if applicable. More details
+about supported parameters can be found on this
+`page <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/quantizing-models-post-training/basic-quantization-flow.html#tune-quantization-parameters>`__
+
+.. code:: ipython3
+
+    quantized_model = nncf.quantize(model, quantization_dataset)
+
+
+.. parsed-literal::
+
+    2024-03-13 01:05:17.144827: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-03-13 01:05:17.180554: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-12-07 00:28:31.224999: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+
+
+.. parsed-literal::
+
+    2024-03-13 01:05:17.770875: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+
+
+.. parsed-literal::
+
+    WARNING:nncf:NNCF provides best results with torch==2.1.2, while current torch version is 1.13.1+cpu. If you encounter issues, consider switching to torch==2.1.2
+
+
+.. parsed-literal::
+
+    No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
+
+
+
+.. parsed-literal::
+
+    INFO:nncf:Compiling and loading torch extension: quantized_functions_cpu...
+
+
+.. parsed-literal::
+
+    INFO:nncf:Finished loading torch extension: quantized_functions_cpu
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
+
 
 
 Evaluate the new model on the validation set after initialization of
@@ -614,22 +651,54 @@ demonstrated here.
 
 .. code:: ipython3
 
-    acc1 = validate(val_loader, model, criterion)
+    acc1 = validate(val_loader, quantized_model, criterion)
     print(f"Accuracy of initialized INT8 model: {acc1:.3f}")
 
 
 .. parsed-literal::
 
-    Test: [ 0/79]	Time 0.167 (0.167)	Loss 0.981 (0.981)	Acc@1 78.91 (78.91)	Acc@5 89.84 (89.84)
-    Test: [10/79]	Time 0.149 (0.151)	Loss 1.905 (1.623)	Acc@1 46.88 (60.51)	Acc@5 82.03 (84.09)
-    Test: [20/79]	Time 0.150 (0.151)	Loss 1.734 (1.692)	Acc@1 63.28 (58.63)	Acc@5 79.69 (83.04)
-    Test: [30/79]	Time 0.149 (0.150)	Loss 2.282 (1.781)	Acc@1 50.00 (57.31)	Acc@5 69.53 (81.50)
-    Test: [40/79]	Time 0.148 (0.150)	Loss 1.540 (1.825)	Acc@1 62.50 (55.83)	Acc@5 85.94 (80.96)
-    Test: [50/79]	Time 0.147 (0.150)	Loss 1.972 (1.820)	Acc@1 57.03 (56.05)	Acc@5 75.00 (80.73)
-    Test: [60/79]	Time 0.148 (0.150)	Loss 1.731 (1.846)	Acc@1 57.81 (55.51)	Acc@5 85.16 (80.21)
-    Test: [70/79]	Time 0.164 (0.151)	Loss 2.412 (1.872)	Acc@1 47.66 (55.15)	Acc@5 71.88 (79.61)
-     * Acc@1 55.540 Acc@5 80.200
-    Accuracy of initialized INT8 model: 55.540
+    Test: [ 0/79]	Time 0.179 (0.179)	Loss 1.005 (1.005)	Acc@1 78.91 (78.91)	Acc@5 88.28 (88.28)
+
+
+.. parsed-literal::
+
+    Test: [10/79]	Time 0.158 (0.160)	Loss 1.992 (1.625)	Acc@1 44.53 (60.37)	Acc@5 79.69 (83.66)
+
+
+.. parsed-literal::
+
+    Test: [20/79]	Time 0.160 (0.161)	Loss 1.814 (1.705)	Acc@1 60.94 (58.04)	Acc@5 80.47 (82.66)
+
+
+.. parsed-literal::
+
+    Test: [30/79]	Time 0.157 (0.160)	Loss 2.287 (1.795)	Acc@1 50.78 (56.48)	Acc@5 68.75 (80.97)
+
+
+.. parsed-literal::
+
+    Test: [40/79]	Time 0.155 (0.160)	Loss 1.615 (1.832)	Acc@1 60.94 (55.43)	Acc@5 82.81 (80.43)
+
+
+.. parsed-literal::
+
+    Test: [50/79]	Time 0.156 (0.160)	Loss 1.952 (1.833)	Acc@1 57.03 (55.51)	Acc@5 75.00 (80.16)
+
+
+.. parsed-literal::
+
+    Test: [60/79]	Time 0.160 (0.159)	Loss 1.794 (1.856)	Acc@1 57.03 (55.16)	Acc@5 84.38 (79.84)
+
+
+.. parsed-literal::
+
+    Test: [70/79]	Time 0.156 (0.159)	Loss 2.371 (1.889)	Acc@1 46.88 (54.68)	Acc@5 74.22 (79.14)
+
+
+.. parsed-literal::
+
+     * Acc@1 55.040 Acc@5 79.730
+    Accuracy of initialized INT8 model: 55.040
 
 
 Fine-tune the Compressed Model
@@ -646,13 +715,13 @@ training pipeline are required. Here is a simple example.
 .. code:: ipython3
 
     compression_lr = init_lr / 10
-    optimizer = torch.optim.Adam(model.parameters(), lr=compression_lr)
+    optimizer = torch.optim.Adam(quantized_model.parameters(), lr=compression_lr)
     
     # Train for one epoch with NNCF.
-    train(train_loader, model, criterion, optimizer, epoch=0)
+    train(train_loader, quantized_model, criterion, optimizer, epoch=0)
     
     # Evaluate on validation set after Quantization-Aware Training (QAT case).
-    acc1_int8 = validate(val_loader, model, criterion)
+    acc1_int8 = validate(val_loader, quantized_model, criterion)
     
     print(f"Accuracy of tuned INT8 model: {acc1_int8:.3f}")
     print(f"Accuracy drop of tuned INT8 model over pre-trained FP32 model: {acc1_fp32 - acc1_int8:.3f}")
@@ -660,33 +729,129 @@ training pipeline are required. Here is a simple example.
 
 .. parsed-literal::
 
-    Epoch:[0][  0/782]	Time 0.407 (0.407)	Loss 0.740 (0.740)	Acc@1 84.38 (84.38)	Acc@5 96.88 (96.88)
-    Epoch:[0][ 50/782]	Time 0.383 (0.393)	Loss 0.911 (0.802)	Acc@1 78.91 (80.15)	Acc@5 92.97 (94.42)
-    Epoch:[0][100/782]	Time 0.406 (0.393)	Loss 0.631 (0.798)	Acc@1 84.38 (80.24)	Acc@5 95.31 (94.38)
-    Epoch:[0][150/782]	Time 0.408 (0.392)	Loss 0.836 (0.792)	Acc@1 80.47 (80.48)	Acc@5 94.53 (94.43)
-    Epoch:[0][200/782]	Time 0.413 (0.395)	Loss 0.873 (0.780)	Acc@1 75.00 (80.65)	Acc@5 94.53 (94.59)
-    Epoch:[0][250/782]	Time 0.384 (0.395)	Loss 0.735 (0.778)	Acc@1 84.38 (80.77)	Acc@5 95.31 (94.53)
-    Epoch:[0][300/782]	Time 0.372 (0.395)	Loss 0.615 (0.771)	Acc@1 85.16 (80.99)	Acc@5 97.66 (94.58)
-    Epoch:[0][350/782]	Time 0.398 (0.394)	Loss 0.599 (0.767)	Acc@1 85.16 (81.14)	Acc@5 95.31 (94.58)
-    Epoch:[0][400/782]	Time 0.386 (0.394)	Loss 0.798 (0.765)	Acc@1 82.03 (81.21)	Acc@5 92.97 (94.56)
-    Epoch:[0][450/782]	Time 0.397 (0.394)	Loss 0.630 (0.762)	Acc@1 85.16 (81.26)	Acc@5 96.88 (94.58)
-    Epoch:[0][500/782]	Time 0.368 (0.393)	Loss 0.633 (0.757)	Acc@1 85.94 (81.45)	Acc@5 96.88 (94.63)
-    Epoch:[0][550/782]	Time 0.416 (0.393)	Loss 0.749 (0.755)	Acc@1 82.03 (81.49)	Acc@5 92.97 (94.65)
-    Epoch:[0][600/782]	Time 0.388 (0.393)	Loss 0.927 (0.753)	Acc@1 78.12 (81.53)	Acc@5 88.28 (94.67)
-    Epoch:[0][650/782]	Time 0.424 (0.392)	Loss 0.645 (0.749)	Acc@1 84.38 (81.60)	Acc@5 95.31 (94.71)
-    Epoch:[0][700/782]	Time 0.376 (0.392)	Loss 0.816 (0.749)	Acc@1 82.03 (81.62)	Acc@5 91.41 (94.69)
-    Epoch:[0][750/782]	Time 0.362 (0.392)	Loss 0.811 (0.746)	Acc@1 80.47 (81.69)	Acc@5 94.53 (94.72)
-    Test: [ 0/79]	Time 0.157 (0.157)	Loss 1.092 (1.092)	Acc@1 75.00 (75.00)	Acc@5 86.72 (86.72)
-    Test: [10/79]	Time 0.139 (0.141)	Loss 1.917 (1.526)	Acc@1 48.44 (62.64)	Acc@5 78.12 (83.88)
-    Test: [20/79]	Time 0.135 (0.140)	Loss 1.631 (1.602)	Acc@1 64.06 (60.68)	Acc@5 81.25 (83.71)
-    Test: [30/79]	Time 0.133 (0.138)	Loss 2.037 (1.691)	Acc@1 57.81 (59.25)	Acc@5 71.09 (82.23)
-    Test: [40/79]	Time 0.138 (0.138)	Loss 1.563 (1.743)	Acc@1 64.84 (58.02)	Acc@5 82.81 (81.33)
-    Test: [50/79]	Time 0.136 (0.138)	Loss 1.926 (1.750)	Acc@1 52.34 (57.77)	Acc@5 76.56 (81.04)
-    Test: [60/79]	Time 0.139 (0.137)	Loss 1.559 (1.781)	Acc@1 67.19 (57.24)	Acc@5 84.38 (80.58)
-    Test: [70/79]	Time 0.140 (0.138)	Loss 2.353 (1.806)	Acc@1 46.88 (56.81)	Acc@5 72.66 (80.08)
-     * Acc@1 57.320 Acc@5 80.730
-    Accuracy of tuned INT8 model: 57.320
-    Accuracy drop of tuned INT8 model over pre-trained FP32 model: -1.800
+    Epoch:[0][  0/782]	Time 0.403 (0.403)	Loss 0.917 (0.917)	Acc@1 76.56 (76.56)	Acc@5 93.75 (93.75)
+
+
+.. parsed-literal::
+
+    Epoch:[0][ 50/782]	Time 0.377 (0.398)	Loss 0.625 (0.812)	Acc@1 85.94 (80.22)	Acc@5 96.88 (93.95)
+
+
+.. parsed-literal::
+
+    Epoch:[0][100/782]	Time 0.379 (0.393)	Loss 0.761 (0.807)	Acc@1 78.91 (80.37)	Acc@5 94.53 (94.14)
+
+
+.. parsed-literal::
+
+    Epoch:[0][150/782]	Time 0.364 (0.392)	Loss 0.864 (0.799)	Acc@1 82.81 (80.54)	Acc@5 92.97 (94.22)
+
+
+.. parsed-literal::
+
+    Epoch:[0][200/782]	Time 0.412 (0.391)	Loss 0.581 (0.787)	Acc@1 85.94 (80.84)	Acc@5 96.88 (94.33)
+
+
+.. parsed-literal::
+
+    Epoch:[0][250/782]	Time 0.403 (0.391)	Loss 0.724 (0.782)	Acc@1 83.59 (80.92)	Acc@5 93.75 (94.43)
+
+
+.. parsed-literal::
+
+    Epoch:[0][300/782]	Time 0.379 (0.391)	Loss 0.738 (0.777)	Acc@1 78.91 (81.06)	Acc@5 93.75 (94.41)
+
+
+.. parsed-literal::
+
+    Epoch:[0][350/782]	Time 0.383 (0.390)	Loss 0.819 (0.767)	Acc@1 79.69 (81.31)	Acc@5 92.97 (94.54)
+
+
+.. parsed-literal::
+
+    Epoch:[0][400/782]	Time 0.372 (0.390)	Loss 0.783 (0.766)	Acc@1 80.47 (81.36)	Acc@5 94.53 (94.54)
+
+
+.. parsed-literal::
+
+    Epoch:[0][450/782]	Time 0.409 (0.391)	Loss 0.732 (0.763)	Acc@1 82.03 (81.49)	Acc@5 96.88 (94.55)
+
+
+.. parsed-literal::
+
+    Epoch:[0][500/782]	Time 0.381 (0.391)	Loss 0.726 (0.760)	Acc@1 82.03 (81.56)	Acc@5 95.31 (94.59)
+
+
+.. parsed-literal::
+
+    Epoch:[0][550/782]	Time 0.379 (0.390)	Loss 0.774 (0.758)	Acc@1 83.59 (81.60)	Acc@5 95.31 (94.60)
+
+
+.. parsed-literal::
+
+    Epoch:[0][600/782]	Time 0.389 (0.390)	Loss 0.721 (0.756)	Acc@1 80.47 (81.65)	Acc@5 97.66 (94.60)
+
+
+.. parsed-literal::
+
+    Epoch:[0][650/782]	Time 0.431 (0.390)	Loss 0.919 (0.755)	Acc@1 75.78 (81.66)	Acc@5 92.97 (94.62)
+
+
+.. parsed-literal::
+
+    Epoch:[0][700/782]	Time 0.411 (0.390)	Loss 0.645 (0.753)	Acc@1 85.16 (81.70)	Acc@5 93.75 (94.62)
+
+
+.. parsed-literal::
+
+    Epoch:[0][750/782]	Time 0.376 (0.390)	Loss 0.780 (0.750)	Acc@1 81.25 (81.72)	Acc@5 93.75 (94.65)
+
+
+.. parsed-literal::
+
+    Test: [ 0/79]	Time 0.164 (0.164)	Loss 1.095 (1.095)	Acc@1 72.66 (72.66)	Acc@5 85.94 (85.94)
+
+
+.. parsed-literal::
+
+    Test: [10/79]	Time 0.139 (0.142)	Loss 1.832 (1.524)	Acc@1 50.00 (62.78)	Acc@5 82.03 (83.95)
+
+
+.. parsed-literal::
+
+    Test: [20/79]	Time 0.137 (0.140)	Loss 1.535 (1.596)	Acc@1 65.62 (60.53)	Acc@5 82.03 (83.71)
+
+
+.. parsed-literal::
+
+    Test: [30/79]	Time 0.140 (0.141)	Loss 2.056 (1.691)	Acc@1 56.25 (59.12)	Acc@5 71.09 (82.13)
+
+
+.. parsed-literal::
+
+    Test: [40/79]	Time 0.143 (0.140)	Loss 1.517 (1.745)	Acc@1 64.06 (57.81)	Acc@5 85.16 (81.36)
+
+
+.. parsed-literal::
+
+    Test: [50/79]	Time 0.140 (0.140)	Loss 1.911 (1.752)	Acc@1 53.91 (57.61)	Acc@5 77.34 (80.99)
+
+
+.. parsed-literal::
+
+    Test: [60/79]	Time 0.138 (0.140)	Loss 1.587 (1.787)	Acc@1 66.41 (57.04)	Acc@5 85.16 (80.57)
+
+
+.. parsed-literal::
+
+    Test: [70/79]	Time 0.141 (0.140)	Loss 2.455 (1.813)	Acc@1 45.31 (56.64)	Acc@5 75.00 (80.16)
+
+
+.. parsed-literal::
+
+     * Acc@1 57.020 Acc@5 80.770
+    Accuracy of tuned INT8 model: 57.020
+    Accuracy drop of tuned INT8 model over pre-trained FP32 model: -1.500
 
 
 Export INT8 Model to OpenVINO IR
@@ -700,15 +865,19 @@ Export INT8 Model to OpenVINO IR
         warnings.filterwarnings("ignore", category=TracerWarning)
         warnings.filterwarnings("ignore", category=UserWarning)
         # Export INT8 model to OpenVINO™ IR
-        ov_model = ov.convert_model(model, example_input=dummy_input, input=[1, 3, image_size, image_size])
+        ov_model = ov.convert_model(quantized_model, example_input=dummy_input, input=[1, 3, image_size, image_size])
         ov.save_model(ov_model, int8_ir_path)
-        print(f"INT8 Omodel exported to {int8_ir_path}.")
+        print(f"INT8 model exported to {int8_ir_path}.")
 
 
 .. parsed-literal::
 
     WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
-    INT8 Omodel exported to model/resnet18_int8.xml.
+
+
+.. parsed-literal::
+
+    INT8 model exported to model/resnet18_int8.xml.
 
 
 Benchmark Model Performance by Computing Inference Time
@@ -718,7 +887,7 @@ Benchmark Model Performance by Computing Inference Time
 
 Finally, measure the inference performance of the ``FP32`` and ``INT8``
 models, using `Benchmark
-Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
 - inference performance measurement tool in OpenVINO. By default,
 Benchmark Tool runs inference for 60 seconds in asynchronous mode on
 CPU. It returns inference speed as latency (milliseconds per image) and
@@ -735,34 +904,65 @@ throughput (frames per second) values.
 
 .. code:: ipython3
 
+    import ipywidgets as widgets
+    
+    # Initialize OpenVINO runtime
+    core = ov.Core()
+    device = widgets.Dropdown(
+        options=core.available_devices,
+        value='CPU',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', options=('CPU',), value='CPU')
+
+
+
+.. code:: ipython3
+
     def parse_benchmark_output(benchmark_output):
         parsed_output = [line for line in benchmark_output if 'FPS' in line]
         print(*parsed_output, sep='\n')
     
     
     print('Benchmark FP32 model (IR)')
-    benchmark_output = ! benchmark_app -m $fp32_ir_path -d CPU -api async -t 15
+    benchmark_output = ! benchmark_app -m $fp32_ir_path -d $device.value -api async -t 15
     parse_benchmark_output(benchmark_output)
     
     print('Benchmark INT8 model (IR)')
-    benchmark_output = ! benchmark_app -m $int8_ir_path -d CPU -api async -t 15
+    benchmark_output = ! benchmark_app -m $int8_ir_path -d $device.value -api async -t 15
     parse_benchmark_output(benchmark_output)
 
 
 .. parsed-literal::
 
     Benchmark FP32 model (IR)
-    [ INFO ] Throughput:   2930.00 FPS
+
+
+.. parsed-literal::
+
+    [ INFO ] Throughput:   2946.75 FPS
     Benchmark INT8 model (IR)
-    [ INFO ] Throughput:   11839.41 FPS
 
 
-Show CPU Information for reference.
+.. parsed-literal::
+
+    [ INFO ] Throughput:   11933.05 FPS
+
+
+Show Device Information for reference.
 
 .. code:: ipython3
 
-    ie = ov.Core()
-    ie.get_property("CPU", "FULL_DEVICE_NAME")
+    core.get_property(device.value, "FULL_DEVICE_NAME")
 
 
 

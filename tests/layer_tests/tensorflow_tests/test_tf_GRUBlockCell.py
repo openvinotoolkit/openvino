@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -54,16 +54,16 @@ class TestTFGRUBlockCell(CommonTFLayerTest):
         dict(batch_size=1, input_size=15, hidden_size=10),
         dict(batch_size=2, input_size=6, hidden_size=6),
         dict(batch_size=2, input_size=12, hidden_size=6),
-        pytest.param(dict(batch_size=2, input_size=6, hidden_size=12), marks=pytest.mark.precommit_tf_fe),
+        pytest.param(dict(batch_size=2, input_size=6, hidden_size=12), marks=pytest.mark.precommit),
     ]
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_tf_gru_block_cell(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_new_frontend, use_old_api):
+                               use_legacy_frontend):
         if ie_device == 'GPU':
             pytest.skip("Skip TF GRUBlockCell test on GPU")
         self._test(*self.create_tf_gru_block_cell(**params),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api, custom_eps=1e-3, **params)
+                   use_legacy_frontend=use_legacy_frontend, custom_eps=1e-3, **params)

@@ -84,7 +84,7 @@ protected:
         auto variadicSplitOp = std::make_shared<ov::op::v1::VariadicSplit>(params[0], axis, split_sizes);
         variadicSplitOp->set_friendly_name("variadicSplit");
 
-        auto addOp = ov::test::utils::makeEltwise(params[1], variadicSplitOp->output(1), ov::test::utils::EltwiseTypes::ADD);
+        auto addOp = ov::test::utils::make_eltwise(params[1], variadicSplitOp->output(1), ov::test::utils::EltwiseTypes::ADD);
         addOp->set_friendly_name("add");
 
         ov::ResultVector results = {std::make_shared<ov::op::v0::Result>(addOp)};

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -97,14 +97,14 @@ private:
 
     float rotatedIntersectionOverUnion(const Point2D (&vertices_0)[4], const float area_0, const float* box_1);
 
-    void nmsWithSoftSigma(const float *boxes, const float *scores, const InferenceEngine::SizeVector &boxesStrides,
-                const InferenceEngine::SizeVector &scoresStrides, std::vector<FilteredBox> &filtBoxes);
+    void nmsWithSoftSigma(const float *boxes, const float *scores, const VectorDims &boxesStrides,
+                const VectorDims &scoresStrides, std::vector<FilteredBox> &filtBoxes);
 
-    void nmsWithoutSoftSigma(const float *boxes, const float *scores, const InferenceEngine::SizeVector &boxesStrides,
-                const InferenceEngine::SizeVector &scoresStrides, std::vector<FilteredBox> &filtBoxes);
+    void nmsWithoutSoftSigma(const float *boxes, const float *scores, const VectorDims &boxesStrides,
+                const VectorDims &scoresStrides, std::vector<FilteredBox> &filtBoxes);
 
-    void nmsRotated(const float *boxes, const float *scores, const InferenceEngine::SizeVector &boxesStrides,
-                const InferenceEngine::SizeVector &scoresStrides, std::vector<FilteredBox> &filtBoxes);
+    void nmsRotated(const float *boxes, const float *scores, const VectorDims &boxesStrides,
+                const VectorDims &scoresStrides, std::vector<FilteredBox> &filtBoxes);
 
     void check1DInput(const Shape& shape,
                       const std::string& name,

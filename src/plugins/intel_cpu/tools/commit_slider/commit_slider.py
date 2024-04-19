@@ -1,20 +1,31 @@
+# Copyright (C) 2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import subprocess
 import os
 import shutil
 import sys
 from distutils.dir_util import copy_tree
+from distutils.errors import DistutilsFileError
 from utils.helpers import safeClearDir, getParams
 
 args, cfgData, customCfgPath = getParams()
 
-if args.__dict__["isWorkingDir"]:
+if args.utility != "no_utility":
+    from utils.helpers import runUtility
+    runUtility(cfgData, args)
+
+elif args.isWorkingDir:
     # rerun script from work directory
     from utils.modes import Mode
     from utils.helpers import CfgError
     from utils.helpers import checkArgAndGetCommits
 
     commitList = []
-    if args.__dict__["commitSeq"] is None:
+    if "commitList" in cfgData["runConfig"] and\
+        "explicitList" in cfgData["runConfig"]["commitList"]:
+            commitList = cfgData["runConfig"]["commitList"]["explicitList"]
+    elif args.commitSeq is None:
         if "getCommitListCmd" in cfgData["runConfig"]["commitList"]:
             commitListCmd = cfgData["runConfig"]["commitList"]
             commitListCmd = commitListCmd["getCommitListCmd"]
@@ -26,10 +37,12 @@ if args.__dict__["isWorkingDir"]:
                 raise CfgError("{msg} {e}".format(msg=msg, e=str(e)))
             out = out.decode("utf-8")
             commitList = out.split()
+        elif "explicitList" in cfgData["runConfig"]["commitList"]:
+            commitList = cfgData["runConfig"]["commitList"]["explicitList"]
         else:
             raise CfgError("Commit list is mandatory")
     else:
-        commitList = checkArgAndGetCommits(args.__dict__["commitSeq"], cfgData)
+        commitList = checkArgAndGetCommits(args.commitSeq, cfgData)
 
     commitList.reverse()
     p = Mode.factory(cfgData)
@@ -60,11 +73,20 @@ else:
     tempCachePath = cfgData["cachePath"].format(workPath=workPath)
     permCachePath = cfgData["cachePath"].format(workPath=curPath)
     safeClearDir(permCachePath, cfgData)
-    copy_tree(tempCachePath, permCachePath)
+    try:
+        copy_tree(tempCachePath, permCachePath)
+    except DistutilsFileError:
+        # prevent exception raising while cache is empty
+        pass
 
-    shutil.copyfile(
-        os.path.join(workPath, customCfgPath),
-        os.path.join(curPath, customCfgPath),
-        follow_symlinks=True,
-    )
+    try:
+        shutil.copyfile(
+            os.path.join(workPath, customCfgPath),
+            os.path.join(curPath, customCfgPath),
+            follow_symlinks=True,
+        )
+    except shutil.SameFileError:
+        # prevent exception raising if cfg set up from outer location
+        pass
+
     safeClearDir(workPath, cfgData)

@@ -1,13 +1,12 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
 
 #include <napi.h>
+
 #include <thread>
 
-#include "async_reader.hpp"
-#include "errors.hpp"
 #include "openvino/runtime/core.hpp"
 
 class CoreWrap : public Napi::ObjectWrap<CoreWrap> {
@@ -22,11 +21,7 @@ public:
      * @param env The environment in which to construct a JavaScript class.
      * @return Napi::Function representing the constructor function for the Javascript Core class.
      */
-    static Napi::Function get_class_constructor(Napi::Env env);
-    /** @brief This method is called during initialization of OpenVino native add-on.
-     * It exports JavaScript Core class.
-     */
-    static Napi::Object init(Napi::Env env, Napi::Object exports);
+    static Napi::Function get_class(Napi::Env env);
 
     /**
      * @brief Reads a model synchronously.
@@ -70,6 +65,10 @@ public:
      */
     Napi::Value compile_model_async(const Napi::CallbackInfo& info);
 
+    Napi::Value set_property(const Napi::CallbackInfo& info);
+    Napi::Value get_property(const Napi::CallbackInfo& info);
+
+    void add_extension(const Napi::CallbackInfo& info);
 protected:
     Napi::Value compile_model_sync(const Napi::CallbackInfo& info,
                                    const Napi::Object& model,
@@ -88,6 +87,15 @@ protected:
                                    const Napi::String& model_path,
                                    const Napi::String& device,
                                    const std::map<std::string, ov::Any>& config);
+
+    /** @brief Imports a compiled model from the previously exported one. */
+    Napi::Value import_model(const Napi::CallbackInfo& info);
+
+    /** @brief Returns devices available for inference. */
+    Napi::Value get_available_devices(const Napi::CallbackInfo& info);
+
+    /** @brief Returns versions of the specified device. */
+    Napi::Value get_versions(const Napi::CallbackInfo& info);
 
 private:
     ov::Core _core;

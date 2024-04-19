@@ -22,7 +22,7 @@ In previous notebooks, we already discussed how to run `Text-to-Image
 generation and Image-to-Image generation using Stable Diffusion
 v1 <225-stable-diffusion-text-to-image-with-output.html>`__
 and `controlling its generation process using
-ControlNet <./235-controlnet-stable-diffusion/235-controlnet-stable-diffusion.ipynb>`__.
+ControlNet <235-controlnet-stable-diffusio235-controlnet-stable-diffusion-with-output.html>`__.
 Now is turn of Stable Diffusion v2.
 
 Stable Diffusion v2: What’s new?
@@ -69,19 +69,21 @@ Notebook contains the following steps:
 1. Create PyTorch models pipeline using Diffusers library.
 2. Convert PyTorch models to OpenVINO IR format, using model conversion
    API.
-3. Run Stable Diffusion v2 Text-to-Image pipeline with OpenVINO.
+3. Apply hybrid post-training quantization to UNet model with
+   `NNCF <https://github.com/openvinotoolkit/nncf/>`__.
+4. Run Stable Diffusion v2 Text-to-Image pipeline with OpenVINO.
 
 **Note:** This is the full version of the Stable Diffusion text-to-image
 implementation. If you would like to get started and run the notebook
 quickly, check out `236-stable-diffusion-v2-text-to-image-demo
 notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/236-stable-diffusion-v2/236-stable-diffusion-v2-text-to-image-demo.ipynb>`__.
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Prerequisites <#prerequisites>`__
 -  `Stable Diffusion v2 for Text-to-Image
-   Generation <#stable-diffusion-v-for-text-to-image-generation>`__
+   Generation <#stable-diffusion-v2-for-text-to-image-generation>`__
 
    -  `Stable Diffusion in Diffusers
       library <#stable-diffusion-in-diffusers-library>`__
@@ -92,7 +94,15 @@ notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebo
    -  `VAE <#vae>`__
    -  `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
    -  `Configure Inference Pipeline <#configure-inference-pipeline>`__
-   -  `Run Text-to-Image generation <#run-text-to-image-generation>`__
+
+-  `Quantization <#quantization>`__
+
+   -  `Prepare calibration dataset <#prepare-calibration-dataset>`__
+   -  `Run Hybrid Model Quantization <#run-hybrid-model-quantization>`__
+   -  `Compare inference time of the FP16 and INT8
+      pipelines <#compare-inference-time-of-the-fp16-and-int8-pipelines>`__
+
+-  `Run Text-to-Image generation <#run-text-to-image-generation>`__
 
 Prerequisites
 -------------
@@ -103,7 +113,14 @@ install required packages
 
 .. code:: ipython3
 
-    %pip install -q "diffusers>=0.14.0" "openvino>=2023.1.0" "transformers>=4.25.1" gradio --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "diffusers>=0.14.0" "openvino>=2023.1.0" "datasets>=2.14.6" "transformers>=4.25.1" gradio --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "nncf>=2.9.0"
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
 
 Stable Diffusion v2 for Text-to-Image Generation
 ------------------------------------------------
@@ -154,18 +171,10 @@ using ``stable-diffusion-2-1``:
     del pipe
 
 
-.. parsed-literal::
-
-    2023-08-29 22:18:10.107478: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-08-29 22:18:10.146633: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-08-29 22:18:10.895453: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-
-
 
 .. parsed-literal::
 
-    Fetching 13 files:   0%|          | 0/13 [00:00<?, ?it/s]
+    Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]
 
 
 Convert models to OpenVINO Intermediate representation (IR) format
@@ -630,6 +639,7 @@ but there is some small difference in details:
             self.vae_encoder = vae_encoder
             self.text_encoder = text_encoder
             self.unet = unet
+            self.register_to_config(unet=unet)
             self._text_encoder_output = text_encoder.output(0)
             self._unet_output = unet.output(0)
             self._vae_d_output = vae_decoder.output(0)
@@ -909,7 +919,7 @@ First, you should create instances of OpenVINO Model.
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=2, options=('CPU', 'GNA', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=4, options=('CPU', 'GPU.0', 'GPU.1', 'GPU.2', 'AUTO'), value='AUTO')
 
 
 
@@ -929,7 +939,7 @@ Let us define them and put all components together.
 
     from transformers import CLIPTokenizer
     
-    scheduler = LMSDiscreteScheduler.from_config(conf)
+    scheduler = DDIMScheduler.from_config(conf)     # DDIMScheduler is used because UNet quantization produces better results with it
     tokenizer = CLIPTokenizer.from_pretrained('openai/clip-vit-large-patch14')
     
     ov_pipe = OVStableDiffusionPipeline(
@@ -941,8 +951,317 @@ Let us define them and put all components together.
         scheduler=scheduler
     )
 
+Quantization
+------------
+
+
+
+`NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
+post-training quantization by adding quantization layers into model
+graph and then using a subset of the training dataset to initialize the
+parameters of these additional quantization layers. Quantized operations
+are executed in ``INT8`` instead of ``FP32``/``FP16`` making model
+inference faster.
+
+According to ``Stable Diffusion v2`` structure, the UNet model takes up
+significant portion of the overall pipeline execution time. Now we will
+show you how to optimize the UNet part using
+`NNCF <https://github.com/openvinotoolkit/nncf/>`__ to reduce
+computation cost and speed up the pipeline. Quantizing the rest of the
+pipeline does not significantly improve inference performance but can
+lead to a substantial degradation of accuracy.
+
+For this model we apply quantization in hybrid mode which means that we
+quantize: (1) weights of MatMul and Embedding layers and (2) activations
+of other layers. The steps are the following:
+
+1. Create a calibration dataset for quantization.
+2. Collect operations with weights.
+3. Run ``nncf.compress_model()`` to compress only the model weights.
+4. Run ``nncf.quantize()`` on the compressed model with weighted
+   operations ignored by providing ``ignored_scope`` parameter.
+5. Save the ``INT8`` model using ``openvino.save_model()`` function.
+
+Please select below whether you would like to run quantization to
+improve model inference speed.
+
+   **NOTE**: Quantization is time and memory consuming operation.
+   Running quantization code below may take some time.
+
+.. code:: ipython3
+
+    to_quantize = widgets.Checkbox(
+        value=True,
+        description='Quantization',
+        disabled=False,
+    )
+    
+    to_quantize
+
+
+
+
+.. parsed-literal::
+
+    Checkbox(value=True, description='Quantization')
+
+
+
+.. code:: ipython3
+
+    import sys
+    sys.path.append("../utils")
+    
+    int8_ov_pipe = None
+    
+    %load_ext skip_kernel_extension
+
+Prepare calibration dataset
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+We use a portion of
+`conceptual_captions <https://huggingface.co/datasets/conceptual_captions>`__
+dataset from Hugging Face as calibration data. To collect intermediate
+model inputs for calibration we should customize ``CompiledModel``.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    import datasets
+    import numpy as np
+    from tqdm.notebook import tqdm
+    from typing import Any, Dict, List
+    
+    
+    def disable_progress_bar(pipeline, disable=True):
+        if not hasattr(pipeline, "_progress_bar_config"):
+            pipeline._progress_bar_config = {'disable': disable}
+        else:
+            pipeline._progress_bar_config['disable'] = disable
+    
+    
+    class CompiledModelDecorator(ov.CompiledModel):
+        def __init__(self, compiled_model: ov.CompiledModel, data_cache: List[Any] = None, keep_prob: float = 0.5):
+            super().__init__(compiled_model)
+            self.data_cache = data_cache if data_cache is not None else []
+            self.keep_prob = keep_prob
+    
+        def __call__(self, *args, **kwargs):
+            if np.random.rand() <= self.keep_prob:
+                self.data_cache.append(*args)
+            return super().__call__(*args, **kwargs)
+    
+    
+    def collect_calibration_data(ov_pipe, calibration_dataset_size: int, num_inference_steps: int) -> List[Dict]:
+        original_unet = ov_pipe.unet
+        calibration_data = []
+        ov_pipe.unet = CompiledModelDecorator(original_unet, calibration_data, keep_prob=0.7)
+        disable_progress_bar(ov_pipe)
+    
+        dataset = datasets.load_dataset("conceptual_captions", split="train").shuffle(seed=42)
+    
+        # Run inference for data collection
+        pbar = tqdm(total=calibration_dataset_size)
+        for batch in dataset:
+            prompt = batch["caption"]
+            if len(prompt) > ov_pipe.tokenizer.model_max_length:
+                continue
+            ov_pipe(prompt, num_inference_steps=num_inference_steps, seed=1)
+            pbar.update(len(calibration_data) - pbar.n)
+            if pbar.n >= calibration_dataset_size:
+                break
+    
+        disable_progress_bar(ov_pipe, disable=False)
+        ov_pipe.unet = original_unet
+        return calibration_data
+
+Run Hybrid Model Quantization
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    from collections import deque
+    from transformers import set_seed
+    import nncf
+    
+    def get_operation_const_op(operation, const_port_id: int):
+        node = operation.input_value(const_port_id).get_node()
+        queue = deque([node])
+        constant_node = None
+        allowed_propagation_types_list = ["Convert", "FakeQuantize", "Reshape"]
+    
+        while len(queue) != 0:
+            curr_node = queue.popleft()
+            if curr_node.get_type_name() == "Constant":
+                constant_node = curr_node
+                break
+            if len(curr_node.inputs()) == 0:
+                break
+            if curr_node.get_type_name() in allowed_propagation_types_list:
+                queue.append(curr_node.input_value(0).get_node())
+    
+        return constant_node
+    
+    
+    def is_embedding(node) -> bool:
+        allowed_types_list = ["f16", "f32", "f64"]
+        const_port_id = 0
+        input_tensor = node.input_value(const_port_id)
+        if input_tensor.get_element_type().get_type_name() in allowed_types_list:
+            const_node = get_operation_const_op(node, const_port_id)
+            if const_node is not None:
+                return True
+    
+        return False
+    
+    
+    def collect_ops_with_weights(model):
+        ops_with_weights = []
+        for op in model.get_ops():
+            if op.get_type_name() == "MatMul":
+                constant_node_0 = get_operation_const_op(op, const_port_id=0)
+                constant_node_1 = get_operation_const_op(op, const_port_id=1)
+                if constant_node_0 or constant_node_1:
+                    ops_with_weights.append(op.get_friendly_name())
+            if op.get_type_name() == "Gather" and is_embedding(op):
+                ops_with_weights.append(op.get_friendly_name())
+    
+        return ops_with_weights
+    
+    UNET_INT8_OV_PATH = sd2_1_model_dir / 'unet_optimized.xml'
+    if not UNET_INT8_OV_PATH.exists():
+        calibration_dataset_size = 300
+        set_seed(1)
+        unet_calibration_data = collect_calibration_data(ov_pipe,
+                                                         calibration_dataset_size=calibration_dataset_size,
+                                                         num_inference_steps=50)
+    
+        unet = core.read_model(UNET_OV_PATH)
+        
+        # Collect operations which weights will be compressed
+        unet_ignored_scope = collect_ops_with_weights(unet)
+        
+        # Compress model weights
+        compressed_unet = nncf.compress_weights(unet, ignored_scope=nncf.IgnoredScope(types=['Convolution']))
+        
+        # Quantize both weights and activations of Convolution layers
+        quantized_unet = nncf.quantize(
+            model=compressed_unet,
+            calibration_dataset=nncf.Dataset(unet_calibration_data),
+            subset_size=calibration_dataset_size,
+            model_type=nncf.ModelType.TRANSFORMER,
+            ignored_scope=nncf.IgnoredScope(names=unet_ignored_scope),
+            advanced_parameters=nncf.AdvancedQuantizationParameters(smooth_quant_alpha=-1)
+        )
+        
+        ov.save_model(quantized_unet, UNET_INT8_OV_PATH)
+
+
+.. parsed-literal::
+
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, onnx, openvino
+
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    int8_unet_model = core.compile_model(UNET_INT8_OV_PATH, device.value)
+    int8_ov_pipe = OVStableDiffusionPipeline(
+        tokenizer=tokenizer,
+        text_encoder=text_enc,
+        unet=int8_unet_model,
+        vae_encoder=vae_encoder,
+        vae_decoder=vae_decoder,
+        scheduler=scheduler
+    )
+
+Compare UNet file size
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    fp16_ir_model_size = UNET_OV_PATH.with_suffix(".bin").stat().st_size / 1024
+    quantized_model_size = UNET_INT8_OV_PATH.with_suffix(".bin").stat().st_size / 1024
+    
+    print(f"FP16 model size: {fp16_ir_model_size:.2f} KB")
+    print(f"INT8 model size: {quantized_model_size:.2f} KB")
+    print(f"Model compression rate: {fp16_ir_model_size / quantized_model_size:.3f}")
+
+
+.. parsed-literal::
+
+    FP16 model size: 1691232.51 KB
+    INT8 model size: 846918.58 KB
+    Model compression rate: 1.997
+
+
+Compare inference time of the FP16 and INT8 pipelines
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+To measure the inference performance of the ``FP16`` and ``INT8``
+pipelines, we use median inference time on calibration subset.
+
+   **NOTE**: For the most accurate performance estimation, it is
+   recommended to run ``benchmark_app`` in a terminal/command prompt
+   after closing other applications.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    import time
+    
+    def calculate_inference_time(pipeline, validation_data):
+        inference_time = []
+        pipeline.set_progress_bar_config(disable=True)
+        for prompt in validation_data:
+            start = time.perf_counter()
+            _ = pipeline(prompt, num_inference_steps=10, seed=0)
+            end = time.perf_counter()
+            delta = end - start
+            inference_time.append(delta)
+        return np.median(inference_time)
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    validation_size = 10
+    validation_dataset = datasets.load_dataset("conceptual_captions", split="train", streaming=True).take(validation_size)
+    validation_data = [batch["caption"] for batch in validation_dataset]
+    
+    fp_latency = calculate_inference_time(ov_pipe, validation_data)
+    int8_latency = calculate_inference_time(int8_ov_pipe, validation_data)
+    print(f"Performance speed-up: {fp_latency / int8_latency:.3f}")
+
+
+.. parsed-literal::
+
+    /home/nsavel/venvs/ov_notebooks_tmp/lib/python3.8/site-packages/datasets/load.py:1429: FutureWarning: The repository for conceptual_captions contains custom code which must be executed to correctly load the dataset. You can inspect the repository content at https://hf.co/datasets/conceptual_captions
+    You can avoid this message in future by passing the argument `trust_remote_code=True`.
+    Passing `trust_remote_code=True` will be mandatory to load this dataset from the next major release of `datasets`.
+      warnings.warn(
+
+
+.. parsed-literal::
+
+    Performance speed-up: 1.232
+
+
 Run Text-to-Image generation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+----------------------------
 
 
 
@@ -953,13 +1272,40 @@ seed for latent state initialization and number of steps.
    **Note**: Consider increasing ``steps`` to get more precise results.
    A suggested value is ``50``, but it will take longer time to process.
 
+Please select below whether you would like to use the quantized model to
+launch the interactive demo.
+
+.. code:: ipython3
+
+    quantized_model_present = int8_ov_pipe is not None
+    
+    use_quantized_model = widgets.Checkbox(
+        value=True if quantized_model_present else False,
+        description='Use quantized model',
+        disabled=not quantized_model_present,
+    )
+    
+    use_quantized_model
+
+
+
+
+.. parsed-literal::
+
+    Checkbox(value=True, description='Use quantized model')
+
+
+
 .. code:: ipython3
 
     import gradio as gr
     
     
+    pipeline = int8_ov_pipe if use_quantized_model.value else ov_pipe
+    
+    
     def generate(prompt, negative_prompt, seed, num_steps, _=gr.Progress(track_tqdm=True)):
-        result = ov_pipe(
+        result = pipeline(
             prompt,
             negative_prompt=negative_prompt,
             num_inference_steps=num_steps,
@@ -990,17 +1336,3 @@ seed for latent state initialization and number of steps.
         demo.queue().launch()
     except Exception:
         demo.queue().launch(share=True)
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7861
-    
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-.. .. raw:: html
-
-..    <div><iframe src="http://127.0.0.1:7861/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
-

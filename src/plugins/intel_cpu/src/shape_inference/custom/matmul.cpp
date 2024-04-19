@@ -1,16 +1,15 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "matmul.hpp"
 #include "utils.hpp"
-#include "ie_ngraph_utils.hpp"
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
-using namespace InferenceEngine;
+
 Result MMShapeInfer::infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
@@ -30,6 +29,16 @@ Result MMShapeInfer::infer(
         return {{m_shapeY}, ShapeInferStatus::success};
     }
     OPENVINO_ASSERT(m_out_rank >= 2, "The output rank should be greater or euqal to 2.");
+    const size_t k_lhs = m_transpose_a ? shapeA[rankA-2] : shapeA[rankA-1];
+    const size_t k_rhs = m_transpose_b ? shapeB[rankB-1] : shapeB[rankB-2];
+    OPENVINO_ASSERT(k_lhs == k_rhs,
+        "Matmul input shapes are incompatible shape A: ",
+        vec2str(shapeA),
+        m_transpose_a ? "T " : " ",
+        "shape B: ",
+        vec2str(shapeB),
+        m_transpose_b ? "T" : "");
+
     m_shapeY[m_out_rank-2] = m_transpose_a ? shapeA[rankA-1] : shapeA[rankA-2];
     m_shapeY[m_out_rank-1] = m_transpose_b ? shapeB[rankB-2] : shapeB[rankB-1];
 

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -70,14 +70,14 @@ class TestNestedWhile(CommonTFLayerTest):
         return g, None
 
     @pytest.mark.nightly
-    def test_simple_while(self, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                          use_old_api):
+    def test_simple_while(self, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
         self._test(*self.create_simple_while(), ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_legacy_frontend=use_legacy_frontend)
 
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_nested_while(self, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                          use_old_api):
+    def test_nested_while(self, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+        if ie_device == 'GPU':
+            pytest.skip("loop:while_0 : outer input 'less:Less0' does not have primitive map issue on GPU")
         self._test(*self.create_nested_while(), ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_legacy_frontend=use_legacy_frontend)

@@ -1,5 +1,0 @@
-{
-"mobilenet-v2-pytorch.json": ["('pot', 'target_device', 'ANY')", "('pot', 'stat_subset_size', '1')", "('pot', 'interface', 'CLI')", "('pot', 'engine_type', 'accuracy_checker')", "('pot', 'model_type', 'None')", "('pot', 'algorithms', '{'algorithm_0': 'DefaultQuantization'}')"],
-"mobilenet-v2-pytorch_sparsity.json": ["('pot', 'target_device', 'GPU')", "('pot', 'stat_subset_size', '1,1')", "('pot', 'interface', 'CLI')", "('pot', 'engine_type', 'accuracy_checker')", "('pot', 'model_type', 'transformer')", "('pot', 'algorithms', '{'algorithm_0': 'WeightSparsity', 'algorithm_1': 'MinMaxQuantization'}')"],
-"mobilenet-v2-pytorch_aa.json": ["('pot', 'target_device', 'CPU')", "('pot', 'stat_subset_size', '1')", "('pot', 'interface', 'CLI')", "('pot', 'engine_type', 'accuracy_checker')", "('pot', 'model_type', 'None')", "('pot', 'algorithms', '{'algorithm_0': 'AccuracyAwareQuantization'}')", "('pot', 'maximal_drop_aa', '0.005')", "('pot', 'tune_hyperparams', 'False')", "('pot', 'drop_type_aa', 'absolute')", "('pot', 'result_aa', '{'final_drop': {'accuracy@top1': 0.0, 'accuracy@top5': 0.0}, 'num_of_reverted_layers': 0}')"]
-}

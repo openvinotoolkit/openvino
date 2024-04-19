@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <chrono>
-#include <signal.h>
 #include <setjmp.h>
+#include <signal.h>
 
+#include <chrono>
 #include <fstream>
 #include <thread>
 
@@ -22,17 +22,16 @@
 
 #include "common_test_utils/graph_comparator.hpp"
 
-#include "ov_models/utils/ov_helpers.hpp"
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "functional_test_utils/crash_handler.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
 #include "shared_test_classes/base/utils/compare_results.hpp"
+#include "shared_test_classes/base/utils/calculate_thresholds.hpp"
 
 
 namespace ov {
@@ -79,8 +78,14 @@ void SubgraphBaseTest::run() {
             }
             status = ov::test::utils::PassRate::Statuses::PASSED;
         } catch (const std::exception& ex) {
-            status = ov::test::utils::PassRate::Statuses::FAILED;
-            errorMessage = ex.what();
+            if (callback_exception != nullptr) {
+                // exception will be checked by callback.
+                callback_exception(ex);
+                return;
+            } else {
+                status = ov::test::utils::PassRate::Statuses::FAILED;
+                errorMessage = ex.what();
+            }
         } catch (...) {
             status = ov::test::utils::PassRate::Statuses::FAILED;
             errorMessage = "Unknown failure occurred.";
@@ -90,10 +95,10 @@ void SubgraphBaseTest::run() {
             GTEST_FATAL_FAILURE_(errorMessage.c_str());
         }
     } else if (jmpRes == ov::test::utils::JMP_STATUS::anyError) {
-        IE_THROW() << "Crash happens";
+        OPENVINO_THROW("Crash happens");
     } else if (jmpRes == ov::test::utils::JMP_STATUS::alarmErr) {
         summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::HANGED, rel_influence_coef);
-        IE_THROW() << "Crash happens";
+        OPENVINO_THROW("Crash happens");
     }
 }
 
@@ -164,7 +169,7 @@ void SubgraphBaseTest::query_model() {
                 actual.insert(res.first);
             }
             if (expected != actual) {
-                IE_THROW() << "Expected and actual are different";
+                OPENVINO_THROW("Expected and actual are different");
             }
             status = ov::test::utils::PassRate::Statuses::PASSED;
         } catch (const std::exception& ex) {
@@ -179,10 +184,10 @@ void SubgraphBaseTest::query_model() {
             GTEST_FATAL_FAILURE_(errorMessage.c_str());
         }
     } else if (jmpRes == ov::test::utils::JMP_STATUS::anyError) {
-        IE_THROW() << "Crash happens";
+        OPENVINO_THROW("Crash happens");
     } else if (jmpRes == ov::test::utils::JMP_STATUS::alarmErr) {
         summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::HANGED, rel_influence_coef);
-        IE_THROW() << "Crash happens";
+        OPENVINO_THROW("Crash happens");
     }
 }
 
@@ -241,10 +246,10 @@ void SubgraphBaseTest::import_export() {
             GTEST_FATAL_FAILURE_(errorMessage.c_str());
         }
     } else if (jmpRes == ov::test::utils::JMP_STATUS::anyError) {
-        IE_THROW() << "Crash happens";
+        OPENVINO_THROW("Crash happens");
     } else if (jmpRes == ov::test::utils::JMP_STATUS::alarmErr) {
         summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::HANGED, rel_influence_coef);
-        IE_THROW() << "Crash happens";
+        OPENVINO_THROW("Crash happens");
     }
 }
 
@@ -252,21 +257,18 @@ void SubgraphBaseTest::compare(const std::vector<ov::Tensor>& expected,
                                const std::vector<ov::Tensor>& actual) {
     ASSERT_EQ(expected.size(), actual.size());
     ASSERT_EQ(expected.size(), function->get_results().size());
+    init_thresholds();
     auto compareMap = utils::getCompareMap();
     const auto& results = function->get_results();
     for (size_t j = 0; j < results.size(); j++) {
         const auto result = results[j];
         for (size_t i = 0; i < result->get_input_size(); ++i) {
             std::shared_ptr<ov::Node> inputNode = result->get_input_node_shared_ptr(i);
-            if (std::dynamic_pointer_cast<ov::op::v0::Convert>(inputNode)) {
-                std::shared_ptr<ov::Node> nextNodePtr = inputNode->get_input_node_shared_ptr(0);
-                if (!ngraph::is_type<ov::op::v0::Result>(nextNodePtr)) {
-                    inputNode = nextNodePtr;
-                }
-            }
             auto it = compareMap.find(inputNode->get_type_info());
             ASSERT_NE(it, compareMap.end());
-            it->second(inputNode, i, expected[j], actual[j], abs_threshold, rel_threshold);
+            it->second(inputNode, i, inference_precision,
+                       expected[j], actual[j],
+                       abs_threshold, rel_threshold, topk_threshold, mvn_threshold);
         }
     }
 }
@@ -308,6 +310,11 @@ void SubgraphBaseTest::compile_model() {
         auto end_time = std::chrono::system_clock::now();
         std::chrono::duration<double> duration = end_time - start_time;
         std::cout << "[ PLUGIN      ] `SubgraphBaseTest::compile_model()` is finished successfully. Duration is " << duration.count() << "s" << std::endl;
+    }
+    try {
+        inference_precision = core->get_property(targetDevice, ov::hint::inference_precision);
+    } catch (std::exception& e) {
+        std::cout << "[ WARNING ] Impossible to get Inference Precision with exception: " << e.what() << std::endl;
     }
 }
 
@@ -431,17 +438,13 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
     update_ref_model();
     match_parameters();
 
-    auto compiledModelRef = core->compile_model(functionRefs, ov::test::utils::DEVICE_TEMPLATE, {{ ov::template_plugin::disable_transformations(true) }});
-    auto inferRequestRef = compiledModelRef.create_infer_request();
+    std::map<std::shared_ptr<ov::Node>, ov::Tensor> inputs_ref;
     for (const auto& param : functionRefs->get_parameters()) {
-        inferRequestRef.set_tensor(param->get_default_output(), inputs.at(matched_parameters[param]));
+        inputs_ref[param] = inputs.at(matched_parameters[param]);
     }
-    inferRequestRef.infer();
 
-    auto outputs = std::vector<ov::Tensor>{};
-    for (const auto& output : functionRefs->outputs()) {
-        outputs.push_back(inferRequestRef.get_tensor(output));
-    }
+    auto outputs = ov::test::utils::infer_on_template(functionRefs, inputs_ref);
+
     if (is_report_stages) {
         auto end_time = std::chrono::system_clock::now();
         std::chrono::duration<double> duration = end_time - start_time;
@@ -471,15 +474,37 @@ std::vector<ov::Tensor> SubgraphBaseTest::get_plugin_outputs() {
 
 void SubgraphBaseTest::validate() {
     std::vector<ov::Tensor> expectedOutputs, actualOutputs;
+    std::exception_ptr expected_outputs_error, actual_output_error;
 
 #ifndef NDEBUG
     actualOutputs = get_plugin_outputs();
     expectedOutputs = calculate_refs();
 #else
-    std::thread t_device([&]{ actualOutputs = get_plugin_outputs(); });
-    std::thread t_ref([&]{ expectedOutputs = calculate_refs(); });
+    std::thread t_device([this, &actualOutputs, &actual_output_error] {
+        // The try ... catch block is required to handle exceptions during output calculations and report as test fail.
+        // If exception is not caught then application would be terminated with crash. (CVS-133676)
+        try {
+            actualOutputs = get_plugin_outputs();
+        } catch (...) {
+            actual_output_error = std::current_exception();
+        }
+    });
+    std::thread t_ref([this, &expectedOutputs, &expected_outputs_error] {
+        try {
+            expectedOutputs = calculate_refs();
+        } catch (...) {
+            expected_outputs_error = std::current_exception();
+        }
+    });
     t_device.join();
     t_ref.join();
+
+    if (actual_output_error) {
+        std::rethrow_exception(actual_output_error);
+    }
+    if (expected_outputs_error) {
+        std::rethrow_exception(expected_outputs_error);
+    }
 #endif
 
     if (expectedOutputs.empty()) {
@@ -498,6 +523,17 @@ void SubgraphBaseTest::validate() {
         auto end_time = std::chrono::system_clock::now();
         std::chrono::duration<double> duration = end_time - start_time;
         std::cout << "[ COMPARATION ] `ov_tensor_utils.hpp::compare()` is finished successfully. Duration is " << duration.count() << "s" << std::endl;
+    }
+}
+
+void SubgraphBaseTest::init_thresholds() {
+    double max_abs_threshold = 0.f, max_rel_threshold = 0.f;
+    std::tie(max_abs_threshold, max_rel_threshold) = ov::test::utils::calculate_thresholds_by_model(function, functionRefs, inference_precision);
+    if (abs_threshold == disable_threshold) {
+        abs_threshold = max_abs_threshold;
+    }
+    if (rel_threshold == disable_threshold) {
+        rel_threshold = max_rel_threshold;
     }
 }
 

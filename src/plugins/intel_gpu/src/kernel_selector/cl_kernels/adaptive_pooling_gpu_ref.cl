@@ -16,7 +16,11 @@ KERNEL(adaptive_pooling_gpu)(
         const __global INPUT0_TYPE* input,
         __global OUTPUT_TYPE* output
 #if MAX_POOLING
+#if NEW_MULTIPLE_OUTPUTS
+        , __global OUTPUT1_TYPE* output1
+#else
         , __global INDICES_TYPE* indices
+#endif
 #endif
 )
 {
@@ -36,7 +40,11 @@ KERNEL(adaptive_pooling_gpu)(
     ACCUMULATOR_TYPE result = INIT_VAL;
 
 #if MAX_POOLING
+#if NEW_MULTIPLE_OUTPUTS
+    OUTPUT1_TYPE result_idx = 0;
+#else
     INDICES_TYPE result_idx = 0;
+#endif
 #elif AVG_POOLING
     uint num_elements = 0;
 #else
@@ -101,6 +109,16 @@ KERNEL(adaptive_pooling_gpu)(
 #endif
 
 #if MAX_POOLING
+#if NEW_MULTIPLE_OUTPUTS
+    #if OUTPUT_DIMS == 5
+        const uint index_pos = OUTPUT1_GET_INDEX(b, f, z, y, x);
+    #else
+        const uint index_pos = OUTPUT1_GET_INDEX(b, f, y, x);
+    #endif
+
+    output[output_pos] = result;
+    output1[index_pos] = result_idx;
+#else
     #if OUTPUT_DIMS == 5
         const uint index_pos = INPUT1_GET_INDEX(b, f, z, y, x);
     #else
@@ -109,6 +127,7 @@ KERNEL(adaptive_pooling_gpu)(
 
     output[output_pos] = result;
     indices[index_pos] = result_idx;
+#endif
 #elif AVG_POOLING
     output[output_pos] = result / TO_ACCUMULATOR_TYPE(max(num_elements, (uint)1));
 #else

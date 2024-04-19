@@ -1,11 +1,11 @@
 ir_version: 7
-producer_name: "nGraph ONNX Importer"
+producer_name: "OpenVINO ONNX Frontend"
 graph {
   node {
     input: "A"
     input: "B"
     output: "C"
-    op_type: "Greater_Or_Equal"
+    op_type: "GreaterOrEqual"
   }
   name: "test_greater_or_equal_float"
   input {

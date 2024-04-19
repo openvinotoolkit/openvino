@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,6 +36,14 @@ public:
 
     std::string get_frame_name() const {
         return m_frame_name;
+    }
+
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
+        FRONT_END_OP_CONVERSION_CHECK(inputs.size() == 1,
+                                      "[TensorFlow Frontend] internal error: Enter expects one input");
+        auto enter_node = std::make_shared<Enter>(inputs[0], m_frame_name, m_decoder);
+        enter_node->set_attrs(get_attrs());
+        return enter_node;
     }
 
 private:

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -914,6 +914,31 @@ TEST(pre_post_process, mean_vector_dynamic_channels_shape) {
     EXPECT_EQ(f->get_output_element_type(0), element::f32);
 }
 
+TEST(pre_post_process, pad_vector_constant_layout) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 200, 200});
+    auto p = PrePostProcessor(f);
+
+    p.input().tensor().set_shape({1, 3, 199, 199});
+    p.input().preprocess().pad({0, 0, 0, 0}, {0, 0, 1, 1}, 0, PaddingMode::CONSTANT);
+    EXPECT_NO_THROW(p.build());
+}
+
+TEST(pre_post_process, pad_vector_out_of_range) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 5, 5});
+    auto p = PrePostProcessor(f);
+
+    ASSERT_THROW(p.input().preprocess().pad({0, 0, -2, 0}, {0, 0, -4, 1}, 0, PaddingMode::CONSTANT);
+                 p.build(), ov::AssertFailure);
+}
+
+TEST(pre_post_process, pad_vector_dim_mismatch) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 5, 5});
+    auto p = PrePostProcessor(f);
+
+    ASSERT_THROW(p.input().preprocess().pad({0, 0, 2, 0, 1}, {0, 0, 4, 1, 1}, 0, PaddingMode::CONSTANT);
+                 p.build(), ov::AssertFailure);
+}
+
 TEST(pre_post_process, resize_no_model_layout) {
     auto f = create_simple_function(element::f32, Shape{1, 3, 224, 224});
     auto p = PrePostProcessor(f);
@@ -1780,6 +1805,88 @@ TEST(pre_post_process, postprocess_keep_friendly_names_compatibility_implicit) {
     EXPECT_EQ(node_before_result_new->get_friendly_name(), node_name);
     // Compatibility check: Verify that old name is not set for old 'output' node anymore
     EXPECT_NE(node_before_result_old->get_friendly_name(), node_name);
+}
+
+// --- PostProcess - convert color format ---
+TEST(pre_post_process, postprocess_convert_color_format_BGR_RGB) {
+    auto f = create_simple_function(element::f32, Shape{5, 30, 20, 3});
+    auto p = PrePostProcessor(f);
+    p.output().model().set_layout("NHWC").set_color_format(ColorFormat::BGR);
+    p.output().postprocess().convert_color(ColorFormat::RGB);
+    f = p.build();
+
+    EXPECT_EQ(f->get_results().size(), 1);
+    EXPECT_EQ(f->get_result()->get_output_partial_shape(0), (PartialShape{5, 30, 20, 3}));
+}
+
+TEST(pre_post_process, postprocess_convert_color_format_RGB_BGR) {
+    auto f = create_simple_function(element::f32, Shape{5, 30, 20, 3});
+    auto p = PrePostProcessor(f);
+    p.output().model().set_layout("NHWC").set_color_format(ColorFormat::RGB);
+    p.output().postprocess().convert_color(ColorFormat::BGR);
+    f = p.build();
+
+    EXPECT_EQ(f->get_results().size(), 1);
+    EXPECT_EQ(f->get_result()->get_output_partial_shape(0), (PartialShape{5, 30, 20, 3}));
+}
+
+TEST(pre_post_process, postprocess_convert_color_format_RGB_BGR_dynamic_batch) {
+    auto f = create_simple_function(element::f32, PartialShape{-1, 30, 20, 3});
+    auto p = PrePostProcessor(f);
+    p.output().model().set_layout("NHWC").set_color_format(ColorFormat::RGB);
+    p.output().postprocess().convert_color(ColorFormat::BGR);
+    f = p.build();
+
+    EXPECT_EQ(f->get_results().size(), 1);
+    EXPECT_EQ(f->get_result()->get_output_partial_shape(0), (PartialShape{-1, 30, 20, 3}));
+}
+
+TEST(pre_post_process, postprocess_convert_color_format_RGB_BGR_dynamic_shape) {
+    auto f = create_simple_function(element::f32, PartialShape{-1, -1, 20, 3});
+    auto p = PrePostProcessor(f);
+    p.output().model().set_layout("NHWC").set_color_format(ColorFormat::RGB);
+    p.output().postprocess().convert_color(ColorFormat::BGR);
+    f = p.build();
+
+    EXPECT_EQ(f->get_results().size(), 1);
+    EXPECT_EQ(f->get_result()->get_output_partial_shape(0), (PartialShape{-1, -1, 20, 3}));
+}
+
+TEST(pre_post_process, postprocess_convert_color_format_RGB_RGB) {
+    auto f = create_simple_function(element::f32, Shape{5, 30, 20, 3});
+    auto p = PrePostProcessor(f);
+    p.output().model().set_layout("NHWC").set_color_format(ColorFormat::RGB);
+    p.output().postprocess().convert_color(ColorFormat::RGB);
+    f = p.build();
+
+    EXPECT_EQ(f->get_results().size(), 1);
+    EXPECT_EQ(f->get_result()->get_output_partial_shape(0), (PartialShape{5, 30, 20, 3}));
+}
+
+TEST(pre_post_process, postprocess_convert_color_format_BGR_BGR) {
+    auto f = create_simple_function(element::f32, Shape{5, 30, 20, 3});
+    auto p = PrePostProcessor(f);
+    p.output().model().set_layout("NHWC").set_color_format(ColorFormat::BGR);
+    p.output().postprocess().convert_color(ColorFormat::BGR);
+    f = p.build();
+
+    EXPECT_EQ(f->get_results().size(), 1);
+    EXPECT_EQ(f->get_result()->get_output_partial_shape(0), (PartialShape{5, 30, 20, 3}));
+}
+
+TEST(pre_post_process, postprocess_convert_color_format_unsupported) {
+    auto f = create_simple_function(element::f32, Shape{5, 30, 20, 3});
+
+    EXPECT_THROW(auto p = PrePostProcessor(f); p.output().model().set_layout("NHWC").set_color_format(ColorFormat::RGB);
+                 p.output().postprocess().convert_color(ColorFormat::GRAY);
+                 f = p.build(), ov::Exception);
+
+    EXPECT_THROW(auto p = PrePostProcessor(f); p.output().model().set_layout("NHWC").set_color_format(ColorFormat::RGB);
+                 p.output().postprocess().convert_color(ColorFormat::UNDEFINED);
+                 f = p.build(), ov::Exception);
+    EXPECT_THROW(auto p = PrePostProcessor(f); p.output().model().set_color_format(ColorFormat::UNDEFINED);
+                 p.output().postprocess().convert_color(ColorFormat::BGR);
+                 f = p.build(), ov::AssertFailure);
 }
 
 // Postprocessing - other

@@ -8,15 +8,15 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/reduction_base.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "sequnce_generator.hpp"
+#include "sequence_generator.hpp"
 #include "transformations/utils/utils.hpp"
-#include "validation_util.hpp"
 
 namespace {
 // Adjust axes of Unsqueeze/Reduce ops after Unsqueeze pulling

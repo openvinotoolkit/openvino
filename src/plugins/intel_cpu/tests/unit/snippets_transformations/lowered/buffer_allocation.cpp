@@ -14,7 +14,7 @@
 #include "snippets/lowered/pass/fuse_loops.hpp"
 #include "snippets/lowered/pass/split_loops.hpp"
 #include "snippets/lowered/pass/insert_buffers.hpp"
-#include "snippets/lowered/pass/softmax_decomposition.hpp"
+#include "snippets/lowered/pass/reduce_decomposition.hpp"
 
 #include "transformations/snippets/x64/shape_inference.hpp"
 #include "transformations/snippets/x64/pass/lowered/brgemm_blocking.hpp"
@@ -59,29 +59,36 @@ public:
 
 protected:
     void SetUp() override {
-        bool is_optimized, with_split_loops;
-        std::tie(is_optimized, with_split_loops, m_expected_size, m_expected_count) = this->GetParam();
+        std::tie(m_is_buffer_optimized, m_with_split_loops, m_expected_size, m_expected_count) = this->GetParam();
 
         const auto body = GetModel();
         m_linear_ir = ov::snippets::lowered::LinearIR(body, std::make_shared<ov::snippets::CPUShapeInferSnippetsFactory>());
         m_linear_ir.set_loop_depth(m_loop_depth);
-        ApplyTransformations(is_optimized, with_split_loops);
+        // When Subgraph::control_flow_transformations become public method,
+        // please use this method instead of ApplyTransformations
+        ApplyTransformations(GetPassConfig());
     }
 
-    void ApplyTransformations(bool is_optimized, bool with_split_loops) {
-        ov::snippets::lowered::pass::PassPipeline pipeline;
+    std::shared_ptr<ov::snippets::lowered::pass::PassConfig> GetPassConfig() {
+        auto config = std::make_shared<ov::snippets::lowered::pass::PassConfig>();
+        if (!m_with_split_loops)
+            config->disable<ov::snippets::lowered::pass::SplitLoops>();
+        return config;
+    }
+
+    void ApplyTransformations(const std::shared_ptr<ov::snippets::lowered::pass::PassConfig>& pass_config) {
+        ov::snippets::lowered::pass::PassPipeline pipeline(pass_config);
         pipeline.register_pass<ov::snippets::lowered::pass::MarkLoops>(m_vector_size);
         pipeline.register_pass<ov::intel_cpu::pass::BrgemmBlocking>();
-        pipeline.register_pass<ov::snippets::lowered::pass::SoftmaxDecomposition>(m_vector_size);
+        pipeline.register_pass<ov::snippets::lowered::pass::ReduceDecomposition>(m_vector_size);
         pipeline.register_pass<ov::snippets::lowered::pass::FuseLoops>();
-        if (with_split_loops)
-            pipeline.register_pass<ov::snippets::lowered::pass::SplitLoops>();
+        pipeline.register_pass<ov::snippets::lowered::pass::SplitLoops>();
         pipeline.register_pass<ov::snippets::lowered::pass::InsertBuffers>(2);
         pipeline.register_pass<ov::snippets::lowered::pass::InsertLoadStore>(m_vector_size);
         pipeline.register_pass<ov::snippets::lowered::pass::InitLoops>();
         pipeline.register_pass<ov::snippets::lowered::pass::InsertLoops>();
         pipeline.register_pass<ov::intel_cpu::pass::SetBrgemmCopyBBuffersShape>();
-        pipeline.register_pass<ov::snippets::lowered::pass::AllocateBuffers>(m_buffer_scratchpad, is_optimized);
+        pipeline.register_pass<ov::snippets::lowered::pass::AllocateBuffers>(m_buffer_scratchpad, m_is_buffer_optimized);
         pipeline.run(m_linear_ir);
     }
 
@@ -115,13 +122,16 @@ protected:
 
     size_t m_loop_depth = 2;
     size_t m_vector_size = 16;
+
+    bool m_is_buffer_optimized = true;
+    bool m_with_split_loops = true;
 };
 
 class MHABF16AMXBufferAllocationTest : public BufferAllocationCPUTest {
 protected:
     std::shared_ptr<ov::Model> GetModel() const override {
         const auto subtensor_scalar = std::vector<size_t>{1};
-        const auto subtensor_softmax = std::vector<size_t>{1, ov::snippets::lowered::PortDescriptor::ServiceDimensions::FULL_DIM};
+        const auto subtensor_power = std::vector<size_t>{1, ov::snippets::lowered::PortDescriptor::ServiceDimensions::FULL_DIM};
         const auto subtensor_full = std::vector<size_t>(2, ov::snippets::lowered::PortDescriptor::ServiceDimensions::FULL_DIM);
 
         const auto parameter0 = std::make_shared<ov::op::v0::Parameter>(ov::element::bf16, ov::PartialShape({1, 12, 128, 64}));
@@ -144,8 +154,19 @@ protected:
         brgemm_cpu0->set_n_block_size(64);
 
         const auto relu1 = std::make_shared<ov::op::v0::Relu>(brgemm_cpu0);
-        const auto softmax = std::make_shared<ov::op::v1::Softmax>(relu1, 3);
-        const auto convert2 = std::make_shared<ov::snippets::op::ConvertSaturation>(softmax, ov::element::bf16);
+
+        // Decomposed Softmax
+        const auto reduce_max = std::make_shared<ov::snippets::op::ReduceMax>(relu1, 3);
+        ov::snippets::op::ReduceBase::compute_and_set_reduce_subtensors(reduce_max);
+        const auto subtract = std::make_shared<ov::op::v1::Subtract>(relu1, reduce_max);
+        const auto exp = std::make_shared<ov::op::v0::Exp>(subtract);
+
+        const auto reduce_sum = std::make_shared<ov::snippets::op::ReduceSum>(exp, 3);
+        ov::snippets::op::ReduceBase::compute_and_set_reduce_subtensors(reduce_sum);
+        const auto power = std::make_shared<ov::snippets::op::PowerStatic>(reduce_sum, -1.f);
+        const auto multiply = std::make_shared<ov::op::v1::Multiply>(exp, power);
+
+        const auto convert2 = std::make_shared<ov::snippets::op::ConvertSaturation>(multiply, ov::element::bf16);
 
         const auto brgemm_copyb1 = std::make_shared<ov::intel_cpu::BrgemmCopyB>(
             parameter2, ov::element::bf16, ov::intel_cpu::BrgemmCopyB::OnlyRepacking, 0, 0, 0);
@@ -162,7 +183,7 @@ protected:
 
         MarkOp(load_reshape, subtensor_scalar);
         MarkOp(store, subtensor_scalar);
-        MarkOp(softmax, subtensor_softmax);
+        MarkOp(power, subtensor_power);
 
         MarkOp(brgemm_cpu0, subtensor_full);
         MarkOp(brgemm_cpu1, subtensor_full);

@@ -1,8 +1,8 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-import openvino.runtime.properties as props
+import openvino.properties as props
 from openvino.preprocess import ResizeAlgorithm, ColorFormat
 from openvino import Layout, Type, serialize
 import openvino as ov

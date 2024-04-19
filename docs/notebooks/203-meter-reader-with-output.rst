@@ -19,8 +19,8 @@ to build up a multiple inference task pipeline:
 
    workflow
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Import <#import>`__
 -  `Prepare the Model and Test
@@ -31,19 +31,27 @@ to build up a multiple inference task pipeline:
 -  `Main Function <#main-function>`__
 
    -  `Initialize the model and
-      parameters. <#initialize-the-model-and-parameters>`__
+      parameters. <#initialize-the-model-and-parameters->`__
    -  `Run meter detection model <#run-meter-detection-model>`__
-   -  `Run meter segmentation
-      model <#run-meter-segmentation-model>`__
+   -  `Run meter segmentation model <#run-meter-segmentation-model>`__
    -  `Postprocess the models result and calculate the final
       readings <#postprocess-the-models-result-and-calculate-the-final-readings>`__
    -  `Get the reading result on the meter
       picture <#get-the-reading-result-on-the-meter-picture>`__
 
+-  `Try it with your meter photos! <#try-it-with-your-meter-photos>`__
+
 .. code:: ipython3
 
+    import platform
+    
     # Install openvino package
-    %pip install -q "openvino>=2023.1.0" matplotlib
+    %pip install -q "openvino>=2023.1.0"
+    
+    if platform.system() != "Windows":
+        %pip install -q "matplotlib>=3.4"
+    else:
+        %pip install -q "matplotlib>=3.4,<3.7"
 
 
 .. parsed-literal::
@@ -51,8 +59,15 @@ to build up a multiple inference task pipeline:
     Note: you may need to restart the kernel to use updated packages.
 
 
-Import 
-------------------------------------------------
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+
+Import
+------
+
+
 
 .. code:: ipython3
 
@@ -69,11 +84,11 @@ Import
     sys.path.append("../utils")
     from notebook_utils import download_file, segmentation_map_to_image
 
-Prepare the Model and Test Image 
---------------------------------------------------------------------------
+Prepare the Model and Test Image
+--------------------------------
 
-Download PPYOLOv2 and DeepLabV3P pre-trained models from PaddlePaddle
-community.
+Download PPYOLOv2 and
+DeepLabV3P pre-trained models from PaddlePaddle community.
 
 .. code:: ipython3
 
@@ -145,10 +160,11 @@ community.
     Test Image Saved to "./data".
 
 
-Configuration 
--------------------------------------------------------
+Configuration
+-------------
 
-Add parameter configuration for reading calculation.
+Add parameter configuration for
+reading calculation.
 
 .. code:: ipython3
 
@@ -174,10 +190,11 @@ Add parameter configuration for reading calculation.
     
     SEG_LABEL = {'background': 0, 'pointer': 1, 'scale': 2}
 
-Load the Models 
----------------------------------------------------------
+Load the Models
+---------------
 
-Define a common class for model loading and inference
+Define a common class for model
+loading and inference
 
 .. code:: ipython3
 
@@ -217,10 +234,11 @@ Define a common class for model loading and inference
             result = self.compiled_model(input_image)[self.output_layer]
             return result
 
-Data Process 
-------------------------------------------------------
+Data Process
+------------
 
-Including the preprocessing and postprocessing tasks of each model.
+Including the preprocessing and
+postprocessing tasks of each model.
 
 .. code:: ipython3
 
@@ -547,11 +565,15 @@ Including the preprocessing and postprocessing tasks of each model.
             readings.append(reading)
         return readings
 
-Main Function 
--------------------------------------------------------
+Main Function
+-------------
 
-Initialize the model and parameters. 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+Initialize the model and parameters.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -580,7 +602,7 @@ select device from dropdown list for running inference using OpenVINO
 The number of detected meter from detection network can be arbitrary in
 some scenarios, which means the batch size of segmentation network input
 is a `dynamic
-dimension <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_DynamicShapes.html>`__,
+dimension <https://docs.openvino.ai/2024/openvino-workflow/running-inference/dynamic-shapes.html>`__,
 and it should be specified as ``-1`` or the ``ov::Dimension()`` instead
 of a positive number used for static dimensions. In this case, for
 memory consumption optimization, we can specify the lower and/or upper
@@ -613,7 +635,7 @@ bounds of input batch size.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7fa8240ffaf0>
+    <matplotlib.image.AxesImage at 0x7fcb0dada370>
 
 
 
@@ -621,11 +643,11 @@ bounds of input batch size.
 .. image:: 203-meter-reader-with-output_files/203-meter-reader-with-output_16_1.png
 
 
-Run meter detection model 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Run meter detection model
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Detect the location of the meter and prepare the ROI images for
-segmentation.
+Detect the location of the
+meter and prepare the ROI images for segmentation.
 
 .. code:: ipython3
 
@@ -666,10 +688,11 @@ segmentation.
 .. image:: 203-meter-reader-with-output_files/203-meter-reader-with-output_18_1.png
 
 
-Run meter segmentation model 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Run meter segmentation model
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Get the results of segmentation task on detected ROI.
+Get the results of segmentation
+task on detected ROI.
 
 .. code:: ipython3
 
@@ -706,10 +729,11 @@ Get the results of segmentation task on detected ROI.
 .. image:: 203-meter-reader-with-output_files/203-meter-reader-with-output_20_1.png
 
 
-Postprocess the models result and calculate the final readings 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Postprocess the models result and calculate the final readings
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Use OpenCV function to find the location of the pointer in a scale map.
+Use OpenCV function to find the
+location of the pointer in a scale map.
 
 .. code:: ipython3
 
@@ -743,8 +767,10 @@ Use OpenCV function to find the location of the pointer in a scale map.
 .. image:: 203-meter-reader-with-output_files/203-meter-reader-with-output_22_1.png
 
 
-Get the reading result on the meter picture 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Get the reading result on the meter picture
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -776,3 +802,5 @@ Get the reading result on the meter picture
 
 Try it with your meter photos!
 ------------------------------
+
+

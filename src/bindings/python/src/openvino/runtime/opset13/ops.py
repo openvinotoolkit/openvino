@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for ops added to openvino opset13."""
@@ -347,3 +347,51 @@ def result(data: Union[Node, Output, NumericData], name: Optional[str] = None) -
     if isinstance(data, Node):
         return Result(data.output(0))
     return Result(data)
+
+
+@nameable_op
+def fake_quantize(
+    data: NodeInput,
+    input_low: NodeInput,
+    input_high: NodeInput,
+    output_low: NodeInput,
+    output_high: NodeInput,
+    levels: int,
+    auto_broadcast: str = "NUMPY",
+    name: Optional[str] = None,
+) -> Node:
+    r"""Perform an element-wise linear quantization on input data.
+
+    :param data:           The node with data tensor.
+    :param input_low:      The node with the minimum for input values.
+    :param input_high:     The node with the maximum for input values.
+    :param output_low:     The node with the minimum quantized value.
+    :param output_high:    The node with the maximum quantized value.
+    :param levels:         The number of quantization levels. Integer value.
+    :param auto_broadcast: The type of broadcasting specifies rules used for
+                           auto-broadcasting of input tensors.
+    :param name:           Optional name of the new node.
+    :return: New node with quantized value.
+
+    Input floating point values are quantized into a discrete set of floating point values.
+
+    .. code-block:: python
+
+        if x <= input_low:
+            output = output_low
+        if x > input_high:
+            output = output_high
+        else:
+            output = fake_quantize(output)
+
+    Fake quantize uses the following logic:
+
+    \f[ output =
+            \dfrac{round( \dfrac{data - input\_low}{(input\_high - input\_low)\cdot (levels-1)})}
+            {(levels-1)\cdot (output\_high - output\_low)} + output\_low \f]
+    """
+    return _get_node_factory_opset13().create(
+        "FakeQuantize",
+        as_nodes(data, input_low, input_high, output_low, output_high, name=name),
+        {"levels": levels, "auto_broadcast": auto_broadcast.upper()},
+    )

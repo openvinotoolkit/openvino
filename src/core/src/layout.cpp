@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -640,7 +640,11 @@ void AttributeAdapter<ov::Layout>::set(const std::string& value) {
 bool LayoutAttribute::visit_attributes(AttributeVisitor& visitor) {
     std::string layout_str = value.to_string();
     visitor.on_attribute("layout", layout_str);
-    value = Layout(layout_str);
+    // some attribute visitor will not change the value
+    // for example, rt info serializer
+    // in this case, parallelization can be supported in hash pass
+    if (layout_str != value.to_string())
+        value = Layout(layout_str);
     return true;
 }
 

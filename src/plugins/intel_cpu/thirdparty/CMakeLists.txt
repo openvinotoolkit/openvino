@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -62,7 +62,7 @@ function(ov_add_onednn)
         set(DNNL_USE_ACL ON CACHE BOOL "Use ARM Conpute Library kernels in oneDNN" FORCE)
     endif()
 
-    set(SDL_cmake_included ON)  ## to skip internal SDL flags. SDL flags are already set on IE level
+    set(SDL_cmake_included ON)  ## to skip internal SDL flags. SDL flags are already set on OV level
     if (ANDROID OR ((CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR OV_COMPILER_IS_CLANG) AND NOT (THREADING STREQUAL "OMP")))
         set(OpenMP_cmake_included ON) ## to skip "omp simd" inside a code. Lead to some crashes inside NDK LLVM..
     endif()
@@ -87,6 +87,7 @@ function(ov_add_onednn)
         if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND CMAKE_COMPILER_IS_GNUCXX)
             ov_add_compiler_flags(-Wno-array-bounds)
             ov_add_compiler_flags(-Wno-stringop-overflow)
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-overloaded-virtual")
             if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12)
                 ov_add_compiler_flags(-Wno-restrict)
             endif()

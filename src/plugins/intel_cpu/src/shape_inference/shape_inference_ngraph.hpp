@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,6 @@
 
 #include "shape_inference_cpu.hpp"
 #include "shape_inference.hpp"
-#include <ie_ngraph_utils.hpp>
 
 namespace ov {
 namespace intel_cpu {

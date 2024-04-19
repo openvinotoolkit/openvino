@@ -1,15 +1,12 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
 
 #include <napi.h>
 
-#include "compiled_model.hpp"
-#include "errors.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/core.hpp"
-#include "tensor.hpp"
 
 class ModelWrap : public Napi::ObjectWrap<ModelWrap> {
 public:
@@ -23,12 +20,7 @@ public:
      * @param env The environment in which to construct a JavaScript class.
      * @return Napi::Function representing the constructor function for the Javascript Model class.
      */
-    static Napi::Function get_class_constructor(Napi::Env env);
-
-    /** @brief This method is called during initialization of OpenVino native add-on.
-     * It exports JavaScript Model class.
-     */
-    static Napi::Object init(Napi::Env env, Napi::Object exports);
+    static Napi::Function get_class(Napi::Env env);
 
     void set_model(const std::shared_ptr<ov::Model>& model);
     /**
@@ -83,6 +75,31 @@ public:
      * @return A Javascript Array containing Outputs
      */
     Napi::Value get_outputs(const Napi::CallbackInfo& info);
+
+    /**
+     * @brief Checks if the model is dynamic.
+     * @param info Contains information about the environment and passed arguments
+     * This method does not accept any arguments. If arguments are provided it throws Napi::Error.
+     * @return Boolean indicating if the model is dynamic or not
+     */
+    Napi::Value is_dynamic(const Napi::CallbackInfo& info);
+
+    /**
+     * @brief Sets a friendly name for a model.
+     * @param info Contains information about the environment and passed arguments
+     * this method accepts only one argument of type String,
+     * throws Napi::Undefined if more than 1 arguments are provided or the provided argument is not of type String
+     * @return Napi::Undefined
+     */
+    Napi::Value set_friendly_name(const Napi::CallbackInfo& info);
+
+    /**
+     * @brief Gets the friendly name for a model, if not set, gets the unique name
+     * @param info Contains information about the environment and passed arguments
+     * this method does not accept any arguments. If arguments are provided it throws ov::Exception.
+     * @return Napi::String containing friendly name
+     */
+    Napi::Value get_friendly_name(const Napi::CallbackInfo& info);
 
 private:
     std::shared_ptr<ov::Model> _model;

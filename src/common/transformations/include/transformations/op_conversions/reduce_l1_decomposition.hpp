@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ class TRANSFORMATIONS_API ReduceL1Decomposition;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Decomposes ReduceL1 into ReduceSum(abs(x)).
  */
 class ov::pass::ReduceL1Decomposition : public ov::pass::MatcherPass {

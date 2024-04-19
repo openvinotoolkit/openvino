@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -100,6 +100,12 @@ public:
             cf_marker.merge_eliminated_markers.count(switch_marker) > 0,
             "[TensorFlow Frontend] internal error: no Switch node with requiested conditional flow marker");
         return cf_marker.merge_eliminated_markers[switch_marker];
+    }
+
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
+        auto merge_node = std::make_shared<Merge>(inputs, m_decoder);
+        merge_node->set_attrs(get_attrs());
+        return merge_node;
     }
 };
 

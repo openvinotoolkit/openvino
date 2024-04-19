@@ -31,8 +31,8 @@ public:
         : SnippetsFunctionBase(inputShapes),
           add_input_idx(add_input_idx),
           scalar_input(scalar_input) {
-        NGRAPH_CHECK(input_shapes.size() == 3, "Got invalid number of input shapes");
-        NGRAPH_CHECK(add_input_idx < 2, "Got invalid input idx for add operation");
+        OPENVINO_ASSERT(input_shapes.size() == 3, "Got invalid number of input shapes");
+        OPENVINO_ASSERT(add_input_idx < 2, "Got invalid input idx for add operation");
     }
 
 protected:
@@ -81,13 +81,13 @@ protected:
     }
 
     void validate_function(const std::shared_ptr<Model> &m) const override {
-        NGRAPH_CHECK(m != nullptr, "The test requires Model to be defined");
+        OPENVINO_ASSERT(m != nullptr, "The test requires Model to be defined");
         const auto &params = m->get_parameters();
-        NGRAPH_CHECK(params.size() == (scalar_input ? input_shapes.size() - 1 : input_shapes.size()),
-                    "Passed input shapes and produced function are inconsistent.");
-        for (size_t i = 0; i < params.size(); i++)
-            NGRAPH_CHECK(std::equal(input_shapes[i].begin(), input_shapes[i].end(), params[i]->get_shape().begin()),
+        OPENVINO_ASSERT(params.size() == (scalar_input ? input_shapes.size() - 1 : input_shapes.size()),
                         "Passed input shapes and produced function are inconsistent.");
+        for (size_t i = 0; i < params.size(); i++)
+            OPENVINO_ASSERT(std::equal(input_shapes[i].begin(), input_shapes[i].end(), params[i]->get_shape().begin()),
+                            "Passed input shapes and produced function are inconsistent.");
     }
 
 private:
@@ -99,7 +99,6 @@ typedef std::tuple<
         PartialShape,  // Input shape 0
         PartialShape,  // Input shape 1
         PartialShape,  // Input shape 2
-        PartialShape,  // Master shape
         size_t         // Add input index
 > MulAddToFMAParams;
 
@@ -107,25 +106,23 @@ class MulAddToFMATests : public LoweringTests, public testing::WithParamInterfac
 public:
     static std::string getTestCaseName(testing::TestParamInfo<MulAddToFMAParams> obj) {
         std::vector<PartialShape> inputShapes(3);
-        PartialShape master_shape;
         size_t add_input_idx;
-        std::tie(inputShapes[0], inputShapes[1], inputShapes[2], master_shape, add_input_idx) = obj.param;
+        std::tie(inputShapes[0], inputShapes[1], inputShapes[2], add_input_idx) = obj.param;
 
         std::ostringstream result;
         for (size_t i = 0; i < inputShapes.size(); i++)
             result << "IS[" << i << "]=" <<  ov::test::utils::partialShape2str({inputShapes[i]}) << "_";
-        result << "MS=" << ov::test::utils::partialShape2str({master_shape}) << "_";
         result << "add_input_idx=" << add_input_idx;
         return result.str();
     }
 
 protected:
     void SetUp() override {
-        using PassPosition = ov::snippets::pass::Manager::PassPosition;
+        using PassPosition = ov::snippets::pass::PassPosition;
         LoweringTests::SetUp();
         std::vector<PartialShape> inputShapes(3);
         size_t add_input_idx;
-        std::tie(inputShapes[0], inputShapes[1], inputShapes[2], master_shape, add_input_idx) = this->GetParam();
+        std::tie(inputShapes[0], inputShapes[1], inputShapes[2], add_input_idx) = this->GetParam();
         const bool scalar_input = ov::shape_size(inputShapes[2].to_shape()) == 1;
         snippets_model = std::make_shared<EltwiseWithMulAddFunction>(inputShapes, add_input_idx, scalar_input);
 
@@ -140,16 +137,16 @@ protected:
 
     std::shared_ptr<SnippetsFunctionBase> snippets_model;
     std::shared_ptr<ov::snippets::Generator> generator;
-    std::vector<ov::snippets::pass::Manager::PositionedPass> backend_passes;
+    std::vector<ov::snippets::pass::Manager::PositionedPassBase> backend_passes;
 };
 
 TEST_P(MulAddToFMATests, MulAddToFMATests) {
     auto subgraph = getLoweredSubgraph(snippets_model->getOriginal(),
-                                       master_shape,
                                        backend_passes,
-                                       {},
+                                       std::make_shared<ov::snippets::lowered::pass::PassConfig>(),
                                        {},
                                        generator,
+                                       8, 256,
                                        std::make_shared<ov::snippets::CPUShapeInferSnippetsFactory>());
     model = subgraph->body_ptr();
     model_ref = snippets_model->getLowered();
@@ -166,7 +163,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets, MulAddToFMATests,
                                 ::testing::ValuesIn(in_shapes_0),
                                 ::testing::ValuesIn(in_shapes_1),
                                 ::testing::ValuesIn(in_shapes_2),
-                                ::testing::Values(ov::PartialShape{1, 3, 16, 16}),
                                 ::testing::ValuesIn(in_idxes_for_add)),
                         MulAddToFMATests::getTestCaseName);
 } // namespace MulAddToFMATestsInstantiation

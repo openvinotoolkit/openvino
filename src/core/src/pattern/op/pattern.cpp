@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -105,6 +105,16 @@ std::function<bool(Output<Node>)> type_matches_any(const std::vector<element::Ty
         return std::any_of(expected_types.begin(), expected_types.end(), [=](element::Type type) {
             return type == output_type;
         });
+    };
+}
+
+std::function<bool(Output<Node>)> all_of(const std::vector<std::function<bool(Output<Node>)>>& predicates) {
+    return [=](Output<Node> output) -> bool {
+        for (auto& p : predicates) {
+            if (!p(output))
+                return false;
+        }
+        return true;
     };
 }
 }  // namespace pattern

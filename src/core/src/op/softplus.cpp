@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,13 +57,16 @@ bool SoftPlus::evaluate(TensorVector& outputs, const TensorVector& inputs) const
     const auto count = shape_size(input_shape);
     outputs[0].set_shape(input_shape);
     using namespace ov::element;
-    return IF_TYPE_OF(v4_SoftPlus_evaluate,
-                      OV_PP_ET_LIST(bf16, f16, f32),
-                      softplus::Evaluate,
-                      inputs[0].get_element_type(),
-                      inputs[0],
-                      outputs[0],
-                      count);
+    return IF_TYPE_OF_CONVERT_TENSORS(v4_SoftPlus_evaluate,
+                                      this,
+                                      outputs,
+                                      inputs,
+                                      OV_PP_ET_LIST(f32),
+                                      softplus::Evaluate,
+                                      inputs[0].get_element_type(),
+                                      inputs[0],
+                                      outputs[0],
+                                      count);
 }
 
 bool SoftPlus::has_evaluate() const {

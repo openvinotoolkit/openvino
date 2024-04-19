@@ -1,10 +1,13 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <fstream>
+#if defined(__MINGW32__) || defined(__MINGW64__)
+#    include <filesystem>
+#endif
 
 #include "openvino/core/any.hpp"
 #include "openvino/frontend/exception.hpp"
@@ -64,8 +67,12 @@ public:
             if (file_size < offset_size) {
                 return false;
             }
+#if defined(__MINGW32__) || defined(__MINGW64__)
+            std::ifstream tflite_stream(std::filesystem::path(path), std::ios::in | std::ifstream::binary);
+#else
             std::ifstream tflite_stream(path, std::ios::in | std::ifstream::binary);
-            char buf[offset_size * 2] = {};
+#endif
+            char buf[offset_size * 2 + 1] = {};  // +1 is used to overcome gcc's -Wstringop-overread warning
             tflite_stream.read(buf, offset_size * 2);
             // If we have enough readed bytes - try to detect prefixed identifier, else try without size prefix
             if ((tflite_stream.gcount() == offset_size * 2) && ::tflite::ModelBufferHasIdentifier(buf + offset_size)) {

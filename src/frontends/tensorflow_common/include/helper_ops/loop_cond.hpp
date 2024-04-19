@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,14 @@ public:
         auto data_shape = get_input_partial_shape(0);
 
         set_output_type(0, data_type, data_shape);
+    }
+
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
+        FRONT_END_OP_CONVERSION_CHECK(inputs.size() == 1,
+                                      "[TensorFlow Frontend] internal error: LoopCond expects one input");
+        auto loop_cond_node = std::make_shared<LoopCond>(inputs[0], m_decoder);
+        loop_cond_node->set_attrs(get_attrs());
+        return loop_cond_node;
     }
 };
 

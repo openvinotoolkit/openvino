@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,6 @@
 #include <transformations/utils/utils.hpp>
 #include <openvino/pass/manager.hpp>
 #include "ov_ops/type_relaxed.hpp"
-#include <ie_core.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
 

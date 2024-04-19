@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -354,6 +354,17 @@ void save_binary(const std::string& path, const char* binary, size_t bin_size);
  * @return Pointer to trimmed file name path.
  */
 const char* trim_file_name(const char* const fname);
+
+template <typename C>
+using enableIfSupportedChar =
+    typename std::enable_if<(std::is_same<C, char>::value || std::is_same<C, wchar_t>::value)>::type;
+
+template <typename C, typename = enableIfSupportedChar<C>>
+inline std::basic_string<C> make_path(const std::basic_string<C>& folder, const std::basic_string<C>& file) {
+    if (folder.empty())
+        return file;
+    return folder + ov::util::FileTraits<C>::file_separator + file;
+}
 
 }  // namespace util
 }  // namespace ov

@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -24,9 +23,14 @@ public:
     void executeDynamicImpl(dnnl::stream strm) override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
+    enum StatusCode : int {
+        OK = 0,
+        PARAMETER_MISMATCH = -1,
+    };
+
 private:
     template <typename data_t>
-    InferenceEngine::StatusCode rangeKernel();
+    StatusCode rangeKernel();
     template <typename data_t>
     size_t getWorkAmount(data_t* startPtr = nullptr, data_t* stopPtr = nullptr, data_t* stepPtr = nullptr) const;
 

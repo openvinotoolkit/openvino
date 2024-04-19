@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,6 @@
 #include "common_test_utils/test_control.hpp"
 #include "common_test_utils/test_tools.hpp"
 #include "gtest/gtest.h"
-#include "onnx_import/onnx.hpp"
 #include "onnx_utils.hpp"
 #include "openvino/op/max_pool.hpp"
 

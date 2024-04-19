@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <node.h>
-#include <onednn/dnnl.h>
+#include "onednn/dnnl.h"
 #include <cassert>
 
 #include <cpu/ref_eltwise.hpp>

@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ov_models/utils/ov_helpers.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -26,6 +25,7 @@ class GenerateProposalsLayerTest :
         virtual public SubgraphBaseTest {
 protected:
     void SetUp() override;
+    void compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) override;
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<GenerateProposalsTestParams>& obj);
 };

@@ -1,3 +1,4 @@
+import platform
 import pytest
 import tensorflow as tf
 
@@ -49,5 +50,7 @@ class TestTFLiteBinaryLayerTest(TFLiteLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
+    @pytest.mark.xfail(platform.machine() in ["aarch64", "arm64", "ARM64"],
+                       reason='Ticket - 123324')
     def test_binary(self, params, ie_device, precision, temp_dir):
         self._test(ie_device, precision, temp_dir, params)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,10 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/shape_util.hpp"
+#include "openvino/core/type/element_iterator.hpp"
 #include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
 
 namespace ov {
@@ -21,7 +23,7 @@ size_t ITensor::get_size() const {
 }
 
 size_t ITensor::get_byte_size() const {
-    return (get_size() * get_element_type().bitwidth() + 8 - 1) / 8;
+    return element::get_memory_size(get_element_type(), get_size());
 }
 
 bool ITensor::is_continuous() const {

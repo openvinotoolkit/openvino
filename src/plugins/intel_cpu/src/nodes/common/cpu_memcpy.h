@@ -1,13 +1,12 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <cstring>
-#include "ie_api.h"
 #include "openvino/core/parallel.hpp"
-#include <onednn/dnnl.h>
+#include "onednn/dnnl.h"
 
 namespace ov {
 namespace intel_cpu {

@@ -7,13 +7,12 @@
 #include "openvino/opsets/opset1.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "low_precision/network_helper.hpp"
-#include "ov_models/subgraph_builders.hpp"
 
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -101,19 +100,16 @@ std::shared_ptr<ov::opset1::Convolution> make_convolution(
 
         auto fqOnDataCopy = fqOnData;
         fqOnDataCopy.outputHighValues = {255.f};
-        fqOnDataCopy.outputPrecision = fqOnData.outputPrecision == element::undefined ? ov::element::u8 : fqOnData.outputPrecision;
+        fqOnDataCopy.outputPrecision =
+            fqOnData.outputPrecision == ov::element::undefined ? ov::element::u8 : fqOnData.outputPrecision;
 
         std::shared_ptr<Node> lastNode = makeFakeQuantizeTypeRelaxed(lastDequantization, precisionFqOnData, fqOnDataCopy);
-        lastNode = makeDequantization(
-            lastNode,
-            {
-                lastNode->output(0).get_element_type() != element::f32 ?
-                    DequantizationOperations::Convert{element::f32} :
-                    DequantizationOperations::Convert{},
-                {},
-                {{0.01f},
-                precisionFqOnData}
-            });
+        lastNode = makeDequantization(lastNode,
+                                      {lastNode->output(0).get_element_type() != ov::element::f32
+                                           ? DequantizationOperations::Convert{ov::element::f32}
+                                           : DequantizationOperations::Convert{},
+                                       {},
+                                       {{0.01f}, precisionFqOnData}});
         lastNode->set_friendly_name("output");
 
         ov::ResultVector results{ std::make_shared<ov::opset1::Result>(lastNode) };
@@ -206,4 +202,4 @@ std::shared_ptr<ov::Model> FuseFakeQuantizeFunction::get(
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

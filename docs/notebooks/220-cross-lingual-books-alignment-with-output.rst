@@ -22,7 +22,7 @@ The notebook guides you through the entire process of creating a
 parallel book: from obtaining raw texts to building a visualization of
 aligned sentences. Here is the pipeline diagram:
 
-|image0|
+|image01|
 
 Visualizing the result allows you to identify areas for improvement in
 the pipeline steps, as indicated in the diagram.
@@ -37,7 +37,8 @@ Prerequisites
 -  ``seaborn`` - for alignment matrix visualization
 -  ``ipywidgets`` - for displaying HTML and JS output in the notebook
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Get Books <#get-books>`__
 -  `Clean Text <#clean-text>`__
@@ -57,7 +58,14 @@ Prerequisites
 
 .. code:: ipython3
 
-    !pip install -q --extra-index-url https://download.pytorch.org/whl/cpu requests pysbd transformers[torch] "openvino>=2023.1.0" matplotlib seaborn ipywidgets
+    import platform
+
+    if platform.system() != "Windows":
+        %pip install -q "matplotlib>=3.4"
+    else:
+        %pip install -q "matplotlib>=3.4,<3.7"
+
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu requests pysbd transformers[torch] "openvino>=2023.1.0" seaborn ipywidgets
 
 Get Books
 ---------
@@ -82,23 +90,23 @@ To get the texts, we will pass the IDs to the
 .. code:: ipython3
 
     import requests
-    
-    
+
+
     def get_book_by_id(book_id: int, gutendex_url: str = "https://gutendex.com/") -> str:
         book_metadata_url = gutendex_url + "/books/" + str(book_id)
         request = requests.get(book_metadata_url, timeout=30)
         request.raise_for_status()
-    
+
         book_metadata = request.json()
         text_format_key = "text/plain"
         text_plain = [k for k in book_metadata["formats"] if k.startswith(text_format_key)]
         book_url = book_metadata["formats"][text_plain[0]]
         return requests.get(book_url).text
-    
-    
+
+
     en_book_id = 1399
     de_book_id = 44956
-    
+
     anna_karenina_en = get_book_by_id(en_book_id)
     anna_karenina_de = get_book_by_id(de_book_id)
 
@@ -111,8 +119,8 @@ Let’s check that we got the right books by showing a part of the texts:
 
 .. parsed-literal::
 
-    ﻿The Project Gutenberg eBook of Anna Karenina
-        
+    The Project Gutenberg eBook of Anna Karenina
+
     This ebook is for the use of anyone anywhere in the United States and
     most other parts of the world at no cost and with almost no restrictions
     whatsoever. You may copy it, give it away or re-use it under the terms
@@ -120,36 +128,36 @@ Let’s check that we got the right books by showing a part of the texts:
     at www.gutenberg.org. If you are not located in the United States,
     you will have to check the laws of the country where you are located
     before using this eBook.
-    
+
     Title: Anna Karenina
-    
-    
+
+
     Author: graf Leo Tolstoy
-    
+
     Translator: Constance Garnett
-    
+
     Release date: July 1, 1998 [eBook #1399]
                     Most recently updated: April 9, 2023
-    
+
     Language: English
-    
-    
-    
+
+
+
     *** START OF THE PROJECT GUTENBERG EBOOK ANNA KARENINA ***
     [Illustration]
-    
-    
-    
-    
-     ANNA KARENINA 
-    
-     by Leo Tolstoy 
-    
-     Translated by Constance Garnett 
-    
+
+
+
+
+     ANNA KARENINA
+
+     by Leo Tolstoy
+
+     Translated by Constance Garnett
+
     Contents
-    
-    
+
+
      PART ONE
      PART TWO
      PART THREE
@@ -158,18 +166,18 @@ Let’s check that we got the right books by showing a part of the texts:
      PART SIX
      PART SEVEN
      PART EIGHT
-    
-    
-    
-    
+
+
+
+
     PART ONE
-    
+
     Chapter 1
-    
-    
+
+
     Happy families are all alike; every unhappy family is unhappy in its
     own way.
-    
+
     Everything was in confusion in the Oblonskys’ house. The wife had
     discovered that the husband was carrying on an intrigue with a French
     girl, who had been a governess in their family, and she had announced
@@ -189,7 +197,7 @@ which in a raw format looks like this:
 
 .. parsed-literal::
 
-    '\ufeffThe Project Gutenberg eBook of Anna Karenina\r\n    \r\nThis ebook is for the use of anyone anywhere in the United States and\r\nmost other parts of the world at no cost and with almost no restrictions\r\nwhatsoever. You may copy it, give it away or re-use it under the terms\r\nof the Project Gutenberg License included with this ebook or online\r\nat www.gutenberg.org. If you are not located in the United States,\r\nyou will have to check the laws of the country where you are located\r\nbefore using this eBook.\r\n\r\nTitle: Anna Karenina\r\n\r\n\r\nAuthor: graf Leo Tolstoy\r\n\r\nTranslator: Constance Garnett\r\n\r\nRelease date: July 1, 1998 [eBook #1399]\r\n                Most recently updated: April 9, 2023\r\n\r\nLanguage: English\r\n\r\n\r\n\r\n\*\*\* START OF THE PROJECT GUTENBERG EBOOK ANNA KARENINA \*\*\*\r\n[Illustration]\r\n\r\n\r\n\r\n\r\n ANNA KARENINA \r\n\r\n by Leo Tolstoy \r\n\r\n Translated by Constance Garnett \r\n\r\nContents\r\n\r\n\r\n PART ONE\r\n PART TWO\r\n PART THREE\r\n PART FOUR\r\n PART FIVE\r\n PART SIX\r\n PART SEVEN\r\n PART EIGHT\r\n\r\n\r\n\r\n\r\nPART ONE\r\n\r\nChapter 1\r\n\r\n\r\nHappy families are all alike; every unhappy family is unhappy in its\r\nown way.\r\n\r\nEverything was in confusion in the Oblonskys’ house. The wife had\r\ndiscovered that the husband was carrying on an intrigue with a French\r\ngirl, who had been a governess in their family, and she had announced\r\nto her husband that she could not go on living in the same house with\r\nhim. This position of affairs had now lasted three days, and not only\r\nthe husband and wife themselves, but all the me'
+    '\ufeffThe Project Gutenberg eBook of Anna Karenina\r\n    \r\nThis ebook is for the use of anyone anywhere in the United States and\r\nmost other parts of the world at no cost and with almost no restrictions\r\nwhatsoever. You may copy it, give it away or re-use it under the terms\r\nof the Project Gutenberg License included with this ebook or online\r\nat www.gutenberg.org. If you are not located in the United States,\r\nyou will have to check the laws of the country where you are located\r\nbefore using this eBook.\r\n\r\nTitle: Anna Karenina\r\n\r\n\r\nAuthor: graf Leo Tolstoy\r\n\r\nTranslator: Constance Garnett\r\n\r\nRelease date: July 1, 1998 [eBook #1399]\r\n                Most recently updated: April 9, 2023\r\n\r\nLanguage: English\r\n\r\n\r\n\r\n*\*\* START OF THE PROJECT GUTENBERG EBOOK ANNA KARENINA *\*\*\r\n[Illustration]\r\n\r\n\r\n\r\n\r\n ANNA KARENINA \r\n\r\n by Leo Tolstoy \r\n\r\n Translated by Constance Garnett \r\n\r\nContents\r\n\r\n\r\n PART ONE\r\n PART TWO\r\n PART THREE\r\n PART FOUR\r\n PART FIVE\r\n PART SIX\r\n PART SEVEN\r\n PART EIGHT\r\n\r\n\r\n\r\n\r\nPART ONE\r\n\r\nChapter 1\r\n\r\n\r\nHappy families are all alike; every unhappy family is unhappy in its\r\nown way.\r\n\r\nEverything was in confusion in the Oblonskys’ house. The wife had\r\ndiscovered that the husband was carrying on an intrigue with a French\r\ngirl, who had been a governess in their family, and she had announced\r\nto her husband that she could not go on living in the same house with\r\nhim. This position of affairs had now lasted three days, and not only\r\nthe husband and wife themselves, but all the me'
 
 
 
@@ -240,11 +248,11 @@ the last occurrence of these asterisks.
     import re
     from contextlib import contextmanager
     from tqdm.auto import tqdm
-    
-    
+
+
     start_pattern_en = r"\nPART ONE"
     anna_karenina_en = re.split(start_pattern_en, anna_karenina_en)[1].strip()
-    
+
     end_pattern_en = "*** END OF THE PROJECT GUTENBERG EBOOK ANNA KARENINA ***"
     anna_karenina_en = anna_karenina_en.split(end_pattern_en)[0].strip()
 
@@ -277,12 +285,12 @@ Let’s cut it out and define some cleaning functions.
 
     def remove_single_newline(text: str) -> str:
         return re.sub(r"\n(?!\n)", " ", text)
-    
-    
+
+
     def unify_quotes(text: str) -> str:
         return re.sub(r"['\"»«“”]", '"', text)
-    
-    
+
+
     def remove_markup(text: str) -> str:
         text = text.replace(">=", "").replace("=<", "")
         return re.sub(r"_\w|\w_", "", text)
@@ -295,29 +303,29 @@ needed.
 .. code:: ipython3
 
     disable_tqdm = False
-    
-    
+
+
     @contextmanager
     def disable_tqdm_context():
         global disable_tqdm
         disable_tqdm = True
         yield
         disable_tqdm = False
-    
-    
+
+
     def clean_text(text: str) -> str:
         text_cleaning_pipeline = [
             remove_single_newline,
             unify_quotes,
             remove_markup,
-        ]    
+        ]
         progress_bar = tqdm(text_cleaning_pipeline, disable=disable_tqdm)
         for clean_func in progress_bar:
             progress_bar.set_postfix_str(clean_func.__name__)
             text = clean_func(text)
         return text
-    
-    
+
+
     chapter_1_en = clean_text(chapter_1_en)
     chapter_1_de = clean_text(chapter_1_de)
 
@@ -356,15 +364,15 @@ languages.
 .. code:: ipython3
 
     import pysbd
-    
-    
+
+
     splitter_en = pysbd.Segmenter(language="en", clean=True)
     splitter_de = pysbd.Segmenter(language="de", clean=True)
-    
-    
+
+
     sentences_en = splitter_en.segment(chapter_1_en)
     sentences_de = splitter_de.segment(chapter_1_de)
-    
+
     len(sentences_en), len(sentences_de)
 
 
@@ -399,12 +407,12 @@ languages. It has the same architecture as the BERT model but has been
 trained on a different task: to produce identical embeddings for
 translation pairs.
 
-|image01|
+|image0|
 
 This makes LaBSE a great choice for our task and it can be reused for
 different language pairs still producing good results.
 
-.. |image01| image:: https://user-images.githubusercontent.com/51917466/254582913-51531880-373b-40cb-bbf6-1965859df2eb.png
+.. |image01| image:: https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/627d3a39-7076-479f-a7b1-392f49a0b83e
 
 .. code:: ipython3
 
@@ -414,8 +422,8 @@ different language pairs still producing good results.
     import torch
     from openvino.runtime import CompiledModel as OVModel
     import openvino as ov
-    
-    
+
+
     model_id = "rasa/LaBSE"
     pt_model = AutoModel.from_pretrained(model_id)
     tokenizer = AutoTokenizer.from_pretrained(model_id)
@@ -450,8 +458,8 @@ best fit.
                 for sent in tqdm(sentences, disable=disable_tqdm)
             ]
             return torch.vstack(embeddings)
-    
-    
+
+
     embeddings_en_pt = get_embeddings(sentences_en, pt_model)
     embeddings_de_pt = get_embeddings(sentences_de, pt_model)
 
@@ -474,13 +482,29 @@ Optimize the Model with OpenVINO
 
 
 The LaBSE model is quite large and can be slow to infer on some
-hardware, so let’s optimize it with OpenVINO. `Model conversion Python
-API <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
+hardware, so let’s optimize it with OpenVINO. `Model Conversion
+API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/conversion-parameters.html>`__
 accepts the PyTorch/Transformers model object and additional information
 about model inputs. An ``example_input`` is needed to trace the model
 execution graph, as PyTorch constructs it dynamically during inference.
 The converted model must be compiled for the target device using the
 ``Core`` object before it can be used.
+
+For starting work, we should select device for inference first:
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+
+    core = ov.Core()
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+
+    device
 
 .. code:: ipython3
 
@@ -491,10 +515,10 @@ The converted model must be compiled for the target device using the
         example_input=tokenizer("test", return_tensors="pt").data,
         input=inputs_info,
     )
-    
+
     core = ov.Core()
-    compiled_model = core.compile_model(ov_model, "CPU")
-    
+    compiled_model = core.compile_model(ov_model, device.value)
+
     embeddings_en = get_embeddings(sentences_en, compiled_model)
     embeddings_de = get_embeddings(sentences_de, compiled_model)
 
@@ -550,40 +574,40 @@ the converted model is the same as the original one.
 
     import seaborn as sns
     import matplotlib.pyplot as plt
-    
-    
+
+
     sns.set_style("whitegrid")
-    
-    
+
+
     def transform(x):
         x = x - np.mean(x)
         return x / np.var(x)
-    
-    
+
+
     def calculate_alignment_matrix(
         first: np.ndarray, second: np.ndarray, threshold: float = 1e-3
     ) -> np.ndarray:
         similarity = first @ second.T  # 1
         similarity_en_to_de = np.apply_along_axis(transform, -1, similarity)  # 2
         similarity_de_to_en = np.apply_along_axis(transform, -2, similarity)  # 2
-    
+
         both_one = (similarity_en_to_de > threshold) * (
             similarity_de_to_en > threshold
         )  # 3 and 4
         return both_one
-    
-    
+
+
     threshold = 0.028
-    
+
     alignment_matrix = calculate_alignment_matrix(embeddings_en, embeddings_de, threshold)
     alignment_matrix_pt = calculate_alignment_matrix(
         embeddings_en_pt.detach().numpy(),
         embeddings_de_pt.detach().numpy(),
         threshold,
     )
-    
+
     graph, axis = plt.subplots(1, 2, figsize=(10, 5), sharey=True)
-    
+
     for matrix, ax, title in zip(
         (alignment_matrix, alignment_matrix_pt), axis, ("OpenVINO", "PyTorch")
     ):
@@ -592,12 +616,12 @@ the converted model is the same as the original one.
         plot.set_xlabel("German")
         if title == "OpenVINO":
             plot.set_ylabel("English")
-    
+
     graph.tight_layout()
 
 
 
-.. image:: 220-cross-lingual-books-alignment-with-output_files/220-cross-lingual-books-alignment-with-output_31_0.png
+.. image:: 220-cross-lingual-books-alignment-with-output_files/220-cross-lingual-books-alignment-with-output_32_0.png
 
 
 After visualizing and comparing the alignment matrices, let’s transform
@@ -612,8 +636,8 @@ will be lists of German sentence numbers.
         for en_idx, de_idx in zip(*np.nonzero(alignment_matrix)):
             aligned[en_idx].append(de_idx)
         return aligned
-    
-    
+
+
     aligned = make_alignment(alignment_matrix)
     aligned
 
@@ -698,22 +722,22 @@ and JS.
     from IPython.display import display, HTML
     from itertools import zip_longest
     from io import StringIO
-    
-    
+
+
     def create_interactive_table(
         list1: List[str], list2: List[str], mapping: Dict[int, List[int]]
     ) -> str:
         def inverse_mapping(mapping):
             inverse_map = {idx: [] for idx in range(len(list2))}
-    
+
             for key, values in mapping.items():
                 for value in values:
                     inverse_map[value].append(key)
-    
+
             return inverse_map
-    
+
         inversed_mapping = inverse_mapping(mapping)
-    
+
         table_html = StringIO()
         table_html.write(
             '<table id="mappings-table"><tr><th>Sentences EN</th><th>Sentences DE</th></tr>'
@@ -729,9 +753,9 @@ and JS.
             else:
                 table_html.write("<td></td>")
             table_html.write("</tr>")
-    
+
         table_html.write("</table>")
-    
+
         hover_script = (
             """
         <script type="module">
@@ -745,25 +769,25 @@ and JS.
             + str(inversed_mapping)
             + """
           };
-    
+
           const table = document.getElementById('mappings-table');
           let highlightedIds = [];
-    
+
           table.addEventListener('mouseover', ({ target }) => {
             if (target.tagName !== 'TD' || !target.id) {
               return;
             }
-    
+
             const [listName, listId] = target.id.split('-');
             const mappedIds = mappings[listName]?.[listId]?.map((id) => `${listName === 'list1' ? 'list2' : 'list1'}-${id}`) || [];
             const idsToHighlight = [target.id, ...mappedIds];
-    
+
             setBackgroud(idsToHighlight, highlightColor, textColor);
             highlightedIds = idsToHighlight;
           });
-    
+
           table.addEventListener('mouseout', () => setBackgroud(highlightedIds, ''));
-    
+
           function setBackgroud(ids, color, text_color="unset") {
             ids.forEach((id) => {
                 document.getElementById(id).style.backgroundColor = color;
@@ -793,25 +817,25 @@ and JS.
             'list1': {0: [0], 1: [2], 2: [3], 3: [4], 4: [5], 5: [6], 6: [7], 7: [8], 8: [9, 10], 9: [11], 10: [13, 14], 11: [15], 12: [16], 13: [17], 14: [], 15: [18], 16: [19], 17: [20], 18: [21], 19: [23], 20: [24], 21: [25], 22: [26], 23: [], 24: [27], 25: [], 26: [28], 27: [29], 28: [30], 29: [31], 30: [32], 31: [33]},
             'list2': {0: [0], 1: [], 2: [1], 3: [2], 4: [3], 5: [4], 6: [5], 7: [6], 8: [7], 9: [8], 10: [8], 11: [9], 12: [], 13: [10], 14: [10], 15: [11], 16: [12], 17: [13], 18: [15], 19: [16], 20: [17], 21: [18], 22: [], 23: [19], 24: [20], 25: [21], 26: [22], 27: [24], 28: [26], 29: [27], 30: [28], 31: [29], 32: [30], 33: [31]}
           };
-    
+
           const table = document.getElementById('mappings-table');
           let highlightedIds = [];
-    
+
           table.addEventListener('mouseover', ({ target }) => {
             if (target.tagName !== 'TD' || !target.id) {
               return;
             }
-    
+
             const [listName, listId] = target.id.split('-');
             const mappedIds = mappings[listName]?.[listId]?.map((id) => `${listName === 'list1' ? 'list2' : 'list1'}-${id}`) || [];
             const idsToHighlight = [target.id, ...mappedIds];
-    
+
             setBackgroud(idsToHighlight, highlightColor, textColor);
             highlightedIds = idsToHighlight;
           });
-    
+
           table.addEventListener('mouseout', () => setBackgroud(highlightedIds, ''));
-    
+
           function setBackgroud(ids, color, text_color="unset") {
             ids.forEach((id) => {
                 document.getElementById(id).style.backgroundColor = color;
@@ -833,8 +857,8 @@ Save the OpenVINO model to disk for future use:
 .. code:: ipython3
 
     from openvino.runtime import serialize
-    
-    
+
+
     ov_model_path = "ov_model/model.xml"
     serialize(ov_model, ov_model_path)
 
@@ -855,7 +879,7 @@ the pipeline - getting embeddings. You might wonder why, when using
 OpenVINO, you need to compile the model after reading it. There are two
 main reasons for this: 1. Compatibility with different devices. The
 model can be compiled to run on a `specific
-device <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Working_with_devices.html>`__,
+device <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes.html>`__,
 like CPU, GPU or GNA. Each device may work with different data types,
 support different features, and gain performance by changing the neural
 network for a specific computing model. With OpenVINO, you do not need
@@ -864,31 +888,31 @@ hardware. A universal OpenVINO model representation is enough. 1.
 Optimization for different scenarios. For example, one scenario
 prioritizes minimizing the *time between starting and finishing model
 inference* (`latency-oriented
-optimization <https://docs.openvino.ai/2023.0/openvino_docs_deployment_optimization_guide_latency.html>`__).
+optimization <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/optimizing-latency.html>`__).
 In our case, it is more important *how many texts per second the model
 can process* (`throughput-oriented
-optimization <https://docs.openvino.ai/2023.0/openvino_docs_deployment_optimization_guide_tput.html>`__).
+optimization <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/optimizing-throughput.html>`__).
 
 To get a throughput-optimized model, pass a `performance
-hint <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Performance_Hints.html#performance-hints-latency-and-throughput>`__
+hint <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/high-level-performance-hints.html#performance-hints-latency-and-throughput>`__
 as a configuration during compilation. Then OpenVINO selects the optimal
 parameters for execution on the available hardware.
 
 .. code:: ipython3
 
     from typing import Any
-    
-    
+
+
     compiled_throughput_hint = core.compile_model(
         ov_model,
-        device_name="CPU",
+        device_name=device.value,
         config={"PERFORMANCE_HINT": "THROUGHPUT"},
     )
 
 To further optimize hardware utilization, let’s change the inference
 mode from synchronous (Sync) to asynchronous (Async). While the
 synchronous API may be easier to start with, it is
-`recommended <https://docs.openvino.ai/2022.1/openvino_docs_deployment_optimization_guide_common.html#prefer-openvino-async-api>`__
+`recommended <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/general-optimizations.html#prefer-openvino-async-api>`__
 to use the asynchronous (callbacks-based) API in production code. It is
 the most general and scalable way to implement flow control for any
 number of requests.
@@ -912,29 +936,29 @@ advance and fill it in as the inference requests are executed.
             embedding = infer_request.get_output_tensor(0).data[0, 0]
             embeddings[idx] = embedding
             pbar.update()
-    
+
         infer_queue = ov.AsyncInferQueue(embedding_model)
         infer_queue.set_callback(callback)
-    
+
         embedding_dim = (
             embedding_model.output(0).get_partial_shape().get_dimension(2).get_length()
         )
         embeddings = np.zeros((len(sentences), embedding_dim))
-    
+
         with tqdm(total=len(sentences), disable=disable_tqdm) as pbar:
             for idx, sent in enumerate(sentences):
                 tokenized = tokenizer(sent, return_tensors="np").data
-    
+
                 infer_queue.start_async(tokenized, [embeddings, idx, pbar])
-    
+
             infer_queue.wait_all()
-    
+
         return embeddings
 
 Let’s compare the models and plot the results.
 
    **Note**: To get a more accurate benchmark, use the `Benchmark Python
-   Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+   Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
 
 .. code:: ipython3
 
@@ -961,8 +985,8 @@ Let’s compare the models and plot the results.
 
     import pandas as pd
     from time import perf_counter
-    
-    
+
+
     benchmarks = [
         (pt_model, get_embeddings, "PyTorch"),
         (compiled_model, get_embeddings, "OpenVINO\nSync"),
@@ -972,12 +996,12 @@ Let’s compare the models and plot the results.
             "OpenVINO\nThroughput Hint\nAsync",
         ),
     ]
-    
+
     number_of_sentences = 100
     benchmark_data = more_sentences_en[: min(number_of_sentences, len(more_sentences_en))]
-    
+
     benchmark_results = {name: [] for *_, name in benchmarks}
-    
+
     benchmarks_iterator = tqdm(benchmarks, leave=False, disable=disable_tqdm)
     for model, func, name in benchmarks_iterator:
         printable_name = name.replace("\n", " ")
@@ -990,7 +1014,7 @@ Let’s compare the models and plot the results.
                 func(benchmark_data, model)
                 end = perf_counter()
             benchmark_results[name].append(len(benchmark_data) / (end - start))
-    
+
     benchmark_dataframe = pd.DataFrame(benchmark_results)[1:]
 
 
@@ -1021,7 +1045,7 @@ Let’s compare the models and plot the results.
 .. code:: ipython3
 
     cpu_name = core.get_property("CPU", "FULL_DEVICE_NAME")
-    
+
     plot = sns.barplot(benchmark_dataframe, errorbar="sd")
     plot.set(
         ylabel="Sentences Per Second", title=f"Sentence Embeddings Benchmark\n{cpu_name}"
@@ -1033,7 +1057,7 @@ Let’s compare the models and plot the results.
 
 
 
-.. image:: 220-cross-lingual-books-alignment-with-output_files/220-cross-lingual-books-alignment-with-output_48_0.png
+.. image:: 220-cross-lingual-books-alignment-with-output_files/220-cross-lingual-books-alignment-with-output_49_0.png
 
 
 On an Intel Core i9-10980XE CPU, the OpenVINO model processed 45% more
@@ -1043,8 +1067,8 @@ boost.
 
 Here are useful links with information about the techniques used in this
 notebook: - `OpenVINO performance
-hints <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Performance_Hints.html>`__
+hints <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/high-level-performance-hints.html>`__
 - `OpenVINO Async
-API <https://docs.openvino.ai/2023.0/openvino_docs_deployment_optimization_guide_common.html#prefer-openvino-async-api>`__
+API <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/general-optimizations.html#prefer-openvino-async-api>`__
 - `Throughput
-Optimizations <https://docs.openvino.ai/2023.0/openvino_docs_deployment_optimization_guide_tput.html>`__
+Optimizations <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/optimizing-throughput.html>`__

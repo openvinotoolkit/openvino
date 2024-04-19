@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -86,13 +86,6 @@ if(ENABLE_INTEL_CPU)
     ov_coverage_extract(INPUT "openvino" OUTPUT "intel_cpu_plugin"
                         PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/plugins/intel_cpu/*")
     ov_coverage_genhtml(INFO_FILE "intel_cpu_plugin"
-                        PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
-endif()
-
-if(ENABLE_INTEL_GNA)
-    ov_coverage_extract(INPUT "openvino" OUTPUT "intel_gna_plugin"
-                        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/plugins/intel_gna/*")
-    ov_coverage_genhtml(INFO_FILE "intel_gna_plugin"
                         PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 endif()
 

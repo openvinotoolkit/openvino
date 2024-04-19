@@ -38,7 +38,8 @@ Notebook contains the following steps:
 2. Convert models to OpenVINO IR format, using model conversion API.
 3. Run Stable Diffusion pipeline with OpenVINO.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Prerequisites <#prerequisites>`__
 -  `login to huggingfacehub to get access to pretrained
@@ -72,7 +73,7 @@ not, you do not have to do anything. Just run the notebook.**
    its weights. Visit the `stable-diffusion-v1-4
    card <https://huggingface.co/CompVis/stable-diffusion-v1-4>`__ to
    read and accept the license before you proceed. To use this diffusion
-   model, you must be a registered user in 🤗 Hugging Face Hub. You will
+   model, you must be a registered user in Hugging Face Hub. You will
    need to use an access token for the code below to run. For more
    information on access tokens, refer to `this section of the
    documentation <https://huggingface.co/docs/hub/security-tokens>`__.
@@ -80,10 +81,10 @@ not, you do not have to do anything. Just run the notebook.**
    following code:
 
 .. code:: python
-   :force:
+
 
    ## login to huggingfacehub to get access to pretrained model
-
+   [back to top ⬆️](#Table-of-contents:)
    from huggingface_hub import notebook_login, whoami
 
    try:
@@ -1375,7 +1376,7 @@ Interactive demo
 
 
 
-.. .. raw:: html
 
-..     <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

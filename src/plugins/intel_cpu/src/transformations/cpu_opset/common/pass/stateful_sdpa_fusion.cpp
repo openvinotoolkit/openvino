@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@
 #include <cstdint>
 #include <limits>
 #include <openvino/core/rt_info.hpp>
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include <openvino/opsets/opset13.hpp>
 #include <openvino/opsets/opset6.hpp>
 #include <openvino/opsets/opset8.hpp>
@@ -35,8 +35,8 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
     auto cur_k = any_input();
     auto cur_v = any_input();
 
-    auto axis_seq_len = Symbol("axis_seq_len");
-    auto axis_beam = Symbol("axis_beam");
+    auto axis_seq_len = ov::gen_pattern::Symbol("axis_seq_len");
+    auto axis_beam = ov::gen_pattern::Symbol("axis_beam");
 
     // past_kv can be BHLS/LBHS
     auto past_k = makePattern<opset6::ReadValue>({});
@@ -55,14 +55,21 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
 
     auto multi_query_bcst = [](std::shared_ptr<Node> kv) {
         auto reshape_kv = wrap_type<opset6::Reshape>({kv, any_input()});
-        auto unsqueeze_kv = makePattern<opset1::Unsqueeze>({kv, -2});
-        auto constant_bcst = makeConst(ov::element::f32, ov::PartialShape("[...]"), [](ov::op::v0::Constant& node) {
-            const auto& bcst_arg = node.cast_vector<float>();
+        auto unsqueeze_kv = makePattern<opset1::Unsqueeze>({kv, any_input()});
+
+        auto check_one = [] (Output<Node> output) -> bool {
+            auto node = std::dynamic_pointer_cast<opset1::Constant>(output.get_node_shared_ptr());
+            const auto& bcst_arg = node->cast_vector<float>();
             return std::all_of(bcst_arg.begin(), bcst_arg.end(), [](float i) {
-                return i == 1.0;
+                return i == 1.0f;
             });
-        });
-        auto multiply_kv = wrap_type<opset6::Multiply>({reshape_kv | unsqueeze_kv, constant_bcst});
+        };
+        auto constant_bcst = wrap_type<opset1::Constant>(check_one);
+
+        auto computed_bcst = makePattern<opset1::Broadcast>({wrap_type<opset1::Constant>(check_one),
+            any_input(), any_input()}, {{"mode", "numpy"}});
+
+        auto multiply_kv = wrap_type<opset6::Multiply>({reshape_kv | unsqueeze_kv, constant_bcst | computed_bcst});
         return wrap_type<opset6::Reshape>({multiply_kv, any_input()});
     };
 
@@ -94,7 +101,6 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
-
         PatternValidator validator(m);
         if (!validator) {
             return false;
@@ -102,8 +108,6 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
 
         auto find_assign = [&](const ov::Output<ov::Node>& out, opset6::Assign*& assign, opset1::Convert*& cvt) {
             auto present_to = out.get_target_inputs();
-            if (present_to.size() != 2)
-                return false;
             for (auto& to : present_to) {
                 auto to_node = to.get_node();
                 if (auto convert = dynamic_cast<opset1::Convert*>(to_node)) {
@@ -142,6 +146,28 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         }
         const auto concat_k_node = ov::as_type_ptr<opset6::Concat>(pattern_map.at(concat_k).get_node_shared_ptr());
         const auto concat_v_node = ov::as_type_ptr<opset6::Concat>(pattern_map.at(concat_v).get_node_shared_ptr());
+
+        for (auto&& item : {concat_k_node, concat_v_node}) {
+            auto&& children = item->get_output_target_inputs(0);
+            switch (children.size()) {
+                case 2:
+                    // pass, as the existence of Assign will be checked later
+                    break;
+                case 3:
+                    // the first one leads to SDPA, otherwise the matcher doesn't find the pattern
+                    // the second one leads to Assign, and this is checked later
+                    // the third child is allowed to be a ShapeOf op only, thus one of them must be ShapeOf
+                    if (!std::any_of(children.begin(), children.end(), [](const ov::Input<ov::Node>& child) {
+                            return ov::is_type<ov::op::v3::ShapeOf>(child.get_node()) ||
+                                ov::is_type<ov::op::v0::ShapeOf>(child.get_node());
+                        })) {
+                        return false;
+                    }
+                    break;
+                default:
+                    return false;
+            }
+        }
 
         opset6::Assign *assign_k_node = nullptr, *assign_v_node = nullptr;
         opset1::Convert *assign_cvt_k_node = nullptr, *assign_cvt_v_node = nullptr;
@@ -192,9 +218,10 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
             }
         }
 
-        auto old_node = sdp_node;
+        auto& old_node = sdp_node;
         auto new_node = std::make_shared<ov::intel_cpu::ScaledDotProductAttentionWithKVCache>(args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
+        copy_runtime_info(old_node, new_node);
         ov::replace_node(old_node, {new_node->output(0)});
         if (assign_cvt_k_node)
             assign_cvt_k_node->set_arguments({new_node->output(1)});

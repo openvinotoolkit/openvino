@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -281,7 +281,7 @@ ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
     auto mul = pattern::wrap_type<ov::op::v1::Multiply>({reshape_1, mul_const});
     auto reshape_2 = pattern::wrap_type<ov::op::v1::Reshape>({mul, concat_2});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         const auto reshape_2_node =

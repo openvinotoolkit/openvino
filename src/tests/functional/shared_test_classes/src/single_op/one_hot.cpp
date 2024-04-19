@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,7 +65,7 @@ void OneHotLayerTest::SetUp() {
     auto onehot = std::make_shared<ov::op::v1::OneHot>(param, depth_const, on_value_const, off_value_const, axis);
 
     auto result = std::make_shared<ov::op::v0::Result>(onehot);
-    function = std::make_shared<ngraph::Function>(result, ov::ParameterVector{param}, "OneHot");
+    function = std::make_shared<ov::Model>(result, ov::ParameterVector{param}, "OneHot");
 }
 }  // namespace test
 }  // namespace ov

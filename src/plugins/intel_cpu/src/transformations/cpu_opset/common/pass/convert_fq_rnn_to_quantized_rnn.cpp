@@ -13,7 +13,6 @@
 #include "openvino/core/type/element_type.hpp"
 #include <ov_ops/type_relaxed.hpp>
 
-#include "ie_common.h"
 #include "itt.hpp"
 #include "openvino/core/type/element_type.hpp"
 

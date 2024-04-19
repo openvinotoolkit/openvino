@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ quantize_kernel_selector::quantize_kernel_selector() {
     Attach<QuantizeKernelScaleShift>();
 }
 
-KernelsData quantize_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::QUANTIZE);
+KernelsData quantize_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::QUANTIZE);
 }
 }  // namespace kernel_selector

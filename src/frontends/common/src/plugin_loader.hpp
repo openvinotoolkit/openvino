@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,12 +10,7 @@
 #include <unordered_map>
 
 #include "openvino/frontend/manager.hpp"
-
-#ifdef _WIN32
-static const char PathSeparator[] = ";";
-#else
-static const char PathSeparator[] = ":";
-#endif  // _WIN32
+#include "openvino/util/file_util.hpp"
 
 namespace ov {
 namespace frontend {

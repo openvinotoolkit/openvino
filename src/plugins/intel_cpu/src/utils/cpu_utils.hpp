@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,6 @@
 #include <numeric>
 #include <vector>
 
-#include "ie_common.h"
-#include "ie_layouts.h"
 #include "general_utils.h"
 #include "precision_support.h"
 

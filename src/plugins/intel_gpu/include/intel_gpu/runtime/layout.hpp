@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -336,6 +336,10 @@ struct layout {
     /// Modify padding in layout
     layout with_padding(padding const& padd) const;
 
+    bool has_dynamic_pad() const {
+        return data_padding.get_dynamic_pad_dims() != tensor(0);
+    }
+
     /// Data type stored in @ref memory (see. @ref data_types)
     ov::element::Type_t data_type;
 
@@ -428,6 +432,13 @@ struct layout {
             auto v = pshape[idx].is_dynamic() ? -1 : pshape[idx].get_length();
             seed = hash_combine(seed, v);
         }
+
+        if (format == format::custom) {
+            for (auto& bs : format.traits().block_sizes) {
+                seed = hash_combine(seed, bs.first);
+                seed = hash_combine(seed, bs.second);
+            }
+        }
         return seed;
     }
 
@@ -439,6 +450,9 @@ private:
 inline ::std::ostream& operator<<(::std::ostream& os, const layout& p) {
     return os << p.to_string();
 }
+
+using optional_data_type = optional_value<data_types>;
+using optional_layout = optional_value<layout>;
 
 /// @}
 /// @}

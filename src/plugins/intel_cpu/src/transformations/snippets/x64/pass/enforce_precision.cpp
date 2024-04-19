@@ -11,6 +11,7 @@
 #include "openvino/core/rt_info.hpp"
 #include "snippets/pass/propagate_precision.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ov::intel_cpu::pass;
 
@@ -30,6 +31,8 @@ bool EnforcePrecision::run_on_model(const std::shared_ptr<ov::Model>& f) {
 
     bool was_updated = false;
     for (const auto& op : f->get_ordered_ops()) {
+        ov::op::util::process_subgraph(*this, op);
+
         const auto& precisions = get_supported_precisions(op);
 
         if (precisions.empty()) {

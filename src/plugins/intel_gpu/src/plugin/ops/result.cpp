@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -19,14 +20,9 @@ static void CreateResultOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::
     validate_inputs_count(op, {1});
 
     auto prev = op->get_input_node_shared_ptr(0);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto input_id = ov::descriptor::get_ov_tensor_legacy_name(op->get_input_source_output(0).get_tensor());
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    if (input_id.empty()) {
-        input_id = prev->get_friendly_name();
-        if (prev->get_output_size() > 1) {
-            input_id += "." + std::to_string(op->get_input_source_output(0).get_index());
-        }
+    auto input_id = prev->get_friendly_name();
+    if (prev->get_output_size() > 1) {
+        input_id += "." + std::to_string(op->get_input_source_output(0).get_index());
     }
     auto inputs = p.GetInputInfo(op);
 
@@ -40,8 +36,13 @@ static void CreateResultOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::
                                             inputs[0],
                                             out_format,
                                             out_data_type);
-    p.add_primitive(*op, reorder_primitive, {input_id, op->get_friendly_name()});
-    p.prevPrimitiveIDs[out_primitive_name] = {input_id};
+    p.add_primitive(*op, reorder_primitive, { input_id, op->get_friendly_name() });
+
+    if (!p.is_query_mode()) {
+        int64_t port_index = p.get_result_index(op);
+        OPENVINO_ASSERT(port_index != -1, "[GPU] Result port index for ", input_id, " not found");
+        p.prevPrimitiveIDs[port_index] = input_id;
+    }
 }
 
 REGISTER_FACTORY_IMPL(v0, Result);

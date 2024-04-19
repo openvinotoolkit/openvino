@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -48,11 +48,11 @@ if (NOT BIN_FOLDER)
 endif()
 
 if(OpenVINO_SOURCE_DIR)
-    # in case if samples are built from IE repo
+    # in case if samples are built from OV repo
     set(OV_MAIN_SAMPLES_DIR "${OpenVINO_SOURCE_DIR}")
     set(OpenVINO_DIR "${CMAKE_BINARY_DIR}")
 else()
-    # in case if samples are built out of IE repo
+    # in case if samples are built out of OV repo
     set(OV_MAIN_SAMPLES_DIR ${CMAKE_CURRENT_BINARY_DIR})
 endif()
 

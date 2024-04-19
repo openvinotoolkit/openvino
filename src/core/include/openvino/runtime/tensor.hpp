@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -258,10 +258,5 @@ public:
  * @brief A vector of Tensor's
  */
 using TensorVector = std::vector<Tensor>;
-
-namespace runtime {
-using ov::Tensor;
-using ov::TensorVector;
-}  // namespace runtime
 
 }  // namespace ov

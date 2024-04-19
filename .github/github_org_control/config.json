@@ -6,7 +6,6 @@
         "openvino-ci",
         "openvino-pushbot",
         "workbench-ci-bot",
-        "openvino-pot-ci",
         "sysicvvpux",
         "ote-ci-bot"
     ],
@@ -24,7 +23,6 @@
         "openvino-docs-maintainers": "category: docs",
         "openvino-ie-maintainers": "category: inference",
         "openvino-ie-cpu-maintainers": "category: CPU",
-        "openvino-ie-gna-maintainers": "category: GNA",
         "openvino-ie-gpu-maintainers": "category: GPU",
         "openvino-ie-lpt-maintainers": "category: LP transformations",
         "openvino-ie-transformations-maintainers": "category: transformations",
@@ -43,7 +41,6 @@
         "openvino-scripts-maintainers": "category: build",
         "openvino-tests-maintainers": "category: IE Tests",
         "openvino-tools-maintainers": "category: tools",
-        "openvino-pot-maintainers": "category: POT",
         "openvino-configuration-mgmt": "category: dependency_changes",
         "openvino-samples-maintainers": "category: samples",
         "openvino-c-api-maintainers": "category: C API"

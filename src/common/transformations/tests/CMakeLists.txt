@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -16,11 +16,10 @@ ov_add_test_target(
         gmock
         func_test_utils
         openvino::offline_transformations
+        openvino::reference
         sharedTestClasses
         ov_lpt_models
     ADD_CLANG_FORMAT
-    INCLUDES
-        $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src
     LABELS
         OV UNIT TRANSFORMATIONS
 )

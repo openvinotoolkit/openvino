@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,7 +61,7 @@ public:
         const ov::PartialShape& shape,
         const TestTransformationParams& params);
 
-    static ngraph::builder::subgraph::DequantizationOperations toDequantizationOperations(
+    static ov::builder::subgraph::DequantizationOperations toDequantizationOperations(
         const ov::pass::low_precision::FakeQuantizeDequantization& dequantization);
 
     static bool allNamesAreUnique(const std::shared_ptr<ov::Model>& model);

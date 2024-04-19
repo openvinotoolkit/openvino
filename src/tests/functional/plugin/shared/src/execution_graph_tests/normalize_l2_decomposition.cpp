@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,8 @@
 #include <gtest/gtest.h>
 #include <memory>
 
-#include <openvino/runtime/core.hpp>
-#include <openvino/opsets/opset9.hpp>
+#include "openvino/runtime/core.hpp"
+#include "openvino/opsets/opset9.hpp"
 
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "common_test_utils/ov_test_utils.hpp"

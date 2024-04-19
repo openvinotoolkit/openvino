@@ -1,13 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "perf_count.h"
 #include <vector>
-#include <utility>
-#include <ie_common.h>
+
 #include "cpu_types.h"
 #include "openvino/core/partial_shape.hpp"
 
@@ -218,6 +216,18 @@ private:
     VectorDims maxDims;
     VectorDims dims;
 };
+
+/**
+ * @brief Merges two shapes overlapping their dims intervals.
+ * @note When one of the dims intervals are not overlapped an exception is thrown.
+ * @param lhs
+ * first shape
+ * @param rhs
+ * second shape
+ * @return resulting shape
+ */
+
+Shape mergeShapes(const Shape& lhs, const Shape& rhs);
 
 }   // namespace intel_cpu
 }   // namespace ov

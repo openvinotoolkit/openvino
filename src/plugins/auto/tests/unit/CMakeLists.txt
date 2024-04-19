@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -18,13 +18,11 @@ ov_add_test_target(
             ${CMAKE_CURRENT_SOURCE_DIR}
             ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src
         LINK_LIBRARIES
-            ov_models
             unit_test_utils
         ADD_CPPLINT
         DEPENDENCIES
-            template_extension
+            openvino_template_extension
             mock_engine
-            ov_models
         LABELS
             OV UNIT MULTI AUTO
 )

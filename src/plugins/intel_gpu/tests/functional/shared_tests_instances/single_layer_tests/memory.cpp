@@ -2,44 +2,41 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-
-#include "single_layer_tests/memory.h"
-
-using namespace LayerTestsDefinitions;
+#include "single_op_tests/memory.h"
 
 namespace {
+using ov::test::MemoryLayerTest;
+using ov::test::MemoryV3LayerTest;
 
-const std::vector<InferenceEngine::SizeVector> inShapes = {
+const std::vector<ov::Shape> inShapes = {
         {1},
         {3},
         {3, 3, 3},
         {2, 3, 4, 5},
 };
 
-const std::vector<InferenceEngine::Precision> inputPrecisions = {
-        InferenceEngine::Precision::I32,
-        InferenceEngine::Precision::FP32,
+const std::vector<ov::element::Type> inputPrecisions = {
+        ov::element::i32,
+        ov::element::f32,
 };
 
 const std::vector<int64_t> iterationCount {1, 3, 10};
 
-INSTANTIATE_TEST_SUITE_P(smoke_MemoryTest, MemoryTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MemoryTest, MemoryLayerTest,
         ::testing::Combine(
-                ::testing::Values(ngraph::helpers::MemoryTransformation::NONE),
+                ::testing::Values(ov::test::utils::MemoryTransformation::NONE),
                 ::testing::ValuesIn(iterationCount),
                 ::testing::ValuesIn(inShapes),
                 ::testing::ValuesIn(inputPrecisions),
                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-        MemoryTest::getTestCaseName);
+        MemoryLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_MemoryTestV3, MemoryTestV3,
+INSTANTIATE_TEST_SUITE_P(smoke_MemoryTestV3, MemoryV3LayerTest,
         ::testing::Combine(
-                ::testing::Values(ngraph::helpers::MemoryTransformation::NONE),
+                ::testing::Values(ov::test::utils::MemoryTransformation::NONE),
                 ::testing::ValuesIn(iterationCount),
                 ::testing::ValuesIn(inShapes),
                 ::testing::ValuesIn(inputPrecisions),
                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-        MemoryTest::getTestCaseName);
-
+        MemoryLayerTest::getTestCaseName);
 } // namespace

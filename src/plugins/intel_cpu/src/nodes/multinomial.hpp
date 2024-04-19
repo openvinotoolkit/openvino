@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,8 +7,7 @@
 #include <random>
 #include <string>
 
-#include "ie_common.h"
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "node.h"
 
 namespace ov {

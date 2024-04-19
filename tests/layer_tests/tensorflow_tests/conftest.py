@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import inspect
@@ -29,6 +29,6 @@ def rename_tf_fe_libs(request):
 
     tf_fe_lib_names = ['libopenvino_tensorflow_fe', 'libopenvino_tensorflow_frontend']
 
-    if request.config.getoption('use_new_frontend'):
-        log.info('Using new frontend...')
+    if request.config.getoption('use_legacy_frontend'):
+        log.info('Using legacy frontend...')
         copy_files_by_pattern(openvino_lib_path, tf_fe_lib_names[0], tf_fe_lib_names[1])

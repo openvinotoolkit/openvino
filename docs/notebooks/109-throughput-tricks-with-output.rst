@@ -24,8 +24,8 @@ The quantization and pre-post-processing API are not included here as
 they change the precision (quantization) or processing graph
 (prepostprocessor). You can find examples of how to apply them to
 optimize performance on OpenVINO IR files in
-`111-detection-quantization <../111-detection-quantization>`__ and
-`118-optimize-preprocessing <../118-optimize-preprocessing>`__.
+`111-detection-quantization <111-detection-quantization-with-output.html>`__ and
+`118-optimize-preprocessing <118-optimize-preprocessing-with-output.html>`__.
 
 |image0|
 
@@ -41,10 +41,10 @@ optimize performance on OpenVINO IR files in
    result in different performance.
 
 A similar notebook focused on the latency mode is available
-`here <109-latency-tricks.ipynb>`__.
+`here <109-latency-tricks-with-output.html>`__.
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Prerequisites <#prerequisites>`__
 -  `Data <#data>`__
@@ -146,7 +146,7 @@ object detection model.
 
 .. parsed-literal::
 
-    <DisplayHandle display_id=ffb43bd5831f251ba3c21b52bdd4c3fc>
+    <DisplayHandle display_id=6e9bd356e09a9465ea275c04ca5ea451>
 
 
 
@@ -181,10 +181,26 @@ PyTorch Hub and small enough to see the difference in performance.
 .. parsed-literal::
 
     Using cache found in /opt/home/k8sworker/.cache/torch/hub/ultralytics_yolov5_master
+
+
+.. parsed-literal::
+
     YOLOv5 🚀 2023-4-21 Python-3.8.10 torch-2.1.0+cpu CPU
     
+
+
+.. parsed-literal::
+
     Fusing layers... 
+
+
+.. parsed-literal::
+
     YOLOv5n summary: 213 layers, 1867405 parameters, 0 gradients
+
+
+.. parsed-literal::
+
     Adding AutoShape... 
 
 
@@ -397,8 +413,12 @@ optimizations applied. We will treat it as our baseline.
 
 .. parsed-literal::
 
-    PyTorch model on CPU. First inference time: 0.0220 seconds
-    PyTorch model on CPU: 0.0208 seconds per image (48.18 FPS)
+    PyTorch model on CPU. First inference time: 0.0262 seconds
+
+
+.. parsed-literal::
+
+    PyTorch model on CPU: 0.0205 seconds per image (48.72 FPS)
 
 
 OpenVINO IR model
@@ -444,8 +464,12 @@ step in this notebook.
 
 .. parsed-literal::
 
-    OpenVINO model on CPU. First inference time: 0.0156 seconds
-    OpenVINO model on CPU: 0.0071 seconds per image (141.19 FPS)
+    OpenVINO model on CPU. First inference time: 0.0147 seconds
+
+
+.. parsed-literal::
+
+    OpenVINO model on CPU: 0.0070 seconds per image (142.58 FPS)
 
 
 OpenVINO IR model + bigger batch
@@ -502,8 +526,12 @@ hardware and model.
 
 .. parsed-literal::
 
-    OpenVINO model + bigger batch on CPU. First inference time: 0.0481 seconds
-    OpenVINO model + bigger batch on CPU: 0.0069 seconds per image (145.67 FPS)
+    OpenVINO model + bigger batch on CPU. First inference time: 0.0514 seconds
+
+
+.. parsed-literal::
+
+    OpenVINO model + bigger batch on CPU: 0.0068 seconds per image (146.52 FPS)
 
 
 Asynchronous processing
@@ -558,7 +586,7 @@ configuration of the device. There are three different hints:
 notebook is focused on the throughput mode, we will use the latter two.
 The hints can be used with other devices as well. Throughput mode
 implicitly triggers using the `Automatic
-Batching <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Automatic_Batching.html>`__
+Batching <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/automatic-batching.html>`__
 feature, which sets the batch size to the optimal level.
 
 .. code:: ipython3
@@ -576,8 +604,12 @@ feature, which sets the batch size to the optimal level.
 
 .. parsed-literal::
 
-    OpenVINO model on CPU (THROUGHPUT). First inference time: 0.0254 seconds
-    OpenVINO model on CPU (THROUGHPUT): 0.0040 seconds per image (250.82 FPS)
+    OpenVINO model on CPU (THROUGHPUT). First inference time: 0.0244 seconds
+
+
+.. parsed-literal::
+
+    OpenVINO model on CPU (THROUGHPUT): 0.0040 seconds per image (249.04 FPS)
 
 
 OpenVINO IR model in throughput mode on GPU
@@ -612,7 +644,7 @@ OpenVINO IR model in throughput mode on AUTO
 
 
 OpenVINO offers a virtual device called
-`AUTO <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__,
+`AUTO <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/auto-device-selection.html>`__,
 which can select the best device for us based on the aforementioned
 performance hint.
 
@@ -631,8 +663,12 @@ performance hint.
 
 .. parsed-literal::
 
-    OpenVINO model on AUTO (THROUGHPUT). First inference time: 0.0231 seconds
-    OpenVINO model on AUTO (THROUGHPUT): 0.0040 seconds per image (251.86 FPS)
+    OpenVINO model on AUTO (THROUGHPUT). First inference time: 0.0233 seconds
+
+
+.. parsed-literal::
+
+    OpenVINO model on AUTO (THROUGHPUT): 0.0040 seconds per image (250.58 FPS)
 
 
 OpenVINO IR model in cumulative throughput mode on AUTO
@@ -659,7 +695,11 @@ activate all devices.
 
 .. parsed-literal::
 
-    OpenVINO model on AUTO (CUMULATIVE THROUGHPUT). First inference time: 0.0260 seconds
+    OpenVINO model on AUTO (CUMULATIVE THROUGHPUT). First inference time: 0.0204 seconds
+
+
+.. parsed-literal::
+
     OpenVINO model on AUTO (CUMULATIVE THROUGHPUT): 0.0040 seconds per image (251.22 FPS)
 
 
@@ -672,10 +712,10 @@ There are other tricks for performance improvement, such as advanced
 options, quantization and pre-post-processing or dedicated to latency
 mode. To get even more from your model, please visit `advanced
 throughput
-options <https://docs.openvino.ai/2023.0/openvino_docs_deployment_optimization_guide_tput_advanced.html>`__,
-`109-latency-tricks <109-latency-tricks.ipynb>`__,
-`111-detection-quantization <../111-detection-quantization>`__, and
-`118-optimize-preprocessing <../118-optimize-preprocessing>`__.
+options <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/optimizing-throughput/advanced_throughput_options.html>`__,
+`109-latency-tricks <109-latency-tricks-with-output.html-with-output.html>`__,
+`111-detection-quantization <111-detection-quantization-with-output.html>`__, and
+`118-optimize-preprocessing <118-optimize-preprocessing-with-output.html>`__.
 
 Performance comparison
 ----------------------
@@ -725,6 +765,6 @@ object detection model. Even if you experience much better performance
 after running this notebook, please note this may not be valid for every
 hardware or every model. For the most accurate results, please use
 ``benchmark_app`` `command-line
-tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_samples_benchmark_app_README.html>`__.
+tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__.
 Note that ``benchmark_app`` cannot measure the impact of some tricks
 above.

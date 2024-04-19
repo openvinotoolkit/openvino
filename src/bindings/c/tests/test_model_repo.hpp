@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,6 @@
 #include "openvino/core/visibility.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/util/file_util.hpp"
-#include "ov_models/builders.hpp"
-#include "ov_models/subgraph_builders.hpp"
 
 namespace TestDataHelpers {
 

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.front.flatten_to_reshape import FlattenToReshape
@@ -27,7 +27,7 @@ class SsdPatternRemoveFlatten(FrontReplacementSubgraph):
     def replace_sub_graph(self, graph: Graph, match: dict):
         """
         Need to find each occurrence of pattern: _contrib_MultiBoxPrior -> Flatten
-        remove Flatten layer - IE does not expect outputs to be flattened
+        remove Flatten layer - OV does not expect outputs to be flattened
 
         Parameters
         ----------

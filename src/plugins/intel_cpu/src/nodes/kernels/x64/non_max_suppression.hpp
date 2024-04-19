@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include "jit_kernel_base.hpp"
 
 #if defined(OPENVINO_ARCH_X86_64)
-#include "emitters/x64/jit_load_store_emitters.hpp"
+#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 #include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #endif // OPENVINO_ARCH_X86_64
 

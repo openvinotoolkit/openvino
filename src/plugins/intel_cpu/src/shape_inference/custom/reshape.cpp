@@ -1,12 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "reshape.hpp"
 #include <vector>
 #include "utils.hpp"
-#include "ie_ngraph_utils.hpp"
-#include <utils/general_utils.h>
+#include "utils/general_utils.h"
 
 namespace ov {
 namespace intel_cpu {

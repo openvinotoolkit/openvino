@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#include <cpp/ie_cnn_network.h>
 
 #include <algorithm>
 #include <cmath>
@@ -310,6 +308,95 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_argmin_no_keepdims) {
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_batch_norm_default) {
     // Batch Normalization with default parameters
     auto model = convert_model("batchnorm_default.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({-1.f, 0.f, 1.f, 2.f, 3.f, 4.f});  // data {1, 2, 1, 3}
+    test_case.add_input<float>({1.f, 1.5f});                      // scale
+    test_case.add_input<float>({0.f, 1.f});                       // bias
+    test_case.add_input<float>({0.f, 3.f});                       // mean
+    test_case.add_input<float>({1.f, 1.5f});                      // var
+    test_case.add_expected_output<float>(Shape{1, 2, 1, 3},
+                                         {-0.999995f, 0.f, 0.999995f, -0.22474074f, 1.f, 2.2247407f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_batch_norm_opset1) {
+    // Batch Normalization with default parameters
+    auto model = convert_model("batchnorm_opset1.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({-1.f, 0.f, 1.f, 2.f, 3.f, 4.f});  // data {1, 2, 1, 3}
+    test_case.add_input<float>({1.f, 1.5f});                      // scale
+    test_case.add_input<float>({0.f, 1.f});                       // bias
+    test_case.add_input<float>({0.f, 3.f});                       // mean
+    test_case.add_input<float>({1.f, 1.5f});                      // var
+    test_case.add_expected_output<float>(Shape{1, 2, 1, 3},
+                                         {-0.999995f, 0.f, 0.999995f, -0.22474074f, 1.f, 2.2247407f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_batch_norm_opset6) {
+    // Batch Normalization with default parameters
+    auto model = convert_model("batchnorm_opset6.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({-1.f, 0.f, 1.f, 2.f, 3.f, 4.f});  // data {1, 2, 1, 3}
+    test_case.add_input<float>({1.f, 1.5f});                      // scale
+    test_case.add_input<float>({0.f, 1.f});                       // bias
+    test_case.add_input<float>({0.f, 3.f});                       // mean
+    test_case.add_input<float>({1.f, 1.5f});                      // var
+    test_case.add_expected_output<float>(Shape{1, 2, 1, 3},
+                                         {-0.999995f, 0.f, 0.999995f, -0.22474074f, 1.f, 2.2247407f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_batch_norm_opset7) {
+    // Batch Normalization with default parameters
+    auto model = convert_model("batchnorm_opset7.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({-1.f, 0.f, 1.f, 2.f, 3.f, 4.f});  // data {1, 2, 1, 3}
+    test_case.add_input<float>({1.f, 1.5f});                      // scale
+    test_case.add_input<float>({0.f, 1.f});                       // bias
+    test_case.add_input<float>({0.f, 3.f});                       // mean
+    test_case.add_input<float>({1.f, 1.5f});                      // var
+    test_case.add_expected_output<float>(Shape{1, 2, 1, 3},
+                                         {-0.999995f, 0.f, 0.999995f, -0.22474074f, 1.f, 2.2247407f});
+    test_case.run();
+}
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_batch_norm_opset9) {
+    // Batch Normalization with default parameters
+    auto model = convert_model("batchnorm_opset9.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({-1.f, 0.f, 1.f, 2.f, 3.f, 4.f});  // data {1, 2, 1, 3}
+    test_case.add_input<float>({1.f, 1.5f});                      // scale
+    test_case.add_input<float>({0.f, 1.f});                       // bias
+    test_case.add_input<float>({0.f, 3.f});                       // mean
+    test_case.add_input<float>({1.f, 1.5f});                      // var
+    test_case.add_expected_output<float>(Shape{1, 2, 1, 3},
+                                         {-0.999995f, 0.f, 0.999995f, -0.22474074f, 1.f, 2.2247407f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_batch_norm_opset14) {
+    // Batch Normalization with default parameters
+    auto model = convert_model("batchnorm_opset14.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({-1.f, 0.f, 1.f, 2.f, 3.f, 4.f});  // data {1, 2, 1, 3}
+    test_case.add_input<float>({1.f, 1.5f});                      // scale
+    test_case.add_input<float>({0.f, 1.f});                       // bias
+    test_case.add_input<float>({0.f, 3.f});                       // mean
+    test_case.add_input<float>({1.f, 1.5f});                      // var
+    test_case.add_expected_output<float>(Shape{1, 2, 1, 3},
+                                         {-0.999995f, 0.f, 0.999995f, -0.22474074f, 1.f, 2.2247407f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_batch_norm_opset15) {
+    // Batch Normalization with default parameters
+    auto model = convert_model("batchnorm_opset15.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<float>({-1.f, 0.f, 1.f, 2.f, 3.f, 4.f});  // data {1, 2, 1, 3}
@@ -912,6 +999,35 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_log_sum) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_log_sum_18) {
+    auto model = convert_model("reduce_log_sum_18.onnx");
+
+    // input data shape (1, 1, 4, 4)
+    Inputs inputs{
+        ov::test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
+
+    // output data shape (1,)
+    auto expected_output = ov::test::NDArray<float, 4>({{{{2.77258872f}}}}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_log_sum_18_axes_as_input) {
+    auto model = convert_model("reduce_log_sum_18_axes_as_input.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>(Shape{1, 1, 4, 4}, {2, 1, 4, 2, 3, 1, 3, 2, 4, 2, 4, 2, 2, 2, 1, 4});
+    test_case.add_input<int64_t>({3});
+
+    test_case.add_expected_output(Shape{1, 1, 4, 1},
+                                  std::vector<float>{2.19722458f, 2.19722458f, 2.48490665f, 2.19722458f});
+
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_log_sum_exp) {
     auto model = convert_model("reduce_log_sum_exp.onnx");
 
@@ -969,6 +1085,28 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_max) {
 
     // output data shape (1,)
     auto expected_output = ov::test::NDArray<float, 4>({{{{16}}}}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_max_18) {
+    // TEMPLATE plugin has an issue with evaluation for u8 type
+    if (std::string("${BACKEND_NAME}") == std::string("INTERPRETER")) {
+        GTEST_SKIP();
+    }
+
+    auto model = convert_model("reduce_max_18.onnx");
+
+    // input data shape (1, 1, 4, 4)
+    std::vector<std::vector<uint8_t>> inputs{
+        ov::test::NDArray<uint8_t, 4>({{{{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {13, 14, 15, 16}}}})
+            .get_vector()};
+
+    // output data shape (1,)
+    auto expected_output = ov::test::NDArray<uint8_t, 1>({13, 14, 15, 16}).get_vector();
 
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_multiple_inputs(inputs);
@@ -1799,6 +1937,142 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_shape) {
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output<int64_t>({3, 4, 5});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_shape15_end_1) {
+    // shape 15 tests
+    auto model = convert_model("shape_opset15_end_1.onnx");
+
+    Inputs inputs;
+    inputs.emplace_back(
+        ov::test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                     {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                     {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}})
+            .get_vector());
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output<int64_t>({3});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_shape15_end_negative_1) {
+    // shape 15 tests
+    auto model = convert_model("shape_opset15_end_negative_1.onnx");
+
+    Inputs inputs;
+    inputs.emplace_back(
+        ov::test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                     {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                     {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}})
+            .get_vector());
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output<int64_t>({3, 4});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_shape15_start_1) {
+    // shape 15 tests
+    auto model = convert_model("shape_opset15_start_1.onnx");
+
+    Inputs inputs;
+    inputs.emplace_back(
+        ov::test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                     {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                     {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}})
+            .get_vector());
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output<int64_t>({4, 5});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_shape15_start_1_end_2) {
+    // shape 15 tests
+    auto model = convert_model("shape_opset15_start_1_end_2.onnx");
+
+    Inputs inputs;
+    inputs.emplace_back(
+        ov::test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                     {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                     {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}})
+            .get_vector());
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output<int64_t>({4});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_shape15_start_1_end_negative_1) {
+    // shape 15 tests
+    auto model = convert_model("shape_opset15_start_1_end_negative_1.onnx");
+
+    Inputs inputs;
+    inputs.emplace_back(
+        ov::test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                     {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                     {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}})
+            .get_vector());
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output<int64_t>({4});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_shape15_start_negative_1) {
+    // shape 15 tests
+    auto model = convert_model("shape_opset15_start_negative_1.onnx");
+
+    Inputs inputs;
+    inputs.emplace_back(
+        ov::test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                     {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                     {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}})
+            .get_vector());
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output<int64_t>({5});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_shape15_start_negative_2) {
+    // shape 15 tests
+    auto model = convert_model("shape_opset15_start_negative_2.onnx");
+
+    Inputs inputs;
+    inputs.emplace_back(
+        ov::test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                     {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                     {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}})
+            .get_vector());
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output<int64_t>({4, 5});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_shape15_end_negative_2) {
+    // shape 15 tests
+    auto model = convert_model("shape_opset15_end_negative_2.onnx");
+
+    Inputs inputs;
+    inputs.emplace_back(
+        ov::test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                     {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
+                                     {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}})
+            .get_vector());
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output<int64_t>({3});
     test_case.run();
 }
 
@@ -4365,7 +4639,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float16_3x4) {
     auto model = convert_model("constant_sparse_tensor_float16_3x4.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_expected_output<ngraph::float16>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
+    test_case.add_expected_output<ov::float16>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
     test_case.run();
 }
 
@@ -4429,7 +4703,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_bfloat16_3x4) {
     auto model = convert_model("constant_sparse_tensor_bfloat16_3x4.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_expected_output<ngraph::bfloat16>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
+    test_case.add_expected_output<ov::bfloat16>(Shape{3, 4}, {1, 0, 0, 8, 0, 0, 0, 0, 0, 0, 3, 0});
     test_case.run();
 }
 
@@ -4495,7 +4769,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_float16_tensor_as_int32) {
 
     auto test_case = ov::test::TestCase(model, s_device);
     // clang-format off
-    test_case.add_input<ngraph::float16>(Shape{1, 1, 4, 4},
+    test_case.add_input<ov::float16>(Shape{1, 1, 4, 4},
             {   0,  1,  2,  3,
                 4,  5,  6,  7,
                 8,  9,  10, 11,
@@ -4504,7 +4778,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_float16_tensor_as_int32) {
             [[[[0.25, 0.5, 0.25],
                [0.5,  1.0, 0.5],
                [0.25, 0.5, 0.25]]]] */
-    test_case.add_expected_output<ngraph::float16>(Shape{1, 1, 2, 2},
+    test_case.add_expected_output<ov::float16>(Shape{1, 1, 2, 2},
             {   20, 24,
                 36, 40  });
     // clang-format on
@@ -5651,7 +5925,7 @@ OPENVINO_TEST(${BACKEND_NAME}, castlike_float16_to_uint32) {
 
     auto test_case = ov::test::TestCase(model, s_device);
 
-    test_case.add_input<ngraph::float16>(Shape{1, 1, 2, 2}, std::vector<ngraph::float16>{1.5f, 2.3f, 3.f, 4.f});
+    test_case.add_input<ov::float16>(Shape{1, 1, 2, 2}, std::vector<ov::float16>{1.5f, 2.3f, 3.f, 4.f});
     test_case.add_input<uint32_t>(Shape{4}, {1, 2, 3, 4});
     test_case.add_expected_output<uint32_t>(std::vector<uint32_t>{1, 2, 3, 4});
 
@@ -5663,7 +5937,7 @@ OPENVINO_TEST(${BACKEND_NAME}, castlike_float16_to_int64) {
 
     auto test_case = ov::test::TestCase(model, s_device);
 
-    test_case.add_input<ngraph::float16>(Shape{1, 1, 2, 2}, std::vector<ngraph::float16>{1.5f, 2.3f, 3.f, 4.f});
+    test_case.add_input<ov::float16>(Shape{1, 1, 2, 2}, std::vector<ov::float16>{1.5f, 2.3f, 3.f, 4.f});
     test_case.add_input<int64_t>(Shape{4}, {1, 2, 3, 4});
     test_case.add_expected_output<int64_t>(std::vector<int64_t>{1, 2, 3, 4});
 
@@ -5700,8 +5974,8 @@ OPENVINO_TEST(${BACKEND_NAME}, castlike_int8_to_float16) {
     auto test_case = ov::test::TestCase(model, s_device);
 
     test_case.add_input<int8_t>(Shape{1, 1, 2, 2}, std::vector<int8_t>{-127, -2, 3, 4});
-    test_case.add_input<ngraph::float16>(Shape{4}, {1, 2, 3, 4});
-    test_case.add_expected_output<ngraph::float16>(std::vector<ngraph::float16>{-127.0, -2.0, 3.0, 4.0});
+    test_case.add_input<ov::float16>(Shape{4}, {1, 2, 3, 4});
+    test_case.add_expected_output<ov::float16>(std::vector<ov::float16>{-127.0, -2.0, 3.0, 4.0});
 
     test_case.run();
 }
@@ -6137,5 +6411,197 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bitwise_and_broadcast_condition) {
     test_case.add_input<int>(Shape{1}, {4});
     test_case.add_expected_output<int>(Shape{5}, {0, 0, 0, 4, 4});
 
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bitwise_or) {
+    auto model = convert_model("bitwise_or.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int>(Shape{5}, {1, 2, 3, 4, 5});
+    test_case.add_input<int>(Shape{5}, {5, 5, 5, 5, 5});
+    test_case.add_expected_output<int>(Shape{5}, {5, 7, 7, 5, 5});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bitwise_or_broadcast_condition) {
+    auto model = convert_model("bitwise_or_broadcast_condition.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int>(Shape{5}, {1, 2, 3, 4, 5});
+    test_case.add_input<int>(Shape{1}, {4});
+    test_case.add_expected_output<int>(Shape{5}, {5, 6, 7, 4, 5});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_roi_pool_region_divisible_by_output_shape) {
+    auto model = convert_model("max_roi_pool_divisible.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 5, 5}, {1.,  2.,  3.,  4.,  5.,  6.,  7.,  8.,  9.,  10., 11., 12., 13.,
+                                                   14., 15., 16., 17., 18., 19., 20., 21., 22., 23., 24., 25.});
+    test_case.add_input<float>({0, 0, 0, 3, 3});
+    test_case.add_expected_output<float>(Shape{1, 1, 2, 2}, {7., 9., 17., 19.});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_roi_pool_region_not_divisible_by_output_shape) {
+    auto model = convert_model("max_roi_pool_non_divisible.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 5, 5}, {1.,  2.,  3.,  4.,  5.,  6.,  7.,  8.,  9.,  10., 11., 12., 13.,
+                                                   14., 15., 16., 17., 18., 19., 20., 21., 22., 23., 24., 25.});
+    test_case.add_input<float>({0, 0, 0, 4, 4});
+    test_case.add_expected_output<float>(Shape{1, 1, 2, 2}, {13., 15., 23., 25.});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_roi_pool_with_spatial_scale) {
+    auto model = convert_model("max_roi_pool_spatial_scale.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 5, 5}, {1.,  2.,  3.,  4.,  5.,  6.,  7.,  8.,  9.,  10., 11., 12., 13.,
+                                                   14., 15., 16., 17., 18., 19., 20., 21., 22., 23., 24., 25.});
+    test_case.add_input<float>({0, 0, 0, 2, 2});
+    test_case.add_expected_output<float>(Shape{1, 1, 2, 2}, {1., 2., 6., 7.});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bitwise_xor) {
+    auto model = convert_model("bitwise_xor.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int>(Shape{5}, {1, 2, 3, 4, 5});
+    test_case.add_input<int>(Shape{5}, {5, 5, 5, 5, 5});
+    test_case.add_expected_output<int>(Shape{5}, {4, 7, 6, 1, 0});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bitwise_xor_broadcast_condition) {
+    auto model = convert_model("bitwise_xor_broadcast_condition.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int>(Shape{5}, {1, 2, 3, 4, 5});
+    test_case.add_input<int>(Shape{1}, {4});
+    test_case.add_expected_output<int>(Shape{5}, {5, 6, 7, 0, 1});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bitwise_not) {
+    auto model = convert_model("bitwise_not.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int64_t>(Shape{5}, {5, 10, 200, 35, 1});
+    test_case.add_expected_output<int64_t>(Shape{5}, {-6, -11, -201, -36, -2});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_celu_float) {
+    auto model = convert_model("celu_float.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{2}, {-45.f, 22.98f});
+    test_case.add_expected_output<float>(Shape{2}, {-1.f, 22.98f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_celu_float_alpha) {
+    auto model = convert_model("celu_float_alpha.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{4}, {-5.f, -4.25f, -10.f, 7.3f});
+    test_case.add_expected_output<float>(Shape{4}, {-2.43337319f, -2.27243678f, -2.89297802f, 7.3f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gelu_float) {
+    auto model = convert_model("gelu_float.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{2}, {-16.13f, 24.33f});
+    test_case.add_expected_output<float>(Shape{2}, {0.0f, 24.33f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gelu_float_tanh) {
+    auto model = convert_model("gelu_float_tanh.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{2}, {-0.5f, 24.33f});
+    test_case.add_expected_output<float>(Shape{2}, {-0.15428598f, 24.f});
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_mish_activation) {
+    auto model = convert_model("mish.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({1.8079f, -0.2892f, 2.0915f,  12.5101f, -1.8837f, 0.2586f, 2.9528f,  0.001f,
+                                6.0296f, -1.0745f, -0.2703f, 1.319f,   -3.3607f, 0.1434f, -8.4590f, 0.0f,
+                                2.7608f, 0.3126f,  0.3f,     3.0f,     7.6919f,  0.5859f, -11.992f, -37.8f});
+
+    test_case.add_expected_output<float>({1.737521f,  -0.146684f, 2.041557f,  12.5101f,   -0.264820f, 0.176079f,
+                                          2.938304f,  0.0006f,    6.029531f,  -0.306873f, -0.138725f, 1.206575f,
+                                          -0.114629f, 0.092553f,  -0.001792f, 0.0f,       2.741334f,  0.217909f,
+                                          0.208001f,  2.986535f,  7.691896f,  0.453058f,  -0.000074f, 0.0f});
+
+    test_case.run_with_tolerance_as_fp(0.000001f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_min_18) {
+    // Credit: This function is a modified version of PR 23475's test function.
+    // TEMPLATE plugin has an issue with evaluation for u8 type
+    if (std::string("${BACKEND_NAME}") == std::string("INTERPRETER")) {
+        GTEST_SKIP();
+    }
+
+    auto model = convert_model("reduce_min_18.onnx");
+
+    // input data shape (1, 1, 4, 4)
+    std::vector<std::vector<uint8_t>> inputs{
+        ov::test::NDArray<uint8_t, 4>({{{{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {13, 14, 15, 16}}}})
+            .get_vector()};
+
+    // output data shape (1,)
+    auto expected_output = ov::test::NDArray<uint8_t, 1>({1, 2, 3, 4}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_min_20_boolean) {
+    // Credit: This function is a modified version of PR 23475's test function.
+    // TEMPLATE plugin has an issue with evaluation for u8 type
+    if (std::string("${BACKEND_NAME}") == std::string("INTERPRETER")) {
+        GTEST_SKIP();
+    }
+
+    auto model = convert_model("reduce_min_20.onnx");
+
+    // input data shape (1, 1, 4, 4)
+    std::vector<std::vector<bool>> inputs{ov::test::NDArray<bool, 4>({{{{true, true, false, false},
+                                                                        {true, false, false, false},
+                                                                        {true, false, false, false},
+                                                                        {true, true, false, false}}}})
+                                              .get_vector()};
+
+    // output data shape (1,)
+    auto expected_output = ov::test::NDArray<uint8_t, 1>({1, 0, 0, 0}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
     test_case.run();
 }

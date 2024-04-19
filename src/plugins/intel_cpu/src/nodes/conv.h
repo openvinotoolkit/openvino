@@ -1,15 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
-#include <memory>
-#include <oneapi/dnnl/dnnl.hpp>
-#include <string>
-#include <vector>
 #include "common/dnnl_executor.h"
+#include "node.h"
+#include "oneapi/dnnl/dnnl.hpp"
 
 namespace ov {
 namespace intel_cpu {

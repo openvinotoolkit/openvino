@@ -18,8 +18,8 @@ the FP32 and quantized models. - Compare accuracy of the FP32 and
 quantized models. - Other optimization possibilities with OpenVINO api -
 Live demo
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Get PyTorch model <#get-pytorch-model>`__
 
@@ -514,7 +514,10 @@ ready to check model prediction for object detection.
     det_ov_model = core.read_model(det_model_path)
     if device.value != "CPU":
         det_ov_model.reshape({0: [1, 3, 640, 640]})
-    det_compiled_model = core.compile_model(det_ov_model, device.value)
+    ov_config = {}
+    if "GPU" in device.value or ("AUTO" in device.value and "GPU" in core.available_devices):
+        ov_config = {"GPU_DISABLE_WINOGRAD_CONVOLUTION": "YES"}
+    det_compiled_model = core.compile_model(det_ov_model, device.value, ov_config)
     
     
     def detect(image:np.ndarray, model:ov.Model):
@@ -924,7 +927,10 @@ on the image.
 
     if device.value != "CPU":
         quantized_det_model.reshape({0: [1, 3, 640, 640]})
-    quantized_det_compiled_model = core.compile_model(quantized_det_model, device.value)
+    ov_config = {}
+    if "GPU" in device.value or ("AUTO" in device.value and "GPU" in core.available_devices):
+        ov_config = {"GPU_DISABLE_WINOGRAD_CONVOLUTION": "YES"}
+    quantized_det_compiled_model = core.compile_model(quantized_det_model, device.value, ov_config)
     input_image = np.array(Image.open(IMAGE_PATH))
     detections = detect(input_image, quantized_det_compiled_model)[0]
     image_with_boxes = draw_results(detections, input_image, label_map)
@@ -949,7 +955,7 @@ Compare performance object detection models
 
 
 Finally, use the OpenVINO `Benchmark
-Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
 to measure the inference performance of the ``FP32`` and ``INT8``
 models.
 
@@ -1221,7 +1227,7 @@ CPU as part of an application. This will improve selected device
 utilization.
 
 For more information, refer to the overview of `Preprocessing
-API <https://docs.openvino.ai/2023.0/openvino_docs_OV_Runtime_UG_Preprocessing_Overview.html>`__.
+API <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/optimize-preprocessing/preprocessing-api-details.html>`__.
 
 For example, we can integrate converting input data layout and
 normalization defined in ``image_to_tensor`` function.
@@ -1367,7 +1373,10 @@ The following code runs model inference on a video:
         player = None
         if device != "CPU":
             model.reshape({0: [1, 3, 640, 640]})
-        compiled_model = core.compile_model(model, device)
+        ov_config = {}
+        if "GPU" in device or ("AUTO" in device and "GPU" in core.available_devices):
+            ov_config = {"GPU_DISABLE_WINOGRAD_CONVOLUTION": "YES"}
+        compiled_model = core.compile_model(model, device, ov_config)
         try:
             # Create a video player to play with target fps.
             player = VideoPlayer(

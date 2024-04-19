@@ -1,5 +1,5 @@
-Quantize Speech Recognition Models using NNCF PTQ API
-=====================================================
+Quantize Data2Vec Speech Recognition Model using NNCF PTQ API
+=============================================================
 
 This tutorial demonstrates how to use the NNCF (Neural Network
 Compression Framework) 8-bit quantization in post-training mode (without
@@ -19,8 +19,8 @@ steps:
 -  Compare performance of the original and quantized models.
 -  Compare Accuracy of the Original and Quantized Models.
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Download and prepare model <#download-and-prepare-model>`__
 
@@ -35,7 +35,7 @@ steps:
    dataset <#validate-model-accuracy-on-dataset>`__
 -  `Quantization <#quantization>`__
 -  `Check INT8 model inference
-   result <#check-int-model-inference-result>`__
+   result <#check-int8-model-inference-result>`__
 -  `Compare Performance of the Original and Quantized
    Models <#compare-performance-of-the-original-and-quantized-models>`__
 -  `Compare Accuracy of the Original and Quantized
@@ -79,9 +79,9 @@ model specific pre- and post-processing steps.
 
 .. code:: ipython3
 
-    %pip install -q "openvino>=2023.1.0" "nncf>=2.5.0"
-    %pip install -q datasets "torchmetrics>=0.11.0" --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q soundfile librosa transformers --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "openvino>=2023.3.0" "nncf>=2.7"
+    %pip install -q datasets "torchmetrics>=0.11.0" "torch>=2.1.0" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q soundfile librosa "transformers>=4.36.2" --extra-index-url https://download.pytorch.org/whl/cpu
 
 .. code:: ipython3
 
@@ -89,15 +89,6 @@ model specific pre- and post-processing steps.
     
     processor = Wav2Vec2Processor.from_pretrained("facebook/data2vec-audio-base-960h")
     model = Data2VecAudioForCTC.from_pretrained("facebook/data2vec-audio-base-960h")
-
-
-.. parsed-literal::
-
-    2023-09-12 19:27:57.776647: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-09-12 19:27:57.812053: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-09-12 19:27:58.411557: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-
 
 Convert model to OpenVINO Intermediate Representation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -132,12 +123,6 @@ Convert model to OpenVINO Intermediate Representation
         ov_model = core.read_model(ir_model_path)
 
 
-
-.. parsed-literal::
-
-    Read IR model from model/data2vec-audo-base.xml
-
-
 Prepare inference data
 ~~~~~~~~~~~~~~~~~~~~~~
 
@@ -168,13 +153,6 @@ dataset.
     dataset = ds.map(map_to_input, batched=False, remove_columns=["audio"])
     
     test_sample = ds[0]["audio"]
-
-
-.. parsed-literal::
-
-    Found cached dataset librispeech_asr_dummy (/home/ea/.cache/huggingface/datasets/patrickvonplaten___librispeech_asr_dummy/clean/2.1.0/f2c70a4d03ab4410954901bde48c54b85ca1b7f9bf7d616e7e2a72b5ee6ddbfc)
-    Loading cached processed dataset at /home/ea/.cache/huggingface/datasets/patrickvonplaten___librispeech_asr_dummy/clean/2.1.0/f2c70a4d03ab4410954901bde48c54b85ca1b7f9bf7d616e7e2a72b5ee6ddbfc/cache-5282243604a7a526.arrow
-
 
 Check model inference result
 ----------------------------
@@ -213,12 +191,37 @@ For reference, see the same function provided for OpenVINO model.
         transcription = processor.batch_decode(torch.from_numpy(predicted_ids))
         return transcription
 
+Select inference device for OpenVINO
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    core = ov.Core()
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=4, options=('CPU', 'GPU.0', 'GPU.1', 'GPU.2', 'AUTO'), value='AUTO')
+
+
+
 .. code:: ipython3
 
     core = ov.Core()
     
     pt_transcription = torch_infer(model, dataset[0])
-    compiled_model = core.compile_model(ov_model)
+    compiled_model = core.compile_model(ov_model, device.value)
     ov_transcription = ov_infer(compiled_model, dataset[0])
 
 .. code:: ipython3
@@ -268,7 +271,7 @@ library.
 
 .. code:: ipython3
 
-    from torchmetrics import WordErrorRate
+    from torchmetrics.text import WordErrorRate
     from tqdm.notebook import tqdm
     
     
@@ -336,7 +339,7 @@ steps:
    accurate results, we should keep the operation in the postprocessing
    subgraph in floating point precision, using the ``ignored_scope``
    parameter. For more information see `Tune quantization
-   parameters <https://docs.openvino.ai/2023.0/basic_quantization_flow.html#tune-quantization-parameters>`__.
+   parameters <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/quantizing-models-post-training/basic-quantization-flow.html#tune-quantization-parameters>`__.
 3. Serialize OpenVINO IR model using ``ov.save_model`` function.
 
 .. code:: ipython3
@@ -364,13 +367,8 @@ steps:
         subset_size=len(dataset),
         ignored_scope=nncf.IgnoredScope(
             names=[
-                "__module.data2vec_audio.feature_extractor.conv_layers.1.conv/aten::_convolution/Convolution_33",
-                "__module.data2vec_audio.feature_extractor.conv_layers.0.conv/aten::_convolution/Convolution_3",
-                "__module.data2vec_audio.encoder.layers.6.feed_forward.output_dense/aten::linear/MatMul_1312",
-                "__module.data2vec_audio.encoder.layers.7.feed_forward.output_dense/aten::linear/MatMul_1434",
-                "__module.data2vec_audio.encoder.layers.5.feed_forward.output_dense/aten::linear/MatMul_1190",
-                "__module.data2vec_audio.encoder.layers.4.feed_forward.output_dense/aten::linear/MatMul_1068",
-                "__module.data2vec_audio.encoder.layers.8.feed_forward.output_dense/aten::linear/MatMul_1556"
+                "__module.data2vec_audio.feature_extractor.conv_layers.0.conv/aten::_convolution/Convolution",
+                "__module.data2vec_audio.feature_extractor.conv_layers.1.conv/aten::_convolution/Convolution",
             ],
         ),
     )
@@ -378,195 +376,100 @@ steps:
 
 .. parsed-literal::
 
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-    INFO:nncf:7 ignored nodes was found by name in the NNCFGraph
-    INFO:nncf:220 ignored nodes was found by types in the NNCFGraph
-    INFO:nncf:24 ignored nodes was found by name in the NNCFGraph
-    INFO:nncf:Not adding activation input quantizer for operation: 3 __module.data2vec_audio.feature_extractor.conv_layers.0.conv/aten::_convolution/Convolution_3
-    INFO:nncf:Not adding activation input quantizer for operation: 5 __module.data2vec_audio.feature_extractor.conv_layers.0.layer_norm/aten::layer_norm/MVN
-    6 __module.data2vec_audio.feature_extractor.conv_layers.0.layer_norm/aten::layer_norm/Multiply
-    7 __module.data2vec_audio.feature_extractor.conv_layers.0.layer_norm/aten::layer_norm/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 10 __module.data2vec_audio.feature_extractor.conv_layers.1.conv/aten::_convolution/Convolution_33
-    INFO:nncf:Not adding activation input quantizer for operation: 12 __module.data2vec_audio.feature_extractor.conv_layers.1.layer_norm/aten::layer_norm/MVN
-    13 __module.data2vec_audio.feature_extractor.conv_layers.1.layer_norm/aten::layer_norm/Multiply
-    14 __module.data2vec_audio.feature_extractor.conv_layers.1.layer_norm/aten::layer_norm/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 19 __module.data2vec_audio.feature_extractor.conv_layers.2.layer_norm/aten::layer_norm/MVN
-    20 __module.data2vec_audio.feature_extractor.conv_layers.2.layer_norm/aten::layer_norm/Multiply
-    21 __module.data2vec_audio.feature_extractor.conv_layers.2.layer_norm/aten::layer_norm/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 26 __module.data2vec_audio.feature_extractor.conv_layers.3.layer_norm/aten::layer_norm/MVN
-    27 __module.data2vec_audio.feature_extractor.conv_layers.3.layer_norm/aten::layer_norm/Multiply
-    28 __module.data2vec_audio.feature_extractor.conv_layers.3.layer_norm/aten::layer_norm/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 33 __module.data2vec_audio.feature_extractor.conv_layers.4.layer_norm/aten::layer_norm/MVN
-    34 __module.data2vec_audio.feature_extractor.conv_layers.4.layer_norm/aten::layer_norm/Multiply
-    35 __module.data2vec_audio.feature_extractor.conv_layers.4.layer_norm/aten::layer_norm/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 40 __module.data2vec_audio.feature_extractor.conv_layers.5.layer_norm/aten::layer_norm/MVN
-    41 __module.data2vec_audio.feature_extractor.conv_layers.5.layer_norm/aten::layer_norm/Multiply
-    42 __module.data2vec_audio.feature_extractor.conv_layers.5.layer_norm/aten::layer_norm/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 47 __module.data2vec_audio.feature_extractor.conv_layers.6.layer_norm/aten::layer_norm/MVN
-    48 __module.data2vec_audio.feature_extractor.conv_layers.6.layer_norm/aten::layer_norm/Multiply
-    49 __module.data2vec_audio.feature_extractor.conv_layers.6.layer_norm/aten::layer_norm/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 53 __module.data2vec_audio.feature_projection.layer_norm/aten::layer_norm/MVN
-    54 __module.data2vec_audio.feature_projection.layer_norm/aten::layer_norm/Multiply
-    55 __module.data2vec_audio.feature_projection.layer_norm/aten::layer_norm/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 66 __module.data2vec_audio.encoder.pos_conv_embed.layers.0.layer_norm/aten::layer_norm/MVN
-    INFO:nncf:Not adding activation input quantizer for operation: 114 __module.data2vec_audio.encoder.pos_conv_embed.layers.1.layer_norm/aten::layer_norm/MVN
-    INFO:nncf:Not adding activation input quantizer for operation: 154 __module.data2vec_audio.encoder.pos_conv_embed.layers.2.layer_norm/aten::layer_norm/MVN
-    INFO:nncf:Not adding activation input quantizer for operation: 191 __module.data2vec_audio.encoder.pos_conv_embed.layers.3.layer_norm/aten::layer_norm/MVN
-    INFO:nncf:Not adding activation input quantizer for operation: 233 __module.data2vec_audio.encoder.pos_conv_embed.layers.4.layer_norm/aten::layer_norm/MVN
-    INFO:nncf:Not adding activation input quantizer for operation: 59 __module.data2vec_audio.encoder/aten::add/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 61 __module.data2vec_audio.encoder.layer_norm/aten::layer_norm/MVN
-    63 __module.data2vec_audio.encoder.layer_norm/aten::layer_norm/Multiply
-    65 __module.data2vec_audio.encoder.layer_norm/aten::layer_norm/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 71 __module.data2vec_audio.encoder.layers.0/aten::add/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 78 __module.data2vec_audio.encoder.layers.0.layer_norm/aten::layer_norm/MVN
-    88 __module.data2vec_audio.encoder.layers.0.layer_norm/aten::layer_norm/Multiply
-    97 __module.data2vec_audio.encoder.layers.0.layer_norm/aten::layer_norm/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 106 __module.data2vec_audio.encoder.layers.0/aten::add/Add_583
-    INFO:nncf:Not adding activation input quantizer for operation: 113 __module.data2vec_audio.encoder.layers.0.final_layer_norm/aten::layer_norm/MVN
-    117 __module.data2vec_audio.encoder.layers.0.final_layer_norm/aten::layer_norm/Multiply
-    120 __module.data2vec_audio.encoder.layers.0.final_layer_norm/aten::layer_norm/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 127 __module.data2vec_audio.encoder.layers.1/aten::add/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 134 __module.data2vec_audio.encoder.layers.1.layer_norm/aten::layer_norm/MVN
-    144 __module.data2vec_audio.encoder.layers.1.layer_norm/aten::layer_norm/Multiply
-    153 __module.data2vec_audio.encoder.layers.1.layer_norm/aten::layer_norm/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 162 __module.data2vec_audio.encoder.layers.1/aten::add/Add_705
-    INFO:nncf:Not adding activation input quantizer for operation: 169 __module.data2vec_audio.encoder.layers.1.final_layer_norm/aten::layer_norm/MVN
-    173 __module.data2vec_audio.encoder.layers.1.final_layer_norm/aten::layer_norm/Multiply
-    176 __module.data2vec_audio.encoder.layers.1.final_layer_norm/aten::layer_norm/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 183 __module.data2vec_audio.encoder.layers.2/aten::add/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 190 __module.data2vec_audio.encoder.layers.2.layer_norm/aten::layer_norm/MVN
-    200 __module.data2vec_audio.encoder.layers.2.layer_norm/aten::layer_norm/Multiply
-    209 __module.data2vec_audio.encoder.layers.2.layer_norm/aten::layer_norm/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 218 __module.data2vec_audio.encoder.layers.2/aten::add/Add_827
-    INFO:nncf:Not adding activation input quantizer for operation: 225 __module.data2vec_audio.encoder.layers.2.final_layer_norm/aten::layer_norm/MVN
-    229 __module.data2vec_audio.encoder.layers.2.final_layer_norm/aten::layer_norm/Multiply
-    232 __module.data2vec_audio.encoder.layers.2.final_layer_norm/aten::layer_norm/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 239 __module.data2vec_audio.encoder.layers.3/aten::add/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 246 __module.data2vec_audio.encoder.layers.3.layer_norm/aten::layer_norm/MVN
-    256 __module.data2vec_audio.encoder.layers.3.layer_norm/aten::layer_norm/Multiply
-    265 __module.data2vec_audio.encoder.layers.3.layer_norm/aten::layer_norm/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 273 __module.data2vec_audio.encoder.layers.3/aten::add/Add_949
-    INFO:nncf:Not adding activation input quantizer for operation: 279 __module.data2vec_audio.encoder.layers.3.final_layer_norm/aten::layer_norm/MVN
-    282 __module.data2vec_audio.encoder.layers.3.final_layer_norm/aten::layer_norm/Multiply
-    284 __module.data2vec_audio.encoder.layers.3.final_layer_norm/aten::layer_norm/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 290 __module.data2vec_audio.encoder.layers.4/aten::add/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 296 __module.data2vec_audio.encoder.layers.4.layer_norm/aten::layer_norm/MVN
-    305 __module.data2vec_audio.encoder.layers.4.layer_norm/aten::layer_norm/Multiply
-    313 __module.data2vec_audio.encoder.layers.4.layer_norm/aten::layer_norm/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 331 __module.data2vec_audio.encoder.layers.4.feed_forward.output_dense/aten::linear/MatMul_1068
-    333 __module.data2vec_audio.encoder.layers.4.feed_forward.output_dense/aten::linear/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 321 __module.data2vec_audio.encoder.layers.4/aten::add/Add_1071
-    INFO:nncf:Not adding activation input quantizer for operation: 327 __module.data2vec_audio.encoder.layers.4.final_layer_norm/aten::layer_norm/MVN
-    330 __module.data2vec_audio.encoder.layers.4.final_layer_norm/aten::layer_norm/Multiply
-    332 __module.data2vec_audio.encoder.layers.4.final_layer_norm/aten::layer_norm/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 338 __module.data2vec_audio.encoder.layers.5/aten::add/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 344 __module.data2vec_audio.encoder.layers.5.layer_norm/aten::layer_norm/MVN
-    353 __module.data2vec_audio.encoder.layers.5.layer_norm/aten::layer_norm/Multiply
-    361 __module.data2vec_audio.encoder.layers.5.layer_norm/aten::layer_norm/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 379 __module.data2vec_audio.encoder.layers.5.feed_forward.output_dense/aten::linear/MatMul_1190
-    381 __module.data2vec_audio.encoder.layers.5.feed_forward.output_dense/aten::linear/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 369 __module.data2vec_audio.encoder.layers.5/aten::add/Add_1193
-    INFO:nncf:Not adding activation input quantizer for operation: 375 __module.data2vec_audio.encoder.layers.5.final_layer_norm/aten::layer_norm/MVN
-    378 __module.data2vec_audio.encoder.layers.5.final_layer_norm/aten::layer_norm/Multiply
-    380 __module.data2vec_audio.encoder.layers.5.final_layer_norm/aten::layer_norm/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 386 __module.data2vec_audio.encoder.layers.6/aten::add/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 392 __module.data2vec_audio.encoder.layers.6.layer_norm/aten::layer_norm/MVN
-    401 __module.data2vec_audio.encoder.layers.6.layer_norm/aten::layer_norm/Multiply
-    409 __module.data2vec_audio.encoder.layers.6.layer_norm/aten::layer_norm/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 427 __module.data2vec_audio.encoder.layers.6.feed_forward.output_dense/aten::linear/MatMul_1312
-    429 __module.data2vec_audio.encoder.layers.6.feed_forward.output_dense/aten::linear/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 417 __module.data2vec_audio.encoder.layers.6/aten::add/Add_1315
-    INFO:nncf:Not adding activation input quantizer for operation: 423 __module.data2vec_audio.encoder.layers.6.final_layer_norm/aten::layer_norm/MVN
-    426 __module.data2vec_audio.encoder.layers.6.final_layer_norm/aten::layer_norm/Multiply
-    428 __module.data2vec_audio.encoder.layers.6.final_layer_norm/aten::layer_norm/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 434 __module.data2vec_audio.encoder.layers.7/aten::add/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 440 __module.data2vec_audio.encoder.layers.7.layer_norm/aten::layer_norm/MVN
-    449 __module.data2vec_audio.encoder.layers.7.layer_norm/aten::layer_norm/Multiply
-    457 __module.data2vec_audio.encoder.layers.7.layer_norm/aten::layer_norm/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 475 __module.data2vec_audio.encoder.layers.7.feed_forward.output_dense/aten::linear/MatMul_1434
-    477 __module.data2vec_audio.encoder.layers.7.feed_forward.output_dense/aten::linear/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 465 __module.data2vec_audio.encoder.layers.7/aten::add/Add_1437
-    INFO:nncf:Not adding activation input quantizer for operation: 471 __module.data2vec_audio.encoder.layers.7.final_layer_norm/aten::layer_norm/MVN
-    474 __module.data2vec_audio.encoder.layers.7.final_layer_norm/aten::layer_norm/Multiply
-    476 __module.data2vec_audio.encoder.layers.7.final_layer_norm/aten::layer_norm/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 482 __module.data2vec_audio.encoder.layers.8/aten::add/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 488 __module.data2vec_audio.encoder.layers.8.layer_norm/aten::layer_norm/MVN
-    497 __module.data2vec_audio.encoder.layers.8.layer_norm/aten::layer_norm/Multiply
-    505 __module.data2vec_audio.encoder.layers.8.layer_norm/aten::layer_norm/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 523 __module.data2vec_audio.encoder.layers.8.feed_forward.output_dense/aten::linear/MatMul_1556
-    525 __module.data2vec_audio.encoder.layers.8.feed_forward.output_dense/aten::linear/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 513 __module.data2vec_audio.encoder.layers.8/aten::add/Add_1559
-    INFO:nncf:Not adding activation input quantizer for operation: 519 __module.data2vec_audio.encoder.layers.8.final_layer_norm/aten::layer_norm/MVN
-    522 __module.data2vec_audio.encoder.layers.8.final_layer_norm/aten::layer_norm/Multiply
-    524 __module.data2vec_audio.encoder.layers.8.final_layer_norm/aten::layer_norm/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 530 __module.data2vec_audio.encoder.layers.9/aten::add/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 536 __module.data2vec_audio.encoder.layers.9.layer_norm/aten::layer_norm/MVN
-    545 __module.data2vec_audio.encoder.layers.9.layer_norm/aten::layer_norm/Multiply
-    553 __module.data2vec_audio.encoder.layers.9.layer_norm/aten::layer_norm/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 561 __module.data2vec_audio.encoder.layers.9/aten::add/Add_1681
-    INFO:nncf:Not adding activation input quantizer for operation: 567 __module.data2vec_audio.encoder.layers.9.final_layer_norm/aten::layer_norm/MVN
-    570 __module.data2vec_audio.encoder.layers.9.final_layer_norm/aten::layer_norm/Multiply
-    572 __module.data2vec_audio.encoder.layers.9.final_layer_norm/aten::layer_norm/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 578 __module.data2vec_audio.encoder.layers.10/aten::add/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 584 __module.data2vec_audio.encoder.layers.10.layer_norm/aten::layer_norm/MVN
-    593 __module.data2vec_audio.encoder.layers.10.layer_norm/aten::layer_norm/Multiply
-    601 __module.data2vec_audio.encoder.layers.10.layer_norm/aten::layer_norm/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 609 __module.data2vec_audio.encoder.layers.10/aten::add/Add_1803
-    INFO:nncf:Not adding activation input quantizer for operation: 615 __module.data2vec_audio.encoder.layers.10.final_layer_norm/aten::layer_norm/MVN
-    618 __module.data2vec_audio.encoder.layers.10.final_layer_norm/aten::layer_norm/Multiply
-    620 __module.data2vec_audio.encoder.layers.10.final_layer_norm/aten::layer_norm/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 626 __module.data2vec_audio.encoder.layers.11/aten::add/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 632 __module.data2vec_audio.encoder.layers.11.layer_norm/aten::layer_norm/MVN
-    641 __module.data2vec_audio.encoder.layers.11.layer_norm/aten::layer_norm/Multiply
-    649 __module.data2vec_audio.encoder.layers.11.layer_norm/aten::layer_norm/Add
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 657 __module.data2vec_audio.encoder.layers.11/aten::add/Add_1925
-    INFO:nncf:Not adding activation input quantizer for operation: 663 __module.data2vec_audio.encoder.layers.11.final_layer_norm/aten::layer_norm/MVN
-    666 __module.data2vec_audio.encoder.layers.11.final_layer_norm/aten::layer_norm/Multiply
-    668 __module.data2vec_audio.encoder.layers.11.final_layer_norm/aten::layer_norm/Add
-    
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, openvino
+
 
 
 .. parsed-literal::
 
-    Statistics collection: 100%|████████████████████| 73/73 [00:19<00:00,  3.70it/s]
-    Biases correction: 100%|████████████████████████| 74/74 [00:22<00:00,  3.34it/s]
+    Output()
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
+
+
+
+.. parsed-literal::
+
+    INFO:nncf:2 ignored nodes were found by name in the NNCFGraph
+    INFO:nncf:36 ignored nodes were found by name in the NNCFGraph
+    INFO:nncf:50 ignored nodes were found by name in the NNCFGraph
+    INFO:nncf:Not adding activation input quantizer for operation: 3 __module.data2vec_audio.feature_extractor.conv_layers.0.conv/aten::_convolution/Convolution
+    INFO:nncf:Not adding activation input quantizer for operation: 10 __module.data2vec_audio.feature_extractor.conv_layers.1.conv/aten::_convolution/Convolution
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
+
 
 
 After quantization is finished, compressed model representation can be
@@ -590,12 +493,14 @@ using ``core.compile_model``. After that, we can reuse the same
 
 .. code:: ipython3
 
-    int8_compiled_model = core.compile_model(quantized_model)
+    int8_compiled_model = core.compile_model(quantized_model, device.value)
 
 .. code:: ipython3
 
     transcription = ov_infer(int8_compiled_model, dataset[0])
     print(f"[Reference]:     {dataset[0]['text']}")
+    print(f"[PyTorch]:       {pt_transcription[0]}")
+    print(f"[OpenVINO FP16]: {ov_transcription[0]}")
     print(f"[OpenVINO INT8]: {transcription[0]}")
     ipd.Audio(test_sample["array"], rate=16000)
 
@@ -603,7 +508,9 @@ using ``core.compile_model``. After that, we can reuse the same
 .. parsed-literal::
 
     [Reference]:     BECAUSE YOU WERE SLEEPING INSTEAD OF CONQUERING THE LOVELY ROSE PRINCESS HAS BECOME A FIDDLE WITHOUT A BOW WHILE POOR SHAGGY SITS THERE A COOING DOVE
-    [OpenVINO INT8]: BECAUSE YOU WERE SLEEPING INSTEAD OF CONQUERING THE LOVELY RUSE PRINCESS HAS BECOME A FIDDLE WITHOUT A BOW A POORA SHAGGY SITS THERE A COOING DOVE
+    [PyTorch]:       BECAUSE YOU WERE SLEEPING INSTEAD OF CONQUERING THE LOVELY RUSE PRINCESS HAS BECOME A FIDDLE WITHOUT A BOW A POOR SHAGGY SITS THERE ACCOOING DOVE
+    [OpenVINO FP16]: BECAUSE YOU WERE SLEEPING INSTEAD OF CONQUERING THE LOVELY RUSE PRINCESS HAS BECOME A FIDDLE WITHOUT A BOW A POOR SHAGGY SITS THERE ACCOOING DOVE
+    [OpenVINO INT8]: BECAUSE YOU WERE SLEEPING INSTEAD OF CONQUERING THE LOVELY RUSE PRINCESS HAS BECOME A FIDDLE WITHOUT A BOW A POORA SHAGGY SITS THERE ACCOOING DOVE
 
 
 
@@ -623,7 +530,7 @@ Compare Performance of the Original and Quantized Models
 --------------------------------------------------------
 
 `Benchmark
-Tool <https://docs.openvino.ai/latest/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
 is used to measure the inference performance of the ``FP16`` and
 ``INT8`` models.
 
@@ -637,7 +544,7 @@ is used to measure the inference performance of the ``FP16`` and
 .. code:: ipython3
 
     # Inference FP16 model (OpenVINO IR)
-    ! benchmark_app -m $ir_model_path -shape [1,30480] -d CPU -api async -t 15
+    ! benchmark_app -m $ir_model_path -shape [1,30480] -d $device.value -api async -t 15
 
 
 .. parsed-literal::
@@ -646,74 +553,82 @@ is used to measure the inference performance of the ``FP16`` and
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2023.1.0-12050-e33de350633
+    [ INFO ] Build ................................. 2023.3.0-13775-ceeafaf64f3-releases/2023/3
     [ INFO ] 
     [ INFO ] Device info:
-    [ INFO ] CPU
-    [ INFO ] Build ................................. 2023.1.0-12050-e33de350633
+    [ INFO ] AUTO
+    [ INFO ] Build ................................. 2023.3.0-13775-ceeafaf64f3-releases/2023/3
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
-    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
+    [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 41.32 ms
+    [ INFO ] Read model took 26.84 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     input_values (node: input_values) : f32 / [...] / [?,?]
     [ INFO ] Model outputs:
-    [ INFO ]     logits , 819 (node: __module.lm_head/aten::linear/Add) : f32 / [...] / [?,?,32]
+    [ INFO ]     1289 , logits (node: __module.lm_head/aten::linear/Add) : f32 / [...] / [?,?,32]
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'input_values': [1,30480]
-    [ INFO ] Reshape model took 45.40 ms
+    [ INFO ] Reshape model took 31.21 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     input_values (node: input_values) : f32 / [...] / [1,30480]
     [ INFO ] Model outputs:
-    [ INFO ]     logits , 819 (node: __module.lm_head/aten::linear/Add) : f32 / [...] / [1,95,32]
+    [ INFO ]     1289 , logits (node: __module.lm_head/aten::linear/Add) : f32 / [...] / [1,95,32]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 719.60 ms
+    [ INFO ] Compile model took 871.22 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
-    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
-    [ INFO ]   NUM_STREAMS: 12
-    [ INFO ]   AFFINITY: Affinity.CORE
-    [ INFO ]   INFERENCE_NUM_THREADS: 36
-    [ INFO ]   PERF_COUNT: False
-    [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
-    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
-    [ INFO ]   EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
-    [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
-    [ INFO ]   ENABLE_CPU_PINNING: True
-    [ INFO ]   SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
-    [ INFO ]   ENABLE_HYPER_THREADING: True
     [ INFO ]   EXECUTION_DEVICES: ['CPU']
-    [ INFO ]   CPU_DENORMALS_OPTIMIZATION: False
-    [ INFO ]   CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
+    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
+    [ INFO ]   MULTI_DEVICE_PRIORITIES: CPU
+    [ INFO ]   CPU:
+    [ INFO ]     AFFINITY: Affinity.CORE
+    [ INFO ]     CPU_DENORMALS_OPTIMIZATION: False
+    [ INFO ]     CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
+    [ INFO ]     ENABLE_CPU_PINNING: True
+    [ INFO ]     ENABLE_HYPER_THREADING: True
+    [ INFO ]     EXECUTION_DEVICES: ['CPU']
+    [ INFO ]     EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
+    [ INFO ]     INFERENCE_NUM_THREADS: 36
+    [ INFO ]     INFERENCE_PRECISION_HINT: <Type: 'float32'>
+    [ INFO ]     NETWORK_NAME: Model0
+    [ INFO ]     NUM_STREAMS: 12
+    [ INFO ]     OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
+    [ INFO ]     PERFORMANCE_HINT: THROUGHPUT
+    [ INFO ]     PERFORMANCE_HINT_NUM_REQUESTS: 0
+    [ INFO ]     PERF_COUNT: NO
+    [ INFO ]     SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
+    [ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+    [ INFO ]   LOADED_FROM_CACHE: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'input_values'!. This input will be filled with random values!
     [ INFO ] Fill input 'input_values' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 81.52 ms
+    [ INFO ] First inference took 90.48 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
     [ INFO ] Count:            732 iterations
-    [ INFO ] Duration:         15397.52 ms
+    [ INFO ] Duration:         15334.79 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        250.65 ms
-    [ INFO ]    Average:       251.11 ms
-    [ INFO ]    Min:           131.68 ms
-    [ INFO ]    Max:           317.63 ms
-    [ INFO ] Throughput:   47.54 FPS
+    [ INFO ]    Median:        250.16 ms
+    [ INFO ]    Average:       250.01 ms
+    [ INFO ]    Min:           193.17 ms
+    [ INFO ]    Max:           277.38 ms
+    [ INFO ] Throughput:   47.73 FPS
 
 
 .. code:: ipython3
 
     # Inference INT8 model (OpenVINO IR)
-    ! benchmark_app -m $quantized_model_path -shape [1,30480] -d CPU -api async -t 15
+    ! benchmark_app -m $quantized_model_path -shape [1,30480] -d $device.value -api async -t 15
 
 
 .. parsed-literal::
@@ -722,68 +637,76 @@ is used to measure the inference performance of the ``FP16`` and
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2023.1.0-12050-e33de350633
+    [ INFO ] Build ................................. 2023.3.0-13775-ceeafaf64f3-releases/2023/3
     [ INFO ] 
     [ INFO ] Device info:
-    [ INFO ] CPU
-    [ INFO ] Build ................................. 2023.1.0-12050-e33de350633
+    [ INFO ] AUTO
+    [ INFO ] Build ................................. 2023.3.0-13775-ceeafaf64f3-releases/2023/3
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
-    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
+    [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 58.07 ms
+    [ INFO ] Read model took 65.75 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     input_values (node: input_values) : f32 / [...] / [?,?]
     [ INFO ] Model outputs:
-    [ INFO ]     819 , logits (node: __module.lm_head/aten::linear/Add) : f32 / [...] / [?,?,32]
+    [ INFO ]     logits , 1289 (node: __module.lm_head/aten::linear/Add) : f32 / [...] / [?,?,32]
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'input_values': [1,30480]
-    [ INFO ] Reshape model took 58.17 ms
+    [ INFO ] Reshape model took 37.95 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     input_values (node: input_values) : f32 / [...] / [1,30480]
     [ INFO ] Model outputs:
-    [ INFO ]     819 , logits (node: __module.lm_head/aten::linear/Add) : f32 / [...] / [1,95,32]
+    [ INFO ]     logits , 1289 (node: __module.lm_head/aten::linear/Add) : f32 / [...] / [1,95,32]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 1027.08 ms
+    [ INFO ] Compile model took 1339.85 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
-    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
-    [ INFO ]   NUM_STREAMS: 12
-    [ INFO ]   AFFINITY: Affinity.CORE
-    [ INFO ]   INFERENCE_NUM_THREADS: 36
-    [ INFO ]   PERF_COUNT: False
-    [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
-    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
-    [ INFO ]   EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
-    [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
-    [ INFO ]   ENABLE_CPU_PINNING: True
-    [ INFO ]   SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
-    [ INFO ]   ENABLE_HYPER_THREADING: True
     [ INFO ]   EXECUTION_DEVICES: ['CPU']
-    [ INFO ]   CPU_DENORMALS_OPTIMIZATION: False
-    [ INFO ]   CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
+    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
+    [ INFO ]   MULTI_DEVICE_PRIORITIES: CPU
+    [ INFO ]   CPU:
+    [ INFO ]     AFFINITY: Affinity.CORE
+    [ INFO ]     CPU_DENORMALS_OPTIMIZATION: False
+    [ INFO ]     CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
+    [ INFO ]     ENABLE_CPU_PINNING: True
+    [ INFO ]     ENABLE_HYPER_THREADING: True
+    [ INFO ]     EXECUTION_DEVICES: ['CPU']
+    [ INFO ]     EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
+    [ INFO ]     INFERENCE_NUM_THREADS: 36
+    [ INFO ]     INFERENCE_PRECISION_HINT: <Type: 'float32'>
+    [ INFO ]     NETWORK_NAME: Model0
+    [ INFO ]     NUM_STREAMS: 12
+    [ INFO ]     OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
+    [ INFO ]     PERFORMANCE_HINT: THROUGHPUT
+    [ INFO ]     PERFORMANCE_HINT_NUM_REQUESTS: 0
+    [ INFO ]     PERF_COUNT: NO
+    [ INFO ]     SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
+    [ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+    [ INFO ]   LOADED_FROM_CACHE: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'input_values'!. This input will be filled with random values!
     [ INFO ] Fill input 'input_values' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 58.39 ms
+    [ INFO ] First inference took 68.59 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            1008 iterations
-    [ INFO ] Duration:         15179.89 ms
+    [ INFO ] Count:            1092 iterations
+    [ INFO ] Duration:         15108.16 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        179.72 ms
-    [ INFO ]    Average:       179.93 ms
-    [ INFO ]    Min:           134.90 ms
-    [ INFO ]    Max:           241.15 ms
-    [ INFO ] Throughput:   66.40 FPS
+    [ INFO ]    Median:        165.80 ms
+    [ INFO ]    Average:       165.38 ms
+    [ INFO ]    Min:           63.30 ms
+    [ INFO ]    Max:           200.85 ms
+    [ INFO ] Throughput:   72.28 FPS
 
 
 Compare Accuracy of the Original and Quantized Models
@@ -810,5 +733,5 @@ compare it with the ``FP16`` result.
 .. parsed-literal::
 
     [OpenVino FP16] Word Error Rate: 0.03826
-    [OpenVino INT8] Word Error Rate: 0.0383
+    [OpenVino INT8] Word Error Rate: 0.0400
 

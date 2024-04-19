@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "model_wrap.hpp"
+#include "node/include/model_wrap.hpp"
 
-#include "addon.hpp"
-#include "node_output.hpp"
+#include "node/include/addon.hpp"
+#include "node/include/errors.hpp"
+#include "node/include/node_output.hpp"
 
 ModelWrap::ModelWrap(const Napi::CallbackInfo& info)
     : Napi::ObjectWrap<ModelWrap>(info),
@@ -12,26 +13,17 @@ ModelWrap::ModelWrap(const Napi::CallbackInfo& info)
       _core{},
       _compiled_model{} {}
 
-Napi::Function ModelWrap::get_class_constructor(Napi::Env env) {
+Napi::Function ModelWrap::get_class(Napi::Env env) {
     return DefineClass(env,
                        "ModelWrap",
                        {InstanceMethod("getName", &ModelWrap::get_name),
                         InstanceMethod("output", &ModelWrap::get_output),
                         InstanceMethod("input", &ModelWrap::get_input),
+                        InstanceMethod("isDynamic", &ModelWrap::is_dynamic),
+                        InstanceMethod("setFriendlyName", &ModelWrap::set_friendly_name),
+                        InstanceMethod("getFriendlyName", &ModelWrap::get_friendly_name),
                         InstanceAccessor<&ModelWrap::get_inputs>("inputs"),
                         InstanceAccessor<&ModelWrap::get_outputs>("outputs")});
-}
-
-Napi::Object ModelWrap::init(Napi::Env env, Napi::Object exports) {
-    const auto& prototype = get_class_constructor(env);
-
-    const auto ref = new Napi::FunctionReference();
-    *ref = Napi::Persistent(prototype);
-    const auto data = env.GetInstanceData<AddonData>();
-    data->model_prototype = ref;
-
-    exports.Set("Model", prototype);
-    return exports;
 }
 
 void ModelWrap::set_model(const std::shared_ptr<ov::Model>& model) {
@@ -40,11 +32,11 @@ void ModelWrap::set_model(const std::shared_ptr<ov::Model>& model) {
 
 Napi::Object ModelWrap::wrap(Napi::Env env, std::shared_ptr<ov::Model> model) {
     Napi::HandleScope scope(env);
-    const auto prototype = env.GetInstanceData<AddonData>()->model_prototype;
+    const auto& prototype = env.GetInstanceData<AddonData>()->model;
     if (!prototype) {
         OPENVINO_THROW("Invalid pointer to model prototype.");
     }
-    const auto& model_js = prototype->New({});
+    const auto& model_js = prototype.New({});
     const auto mw = Napi::ObjectWrap<ModelWrap>::Unwrap(model_js);
     mw->set_model(model);
     return model_js;
@@ -111,7 +103,7 @@ Napi::Value ModelWrap::get_inputs(const Napi::CallbackInfo& info) {
     auto cm_inputs = _model->inputs();  // Output<Node>
     Napi::Array js_inputs = Napi::Array::New(info.Env(), cm_inputs.size());
 
-    size_t i = 0;
+    uint32_t i = 0;
     for (auto& input : cm_inputs)
         js_inputs[i++] = Output<ov::Node>::wrap(info.Env(), input);
 
@@ -122,9 +114,43 @@ Napi::Value ModelWrap::get_outputs(const Napi::CallbackInfo& info) {
     auto cm_outputs = _model->outputs();  // Output<Node>
     Napi::Array js_outputs = Napi::Array::New(info.Env(), cm_outputs.size());
 
-    size_t i = 0;
+    uint32_t i = 0;
     for (auto& out : cm_outputs)
         js_outputs[i++] = Output<ov::Node>::wrap(info.Env(), out);
 
     return js_outputs;
+}
+
+Napi::Value ModelWrap::is_dynamic(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    if (info.Length() > 0) {
+        reportError(env, "isDynamic() does not accept any arguments.");
+        return env.Null();
+    }
+    const auto result = _model->is_dynamic();
+    return Napi::Boolean::New(env, result);
+}
+
+Napi::Value ModelWrap::set_friendly_name(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    try {
+        if (info.Length() != 1 || !info[0].IsString()) {
+            OPENVINO_THROW("Expected a single string argument for the friendly name");
+        }
+        const auto name = info[0].As<Napi::String>().Utf8Value();
+        _model->set_friendly_name(name);
+    } catch (const std::exception& e) {
+        reportError(env, e.what());
+    }
+    return env.Undefined();
+}
+
+Napi::Value ModelWrap::get_friendly_name(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    if (info.Length() > 0) {
+        reportError(env, "getFriendlyName() does not take any arguments");
+        return env.Undefined();
+    }
+    const auto friendly_name = _model->get_friendly_name();
+    return Napi::String::New(env, friendly_name);
 }

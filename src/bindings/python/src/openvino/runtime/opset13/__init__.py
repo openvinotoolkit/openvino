@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.runtime.opset1.ops import absolute
@@ -57,7 +57,7 @@ from openvino.runtime.opset1.ops import erf
 from openvino.runtime.opset1.ops import exp
 from openvino.runtime.opset9.ops import eye
 from openvino.runtime.opset13.ops import fake_convert
-from openvino.runtime.opset1.ops import fake_quantize
+from openvino.runtime.opset13.ops import fake_quantize
 from openvino.runtime.opset1.ops import floor
 from openvino.runtime.opset1.ops import floor_mod
 from openvino.runtime.opset8.ops import gather

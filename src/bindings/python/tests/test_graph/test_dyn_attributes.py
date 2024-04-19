@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -7,7 +7,7 @@ import openvino.runtime.opset8 as ov
 import pytest
 
 
-@pytest.fixture()
+@pytest.fixture
 def proposal_node():
     attributes = {
         "base_size": np.uint16(1),

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,9 +31,11 @@ OP_T_CONVERTER(translate_unary_op);
 OP_CONVERTER(translate_selu_op);
 OP_T_CONVERTER(translate_binary_op);
 OP_T_CONVERTER(translate_direct_reduce_op);
-
+OP_CONVERTER(translate_addv2_op);
 OP_CONVERTER(translate_add_n_op);
+OP_CONVERTER(translate_approximate_equal_op);
 OP_CONVERTER(translate_adjust_contrast_op);
+OP_CONVERTER(translate_angle_op);
 OP_CONVERTER(translate_arg_max_op);
 OP_CONVERTER(translate_arg_min_op);
 OP_CONVERTER(translate_atan2_op);
@@ -42,6 +44,7 @@ OP_CONVERTER(translate_batch_mat_mul_op);
 OP_CONVERTER(translate_batch_mat_mul_with_type_op);
 OP_CONVERTER(translate_batch_to_space_nd_op);
 OP_CONVERTER(translate_bias_add_op);
+OP_CONVERTER(translate_bincount_op);
 OP_CONVERTER(translate_broadcast_args_op);
 OP_CONVERTER(translate_broadcast_to_op);
 OP_CONVERTER(translate_bucketize_op);
@@ -50,6 +53,8 @@ OP_CONVERTER(translate_clip_by_value_op);
 OP_CONVERTER(translate_complex_op);
 OP_CONVERTER(translate_complex_abs_op);
 OP_CONVERTER(translate_concat_op);
+OP_CONVERTER(translate_conj_op);
+OP_CONVERTER(translate_conj_transpose_op);
 OP_CONVERTER(translate_const_op);
 OP_CONVERTER(translate_conv_2d_op);
 OP_CONVERTER(translate_conv_2d_backprop_input_op);
@@ -62,6 +67,8 @@ OP_CONVERTER(translate_crop_and_resize_op);
 OP_CONVERTER(translate_depth_to_space_op);
 OP_CONVERTER(translate_depthwise_conv_2d_native_op);
 OP_CONVERTER(translate_div_no_nan_op);
+OP_CONVERTER(translate_div_op);
+OP_CONVERTER(translate_mul_op);
 OP_CONVERTER(translate_dynamic_partition_op);
 OP_CONVERTER(translate_einsum_op);
 OP_CONVERTER(translate_elu_op);
@@ -98,6 +105,8 @@ OP_CONVERTER(translate_log_1p_op);
 OP_CONVERTER(translate_lrn_op);
 OP_CONVERTER(translate_mat_mul_op);
 OP_CONVERTER(translate_matrix_diag_op);
+OP_CONVERTER(translate_matrix_band_part_op);
+OP_CONVERTER(translate_matrix_inverse_op);
 OP_CONVERTER(translate_max_pool_op);
 OP_CONVERTER_NAMED(translate_max_pool_with_argmax);
 OP_CONVERTER(translate_mirror_pad_op);
@@ -126,6 +135,7 @@ OP_CONVERTER(translate_reverse_op);
 OP_CONVERTER(translate_reverse_v2_op);
 OP_CONVERTER(translate_reverse_sequence_op);
 OP_CONVERTER(translate_rfft_op);
+OP_CONVERTER(translate_rint_op);
 OP_CONVERTER(translate_roll_op);
 OP_CONVERTER(translate_round_op);
 OP_CONVERTER(translate_rsqrt_op);
@@ -154,6 +164,7 @@ OP_CONVERTER(translate_tensor_list_reserve_op);
 OP_CONVERTER(translate_tensor_list_set_item_op);
 OP_CONVERTER(translate_tensor_list_stack_op);
 OP_CONVERTER(translate_tensor_list_resize_op);
+OP_CONVERTER(translate_tensor_list_concat_v2_op);
 OP_CONVERTER(translate_tile_op);
 OP_CONVERTER(translate_tobool_op);
 OP_CONVERTER_NAMED(translate_top_k_op);

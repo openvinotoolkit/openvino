@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,6 @@ ov::pass::low_precision::MarkupQuantizationGranularity::MarkupQuantizationGranul
     const std::vector<QuantizationGranularityRestriction>& restrictions) {
     for (const auto& restriction : restrictions) {
         const auto it = restrictionsByOperation.find(restriction.operationType.name);
-        OPENVINO_SUPPRESS_DEPRECATED_START
         if (it == restrictionsByOperation.end()) {
             PerTensorQuantization r(restriction.specifyVersion);
             r.portsByVersion.emplace(restriction.operationType.version_id, restriction.restrictions);
@@ -25,7 +24,6 @@ ov::pass::low_precision::MarkupQuantizationGranularity::MarkupQuantizationGranul
         } else {
             it->second.add(restriction.operationType.version_id, restriction.restrictions);
         }
-        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 }
 

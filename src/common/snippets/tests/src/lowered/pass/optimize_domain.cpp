@@ -44,12 +44,10 @@ void OptimizeDomainTest::SetUp() {
 
 TEST_P(OptimizeDomainTest, DomainOptimization) {
     auto subgraph = LoweringTests::getTokenizedSubgraph(m_model);
-    subgraph->set_min_jit_work_amount(m_domain_opt_params.min_jit_work_amount);
-    subgraph->set_min_parallel_work_amount(m_domain_opt_params.min_parallel_work_amount);
-    auto linear_ir = *subgraph->convert_body_to_linear_ir();
+    auto linear_ir = subgraph->convert_body_to_linear_ir(m_domain_opt_params.min_parallel_work_amount, m_domain_opt_params.min_jit_work_amount);
     size_t loop_depth = 1;
-    ov::snippets::lowered::pass::OptimizeDomain(loop_depth).run(linear_ir);
-    const auto& master_shape = linear_ir.get_master_shape();
+    ov::snippets::lowered::pass::OptimizeDomain(loop_depth).run(*linear_ir);
+    const auto& master_shape = linear_ir->get_master_shape();
     EXPECT_EQ(loop_depth, m_domain_opt_params.exp_loop_depth) << "Inconsistent loop depth detected";
     EXPECT_THAT(master_shape, testing::ContainerEq(m_domain_opt_params.exp_master_shape)) << "Inconsistent master_shape detected";
 }
@@ -75,12 +73,16 @@ std::vector<OptimizeDomainParams> dopt_params = {
         {256, 4, {{14, 15, 16, 1}, {14, 15, 1, 17}}, {14, 15, 16, 17}, 2},
         {256, 4, {{14, 15, 1, 17}, {14, 15, 16, 17}}, {14, 15, 16, 17}, 2},
 
+        // Broadcasting breaks dimension collapsing after first collapsion => loop depth incremented
+        {256, 4, {{14, 15, 16, 16}, {16, 16}}, {1, 14, 15, 256}, 2},
+
         // Collapse even if not enough work to cover min_jit_work_amount
         {256, 18, {{4, 5, 6, 7}, {4, 5, 6, 7}}, {1, 4, 5, 42}, 1},
         // Same dims, but higher parallel work amount => do not collapse to load all the threads
         {256, 32, {{4, 5, 6, 7}, {4, 5, 6, 7}}, {4, 5, 6, 7}, 1},
 
         // 2D and 1D shapes are too small, so no collapsing should be done in such cases
+        {256, 2, {{256, 256, 3}, {3}}, {256, 256, 3}, 2},
         {256, 32, {{4, 5}, {4, 5}}, {4, 5}, 1},
         {256, 32, {{5}, {5}}, {5}, 1},
 

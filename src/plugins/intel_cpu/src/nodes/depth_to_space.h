@@ -1,13 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
-#include <string>
 #include "common/permute_kernel.h"
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,8 @@
 #include "openvino/core/rtti.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "openvino/core/type/float8_e4m3.hpp"
+#include "openvino/core/type/float8_e5m2.hpp"
 
 /**
  * @defgroup ov_element_cpp_api Element types
@@ -46,12 +48,17 @@ enum class Type_t {
     i32,        //!< i32 element type
     i64,        //!< i64 element type
     u1,         //!< binary element type
+    u2,         //!< u2 element type
+    u3,         //!< u3 element type
     u4,         //!< u4 element type
+    u6,         //!< u6 element type
     u8,         //!< u8 element type
     u16,        //!< u16 element type
     u32,        //!< u32 element type
     u64,        //!< u64 element type
     nf4,        //!< nf4 element type
+    f8e4m3,     //!< f8e4m3 element type
+    f8e5m2,     //!< f8e5m2 element type
     string      //!< string element type
 };
 
@@ -164,9 +171,18 @@ constexpr Type i64(Type_t::i64);
 /// \brief binary element type
 /// \ingroup ov_element_cpp_api
 constexpr Type u1(Type_t::u1);
+/// \brief u2 element type
+/// \ingroup ov_element_cpp_api
+constexpr Type u2(Type_t::u2);
+/// \brief u3 element type
+/// \ingroup ov_element_cpp_api
+constexpr Type u3(Type_t::u3);
 /// \brief u4 element type
 /// \ingroup ov_element_cpp_api
 constexpr Type u4(Type_t::u4);
+/// \brief u6 element type
+/// \ingroup ov_element_cpp_api
+constexpr Type u6(Type_t::u6);
 /// \brief u8 element type
 /// \ingroup ov_element_cpp_api
 constexpr Type u8(Type_t::u8);
@@ -182,6 +198,12 @@ constexpr Type u64(Type_t::u64);
 /// \brief nf4 element type
 /// \ingroup ov_element_cpp_api
 constexpr Type nf4(Type_t::nf4);
+/// \brief f8e4m3 element type
+/// \ingroup ov_element_cpp_api
+constexpr Type f8e4m3(Type_t::f8e4m3);
+/// \brief f8e4m3 element type
+/// \ingroup ov_element_cpp_api
+constexpr Type f8e5m2(Type_t::f8e5m2);
 /// \brief string element type
 /// \ingroup ov_element_cpp_api
 constexpr Type string(Type_t::string);
@@ -218,6 +240,10 @@ template <>
 OPENVINO_API Type from<ov::bfloat16>();
 template <>
 OPENVINO_API Type from<ov::float16>();
+template <>
+OPENVINO_API Type from<ov::float8_e4m3>();
+template <>
+OPENVINO_API Type from<ov::float8_e5m2>();
 template <>
 OPENVINO_API Type from<std::string>();
 

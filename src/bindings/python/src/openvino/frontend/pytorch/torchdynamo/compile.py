@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
@@ -19,6 +19,10 @@ from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, 
 
 from typing import Callable, Optional
 
+import logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.WARNING)
+
 def cached_model_name(model_hash_str, device, args, cache_root, reversed = False):
     if model_hash_str is None:
         return None
@@ -29,7 +33,7 @@ def cached_model_name(model_hash_str, device, args, cache_root, reversed = False
         os.makedirs(model_cache_dir, exist_ok=True)
         file_name = model_cache_dir + model_hash_str + "_" + device
     except OSError as error:
-        print("Cache directory ", cache_root, " cannot be created. Model caching is disabled. Error: ", error)
+        logger.warning(f"Cache directory {cache_root} cannot be created. Model caching is disabled. Error: {error }")
         return None
 
     inputs_str = ""
@@ -43,7 +47,7 @@ def cached_model_name(model_hash_str, device, args, cache_root, reversed = False
 
     return file_name
 
-def openvino_compile_cached_model(cached_model_path, *example_inputs, options):
+def openvino_compile_cached_model(cached_model_path, options, *example_inputs):
     core = Core()
     om = core.read_model(cached_model_path + ".xml")
 
@@ -93,7 +97,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
             input_types.append(input_data.type())
             input_shapes.append(input_data.size())
 
-        decoder = TorchFXPythonDecoder(gm, gm, input_shapes=input_shapes, input_types=input_types)
+        decoder = TorchFXPythonDecoder(gm, input_shapes=input_shapes, input_types=input_types)
 
         im = fe.load(decoder)
 
@@ -118,12 +122,10 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
         om.inputs[idx].get_node().set_partial_shape(PartialShape(list(input_data.shape)))
     om.validate_nodes_and_infer_types()
 
-    config = {}
+    config = _get_config(options)
 
     if model_hash_str is not None:
-        if _is_cache_dir_in_config(options):
-            config = _get_config(options)
-        else:
+        if not _is_cache_dir_in_config(options):
             config["CACHE_DIR"] = cache_root
 
     compiled = core.compile_model(om, device, config)

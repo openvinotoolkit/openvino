@@ -16,7 +16,7 @@ eye_inst::typed_primitive_inst(network& network, eye_node const& node) : parent(
 
 layout eye_inst::calc_output_layout(eye_node const& node, const kernel_impl_params&) {
     auto primitive = node.get_primitive();
-    return {*(primitive->output_data_types[0]), node.input().get_output_layout().format, primitive->output_shape};
+    return {*(primitive->output_data_types[0]), node.get_input_layout().format, primitive->output_shape};
 }
 
 std::string eye_inst::to_string(eye_node const& node) {
