@@ -191,18 +191,11 @@ void CompileModelCacheTestBase::SetUp() {
         ss << "_" << iter.first << "_" << iter.second.as<std::string>() << "_";
     }
     m_cacheFolderName = ss.str();
-    core->set_property(ov::cache_dir());
 }
 
 void CompileModelCacheTestBase::TearDown() {
     ov::test::utils::removeFilesWithExt(m_cacheFolderName, "blob");
     std::remove(m_cacheFolderName.c_str());
-    core->set_property(ov::cache_dir());
-    try {
-        core->set_property(targetDevice, ov::cache_dir());
-    } catch (...) {
-       // do nothing
-    }
     ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
 }
@@ -244,10 +237,10 @@ void CompileModelCacheTestBase::run() {
     auto originalOutputs = get_plugin_outputs();
     size_t blobCountInitial = -1;
     size_t blobCountAfterwards = -1;
+    configuration.insert(ov::cache_dir(m_cacheFolderName));
     for (int i = 0; i < 2; i++) {
         // Step 2: Load with cache. Export or import shall not throw
         {
-            core->set_property(ov::cache_dir(m_cacheFolderName));
             ASSERT_NO_THROW(compiledModel = core->compile_model(function, targetDevice, configuration));
             if (targetDevice.find("AUTO") == std::string::npos) {
                 // Apply check only for HW plugins
