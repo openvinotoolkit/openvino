@@ -31,10 +31,31 @@ jobs:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      APT_CACHE_PATH: /mount/caches/apt/ubuntu_20/${{ github.base_ref || github.ref_name }}
+
     steps:
-      - name: Set apt retries
+      - name: checkout action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_apt
+            .github/actions/cache
+
+      - name: Setup apt
         if: runner.os == 'Linux'
-        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+        uses: ./.github/actions/setup_apt
+
+      - name: Setup apt cache
+        if: runner.os == 'Linux'
+        uses: ./openvino/.github/actions/cache
+        with:
+          save-always: true # TODO: for the 1st run only
+          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          cache-path: ${{ env.APT_CACHE_PATH }}
+          path: '/var/cache/apt/archives'
+          key: ${{ runner.os }}-${{ runner.arch }}-apt-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-apt
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v4
@@ -96,7 +117,7 @@ jobs:
         if: fromJSON(inputs.affected-components).LP_transformations.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          
+
           ${INSTALL_TEST_DIR}/ov_lp_transformations_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-LpTransformations.xml
 
@@ -131,7 +152,7 @@ jobs:
 
       - name: TensorFlow Common frontend tests
         if: fromJSON(inputs.affected-components).TF_FE.test ||
-            fromJSON(inputs.affected-components).TFL_FE.test && 
+            fromJSON(inputs.affected-components).TFL_FE.test &&
             (runner.os != 'macOS' && runner.arch != 'ARM64')
         run: |
           source ${INSTALL_DIR}/setupvars.sh
@@ -142,7 +163,7 @@ jobs:
         if: fromJSON(inputs.affected-components).TF_FE.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          
+
           ${INSTALL_TEST_DIR}/ov_tensorflow_frontend_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TensorFlowFrontend.xml
 
@@ -157,7 +178,7 @@ jobs:
         if: ${{ fromJSON(inputs.affected-components).transformations.test && runner.arch != 'ARM64' }} # Ticket: 126281
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          
+
           ${INSTALL_TEST_DIR}/ov_transformations_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-Transformations.xml
 

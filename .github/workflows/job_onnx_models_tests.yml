@@ -33,11 +33,32 @@ jobs:
       # depending on GITHUB_RUN_NUMBER variable
       NUMBER_OF_REPLICAS: 2
       ONNX_MODEL_ZOO_SHA: "5faef4c33eba0395177850e1e31c4a6a9e634c82"
+      APT_CACHE_PATH: /mount/caches/apt/ubuntu_20/${{ github.base_ref || github.ref_name }}
+
     if: ${{ github.event_name != 'merge_group' }}
     steps:
-      - name: Set apt retries
+      - name: checkout action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_apt
+            .github/actions/cache
+
+      - name: Setup apt
         if: runner.os == 'Linux'
-        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+        uses: ./.github/actions/setup_apt
+
+      - name: Setup apt cache
+        if: runner.os == 'Linux'
+        uses: ./openvino/.github/actions/cache
+        with:
+          save-always: true # TODO: for the 1st run only
+          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          cache-path: ${{ env.APT_CACHE_PATH }}
+          path: '/var/cache/apt/archives'
+          key: ${{ runner.os }}-${{ runner.arch }}-apt-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-apt
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v4
@@ -78,6 +99,17 @@ jobs:
             src/frontends/onnx/tests/tests_python/model_zoo_preprocess.sh
           sparse-checkout-cone-mode: false
           path: 'openvino'
+
+      - name: Setup apt cache
+        uses: ./openvino/.github/actions/cache
+        with:
+          save-always: true # TODO: for the 1st run only
+          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          cache-path: ${{ env.APT_CACHE_PATH }}
+          path: '/var/cache/apt/archives'
+          key: ${{ runner.os }}-${{ runner.arch }}-apt-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-apt
 
       - name: Install dependencies
         run: |

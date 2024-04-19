@@ -30,10 +30,31 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       BUILD_DIR: ${{ github.workspace }}/build
+      APT_CACHE_PATH: /mount/caches/apt/ubuntu_20/${{ github.base_ref || github.ref_name }}
+
     steps:
-      - name: Set apt retries
+      - name: checkout action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_apt
+            .github/actions/cache
+
+      - name: Setup apt
         if: runner.os == 'Linux'
-        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+        uses: ./.github/actions/setup_apt
+
+      - name: Setup apt cache
+        if: runner.os == 'Linux'
+        uses: ./openvino/.github/actions/cache
+        with:
+          save-always: true # TODO: for the 1st run only
+          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          cache-path: ${{ env.APT_CACHE_PATH }}
+          path: '/var/cache/apt/archives'
+          key: ${{ runner.os }}-${{ runner.arch }}-apt-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-apt
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v4
@@ -62,6 +83,17 @@ jobs:
           pushd $INSTALL_TEST_DIR
             tar -xzf openvino_tests.tar.gz -C $INSTALL_DIR
           popd
+
+      - name: Setup apt cache
+        uses: ./openvino/.github/actions/cache
+        with:
+          save-always: true # TODO: for the 1st run only
+          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          cache-path: ${{ env.APT_CACHE_PATH }}
+          path: '/var/cache/apt/archives'
+          key: ${{ runner.os }}-${{ runner.arch }}-apt-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-apt
 
       - name: Install OpenVINO dependencies (Linux)
         if: runner.os == 'Linux'

@@ -144,7 +144,7 @@ jobs:
         if: '!cancelled()'
         run: |
           python3 ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/scripts/process_op_report.py ${INSTALL_TEST_DIR}/TEST-torch_unsupported_ops.log
-  
+
       - name: Available storage after tests
         run: |
           echo "Available storage:"
