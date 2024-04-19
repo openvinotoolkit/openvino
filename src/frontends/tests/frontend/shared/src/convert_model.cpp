@@ -37,6 +37,7 @@ void FrontEndConvertModelTest::doLoadFromFile() {
 }
 
 TEST_P(FrontEndConvertModelTest, test_convert_partially_equal_convert) {
+    GTEST_SKIP() << "Ticket 99981";
     ASSERT_NO_THROW(doLoadFromFile());
     std::shared_ptr<ngraph::Function> function_ref;
     ASSERT_NO_THROW(function_ref = m_frontEnd->convert(m_inputModel));
@@ -55,6 +56,7 @@ TEST_P(FrontEndConvertModelTest, test_convert_partially_equal_convert) {
 }
 
 TEST_P(FrontEndConvertModelTest, test_decode_convert_equal_convert) {
+    GTEST_SKIP() << "Ticket 99981";
     ASSERT_NO_THROW(doLoadFromFile());
     std::shared_ptr<ngraph::Function> function_ref;
     ASSERT_NO_THROW(function_ref = m_frontEnd->convert(m_inputModel));

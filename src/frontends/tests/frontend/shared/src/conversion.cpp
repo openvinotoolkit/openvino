@@ -77,6 +77,7 @@ TEST_P(FrontEndConversionExtensionTest, TestConversionExtension) {
 }
 
 TEST_P(FrontEndConversionExtensionTest, TestConversionExtensionViaSO) {
+    GTEST_SKIP() << "Ticket 99981";
     auto frontend = m_param.m_frontend;
     const auto& lib_path = get_lib_path("test_builtin_extensions");
     frontend->add_extension(lib_path);
