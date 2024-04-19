@@ -30,21 +30,9 @@ where ``d`` is over all spatial dimensions.
 
 The ``input`` blocks are being moved into the ``output`` tensor of shape ``(N, C, output_size[0], output_size[1])`` by combining the values contained in blocks.
 
+Non-batched inputs are also supported, in which case the ``input`` has shape ``(C * Product(kernel_size), L)`` and the output has shape ``(C, output_size[0], output_size[1])``.
+
 **Attributes**:
-
-* *output_size*
-
-  * **Description**: controls the shape of the spatial dimensions of the output image.
-  * **Range of values**: 1D tensor of non-negative integer numbers
-  * **Type**: *T_IND*
-  * **Required**: *yes*
-
-* *kernel_size*
-
-  * **Description**: size of the sliding blocks.
-  * **Range of values**: 1D tensor of non-negative integer numbers
-  * **Type**: *T_IND*
-  * **Required**: *yes*
 
 * *strides*
 
@@ -80,11 +68,30 @@ The ``input`` blocks are being moved into the ``output`` tensor of shape ``(N, C
 
 **Inputs**
 
-* **1**: A 4D tensor of type *T* and shape ``(N, C * Product(kernel_size), L)``. **Required.**
+* **1**: *data*
+
+  * **Description**: A batched 3D tensor of type *T* and shape ``(N, C * Product(kernel_size), L)`` or an unbatched 2D tensor of type *T* and shape ``(C * Product(kernel_size), L)``. **Required.**
+  * **Range of values**: 1D tensor of non-negative integer numbers
+  * **Type**: *T*
+
+* **2**: *output_size*
+
+  * **Description**: controls the shape of the spatial dimensions of the output image. **Required.**
+  * **Range of values**: batched 3D or unbatched 2D tensor of non-negative integer numbers
+  * **Type**: *T_IND*
+
+* **3**: *kernel_size*
+
+  * **Description**: size of the sliding blocks. **Required.**
+  * **Range of values**: 1D tensor of non-negative integer numbers
+  * **Type**: *T_IND*
 
 **Outputs**
 
-* **1**: The output tensor the output image of shape ``(N, C, output_size[0], output_size[1])`` and type *T*.
+* **1**: The output tensor the output image of type *T* and shape:
+
+  * ``(N, C, output_size[0], output_size[1])`` in case of batched input,
+  * ``(C, output_size[0], output_size[1])`` in case of non-batched input.
 
 **Types**
 
@@ -144,7 +151,7 @@ All examples assume ``C = 3``.
         </output>
     </layer>
 
-*Example 2: non-default dilation and padding*
+*Example 3: non-default dilation and padding*
 
 .. code-block:: xml
    :force:
@@ -164,6 +171,28 @@ All examples assume ``C = 3``.
                 <dim>3</dim>     <!-- C -->
                 <dim>32</dim>    <!-- output_size[0] -->
                 <dim>32</dim>    <!-- output_size[1] -->
+            </port>
+        </output>
+    </layer>
+
+*Example 4: default optional Parameters, unbatched*
+
+.. code-block:: xml
+   :force:
+
+    <layer ... type="Col2Im" ... >
+        <data output_size="16,16" kernel_size="2,2"/>
+        <input>
+            <port id="0" precision="I32">
+                <dim>12</dim>    <!-- C * Product(kernel_size) -->
+                <dim>225</dim>   <!-- L -->
+            </port>
+        </input>
+        <output>
+            <port id="1" precision="I32">
+                <dim>3</dim>     <!-- C -->
+                <dim>16</dim>    <!-- output_size[0] -->
+                <dim>16</dim>    <!-- output_size[1] -->
             </port>
         </output>
     </layer>
