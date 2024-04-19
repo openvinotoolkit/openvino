@@ -100,11 +100,31 @@ void visualize_example(const std::shared_ptr<ov::Model>& m) {
 
 void model_inputs() {
 ov::Core core;
-std::shared_ptr<ov::Model> ov_model = core.read_model("model.xml");
+std::shared_ptr<ov::Model> model = core.read_model("model.xml");
 //! [all_inputs_ouputs]
+/* Take information about all topology inputs */
+auto inputs = model->inputs();
+/* Take information about all topology outputs */
+auto outputs = model->outputs();
+//! [all_inputs_ouputs]
+}
+
+void model_inputs_index() {
+ov::Core core;
+std::shared_ptr<ov::Model> ov_model = core.read_model("model.xml");
+//! [all_inputs_ouputs_index]
 auto ov_model_input = ov_model->input(index);
 auto ov_model_output = ov_model->output(index);
-//! [all_inputs_ouputs]
+//! [all_inputs_ouputs_index]
+}
+
+void model_inputs_tensor_name() {
+ov::Core core;
+std::shared_ptr<ov::Model> ov_model = core.read_model("model.xml");
+//! [all_inputs_ouputs_tensor_name]
+auto ov_model_input = ov_model->input(original_fw_in_tensor_name);
+auto ov_model_output = ov_model->output(original_fw_out_tensor_name);
+//! [all_inputs_ouputs_tensor_name]
 }
 
 void pattern_matcher_examples(std::shared_ptr<ov::Node> node) {

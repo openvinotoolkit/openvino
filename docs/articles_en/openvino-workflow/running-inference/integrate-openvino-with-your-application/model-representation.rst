@@ -25,11 +25,43 @@ OpenVINO™ Runtime enables you to use different approaches to work with model i
 
 * The ``ov::Model::inputs()`` / ``ov::Model::outputs()``  methods are used to get vectors of all input/output ports.
 
+  .. tab-set::
+
+     .. tab-item:: Python
+        :sync: py
+
+        .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+           :language: cpp
+           :fragment: [all_inputs_ouputs]
+
+     .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
+           :language: cpp
+           :fragment: [all_inputs_ouputs]
+
 * For a model that has only one input or output, you can use the ``ov::Model::input()`` or ``ov::Model::output()``  methods without
   any arguments to get input or output port respectively.
 
 * The ``ov::Model::input()`` and ``ov::Model::output()``  methods can be used with the index of inputs or outputs from the framework
   model to get specific ports by index.
+
+  .. tab-set::
+
+     .. tab-item:: Python
+        :sync: py
+
+        .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+           :language: cpp
+           :fragment: [all_inputs_ouputs_index]
+
+     .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
+           :language: cpp
+           :fragment: [all_inputs_ouputs_index]
 
 * You can use the tensor name of input or output from the original framework model together with the
   ``ov::Model::input()`` or ``ov::Model::output()`` methods to get specific ports. It means that you do not need to have any
@@ -38,28 +70,32 @@ OpenVINO™ Runtime enables you to use different approaches to work with model i
 
 .. warning::
 
-   The following example retrives input/output using the name ``index``, which is optional. Some
-   outputs may not have names, so use explicit names and indices if required.
+   All inputs/outputs of ``ov::Model`` are numbered, so the preferred way to retrieve them is to use indices.
 
-   OpenVINO Runtime has methods to obtain a list of used names (``get_name`` / ``get_any_name``).
-   However, because not all of them have names, using these methods may return an empty list.
+   Using tensor names can potentially be a less reliable approach, since the mandatory
+   presence of tensor names for inputs and outputs is not guaranteed in the original frameworks.
+   Therefore ``ov::Model`` may contain empty list of ``tensor_names`` for inputs/outputs.
 
-.. tab-set::
+   To get all tensor names which are associated with the corresponding input/output, OpenVINO
+   Runtime has ``get_names`` method. To get some name from all names associated with a given input/output,
+   the ``get_any_name`` method was introduced. These methods may return empty names list/empty name
+   if the names are not present.
 
-   .. tab-item:: Python
-      :sync: py
+  .. tab-set::
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
-         :language: cpp
-         :fragment: [all_inputs_ouputs]
+     .. tab-item:: Python
+        :sync: py
 
-   .. tab-item:: C++
-      :sync: cpp
+        .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+           :language: cpp
+           :fragment: [all_inputs_ouputs_tensor_name]
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
-         :language: cpp
-         :fragment: [all_inputs_ouputs]
+     .. tab-item:: C++
+        :sync: cpp
 
+        .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
+           :language: cpp
+           :fragment: [all_inputs_ouputs_tensor_name]
 
 For details on how to build a model in OpenVINO™ Runtime, see the :ref:`Build a Model in OpenVINO Runtime <ov_ug_build_model>` section.
 

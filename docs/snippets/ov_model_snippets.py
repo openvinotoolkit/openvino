@@ -76,9 +76,21 @@ def visualize_example(m : ov.Model):
 
 def model_inputs_outputs(model : ov.Model):
     #! [all_inputs_ouputs]
+    inputs = model.inputs
+    outputs = model.outputs
+    #! [all_inputs_ouputs]
+
+def model_inputs_outputs_index(model : ov.Model):
+    #! [all_inputs_ouputs_index]
     ov_model_input = model.input(index)
     ov_model_output = model.output(index)
-    #! [all_inputs_ouputs]
+    #! [all_inputs_ouputs_index]
+
+def model_inputs_outputs_tensor_name(model : ov.Model):
+    #! [all_inputs_ouputs_tensor_name]
+    ov_model_input = model.input(original_fw_in_tensor_name)
+    ov_model_output = model.output(original_fw_out_tensor_name)
+    #! [all_inputs_ouputs_tensor_name]
 
 def get_element_type_example():
     #! [get_element_type]
@@ -92,3 +104,6 @@ def main():
     serialize_example(model)
     visualize_example(model)
     model_inputs_outputs(model)
+    model_inputs_outputs_index(model)
+    model_inputs_outputs_tensor_name(model)
+    get_element_type_example()
