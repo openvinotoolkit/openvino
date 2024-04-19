@@ -749,13 +749,14 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       GTEST_PARALLEL_SCRIPT: ${{ github.workspace }}/gtest_parallel.py
+
     steps:
-      - name: checkout action
-      uses: actions/checkout@v4
-      with:
-        sparse-checkout: |
-          .github/actions/setup_apt
-          .github/actions/cache
+      - name: checkout actions
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_apt
+            .github/actions/cache
 
       - name: Setup apt
         uses: ./.github/actions/setup_apt
