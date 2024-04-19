@@ -75,6 +75,10 @@ class TestLookupTableFindOps(CommonTFLayerTest):
              all_keys=['PyTorch', 'TensorFlow', 'JAX', 'Lightning', 'MindSpore', 'OpenVINO'],
              all_values=[200, 100, 0, -3, 10, 1],
              default_value=0, invalid_key='AbraCadabra'),
+        dict(keys_type=str, values_type=np.int32,
+             all_keys=['First sentence', 'Second one', '', 'Third', 'Fourth Sentence', 'etc.'],
+             all_values=[-1, 2, 0, -3, 0, 1],
+             default_value=100, invalid_key='AbraCadabra'),
     ]
 
     @pytest.mark.parametrize("hash_table_type", [0, 1])
