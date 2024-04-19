@@ -82,7 +82,7 @@ void OVPropertiesTestsWithCompileModelProps::SetUp() {
 
     std::string::size_type pos = temp_device.find(":", 0);
     std::string hw_device;
-    if (pos == std::string::npos) {
+    if (pos == std::string::npos && temp_device != "AUTO") {
         target_device = temp_device;
         hw_device = temp_device;
     } else {
@@ -91,7 +91,6 @@ void OVPropertiesTestsWithCompileModelProps::SetUp() {
     }
 
     if (target_device == std::string(ov::test::utils::DEVICE_MULTI) ||
-        target_device == std::string(ov::test::utils::DEVICE_AUTO) ||
         target_device == std::string(ov::test::utils::DEVICE_HETERO) ||
         target_device == std::string(ov::test::utils::DEVICE_BATCH)) {
         compileModelProperties = {ov::device::priorities(hw_device)};
