@@ -158,7 +158,6 @@ jobs:
           version: ${{ env.PYTHON_VERSION }}
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'true'
-          show-cache-info: 'true'
 
       - name: Install python dependencies
         run: |
