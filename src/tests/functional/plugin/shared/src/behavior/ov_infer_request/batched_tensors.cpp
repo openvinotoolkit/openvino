@@ -37,7 +37,6 @@ void OVInferRequestBatchedTests::SetUp() {
 
 void OVInferRequestBatchedTests::TearDown() {
     if (m_need_reset_core) {
-        ie->set_property({ov::cache_dir()});
         ie.reset();
         ov::test::utils::PluginCache::get().reset();
         ov::test::utils::removeFilesWithExt(m_cache_dir, "blob");
@@ -180,9 +179,8 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensorsBase_Caching) {
     auto batch_shape = Shape{batch, 2, 2, 2};
     auto one_shape_size = ov::shape_size(one_shape);
     auto model = OVInferRequestBatchedTests::create_n_inputs(1, element::f32, batch_shape, "N...");
-    ie->set_property({ov::cache_dir(m_cache_dir)});
-    auto execNet_no_cache = ie->compile_model(model, target_device);
-    auto execNet_cache = ie->compile_model(model, target_device);
+    auto execNet_no_cache = ie->compile_model(model, target_device, {ov::cache_dir(m_cache_dir)});
+    auto execNet_cache = ie->compile_model(model, target_device, {ov::cache_dir(m_cache_dir)});
     // Allocate 8 chunks, set 'user tensors' to 0, 2, 4, 6 chunks
     std::vector<float> buffer(one_shape_size * batch * 2, 0);
 
@@ -469,9 +467,8 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_Cache_CheckDeepCopy) {
     std::vector<float> buffer(ov::shape_size(batch_shape), 1);
     std::vector<float> buffer_out(ov::shape_size(batch_shape), 1);
     auto model = OVInferRequestBatchedTests::create_n_inputs(2, element::f32, batch_shape, "NCHW");
-    ie->set_property({ov::cache_dir(m_cache_dir)});
-    auto execNet_no_cache = ie->compile_model(model, target_device);
-    auto execNet = ie->compile_model(model, target_device);
+    auto execNet_no_cache = ie->compile_model(model, target_device, {ov::cache_dir(m_cache_dir)});
+    auto execNet = ie->compile_model(model, target_device, {ov::cache_dir(m_cache_dir)});
     ov::InferRequest req;
     req = execNet.create_infer_request();
     model->input(0).set_names({"updated_input0"}); // Change param name of original model
