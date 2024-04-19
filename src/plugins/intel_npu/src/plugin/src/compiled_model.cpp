@@ -263,10 +263,16 @@ void CompiledModel::initialize_properties() {
           [](const Config& config) {
               return config.get<ENABLE_CPU_PINNING>();
           }}},
+        {ov::hint::model_priority.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.get<MODEL_PRIORITY>();
+          }}},
         // OV Internals
         // =========
         {ov::internal::supported_properties.name(),
-         {true,
+         {false,
           ov::PropertyMutability::RO,
           [&](const Config&) {
               static const std::vector<ov::PropertyName> supportedProperty{
@@ -276,12 +282,6 @@ void CompiledModel::initialize_properties() {
           }}},
         // NPU Private
         // =========
-        {ov::hint::model_priority.name(),
-         {false,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<MODEL_PRIORITY>();
-          }}},
         {ov::intel_npu::tiles.name(),
          {false,
           ov::PropertyMutability::RO,
