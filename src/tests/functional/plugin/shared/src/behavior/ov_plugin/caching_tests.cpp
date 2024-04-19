@@ -310,7 +310,6 @@ void CompileModelLoadFromFileTestBase::SetUp() {
         ss << "_" << iter.first << "_" << iter.second.as<std::string>() << "_";
     }
     m_cacheFolderName = ss.str();
-    core->set_property(ov::cache_dir());
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::Serialize>(m_modelName, m_weightsName);
     manager.run_passes(ov::test::utils::make_conv_pool_relu({1, 3, 227, 227}, ov::element::f32));
@@ -321,14 +320,13 @@ void CompileModelLoadFromFileTestBase::TearDown() {
     ov::test::utils::removeFilesWithExt(m_cacheFolderName, "cl_cache");
     ov::test::utils::removeIRFiles(m_modelName, m_weightsName);
     std::remove(m_cacheFolderName.c_str());
-    core->set_property(ov::cache_dir());
     ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
 }
 
 void CompileModelLoadFromFileTestBase::run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    core->set_property(ov::cache_dir(m_cacheFolderName));
+    configuration.insert(ov::cache_dir(m_cacheFolderName));
     try {
         compiledModel = core->compile_model(m_modelName, targetDevice, configuration);
         inferRequest = compiledModel.create_infer_request();
@@ -369,7 +367,7 @@ TEST_P(CompileModelLoadFromFileTestBase, CanCreateCacheDirAndDumpBinariesUnicode
         ov::test::utils::copyFile(m_weightsName, model_bin_path_w);
 
         // Set unicode folder as cache_dir
-        core->set_property(ov::cache_dir(cache_path_mb));
+        configuration.insert(ov::cache_dir(cache_path_mb));
         // Read model from unicode folder
         auto model = core->read_model(ov::util::wstring_to_string(model_xml_path_w));
 
