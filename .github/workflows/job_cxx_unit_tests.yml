@@ -47,7 +47,7 @@ jobs:
 
       - name: Setup apt cache
         if: runner.os == 'Linux'
-        uses: ./openvino/.github/actions/cache
+        uses: ./.github/actions/cache
         with:
           save-always: true # TODO: for the 1st run only
           cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}

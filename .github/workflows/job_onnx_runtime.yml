@@ -55,7 +55,7 @@ jobs:
 
       - name: Setup apt cache
         if: runner.os == 'Linux'
-        uses: ./openvino/.github/actions/cache
+        uses: ./.github/actions/cache
         with:
           save-always: true # TODO: for the 1st run only
           cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
@@ -93,17 +93,6 @@ jobs:
         run: |
           apt-get update
           apt-get install --assume-yes --no-install-recommends git ca-certificates
-
-      - name: Setup apt cache
-        uses: ./openvino/.github/actions/cache
-        with:
-          save-always: true # TODO: for the 1st run only
-          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cache-path: ${{ env.APT_CACHE_PATH }}
-          path: '/var/cache/apt/archives'
-          key: ${{ runner.os }}-${{ runner.arch }}-apt-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-apt
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./openvino/.github/actions/setup_python
