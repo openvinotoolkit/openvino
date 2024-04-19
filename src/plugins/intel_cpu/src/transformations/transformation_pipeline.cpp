@@ -108,7 +108,11 @@
 
 // CPU specific transformations
 #include "transformations/cpu_opset/convert_to_cpu_specific_opset.hpp"
-#include "transformations/snippets/common/pass/snippets_mark_skipped.hpp"
+#if defined(OPENVINO_ARCH_ARM64)
+#include "transformations/snippets/aarch64/pass/snippets_mark_skipped.hpp"
+#else
+#include "transformations/snippets/x64/pass/snippets_mark_skipped.hpp"
+#endif
 #include "transformations/cpu_opset/x64/pass/convert_to_interaction.hpp"
 #include "transformations/cpu_opset/arm/pass/convert_group_conv.hpp"
 #include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"

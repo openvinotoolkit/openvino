@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "snippets_mark_skipped.hpp"
@@ -69,7 +69,7 @@ bool isFullyConnected(const std::shared_ptr<const ov::Node>& node) {
     return out_weights.get_partial_shape().is_static() &&
            rank_a.is_static() && rank_w.is_static() &&
            rank_a.get_length() != 1 && rank_w.get_length() != 1 &&
-           rank_w.get_length() <= 3 &&
+           rank_a.get_length() <= 3 && rank_w.get_length() <= 3 &&
            ov::op::util::is_on_constant_path(out_weights);
 }
 bool SupportsFusingWithConvolution_SumActivation(const std::shared_ptr<const Node> &node) {
@@ -354,9 +354,6 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, con
     return false;
 }
 bool isSuitableParentForFusingSumActivation(const std::shared_ptr<const Node> &node) {
-#if defined(OPENVINO_ARCH_ARM64)
-    return false;
-#else
     if (!ov::is_type<ov::op::v1::Add>(node))
         return false;
     auto isFusedBiasNode = [](std::shared_ptr<Node> n){
@@ -405,7 +402,6 @@ bool isSuitableParentForFusingSumActivation(const std::shared_ptr<const Node> &n
                              GetNodeFusingType(n) == NodeFusingType::FusedWithBinaryConvolution);
     }
     return getNumNonConstInputs(node) == 2 && num_conv_parents >=1;
-#endif
 }
 bool isSuitableChildForFusingSumActivation(const std::shared_ptr<const Node> &node) {
     return SupportsFusingWithConvolution_SumActivation(node);
