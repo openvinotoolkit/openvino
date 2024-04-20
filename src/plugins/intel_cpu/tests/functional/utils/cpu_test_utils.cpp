@@ -134,6 +134,7 @@ void CPUTestsBase::CheckPluginRelatedResults(const ov::CompiledModel& execNet, c
 void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov::Model>& function,
                                                  const std::set<std::string>& nodeType) const {
     ASSERT_NE(nullptr, function);
+    bool isNodeFound = false;
     for (const auto& node : function->get_ops()) {
         const auto& rtInfo = node->get_rt_info();
         auto getExecValue = [&rtInfo](const std::string& paramName) -> std::string {
@@ -162,6 +163,7 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
         };
 
         if (nodeType.count(getExecValue(ov::exec_model_info::LAYER_TYPE))) {
+            isNodeFound = true;
             ASSERT_LE(inFmts.size(), node->get_input_size());
             ASSERT_LE(outFmts.size(), node->get_output_size());
             for (size_t i = 0; i < inFmts.size(); i++) {
@@ -220,6 +222,13 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
                 << "primType is unexpected : " << primType << " Expected : " << selectedType;
         }
     }
+
+    std::stringstream error_message;
+    error_message << "Node with types \"";
+    for (const auto& elem : nodeType)
+        error_message << elem << ", ";
+    error_message << "\" wasn't found";
+    ASSERT_TRUE(isNodeFound) << error_message.str();
 }
 
 bool CPUTestsBase::primTypeCheck(std::string primType) const {
