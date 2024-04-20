@@ -39,7 +39,7 @@ class TestStringSplitV2(CommonTFLayerTest):
 
     @pytest.mark.parametrize('input_shape', [[1], [2], [5]])
     @pytest.mark.parametrize('sep', ['', '<>'])
-    @pytest.mark.parametrize('maxsplit', [None, -1, 2, 5])
+    @pytest.mark.parametrize('maxsplit', [None, -1, 5, 10])
     @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['arm', 'armv7l',
