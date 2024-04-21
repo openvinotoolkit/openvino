@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -2436,6 +2436,11 @@ INSTANTIATE_TEST_SUITE_P(CachingTest,
 #endif  // defined(ENABLE_OV_IR_FRONTEND)
 
 class CacheTestWithProxyEnabled : public CachingTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<TestParam, std::string>>& obj) {
+        return std::get<1>(std::get<0>(obj.param)) + "_" + std::get<1>(obj.param);
+    }
+
 protected:
     void testLoadProxy(const std::function<void(ov::Core& core)>& func) {
         ov::Core core;
@@ -2487,5 +2492,5 @@ TEST_P(CacheTestWithProxyEnabled, TestLoad) {
 INSTANTIATE_TEST_SUITE_P(CacheTestWithProxyEnabled,
                          CacheTestWithProxyEnabled,
                          ::testing::Combine(::testing::ValuesIn(loadVariants), ::testing::ValuesIn(cacheFolders)),
-                         getTestCaseName);
+                         CacheTestWithProxyEnabled::getTestCaseName);
 #endif

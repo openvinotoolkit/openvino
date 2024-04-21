@@ -13,7 +13,7 @@ Converting TensorFlow EfficientDet Models
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <tutorials>`.
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <../../../../../../learn-openvino/interactive-tutorials-python>`.
    
 This tutorial explains how to convert EfficientDet public object detection models to the Intermediate Representation (IR).
 
@@ -53,10 +53,10 @@ The attribute ``image_size`` specifies the shape to be defined for the model con
 
 .. note::
 
-    The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the ``RGB<->BGR`` conversion specifying the command-line parameter: ``--reverse_input_channels``. Otherwise, inference results may be incorrect. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the :doc:`Converting a Model to Intermediate Representation (IR) <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
+    The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the ``RGB<->BGR`` conversion specifying the command-line parameter: ``--reverse_input_channels``. Otherwise, inference results may be incorrect. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the :doc:`Converting a Model to Intermediate Representation (IR) <../../[legacy]-setting-input-shapes>` guide.
 
 OpenVINO toolkit provides samples that can be used to infer EfficientDet model. 
-For more information, refer to the :doc:`Open Model Zoo Demos <omz_demos>`.
+For more information, refer to the :doc:`Open Model Zoo Demos <../../../../../../omz_demos>`.
 
 Interpreting Results of the TensorFlow Model and the IR
 #######################################################

@@ -57,7 +57,7 @@ Table of contents:
 .. parsed-literal::
 
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-
+    
 
 .. parsed-literal::
 
@@ -77,17 +77,17 @@ Windows specific settings
     # If you have a different C++ compiler, please add the correct path
     # to os.environ["PATH"] directly.
     # Note that the C++ Redistributable is not enough to run this notebook.
-
+    
     # Adding the path to os.environ["LIB"] is not always required
     # - it depends on the system's configuration
-
+    
     import sys
-
+    
     if sys.platform == "win32":
         import distutils.command.build_ext
         import os
         from pathlib import Path
-
+    
         VS_INSTALL_DIR = r"C:/Program Files (x86)/Microsoft Visual Studio"
         cl_paths = sorted(list(Path(VS_INSTALL_DIR).glob("**/Hostx86/x64/cl.exe")))
         if len(cl_paths) == 0:
@@ -120,15 +120,15 @@ Import the packages needed for successful execution
     from pathlib import Path
     import sys
     import time
-
+    
     import numpy as np
     import torch
     from sklearn.metrics import accuracy_score
     from torch.nn import functional as F, Parameter
     from torch.nn.init import xavier_normal_
-
+    
     import openvino as ov
-
+    
     # Fetch `notebook_utils` module
     import urllib.request
     urllib.request.urlretrieve(
@@ -146,38 +146,38 @@ Settings: Including path to the serialized model files and input data files
 
     # Path to the pretrained model checkpoint
     modelpath = Path('models/conve.pt')
-
+    
     # Entity and relation embedding dimensions
     EMB_DIM = 300
-
+    
     # Top K vals to consider from the predictions
     TOP_K = 2
-
+    
     # Required for OpenVINO conversion
     output_dir = Path("models")
     base_model_name = "conve"
-
+    
     output_dir.mkdir(exist_ok=True)
-
+    
     # Paths where PyTorch and OpenVINO IR models will be stored
     ir_path = Path(output_dir / base_model_name).with_suffix(".xml")
 
 .. code:: ipython3
 
     data_folder = "data"
-
+    
     # Download the file containing the entities and entity IDs
     entdatapath = download_file(
         "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/text/countries_S1/kg_training_entids.txt",
         directory=data_folder
     )
-
+    
     # Download the file containing the relations and relation IDs
     reldatapath = download_file(
         "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/text/countries_S1/kg_training_relids.txt",
         directory=data_folder
     )
-
+    
     # Download the test data file
     testdatapath = download_file(
         "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/json/countries_S1/e1rel_to_e2_ranking_test.json",
@@ -211,7 +211,7 @@ Download Model Checkpoint
 .. code:: ipython3
 
     model_url = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/knowledge-graph-embeddings/conve.pt'
-
+    
     download_file(model_url, filename=modelpath.name, directory=modelpath.parent)
 
 
@@ -225,7 +225,7 @@ Download Model Checkpoint
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/219-knowledge-graphs-conve/models/conve.pt')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/219-knowledge-graphs-conve/models/conve.pt')
 
 
 
@@ -256,13 +256,13 @@ Defining the ConvE model class
             self.ln0 = torch.nn.LayerNorm(emb_dim)
             self.register_parameter('b', Parameter(torch.zeros(num_entities)))
             self.fc = torch.nn.Linear(16128, emb_dim)
-
+    
         def init(self):
             """ Initializes the model """
             # Xavier initialization
             xavier_normal_(self.emb_e.weight.data)
             xavier_normal_(self.emb_rel.weight.data)
-
+    
         def forward(self, e1, rel):
             """ Forward pass on the model.
             :param e1: source entity
@@ -299,14 +299,14 @@ Defining the dataloader
     class DataLoader():
         def __init__(self):
             super(DataLoader, self).__init__()
-
+    
             self.ent_path = entdatapath
             self.rel_path = reldatapath
             self.test_file = testdatapath
             self.entity_ids, self.ids2entities = self.load_data(data_path=self.ent_path)
             self.rel_ids, self.ids2rel = self.load_data(data_path=self.rel_path)
             self.test_triples_list = self.convert_triples(data_path=self.test_file)
-
+    
         def load_data(self, data_path):
             """ Creates a dictionary of data items with corresponding ids """
             item_dict, ids_dict = {}, {}
@@ -318,7 +318,7 @@ Defining the dataloader
                 ids_dict[int(id)] = name
             fp.close()
             return item_dict, ids_dict
-
+    
         def convert_triples(self, data_path):
             """ Creates a triple of source entity, relation and target entities"""
             triples_list = []
@@ -357,13 +357,13 @@ typical to use metrics such as Mean Reciprocal Rank, Hits@10 etc.
     data = DataLoader()
     num_entities = len(data.entity_ids)
     num_relations = len(data.rel_ids)
-
+    
     model = ConvE(num_entities=num_entities, num_relations=num_relations, emb_dim=EMB_DIM)
     model.load_state_dict(torch.load(modelpath))
     model.eval()
-
+    
     pt_inf_times = []
-
+    
     triples_list = data.test_triples_list
     num_test_samples = len(triples_list)
     pt_acc = 0.0
@@ -375,11 +375,11 @@ typical to use metrics such as Mean Reciprocal Rank, Hits@10 etc.
         end_time = time.time()
         pt_inf_times.append(end_time - start_time)
         score, pred = torch.topk(logits, TOP_K, 1)
-
+    
         gt = np.array(sorted(t))
         pred = np.array(sorted(pred[0].cpu().detach()))
         pt_acc += accuracy_score(gt, pred)
-
+    
     avg_pt_time = np.mean(pt_inf_times) * 1000
     print(f'Average time taken for inference: {avg_pt_time} ms')
     print(f'Mean accuracy of the model on the test dataset: {pt_acc/num_test_samples}')
@@ -387,7 +387,7 @@ typical to use metrics such as Mean Reciprocal Rank, Hits@10 etc.
 
 .. parsed-literal::
 
-    Average time taken for inference: 0.7827480634053549 ms
+    Average time taken for inference: 0.6546974182128906 ms
     Mean accuracy of the model on the test dataset: 0.875
 
 
@@ -406,16 +406,16 @@ knowledge graph.
 .. code:: ipython3
 
     entitynames_dict = data.ids2entities
-
+    
     ent = 'san_marino'
     rel = 'locatedin'
-
+    
     h_idx = data.entity_ids[ent]
     r_idx = data.rel_ids[rel]
-
+    
     logits = model.forward(torch.tensor(h_idx), torch.tensor(r_idx))
     score, pred = torch.topk(logits, TOP_K, 1)
-
+    
     for j, id in enumerate(pred[0].cpu().detach().numpy()):
         pred_entity = entitynames_dict[id]
         print(f'Source Entity: {ent}, Relation: {rel}, Target entity prediction: {pred_entity}')
@@ -442,7 +442,7 @@ using ``ov.save_model``.
 .. code:: ipython3
 
     print('Converting the trained conve model to IR format')
-
+    
     ov_model = ov.convert_model(model, example_input=(torch.tensor(1), torch.tensor(1)))
     ov.save_model(ov_model, ir_path)
 
@@ -460,7 +460,7 @@ Evaluate the model performance with OpenVINO
 Now, we evaluate the model performance with the OpenVINO framework. In
 order to do so, make three main API calls:
 
-1. Initialize the OpenVINO with ``Core()``
+1. Initialize the Inference engine with ``Core()``
 2. Load the model with ``read_model()``
 3. Compile the model with ``compile_model()``
 
@@ -482,14 +482,14 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     import ipywidgets as widgets
-
+    
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value='CPU',
         description='Device:',
         disabled=False,
     )
-
+    
     device
 
 
@@ -507,7 +507,7 @@ select device from dropdown list for running inference using OpenVINO
     input_layer_source = compiled_model.inputs[0]
     input_layer_relation = compiled_model.inputs[1]
     output_layer = compiled_model.output(0)
-
+    
     ov_acc = 0.0
     ov_inf_times = []
     for i in range(num_test_samples):
@@ -519,11 +519,11 @@ select device from dropdown list for running inference using OpenVINO
         end_time = time.time()
         ov_inf_times.append(end_time - start_time)
         top_k_idxs = list(np.argpartition(result[0], -TOP_K)[-TOP_K:])
-
+    
         gt = np.array(sorted(t))
         pred = np.array(sorted(top_k_idxs))
         ov_acc += accuracy_score(gt, pred)
-
+    
     avg_ov_time = np.mean(ov_inf_times) * 1000
     print(f'Average time taken for inference: {avg_ov_time} ms')
     print(f'Mean accuracy of the model on the test dataset: {ov_acc/num_test_samples}')
@@ -531,7 +531,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Average time taken for inference: 0.9586711724599203 ms
+    Average time taken for inference: 0.6280839443206787 ms
     Mean accuracy of the model on the test dataset: 0.10416666666666667
 
 
@@ -544,13 +544,13 @@ Determine the platform specific speedup obtained through OpenVINO graph optimiza
 
     # prevent division by zero
     delimiter = max(avg_ov_time, np.finfo(float).eps)
-
+    
     print(f'Speedup with OpenVINO optimizations: {round(float(avg_pt_time)/float(delimiter),2)} X')
 
 
 .. parsed-literal::
 
-    Speedup with OpenVINO optimizations: 0.82 X
+    Speedup with OpenVINO optimizations: 1.04 X
 
 
 Benchmark the converted OpenVINO model using benchmark app
@@ -574,7 +574,7 @@ inference can also be obtained by looking at the benchmark app results.
 .. code:: ipython3
 
     print('Benchmark OpenVINO model using the benchmark app')
-    ! benchmark_app -m $ir_path -d $device.value -api async -t 10 -shape "input.1[1],input.2[1]"
+    ! benchmark_app -m $ir_path -d $device.value -api async -t 10 -shape "input.1[1],input.2[1]" 
 
 
 .. parsed-literal::
@@ -588,18 +588,22 @@ inference can also be obtained by looking at the benchmark app results.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2023.3.0-13775-ceeafaf64f3-releases/2023/3
-    [ INFO ]
+    [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
+    [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] CPU
-    [ INFO ] Build ................................. 2023.3.0-13775-ceeafaf64f3-releases/2023/3
-    [ INFO ]
-    [ INFO ]
+    [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
+    [ INFO ] 
+    [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 4.18 ms
+
+
+.. parsed-literal::
+
+    [ INFO ] Read model took 13.40 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     e1 (node: e1) : i64 / [...] / []
@@ -619,7 +623,7 @@ inference can also be obtained by looking at the benchmark app results.
 
 .. parsed-literal::
 
-    [ INFO ] Compile model took 53.83 ms
+    [ INFO ] Compile model took 60.07 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -637,29 +641,32 @@ inference can also be obtained by looking at the benchmark app results.
     [ INFO ]   ENABLE_HYPER_THREADING: True
     [ INFO ]   EXECUTION_DEVICES: ['CPU']
     [ INFO ]   CPU_DENORMALS_OPTIMIZATION: False
+    [ INFO ]   LOG_LEVEL: Level.NO
     [ INFO ]   CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
+    [ INFO ]   DYNAMIC_QUANTIZATION_GROUP_SIZE: 0
+    [ INFO ]   KV_CACHE_PRECISION: <Type: 'float16'>
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'e1'!. This input will be filled with random values!
     [ WARNING ] No input files were given for input 'rel'!. This input will be filled with random values!
-    [ INFO ] Fill input 'e1' with random values
-    [ INFO ] Fill input 'rel' with random values
+    [ INFO ] Fill input 'e1' with random values 
+    [ INFO ] Fill input 'rel' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 10000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 3.90 ms
+    [ INFO ] First inference took 1.33 ms
 
 
 .. parsed-literal::
 
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            104112 iterations
-    [ INFO ] Duration:         10001.51 ms
+    [ INFO ] Count:            101124 iterations
+    [ INFO ] Duration:         10001.56 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        0.95 ms
-    [ INFO ]    Average:       0.97 ms
-    [ INFO ]    Min:           0.53 ms
-    [ INFO ]    Max:           8.98 ms
-    [ INFO ] Throughput:   10409.63 FPS
+    [ INFO ]    Median:        1.02 ms
+    [ INFO ]    Average:       1.03 ms
+    [ INFO ]    Min:           0.68 ms
+    [ INFO ]    Max:           8.62 ms
+    [ INFO ] Throughput:   10110.83 FPS
 
 
 Conclusions

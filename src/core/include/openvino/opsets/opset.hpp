@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -167,6 +167,11 @@ const OPENVINO_API OpSet& get_opset13();
  * @ingroup ov_opset_cpp_api
  */
 const OPENVINO_API OpSet& get_opset14();
+/**
+ * @brief Returns map of available opsets
+ * @ingroup ov_opset_cpp_api
+ */
+const OPENVINO_API OpSet& get_opset15();
 /**
  * @brief Returns map of available opsets
  * @ingroup ov_opset_cpp_api

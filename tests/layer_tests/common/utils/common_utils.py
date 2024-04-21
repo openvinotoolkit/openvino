@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
@@ -58,17 +58,6 @@ def generate_ir_python_api(coverage=False, **kwargs):
         serialize(ov_model, out_dir)
     else:
         from openvino import convert_model, save_model
-        try:
-            # noinspection PyUnresolvedReferences
-            import openvino_tokenizers  # do not delete, needed for validation of OpenVINO tokenizers extensions
-        except:
-            # TODO 132908: add build OpenVINO Tokenizers in GHA for MacOS and ARM64
-            # TODO 132909: add build OpenVINO Tokenizers in Jenkins for layer_ubuntu20_release tests
-            assert platform.system() in ('Linux', 'Darwin') or platform.machine() in ('arm', 'armv7l',
-                                                                                      'aarch64',
-                                                                                      'arm64', 'ARM64')
-            # CI Jenkins job and ARM64 has no openvino_tokenizers available
-            pass
 
         # cleanup parameters for convert
         if 'output_dir' in kwargs:
@@ -137,7 +126,12 @@ def allclose(cur_array, ref_array, atol, rtol):
         # so we have to align formats of both string tensors, for example, to unicode
         if cur_array.dtype.type != ref_array.dtype.type:
             cur_array = cur_array.astype('U')
-            ref_array = ref_array.astype('U')
+            try:
+                ref_array = ref_array.astype('U')
+            except:
+                # ref_array of object type and each element must be utf-8 decoded
+                utf8_decoded_elems = [elem.decode('UTF-8') for elem in ref_array.flatten()]
+                ref_array = np.array(utf8_decoded_elems, dtype=str).reshape(ref_array.shape)
         return np.array_equal(cur_array, ref_array)
     elif cur_array.dtype == bool:
         abs_diff = np.absolute(cur_array ^ ref_array)

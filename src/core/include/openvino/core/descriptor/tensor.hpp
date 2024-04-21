@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,10 +20,11 @@
 
 namespace ov {
 class Node;
-/// \brief Alias for label tensor.
-using TensorLabel = std::vector<label_t>;
-/// \brief Alias for vector of label tensors.
-using TensorLabelVector = std::vector<TensorLabel>;
+/// \brief Alias for symbol tensor.
+using TensorSymbol = std::vector<std::shared_ptr<Symbol>>;
+/// \brief Alias for vector of symbol tensors.
+
+using TensorSymbolVector = std::vector<TensorSymbol>;
 
 namespace pass {
 class ReverseShapeAndTypeInfer;
@@ -52,8 +53,8 @@ public:
     void set_lower_value(const ov::Tensor& value);
     /// \brief sets upper bound value description
     void set_upper_value(const ov::Tensor& value);
-    /// \brief sets value label description
-    void set_value_label(const TensorLabel& value_label);
+    /// \brief sets value symbol description
+    void set_value_symbol(const TensorSymbol& value_symbol);
     /// \brief unsets bound value descriptions
     void invalidate_values();
 
@@ -72,9 +73,9 @@ public:
     const ov::Tensor& get_upper_value() const {
         return m_upper_value;
     }
-    /// \brief gets upper bound value description
-    TensorLabel get_value_label() const {
-        return m_value_label;
+    /// \brief gets symbol value description
+    TensorSymbol get_value_symbol() const {
+        return m_value_symbol;
     }
     /// \brief checks if lower and upper bound are set and point to the same Tensor
     bool has_and_set_bound() const {
@@ -111,7 +112,7 @@ protected:
 
     PartialShape m_partial_shape;
     ov::Tensor m_lower_value, m_upper_value;
-    TensorLabel m_value_label;
+    TensorSymbol m_value_symbol;
     std::string m_legacy_name;
 
     std::unordered_set<std::string> m_names;

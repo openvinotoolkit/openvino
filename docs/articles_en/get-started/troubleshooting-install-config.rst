@@ -122,10 +122,10 @@ Troubleshooting Guide for OpenVINO™ Installation & Configuration
 
 .. dropdown:: Check if proper drivers are installed
 
-   :doc:`Additional configurations <openvino_docs_install_guides_configurations_header>` may be
+   :doc:`Additional configurations <configurations>` may be
    required in order to use OpenVINO with different hardware, such as Intel® GPU and NPU.
    Make sure that the device you want to use for inference has the required driver installed,
-   as described in :doc:`additional configurations for GPU <openvino_docs_install_guides_configurations_for_intel_gpu>`.
+   as described in :doc:`additional configurations for GPU <configurations/configurations-intel-gpu>`.
 
 .. dropdown:: Check firewall and network settings
 

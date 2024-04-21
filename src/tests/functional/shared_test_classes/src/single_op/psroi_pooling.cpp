@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,6 +58,10 @@ void PSROIPoolingLayerTest::SetUp() {
                                                                     spatial_bins_y,
                                                                     mode);
     function = std::make_shared<ov::Model>(psroi_pooling->outputs(), params, "psroi_pooling");
+
+    if (model_type == ov::element::f16) {
+        abs_threshold = 8e-3;
+    }
 }
 }  // namespace test
 }  // namespace ov

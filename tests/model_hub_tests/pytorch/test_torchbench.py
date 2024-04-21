@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -32,7 +32,7 @@ class TestTorchbenchmarkConvertModel(TestTorchConvertModel):
         subprocess.check_call(
             ["git", "checkout", "dbc109791dbb0dfb58775a5dc284fc2c3996cb30"], cwd=self.repo_dir.name)
 
-    def load_model_impl(self, model_name, model_link):
+    def load_model(self, model_name, model_link):
         subprocess.check_call([sys.executable, "install.py"] + [model_name], cwd=self.repo_dir.name)
         sys.path.append(self.repo_dir.name)
         from torchbenchmark import load_model_by_name

@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2023 Intel Corporation
+ Copyright (C) 2018-2024 Intel Corporation
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -27,7 +27,7 @@ def shell(cmd, env=None, cwd=None, out_format="plain"):
     else:
         cmd = " ".join(cmd)
 
-    sys.stdout.write("Running command:\n" + "".join(cmd) + "\n")
+    sys.stdout.write("Running command:\n" + " ".join(cmd) + "\n")
     p = subprocess.Popen(cmd, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     (stdout, stderr) = p.communicate()
     stdout = str(stdout.decode('utf-8'))

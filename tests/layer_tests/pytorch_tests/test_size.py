@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -16,7 +16,7 @@ class TestSize(PytorchLayerTest):
 
         class aten_size(torch.nn.Module):
             def forward(self, x):
-                return torch.tensor(x.shape, dtype=torch.int64)
+                return torch.tensor(x.shape)
 
         ref_net = None
 

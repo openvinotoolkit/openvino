@@ -71,6 +71,6 @@ The method creates device specific remote tensor.
    :language: cpp
    :fragment: [remote_context:create_tensor]
 
-The next step to support device specific tensors is a creation of device specific :doc:`Remote Tensor <openvino_docs_ov_plugin_dg_remote_tensor>` class.
+The next step to support device specific tensors is a creation of device specific :doc:`Remote Tensor <remote-tensor>` class.
 
 

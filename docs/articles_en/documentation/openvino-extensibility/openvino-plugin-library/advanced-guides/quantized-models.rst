@@ -7,7 +7,7 @@ Quantized models compute and restrictions
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_ie_plugin_dg_lp_representation
+   quantized-models/low-precision-model-representation
 
 .. meta::
    :description: Learn about the support for quantized models with different 
@@ -17,7 +17,7 @@ Quantized models compute and restrictions
 One of the feature of OpenVINO is the support of quantized models with different precisions: INT8, INT4, etc.
 However, it is up to the plugin to define what exact precisions are supported by the particular HW.
 All quantized models which can be expressed in IR have a unified representation by means of *FakeQuantize* operation. 
-For more details about low-precision model representation please refer to this :doc:`document <openvino_docs_ie_plugin_dg_lp_representation>`.
+For more details about low-precision model representation please refer to this :doc:`document <quantized-models/low-precision-model-representation>`.
 
 Interpreting FakeQuantize at runtime
 ####################################
@@ -33,7 +33,7 @@ The former one is aimed to transform the input data into the target precision wh
 In practice *Dequantize* operations can be propagated forward through the linear operations, such as *Convolution* or *Fully-Connected*, 
 and in some cases fused with the following *Quantize* operation for the next layer into the so-called *Requantize* operation (see Fig. 1).
 
-.. image:: _static/images/qdq_propagation.png 
+.. image:: ../../../../_static/images/qdq_propagation.png 
 
 Figure 1. Quantization operations propagation at runtime. Q, DQ, RQ stand for Quantize, Dequantize, and Requantize correspondingly.
 

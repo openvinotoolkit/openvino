@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,10 @@ struct gemm_params : public base_params {
     std::vector<int64_t> input0_order;
     std::vector<int64_t> input1_order;
     std::vector<int64_t> output_order;
+    int64_t input0_reshape_axes = 0;
+    int64_t input1_reshape_axes = 0;
+    int64_t input0_broadcast_val = 0;
+    int64_t input1_broadcast_val = 0;
     DataTensor beam_table;
     bool indirect_input0 = false;
     bool indirect_input1 = false;

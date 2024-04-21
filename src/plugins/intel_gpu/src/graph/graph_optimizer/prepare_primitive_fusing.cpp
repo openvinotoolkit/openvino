@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -432,8 +432,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto conv_supports_fusings = [&](convolution_node& node) -> bool {
-            if (_lo.get_optimization_attributes().use_onednn_impls == 1)
+            if (_lo.get_optimization_attributes().use_onednn_impls == 1 &&
+                _lo.get_preferred_impl_type(node, format::byxf /*dummy value to disable format checking*/) == impl_types::onednn) {
                 return true;
+            }
 
             if (node.get_output_layout().is_dynamic() || node.get_input_layout().is_dynamic()) {
                 return true;
@@ -514,8 +516,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             }
 
             auto gemm_prim = node.get_primitive();
-            for (size_t idx = 0; idx < gemm_prim->output_order.size(); ++idx) {
-                size_t output_order_idx = static_cast<size_t>(gemm_prim->output_order[idx]);
+            for (size_t idx = 0; idx < gemm_prim->output_transpose_order.size(); ++idx) {
+                size_t output_order_idx = static_cast<size_t>(gemm_prim->output_transpose_order[idx]);
                 if (idx != output_order_idx) {
                     does_support_fusings = false;
                     break;
@@ -536,6 +538,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             bool input_conv = node.get_dependency(0).is_type<convolution>();
             bool out_eltw = node.get_users().front()->is_type<eltwise>();
             if (input_conv && out_eltw) {
+                if (node.is_dynamic())
+                    return false;
                 auto& eltw = static_cast<const eltwise&>(*node.get_users().front()->get_primitive());
                 auto& conv = node.get_dependency(0).as<convolution>();
                 auto eltw_mode = eltw.mode == eltwise_mode::sum;

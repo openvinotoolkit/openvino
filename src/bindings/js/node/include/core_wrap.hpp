@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
@@ -65,6 +65,10 @@ public:
      */
     Napi::Value compile_model_async(const Napi::CallbackInfo& info);
 
+    Napi::Value set_property(const Napi::CallbackInfo& info);
+    Napi::Value get_property(const Napi::CallbackInfo& info);
+
+    void add_extension(const Napi::CallbackInfo& info);
 protected:
     Napi::Value compile_model_sync(const Napi::CallbackInfo& info,
                                    const Napi::Object& model,
@@ -84,8 +88,14 @@ protected:
                                    const Napi::String& device,
                                    const std::map<std::string, ov::Any>& config);
 
+    /** @brief Imports a compiled model from the previously exported one. */
+    Napi::Value import_model(const Napi::CallbackInfo& info);
+
     /** @brief Returns devices available for inference. */
     Napi::Value get_available_devices(const Napi::CallbackInfo& info);
+
+    /** @brief Returns versions of the specified device. */
+    Napi::Value get_versions(const Napi::CallbackInfo& info);
 
 private:
     ov::Core _core;

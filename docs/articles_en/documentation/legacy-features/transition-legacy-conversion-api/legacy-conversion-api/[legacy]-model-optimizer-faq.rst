@@ -6,7 +6,7 @@
 
 .. important::
 
-   All of the issues below refer to :doc:`legacy functionalities <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>`.
+   All of the issues below refer to :doc:`legacy functionalities <../legacy-model-optimizer-extensibility>`.
 
 If your question is not covered by the topics below, use the
 `OpenVINO Support page <https://community.intel.com/t5/Intel-Distribution-of-OpenVINO/bd-p/distribution-openvino-toolkit>`__,
@@ -57,7 +57,7 @@ For example, to add the description of the ``CustomReshape`` layer, which is an 
 
 3. Now, Model Optimizer is able to load the model into memory and start working with your extensions if there are any.
 
-   However, since your model has custom layers, you must register them as custom. To learn more about it, refer to the :doc:`[Legacy] Custom Layers in Model Optimizer <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>`.
+   However, since your model has custom layers, you must register them as custom. To learn more about it, refer to the :doc:`[Legacy] Custom Layers in Model Optimizer <../legacy-model-optimizer-extensibility>`.
 
 .. _question-2:
 
@@ -81,8 +81,8 @@ Q3. What does the message "[ ERROR ]: Unable to create ports for node with id" m
 
 **A:** Most likely, Model Optimizer does not know how to infer output shapes of some layers in the given topology.
 To lessen the scope, compile the list of layers that are custom for Model Optimizer: present in the topology,
-absent in the :doc:`list of supported operations <openvino_resources_supported_operations_frontend>` for the target framework.
-Then, refer to available options in the corresponding section in the  :doc:`[Legacy] Custom Layers in Model Optimizer <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` page.
+absent in the :doc:`list of supported operations <../../../../about-openvino/compatibility-and-support/supported-operations-framework-frontend>` for the target framework.
+Then, refer to available options in the corresponding section in the  :doc:`[Legacy] Custom Layers in Model Optimizer <../legacy-model-optimizer-extensibility>` page.
 
 .. _question-7:
 
@@ -201,7 +201,7 @@ However, if your model contains more than one input, Model Optimizer is able to 
 Q9. What does the message "Mean file for topologies with multiple inputs is not supported" mean?
 #####################################################################################################################################################
 
-**A:** Model Optimizer does not support mean file processing for topologies with more than one input. In this case, you need to perform preprocessing of the inputs for a generated Intermediate Representation in OpenVINO Runtime to perform subtraction for every input of your multi-input model. See the :doc:`Overview of Preprocessing <openvino_docs_OV_UG_Preprocessing_Overview>` for details.
+**A:** Model Optimizer does not support mean file processing for topologies with more than one input. In this case, you need to perform preprocessing of the inputs for a generated Intermediate Representation in OpenVINO Runtime to perform subtraction for every input of your multi-input model. See the :doc:`Overview of Preprocessing <../../../../openvino-workflow/running-inference/optimize-inference/optimize-preprocessing>` for details.
 
 .. _question-11:
 
@@ -222,7 +222,7 @@ Q12. What does the message "Error happened while constructing caffe.Net in the C
 Q13. What does the message "Cannot infer shapes due to exception in Caffe" mean?
 #####################################################################################################################################################
 
-**A:** Model Optimizer tried to infer a custom layer via the Caffe framework, but the model could not be inferred using Caffe. This might happen if you try to convert the model with some noise weights and biases, which conflict with layers that have dynamic shapes. You should write your own extension for every custom layer your topology might have. For more details, refer to the :doc:`[Legacy] Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` page.
+**A:** Model Optimizer tried to infer a custom layer via the Caffe framework, but the model could not be inferred using Caffe. This might happen if you try to convert the model with some noise weights and biases, which conflict with layers that have dynamic shapes. You should write your own extension for every custom layer your topology might have. For more details, refer to the :doc:`[Legacy] Model Optimizer Extensibility <../legacy-model-optimizer-extensibility>` page.
 
 .. _question-14:
 
@@ -254,7 +254,7 @@ Q16. What does the message "Input shape is required to convert MXNet model. Plea
 Q19. What does the message "Both --scale and --scale_values are defined. Specify either scale factor or scale values per input channels" mean?
 #####################################################################################################################################################
 
-**A:** The ``--scale`` option sets a scaling factor for all channels, while ``--scale_values`` sets a scaling factor per each channel. Using both of them simultaneously produces ambiguity, so you must use only one of them. For more information, refer to the **Using Framework-Agnostic Conversion Parameters** section: for :doc:`Converting a TensorFlow Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>`.
+**A:** The ``--scale`` option sets a scaling factor for all channels, while ``--scale_values`` sets a scaling factor per each channel. Using both of them simultaneously produces ambiguity, so you must use only one of them. For more information, refer to the **Using Framework-Agnostic Conversion Parameters** section: for :doc:`Converting a TensorFlow Model <[legacy]-supported-model-formats/[legacy]-convert-tensorflow>`.
 
 .. _question-20:
 
@@ -284,7 +284,7 @@ Q23. What does the message "Discovered data node without inputs and value" mean?
 Q24. What does the message "Part of the nodes was not translated to IE. Stopped" mean?
 #####################################################################################################################################################
 
-**A:** Some of the operations are not supported by OpenVINO Runtime and cannot be translated to OpenVINO Intermediate Representation. You can extend Model Optimizer by allowing generation of new types of operations and implement these operations in the dedicated OpenVINO plugins. For more information, refer to the :doc:`OpenVINO Extensibility Mechanism <openvino_docs_Extensibility_UG_Intro>` guide.
+**A:** Some of the operations are not supported by OpenVINO Runtime and cannot be translated to OpenVINO Intermediate Representation. You can extend Model Optimizer by allowing generation of new types of operations and implement these operations in the dedicated OpenVINO plugins. For more information, refer to the :doc:`OpenVINO Extensibility Mechanism <../../../openvino-extensibility>` guide.
 
 .. _question-25:
 
@@ -350,7 +350,7 @@ Q32. What does the message "No or multiple placeholders in the model, but only o
 Q33. What does the message "The amount of input nodes for port is not equal to 1" mean?
 #####################################################################################################################################################
 
-**A:** This error occurs when the ``SubgraphMatch.single_input_node`` function is used for an input port that supplies more than one node in a sub-graph. The ``single_input_node`` function can be used only for ports that has a single consumer inside the matching sub-graph. When multiple nodes are connected to the port, use the ``input_nodes`` function or ``node_by_pattern`` function instead of ``single_input_node``. For more details, refer to the **Graph Transformation Extensions** section in the :doc:`[Legacy] Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Transformation_Extensions>` guide.
+**A:** This error occurs when the ``SubgraphMatch.single_input_node`` function is used for an input port that supplies more than one node in a sub-graph. The ``single_input_node`` function can be used only for ports that has a single consumer inside the matching sub-graph. When multiple nodes are connected to the port, use the ``input_nodes`` function or ``node_by_pattern`` function instead of ``single_input_node``. For more details, refer to the **Graph Transformation Extensions** section in the :doc:`[Legacy] Model Optimizer Extensibility <../legacy-model-optimizer-extensibility/[legacy]-model-optimizer-extensions/[legacy]-graph-transformation-extensions>` guide.
 
 .. _question-34:
 
@@ -364,7 +364,7 @@ Q34. What does the message "Output node for port has already been specified" mea
 Q35. What does the message "Unsupported match kind.... Match kinds "points" or "scope" are supported only" mean?
 #####################################################################################################################################################
 
-**A:** While using configuration file to implement a TensorFlow front replacement extension, an incorrect match kind was used. Only ``points`` or ``scope`` match kinds are supported.  For more details, refer to the :doc:`[Legacy] Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` guide.
+**A:** While using configuration file to implement a TensorFlow front replacement extension, an incorrect match kind was used. Only ``points`` or ``scope`` match kinds are supported.  For more details, refer to the :doc:`[Legacy] Model Optimizer Extensibility <../legacy-model-optimizer-extensibility>` guide.
 
 .. _question-36:
 
@@ -378,7 +378,7 @@ Q36. What does the message "Cannot write an event file for the TensorBoard to di
 Q37. What does the message "There is no registered 'infer' function for node  with op = .. . Please implement this function in the extensions" mean?
 #####################################################################################################################################################
 
-**A** Most likely, you tried to extend Model Optimizer with a new primitive, but you did not specify an infer function. For more information on extensions, see the :doc:`OpenVINO Extensibility Mechanism <openvino_docs_Extensibility_UG_Intro>` guide.
+**A** Most likely, you tried to extend Model Optimizer with a new primitive, but you did not specify an infer function. For more information on extensions, see the :doc:`OpenVINO Extensibility Mechanism <../../../openvino-extensibility>` guide.
 
 .. _question-38:
 
@@ -413,7 +413,7 @@ Q41. What does the message "Shape for tensor is not defined. Can not proceed" me
 Q42. What does the message "Module TensorFlow was not found. Please install TensorFlow 1.2 or higher" mean?
 #####################################################################################################################################################
 
-**A:** To convert TensorFlow models with Model Optimizer, TensorFlow 1.2 or newer must be installed. For more information on prerequisites, see the :doc:`Configuring Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` guide.
+**A:** To convert TensorFlow models with Model Optimizer, TensorFlow 1.2 or newer must be installed. For more information on prerequisites, see the :doc:`Configuring Model Optimizer <../legacy-conversion-api>` guide.
 
 .. _question-43:
 
@@ -434,7 +434,7 @@ Q44. What does the message "Cannot pre-process TensorFlow graph after reading fr
 Q45. What does the message "Found custom layer. Model Optimizer does not support this layer. Please, register it in CustomLayersMapping.xml or implement extension" mean?
 ##########################################################################################################################################################################
 
-**A:** This means that the layer ``{layer_name}`` is not supported in Model Optimizer. You will find a list of all unsupported layers in the corresponding section. You should implement the extensions for this layer. See :doc:`OpenVINO Extensibility Mechanism <openvino_docs_Extensibility_UG_Intro>` for more information.
+**A:** This means that the layer ``{layer_name}`` is not supported in Model Optimizer. You will find a list of all unsupported layers in the corresponding section. You should implement the extensions for this layer. See :doc:`OpenVINO Extensibility Mechanism <../../../openvino-extensibility>` for more information.
 
 .. _question-46:
 
@@ -448,7 +448,7 @@ Q46. What does the message "Custom replacement configuration file does not exist
 Q47. What does the message "Extractors collection have case insensitive duplicates" mean?
 #####################################################################################################################################################
 
-**A:** When extending Model Optimizer with new primitives, keep in mind that their names are case-insensitive. Most likely, another operation with the same name is already defined. For more information, see the :doc:`OpenVINO Extensibility Mechanism <openvino_docs_Extensibility_UG_Intro>` guide.
+**A:** When extending Model Optimizer with new primitives, keep in mind that their names are case-insensitive. Most likely, another operation with the same name is already defined. For more information, see the :doc:`OpenVINO Extensibility Mechanism <../../../openvino-extensibility>` guide.
 
 .. _question-48:
 
@@ -483,7 +483,7 @@ Q51. What does the message "No node with name ..." mean?
 Q52. What does the message "Module MXNet was not found. Please install MXNet 1.0.0" mean?
 #####################################################################################################################################################
 
-**A:** To convert MXNet models with Model Optimizer, Apache MXNet 1.0.0 must be installed. For more information about prerequisites, see the :doc:`Configuring Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` guide.
+**A:** To convert MXNet models with Model Optimizer, Apache MXNet 1.0.0 must be installed. For more information about prerequisites, see the :doc:`Configuring Model Optimizer <../legacy-conversion-api>` guide.
 
 .. _question-53:
 
@@ -504,7 +504,7 @@ Q54. What does the message "The following error happened while processing input 
 Q55. What does the message "Attempt to register of custom name for the second time as class. Note that custom names are case-insensitive" mean?
 #####################################################################################################################################################
 
-**A:** When extending Model Optimizer with new primitives, keep in mind that their names are case-insensitive. Most likely, another operation with the same name is already defined. For more information, see the :doc:`OpenVINO Extensibility Mechanism <openvino_docs_Extensibility_UG_Intro>` guide.
+**A:** When extending Model Optimizer with new primitives, keep in mind that their names are case-insensitive. Most likely, another operation with the same name is already defined. For more information, see the :doc:`OpenVINO Extensibility Mechanism <../../../openvino-extensibility>` guide.
 
 .. _question-56:
 
@@ -602,14 +602,14 @@ Q65. What does the message "No class registered for match kind ... Supported mat
 Q66. What does the message "No instance(s) is(are) defined for the custom replacement" mean?
 #####################################################################################################################################################
 
-**A:** A replacement defined in the configuration file for sub-graph replacement, using node names patterns or start/end nodes, has the ``instances`` attribute. This attribute is mandatory. This error will occur if the attribute is missing. For more details, refer to the **Graph Transformation Extensions** section in the :doc:`[Legacy] Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` guide.
+**A:** A replacement defined in the configuration file for sub-graph replacement, using node names patterns or start/end nodes, has the ``instances`` attribute. This attribute is mandatory. This error will occur if the attribute is missing. For more details, refer to the **Graph Transformation Extensions** section in the :doc:`[Legacy] Model Optimizer Extensibility <../legacy-model-optimizer-extensibility>` guide.
 
 .. _question-67:
 
 Q67. What does the message "The instance must be a single dictionary for the custom replacement with id .." mean?
 #####################################################################################################################################################
 
-**A:** A replacement defined in the configuration file for sub-graph replacement, using start/end nodes, has the ``instances`` attribute. For this type of replacement, the instance must be defined with a dictionary with two keys ``start_points`` and ``end_points``. Values for these keys are lists with the start and end node names, respectively. For more details, refer to the **Graph Transformation Extensions** section in the :doc:`[Legacy] Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Transformation_Extensions>` guide.
+**A:** A replacement defined in the configuration file for sub-graph replacement, using start/end nodes, has the ``instances`` attribute. For this type of replacement, the instance must be defined with a dictionary with two keys ``start_points`` and ``end_points``. Values for these keys are lists with the start and end node names, respectively. For more details, refer to the **Graph Transformation Extensions** section in the :doc:`[Legacy] Model Optimizer Extensibility <../legacy-model-optimizer-extensibility/[legacy]-model-optimizer-extensions/[legacy]-graph-transformation-extensions>` guide.
 
 .. _question-68:
 
@@ -665,7 +665,7 @@ Q74. What does the message "End node .. is not reachable from start nodes: .." m
 Q75. What does the message "Sub-graph contains network input node .." mean?
 #####################################################################################################################################################
 
-**A:** The start or end node for the sub-graph replacement using start/end nodes is specified incorrectly. Model Optimizer finds internal nodes of the sub-graph strictly "between" the start and end nodes, and then adds all input nodes to the sub-graph (and the inputs of their inputs, etc.) for these "internal" nodes. This error reports that Model Optimizer reached input node during this phase. This means that the start/end points are specified incorrectly in the configuration file. For more details, refer to the **Graph Transformation Extensions** section in the :doc:`[Legacy] Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Transformation_Extensions>` guide.
+**A:** The start or end node for the sub-graph replacement using start/end nodes is specified incorrectly. Model Optimizer finds internal nodes of the sub-graph strictly "between" the start and end nodes, and then adds all input nodes to the sub-graph (and the inputs of their inputs, etc.) for these "internal" nodes. This error reports that Model Optimizer reached input node during this phase. This means that the start/end points are specified incorrectly in the configuration file. For more details, refer to the **Graph Transformation Extensions** section in the :doc:`[Legacy] Model Optimizer Extensibility <../legacy-model-optimizer-extensibility/[legacy]-model-optimizer-extensions/[legacy]-graph-transformation-extensions>` guide.
 
 .. _question-76:
 
@@ -686,7 +686,7 @@ Q77. What does the message "... elements of ... were clipped to zero while conve
 Q78. What does the message "The amount of nodes matched pattern ... is not equal to 1" mean?
 #####################################################################################################################################################
 
-**A:** This error occurs when the ``SubgraphMatch.node_by_pattern`` function is used with a pattern that does not uniquely identify a single node in a sub-graph. Try to extend the pattern string to make unambiguous match to a single sub-graph node. For more details, refer to the **Graph Transformation Extensions** section in the :doc:`[Legacy] Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Transformation_Extensions>` guide.
+**A:** This error occurs when the ``SubgraphMatch.node_by_pattern`` function is used with a pattern that does not uniquely identify a single node in a sub-graph. Try to extend the pattern string to make unambiguous match to a single sub-graph node. For more details, refer to the **Graph Transformation Extensions** section in the :doc:`[Legacy] Model Optimizer Extensibility <../legacy-model-optimizer-extensibility/[legacy]-model-optimizer-extensions/[legacy]-graph-transformation-extensions>` guide.
 
 .. _question-79:
 
@@ -700,7 +700,7 @@ Q79. What does the message "The topology contains no "input" layers" mean?
 Q80. What does the message "Warning: please expect that Model Optimizer conversion might be slow" mean?
 #####################################################################################################################################################
 
-**A:** You are using an unsupported Python version. Use only versions 3.4 - 3.6 for the C++ ``protobuf`` implementation that is supplied with OpenVINO toolkit. You can still boost the conversion speed by building the protobuf library from sources. For complete instructions about building ``protobuf`` from sources, see the appropriate section in the :doc:`Converting a Model to Intermediate Representation <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` guide.
+**A:** You are using an unsupported Python version. Use only versions 3.4 - 3.6 for the C++ ``protobuf`` implementation that is supplied with OpenVINO toolkit. You can still boost the conversion speed by building the protobuf library from sources. For complete instructions about building ``protobuf`` from sources, see the appropriate section in the :doc:`Converting a Model to Intermediate Representation <../legacy-conversion-api>` guide.
 
 .. _question-81:
 
@@ -721,7 +721,7 @@ Q82. What does the message "You should specify input for mean/scale values" mean
 #####################################################################################################################################################
 
 **A:** When the model has multiple inputs and you want to provide mean/scale values, you need to pass those values for each input. More specifically, the number of passed values should be the same as the number of inputs of the model.
-For more information, refer to the :doc:`Converting a Model to Intermediate Representation <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
+For more information, refer to the :doc:`Converting a Model to Intermediate Representation <[legacy]-setting-input-shapes>` guide.
 
 .. _question-83:
 
@@ -729,7 +729,7 @@ Q83. What does the message "Input with name ... not found!" mean?
 #####################################################################################################################################################
 
 **A:** When you passed the mean/scale values and specify names of input layers of the model, you might have used the name that does not correspond to any input layer. Make sure that you list only names of the input layers of your model when passing values with the ``--input`` option.
-For more information, refer to the :doc:`Converting a Model to Intermediate Representation <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
+For more information, refer to the :doc:`Converting a Model to Intermediate Representation <[legacy]-setting-input-shapes>` guide.
 
 .. _question-84:
 
@@ -752,7 +752,7 @@ Q86. What does the message "Operation ... not supported. Please register it as c
 
 **A:** Model Optimizer tried to load the model that contains some unsupported operations.
 If you want to convert model that contains unsupported operations, you need to prepare extension for all such operations.
-For more information, refer to the :doc:`OpenVINO Extensibility Mechanism <openvino_docs_Extensibility_UG_Intro>` guide.
+For more information, refer to the :doc:`OpenVINO Extensibility Mechanism <../../../openvino-extensibility>` guide.
 
 .. _question-87:
 
@@ -809,7 +809,7 @@ Note that the first call ``register_caffe_python_extractor(ProposalPythonExample
 
 The second call prevents Model Optimizer from using this extension as if it is an extension for
 a layer with type ``Proposal``. Otherwise, this layer can be chosen as an implementation of extension that can lead to potential issues.
-For more information, refer to the :doc:`OpenVINO Extensibility Mechanism <openvino_docs_Extensibility_UG_Intro>` guide.
+For more information, refer to the :doc:`OpenVINO Extensibility Mechanism <../../../openvino-extensibility>` guide.
 
 .. _question-88:
 
@@ -862,7 +862,7 @@ Q93. What does the message "For legacy MXNet models Model Optimizer does not sup
 lower than 1.0.0, Model Optimizer does not support such topologies. If you want to convert it, you have to rebuild
 MXNet with unsupported layers or generate a new JSON file with Apache MXNet version 1.0.0 or higher. You also need to implement
 OpenVINO extension to use custom layers.
-For more information, refer to the :doc:`OpenVINO Extensibility Mechanism <openvino_docs_Extensibility_UG_Intro>` guide.
+For more information, refer to the :doc:`OpenVINO Extensibility Mechanism <../../../openvino-extensibility>` guide.
 
 .. _question-94:
 
@@ -887,12 +887,12 @@ There are multiple ways to avoid cycles:
 
 For Tensorflow:
 
-* :doc:`Convert models, created with TensorFlow Object Detection API <openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models>`
+* :doc:`Convert models, created with TensorFlow Object Detection API <[legacy]-supported-model-formats/[legacy]-conversion-tutorials/convert-tensorflow-object-detection>`
 
 For all frameworks:
 
-1. :doc:`Replace cycle containing Sub-graph in Model Optimizer [Legacy Solution] <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>`
-2. See :doc:`OpenVINO Extensibility Mechanism <openvino_docs_Extensibility_UG_Intro>`
+1. :doc:`Replace cycle containing Sub-graph in Model Optimizer [Legacy Solution] <../legacy-model-optimizer-extensibility>`
+2. See :doc:`OpenVINO Extensibility Mechanism <../../../openvino-extensibility>`
 
 or
 
@@ -916,7 +916,7 @@ Q101. What does the message "Mean/scale values should ..." mean?
 #####################################################################################################################################################
 
 **A:** It means that your mean/scale values have a wrong format. Specify mean/scale values in the form of ``layer_name(val1,val2,val3)``.
-You need to specify values for each input of the model. For more information, refer to the :doc:`Converting a Model to Intermediate Representation <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
+You need to specify values for each input of the model. For more information, refer to the :doc:`Converting a Model to Intermediate Representation <[legacy]-setting-input-shapes>` guide.
 
 .. _question-102:
 
@@ -930,7 +930,7 @@ Q102. What does the message "Operation _contrib_box_nms is not supported ..." me
 Q103. What does the message "ModelOptimizer is not able to parse *.caffemodel" mean?
 #####################################################################################################################################################
 
-**A:** If a ``*.caffemodel`` file exists and is correct, the error occurred possibly because of the use of Python protobuf implementation. In some cases, error messages may appear during model parsing, for example: "``utf-8`` codec can't decode byte 0xe0 in position 4: invalid continuation byte in field: mo_caffe.SpatialTransformerParameter.transform_type". You can either use a newer Python version (3.8 - 3.11) or build the ``cpp`` implementation of ``protobuf`` yourself for your version of Python. For the complete instructions about building ``protobuf`` from sources, see the appropriate section in the :doc:`Converting Models with Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` guide.
+**A:** If a ``*.caffemodel`` file exists and is correct, the error occurred possibly because of the use of Python protobuf implementation. In some cases, error messages may appear during model parsing, for example: "``utf-8`` codec can't decode byte 0xe0 in position 4: invalid continuation byte in field: mo_caffe.SpatialTransformerParameter.transform_type". You can either use a newer Python version (3.8 - 3.11) or build the ``cpp`` implementation of ``protobuf`` yourself for your version of Python. For the complete instructions about building ``protobuf`` from sources, see the appropriate section in the :doc:`Converting Models with Model Optimizer <../legacy-conversion-api>` guide.
 
 .. _question-104:
 

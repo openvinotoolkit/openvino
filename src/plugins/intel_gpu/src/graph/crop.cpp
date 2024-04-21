@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -222,7 +222,7 @@ crop_inst::typed_primitive_inst(network& network, crop_node const& node) : paren
                                             ref_in_sizes,
                                             "input sizes",
                                             in_sizes,
-                                            "Reference input tensor/ input tensor mismtach");
+                                            "Reference input tensor/ input tensor mismatch");
 
         // check if offsets do not extend input sizes and if match the output sizes
         CLDNN_ERROR_TENSOR_SIZES_LESS_THAN(node.id(),

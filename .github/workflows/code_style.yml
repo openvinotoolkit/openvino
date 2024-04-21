@@ -20,11 +20,6 @@ jobs:
           sudo apt update
           sudo apt --assume-yes install clang-format-9
 
-      - name: Install dependencies
-        run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install -r ./src/bindings/python/requirements.txt
-
       # Run cmake with -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT in order to enable codestyle check for ITT collector
       - name: CMake configure
         run: cmake -DENABLE_PYTHON=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT -B build

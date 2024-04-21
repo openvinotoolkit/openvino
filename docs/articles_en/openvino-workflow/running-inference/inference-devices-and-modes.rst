@@ -8,14 +8,14 @@ Inference Devices and Modes
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_OV_UG_supported_plugins_CPU
-   openvino_docs_OV_UG_supported_plugins_GPU
-   openvino_docs_OV_UG_supported_plugins_NPU
-   openvino_docs_OV_UG_supported_plugins_AUTO
-   openvino_docs_OV_UG_Running_on_multiple_devices
-   openvino_docs_OV_UG_Hetero_execution
-   openvino_docs_OV_UG_Automatic_Batching
-   openvino_docs_OV_UG_query_api
+   inference-devices-and-modes/cpu-device
+   inference-devices-and-modes/gpu-device
+   inference-devices-and-modes/npu-device
+   inference-devices-and-modes/auto-device-selection
+   inference-devices-and-modes/multi-device
+   inference-devices-and-modes/hetero-execution
+   inference-devices-and-modes/automatic-batching
+   inference-devices-and-modes/query-device-properties
 
 
 The OpenVINO runtime offers multiple inference modes to enable the best hardware utilization under
@@ -24,17 +24,17 @@ different conditions:
 | **single-device inference**
 |    Define just one device responsible for the entire inference workload. It supports a range of
      processors by means of the following plugins embedded in the Runtime library:
-|    - :doc:`CPU <openvino_docs_OV_UG_supported_plugins_CPU>`
-|    - :doc:`GPU <openvino_docs_OV_UG_supported_plugins_GPU>`
-|    - :doc:`NPU <openvino_docs_OV_UG_supported_plugins_NPU>`
+|    :doc:`CPU <inference-devices-and-modes/cpu-device>`
+|    :doc:`GPU <inference-devices-and-modes/gpu-device>`
+|    :doc:`NPU <inference-devices-and-modes/npu-device>`
 
 | **automated inference modes**
 |    Assume certain level of automation in selecting devices for inference. They may potentially
      increase your deployed solution's performance and portability. The automated modes are:
-|    - :doc:`Automatic Device Selection (AUTO) <openvino_docs_OV_UG_supported_plugins_AUTO>`
-|    - :doc:`Multi-Device Execution (MULTI) <openvino_docs_OV_UG_Running_on_multiple_devices>`
-|    - :doc:`Heterogeneous Execution (HETERO) <openvino_docs_OV_UG_Hetero_execution>`
-|    - :doc:`Automatic Batching Execution (Auto-batching) <openvino_docs_OV_UG_Automatic_Batching>`
+|    :doc:`Automatic Device Selection (AUTO) <inference-devices-and-modes/auto-device-selection>`
+|    :doc:`Multi-Device Execution (MULTI) <inference-devices-and-modes/multi-device>`
+|    :doc:`Heterogeneous Execution (HETERO) <inference-devices-and-modes/hetero-execution>`
+|    :doc:`Automatic Batching Execution (Auto-batching) <inference-devices-and-modes/automatic-batching>`
 
 
 
@@ -58,7 +58,7 @@ as an example):
        Device: GPU.1
 
 
-You may see how to obtain this information in the :doc:`Hello Query Device Sample <openvino_sample_hello_query_device>`.
+You may see how to obtain this information in the :doc:`Hello Query Device Sample <../../learn-openvino/openvino-samples/hello-query-device>`.
 Here is an example of a simple programmatic way to enumerate the devices and use them with the
 multi-device mode:
 

@@ -52,7 +52,9 @@ TEST(RegisterPluginTests, getVersionforRegisteredPluginThrows) {
 
 TEST(RegisterPluginTests, getVersionforNoRegisteredPluginNoThrows) {
     ov::Core core;
-    ASSERT_NO_THROW(core.get_versions("unkown_device"));
+    std::map<std::string, ov::Version> versions;
+    ASSERT_NO_THROW(versions = core.get_versions("unkown_device"));
+    ASSERT_TRUE(versions.empty());
 
     auto plugin = std::make_shared<NiceMock<ov::MockIPlugin>>();
 

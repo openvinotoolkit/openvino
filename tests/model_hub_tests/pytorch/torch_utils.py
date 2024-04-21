@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -50,14 +50,6 @@ class TestTorchConvertModel(TestConvertModel):
         torch.set_grad_enabled(False)
 
     def load_model(self, model_name, model_link):
-        if self.cached_model is not None and self.cached_model[0] == model_name and self.cached_model[1] == model_link:
-            return self.cached_model[2]
-        else:
-            res = self.load_model_impl(model_name, model_link)
-            self.cached_model = (model_name, model_link, res)
-            return res
-
-    def load_model_impl(self, model_name, model_link):
         raise "load_model is not implemented"
 
     def get_inputs_info(self, model_obj):
@@ -72,28 +64,34 @@ class TestTorchConvertModel(TestConvertModel):
 
     def convert_model_impl(self, model_obj):
         if hasattr(self, "mode") and self.mode == "export":
-            from torch.fx.experimental.proxy_tensor import make_fx
             from torch.export import export
             from packaging import version
-            from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 
-            graph = export(model_obj, self.example)
-            if version.parse(torch.__version__) >= version.parse("2.2"):
-                graph = graph.run_decompositions()
+            model_obj.eval()
+            if isinstance(self.example, dict):
+                from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 
-            try:
-                gm = make_fx(graph)(*self.example)
-            except:
-                gm = make_fx(graph, tracing_mode='symbolic')(*self.example)
+                # need to infer before export to initialize everything, otherwise it will be initialized with FakeTensors
+                pt_res = model_obj(**self.example)
+                graph = export(model_obj, tuple(), self.example)
+                if version.parse(torch.__version__) >= version.parse("2.2"):
+                    graph = graph.run_decompositions()
 
-            input_shapes = []
-            input_types = []
-            for input_data in self.example:
-                input_types.append(input_data.type())
-                input_shapes.append(input_data.size())
+                gm = graph.module()
+                print(gm.code)
 
-            decoder = TorchFXPythonDecoder(gm, gm, input_shapes=input_shapes, input_types=input_types)
-            ov_model = convert_model(decoder, example_input=self.example)
+                decoder = TorchFXPythonDecoder(gm)
+                decoder._input_signature = list(self.example.keys())
+                ov_model = convert_model(decoder, verbose=True)
+            else:
+                pt_res = model_obj(*self.example)
+                graph = export(model_obj, self.example)
+                ov_model = convert_model(graph, verbose=True)
+
+            if isinstance(pt_res, dict):
+                for i, k in enumerate(pt_res.keys()):
+                    ov_model.outputs[i].get_tensor().set_names({k})
+            ov_model.validate_nodes_and_infer_types()
         else:
             ov_model = convert_model(model_obj,
                                      example_input=self.example,

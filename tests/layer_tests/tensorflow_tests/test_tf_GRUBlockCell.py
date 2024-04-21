@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -54,7 +54,7 @@ class TestTFGRUBlockCell(CommonTFLayerTest):
         dict(batch_size=1, input_size=15, hidden_size=10),
         dict(batch_size=2, input_size=6, hidden_size=6),
         dict(batch_size=2, input_size=12, hidden_size=6),
-        pytest.param(dict(batch_size=2, input_size=6, hidden_size=12), marks=pytest.mark.precommit_tf_fe),
+        pytest.param(dict(batch_size=2, input_size=6, hidden_size=12), marks=pytest.mark.precommit),
     ]
 
     @pytest.mark.parametrize("params", test_data)

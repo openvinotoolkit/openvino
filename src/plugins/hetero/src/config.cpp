@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "properties.hpp"
 
 using namespace ov::hetero;
 
@@ -20,6 +21,18 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
 
         if (ov::device::priorities == key) {
             device_priorities = value.as<std::string>();
+        } else if (ov::hint::model_distribution_policy == key) {
+            for (auto& row : value.as<std::set<ov::hint::ModelDistributionPolicy>>()) {
+                if (row != ov::hint::ModelDistributionPolicy::PIPELINE_PARALLEL) {
+                    OPENVINO_THROW(
+                        "Wrong value ",
+                        row,
+                        " for property key ",
+                        ov::hint::model_distribution_policy.name(),
+                        ". HETERO plugin only support {ov::hint::ModelDistributionPolicy::PIPELINE_PARALLEL}");
+                }
+            }
+            modelDistributionPolicy = value.as<std::set<ov::hint::ModelDistributionPolicy>>();
         } else {
             if (throwOnUnsupported)
                 OPENVINO_THROW("Property was not found: ", key);
@@ -31,6 +44,8 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
 ov::Any Configuration::get(const std::string& name) const {
     if (name == ov::device::priorities) {
         return {device_priorities};
+    } else if (name == ov::hint::model_distribution_policy) {
+        return {modelDistributionPolicy};
     } else {
         OPENVINO_THROW("Property was not found: ", name);
     }
@@ -42,7 +57,8 @@ std::vector<ov::PropertyName> Configuration::get_supported() const {
 }
 
 ov::AnyMap Configuration::get_hetero_properties() const {
-    return {{ov::device::priorities.name(), device_priorities}};
+    return {{ov::device::priorities.name(), device_priorities},
+            {ov::hint::model_distribution_policy.name(), modelDistributionPolicy}};
 }
 
 ov::AnyMap Configuration::get_device_properties() const {

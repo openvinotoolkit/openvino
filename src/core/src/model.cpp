@@ -220,11 +220,6 @@ void ov::Model::prerequirements(bool detect_variables, bool detect_parameters) {
 void ov::Model::validate_nodes_and_infer_types() const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Model::validate_nodes_and_infer_types");
 
-    struct Counter {
-        int cnt_assign = 0;
-        int cnt_read_val = 0;
-    };
-    std::map<ov::op::util::Variable*, Counter> pair_checker;
     std::stringstream unregistered_parameters;
     std::stringstream unregistered_variables;
     std::unordered_set<const ov::descriptor::Tensor*> tensors;
@@ -246,12 +241,6 @@ void ov::Model::validate_nodes_and_infer_types() const {
         if (variable_op &&
             std::find(m_variables.begin(), m_variables.end(), variable_op->get_variable()) == m_variables.end())
             unregistered_variables << variable_op->get_variable_id() << std::endl;
-
-        if (const auto& assign = std::dynamic_pointer_cast<ov::op::util::AssignBase>(node)) {
-            pair_checker[assign->get_variable().get()].cnt_assign++;
-        } else if (const auto& read_value = std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(node)) {
-            pair_checker[read_value->get_variable().get()].cnt_read_val++;
-        }
     }
 
     OPENVINO_ASSERT(unregistered_parameters.str().empty(),
@@ -261,13 +250,7 @@ void ov::Model::validate_nodes_and_infer_types() const {
     OPENVINO_ASSERT(unregistered_variables.str().empty(),
                     "Model references undeclared Variables: ",
                     unregistered_variables.str());
-    bool only_pairs =
-        std::all_of(pair_checker.begin(), pair_checker.end(), [](const std::pair<op::util::Variable*, Counter>& val) {
-            return val.second.cnt_assign == 1 && val.second.cnt_read_val == 1;
-        });
-    OPENVINO_ASSERT(only_pairs,
-                    "Model is incorrect. Assign and ReadValue operations must be in pairs on the "
-                    "network.");
+
     for (const auto& output : outputs()) {
         OPENVINO_ASSERT(ov::layout::utils::is_compatible(ov::layout::get_layout(output), output.get_partial_shape()),
                         "Result '",

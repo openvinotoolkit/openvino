@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -86,23 +86,26 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     return nullptr;
 }
 
-std::shared_ptr<ov::Model> FrontEnd::convert_partially(const InputModel::Ptr& model) const {
-    auto model_onnx = std::dynamic_pointer_cast<InputModel>(model);
+std::shared_ptr<ov::Model> FrontEnd::convert_partially(const InputModel::Ptr& input_model) const {
+    auto model_onnx = std::dynamic_pointer_cast<InputModel>(input_model);
     FRONT_END_GENERAL_CHECK(model_onnx != nullptr, "Invalid input model");
 
     if (!m_transformation_extensions.empty()) {
-        auto function = decode(model);
+        auto model = decode(input_model);
 
         ov::pass::Manager manager;
         for (const auto& transformation : m_transformation_extensions) {
             transformation->register_pass(manager);
         }
-        manager.run_passes(function);
-        convert(function);
-        return function;
+        manager.run_passes(model);
+        convert(model);
+        return model;
     }
 
     const auto& converted_model = model_onnx->convert();
+
+    ov::frontend::onnx::common::collect_translation_exceptions(converted_model, m_extensions.telemetry);
+
     normalize(converted_model);
     return converted_model;
 }
@@ -111,19 +114,38 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     // Here, you can register transformations as a second step of importing process
     // In particular, you can operate on not supported ops (it allows to N:N ONNX->OV mapping).
     ov::pass::Manager manager;
-    manager.register_pass<pass::ResolveNameCollisions>();
+    manager.register_pass<pass::ResolveNameCollisions>(true);
     manager.run_passes(model);
 }
 
-std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const {
-    const auto partially_converted = convert_partially(model);
+std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& input_model) const {
+    auto model_onnx = std::dynamic_pointer_cast<InputModel>(input_model);
+    FRONT_END_GENERAL_CHECK(model_onnx != nullptr, "Invalid input model");
 
-    const auto error_message = ov::frontend::onnx::common::collect_translation_exceptions(partially_converted);
-    FRONT_END_GENERAL_CHECK(error_message.empty(), error_message);
+    if (!m_transformation_extensions.empty()) {
+        auto model = decode(input_model);
 
-    normalize(partially_converted);
+        ov::pass::Manager manager;
+        for (const auto& transformation : m_transformation_extensions) {
+            transformation->register_pass(manager);
+        }
+        manager.run_passes(model);
+        convert(model);
+        return model;
+    }
 
-    return partially_converted;
+    const auto& converted_model = model_onnx->convert();
+
+    std::stringstream error_messages;
+
+    if (ov::frontend::onnx::common::collect_translation_exceptions(converted_model,
+                                                                   m_extensions.telemetry,
+                                                                   &error_messages)) {
+        FRONT_END_THROW(error_messages.str());
+    }
+
+    normalize(converted_model);
+    return converted_model;
 }
 
 void FrontEnd::convert(const std::shared_ptr<ov::Model>& partially_converted) const {

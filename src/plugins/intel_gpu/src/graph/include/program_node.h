@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -202,9 +202,9 @@ public:
     size_t get_dependency_index(const program_node& node) const;
     size_t get_user_index(const program_node& node) const;
 
-    std::set<primitive_id> get_memory_dependencies() const;
-    void add_memory_dependency(primitive_id);
-    void add_memory_dependency(std::vector<primitive_id>);
+    std::set<size_t> get_memory_dependencies() const;
+    void add_memory_dependency(size_t);
+    void add_memory_dependency(std::vector<size_t>);
 
     template <class PType>
     bool have_user_with_type() const {
@@ -300,6 +300,10 @@ public:
     // check/set if the node can be optimized out (removed from the network)
     bool can_be_optimized() const { return optimized; }
     void can_be_optimized(bool opt) { optimized = opt; }
+
+    // check/set if the node is runtime skippable
+    bool is_runtime_skippable() const { return runtime_skippable; }
+    void set_runtime_skippable(bool skippable) { runtime_skippable = skippable; }
 
     // check/set if the node's buffer can be shared during the memory pool optimization
     bool can_share_buffer() const { return share_buffer; }
@@ -425,6 +429,11 @@ public:
         unique_id = cur_id++;
     }
 
+    void set_unique_id(size_t _id) {
+        unique_id = _id;
+    }
+
+
     static void reset_unique_id() {
         cur_id = 0;
     }
@@ -473,12 +482,13 @@ protected:
     std::list<program_node*> users;
 
     // list of primitives that can reuse same memory buffers due to execution order conflicts
-    std::set<primitive_id> memory_dependencies;
+    std::set<size_t> memory_dependencies;
 
     impl_types impl_type = impl_types::any;
     bool constant = false;
     bool data_flow = false;
     bool in_shape_of_subgraph = false;
+    bool runtime_skippable = false;
 
     std::set<const program_node*> dependant_shape_of_nodes;
 

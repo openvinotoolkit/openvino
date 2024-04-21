@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,8 +12,6 @@
 namespace kernel_selector {
 inline uint32_t SubGroupSize(WeightsLayout l) {
     switch (l) {
-        case WeightsLayout::o_is_yx_isv16:
-        case WeightsLayout::o_is_zyx_isv16:
         case WeightsLayout::os_iyx_osv16:
         case WeightsLayout::os_iyx_osv32:
         case WeightsLayout::os_iyx_osv64:
@@ -34,7 +32,6 @@ inline uint32_t SubGroupSize(WeightsLayout l) {
         case WeightsLayout::gs_oiyx_gsv16:
         case WeightsLayout::gs_oizyx_gsv16:
         case WeightsLayout::gs_oiyx_gsv32:
-        case WeightsLayout::gs_oizyx_gsv32:
         case WeightsLayout::g_os_iyx_osv16_rotate_180:
         case WeightsLayout::gi_yxs_os_yxsv2_osv16:
         case WeightsLayout::g_is_os_zyx_isv16_osv16:
@@ -44,15 +41,12 @@ inline uint32_t SubGroupSize(WeightsLayout l) {
         case WeightsLayout::g_os_is_zyx_isv16_osv16:
         case WeightsLayout::giy_xs_os_xsv2_osv16__ao32:
         case WeightsLayout::g_os_is_yx_isv16_osv16:
-        case WeightsLayout::os_is_yx_osv16_isv2:
         case WeightsLayout::os_is_yx_osv16_isv16:
             return 16;
         case WeightsLayout::os_i_osv8__ai8:
         case WeightsLayout::iy_xs_os_xsv2_osv8__ao32:
         case WeightsLayout::giy_xs_os_xsv2_osv8__ao32:
         case WeightsLayout::g_os_iyx_osv8:
-        case WeightsLayout::gs_oiyx_gsv8:
-        case WeightsLayout::gs_oizyx_gsv8:
             return 8;
         default:
             return 1;

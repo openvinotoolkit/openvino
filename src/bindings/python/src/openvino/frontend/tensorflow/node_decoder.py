@@ -139,7 +139,7 @@ class TFGraphNodeDecoder(DecoderBase):
                     return var_tensor
                 for variable_value in operation.graph.variables:
                     if id(variable_value.handle) == id(var_tensor):
-                        return variable_value.value()
+                        return variable_value.read_value_no_copy()
                 return None
         return None
 

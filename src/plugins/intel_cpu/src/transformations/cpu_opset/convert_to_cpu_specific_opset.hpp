@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 #include "common/pass/convert_to_leaky_relu.hpp"
 #include "common/pass/convert_to_swish_cpu.hpp"
 #include "common/pass/move_fc_reshape_to_weights.hpp"
+#include "common/pass/split_fc.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/utils/utils.hpp"
 #include "common/pass/rnn_sequences_optimization.hpp"
@@ -25,7 +26,7 @@
 namespace ov {
 namespace intel_cpu {
 
-inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model> &nGraphFunc) {
+inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model> &nGraphFunc, int subStreamNum) {
     RUN_ON_FUNCTION_SCOPE(ConvertToCPUSpecificOpset);
 
     ov::pass::Manager manager;
@@ -33,6 +34,10 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model> &nGraphFunc) {
     CPU_REGISTER_PASS_COMMON(manager, ConvertMatMulToFC);
     CPU_REGISTER_PASS_X64(manager, MoveFCReshapeToWeights);
     CPU_REGISTER_PASS_X64(manager, ov::pass::Validate);
+    if (subStreamNum >= 1) {
+        CPU_REGISTER_PASS_COMMON(manager, SplitFC, subStreamNum);
+        CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
+    }
     CPU_REGISTER_PASS_COMMON(manager, AlignMatMulInputRanks);
     CPU_REGISTER_PASS_COMMON(manager, ConvertTileToSeqTiles);
     CPU_REGISTER_PASS_COMMON(manager, ConvertToPowerStatic);
@@ -49,6 +54,7 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model> &nGraphFunc) {
                              false,
                              false);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateConvert); // Need to clean up after the ConvertPrecision.
 
     manager.run_passes(nGraphFunc);
 }

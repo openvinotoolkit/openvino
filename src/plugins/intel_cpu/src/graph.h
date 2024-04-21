@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,8 +58,8 @@ public:
                      const GraphContext::CPtr ctx,
                      std::string name);
 
-    void PushInputData(const std::string& name, const ov::SoPtr<ITensor>& input);
-    void PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& output);
+    void PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& input);
+    void PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& output);
 
     void Infer(SyncInferRequest* request = nullptr);
 
@@ -71,30 +71,26 @@ public:
         return _name;
     }
 
-    std::map<std::string, NodePtr>& GetInputNodesMap() {
+    std::map<std::size_t, NodePtr>& GetInputNodesMap() {
         return inputNodesMap;
     }
 
-    std::map<std::string, NodePtr>& GetOutputNodesMap() {
+    std::map<std::size_t, NodePtr>& GetOutputNodesMap() {
         return outputNodesMap;
     }
 
-    NodePtr getInputNodeByName(const std::string &name) {
-        auto input = inputNodesMap.find(name);
+    NodePtr getInputNodeByIndex(const std::size_t &index) {
+        auto input = inputNodesMap.find(index);
         if (input == inputNodesMap.end())
-            OPENVINO_THROW("CPU execution graph doesn't contain input node with name: ", name);
+            OPENVINO_THROW("CPU execution graph doesn't contain input node with index: ", index);
         return input->second;
     }
 
-    NodePtr getOutputNodeByName(const std::string &name) {
-        auto output = outputNodesMap.find(name);
+    NodePtr getOutputNodeByIndex(const std::size_t &index) {
+        auto output = outputNodesMap.find(index);
         if (output == outputNodesMap.end())
-            OPENVINO_THROW("CPU execution graph doesn't contain output node with name: ", name);
+            OPENVINO_THROW("CPU execution graph doesn't contain output node with index: ", index);
         return output->second;
-    }
-
-    bool hasOutputWithName(const std::string& name) const {
-        return outputNodesMap.count(name);
     }
 
     dnnl::engine getEngine() const {
@@ -229,6 +225,7 @@ protected:
     void ResolveEdgeConflicts();
     void ResolveComplexInplaceConflicts();
     bool ProcessDynNodes();
+    void GroupParallelNodes();
     void Allocate();
     void AllocateWithReuse();
     void ExtractExecutableNodes();
@@ -237,16 +234,19 @@ protected:
     void CreatePrimitivesAndExecConstants() const;
     void InferStatic(SyncInferRequest* request);
     void InferDynamic(SyncInferRequest* request);
+    void ParalleMtNuma(size_t num_nodes,
+                       ov::threading::CPUStreamsExecutor::Ptr executor,
+                       const std::function<void(size_t, size_t)>& func) const;
 
     friend class intel_cpu::SyncInferRequest;
     friend std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph &graph);
 
 private:
     // TODO: change std::map to std::unordered_map
-    std::map<std::string, NodePtr> inputNodesMap;
-    std::map<std::string, NodePtr> outputNodesMap;
+    std::map<std::size_t, NodePtr> inputNodesMap;
+    std::map<std::size_t, NodePtr> outputNodesMap;
 
-    std::unordered_map<std::string, ProxyMemoryMngrPtr> outputNodesMemMngrMap;
+    std::unordered_map<std::size_t, ProxyMemoryMngrPtr> outputNodesMemMngrMap;
     std::unordered_map<std::string, std::shared_ptr<node::MemoryStateNode>> internalStateNodes;
 
     // these node pointers (from graphNodes) are to avoid regular checking for

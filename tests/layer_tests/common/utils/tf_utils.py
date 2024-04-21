@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -8,6 +8,12 @@ import numpy as np
 import tensorflow as tf
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
+
+def run_in_jenkins():
+    if "JENKINS_URL" in os.environ and len(os.environ["JENKINS_URL"]):
+        return True
+    return False
 
 
 def mix_array_with_value(input_array, value):

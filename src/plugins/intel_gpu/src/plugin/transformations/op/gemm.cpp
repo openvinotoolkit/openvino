@@ -1,11 +1,16 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "intel_gpu/op/gemm.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 #include "matmul_shape_inference.hpp"
+#include "broadcast_shape_inference.hpp"
+#include "reshape_shape_inference.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/reshape.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -42,7 +47,11 @@ void Gemm::validate_and_infer_types() {
         input_size,
         ", expected 2.");
 
-    auto out_shapes = shape_infer(this, std::vector<ov::PartialShape>{get_input_partial_shape(0), get_input_partial_shape(1)}, m_order_a, m_order_b, m_order_c);
+    auto out_shapes = shape_infer(this,
+                                  std::vector<ov::PartialShape>{get_input_partial_shape(0), get_input_partial_shape(1)},
+                                  m_order_a,
+                                  m_order_b,
+                                  m_order_c);
 
     auto output_type = m_output_type == ov::element::undefined ? get_input_element_type(0) : m_output_type;
     set_output_type(0, output_type, out_shapes[0]);
@@ -61,23 +70,44 @@ std::vector<ov::PartialShape> shape_infer(const Gemm* op,
                                           const std::vector<int64_t>& order_a,
                                           const std::vector<int64_t>& order_b,
                                           const std::vector<int64_t>& order_c) {
-    auto transpose_shape = [](const ov::PartialShape shape, const std::vector<int64_t>& order) {
-        auto shape_transposed = ov::PartialShape::dynamic(shape.rank());
-        for (size_t i = 0; i < order.size(); i++) {
-            shape_transposed[i] = shape[order[i]];
-        }
-
-        return shape_transposed;
-    };
     auto shape_a = input_shapes[0];
     auto shape_b = input_shapes[1];
 
-    auto shape_a_t = (order_a.size() > 1) ? transpose_shape(shape_a, order_a) : shape_a;
-    auto shape_b_t = (order_b.size() > 1) ? transpose_shape(shape_b, order_b) : shape_b;
+    // transposed shape
+    auto transpose_pshape = [](const ov::PartialShape pshape, const std::vector<int64_t>& order) {
+        auto transposed_pshape = ov::PartialShape::dynamic(pshape.rank());
+        for (size_t i = 0; i < order.size(); i++) {
+            transposed_pshape[i] = pshape[order[i]];
+        }
+
+        return transposed_pshape;
+    };
+
+    auto shape_a_t = (order_a.size() > 1) ? transpose_pshape(shape_a, order_a) : shape_a;
+    auto shape_b_t = (order_b.size() > 1) ? transpose_pshape(shape_b, order_b) : shape_b;
+
+    // broadcast all batch dimensions
+    const auto is_broadcastable = shape_a_t.rank().is_static() &&
+                                  shape_a_t.rank().is_static() &&
+                                  shape_a_t.size() > 1 &&
+                                  shape_b_t.size() > 1 &&
+                                  (shape_a_t.size() == shape_b_t.size());
+    if (is_broadcastable) {
+        size_t max_rank = shape_a_t.size();
+        for (size_t i = 0; i < max_rank - 2; ++i) {
+            if (shape_a_t[i].is_static() && shape_b_t[i].is_static()) {
+                auto result = std::max(shape_a_t[i].get_length(), shape_b_t[i].get_length());
+                shape_a_t[i] = result;
+                shape_b_t[i] = result;
+            }
+        }
+    }
+
+    OPENVINO_ASSERT(op != nullptr, "op should not be nullptr for shape_infer.");
     auto out_shapes = ov::op::v0::shape_infer(dynamic_cast<const ov::op::v0::MatMul*>(op), std::vector<ov::PartialShape>{shape_a_t, shape_b_t});
 
     if (order_c.size() > 0) {
-        return { transpose_shape(out_shapes[0], order_c) };
+        return { transpose_pshape(out_shapes[0], order_c) };
     } else {
         return { out_shapes[0] };
     }

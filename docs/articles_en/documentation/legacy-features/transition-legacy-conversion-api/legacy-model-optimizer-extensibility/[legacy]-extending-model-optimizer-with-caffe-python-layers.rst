@@ -4,17 +4,17 @@
 ============================================================
 
 .. meta::
-  :description: Learn how to extract operator attributes in Model Optimizer to 
+  :description: Learn how to extract operator attributes in Model Optimizer to
                 support a custom Caffe operation written only in Python.
 
 .. danger::
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated TensorFlow conversion method. The guide on the new and recommended method, using a new frontend, can be found in the  :doc:`Frontend Extensions <openvino_docs_Extensibility_UG_Frontend_Extensions>` article. 
+   This guide describes a deprecated TensorFlow conversion method. The guide on the new and recommended method, using a new frontend, can be found in the  :doc:`Frontend Extensions <../../../openvino-extensibility/frontend-extensions>` article.
 
 This article provides instructions on how to support a custom Caffe operation written only in Python. For example, the
-`Faster-R-CNN model <https://dl.dropboxusercontent.com/s/o6ii098bu51d139/faster_rcnn_models.tgz?dl=0>`__ implemented in
+`Faster-R-CNN model <https://dl.opencv.org/models/faster_rcnn_models.tgz>`__ implemented in
 Caffe contains a custom proposal layer written in Python. The layer is described in the
 `Faster-R-CNN prototxt <https://raw.githubusercontent.com/rbgirshick/py-faster-rcnn/master/models/pascal_voc/VGG16/faster_rcnn_end2end/test.prototxt>`__ in the following way:
 
@@ -37,7 +37,7 @@ Caffe contains a custom proposal layer written in Python. The layer is described
 
 This article describes only a procedure on how to extract operator attributes in Model Optimizer. The rest of the
 operation enabling pipeline and information on how to support other Caffe operations (written in C++) is described in
-the :doc:`Customize Model Optimizer <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` guide.
+the :doc:`Customize Model Optimizer <../legacy-model-optimizer-extensibility>` guide.
 
 ========================================
 Writing Extractor for Caffe Python Layer
@@ -54,7 +54,7 @@ operation.
 Below is a simplified example of the extractor for the custom operation Proposal from the mentioned Faster-R-CNN model.
 The full code with additional checks can be found `here <https://github.com/openvinotoolkit/openvino/blob/releases/2022/1/tools/mo/openvino/tools/mo/front/caffe/proposal_python_ext.py>`__.
 
-The sample code uses operation ``ProposalOp`` which corresponds to ``Proposal`` operation described in the :doc:`Available Operations Sets <openvino_docs_ops_opset>`
+The sample code uses operation ``ProposalOp`` which corresponds to ``Proposal`` operation described in the :doc:`Available Operations Sets <../../../openvino-ir-format/operation-sets/available-opsets>`
 page. For a detailed explanation of the extractor, refer to the source code below.
 
 .. code-block:: py
@@ -62,19 +62,19 @@ page. For a detailed explanation of the extractor, refer to the source code belo
 
    from openvino.tools.mo.ops.proposal import ProposalOp
    from openvino.tools.mo.front.extractor import CaffePythonFrontExtractorOp
-   
-   
+
+
    class ProposalPythonFrontExtractor(CaffePythonFrontExtractorOp):
        op = 'rpn.proposal_layer.ProposalLayer'  # module + "." + layer
        enabled = True  # extractor is enabled
-   
+
        @staticmethod
        def extract_proposal_params(node, defaults):
            param = node.pb.python_param  # get the protobuf message representation of the layer attributes
            # parse attributes from the layer protobuf message to a Python dictionary
            attrs = CaffePythonFrontExtractorOp.parse_param_str(param.param_str)
            update_attrs = defaults
-   
+
            # the operation expects ratio and scale values to be called "ratio" and "scale" while Caffe uses different names
            if 'ratios' in attrs:
                attrs['ratio'] = attrs['ratios']
@@ -82,10 +82,10 @@ page. For a detailed explanation of the extractor, refer to the source code belo
            if 'scales' in attrs:
                attrs['scale'] = attrs['scales']
                del attrs['scales']
-   
+
            update_attrs.update(attrs)
            ProposalOp.update_node_stat(node, update_attrs)  # update the node attributes
-   
+
        @classmethod
        def extract(cls, node):
            # define default values for the Proposal layer attributes
@@ -106,7 +106,7 @@ page. For a detailed explanation of the extractor, refer to the source code belo
 Additional Resources
 ====================
 
-* :doc:`Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>`
-* :doc:`Graph Traversal and Modification Using Ports and Connections <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer_Model_Optimizer_Ports_Connections>`
-* :doc:`Model Optimizer Extensions <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions>`
+* :doc:`Model Optimizer Extensibility <../legacy-model-optimizer-extensibility>`
+* :doc:`Graph Traversal and Modification Using Ports and Connections <[legacy]-graph-traversal-and-modification>`
+* :doc:`Model Optimizer Extensions <[legacy]-model-optimizer-extensions>`
 

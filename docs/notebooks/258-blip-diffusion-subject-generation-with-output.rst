@@ -53,8 +53,15 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q "openvino>=2023.1.0" matplotlib Pillow gradio
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu torch transformers accelerate controlnet_aux "diffusers>=0.23.0"
+    import platform
+
+    %pip install -q "openvino>=2023.1.0" Pillow gradio
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu torch transformers accelerate controlnet_aux "diffusers>=0.23.0" "peft==0.6.2"
+
+    if platform.system() != "Windows":
+        %pip install -q "matplotlib>=3.4"
+    else:
+        %pip install -q "matplotlib>=3.4,<3.7"
 
 
 .. parsed-literal::
@@ -74,7 +81,6 @@ Prerequisites
     import diffusers
     import torch
     import matplotlib.pyplot as plt
-    import ipywidgets
     import PIL
     import numpy as np
     import gradio as gr
@@ -853,9 +859,11 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
+    import ipywidgets as widgets
+
     core = ov.Core()
 
-    device = ipywidgets.Dropdown(
+    device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",

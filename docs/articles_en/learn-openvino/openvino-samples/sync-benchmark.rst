@@ -16,10 +16,8 @@ arguments. Feel free to modify sample's source code to try out different options
 Before using the sample, refer to the following requirements:
 
 - The sample accepts any file format supported by ``core.read_model``.
-- The sample has been validated with: `alexnet <https://docs.openvino.ai/nightly/omz_models_model_alexnet.html>`__,
-  `googlenet-v1 <https://docs.openvino.ai/nightly/omz_models_model_googlenet_v1.html>`__,
-  `yolo-v3-tf <https://docs.openvino.ai/nightly/omz_models_model_yolo_v3_tf.html>`__,
-  `face-detection-0200 <https://docs.openvino.ai/nightly/omz_models_model_face_detection_0200.html>`__ models.
+- The sample has been validated with: `yolo-v3-tf <https://docs.openvino.ai/2024/omz_models_model_yolo_v3_tf.html>`__,
+  `face-detection-0200 <https://docs.openvino.ai/2024/omz_models_model_face_detection_0200.html>`__ models.
 - To build the sample, use instructions available at :ref:`Build the Sample Applications <build-samples>`
   section in "Get Started with Samples" guide.
 
@@ -50,7 +48,7 @@ Then, it processes and reports performance results.
 
 
 You can see the explicit description of
-each sample step at :doc:`Integration Steps <openvino_docs_OV_UG_Integrate_OV_with_your_application>`
+each sample step at :doc:`Integration Steps <../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
 section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
 Running
@@ -167,9 +165,9 @@ Sample Output
 Additional Resources
 ####################
 
-- :doc:`Integrate the OpenVINO™ Runtime with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`
-- :doc:`Get Started with Samples <openvino_docs_get_started_get_started_demos>`
-- :doc:`Using OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>`
-- :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
+- :doc:`Integrate the OpenVINO™ Runtime with Your Application <../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
+- :doc:`Get Started with Samples <get-started-demos>`
+- :doc:`Using OpenVINO Samples <../openvino-samples>`
+- :doc:`Convert a Model <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`
 - `Sync Benchmark Python Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/python/benchmark/sync_benchmark/README.md>`__
 - `Sync Benchmark C++ Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/cpp/benchmark/sync_benchmark/README.md>`__

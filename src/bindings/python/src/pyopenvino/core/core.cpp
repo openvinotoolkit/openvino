@@ -209,6 +209,57 @@ void regclass_Core(py::module m) {
 
     cls.def(
         "compile_model",
+        [](ov::Core& self,
+           const py::object& model_buffer,
+           const py::object& weight_buffer,
+           const std::string& device_name,
+           const std::map<std::string, py::object>& properties) {
+            std::stringstream _stream;
+            _stream << model_buffer.cast<std::string>();
+
+            py::buffer_info info;
+            if (!py::isinstance<py::none>(weight_buffer)) {
+                auto p = weight_buffer.cast<py::bytes>();
+                info = py::buffer(p).request();
+            }
+            size_t bin_size = static_cast<size_t>(info.size);
+            ov::Tensor tensor;
+            if (bin_size) {
+                // If weights are not empty:
+                tensor = ov::Tensor(ov::element::Type_t::u8, {bin_size}, info.ptr);
+            } else {
+                // If weights are empty:
+                tensor = ov::Tensor(ov::element::Type_t::u8, {bin_size});
+            }
+            auto _properties = Common::utils::properties_to_any_map(properties);
+            py::gil_scoped_release release;
+            return self.compile_model(_stream.str(), tensor, device_name, _properties);
+        },
+        py::arg("model_buffer"),
+        py::arg("weight_buffer"),
+        py::arg("device_name"),
+        py::arg("properties"),
+        R"(
+            Create a compiled model from IR model buffer and weight buffer in memory.
+            This can be more efficient than using read_model + compile_model(model_in_memory_object) flow,
+            especially for cases when caching is enabled and cached model is available.
+
+            GIL is released while runing this function.
+
+            :param model_buffer: A string buffer of IR xml in memory
+            :type model_buffer: str
+            :param weight_buffer: A byte buffer of IR weights in memory
+            :type weight_buffer: bytes
+            :param device_name: Name of the device to load the model to.
+            :type device_name: str
+            :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
+            :type properties: dict
+            :return: A compiled model.
+            :rtype: openvino.runtime.CompiledModel
+        )");
+
+    cls.def(
+        "compile_model",
         [](ov::Core& self, const py::object& model_path, const std::map<std::string, py::object>& properties) {
             auto _properties = Common::utils::properties_to_any_map(properties);
             std::string path = Common::utils::convert_path_to_string(model_path);
@@ -244,7 +295,21 @@ void regclass_Core(py::module m) {
         },
         py::arg("model"),
         py::arg("context"),
-        py::arg("properties"));
+        py::arg("properties"),
+        R"(
+            Creates a compiled model from a source model within a specified remote context.
+
+            GIL is released while running this function.
+
+            :param model: Model acquired from read_model function.
+            :type model: openvino.Model
+            :param context: RemoteContext instance.
+            :type context: openvino.RemoteContext
+            :param properties: dict of pairs: (property name, property value) relevant only for this load operation.
+            :type properties: dict
+            :return: A compiled model.
+            :rtype: openvino.CompiledModel
+        )");
 
     cls.def(
         "create_context",
@@ -253,14 +318,33 @@ void regclass_Core(py::module m) {
             return RemoteContextWrapper(self.create_context(device_name, _properties));
         },
         py::arg("device_name"),
-        py::arg("properties"));
+        py::arg("properties"),
+        R"(
+            Creates a new remote shared context object on the specified accelerator device
+            using specified plugin-specific low-level device API parameters.
+
+            :param device_name: Name of a device to create a new shared context on.
+            :type device_name: str
+            :param device_name: dict of device-specific shared context remote properties.
+            :type device_name: dict
+            :return: Remote context instance.
+            :rtype: openvino.RemoteContext
+        )");
 
     cls.def(
         "get_default_context",
         [](ov::Core& self, const std::string& device_name) {
             return RemoteContextWrapper(self.get_default_context(device_name));
         },
-        py::arg("device_name"));
+        py::arg("device_name"),
+        R"(
+            Gets default (plugin-supplied) shared context object for the specified accelerator device.
+
+            :param device_name: Name of a device to get a default shared context from.
+            :type device_name: str
+            :return: Remote context instance.
+            :rtype: openvino.RemoteContext
+        )");
 
     cls.def("get_versions",
             &ov::Core::get_versions,

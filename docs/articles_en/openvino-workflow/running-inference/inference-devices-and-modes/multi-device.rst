@@ -13,7 +13,7 @@ Multi-device execution
 To run inference on multiple devices, you can choose either of the following ways:
 
 - Use the :ref:`CUMULATIVE_THROUGHPUT option <cumulative throughput>` of the Automatic Device Selection mode. This way, you can use all available devices in the system without the need to specify them.
-- Use the Multi-Device execution mode. It shares the same behaviors as the :ref:`CUMULATIVE_THROUGHPUT option <cumulative throughput>` of the Automatic Device Selection mode. The difference is,it needs <device list> or ``ov::device::priorities`` to be set explicitly.
+- Use the Multi-Device execution mode. It shares the same behaviors as the :ref:`CUMULATIVE_THROUGHPUT option <cumulative throughput>` of the Automatic Device Selection mode. The difference is, it needs <device list> or ``ov::device::priorities`` to be set explicitly.
 
 How MULTI Works
 ####################
@@ -49,7 +49,7 @@ Following the OpenVINO™ naming convention, the Multi-Device mode is assigned t
 
 Specifying the device list explicitly is required by MULTI, as it defines the devices available for inference and sets their priorities.
 
-Note that OpenVINO™ Runtime enables you to use “GPU” as an alias for “GPU.0” in function calls. More details on enumerating devices can be found in :doc:`Inference Devices and Modes <openvino_docs_Runtime_Inference_Modes_Overview>`.
+Note that OpenVINO™ Runtime enables you to use “GPU” as an alias for “GPU.0” in function calls. More details on enumerating devices can be found in :doc:`Inference Devices and Modes <../inference-devices-and-modes>`.
 
 The following commands are accepted by the API:
 
@@ -70,7 +70,7 @@ The following commands are accepted by the API:
          :fragment: [part0]
 
 
-To check what devices are present in the system, you can use the Device API. For information on how to do it, check :doc:`Query device properties and configuration <openvino_docs_OV_UG_query_api>`.
+To check what devices are present in the system, you can use the Device API. For information on how to do it, check :doc:`Query device properties and configuration <query-device-properties>`.
 
 
 Configuring Individual Devices and Creating the Multi-Device On Top
@@ -101,7 +101,7 @@ Querying the Optimal Number of Inference Requests
 +++++++++++++++++++++++++++++++++++++++++++++++++
 
 When using MULTI, you don't need to sum over included devices yourself, you can query the optimal number of requests directly,
-using the :doc:`configure devices <openvino_docs_OV_UG_query_api>` property:
+using the :doc:`configure devices <query-device-properties>` property:
 
 .. tab-set::
 
@@ -123,7 +123,7 @@ Here is an example command to evaluate performance of CPU + GPU:
    ./benchmark_app –d MULTI:CPU,GPU –m <model> -i <input> -niter 1000
 
 
-For more information, refer to the :doc:`Benchmark Tool <openvino_sample_benchmark_tool>` article.
+For more information, refer to the :doc:`Benchmark Tool <../../../learn-openvino/openvino-samples/benchmark-tool>` article.
 
 
 .. note::
@@ -148,7 +148,7 @@ For best performance when using the MULTI execution mode you should consider a f
 Additional Resources
 ####################
 
-- :doc:`Inference Devices and Modes <openvino_docs_Runtime_Inference_Modes_Overview>`
-- :doc:`Automatic Device Selection <openvino_docs_OV_UG_supported_plugins_AUTO>`
+- :doc:`Inference Devices and Modes <../inference-devices-and-modes>`
+- :doc:`Automatic Device Selection <auto-device-selection>`
 
 

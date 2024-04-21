@@ -28,7 +28,7 @@ resulting model, downloads a dataset and runs a benchmark on the dataset.
 
 
 You can see the explicit description of each sample step at
-:doc:`Integration Steps <openvino_docs_OV_UG_Integrate_OV_with_your_application>`
+:doc:`Integration Steps <../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
 section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
 Running
@@ -62,8 +62,8 @@ The sample outputs how long it takes to process a dataset.
 Additional Resources
 ####################
 
-- :doc:`Integrate the OpenVINO™ Runtime with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`
-- :doc:`Get Started with Samples <openvino_docs_get_started_get_started_demos>`
-- :doc:`Using OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>`
-- :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
+- :doc:`Integrate the OpenVINO™ Runtime with Your Application <../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
+- :doc:`Get Started with Samples <get-started-demos>`
+- :doc:`Using OpenVINO Samples <../openvino-samples>`
+- :doc:`Convert a Model <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`
 - `Bert Benchmark Python Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/python/benchmark/bert_benchmark/README.md>`__

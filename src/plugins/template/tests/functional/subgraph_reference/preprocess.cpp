@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,6 +33,7 @@ class ReferencePreprocessTest : public testing::TestWithParam<RefPreprocessParam
 public:
     void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        legacy_compare = true;
         const auto& params = GetParam();
         function = params.function();
         for (const auto& inp : params.inputs) {

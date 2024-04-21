@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -17,6 +17,65 @@ type_map = {
     tf.string: str,
     tf.bool: bool,
 }
+
+
+def unpack_tf_result(tensor):
+    if isinstance(tensor, tf.Tensor):
+        return tensor.numpy()
+    elif isinstance(tensor, (list, tuple)):
+        res = []
+        for elem in tensor:
+            res.append(unpack_tf_result(elem))
+        if isinstance(tensor, list):
+            return res
+        else:
+            return tuple(res)
+    elif isinstance(tensor, dict):
+        res = {}
+        for out_name, out_value in tensor.items():
+            res[out_name] = unpack_tf_result(out_value)
+        return res
+    raise Exception("Unknown output type of original FW inference result: {}".format(type(tensor)))
+
+
+def repack_ov_result_to_tf_format(ov_out, signature, outer_name=None):
+    if signature is None:
+        return ov_out
+
+    from tensorflow.python.framework.tensor import TensorSpec
+    if isinstance(signature, (tf.Tensor, TensorSpec)):
+        out_name = signature.name
+        assert out_name in ov_out or outer_name in ov_out, "Could not match OV output and FW signature."
+        # Case when ov result has inner tensor name
+        if out_name in ov_out:
+            return ov_out[out_name]
+        # Case when ov result has correct outer name
+        if outer_name is not None and outer_name in ov_out:
+            return ov_out[outer_name]
+        raise Exception("Could not match OV output and FW signature.")
+    elif isinstance(signature, (list, tuple)):
+        res = []
+        for idx, elem in enumerate(signature):
+            res.append(repack_ov_result_to_tf_format(ov_out, signature[idx]))
+        if isinstance(signature, list):
+            return res
+        else:
+            return tuple(res)
+    elif isinstance(signature, dict):
+        res = {}
+        for out_name, out_value in signature.items():
+            res[out_name] = repack_ov_result_to_tf_format(ov_out, signature[out_name], out_name)
+        return res
+    raise Exception("Unknown type in FW signature: {}".format(type(signature)))
+
+
+def get_output_signature_from_keras_layer(model):
+    try:
+        from openvino.frontend.tensorflow.utils import trace_tf_model_if_needed
+        traced_model = trace_tf_model_if_needed(model, None, None, None)
+        return traced_model.structured_outputs
+    except:
+        return None
 
 
 def get_input_info(input_tensor, input_name):

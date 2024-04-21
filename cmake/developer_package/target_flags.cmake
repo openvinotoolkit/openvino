@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 # Target system specific flags
@@ -113,31 +113,35 @@ endif()
 
 get_property(OV_GENERATOR_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 
+function(ov_get_compiler_definition definition var)
+    if(NOT LINUX)
+        message(FATAL_ERROR "Internal error: 'ov_get_definition' must be used only on Linux")
+    endif()
+
+    execute_process(COMMAND echo "#include <string>"
+                    COMMAND "${CMAKE_CXX_COMPILER}" -x c++ - -E -dM
+                    COMMAND grep -E "^#define ${definition} "
+                    OUTPUT_VARIABLE output_value
+                    ERROR_VARIABLE error_message
+                    RESULT_VARIABLE exit_code
+                    OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+    if(NOT exit_code EQUAL 0)
+        message(FATAL_ERROR "Failed to detect '${definition}' definition value: ${error_message}\n${output_value}")
+    endif()
+
+    if(output_value MATCHES "^#define ${definition} ([0-9]+)")
+        set("${var}" "${CMAKE_MATCH_1}" PARENT_SCOPE)
+    else()
+        message(FATAL_ERROR "Internal error: failed to parse ${definition} from '${output_value}'")
+    endif()
+endfunction()
+
 function(ov_glibc_version)
     # cmake needs to look at glibc version only when we build for Linux on Linux
     if(LINUX)
-        function(ov_get_definition definition var)
-            execute_process(COMMAND echo "#include <errno.h>"
-                            COMMAND "${CMAKE_CXX_COMPILER}" -xc - -E -dM
-                            COMMAND grep -E "^#define ${definition} "
-                            OUTPUT_VARIABLE glibc_version_component
-                            ERROR_VARIABLE error_message
-                            RESULT_VARIABLE exit_code
-                            OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-            if(NOT exit_code EQUAL 0)
-                message(FATAL_ERROR "Failed to detect glibc version: ${error_message}\n${glibc_version_component}")
-            endif()
-
-            if(glibc_version_component MATCHES "^#define ${definition} ([0-9]+)")
-                set("${var}" "${CMAKE_MATCH_1}" PARENT_SCOPE)
-            else()
-                message(FATAL_ERROR "Internal error: failed to parse ${definition} from '${glibc_version_component}'")
-            endif()
-        endfunction()
-
-        ov_get_definition("__GLIBC__" _ov_glibc_major)
-        ov_get_definition("__GLIBC_MINOR__" _ov_glibc_minor)
+        ov_get_compiler_definition("__GLIBC__" _ov_glibc_major)
+        ov_get_compiler_definition("__GLIBC_MINOR__" _ov_glibc_minor)
 
         set(OV_GLIBC_VERSION "${_ov_glibc_major}.${_ov_glibc_minor}" PARENT_SCOPE)
     else()
@@ -146,3 +150,14 @@ function(ov_glibc_version)
 endfunction()
 
 ov_glibc_version()
+
+#
+# Detects default value for _GLIBCXX_USE_CXX11_ABI for current compiler
+#
+macro(ov_get_glibcxx_use_cxx11_abi)
+    if(LINUX)
+        ov_get_compiler_definition("_GLIBCXX_USE_CXX11_ABI" OV_GLIBCXX_USE_CXX11_ABI)
+    endif()
+endmacro()
+
+ov_get_glibcxx_use_cxx11_abi()

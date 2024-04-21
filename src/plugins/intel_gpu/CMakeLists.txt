@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -17,7 +17,12 @@ if(CMAKE_COMPILER_IS_GNUCXX)
 endif()
 
 if(OV_COMPILER_IS_CLANG)
-    ov_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
+    # -Wno-delete-non-abstract-non-virtual-dtor is support > clang 9.0
+        if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 9.0)
+        ov_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
+    else()
+        ov_add_compiler_flags(-Wno-delete-non-virtual-dtor)
+    endif()
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")

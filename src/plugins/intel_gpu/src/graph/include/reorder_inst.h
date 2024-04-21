@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,6 +27,7 @@ struct typed_program_node<reorder> : public typed_program_node_base<reorder> {
 public:
     typed_program_node(const std::shared_ptr<reorder> prim, program& prog) : parent(prim, prog) {
         support_padding_all(true);
+        set_runtime_skippable(true);
     }
 
     program_node& mean_nv12() const { return get_dependency(2); }

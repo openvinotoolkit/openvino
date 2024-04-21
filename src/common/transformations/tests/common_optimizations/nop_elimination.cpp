@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -212,6 +212,27 @@ TEST(nop_elimination, squeeze_unsqueeze_elimination) {
         }
     }
     ASSERT_TRUE(movement_are_missing);
+}
+
+TEST(nop_elimination, squeeze_unsqueeze_elimination_dynamic_without_squeeze_axis) {
+    std::shared_ptr<ov::Model> f;
+    {
+        auto arg = std::make_shared<opset4::Parameter>(element::f32, PartialShape{-1, 16, 1, 3});
+
+        auto squeeze = std::make_shared<opset4::Squeeze>(arg);
+        squeeze->set_friendly_name("squeeze");
+
+        auto unsqueeze_axes = opset4::Constant::create(element::i64, Shape{1}, {2});
+        auto unsqueeze = std::make_shared<opset4::Unsqueeze>(squeeze, unsqueeze_axes);
+        unsqueeze->set_friendly_name("unsqueeze");
+
+        f = std::make_shared<ov::Model>(NodeVector{unsqueeze}, ParameterVector{arg});
+    }
+
+    pass::Manager pass_manager;
+    pass_manager.register_pass<ov::pass::InitNodeInfo>();
+    pass_manager.register_pass<ov::pass::NopElimination>();
+    EXPECT_NO_THROW(pass_manager.run_passes(f));
 }
 
 TEST(nop_elimination, reshape_elimination_v1_dynamic) {

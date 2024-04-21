@@ -1,34 +1,34 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "common_test_utils/type_prop.hpp"
 
 #include "openvino/core/dimension.hpp"
-#include "sequnce_generator.hpp"
+#include "sequence_generator.hpp"
 
-ov::TensorLabel get_shape_labels(const ov::PartialShape& p_shape) {
-    ov::TensorLabel labels;
-    transform(p_shape.cbegin(), p_shape.cend(), back_inserter(labels), [](const ov::Dimension& dim) {
-        return ov::DimensionTracker::get_label(dim);
+ov::TensorSymbol get_shape_symbols(const ov::PartialShape& p_shape) {
+    ov::TensorSymbol symbols;
+    transform(p_shape.cbegin(), p_shape.cend(), back_inserter(symbols), [](const ov::Dimension& dim) {
+        return dim.get_symbol();
     });
-    return labels;
+    return symbols;
 }
 
-void set_shape_labels(ov::PartialShape& p_shape, const ov::label_t first_label) {
-    ov::TensorLabel labels;
-    std::generate_n(std::back_inserter(labels), p_shape.size(), ov::SeqGen<ov::label_t>(first_label));
-    set_shape_labels(p_shape, labels);
-}
-
-void set_shape_labels(ov::PartialShape& p_shape, const ov::TensorLabel& labels) {
-    ASSERT_EQ(labels.size(), p_shape.size());
-    auto label_it = labels.begin();
-
-    std::for_each(p_shape.begin(), p_shape.end(), [&label_it](ov::Dimension& dim) {
-        if (*label_it > 0) {
-            ov::DimensionTracker::set_label(dim, *label_it);
+ov::TensorSymbol set_shape_symbols(ov::PartialShape& p_shape) {
+    ov::TensorSymbol symbols;
+    for (auto& dim : p_shape) {
+        if (!dim.has_symbol()) {
+            auto new_symbol = std::make_shared<ov::Symbol>();
+            dim.set_symbol(new_symbol);
         }
-        ++label_it;
-    });
+        symbols.push_back(dim.get_symbol());
+    }
+    return symbols;
+}
+
+void set_shape_symbols(ov::PartialShape& p_shape, const ov::TensorSymbol& symbols) {
+    ASSERT_EQ(symbols.size(), p_shape.size());
+    for (size_t i = 0; i < p_shape.size(); ++i)
+        p_shape[i].set_symbol(symbols[i]);
 }
