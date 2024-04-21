@@ -47,15 +47,39 @@ jobs:
           echo "${{ toJSON(steps.smart_ci.outputs.affected_components) }}"
         shell: bash
 
-  Build:
+  # TODO: Make Docker job a part of Smart CI maybe?
+  Docker:
     needs: Smart_CI
+    runs-on: aks-linux-16-cores-arm-docker-build
+    container:
+      image: openvinogithubactions.azurecr.io/docker_build:0.2
+      volumes:
+        - /mount:/mount
+    outputs:
+      images: "${{ steps.handle_docker.outputs.images }}"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: ./.github/actions/handle_docker
+        id: handle_docker
+        with:
+          images: |
+            ov_build/ubuntu_20_04_arm64
+          registry: 'openvinogithubactions.azurecr.io'
+          dockerfiles_root_dir: '.github/dockerfiles'
+          pr_changes_environment: ${{ fromJSON(needs.Smart_CI.outputs.affected_components).docker.build }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+
+  Build:
+    needs: [ Smart_CI, Docker ]
     timeout-minutes: 150
     defaults:
       run:
         shell: bash
     runs-on: 'aks-linux-16-cores-arm'
     container:
-      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_arm64 }}
       volumes:
         - /mount:/mount
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
@@ -82,12 +106,6 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow"
 
     steps:
-      - name: Set apt retries
-        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
-
-      - name: Install git
-        run: apt-get update && apt-get install --assume-yes --no-install-recommends git ca-certificates
-
       - name: Clone OpenVINO
         uses: actions/checkout@v4
         with:
@@ -113,28 +131,13 @@ jobs:
       #
       # Dependencies
       #
-
-      - name: Install build dependencies
-        run: |
-          bash ${OPENVINO_REPO}/install_build_dependencies.sh
-
-          # default-jdk - Java API
-          apt install --assume-yes --no-install-recommends default-jdk gcc-10 g++-10
-
-          # Set gcc-10 as a default one
-          update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 30
-          update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 30
-
-          # For building the latest h5py
-          apt install --assume-yes --no-install-recommends libhdf5-dev
-
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.4
         with:
           version: "v0.7.5"
 
-      - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: ./openvino/.github/actions/setup_python
+      - name: Setup pip cache
+        uses: ./openvino/.github/actions/setup_pip_cache
         with:
           version: ${{ env.PYTHON_VERSION }}
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
