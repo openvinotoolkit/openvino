@@ -223,7 +223,7 @@ class TestEqualStr(CommonTFLayerTest):
         x_shape = inputs_info['x:0']
         y_shape = inputs_info['y:0']
         inputs_data = {}
-        strings_dictionary = ['UPPER<>CASE SENTENCE', 'lower case\n\s sentence', ' UppEr LoweR CAse SENtence \t\n',
+        strings_dictionary = ['UPPER<>CASE SENTENCE', 'lower case\n sentence', ' UppEr LoweR CAse SENtence \t\n',
                               '  some sentence', 'another sentence HERE    ']
         inputs_data['x:0'] = rng.choice(strings_dictionary, x_shape)
         inputs_data['y:0'] = rng.choice(strings_dictionary, y_shape)
