@@ -43,7 +43,8 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
 
 # Install build dependencies
 ADD install_build_dependencies.sh /install_build_dependencies.sh
-RUN /install_build_dependencies.sh && \
+RUN chmod +x /install_build_dependencies.sh && \
+    /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
 # Use Python 3.11 as default instead of Python 3.8
