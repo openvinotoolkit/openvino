@@ -43,10 +43,6 @@ RUN apt-get update && \
         && \
     rm -rf /var/lib/apt/lists/*
 
-# Set gcc-10 as a default compiler
-RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 30 && \
-    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 30
-
 # Setup pip
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3.8 get-pip.py  --no-cache-dir pip==24.0 && \
@@ -58,6 +54,10 @@ ADD install_build_dependencies.sh /install_build_dependencies.sh
 RUN chmod +x /install_build_dependencies.sh && \
     /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
+
+# Set gcc-10 as a default compiler
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 30 && \
+    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 30
 
 # Use Python 3.11 as default instead of Python 3.8
 # Using venv here 'cause other methods to switch the default Python on Ubuntu 20 break both system and wheels build
