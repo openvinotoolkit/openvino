@@ -1,6 +1,7 @@
 import argparse
 import json
 import re
+import sys
 
 from helpers import *
 from images_api import *
