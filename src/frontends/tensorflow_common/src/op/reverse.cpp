@@ -3,7 +3,9 @@
 //
 
 #include "common_op_table.hpp"
+#include "helper_ops/complex_type_mark.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/reverse_sequence.hpp"
@@ -88,6 +90,8 @@ OutputVector translate_reverse_op(const NodeContext& node) {
     // elements of the input tensor are reversed
     default_op_checks(node, 2, {"Reverse"}, true);
     auto input = node.get_input(0);
+    auto complex_type_mark_input = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
+
     std::vector<bool> dims;
     get_const_input(node, 1, &dims);
 
@@ -99,7 +103,6 @@ OutputVector translate_reverse_op(const NodeContext& node) {
         }
     }
 
-    auto complex_type_mark_input = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
     if (complex_type_mark_input) {
         input = complex_type_mark_input->input_value(0);
         // Split the complex tensor into real and imaginary parts
@@ -116,9 +119,10 @@ OutputVector translate_reverse_op(const NodeContext& node) {
         auto imag_unsqueeze = make_shared<v0::Unsqueeze>(reversed_imag_part, minus_one);
 
         auto reversed = make_shared<v0::Concat>(OutputVector{real_unsqueeze, imag_unsqueeze}, -1);
-        return {
-            reversed
-        }
+
+        set_node_name(node.get_name(), reversed);
+
+        return {reversed->output(0)};
     }
 
     return translate_reverse_base_op(node, input, axes);
@@ -129,6 +133,7 @@ OutputVector translate_reverse_v2_op(const NodeContext& node) {
     // elements of the input tensor are reversed
     default_op_checks(node, 2, {"ReverseV2"}, true);
     auto input = node.get_input(0);
+    auto complex_type_mark_input = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
 
     // the translator is able to convert ReverseV2 only
     // if axis is constant and has one element.
@@ -137,26 +142,29 @@ OutputVector translate_reverse_v2_op(const NodeContext& node) {
     std::vector<int64_t> axes;
     get_const_input(node, 1, &axes);
 
-    auto complex_type_mark_input = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
     if (complex_type_mark_input) {
         input = complex_type_mark_input->input_value(0);
         // Split the complex tensor into real and imaginary parts
         auto gather_index_real = make_shared<v0::Constant>(element::i32, Shape{}, 0);
         auto gather_index_imag = make_shared<v0::Constant>(element::i32, Shape{}, 1);
-        auto minus_one = make_shared<v0::Constant>(element::i32, Shape{1}, -1);
+        auto minus_one = make_shared<v0::Constant>(element::i32, Shape{}, -1);
+
         auto input_real = make_shared<v8::Gather>(input, gather_index_real, minus_one)->output(0);
         auto input_imag = make_shared<v8::Gather>(input, gather_index_imag, minus_one)->output(0);
 
         // Reverse the real and imaginary part
         auto reversed_real_part = translate_reverse_base_op(node, input_real, axes);
         auto reversed_imag_part = translate_reverse_base_op(node, input_imag, axes);
-        auto real_unsqueeze = make_shared<v0::Unsqueeze>(reversed_real_part, minus_one);
-        auto imag_unsqueeze = make_shared<v0::Unsqueeze>(reversed_imag_part, minus_one);
+
+        // Unsqueeze to re-introduce the complex structure
+        auto real_unsqueeze = make_shared<v0::Unsqueeze>(reversed_real_part[0], minus_one);
+        auto imag_unsqueeze = make_shared<v0::Unsqueeze>(reversed_imag_part[0], minus_one);
 
         auto reversed = make_shared<v0::Concat>(OutputVector{real_unsqueeze, imag_unsqueeze}, -1);
-        return {
-            reversed
-        }
+
+        set_node_name(node.get_name(), reversed);
+
+        return {reversed->output(0)};
     }
 
     return translate_reverse_base_op(node, input, axes);
