@@ -1,0 +1,79 @@
+name: 'Handle Docker images'
+description: 'Builds, tags and pushes a given Docker image when needed'
+inputs:
+  images:
+    description: 'Image names (registry name + namespace + base name)'
+    required: true
+  registry:
+    description: 'Docker registry'
+    required: true
+  dockerfiles_root_dir:
+    description: 'Path to dockerfiles root dir relative to repository root'
+    required: true
+  pull:
+    description: 'Always pull newest versions of referenced images'
+    required: false
+    default: 'true'
+  push:
+    description: 'Push built images to registry'
+    required: false
+    default: 'true'
+  pr_changes_environment:
+    description: 'Whether there are changes in environment - "true" or "false"'
+    required: false
+    default: 'false'
+  repo_token:
+    description: "Token for access to GitHub repository"
+    required: true
+
+outputs:
+  images:
+    description: "Images to use in workflow"
+    value: ${{ steps.handle_images.outputs.images }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout head
+      uses: actions/checkout@v4
+
+    - name: Checkout base
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.base_ref || github.event.merge_group.base_ref }}
+        sparse-checkout: ${{ inputs.dockerfiles_root_dir }}/docker_tag
+        path: base
+
+    - name: Install Python dependencies
+      uses: py-actions/py-dependency-install@v4
+      with:
+        path: "${{ github.action_path }}/requirements.txt"
+        update-setuptools: "false"
+        update-wheel: "false"
+
+    - name: Set up Docker Buildx
+      id: buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Handle docker images
+      id: handle_images
+      shell: bash
+      run: |
+        images=$(echo "${{ inputs.images }}" | tr '\n' ',' | sed 's/,*$//')
+        pr="${{ github.event.pull_request.number }}"
+
+        python3 .github/actions/handle_docker/get_images_to_build.py \
+        -d "${{ inputs.dockerfiles_root_dir }}" \
+        -r "${{ inputs.registry }}" \
+        --images "$images" \
+        --head_tag_file "${{ inputs.dockerfiles_root_dir }}/docker_tag" \
+        --base_tag_file "base/${{ inputs.dockerfiles_root_dir }}/docker_tag" \
+        --pr_changes_environment "${{ inputs.pr_changes_environment }}" \
+        --repo "${{ github.repository }}" \
+        --ref_name "${{ github.ref_name }}" \
+        $([[ -n $pr ]] && echo "--pr $pr" || echo '-s ${{ github.sha }}') \
+        $([[ -n "${{ inputs.pull }}" ]] && echo "--pull" || echo '') \
+        $([[ -n "${{ inputs.push }}" ]] && echo "--push" || echo '')
+      env:
+        GITHUB_TOKEN: ${{ inputs.repo_token }} # ${{ github.token }}
+        BUILDER_NAME: ${{ steps.buildx.outputs.name }}

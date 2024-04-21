@@ -176,3 +176,9 @@
 'category: licensing':
 - 'licensing/**/*'
 - 'LICENSE'
+
+'category: docker':
+- '.dockerignore'
+- '.github/dockerfiles/**/*'
+- 'install_build_dependencies.sh'
+- '.github/actions/handle_docker/**/*'
