@@ -17,18 +17,6 @@ static const std::string BIGINT_STR = "BigInt";
 static const std::string UNKNOWN_STR = "Unknown";
 }  // namespace NapiTypename
 namespace NapiArg {
-std::string join_array_to_str(std::vector<std::string> array, std::string separator) {
-    if (array.empty())
-        return "";
-
-    std::string result = array[0];
-    for (size_t i = 1; i < array.size(); ++i) {
-        result += separator + array[i];
-    }
-
-    return result;
-}
-
 const std::string& get_type_name(napi_valuetype type) {
     switch (type) {
     case napi_undefined:

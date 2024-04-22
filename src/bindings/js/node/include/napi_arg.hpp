@@ -8,8 +8,6 @@
 #include "openvino/runtime/core.hpp"
 
 namespace NapiArg {
-std::string join_array_to_str(std::vector<std::string> array, std::string separator);
-
 const std::string& get_type_name(napi_valuetype type);
 
 std::string create_error_message(const std::string& key, const std::string& expected, const std::string real);

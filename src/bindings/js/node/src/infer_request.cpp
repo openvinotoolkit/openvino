@@ -12,6 +12,7 @@
 #include "node/include/napi_arg.hpp"
 #include "node/include/node_output.hpp"
 #include "node/include/tensor.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace {
 std::mutex infer_mutex;
@@ -178,7 +179,7 @@ Napi::Value InferRequestWrap::infer_dispatch(const Napi::CallbackInfo& info) {
             return get_output_tensors(info);
         }
 
-        std::string arguments_error_message = NapiArg::join_array_to_str(errors_messages, "\nor\n ");
+        std::string arguments_error_message = ov::util::join(errors_messages, "\nor\n ");
 
         OPENVINO_THROW(arguments_error_message.empty() ? "Invalid number of arguments" : arguments_error_message);
     } catch (std::exception& e) {

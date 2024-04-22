@@ -11,6 +11,7 @@
 #include "node/include/model_wrap.hpp"
 #include "node/include/napi_arg.hpp"
 #include "node/include/read_model_args.hpp"
+#include "openvino/util/common_util.hpp"
 
 void validate_set_property_args(const Napi::CallbackInfo& info) {
     const size_t args_length = info.Length();
@@ -164,7 +165,7 @@ Napi::Value CoreWrap::compile_model_sync_dispatch(const Napi::CallbackInfo& info
             return compile_model_sync(info, info[0].ToObject(), info[1].ToString(), config);
         }
 
-        std::string arguments_error_message = NapiArg::join_array_to_str(errors_messages, "\nor\n ");
+        std::string arguments_error_message = ov::util::join(errors_messages, "\nor\n ");
 
         OPENVINO_THROW(arguments_error_message.empty() ? "Invalid number of arguments" : arguments_error_message);
     } catch (std::exception& e) {

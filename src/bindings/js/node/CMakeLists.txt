@@ -77,7 +77,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/.."
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime ${CMAKE_JS_LIB})
+target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime openvino::util ${CMAKE_JS_LIB})
 
 if(MSVC AND CMAKE_JS_NODELIB_DEF AND CMAKE_JS_NODELIB_TARGET)
   # Generate node.lib
