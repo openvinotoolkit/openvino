@@ -12,8 +12,8 @@ const std::vector<std::string>& get_supported_types() {
     return supported_element_types;
 }
 
-const std::unordered_map<napi_typedarray_type, ov::element::Type>& get_ov_type() {
-    static const std::unordered_map<napi_typedarray_type, ov::element::Type> napi_to_ov_mapping{
+ov::element::Type_t get_ov_type(napi_typedarray_type type) {
+    static const std::unordered_map<napi_typedarray_type, ov::element::Type_t> typedarray_to_ov_type{
         {napi_int8_array, ov::element::Type_t::i8},
         {napi_uint8_array, ov::element::Type_t::u8},
         {napi_int16_array, ov::element::Type_t::i16},
@@ -24,7 +24,7 @@ const std::unordered_map<napi_typedarray_type, ov::element::Type>& get_ov_type()
         {napi_float64_array, ov::element::Type_t::f64},
         {napi_bigint64_array, ov::element::Type_t::i64},
         {napi_biguint64_array, ov::element::Type_t::u64}};
-    return napi_to_ov_mapping;
+    return typedarray_to_ov_type.at(type);
 }
 
 napi_types napiType(const Napi::Value& val) {

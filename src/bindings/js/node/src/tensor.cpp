@@ -143,7 +143,7 @@ void TensorWrap::set_data(const Napi::CallbackInfo& info, const Napi::Value& val
             OPENVINO_THROW(std::string("Passed array must have the same size as the Tensor!"));
         }
         const auto napi_type = buf.TypedArrayType();
-        std::memcpy(_tensor.data(get_ov_type().at(napi_type)), buf.ArrayBuffer().Data(), _tensor.get_byte_size());
+        std::memcpy(_tensor.data(get_ov_type(napi_type)), buf.ArrayBuffer().Data(), _tensor.get_byte_size());
     } catch (std::exception& e) {
         reportError(info.Env(), e.what());
     }
