@@ -117,8 +117,8 @@ ov::pass::ConvertMaxPool14ToMaxPool8::ConvertMaxPool14ToMaxPool8() {
             const auto stride_node = Constant::create(element::i64, Shape{strides.size()}, strides);
             const auto out_mul_stride = node_registry.make<Multiply>(out_sub_one, stride_node);
 
-            // if (in_dim + pad) < ((out_dim - 1) * stride) sliding window in bound use end padding.
-            const auto in_gt_out = node_registry.make<Greater>(out_mul_stride, in_left_padded);
+            // if (in_dim + pad) > ((out_dim - 1) * stride) sliding window in bound use end padding.
+            const auto in_gt_out = node_registry.make<Greater>(in_left_padded, out_mul_stride);
             const auto selected_pads = node_registry.make<Select>(in_gt_out, padding_end_node, zero);
 
             // apply padding on input clear pads attribute
