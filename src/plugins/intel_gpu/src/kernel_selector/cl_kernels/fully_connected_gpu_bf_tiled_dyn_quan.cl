@@ -143,7 +143,7 @@
 #pragma enable_includes_optimization
 #endif
 
-inline void FUNC(fc_bf_tiled_kernel_default)(
+inline void FUNC(fc_bf_tiled_kernel_dynamic_quantized)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
 #if DECOMPRESSION_SCALE_TERM  // DECOMPRESSION_SCALE_TERM == 1
@@ -166,6 +166,12 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     , FUSED_OPS_DECLS
 #endif
 ) {
+// #if USE_SLM || COMPRESSED_WEIGHTS_INT4 || COMPRESSED_WEIGHTS
+// #else
+//     if (get_group_id(0) == 0 && get_group_id(2) == 0 && get_local_id(2) == 0)
+//         printf("!!!!!!!!!!!!!!!! BAD!!!!!!!!!!! for dyn quan\n");
+// #endif
+
 #if USE_SLM
     uint gid = (uint)get_group_id(0);
     uint local_id = (uint)get_local_id(2);
@@ -327,22 +333,6 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 barrier(CLK_LOCAL_MEM_FENCE);
             #endif
 
-            // // Dump
-            // {
-            //     if (get_group_id(0) == 0 && get_group_id(2) == 0 && ni == 0 &&
-            //         /*get_local_id(0) == 0 && */get_local_id(2) == 0) {
-            //         for (uint bi = 0; bi < TILE_B/2; ++bi) {
-            //             MAKE_VECTOR_TYPE(DQ_TYPE, 4) temp = AS_DQ_TYPE_4(packed_in_0[bi]);            //             if (get_sub_group_local_id() < 8) {
-            //                 printf(" -- DQ : sub_grp_id (%d) K_idx(%d) Batch(%d) TILE_K direction: dq_in_0_to_int[0](%d),  dq_in_0_to_int[1](%d),  dq_in_0_to_int[3](%d),  dq_in_0_to_int[4](%d) \n",
-            //                     get_sub_group_local_id(), (int)idx_sglid, (int)bi+batch_sglid, dq_in_0_to_int[bi][0], dq_in_0_to_int[bi][1], dq_in_0_to_int[bi][2], dq_in_0_to_int[bi][3]);
-            //             } else {
-            //                 printf(" == DQ : sub_grp_id (%d) K_idx(%d) Batch(%d) TILE_K direction: dq_in_0_to_int[0](%d),  dq_in_0_to_int[1](%d),  dq_in_0_to_int[3](%d),  dq_in_0_to_int[4](%d) \n",
-            //                     get_sub_group_local_id(), (int)idx_sglid, (int)bi+batch_sglid, dq_in_0_to_int[bi][0], dq_in_0_to_int[bi][1], dq_in_0_to_int[bi][2], dq_in_0_to_int[bi][3]);
-            //             }
-            //         }
-            //     }
-            // }
-
             // [Packing weight]
             // __local DQ_SLM_FILTER_VEC* char_slm_weight = (__local DQ_SLM_FILTER_VEC*)dq_wei_local_mem;
             __local int* char_slm_weight = (__local int*)dq_wei_local_mem;
@@ -446,7 +436,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                     #if DECOMPRESSION_ZP_SCALAR
                         char8 dzp = (char8)(DECOMPRESSION_ZP_VALUE);
                     #elif DECOMPRESSION_ZP_GROUPS_NUM > 1
-                        #error "FC bf_tiled dynamic quantize kernel: not recommended DECOMPRESSION_ZP_GROUPS_NUM > 1"
+                        #error "FC bf_tiled dynamic quantize kernel: not supported DECOMPRESSION_ZP_GROUPS_NUM > 1"
                     #else
                         char8 dzp = (char8)(d_zps[0]);
                     #endif
@@ -678,7 +668,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                         ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
                     #endif
 
-                    ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += TO_ACCUMULATOR_TYPE(((int*)(&acc_tmp[bi]))[fi]) * ds * de_quantize_scale[bi%4];
+                    ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += TO_ACCUMULATOR_TYPE(((int*)(&acc_tmp[bi]))[fi]) * ds * de_quantize_scale[bi/2];
                     acc_tmp[bi][fi] = 0;
                 }
             }
@@ -694,7 +684,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 
                 #if DECOMPRESSION_SCALE_GROUPS_NUM > 1
                     const uint scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH + ni_offset;
-#if 0
+#if 1
                     ACCUMULATOR_TYPE ds = decompression_scale[scale_offset];
 #else
                     const uint __offset_ofm = out_f + fi * SIMD;
@@ -715,6 +705,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     // =====================================================================================================================================
     // Leftovers
 #if MAIN_LOOP_ELEMENTS_COUNT % (TILE_IFM * SIMD) != 0
+    printf(">> Leftover !!!!!!!!!!!!!!!\n");
     // Handle leftovers in normal case without alignment correction.
     #define LEFTOVER_IFM               (MAIN_LOOP_ELEMENTS_COUNT % (TILE_IFM * SIMD))
     {
@@ -870,7 +861,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 }
 
 REQD_SUB_GROUP_SIZE(SIMD)
-KERNEL(fc)(
+KERNEL(fc_dyn_quan)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
 #if DECOMPRESSION_SCALE_TERM
@@ -1030,7 +1021,7 @@ KERNEL(fc)(
         #endif
         );
     } else {
-        FUNC_CALL(fc_bf_tiled_kernel_default)(
+        FUNC_CALL(fc_bf_tiled_kernel_dynamic_quantized)(
             OPTIONAL_SHAPE_INFO_TENSOR
             input,
         #if DECOMPRESSION_SCALE_TERM
@@ -1053,7 +1044,7 @@ KERNEL(fc)(
         );
     }
 #else
-    FUNC_CALL(fc_bf_tiled_kernel_default)(
+    FUNC_CALL(fc_bf_tiled_kernel_dynamic_quantized)(
         OPTIONAL_SHAPE_INFO_TENSOR
         input,
     #if DECOMPRESSION_SCALE_TERM

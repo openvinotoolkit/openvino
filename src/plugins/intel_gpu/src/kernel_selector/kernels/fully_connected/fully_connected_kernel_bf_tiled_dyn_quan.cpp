@@ -383,13 +383,22 @@ KernelsPriority FullyConnected_bf_tiled_dyn_quan::GetKernelsPriority(const Param
     if (fc_params.outputs[0].GetLayout() == DataLayout::bfyx)
         output_b *= fc_params.outputs[0].Feature().v;
 
+    const auto default_alignment = 16;
+    const auto skip_kernel_idx = output_b + default_alignment > 256 ? 0 : 1;
+    const auto execute_kernel_idx = 1 - skip_kernel_idx;
+
+    auto kernel_type = KernelType::ANY;
+    // if (params.is_shape_agnostic)
+    //     kernel_type = execute_kernel_idx == 0 ? KernelType::DEFAULT : KernelType::SLM;
+
     float estimated_time = FORCE_PRIORITY_9;
-    auto tparams = GetAutoTuneParams(fc_params, KernelType::ANY);
-    if (tparams.kernel_type == KernelType::SLM && fc_params.inputs[0].GetDType() == Datatype::F16 &&
-        fc_params.inputs[0].Y().v > 16 &&
-        fc_params.decompression_zero_point.Feature().v == 1) {
-        estimated_time = FORCE_PRIORITY_1;
-    }
+    auto tparams = GetAutoTuneParams(fc_params, kernel_type, -1);
+    // if (tparams.kernel_type == KernelType::SLM &&
+    //     fc_params.inputs[0].GetDType() == Datatype::F16 && fc_params.outputs[0].GetDType() == Datatype::F16 &&
+    //     fc_params.inputs[0].Y().v > 16 &&
+    //     fc_params.decompression_zero_point.Feature().v == 1) {
+    //     estimated_time = FORCE_PRIORITY_1;
+    // }
 
     return estimated_time;
 }

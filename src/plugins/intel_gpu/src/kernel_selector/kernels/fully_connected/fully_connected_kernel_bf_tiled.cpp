@@ -402,13 +402,20 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
 
         jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE", weights_dt, tile_k_ofm));
         const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
+        jit.AddConstant(MakeJitConstant("SCALE_GROUP_SIZE", scale_group_size));
         // Do not use SCALE_POST_OP for SLM kernel, since it demonstrates worse performance
-        if (scale_group_size % simd == 0 && !dispatchData.use_slm) {
+        if (scale_group_size % simd == 0/* && !dispatchData.use_slm*/) {
             jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
-            // std::cout << ">> FullyConnected_bf_tiled : DECOMPRESSION_SCALE_POST_OP ON" << std::endl;
+            // std::cout << ">> FullyConnected_bf_tiled : DECOMPRESSION_SCALE_POST_OP ON / scale_group_size : " << scale_group_size << std::endl;
         } else {
-            // std::cout << ">> FullyConnected_bf_tiled : DECOMPRESSION_SCALE_POST_OP OFF" << std::endl;
+            // std::cout << ">> FullyConnected_bf_tiled : DECOMPRESSION_SCALE_POST_OP OFF/ scale_group_size : " << scale_group_size << std::endl;
         }
+    }
+
+    if (params.inputs[0].GetDType() == Datatype::F16 && params.outputs[0].GetDType() == Datatype::F16 &&
+        params.inputs[0].Y().v > simd &&
+        params.decompression_zero_point.Feature().v == 1) {
+        jit.AddConstant(MakeJitConstant("SUPPORT_DYNAMIC_QUANTIZE", 1));
     }
 
     if (dispatchData.use_slm) {
