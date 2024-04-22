@@ -114,6 +114,10 @@ function(_ov_add_api_validator_post_build_step)
         message(FATAL_ERROR "Unknown configuration: ${CMAKE_HOST_SYSTEM_PROCESSOR}")
     endif()
 
+    message("CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION: ${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}")
+    message("PROGRAMFILES: ${PROGRAMFILES}")
+    message("wdk_platform: ${wdk_platform}")
+
     set(CMAKE_FIND_DEBUG_MODE TRUE)
     find_file(ONECORE_API_VALIDATOR_APIS NAMES UniversalDDIs.xml
               PATHS "${PROGRAMFILES}/Windows Kits/10/build/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/universalDDIs/${wdk_platform}"
