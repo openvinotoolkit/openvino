@@ -121,8 +121,7 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node *node,
         config.inConfs[2].constant(constMap[2]);
         config.inConfs[2].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32, node->getInputShapeAtPort(2)));
     }
-    //outConfs should be same with ports not edges, The structure is node->port->childEdge.
-    outSize = outSize ? outSize : node->getChildEdges().size();
+    //outConfs should be same with ports not edges, The graph structure is node->port->childEdge.
     config.outConfs.resize(outSize);
 
     auto pushDesc = [&](dnnl::memory::format_tag inFormat, dnnl::memory::format_tag outFormat) {
