@@ -93,8 +93,10 @@ jobs:
 
       - name: Clone ONNX Runtime
         run: |
-          branch=`tr -s '\n ' < ${ONNX_RUNTIME_UTILS}/version`
-          git clone --branch $branch --single-branch --recursive https://github.com/microsoft/onnxruntime.git ${ONNX_RUNTIME_REPO}
+          hash=`tr -s '\n ' < ${ONNX_RUNTIME_UTILS}/version`
+          git clone --recursive https://github.com/microsoft/onnxruntime.git ${ONNX_RUNTIME_REPO}
+          cd ${ONNX_RUNTIME_REPO}
+          git checkout $hash
 
       #
       # Tests
@@ -114,7 +116,7 @@ jobs:
 
           ${ONNX_RUNTIME_REPO}/build.sh \
             --config RelWithDebInfo \
-            --use_openvino CPU_FP32 \
+            --use_openvino CPU \
             --build_shared_lib \
             --parallel \
             --skip_tests \
@@ -130,6 +132,11 @@ jobs:
       - name: Run onnxruntime_test_all
         if: ${{ runner.arch != 'ARM64' }} # Ticket: 126277
         run: |
+          # see https://github.com/microsoft/onnxruntime/issues/13197#issuecomment-1264542497
+          apt-get install --assume-yes --no-install-recommends language-pack-en
+          locale-gen en_US.UTF-8
+          update-locale LANG=en_US.UTF-8
+
           source ${INSTALL_DIR}/setupvars.sh
           skip_tests=$(tr -s '\n ' ':' < ${ONNX_RUNTIME_UTILS}/skip_tests)
 
