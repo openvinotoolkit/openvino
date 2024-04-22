@@ -95,8 +95,8 @@ CPU plugin supports the following floating-point data types as inference precisi
 - ``bf16`` (Intel® x86-64)
 - ``f16`` (Intel® x86-64, Arm®)
 
-The default floating-point precision of a CPU primitive is ``f32``. To support the ``f16`` OpenVINO IR on platforms that does not natively support ``float16`` the plugin internally converts
-all the ``f16`` values to ``f32`` and all the calculations are performed using the native precision of ``f32``.
+The default floating-point precision of a CPU primitive is ``f32``. To support the ``f16`` OpenVINO IR on platforms that do not natively support ``float16``, the plugin internally converts
+all the ``f16`` values to ``f32``, and all calculations are performed using the native precision of ``f32``.
 On platforms that natively support half-precision calculations (``bfloat16`` or ``float16``), half-precision type (``bf16`` or ``f16``) is automatically used instead
 of ``f32`` to achieve better performance (see the `Execution Mode Hint <#execution-mode-hint>`__).
 Thus, no special steps are required to run a model with ``bf16`` or ``f16`` inference precision.
