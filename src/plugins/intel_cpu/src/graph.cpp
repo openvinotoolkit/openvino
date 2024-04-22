@@ -28,7 +28,7 @@
 #include "nodes/convert.h"
 #include "nodes/input.h"
 #include "nodes/reorder.h"
-#include "nodes/memory.hpp"
+#include "nodes/memory_state_base.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"

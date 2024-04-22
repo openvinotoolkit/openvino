@@ -4,10 +4,8 @@
 
 #pragma once
 
-#include "cpu_types.h"
 #include "input.h"
-#include "memory_state.h"
-#include "node.h"
+#include "memory_state_base.h"
 #include "ov_optional.hpp"
 #include "proxy_mem_mgr.h"
 
@@ -20,26 +18,6 @@ namespace node {
 class MemoryOutputBase;
 class MemoryInputBase;
 class ScaledDotProductAttention;
-
-class MemoryNode {
- public:
-    explicit MemoryNode(std::string id) : m_id(id) {}
-    explicit MemoryNode(const std::shared_ptr<ov::Node>& op);
-    virtual ~MemoryNode() = default;
-    std::string getId() const {
-        return m_id;
-    }
-
-private:
-    std::string m_id;
-};
-
-class MemoryStateNode : public MemoryNode {
-public:
-    using MemoryNode::MemoryNode;
-    virtual void assignState(MemStatePtr newState) = 0;
-    virtual MemStatePtr makeState() const = 0;
-};
 
 /**
  * @brief

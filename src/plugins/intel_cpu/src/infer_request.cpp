@@ -11,7 +11,7 @@
 #include "memory_state.h"
 #include "nodes/common/cpu_convert.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
-#include "nodes/memory.hpp"
+#include "nodes/memory_state_base.h"
 #include "openvino/core/shape.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
