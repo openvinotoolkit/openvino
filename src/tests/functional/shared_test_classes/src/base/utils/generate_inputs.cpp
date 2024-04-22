@@ -69,12 +69,8 @@ ov::Tensor generate(const std::shared_ptr<ov::Node>& node,
         const size_t inNodeCnt = node->get_input_size();
         auto it = inputRanges.find(node->get_type_info());
         if (it != inputRanges.end()) {
-            const auto& ranges = it->second;
-            if (ranges.size() != 2) {
-                throw std::runtime_error("Incorrect size of ranges. It should be 2 (real and int cases)");
-            }
-            const auto& range = ranges.at(elemType.is_real());
-            inGenData = range.size() < inNodeCnt ? range.front() : range.at(port);
+            auto ranges = it->second;
+            inGenData = ranges.get_data(port, elemType);
         }
     }
     return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData);

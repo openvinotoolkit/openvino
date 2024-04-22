@@ -29,7 +29,6 @@
 #include "functional_test_utils/crash_handler.hpp"
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-// #include "shared_test_classes/base/utils/generate_inputs.hpp"
 #include "shared_test_classes/base/utils/compare_results.hpp"
 #include "shared_test_classes/base/utils/calculate_thresholds.hpp"
 
@@ -314,8 +313,7 @@ void SubgraphBaseTest::compile_model() {
 void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
     ov::test::utils::ModelRange modelRange;
-    modelRange.collect_ranges(function, testing::internal::Random::kMaxRange);
-    modelRange.find_general_ranges();
+    modelRange.find_mode_ranges(function);
 
     auto itTargetShape = targetInputStaticShapes.begin();
     for (const auto &param : function->get_parameters()) {
