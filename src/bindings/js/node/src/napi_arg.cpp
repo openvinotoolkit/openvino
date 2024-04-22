@@ -3,6 +3,19 @@
 
 #include "node/include/napi_arg.hpp"
 
+namespace NapiTypename {
+static const std::string UNDEFINED_STR = "Undefined";
+static const std::string NULL_STR = "Null";
+static const std::string BOOLEAN_STR = "Boolean";
+static const std::string NUMBER_STR = "Number";
+static const std::string STIRNG_STR = "String";
+static const std::string SYMBOL_STR = "Symbol";
+static const std::string OBJECT_STR = "Object";
+static const std::string FUNCTION_STR = "Function";
+static const std::string EXTERNAL_STR = "External";
+static const std::string BIGINT_STR = "BigInt";
+static const std::string UNKNOWN_STR = "Unknown";
+}  // namespace NapiTypename
 namespace NapiArg {
 std::string join_array_to_str(std::vector<std::string> array, std::string separator) {
     if (array.empty())

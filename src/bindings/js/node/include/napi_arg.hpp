@@ -7,20 +7,6 @@
 
 #include "openvino/runtime/core.hpp"
 
-namespace NapiTypename {
-const std::string UNDEFINED_STR = "Undefined";
-const std::string NULL_STR = "Null";
-const std::string BOOLEAN_STR = "Boolean";
-const std::string NUMBER_STR = "Number";
-const std::string STIRNG_STR = "String";
-const std::string SYMBOL_STR = "Symbol";
-const std::string OBJECT_STR = "Object";
-const std::string FUNCTION_STR = "Function";
-const std::string EXTERNAL_STR = "External";
-const std::string BIGINT_STR = "BigInt";
-const std::string UNKNOWN_STR = "Unknown";
-}  // namespace NapiTypename
-
 namespace NapiArg {
 std::string join_array_to_str(std::vector<std::string> array, std::string separator);
 
