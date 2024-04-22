@@ -56,7 +56,7 @@ def test_inverse_const_inputs(input_array, adjoint, expected_output_shape, op_na
         ([4, 4], PartialShape([4, 4])),
     ],
 )
-def test_inverse_default_attrs(input_shape, expected_output_shape, op_name):
+def test_inverse_default_attrs(input_shape, expected_output_shape):
     data = ops.parameter(input_shape, dtype=np.float16)
 
     op = ops.inverse(data)
