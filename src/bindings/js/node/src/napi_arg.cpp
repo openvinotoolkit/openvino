@@ -58,7 +58,7 @@ std::string create_error_message(const std::string& key, const char* expected, c
     return "Argument #" + key + " has type '" + std::string(real) + "', expected '" + std::string(expected) + "'";
 }
 
-std::string create_error_message(const std::string key, napi_valuetype expected_type, napi_valuetype real_type) {
+std::string create_error_message(const std::string& key, napi_valuetype expected_type, napi_valuetype real_type) {
     return create_error_message(key, get_type_name(expected_type), get_type_name(real_type));
 }
 
@@ -66,7 +66,7 @@ std::string create_error_message(const std::string& key, const char* expected, c
     return create_error_message(key, expected, get_type_name(real_type));
 }
 
-void check_type(const napi_valuetype expected_type, const std::string key, const Napi::Value& value) {
+void check_type(const napi_valuetype expected_type, const std::string& key, const Napi::Value& value) {
     napi_valuetype real_type = value.Type();
 
     OPENVINO_ASSERT(real_type == expected_type, create_error_message(key, expected_type, real_type));
@@ -127,7 +127,7 @@ Validator& Validator::add_arg(ValidatorType validator) {
 }
 
 Validator& Validator::add_boolean_arg() {
-    attributes_validators.push_back([](const std::string key, const Napi::Value& value) {
+    attributes_validators.push_back([](const std::string& key, const Napi::Value& value) {
         check_type(napi_boolean, key, value);
     });
 
@@ -135,7 +135,7 @@ Validator& Validator::add_boolean_arg() {
 }
 
 Validator& Validator::add_number_arg() {
-    attributes_validators.push_back([](const std::string key, const Napi::Value& value) {
+    attributes_validators.push_back([](const std::string& key, const Napi::Value& value) {
         check_type(napi_number, key, value);
     });
 
@@ -143,7 +143,7 @@ Validator& Validator::add_number_arg() {
 }
 
 Validator& Validator::add_string_arg() {
-    attributes_validators.push_back([](const std::string key, const Napi::Value& value) {
+    attributes_validators.push_back([](const std::string& key, const Napi::Value& value) {
         check_type(napi_string, key, value);
     });
 
@@ -151,7 +151,7 @@ Validator& Validator::add_string_arg() {
 }
 
 Validator& Validator::add_symbol_arg() {
-    attributes_validators.push_back([](const std::string key, const Napi::Value& value) {
+    attributes_validators.push_back([](const std::string& key, const Napi::Value& value) {
         check_type(napi_symbol, key, value);
     });
 
@@ -159,7 +159,7 @@ Validator& Validator::add_symbol_arg() {
 }
 
 Validator& Validator::add_object_arg() {
-    attributes_validators.push_back([](const std::string key, const Napi::Value& value) {
+    attributes_validators.push_back([](const std::string& key, const Napi::Value& value) {
         check_type(napi_object, key, value);
     });
 
@@ -167,7 +167,7 @@ Validator& Validator::add_object_arg() {
 }
 
 Validator& Validator::add_function_arg() {
-    attributes_validators.push_back([](const std::string key, const Napi::Value& value) {
+    attributes_validators.push_back([](const std::string& key, const Napi::Value& value) {
         check_type(napi_function, key, value);
     });
 
@@ -175,7 +175,7 @@ Validator& Validator::add_function_arg() {
 }
 
 Validator& Validator::add_bigint_arg() {
-    attributes_validators.push_back([](const std::string key, const Napi::Value& value) {
+    attributes_validators.push_back([](const std::string& key, const Napi::Value& value) {
         check_type(napi_bigint, key, value);
     });
 
@@ -183,7 +183,7 @@ Validator& Validator::add_bigint_arg() {
 }
 
 Validator& Validator::add_array_arg() {
-    attributes_validators.push_back([](const std::string key, const Napi::Value& value) {
+    attributes_validators.push_back([](const std::string& key, const Napi::Value& value) {
         OPENVINO_ASSERT(value.IsArray(), create_error_message(key, "Array", value.Type()));
     });
 
