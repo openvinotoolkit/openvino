@@ -25,3 +25,22 @@ TEST(attributes, scatter_nd_update) {
     const auto expected_attr_count = 0;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 }
+
+TEST(attributes, scatter_nd_update_v15) {
+    NodeBuilder::opset().insert<ov::op::v15::ScatterNDUpdate>();
+
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1000, 256, 10, 15});
+    auto indices = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{25, 125, 3});
+    auto updates = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{25, 125, 15});
+
+    auto scatter = std::make_shared<ov::op::v15::ScatterNDUpdate>(data,
+                                                                  indices,
+                                                                  updates,
+                                                                  op::v15::ScatterNDUpdate::Reduction::PROD);
+    NodeBuilder builder(scatter, {data, indices, updates});
+    const auto g_scatter = ov::as_type_ptr<ov::op::v15::ScatterNDUpdate>(builder.create());
+
+    const auto expected_attr_count = 1;
+    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
+    EXPECT_EQ(g_scatter->get_reduction(), scatter->get_reduction());
+}

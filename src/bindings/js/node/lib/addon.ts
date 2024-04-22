@@ -37,6 +37,11 @@ interface Core {
   readModelSync(modelPath: string, weightsPath?: string): Model;
   readModelSync(modelBuffer: Uint8Array, weightsBuffer?: Uint8Array): Model;
   importModelSync(modelStream: Buffer, device: string): CompiledModel;
+  importModelSync(
+    modelStream: Buffer, 
+    device: string,
+    props: { [key: string]: string | number | boolean }
+  ): CompiledModel;
   getAvailableDevices(): string[];
   getVersions(deviceName: string): {
     [deviceName: string]: {
@@ -67,6 +72,8 @@ interface Model {
   input(nameOrId?: string | number): Output;
   getName(): string;
   isDynamic(): boolean;
+  setFriendlyName(name: string): void;
+  getFriendlyName(): string;
 }
 
 interface CompiledModel {
