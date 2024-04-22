@@ -19,31 +19,23 @@ class MemoryOutputBase;
 class MemoryInputBase;
 class ScaledDotProductAttention;
 
-/**
- * @brief
- * TODO: ATTENTION: this is a temporary solution, this connection should be keep in graph
- * WARNING: thread_local and holderMutex are not needed if moved into graph
- */
-class MemoryNodeVirtualEdge {
+class MemoryStatesRegister {
 public:
-    using Holder = std::map<std::string, MemoryNode*>;
-    static Holder & getExisted() {
-        thread_local static Holder existed;
-        return existed;
-    }
+    using InputNodesMap = std::unordered_map<std::string, MemoryInputBase*>;
+    using OutputNodesMap = std::unordered_map<std::string, MemoryOutputBase*>;
 
-    static MemoryNode * getByName(Holder& holder, std::string name) {
-        auto result = holder.find(name);
-        if (result != holder.end()) {
-            return result->second;
-        }
-        return nullptr;
-    }
+public:
+    void registerOutput(MemoryOutputBase * node);
+    void registerInput(MemoryInputBase * node);
+    void remove(MemoryNode* node);
 
-    static Holder* registerOutput(MemoryOutputBase * node);
-    static Holder* registerInput(MemoryInputBase * node);
-    static void remove(MemoryNode * node, Holder* holder);
-    static std::mutex holderMutex;
+private:
+    MemoryInputBase* getMemoryInputByName(const std::string& name);
+    MemoryOutputBase* getMemoryOutputByName(const std::string& name);
+
+private:
+    InputNodesMap memory_inputs;
+    OutputNodesMap memory_outputs;
 };
 
 class MemoryOutputBase : public Node, public MemoryNode {
@@ -82,7 +74,6 @@ private:
      * @brief keeps reference to input sibling node
      */
     MemoryInputBase* inputNode = nullptr;
-    MemoryNodeVirtualEdge::Holder* holder = nullptr;
 };
 
 class MemoryOutput : public MemoryOutputBase {
@@ -148,7 +139,6 @@ private:
      * @brief keeps reference to output sibling node
      */
     MemoryOutputBase* outputNode = nullptr;
-    MemoryNodeVirtualEdge::Holder* holder = nullptr;
 };
 
 class MemoryInput : public MemoryInputBase {

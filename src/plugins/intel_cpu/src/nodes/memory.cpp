@@ -79,8 +79,6 @@ private:
 };
 } // namespace
 
-std::mutex MemoryNodeVirtualEdge::holderMutex;
-
 bool MemoryOutputBase::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!one_of(op->get_type_info(),
@@ -102,7 +100,7 @@ MemoryOutputBase::MemoryOutputBase(const std::shared_ptr<ov::Node>& op, const Gr
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     if (created()) {
-        holder = MemoryNodeVirtualEdge::registerOutput(this);
+        context->getMemoryStatesRegister()->registerOutput(this);
     }
 }
 
@@ -121,7 +119,7 @@ MemoryOutputBase::MemoryOutputBase(const std::string id,
 
 MemoryOutputBase::~MemoryOutputBase() {
     if (inputNode) { inputNode->deregisterSibling(this); }
-    MemoryNodeVirtualEdge::remove(this, holder);
+    context->getMemoryStatesRegister()->remove(this);
 }
 
 MemoryInputBase& MemoryOutputBase::getInputNode() {
@@ -338,7 +336,7 @@ MemoryInputBase::MemoryInputBase(const std::shared_ptr<ov::Node>& op, const Grap
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     if (created()) {
-        holder = MemoryNodeVirtualEdge::registerInput(this);
+        context->getMemoryStatesRegister()->registerInput(this);
     }
 }
 
@@ -369,7 +367,7 @@ MemoryInputBase::MemoryInputBase(const std::string id,
 
 MemoryInputBase::~MemoryInputBase() {
     if (outputNode) { outputNode->deregisterSibling(this); }
-    MemoryNodeVirtualEdge::remove(this, holder);
+    context->getMemoryStatesRegister()->remove(this);
 }
 
 MemoryOutputBase& MemoryInputBase::getOutputNode() {
@@ -419,43 +417,48 @@ void MemoryInputBase::deregisterSibling(MemoryOutputBase* node) {
     if (node == outputNode) { outputNode = nullptr; }
 }
 
-MemoryNodeVirtualEdge::Holder* MemoryNodeVirtualEdge::registerInput(MemoryInputBase * node) {
-    std::lock_guard<std::mutex> lock{MemoryNodeVirtualEdge::holderMutex};
+void MemoryStatesRegister::registerInput(MemoryInputBase * node) {
     // in case of output already registered
-    auto& holder = MemoryNodeVirtualEdge::getExisted();
-    auto sibling = MemoryNodeVirtualEdge::getByName(holder, node->getId());
+    auto sibling = getMemoryOutputByName(node->getId());
     if (sibling != nullptr) {
-        auto outputNode = dynamic_cast<MemoryOutputBase*>(sibling);
-        OPENVINO_ASSERT(outputNode != nullptr);
-        node->registerOutputNode(outputNode);
-    } else {
-        holder[node->getId()] = node;
+        node->registerOutputNode(sibling);
     }
-    return &holder;
+    memory_inputs[node->getId()] = node;
 }
 
-MemoryNodeVirtualEdge::Holder* MemoryNodeVirtualEdge::registerOutput(MemoryOutputBase * node) {
-    std::lock_guard<std::mutex> lock{MemoryNodeVirtualEdge::holderMutex};
-    // in case of output layer
-    auto& holder = MemoryNodeVirtualEdge::getExisted();
-    auto sibling = MemoryNodeVirtualEdge::getByName(holder, node->getId());
+void MemoryStatesRegister::registerOutput(MemoryOutputBase * node) {
+    auto sibling = getMemoryInputByName(node->getId());
     if (sibling != nullptr) {
-        auto inputNode = dynamic_cast<MemoryInputBase*>(sibling);
-        OPENVINO_ASSERT(inputNode != nullptr);
-        node->registerInputNode(inputNode);
-    } else {
-        holder[node->getId()] = node;
+        node->registerInputNode(sibling);
     }
-    return &holder;
+    memory_outputs[node->getId()] = node;
 }
 
-void MemoryNodeVirtualEdge::remove(MemoryNode* node, Holder* holder) {
-    std::lock_guard<std::mutex> lock{MemoryNodeVirtualEdge::holderMutex};
-    if (nullptr != holder) {
-        ov::util::erase_if(*holder, [&](const Holder::value_type& it) {
-            return it.second == node;
-        });
+void MemoryStatesRegister::remove(MemoryNode* node) {
+    if (nullptr == node)
+        return;
+    ov::util::erase_if(memory_inputs, [&](const InputNodesMap::value_type& it) {
+        return it.second == node;
+    });
+    ov::util::erase_if(memory_outputs, [&](const OutputNodesMap::value_type& it) {
+        return it.second == node;
+    });
+}
+
+MemoryInputBase* MemoryStatesRegister::getMemoryInputByName(const std::string& name) {
+    auto it = memory_inputs.find(name);
+    if (it == memory_inputs.end()) {
+        return nullptr;
     }
+    return it->second;
+}
+
+MemoryOutputBase* MemoryStatesRegister::getMemoryOutputByName(const std::string& name) {
+    auto it = memory_outputs.find(name);
+    if (it == memory_outputs.end()) {
+        return nullptr;
+    }
+    return it->second;
 }
 
 bool MemoryInput::needShapeInfer() const {
