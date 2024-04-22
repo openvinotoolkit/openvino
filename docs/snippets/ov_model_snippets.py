@@ -80,6 +80,7 @@ def model_inputs_outputs(model : ov.Model):
     outputs = model.outputs
     #! [all_inputs_ouputs]
 
+
 def main():
     ov_api_examples()
     create_simple_model()
@@ -87,6 +88,3 @@ def main():
     serialize_example(model)
     visualize_example(model)
     model_inputs_outputs(model)
-    model_inputs_outputs_index(model)
-    model_inputs_outputs_tensor_name(model)
-    get_element_type_example()
