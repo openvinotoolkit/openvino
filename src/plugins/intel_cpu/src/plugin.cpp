@@ -484,7 +484,8 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
         return decltype(ov::available_devices)::value_type(availableDevices);
     } else if (name == ov::device::capabilities) {
         std::vector<std::string> capabilities;
-        if (hasHardwareSupport(ov::element::bf16))
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) ||
+            dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2))
             capabilities.push_back(ov::device::capability::BF16);
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
             capabilities.push_back(ov::device::capability::WINOGRAD);
