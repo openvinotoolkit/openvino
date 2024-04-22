@@ -8,7 +8,7 @@
 
 const std::vector<std::string>& get_supported_types() {
     static const std::vector<std::string> supported_element_types =
-        {"i8", "u8", "i16", "u16", "i32", "u32", "f32", "f64", "i64", "u64"};
+        {"i8", "u8", "i16", "u16", "i32", "u32", "f32", "f64", "i64", "u64", "string"};
     return supported_element_types;
 }
 
