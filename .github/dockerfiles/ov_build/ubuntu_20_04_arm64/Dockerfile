@@ -2,17 +2,14 @@ FROM openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
 
 USER root
 
-# Set apt options
+# APT configuration
 RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries && \
     echo 'APT::Get::Assume-Yes "true";' >> /etc/apt/apt.conf && \
     echo 'APT::Get::Fix-Broken "true";' >> /etc/apt/apt.conf && \
     echo 'APT::Get::no-install-recommends "true";' >> /etc/apt/apt.conf
 
-# to prevent apt-get from waiting user input
-ENV DEBIAN_FRONTEND="noninteractive"
-
-# to prevent tzdata from waiting user input
-ENV TZ="Europe/London"
+ENV DEBIAN_FRONTEND="noninteractive" \
+    TZ="Europe/London"
 
 RUN apt-get update && \
     apt-get install software-properties-common && \
@@ -21,14 +18,10 @@ RUN apt-get update && \
     apt-get update && \
     apt-get install \
         curl \
-        # Install git
         git \
         ca-certificates \
         gpg-agent \
         tzdata \
-        # Compiler
-        gcc-10 \
-        g++-10 \
         # For Java API
         default-jdk \
         # Pythons
@@ -40,6 +33,9 @@ RUN apt-get update && \
         python3.11-distutils \
         # For building the latest h5py
         libhdf5-dev \
+        # Compiler
+        gcc-10 \
+        g++-10 \
         && \
     rm -rf /var/lib/apt/lists/*
 
