@@ -34,7 +34,7 @@ public:
     /** @brief Get name of backend */
     virtual const std::string getName() const = 0;
     /** @brief Backend has support for concurrency batching */
-    virtual bool backendSupportBatching() const = 0;
+    virtual bool isBatchingSupported() const = 0;
     /** @brief Register backend-specific options */
     virtual void registerOptions(OptionsDesc& options) const;
 

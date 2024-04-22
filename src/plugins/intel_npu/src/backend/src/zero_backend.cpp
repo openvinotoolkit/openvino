@@ -28,7 +28,7 @@ uint32_t ZeroEngineBackend::getDriverExtVersion() const {
     return _instance->getDriverExtVersion();
 }
 
-bool ZeroEngineBackend::backendSupportBatching() const {
+bool ZeroEngineBackend::isBatchingSupported() const {
     if (_instance->getDriverExtVersion() < ZE_GRAPH_EXT_VERSION_1_6) {
         return false;
     }

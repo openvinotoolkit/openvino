@@ -69,7 +69,7 @@ size_t get_batch_size_for_node(const IONodeDescriptor& nodeDescriptor,
     return 1;
 }
 
-size_t get_batch_size(
+std::optional<size_t> get_batch_size(
     const NetworkMetadata& metadata,
     const std::unordered_map<std::string, ZeroExecutor::ArgumentDescriptor>& executorInputDescriptors,
     const std::unordered_map<std::string, ZeroExecutor::ArgumentDescriptor>& executorOutputDescriptors) {
@@ -96,7 +96,11 @@ size_t get_batch_size(
     }
 
     auto it = batch_size.begin();
-    return *it;
+    if (*it) {
+        return *it;
+    }
+
+    return std::nullopt;
 }
 
 }  // namespace
@@ -111,12 +115,10 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
       _executor(static_cast<const ZeroExecutor*>(_executorPtr.get())),
       _config(config),
       _logger("ZeroInferRequest", config.get<LOG_LEVEL>()),
-      _profiling_pool(_executor->graph(),
-                      zeroProfiling::POOL_SIZE,
-                      _executor->getInitStructs()->getProfilingDdiTable()),
-      _profiling_query(0,
-                       _executor->getInitStructs()->getDevice(),
-                       _executor->getInitStructs()->getProfilingDdiTable()) {
+      _profilingPool(_executor->graph(), zeroProfiling::POOL_SIZE, _executor->getInitStructs()->getProfilingDdiTable()),
+      _profilingQuery(0,
+                      _executor->getInitStructs()->getDevice(),
+                      _executor->getInitStructs()->getProfilingDdiTable()) {
     const std::unordered_map<std::string, ZeroExecutor::ArgumentDescriptor>& executorInputDescriptors =
         _executor->inputs_desc_map();
     const std::unordered_map<std::string, ZeroExecutor::ArgumentDescriptor>& executorOutputDescriptors =
@@ -124,9 +126,9 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
     auto proftype = config.get<PROFILING_TYPE>();
     if (proftype == ov::intel_npu::ProfilingType::INFER) {
-        _npu_profiling = std::make_shared<zeroProfiling::NpuInferProfiling>(_executor->getInitStructs()->getContext(),
-                                                                            _executor->getInitStructs()->getDevice(),
-                                                                            _config.get<LOG_LEVEL>());
+        _npuProfiling = std::make_shared<zeroProfiling::NpuInferProfiling>(_executor->getInitStructs()->getContext(),
+                                                                           _executor->getInitStructs()->getDevice(),
+                                                                           _config.get<LOG_LEVEL>());
     }
 
     ze_device_properties_t properties = {};
@@ -142,7 +144,11 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
     if (config.get<BATCH_MODE>() != ov::intel_npu::BatchMode::COMPILER) {
         try {
-            _batch_size = get_batch_size(_metadata, executorInputDescriptors, executorOutputDescriptors);
+            auto batchSize = get_batch_size(_metadata, executorInputDescriptors, executorOutputDescriptors);
+
+            if (batchSize.has_value()) {
+                _batchSize = *batchSize;
+            }
         } catch (const std::exception& ex) {
             _logger.info("Got an error when checking the batch size: \n%s", ex.what());
         }
@@ -165,8 +171,8 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
         // When batching is handled by the plugin we need to modify transposed shape with the original batch size since
         // it will be forced to 1 at the compilation time
-        if (_batch_size > 1) {
-            parameterDescriptor.transposedShape[0] = _batch_size;
+        if (_batchSize > 1) {
+            parameterDescriptor.transposedShape[0] = _batchSize;
         }
 
         // The I/O buffers already allocated using the Level Zero API are being reused here
@@ -194,8 +200,8 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
         // When batching is handled by the plugin we need to modify transposed shape with the original batch size since
         // it will be forced to 1 at the compilation time
-        if (_batch_size > 1) {
-            resultDescriptor.transposedShape[0] = _batch_size;
+        if (_batchSize > 1) {
+            resultDescriptor.transposedShape[0] = _batchSize;
         }
 
         allocate_tensor(outputName, resultDescriptor, TensorType::InputOrOutput, allocator);
@@ -242,11 +248,11 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
     /// Construct pipepline
     _pipeline = makePipeline(_executorPtr,
                              _config,
-                             _profiling_pool,
-                             _profiling_query,
-                             _npu_profiling,
+                             _profilingPool,
+                             _profilingQuery,
+                             _npuProfiling,
                              _copyAllTensors,
-                             _batch_size);
+                             _batchSize);
 }
 
 void ZeroInferRequest::infer() {
@@ -284,7 +290,7 @@ void ZeroInferRequest::infer_async() {
         }
     }
 
-    for (size_t i = 0; i < _batch_size; i++) {
+    for (size_t i = 0; i < _batchSize; i++) {
         _pipeline->push(i);
     }
 }
@@ -292,7 +298,7 @@ void ZeroInferRequest::infer_async() {
 void ZeroInferRequest::get_result() {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "get_result");
 
-    for (size_t i = 0; i < _batch_size; i++) {
+    for (size_t i = 0; i < _batchSize; i++) {
         _pipeline->pull(i);
     }
 
@@ -328,7 +334,7 @@ void ZeroInferRequest::get_result() {
         }
     }
 
-    for (size_t i = 0; i < _batch_size; i++) {
+    for (size_t i = 0; i < _batchSize; i++) {
         _pipeline->reset(i);
     }
     _logger.debug("InferRequest::get_result finished");
@@ -381,13 +387,13 @@ std::vector<ov::ProfilingInfo> ZeroInferRequest::get_profiling_info() const {
     } else {
         auto proftype = _config.get<PROFILING_TYPE>();
         if (proftype == ov::intel_npu::ProfilingType::INFER) {
-            return _npu_profiling->getNpuInferStatistics();
+            return _npuProfiling->getNpuInferStatistics();
         } else {  /// proftype = MODEL or undefined = fallback to model profiling
-            return _profiling_query.getLayerStatistics();
+            return _profilingQuery.getLayerStatistics();
         }
     }
 }
 
 std::vector<uint8_t> ZeroInferRequest::get_raw_profiling_data() const {
-    return _profiling_query.getData<uint8_t>();
+    return _profilingQuery.getData<uint8_t>();
 }

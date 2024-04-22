@@ -20,9 +20,9 @@ public:
     Pipeline& operator=(Pipeline&&) = delete;
     virtual ~Pipeline() = default;
 
-    virtual void push(const size_t batch_index) = 0;
-    virtual void pull(const size_t batch_index) = 0;
-    virtual void reset(const size_t batch_index) const = 0;
+    virtual void push(size_t batch_index) = 0;
+    virtual void pull(size_t batch_index) = 0;
+    virtual void reset(size_t batch_index) const = 0;
 
 protected:
     zeroMemory::MemoryManagementUnit _deviceInputs;

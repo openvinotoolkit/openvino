@@ -155,9 +155,9 @@ uint32_t NPUBackends::getDriverExtVersion() const {
     OPENVINO_THROW("No available backend");
 }
 
-bool NPUBackends::backendSupportBatching() const {
+bool NPUBackends::isBatchingSupported() const {
     if (_backend != nullptr) {
-        return _backend->backendSupportBatching();
+        return _backend->isBatchingSupported();
     }
 
     OPENVINO_THROW("No available backend");

@@ -94,7 +94,7 @@ public:
     DiscretePipeline& operator=(const DiscretePipeline&) = delete;
     virtual ~DiscretePipeline() = default;
 
-    void push(const size_t) override {
+    void push(size_t) override {
         OV_ITT_TASK_CHAIN(ZERO_INFER_REQUEST_DP_PUSH,
                           itt::domains::LevelZeroBackend,
                           "DiscretePipeline::push",
@@ -107,7 +107,7 @@ public:
         _command_queues[stage::EXECUTE]->executeCommandList(_command_list[stage::EXECUTE], _fence[stage::EXECUTE]);
     };
 
-    void pull(const size_t) override {
+    void pull(size_t) override {
         OV_ITT_TASK_CHAIN(ZERO_INFER_REQUEST_DP_PULL,
                           itt::domains::LevelZeroBackend,
                           "DiscretePipeline::pull",
@@ -122,7 +122,7 @@ public:
         _fence[stage::READBACK].hostSynchronize();
     };
 
-    void reset(const size_t) const override {
+    void reset(size_t) const override {
         // Reset the fence objects
         for (auto& fence : _fence) {
             fence.reset();
@@ -215,7 +215,7 @@ public:
     IntegratedPipeline& operator=(const IntegratedPipeline&) = delete;
     virtual ~IntegratedPipeline() = default;
 
-    void push(const size_t batch_index) override {
+    void push(size_t batch_index) override {
         OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_PUSH, itt::domains::LevelZeroBackend, "IntegratedPipeline", "push");
         if (sync_output_with_fences_) {
             _command_queue.executeCommandList(*_command_lists.at(batch_index), *_fences.at(batch_index));
@@ -224,7 +224,7 @@ public:
         }
     };
 
-    void pull(const size_t batch_index) override {
+    void pull(size_t batch_index) override {
         OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_PULL, itt::domains::LevelZeroBackend, "IntegratedPipeline", "pull");
         if (sync_output_with_fences_) {
             _fences.at(batch_index)->hostSynchronize();
@@ -237,7 +237,7 @@ public:
         }
     };
 
-    void reset(const size_t batch_index) const override {
+    void reset(size_t batch_index) const override {
         if (sync_output_with_fences_) {
             _fences.at(batch_index)->reset();
         } else {
