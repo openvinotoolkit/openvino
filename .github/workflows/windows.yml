@@ -179,6 +179,8 @@ jobs:
         run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
 
       - name: CMake configure
+        env:
+          WindowsSDKVersion: 10.0.22621.0
         run: |
           cmake -G "${{ env.CMAKE_GENERATOR }}" `
             -DENABLE_CPPLINT=OFF `
