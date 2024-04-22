@@ -41,10 +41,10 @@ LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model, const std::shared_pt
                 last_param = it;
             switch (io_expr->get_type()) {
                 case IOExpression::io_type::INPUT:
-                    m_is_dynamic = m_is_dynamic || utils::is_dynamic_vdims(io_expr->get_output_port_descriptor(0)->get_shape());
+                    m_is_dynamic = m_is_dynamic || utils::is_dynamic_vdims(io_expr->get_output_port_descriptor(0)->get_shape_ptr());
                     break;
                 case IOExpression::io_type::OUTPUT:
-                    m_is_dynamic = m_is_dynamic || utils::is_dynamic_vdims(io_expr->get_input_port_descriptor(0)->get_shape());
+                    m_is_dynamic = m_is_dynamic || utils::is_dynamic_vdims(io_expr->get_input_port_descriptor(0)->get_shape_ptr());
                     break;
                 default:
                     OPENVINO_THROW("Incorrect IO Expression type");

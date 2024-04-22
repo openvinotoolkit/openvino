@@ -36,15 +36,18 @@ public:
     explicit PortDescriptor(const ov::Output<const ov::Node>& node,
                             VectorDims subtensor_shape = {},
                             std::vector<size_t> layout = {});
-    PortDescriptor(VectorDims shape, VectorDims subtensor_shape, std::vector<size_t> layout = {});
-    PortDescriptor() = default;
+    PortDescriptor(VectorDims shape, VectorDims subtensor_shape, std::vector<size_t> layout = {}, Reg reg = {});
+    PortDescriptor(VectorDimsPtr shape, VectorDims subtensor_shape, std::vector<size_t> layout = {}, Reg reg = {});
+    PortDescriptor();
 
-    const VectorDims& get_shape() const {return m_tensor_shape;}
+    const VectorDims& get_shape() const;
+    const VectorDimsPtr& get_shape_ptr() const;
     const VectorDims& get_subtensor() const {return m_subtensor_shape;}
     const std::vector<size_t>& get_layout() const {return m_layout;}
     const Reg& get_reg() const { return m_reg; }
 
-    void set_shape(const VectorDims& tensor) { m_tensor_shape = tensor; }
+    void set_shape(const VectorDims& tensor);
+    void set_shape_ptr(const VectorDimsPtr& tensor);
     void set_layout(const std::vector<size_t>& layout) { m_layout = layout; }
     void set_subtensor(const VectorDims& subtensor) { m_subtensor_shape = subtensor; }
     void set_reg(Reg reg) { m_reg = std::move(reg); }
@@ -61,7 +64,7 @@ public:
 private:
     void validate_arguments();
     /// \brief Original tensor shape
-    VectorDims m_tensor_shape{};
+    VectorDimsPtr m_tensor_shape = nullptr;
     /// \brief Order of dimensions: NCHW == {0, 1, 2, 3}, NHWC == {0, 2, 3, 1}, NCHW16c == {0, 1, 2, 3, 1}
     std::vector<size_t> m_layout{};
     /// \brief Minimal tensor size that could be processed in one call

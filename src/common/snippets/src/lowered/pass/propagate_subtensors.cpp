@@ -23,7 +23,7 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
                                               const size_t new_dim_value = SIZE_MAX) {
     OPENVINO_ASSERT(snippets::utils::implication(most_outer_loop, new_dim_value != SIZE_MAX),
                     "if the updated subtensor propagation was called for the outer loop, new_dim_value must not be equal to default value");
-    std::map<lowered::PortDescriptorPtr, snippets::VectorDims> original_shapes;
+    std::map<lowered::PortDescriptorPtr, snippets::VectorDimsPtr> original_shapes;
     // First step: set new dim value to the corresponding entry_points' dimensions
     if (most_outer_loop) {
         for (const auto& port : loop_info->get_entry_points()) {
@@ -38,13 +38,13 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
                 }
 
                 const auto parent_desc = expr->get_input_port_connector(port.expr_port->get_index())->get_source().get_descriptor_ptr();
-                const auto& parent_shape = parent_desc->get_shape();
+                const auto& parent_shape = parent_desc->get_shape_ptr();
                 if (original_shapes.find(parent_desc) == original_shapes.end()) {
                     original_shapes[parent_desc] = parent_shape;
                 }
-                auto new_shape = parent_shape;
+                auto new_shape = *parent_shape;
                 new_shape[*(desc->get_layout().rbegin() + port.dim_idx)] = new_dim_value;
-                parent_desc->set_shape(new_shape);
+                parent_desc->set_shape_ptr(std::make_shared<VectorDims>(new_shape));
             }
         }
     }
@@ -56,15 +56,15 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
             const auto expr = port.expr_port->get_expr();
             const auto parent_desc = expr->get_input_port_connector(port.expr_port->get_index())->get_source().get_descriptor_ptr();
 
-            const auto& parent_shape = parent_desc->get_shape();
+            const auto& parent_shape = parent_desc->get_shape_ptr();
             const auto& desc_subtensor = desc->get_subtensor();
             if (port.dim_idx < desc_subtensor.size()) {
                 if (original_shapes.find(parent_desc) == original_shapes.end()) {
                     original_shapes[parent_desc] = parent_shape;
                 }
-                auto new_shape = parent_shape;
+                auto new_shape = *parent_shape;
                 new_shape[*(desc->get_layout().rbegin() + port.dim_idx)] = *(desc_subtensor.rbegin() + port.dim_idx);
-                parent_desc->set_shape(new_shape);
+                parent_desc->set_shape_ptr(std::make_shared<VectorDims>(new_shape));
             }
         }
     };
@@ -124,7 +124,7 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
 
     // After subtensor propagation, the original shapes must be restored
     for (const auto& elem : original_shapes)
-        elem.first->set_shape(elem.second);
+        elem.first->set_shape_ptr(elem.second);
     for (auto expr_it = begin; expr_it != shape_inference_end_it; expr_it++)
         (*expr_it)->updateShapes();
 }

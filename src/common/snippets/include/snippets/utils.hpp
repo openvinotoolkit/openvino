@@ -69,6 +69,10 @@ inline bool is_dynamic_vdims(const VectorDims& shape) {
     return std::any_of(shape.cbegin(), shape.cend(), [](size_t v){ return is_dynamic_value(v); });
 }
 
+inline bool is_dynamic_vdims(const VectorDimsPtr& shape) {
+    return is_dynamic_vdims(*shape);
+}
+
 void broadcast_merge_dim(size_t& dst, const size_t& d1, const size_t& d2);
 
 VectorDims pshape_to_vdims(const PartialShape&);
