@@ -133,6 +133,7 @@ public:
     IShapeInferSnippets::Result shape_infer(const std::vector<VectorDimsRef>& input_shapes);
     const std::shared_ptr<ShapeInferSnippetsNode>& get_shape_infer_instance() const {return m_shape_infer; }
     VectorDims get_master_shape() const;
+    VectorDims get_parallel_domain() const;
 
     bool is_dynamic() const;
 

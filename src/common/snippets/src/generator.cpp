@@ -123,5 +123,10 @@ RegType Generator::get_specific_op_out_reg_type(const ov::Output<Node>& out) con
     OPENVINO_THROW("Register type of the operation " + std::string(out.get_node()->get_type_name()) + " isn't determined!");
 }
 
+const std::shared_ptr<RuntimeConfig>& Generator::update_runtime_config(const std::shared_ptr<lowered::LinearIR>& linear_ir) const {
+    OPENVINO_ASSERT(target, "TargetMachine has not been inited!");
+    return target->update_runtime_config(linear_ir);
+}
+
 }// namespace snippets
 }// namespace ov

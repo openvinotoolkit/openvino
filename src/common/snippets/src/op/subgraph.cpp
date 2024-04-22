@@ -21,6 +21,7 @@
 #include "snippets/pass/gn_decomposition.hpp"
 
 #include "snippets/utils.hpp"
+#include "snippets/runtime_configurator.hpp"
 
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/lowered/linear_ir.hpp"
@@ -488,12 +489,15 @@ snippets::Schedule Subgraph::generate_from_linear_ir(const std::shared_ptr<lower
 #endif
     m_generator->generate(linear_ir, lowering_result, compile_params);
 
-    VectorDims parallel_exec_domain = linear_ir.get_master_shape();
-    const size_t loop_depth = linear_ir.get_config().m_loop_depth;
-    for (size_t i = 0; i < loop_depth; i++)
-        parallel_exec_domain[parallel_exec_domain.size() - 1 - i] = 1;
+    VectorDims parallel_exec_domain = linear_ir.get_parallel_domain();
 
     return {parallel_exec_domain, std::move(lowering_result)};
+}
+
+const std::shared_ptr<RuntimeConfig>& Subgraph::update_runtime_config() const {
+    OPENVINO_ASSERT(m_generator, "Generator has not been inited!");
+    OPENVINO_ASSERT(m_linear_ir, "LoweredLinearIR has not been inited!"); // TODO:  there should be lowered (decomposed) LinearIR
+    return m_generator->update_runtime_config(m_linear_ir);
 }
 
 void Subgraph::print() const {

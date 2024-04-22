@@ -98,6 +98,13 @@ public:
     std::shared_ptr<const TargetMachine> get_target_machine() const;
 
     /**
+     * @brief Update config with runtime arguments using the current state of LinearIR
+     * @param linear_ir current LinearIR
+     * @return shared pointer of config
+     */
+    const std::shared_ptr<RuntimeConfig>& update_runtime_config(const std::shared_ptr<lowered::LinearIR>& linear_ir) const;
+
+    /**
      * @brief gets register type by op type
      *        TODO: Should be static attribute of emitters
      * @return register type

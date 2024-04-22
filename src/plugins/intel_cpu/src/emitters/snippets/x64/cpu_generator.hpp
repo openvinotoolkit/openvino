@@ -8,6 +8,9 @@
 
 #include "snippets/target_machine.hpp"
 #include "snippets/generator.hpp"
+#include "snippets/runtime_configurator.hpp"
+
+#include "emitters/snippets/jit_snippets_call_args.hpp"
 
 #ifdef SNIPPETS_DEBUG_CAPS
 #include "emitters/snippets/utils/debug_caps_config.hpp"
@@ -23,6 +26,42 @@ public:
     size_t get_code_size() const override;
     bool empty() const override;
     explicit CompiledSnippetCPU(std::unique_ptr<dnnl::impl::cpu::x64::jit_generator> h);
+};
+
+class CPURuntimeConfig : public ov::snippets::RuntimeConfig {
+public:
+    CPURuntimeConfig() = default;
+
+    size_t tensor_rank = 0;
+    std::vector<jit_snippets_call_args::loop_args_t> loop_args = {};
+    std::vector<ov::snippets::VectorDims> io_data_offsets = {};
+    ov::snippets::VectorDims parallel_domain = {};
+};
+
+class CPURuntimeConfigurator : public ov::snippets::RuntimeConfigurator {
+public:
+    CPURuntimeConfigurator();
+
+    const std::shared_ptr<ov::snippets::RuntimeConfig>& update(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) override;
+
+protected:
+    void init_data_info(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir);
+    void update_data_offsets(const std::shared_ptr<CPURuntimeConfig>& cpu_config) const;
+    void update_loop_args(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir,
+                          const std::shared_ptr<CPURuntimeConfig>& cpu_config) const;
+    void update_parallel_domain(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir,
+                                const std::shared_ptr<CPURuntimeConfig>& cpu_config) const;
+    void update_latest_shapes();
+
+    const size_t rank6D = 6;
+
+    size_t m_io_num = 0;
+    size_t m_in_num = 0;
+    std::vector<ov::snippets::VectorDimsPtr> m_io_shapes = {};
+    std::vector<std::vector<size_t>> m_io_layouts = {};
+    std::vector<size_t> m_io_data_sizes = {};
+
+    std::vector<ov::snippets::VectorDims> m_latest_input_shapes = {};
 };
 
 class CPUTargetMachine : public snippets::TargetMachine {

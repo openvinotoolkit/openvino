@@ -8,6 +8,7 @@
 #include "snippets_helpers.hpp"
 #include "snippets/pass/manager.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
+#include "snippets/runtime_configurator.hpp"
 
 namespace ov {
 namespace test {
@@ -29,6 +30,18 @@ struct DummyCompiledSnippet : public ov::snippets::CompiledSnippet {
     const uint8_t* get_code() const override { return nullptr; }
     size_t get_code_size() const override { return 0; }
     bool empty() const override { return true; }
+};
+
+class DummyRuntimeConfig : public ov::snippets::RuntimeConfig {
+public:
+    DummyRuntimeConfig() : ov::snippets::RuntimeConfig() {}
+};
+
+class DummyRuntimeConfigurator : public ov::snippets::RuntimeConfigurator {
+public:
+    DummyRuntimeConfigurator() : RuntimeConfigurator(std::make_shared<DummyRuntimeConfig>()) {}
+
+    const std::shared_ptr<ov::snippets::RuntimeConfig>& update(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) override { return m_config; }
 };
 
 class DummyTargetMachine : public ov::snippets::TargetMachine {

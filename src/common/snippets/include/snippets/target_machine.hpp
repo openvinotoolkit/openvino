@@ -25,6 +25,9 @@ using CompiledSnippetPtr = std::shared_ptr<CompiledSnippet>;
 typedef std::pair<std::function<std::shared_ptr<Emitter>(const lowered::ExpressionPtr&)>,
         std::function<std::set<ov::element::TypeVector>(const std::shared_ptr<ov::Node>&)>> jitters_value;
 
+class RuntimeConfig;
+class RuntimeConfigurator;
+
 /**
  * @interface TargetMachine
  * @brief Base class Target machine representation. Target derives from this class to provide generator information about supported emitters
@@ -32,6 +35,10 @@ typedef std::pair<std::function<std::shared_ptr<Emitter>(const lowered::Expressi
  */
 class TargetMachine {
 public:
+    TargetMachine(const std::shared_ptr<RuntimeConfigurator>& c) : configurator(std::move(c)) {}
+
+    virtual ~TargetMachine() = default;
+
     /**
      * @brief checks if target is natively supported
      * @return true, if supported
@@ -55,6 +62,11 @@ public:
      * @return a map by node's type info with callbacks to create an instance of emitter for corresponding operation type
      */
     std::function<std::shared_ptr<Emitter>(const lowered::ExpressionPtr&)> get(const ov::DiscreteTypeInfo& type) const;
+
+    /**
+     * @brief called by generator to all the emitter for a target machine
+     * @return a map by node's type info with callbacks to create an set of supported precisions for corresponding operation type
+     */
     std::function<std::set<ov::element::TypeVector>(const std::shared_ptr<ov::Node>&)> get_supported_precisions(const ov::DiscreteTypeInfo& type) const;
 
     /**
@@ -62,10 +74,16 @@ public:
      * @return true, if supported
      */
     bool has(const ov::DiscreteTypeInfo& type) const;
-    virtual ~TargetMachine() = default;
+
+    /**
+     * @brief updates config with runtime arguments using the current state of LinearIR
+     * @return shared pointer of config
+     */
+    const std::shared_ptr<RuntimeConfig>& update_runtime_config(const std::shared_ptr<lowered::LinearIR>& linear_ir) const;
 
 protected:
     std::map<const ov::DiscreteTypeInfo, jitters_value> jitters;
+    std::shared_ptr<RuntimeConfigurator> configurator;
 };
 
 } // namespace snippets

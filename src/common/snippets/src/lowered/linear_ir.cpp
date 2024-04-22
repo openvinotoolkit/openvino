@@ -396,6 +396,12 @@ VectorDims LinearIR::get_master_shape() const {
     return master_shape;
 }
 
+VectorDims LinearIR::get_parallel_domain() const {
+    VectorDims parallel_exec_domain = get_master_shape();
+    std::fill(parallel_exec_domain.rbegin(), parallel_exec_domain.rbegin() + m_config.m_loop_depth, 1);
+    return parallel_exec_domain;
+}
+
 template<>
 LinearIR::exprIt LinearIR::insert_node(const std::shared_ptr<ov::Node>& new_node, const std::vector<PortConnectorPtr>& new_inputs,
                                        const std::vector<size_t>& loop_ids, bool update_loop_ports, const constExprIt& place,

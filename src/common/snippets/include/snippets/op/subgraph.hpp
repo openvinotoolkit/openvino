@@ -150,6 +150,8 @@ public:
                               const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory = std::make_shared<IShapeInferSnippetsFactory>());
     std::shared_ptr<Subgraph> clone() const;
 
+    const std::shared_ptr<RuntimeConfig>& update_runtime_config() const;
+
 private:
     void control_flow_transformations(lowered::LinearIR& linear_ir,
                                       LoweringResult& lowering_result,

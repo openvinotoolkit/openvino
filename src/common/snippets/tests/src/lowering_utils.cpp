@@ -13,7 +13,8 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-DummyTargetMachine::DummyTargetMachine(const std::vector<ov::Node::type_info_t>&custom_opset) {
+DummyTargetMachine::DummyTargetMachine(const std::vector<ov::Node::type_info_t>&custom_opset)
+  : TargetMachine(std::make_shared<DummyRuntimeConfigurator>()) {
     auto dummy_functor = ov::snippets::jitters_value {
         [](const ov::snippets::lowered::ExpressionPtr& n) { return std::make_shared<DummyEmitter>(); },
         [](const std::shared_ptr<ov::Node>& n) { return std::set<std::vector<element::Type>>{};}
