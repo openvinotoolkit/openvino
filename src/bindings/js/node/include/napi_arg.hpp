@@ -22,7 +22,7 @@ std::string create_error_message(const std::string& key,
 
 void check_type(const napi_valuetype expected_type, const std::string key, const Napi::Value& value);
 
-struct Validator {
+class Validator {
 public:
     typedef std::function<void(const std::string& key, const Napi::Value&)> ValidatorType;
 
