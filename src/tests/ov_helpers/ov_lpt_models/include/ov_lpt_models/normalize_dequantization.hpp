@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include <memory>
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -16,9 +16,9 @@ public:
     static std::shared_ptr<ov::Model> getOriginal(
         const ov::element::Type precision,
         const ov::Shape& inputShape,
-        const ngraph::builder::subgraph::DequantizationOperations dequantization);
+        const ov::builder::subgraph::DequantizationOperations dequantization);
 };
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

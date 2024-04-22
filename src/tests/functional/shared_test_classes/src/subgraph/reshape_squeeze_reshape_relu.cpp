@@ -1,10 +1,9 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/subgraph/reshape_squeeze_reshape_relu.hpp"
 
-#include "ov_models/builders.hpp"
 
 namespace ov {
 namespace test {

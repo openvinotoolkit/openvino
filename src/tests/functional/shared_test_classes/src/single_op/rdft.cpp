@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,7 +51,7 @@ void RDFTLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputSta
     }
 
     inputs.clear();
-    runtime::Tensor data_tensor = ov::test::utils::create_and_fill_tensor_act_dft(funcInput->get_element_type(),
+    Tensor data_tensor = ov::test::utils::create_and_fill_tensor_act_dft(funcInput->get_element_type(),
                                             targetInputStaticShapes[0],
                                             inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
     inputs.insert({funcInput->get_node_shared_ptr(), data_tensor});
@@ -87,6 +87,10 @@ void RDFTLayerTest::SetUp() {
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, ov::Shape(input_shape));
     auto rdft = ov::test::utils::make_rdft(param, axes, signal_size, op_type);
     function = std::make_shared<ov::Model>(rdft->outputs(), ov::ParameterVector{param}, "RDFT");
+
+    if (model_type == ov::element::f32) {
+        abs_threshold = 1e-4;
+    }
 }
 }  // namespace test
 }  // namespace ov

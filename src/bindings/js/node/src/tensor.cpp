@@ -1,9 +1,13 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "tensor.hpp"
+#include "node/include/tensor.hpp"
 
-#include "addon.hpp"
+#include "node/include/addon.hpp"
+#include "node/include/errors.hpp"
+#include "node/include/helper.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 TensorWrap::TensorWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<TensorWrap>(info) {
     if (info.Length() == 0) {
@@ -38,25 +42,14 @@ TensorWrap::TensorWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Tensor
     }
 }
 
-Napi::Function TensorWrap::get_class_constructor(Napi::Env env) {
+Napi::Function TensorWrap::get_class(Napi::Env env) {
     return DefineClass(env,
                        "TensorWrap",
                        {InstanceAccessor<&TensorWrap::get_data>("data"),
                         InstanceMethod("getData", &TensorWrap::get_data),
                         InstanceMethod("getShape", &TensorWrap::get_shape),
-                        InstanceMethod("getElementType", &TensorWrap::get_element_type)});
-}
-
-Napi::Object TensorWrap::init(Napi::Env env, Napi::Object exports) {
-    const auto& prototype = get_class_constructor(env);
-
-    const auto ref = new Napi::FunctionReference();
-    *ref = Napi::Persistent(prototype);
-    const auto data = env.GetInstanceData<AddonData>();
-    data->tensor_prototype = ref;
-
-    exports.Set("Tensor", prototype);
-    return exports;
+                        InstanceMethod("getElementType", &TensorWrap::get_element_type),
+                        InstanceMethod("getSize", &TensorWrap::get_size)});
 }
 
 ov::Tensor TensorWrap::get_tensor() const {
@@ -68,11 +61,11 @@ void TensorWrap::set_tensor(const ov::Tensor& tensor) {
 }
 
 Napi::Object TensorWrap::wrap(Napi::Env env, ov::Tensor tensor) {
-    const auto prototype = env.GetInstanceData<AddonData>()->tensor_prototype;
+    const auto& prototype = env.GetInstanceData<AddonData>()->tensor;
     if (!prototype) {
         OPENVINO_THROW("Invalid pointer to Tensor prototype.");
     }
-    auto tensor_js = prototype->New({});
+    auto tensor_js = prototype.New({});
     const auto t = Napi::ObjectWrap<TensorWrap>::Unwrap(tensor_js);
     t->set_tensor(tensor);
     return tensor_js;
@@ -140,9 +133,23 @@ Napi::Value TensorWrap::get_data(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value TensorWrap::get_shape(const Napi::CallbackInfo& info) {
+    if (info.Length() > 0) {
+        reportError(info.Env(), "No parameters are allowed for the getShape() method.");
+        return info.Env().Undefined();
+    }
     return cpp_to_js<ov::Shape, Napi::Array>(info, _tensor.get_shape());
 }
 
 Napi::Value TensorWrap::get_element_type(const Napi::CallbackInfo& info) {
     return cpp_to_js<ov::element::Type_t, Napi::String>(info, _tensor.get_element_type());
+}
+
+Napi::Value TensorWrap::get_size(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    if (info.Length() > 0) {
+        reportError(env, "getSize() does not accept any arguments.");
+        return env.Undefined();
+    }
+    const auto size = static_cast<double>(_tensor.get_size());
+    return Napi::Number::New(env, size);
 }

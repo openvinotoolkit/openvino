@@ -7,7 +7,7 @@
 #include "openvino/opsets/opset2.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -35,11 +35,11 @@ std::shared_ptr<ov::Model> BatchToSpaceFunction::get(const ov::PartialShape& inp
 
 std::shared_ptr<ov::Model> BatchToSpaceFunction::get(const ov::PartialShape& input_shape,
                                                             const ov::element::Type input_type,
-                                                            const ngraph::builder::subgraph::DequantizationOperations& dequantization_before,
+                                                            const ov::builder::subgraph::DequantizationOperations& dequantization_before,
                                                             const std::vector<size_t>& block_shape,
                                                             const std::vector<size_t>& crops_begin,
                                                             const std::vector<size_t>& crops_end,
-                                                            const ngraph::builder::subgraph::DequantizationOperations& dequantization_after) {
+                                                            const ov::builder::subgraph::DequantizationOperations& dequantization_after) {
     const auto input = std::make_shared<ov::opset1::Parameter>(input_type, input_shape);
 
     std::shared_ptr<Node> parent = dequantization_before.empty() ?
@@ -60,4 +60,4 @@ std::shared_ptr<ov::Model> BatchToSpaceFunction::get(const ov::PartialShape& inp
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

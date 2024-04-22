@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 #include "ov_lpt_models/common/builders.hpp"
 
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -36,10 +36,10 @@ public:
         const bool updatePrecisions,
         const FakeQuantizeOnDataWithConstant& fakeQuantizeOnData,
         const ov::element::Type fakeQuantizeOutputPrecision,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantization,
+        const ov::builder::subgraph::DequantizationOperations& dequantization,
         const bool addNotPrecisionPreservedOperation);
 };
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

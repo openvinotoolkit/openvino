@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
+#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
 using namespace ov;
@@ -515,3 +516,194 @@ TEST_F(TransformationTestsF, CompressConstants_compress_to_f16_denormal_vals) {
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
+
+TEST_F(TransformationTestsF, KeepFWPrecisionForFP16Constants_test_1) {
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
+        auto const_weights = ov::op::v0::Constant::create(
+            ov::element::f16,
+            ov::Shape{1, 3, 3, 3},
+            {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9});
+        auto convert_node = std::make_shared<ov::op::v0::Convert>(const_weights, element::f32);
+
+        auto conv = std::make_shared<ov::opset8::Convolution>(input,
+                                                              convert_node,
+                                                              ov::Strides{1, 1},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::Strides{1, 1});
+        model = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
+
+        manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
+        manager.register_pass<ov::pass::CompressFloatConstants>();
+    }
+
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
+        auto const_weights = ov::opset8::Constant::create(
+            ov::element::f16,
+            ov::Shape{1, 3, 3, 3},
+            {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9});
+
+        auto convert_node = std::make_shared<ov::op::v0::Convert>(const_weights, element::f32);
+        auto conv = std::make_shared<ov::opset8::Convolution>(input,
+                                                              convert_node,
+                                                              ov::Strides{1, 1},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::Strides{1, 1});
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+TEST_F(TransformationTestsF, KeepFWPrecisionForBF16Constants_test_1) {
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
+        auto const_weights = ov::op::v0::Constant::create(
+            ov::element::bf16,
+            ov::Shape{1, 3, 3, 3},
+            {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9});
+        auto convert_node = std::make_shared<ov::op::v0::Convert>(const_weights, element::f32);
+
+        auto conv = std::make_shared<ov::opset8::Convolution>(input,
+                                                              convert_node,
+                                                              ov::Strides{1, 1},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::Strides{1, 1});
+        model = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
+
+        manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
+        manager.register_pass<ov::pass::CompressFloatConstants>();
+    }
+
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
+        auto const_weights = ov::opset8::Constant::create(
+            ov::element::bf16,
+            ov::Shape{1, 3, 3, 3},
+            {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9});
+
+        auto convert_node = std::make_shared<ov::op::v0::Convert>(const_weights, element::f32);
+        auto conv = std::make_shared<ov::opset8::Convolution>(input,
+                                                              convert_node,
+                                                              ov::Strides{1, 1},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::Strides{1, 1});
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+namespace {
+struct TestParams {
+    TestParams() = default;
+    bool has_subtract = {};
+    ov::element::Type element_type = {};
+};
+
+auto build_model_DetectFakeQuantize = [](const TestParams&) -> std::shared_ptr<ov::Model> {
+    auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 3});
+    auto input_low = ov::op::v0::Constant::create(element::u8, Shape{}, {1});
+    auto input_high = ov::op::v0::Constant::create(element::u8, Shape{}, {2});
+    auto output_low = ov::op::v0::Constant::create(element::u8, Shape{}, {1});
+    auto output_high = ov::op::v0::Constant::create(element::u8, Shape{}, {2});
+    auto fq = std::make_shared<ov::op::v0::FakeQuantize>(input, input_low, input_high, output_low, output_high, 1);
+    return std::make_shared<ov::Model>(ov::NodeVector{fq}, ov::ParameterVector{input});
+};
+
+auto build_model_DetectFakeConvert = [](const TestParams&) -> std::shared_ptr<ov::Model> {
+    auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 3});
+    auto scale = ov::op::v0::Constant::create(element::f32, Shape{}, {1});
+    auto convert = std::make_shared<ov::op::v13::FakeConvert>(input, scale);
+    return std::make_shared<ov::Model>(ov::NodeVector{convert}, ov::ParameterVector{input});
+};
+
+auto build_model_DetectCompressedWeights = [](const TestParams& params) -> std::shared_ptr<ov::Model> {
+    auto input = std::make_shared<op::v0::Parameter>(element::u8, Shape{2, 1});
+
+    auto weights = ov::op::v0::Constant::create(params.element_type, ov::Shape{1, 2}, {2});
+    auto convert = std::make_shared<ov::op::v0::Convert>(weights, element::u8);
+
+    std::shared_ptr<Node> tail_node = convert;
+    if (params.has_subtract) {
+        auto zero_point_const = ov::op::v0::Constant::create(element::u8, ov::Shape{1, 2}, {2});
+        auto zero_point = std::make_shared<ov::op::v0::Convert>(weights, element::u8);
+        auto subtract = std::make_shared<ov::op::v1::Subtract>(convert, zero_point);
+        tail_node = subtract;
+    }
+    auto multiply_const = ov::op::v0::Constant::create(element::u8, ov::Shape{1, 2}, {2});
+    auto multiply = std::make_shared<ov::op::v1::Multiply>(tail_node, multiply_const);
+
+    auto out_multiply = std::make_shared<ov::op::v1::Multiply>(input, multiply);
+    return std::make_shared<ov::Model>(ov::NodeVector{out_multiply}, ov::ParameterVector{input});
+};
+
+using ModelFactoryFunc = std::function<std::shared_ptr<Model>(const TestParams&)>;
+
+struct ModelFactory {
+    ModelFactory(ModelFactoryFunc func, std::string func_name) : create(std::move(func)), name(std::move(func_name)) {}
+    ModelFactoryFunc create;
+    std::string name;
+};
+
+using CheckModelOptimizedParam = std::tuple<ModelFactory,        // model factory
+                                            bool,                // has_subtract
+                                            ov::element::Type>;  // element_type
+
+const std::vector<ov::element::Type> element_types = {ov::element::i4,
+                                                      ov::element::u4,
+                                                      ov::element::i8,
+                                                      ov::element::u8,
+                                                      ov::element::nf4,
+                                                      ov::element::f8e4m3,
+                                                      ov::element::f8e5m2};
+}  // namespace
+
+class CheckModelOptimizedTestSuite : public testing::TestWithParam<CheckModelOptimizedParam> {
+public:
+    static std::string get_test_name(const ::testing::TestParamInfo<CheckModelOptimizedParam>& obj) {
+        auto model_factory = std::get<0>(obj.param);
+        TestParams params;
+        params.has_subtract = std::get<1>(obj.param);
+        params.element_type = std::get<2>(obj.param);
+
+        std::ostringstream test_name;
+        test_name << "model_factory=" << model_factory.name << "/";
+        test_name << "has_subtract=" << params.has_subtract << "/";
+        test_name << "element_type=" << params.element_type;
+
+        return test_name.str();
+    }
+};
+
+TEST_P(CheckModelOptimizedTestSuite, CheckModelOptimized) {
+    const auto& param = GetParam();
+    auto model_factory = std::get<0>(param);
+    TestParams params;
+    params.has_subtract = std::get<1>(param);
+    params.element_type = std::get<2>(param);
+    auto model = model_factory.create(params);
+
+    ASSERT_TRUE(ov::pass::is_model_optimized(model));
+}
+
+#undef ADD_FACTORY
+#define ADD_FACTORY(function) ModelFactory(function, #function)
+
+INSTANTIATE_TEST_SUITE_P(CheckModelOptimizedFakeQuantizeConvert,
+                         CheckModelOptimizedTestSuite,
+                         testing::Combine(testing::Values(ADD_FACTORY(build_model_DetectFakeQuantize),
+                                                          ADD_FACTORY(build_model_DetectFakeConvert)),
+                                          testing::Values(false),
+                                          testing::Values(ov::element::Type())),
+                         CheckModelOptimizedTestSuite::get_test_name);
+
+INSTANTIATE_TEST_SUITE_P(CheckModelOptimizedDetectCompressedWeights,
+                         CheckModelOptimizedTestSuite,
+                         testing::Combine(testing::Values(ADD_FACTORY(build_model_DetectCompressedWeights)),
+                                          testing::Values(true, false),
+                                          testing::ValuesIn(element_types)),
+                         CheckModelOptimizedTestSuite::get_test_name);

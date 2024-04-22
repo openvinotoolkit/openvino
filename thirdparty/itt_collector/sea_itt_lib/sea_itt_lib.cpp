@@ -327,14 +327,14 @@ SEA_EXPORT int NotifyEvent(iJIT_JVM_EVENT event_type, void* EventSpecificData) {
 
     switch (event_type) {
     case iJVM_EVENT_TYPE_METHOD_LOAD_FINISHED: {
-        sea::WriteJit(&(uint32_t)methodData->method_id, sizeof(uint32_t));
+        sea::WriteJit(&methodData->method_id, sizeof(uint32_t));
         sea::WriteJit(&methodData->method_load_address, sizeof(void*));
-        sea::WriteJit(&(uint32_t)methodData->method_size, sizeof(uint32_t));
-        sea::WriteJit(&(uint32_t)methodData->line_number_size, sizeof(uint32_t));
+        sea::WriteJit(&methodData->method_size, sizeof(uint32_t));
+        sea::WriteJit(&methodData->line_number_size, sizeof(uint32_t));
         for (unsigned int i = 0; i < methodData->line_number_size; ++i) {
             const LineNumberInfo& lni = methodData->line_number_table[i];
-            sea::WriteJit(&(uint32_t)lni.Offset, sizeof(uint32_t));
-            sea::WriteJit(&(uint32_t)lni.LineNumber, sizeof(uint32_t));
+            sea::WriteJit(&lni.Offset, sizeof(uint32_t));
+            sea::WriteJit(&lni.LineNumber, sizeof(uint32_t));
         }
 
         const char* strings[] = {methodData->method_name, methodData->class_file_name, methodData->source_file_name};

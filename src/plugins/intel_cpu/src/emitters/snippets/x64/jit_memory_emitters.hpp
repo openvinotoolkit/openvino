@@ -22,6 +22,9 @@ protected:
 
     size_t count = 0;
     size_t byte_offset = 0;
+#ifdef SNIPPETS_DEBUG_CAPS
+    friend std::string init_info_jit_memory_emitter(const jit_memory_emitter *emitter);
+#endif
 };
 
 class jit_load_memory_emitter : public jit_memory_emitter {

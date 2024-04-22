@@ -75,9 +75,7 @@ void Convert::generate_inputs(const std::vector<ov::Shape>& targetInputStaticSha
     inputs.clear();
     const auto& funcInputs = function->inputs();
     const auto params = generate_params_random();
-    if (params.size() != funcInputs.size()) {
-        IE_THROW() << "Incorrect count of parameters for random generation and inputs of function!";
-    }
+    OPENVINO_ASSERT(params.size() == funcInputs.size(), "Incorrect count of parameters for random generation and inputs of function!");
 
     for (int i = 0; i < funcInputs.size(); ++i) {
         const auto& funcInput = funcInputs[i];
@@ -102,6 +100,10 @@ void ConvertInput::SetUp() {
     function = f.getOriginal();
     if (!configuration.count("SNIPPETS_MODE")) {
         configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
+    }
+
+    if (types.first[0] == ov::element::f32 && types.second[0] == ov::element::bf16) {
+        abs_threshold = 3e-2;
     }
 }
 
@@ -146,6 +148,10 @@ void ConvertOutput::SetUp() {
     output_type = types.second.front();
     if (!configuration.count("SNIPPETS_MODE")) {
         configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
+    }
+
+    if (types.first[0] == ov::element::bf16 && types.second[0] == ov::element::f32) {
+        abs_threshold = 4e-2;
     }
 }
 

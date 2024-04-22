@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@
 #include "fully_connected_inst.h"
 #include "gemm_inst.h"
 #include "convolution_inst.h"
+#include "depth_to_space_inst.h"
 #include "pass_manager.h"
 #include "to_string_utils.h"
 
@@ -603,4 +604,88 @@ TEST(prepare_primitive_fusing, fuse_constant_transposes_accuracy_test) {
     for (size_t i = 0; i < output_ptr_ref.size(); ++i) {
         ASSERT_EQ(output_ptr[i], output_ptr_ref[i]);
     }
+}
+
+TEST(prepare_primitive_fusing, can_profiling_data_when_fuse_illegal) {
+    auto& engine = get_test_engine();
+    auto weights = engine.allocate_memory({ov::PartialShape{2, 10}, data_types::u8, format::bfyx});
+    auto in_layout = layout{ov::PartialShape::dynamic(2), data_types::u8, format::bfyx};
+    auto in_eltw_layout = layout{ov::PartialShape::dynamic(2), data_types::f32, format::bfyx};
+
+    set_values<uint8_t>(weights, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9});
+
+    topology topology;
+    topology.add(data("weights", weights));
+    topology.add(input_layout("input", in_layout));
+    topology.add(input_layout("extra_input", in_eltw_layout));
+    topology.add(fully_connected("fc", input_info("input"), {"weights"}, "", data_types::f32));
+    topology.add(eltwise("eltw", {input_info("fc"), input_info("extra_input")}, eltwise_mode::sum));
+    topology.add(reorder("reorder", input_info("eltw"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::queue_type(ov::intel_gpu::QueueTypes::in_order));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::enable_profiling(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+
+    layout_optimizer lo(true);
+
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
+
+    ASSERT_NE(prog, nullptr);
+    ASSERT_FALSE(has_node_with_type<eltwise>(*prog));
+
+    cldnn::network net(prog, 0);
+
+    auto input_memory = engine.allocate_memory(layout{ov::PartialShape{1, 10}, data_types::u8, format::bfyx});
+    auto extra_input_memory = engine.allocate_memory(layout{ov::PartialShape{2, 2}, data_types::f32, format::bfyx});
+    set_values<uint8_t>(input_memory, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9});
+    set_values<float>(extra_input_memory, {10, 20, 30, 40});
+
+    net.set_input_data("input", input_memory);
+    net.set_input_data("extra_input", extra_input_memory);
+
+    auto output = net.execute();
+    for (auto& iter : output)
+        ASSERT_NE(iter.second.get_event(), nullptr);
+}
+
+TEST(prepare_primitive_fusing, dont_fuse_eltwise_to_dyn_dts) {
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    auto in_layout = layout{ ov::PartialShape{-1, -1, -1, -1}, data_types::f32, format::bfyx };
+    auto weight_layout = layout{ ov::PartialShape{32, 32, 3, 3}, data_types::f32, format::bfyx};
+    auto weight_mem = engine.allocate_memory(weight_layout);
+    auto weight_data = rg.generate_random_4d<ov::float16>(32, 32, 3, 3, -1, 1);
+    set_values(weight_mem, weight_data);
+    auto scale_layout = layout{ ov::PartialShape{1, 2, 1, 1}, data_types::f32, format::bfyx };
+    auto scale_mem = engine.allocate_memory(scale_layout);
+    auto elt_layout = layout{ ov::PartialShape{1, 2, 32, 32}, data_types::f32, format::bfyx };
+    auto elt_mem = engine.allocate_memory(elt_layout);
+
+    topology topology;
+
+    topology.add(data("weights", weight_mem));
+    topology.add(input_layout("input", in_layout));
+    topology.add(convolution("conv", input_info("input"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+    topology.add(depth_to_space("depth_to_space", input_info("conv"), 4, depth_to_space_mode::blocks_first));
+    topology.add(data("scale1_data", scale_mem));
+    topology.add(eltwise("scale1", { input_info("depth_to_space"), input_info("scale1_data") }, eltwise_mode::prod, data_types::f32));
+    topology.add(activation("actv1", input_info("scale1"), activation_func::relu));
+    topology.add(data("eltw_data", elt_mem));
+    topology.add(eltwise("eltw", { input_info("actv1"), input_info("eltw_data") }, eltwise_mode::sum, data_types::f32));
+    topology.add(reorder("reorder_bfyx", input_info("eltw"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+
+    layout_optimizer lo(true);
+
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
+
+    ASSERT_NE(prog, nullptr);
+    ASSERT_TRUE(has_node(*prog, "scale1"));
 }

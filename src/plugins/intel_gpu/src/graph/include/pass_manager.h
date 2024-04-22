@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,6 @@
 
 #include "intel_gpu/graph/program.hpp"
 #include "layout_optimizer.h"
-#include "split_inst.h"
-#include "lstm_inst.h"
-#include "lstm_dynamic_inst.h"
 #include "quantize_inst.h"
 #include "eltwise_inst.h"
 #include "convolution_inst.h"
@@ -82,9 +79,6 @@ public:
 
 private:
     void run(program& p) override;
-    void handle_split_node(program& p, split_node& node);
-    void handle_lstm_node(program& p, lstm_node& node);
-    void handle_dynamic_lstm_node(program& p, lstm_dynamic_node& node);
     void set_outputs(program& p);
 };
 
@@ -99,14 +93,6 @@ private:
 class mark_nodes : public base_pass {
 public:
     mark_nodes() : base_pass("analyzed_graph") {}
-
-private:
-    void run(program& p) override;
-};
-
-class clamp_fp16_output : public base_pass {
-public:
-    clamp_fp16_output() : base_pass("clamp_fp16_output") {}
 
 private:
     void run(program& p) override;
@@ -151,7 +137,6 @@ private:
     void handle_quantize_node(program& p, quantize_node& quantize_node);
     void prepare_dequantize_merge(program& p, eltwise_node& eltwise_node);
     void remove_fake_reorders(program& p, reorder_node& reorder_node);
-    void prepare_asymmetric_quantization(program& p, convolution_node& convolution_node);
     void prepare_scale_shift_opt(program &p, quantize_node& quantize_node);
     bool optimize_quantize(program &p, quantize_node& quantize_node);
 };
@@ -191,7 +176,6 @@ public:
 
 private:
     void run(program& p) override;
-    void fuse_sigmoid_mul_to_swish(program &p);
     void fuse_bias(program &p);
     void fuse_reorders(program& p);
     void fuse_simple_primitives(program &p);
@@ -316,18 +300,6 @@ private:
     void run(program& p) override;
 };
 
-class strided_slice_optimize : public base_pass {
-public:
-    strided_slice_optimize() : base_pass("strided_slice_optimize") {}
-    void run(program& p) override;
-};
-
-class reverse_optional_nodes_outputs : public base_pass {
-public:
-    reverse_optional_nodes_outputs() : base_pass("reverse_optional_nodes_outputs") {}
-    void run(program& p) override;
-};
-
 class concat_input_order : public base_pass {
     // This optimization changes order of inputs for concatenation to provide
     // better alignment for execution and allow for optimizing out in some cases.
@@ -355,7 +327,7 @@ public:
     explicit memory_dependency_pass(const std::string& pass_name) : base_pass(pass_name) {}
     void add_memory_dependency(program_node* node, program_node* dep) {
         if (node->can_be_optimized() || !dep->can_be_optimized()) {
-            node->add_memory_dependency(dep->id());
+            node->add_memory_dependency(static_cast<int32_t>(dep->get_unique_id()));
         } else {
             if (node->id() == dep->id()) {
                 return;
@@ -414,9 +386,17 @@ private:
     void run(program& p) override;
 };
 
-class dynamic_shape_gather_opts : public base_pass {
+class mark_runtime_skippable_nodes : public base_pass {
 public:
-    dynamic_shape_gather_opts() : base_pass("dynamic_shape_gather_opts") {}
+    mark_runtime_skippable_nodes() : base_pass("mark_runtime_skippable_nodes") {}
+
+private:
+    void run(program& p) override;
+};
+
+class fuse_primitives_with_layout : public base_pass {
+public:
+    fuse_primitives_with_layout() : base_pass("fuse_primitives_with_layout") {}
 
 private:
     void run(program& p) override;

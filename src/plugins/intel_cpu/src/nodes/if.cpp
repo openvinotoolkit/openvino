@@ -1,11 +1,15 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "if.h"
+
+#include "openvino/op/if.hpp"
+
 #include "common/cpu_memcpy.h"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "nodes/common/cpu_convert.h"
+#include "transformations/utils/utils.hpp"
 
 #include <string>
 #include <vector>
@@ -81,9 +85,9 @@ void If::getSupportedDescriptors() {
     subGraphThen.CreateGraph(thenBody, context);
     subGraphElse.CreateGraph(elseBody, context);
 
-    const auto &inMapThen = subGraphThen.GetInputNodesMap();
-    for (const auto &param : ifOp->get_then_body()->get_parameters()) {
-        auto inNode = inMapThen.find(param->get_friendly_name());
+    const auto& inMapThen = subGraphThen.GetInputNodesMap();
+    for (const auto& param : ifOp->get_then_body()->get_parameters()) {
+        auto inNode = inMapThen.find(ifOp->get_then_body()->get_parameter_index(param));
         if (inNode != inMapThen.end()) {
             inputMemThen.push_back(getToMemories(inNode->second.get(), 0));
         } else {
@@ -94,9 +98,9 @@ void If::getSupportedDescriptors() {
         }
     }
 
-    const auto &inMapElse = subGraphElse.GetInputNodesMap();
-    for (const auto &param : ifOp->get_else_body()->get_parameters()) {
-        auto inNode = inMapElse.find(param->get_friendly_name());
+    const auto& inMapElse = subGraphElse.GetInputNodesMap();
+    for (const auto& param : ifOp->get_else_body()->get_parameters()) {
+        auto inNode = inMapElse.find(ifOp->get_else_body()->get_parameter_index(param));
         if (inNode != inMapElse.end()) {
             inputMemElse.push_back(getToMemories(inNode->second.get(), 0));
         } else {
@@ -109,27 +113,23 @@ void If::getSupportedDescriptors() {
 
     const auto &outMapThen = subGraphThen.GetOutputNodesMap();
     for (const auto& out : ifOp->get_then_body()->get_results()) {
-        const auto prev = out->input_value(0);
-        const std::string inputID = ov::op::util::get_ie_output_name(prev);
-        auto outNode = outMapThen.find(inputID);
+        auto outNode = outMapThen.find(ifOp->get_then_body()->get_result_index(out));
         if (outNode != outMapThen.end()) {
-            auto outMem = outNode->second->getParentEdgeAt(0)->getMemoryPtr();
+            auto outMem = outNode->second->getSrcMemoryAtPort(0);
             outputMemThen.push_back(outMem);
         } else {
-            OPENVINO_THROW("Then body of node If with name ", getName(), " does not have output with name: ", inputID);
+            OPENVINO_THROW("Then body of node If with name ", getName(), " does not have output with name: ", out->get_friendly_name());
         }
     }
 
     const auto &outMapElse = subGraphElse.GetOutputNodesMap();
     for (const auto& out : ifOp->get_else_body()->get_results()) {
-        const auto prev = out->input_value(0);
-        const std::string inputID = ov::op::util::get_ie_output_name(prev);
-        auto outNode = outMapElse.find(inputID);
+        auto outNode = outMapElse.find(ifOp->get_else_body()->get_result_index(out));
         if (outNode != outMapElse.end()) {
-            auto outMem = outNode->second->getParentEdgeAt(0)->getMemoryPtr();
+            auto outMem = outNode->second->getSrcMemoryAtPort(0);
             outputMemElse.push_back(outMem);
         } else {
-            OPENVINO_THROW("Else body of node If with name ", getName(), " does not have output with name: ", inputID);
+            OPENVINO_THROW("Else body of node If with name ", getName(), " does not have output with name: ", out->get_friendly_name());
         }
     }
 
@@ -199,7 +199,7 @@ void If::prepareBeforeMappers(const bool isThen, const dnnl::engine& eng) {
     auto &inputMems = isThen ? inputMemThen : inputMemElse;
     auto &beforeMappers = isThen ? beforeThenMappers : beforeElseMappers;
     for (auto& map_rule : inputPortMap) {
-        auto fromMem = getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
+        auto fromMem = getSrcMemoryAtPort(map_rule.from);
         auto& toMems = inputMems[map_rule.to];
         // Check precision between If node input/output and it's subgrapsh input/output.
         for (const auto& toMem : toMems) {
@@ -244,7 +244,7 @@ std::deque<MemoryPtr> If::getToMemories(const Node* node, const size_t port) con
 }
 
 void If::execute(dnnl::stream strm) {
-    const bool condition = static_cast<const bool>((reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->getData()))[0]);
+    const bool condition = static_cast<const bool>((getSrcDataAtPortAs<const uint8_t>(0))[0]);
 
     auto& beforeMappers = condition ? beforeThenMappers : beforeElseMappers;
     auto& afterMappers = condition ? afterThenMappers : afterElseMappers;

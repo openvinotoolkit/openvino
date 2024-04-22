@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -17,7 +17,7 @@ foreach(test_source ${tests})
     add_fuzzer(${test_name} ${test_source})
 
     target_link_libraries(${test_name} PRIVATE
-        openvino::runtime cnpy zlib)
+        openvino::runtime openvino::cnpy openvino::zlib)
 
     add_dependencies(fuzz ${test_name})
 

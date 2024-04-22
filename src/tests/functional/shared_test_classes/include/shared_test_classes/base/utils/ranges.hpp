@@ -72,6 +72,7 @@
 #include "openvino/op/swish.hpp"
 #include "openvino/op/tan.hpp"
 #include "openvino/op/tanh.hpp"
+#include "openvino/op/max_pool.hpp"
 
 namespace ov {
 namespace test {
@@ -145,6 +146,7 @@ static std::map<ov::NodeTypeInfo, std::vector<std::vector<ov::test::utils::Input
         { ov::op::v5::HSigmoid::get_type_info_static(), {{{0, 15}}, {{-1, 2, 32768}}} },
         { ov::op::v5::Round::get_type_info_static(), {{{0, 15}}, {{-10, 20, 4}}} },
         { ov::op::v7::Gelu::get_type_info_static(), {{{0, 15}}, {{-1, 2, 32768}}} },
+        { ov::op::v8::MaxPool::get_type_info_static(), {{{0, 10, 1, 1}}, {{0, 10, 1, 1}}} },
         { ov::op::v9::SoftSign::get_type_info_static(), {{{0, 15}}, {{-100, 200, 32768}}} },
 };
 

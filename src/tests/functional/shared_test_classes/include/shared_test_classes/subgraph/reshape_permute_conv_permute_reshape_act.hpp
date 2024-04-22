@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,6 @@
 #include <memory>
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
 
 namespace ov {
 namespace test {

@@ -17,7 +17,7 @@
 
 2. Add operation to the dedicated opset file `src/core/include/openvino/opsets/opsetX_tbl.hpp`
 
-3. Implement `evaluate` method for the operation (reference implementation) in the `openvino/core/reference/[src|include]/ngraph/runtime/reference/`. Reference implementation can be called from Template plugin or from OpenVINO (`src/core/src/op/your_operation_name.cpp/hpp`). 
+3. Implement `evaluate` method for the operation (reference implementation) in the `openvino/core/[src|include/openvino]/op/`. Reference implementation can be called from Template plugin or from OpenVINO.
 To not increase the binary size of openvino lib it should be placed in Template plugin unless you are directly asked to put it in the OpenVINO core. While adding reference implementation the following points should be considered:
    * The method should avoid using the template parameters if possible. However, for the small operations like activation functions it is acceptable.
    * The method should be instantiated for practical data types only.

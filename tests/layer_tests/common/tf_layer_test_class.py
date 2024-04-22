@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from common.layer_test_class import CommonLayerTest
@@ -32,6 +32,9 @@ class CommonTFLayerTest(CommonLayerTest):
 
         graph_summary = summarize_graph(model_path=model_path)
         outputs_list = graph_summary["outputs"]
+        fw_outputs_list = [out + ":0" for out in outputs_list]
+        if not self.use_legacy_frontend:
+            outputs_list = fw_outputs_list
 
         tf.compat.v1.reset_default_graph()
 
@@ -42,7 +45,7 @@ class CommonTFLayerTest(CommonLayerTest):
                 sess.graph.as_default()
                 tf.compat.v1.import_graph_def(graph_def, name='')
 
-                tf_res = sess.run([out + ":0" for out in outputs_list], inputs_dict)
+                tf_res = sess.run(fw_outputs_list, inputs_dict)
 
                 result = dict()
                 for i, output in enumerate(outputs_list):
@@ -58,4 +61,4 @@ class CommonTFLayerTest(CommonLayerTest):
             return self.get_tf_results(inputs_dict, model_path)
         else:
             # get results from tflite
-            return get_tflite_results(self.use_new_frontend, inputs_dict, model_path)
+            return get_tflite_results(self.use_legacy_frontend, inputs_dict, model_path)

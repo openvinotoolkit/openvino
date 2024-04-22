@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,13 +10,12 @@
 #ifndef _WIN32
 #    include <unistd.h>
 #endif
-#include <xml_parse_utils.h>
 
-#include "cpp/ie_cnn_network.h"
-#include "details/ie_exception.hpp"
-#include "file_utils.h"
 #include "itt.hpp"
+#include "openvino/core/parallel.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/util/file_util.hpp"
+#include "openvino/util/xml_parse_utils.hpp"
 #include "transformations/hash.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
@@ -40,18 +39,6 @@ static int32_t as_int32_t(T v) {
 
 }  // namespace ov
 
-namespace {
-
-uint64_t calculate_td(const InferenceEngine::TensorDesc& td, uint64_t _seed) {
-    uint64_t seed = _seed;
-
-    seed = ov::hash_combine(seed, ov::as_int32_t(td.getPrecision()));
-    seed = ov::hash_combine(seed, ov::as_int32_t(td.getLayout()));
-    return seed;
-}
-
-}  // namespace
-
 namespace ov {
 
 std::string ModelCache::calculate_file_info(const std::string& filePath) {
@@ -59,7 +46,7 @@ std::string ModelCache::calculate_file_info(const std::string& filePath) {
     auto absPath = filePath;
     if (filePath.size() > 0) {
         try {
-            absPath = FileUtils::absoluteFilePath(filePath);
+            absPath = ov::util::get_absolute_file_path(filePath);
         } catch (std::runtime_error&) {
             // can't get absolute path, will use filePath for hash
         }
@@ -103,41 +90,6 @@ std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& mod
         }
     }
 
-    // 4. Legacy part if CNNNetwork is used with new Plugin API
-    for (auto&& input : model->inputs()) {
-        auto& rt_info = input.get_rt_info();
-
-        auto it = rt_info.find("ie_legacy_td");
-        if (it != rt_info.end()) {
-            seed = calculate_td(it->second.as<InferenceEngine::TensorDesc>(), seed);
-        }
-
-        it = rt_info.find("ie_legacy_preproc");
-        if (it != rt_info.end()) {
-            auto preproc = it->second.as<InferenceEngine::PreProcessInfo>();
-
-            seed = ov::hash_combine(seed, ov::as_int32_t(preproc.getMeanVariant()));
-
-            if (preproc.getMeanVariant() == InferenceEngine::MeanVariant::MEAN_VALUE) {
-                seed = ov::hash_combine(seed, preproc.getNumberOfChannels());
-                for (size_t c = 0; c < preproc.getNumberOfChannels(); ++c) {
-                    const InferenceEngine::PreProcessChannel::Ptr& channelInfo = preproc[c];
-                    seed = ov::hash_combine(seed, channelInfo->stdScale);
-                    seed = ov::hash_combine(seed, channelInfo->meanValue);
-                }
-            } else if (preproc.getMeanVariant() == InferenceEngine::MeanVariant::MEAN_IMAGE) {
-                // TODO: think if we need to compute hash for mean image if it exists
-            }
-        }
-    }
-    for (auto&& output : model->outputs()) {
-        auto& rt_info = output.get_rt_info();
-        auto it = rt_info.find("ie_legacy_td");
-        if (it != rt_info.end()) {
-            seed = calculate_td(it->second.as<InferenceEngine::TensorDesc>(), seed);
-        }
-    }
-
     return std::to_string(seed);
 }
 
@@ -145,7 +97,7 @@ std::string ModelCache::compute_hash(const std::string& modelName, const ov::Any
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ModelCache::compute_hash - ModelName");
     uint64_t seed = 0;
     try {
-        seed = hash_combine(seed, FileUtils::absoluteFilePath(modelName));
+        seed = hash_combine(seed, ov::util::get_absolute_file_path(modelName));
     } catch (...) {
         // can't get absolute path, use modelName for hash calculation
         seed = hash_combine(seed, modelName);
@@ -170,8 +122,35 @@ std::string ModelCache::compute_hash(const std::string& modelStr,
 
         auto ptr = static_cast<size_t*>(tensor.data());
         size_t size = tensor.get_size() / sizeof(size_t);
-        for (size_t i = 0; i < size; i++)
-            seed = hash_combine(seed, ptr[i]);
+
+        // 10MB block size in size_t
+        const size_t block_size = 10000000 / sizeof(size_t);
+        size_t blocks_num = size / block_size;
+        std::vector<uint64_t> block_hashes(blocks_num + 1, 0);
+
+        ov::parallel_for(blocks_num, [&](size_t block_idx) {
+            uint64_t local_hash = 0;
+            auto local_ptr = ptr + block_size * block_idx;
+            for (size_t i = 0; i < block_size; i++) {
+                local_hash = hash_combine(local_hash, local_ptr[i]);
+            }
+            block_hashes[block_idx] = local_hash;
+        });
+
+        {
+            uint64_t local_hash = 0;
+            auto local_ptr = ptr + block_size * blocks_num;
+            auto elements_left = size - block_size * blocks_num;
+            for (size_t i = 0; i < elements_left; i++) {
+                local_hash = hash_combine(local_hash, local_ptr[i]);
+            }
+            block_hashes[blocks_num] = local_hash;
+        }
+
+        for (auto hash : block_hashes) {
+            seed = hash_combine(seed, hash);
+        }
+
         auto size_done = size * sizeof(size_t);
         auto ptr_left = static_cast<uint8_t*>(tensor.data()) + size_done;
         size_t size_left = tensor.get_size() - size_done;
@@ -203,15 +182,12 @@ std::istream& operator>>(std::istream& stream, CompiledBlobHeader& header) {
 
     pugi::xml_document document;
     pugi::xml_parse_result res = document.load_string(xmlStr.c_str());
-
-    if (res.status != pugi::status_ok) {
-        IE_THROW(NetworkNotRead) << "Error reading compiled blob header";
-    }
+    OPENVINO_ASSERT(res.status == pugi::status_ok, "Error reading compiled blob header");
 
     pugi::xml_node compiledBlobNode = document.document_element();
-    header.m_ieVersion = pugixml::utils::GetStrAttr(compiledBlobNode, "ie_version");
-    header.m_fileInfo = pugixml::utils::GetStrAttr(compiledBlobNode, "file_info");
-    header.m_runtimeInfo = pugixml::utils::GetStrAttr(compiledBlobNode, "runtime_info");
+    header.m_ieVersion = ov::util::pugixml::get_str_attr(compiledBlobNode, "ie_version");
+    header.m_fileInfo = ov::util::pugixml::get_str_attr(compiledBlobNode, "file_info");
+    header.m_runtimeInfo = ov::util::pugixml::get_str_attr(compiledBlobNode, "runtime_info");
 
     return stream;
 }

@@ -50,15 +50,15 @@ CommonDispatchData SetDefault(const bucketize_params& kernel_params) {
 
 }  // namespace
 
-KernelsData BucketizeKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData BucketizeKernelRef::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
     auto kernel_data = KernelData::Default<bucketize_params>(params);
     const auto& kernel_params = dynamic_cast<const bucketize_params&>(*kernel_data.params);
     const auto dispatch_data = SetDefault(kernel_params);
-    const auto entry_point = GetEntryPoint(kernelName, kernel_params.layerID, params, options);
+    const auto entry_point = GetEntryPoint(kernelName, kernel_params.layerID, params);
     const auto jit_constants = GetJitConstants(kernel_params);
     const auto jit = CreateJit(kernelName, jit_constants, entry_point);
     auto& kernel = kernel_data.kernels.front();
@@ -82,8 +82,8 @@ ParamsKey BucketizeKernelRef::GetSupportedKey() const {
     return key;
 }
 
-bool BucketizeKernelRef::Validate(const Params& params, const optional_params& options) const {
-    if (params.GetType() != KernelType::BUCKETIZE || options.GetType() != KernelType::BUCKETIZE) {
+bool BucketizeKernelRef::Validate(const Params& params) const {
+    if (params.GetType() != KernelType::BUCKETIZE) {
         return false;
     }
 

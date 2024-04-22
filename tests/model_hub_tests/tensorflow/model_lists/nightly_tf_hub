@@ -1,0 +1,689 @@
+universal-sentence-encoder,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/universal-sentence-encoder/versions/2,xfail,128994 127962 128995 128996 unsupported operations LookupTableFindV2 LookupTableSizeV2 SparseFillEmptyRows StaticRegexReplace StringSplit StringToHashBucketFast
+imagenet/mobilenet_v1_100_224/classification,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/100-224-classification/versions/2
+imagenet/mobilenet_v2_100_224/classification,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/100-224-classification/versions/2
+universal-sentence-encoder-multilingual,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/multilingual/versions/2
+universal-sentence-encoder-large,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/large/versions/2,xfail,128994 127962 128995 128996 unsupported operations LookupTableFindV2 LookupTableSizeV2 SparseFillEmptyRows StaticRegexReplace StringSplit StringToHashBucketFast
+imagenet/mobilenet_v2_075_224/classification,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/075-224-classification/versions/2
+movenet/singlepose/lightning,https://www.kaggle.com/models/google/movenet/frameworks/tensorFlow2/variations/singlepose-lightning/versions/4
+imagenet/mobilenet_v1_025_224/classification,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/025-224-classification/versions/2
+bert_en_uncased_preprocess,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/en-uncased-preprocess/versions/3,xfail,128989 AttributeError NoneType object has no attribute shape or dtype
+tf2-preview/mobilenet_v2/feature_vector,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/tf2-preview-feature-vector/versions/4,xfail,120721 AssertionError No signatures for a model
+magenta/arbitrary-image-stylization-v1-256,https://www.kaggle.com/models/google/arbitrary-image-stylization-v1/frameworks/tensorFlow1/variations/256/versions/2
+nnlm-en-dim128,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/en-dim128/versions/1,skip,120721 AssertionError No signatures for a model
+bert_en_uncased_L-12_H-768_A-12,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/en-uncased-l-12-h-768-a-12/versions/4
+bert_uncased_L-12_H-768_A-12,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/uncased-l-12-h-768-a-12/versions/1,xfail,129153 TimeoutError or killed with a signal 11
+elmo,https://www.kaggle.com/models/google/elmo/frameworks/tensorFlow1/variations/elmo/versions/3
+universal-sentence-encoder-multilingual-large,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/multilingual-large/versions/2,xfail,129830 unsupported operations RaggedTensorToSparse SegmentMean SentencepieceOp SentencepieceTokenizeOp
+small_bert/bert_en_uncased_L-4_H-256_A-4,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/bert-en-uncased-l-4-h-256-a-4/versions/2
+imagenet/resnet_v2_50/feature_vector,https://www.kaggle.com/models/google/resnet-v2/frameworks/tensorFlow2/variations/50-feature-vector/versions/2
+spice,https://www.kaggle.com/models/google/spice/frameworks/tensorFlow1/variations/spice/versions/2,xfail,128817 Model references undeclared parameters
+movenet/singlepose/thunder,https://www.kaggle.com/models/google/movenet/frameworks/tensorFlow2/variations/singlepose-thunder/versions/4
+yamnet,https://www.kaggle.com/models/google/yamnet/frameworks/tensorFlow2/variations/yamnet/versions/1
+tf2-preview/nnlm-en-dim128,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/tf2-preview-en-dim128/versions/1,skip,120721 AssertionError No signatures for a model
+universal-sentence-encoder-lite,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow1/variations/lite/versions/2,skip,128817 Model references undeclared parameters
+tf2-preview/mobilenet_v2/classification,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/tf2-preview-classification/versions/4,skip,120721 AssertionError No signatures for a model
+imagenet/inception_v3/feature_vector,https://www.kaggle.com/models/google/inception-v3/frameworks/tensorFlow2/variations/feature-vector/versions/2
+imagenet/mobilenet_v2_140_224/classification,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/140-224-classification/versions/2
+efficientnet/lite0/feature-vector,https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tensorFlow1/variations/lite0-feature-vector/versions/2
+i3d-kinetics-400,https://www.kaggle.com/models/deepmind/i3d-kinetics/frameworks/tensorFlow1/variations/400/versions/1
+imagenet/mobilenet_v2_035_224/classification,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/035-224-classification/versions/2
+tf2-preview/gnews-swivel-20dim,https://www.kaggle.com/models/google/gnews-swivel/frameworks/tensorFlow2/variations/tf2-preview-20dim/versions/1,skip,128989 AttributeError NoneType object has no attribute shape or dtype
+faster_rcnn/openimages_v4/inception_resnet_v2,https://www.kaggle.com/models/google/faster-rcnn-inception-resnet-v2/frameworks/tensorFlow1/variations/faster-rcnn-openimages-v4-inception-resnet-v2/versions/1,xfail,127962 unsupported operation LookupTableFindV2
+imagenet/mobilenet_v2_140_224/feature_vector,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/140-224-feature-vector/versions/2
+imagenet/mobilenet_v2_100_224/feature_vector,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/100-224-feature-vector/versions/2
+bert_en_cased_L-12_H-768_A-12,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/en-cased-l-12-h-768-a-12/versions/4
+universal-sentence-encoder-cmlm/en-base,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/cmlm-en-base/versions/1
+openimages_v4/ssd/mobilenet_v2,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow1/variations/openimages-v4-ssd-mobilenet-v2/versions/1
+efficientnet/lite0/classification,https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tensorFlow1/variations/lite0-classification/versions/2
+universal-sentence-encoder-xling-many,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow1/variations/xling-many/versions/1
+imagenet/mobilenet_v3_large_100_224/classification,https://www.kaggle.com/models/google/mobilenet-v3/frameworks/tensorFlow2/variations/large-100-224-classification/versions/1
+nnlm-en-dim128-with-normalization,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/en-dim128-with-normalization/versions/1,skip,120721 AssertionError No signatures for a model
+nnlm-en-dim50,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/en-dim50/versions/1,skip,120721 AssertionError No signatures for a model
+movenet/multipose/lightning,https://www.kaggle.com/models/google/movenet/frameworks/tensorFlow2/variations/multipose-lightning/versions/1
+efficientdet/lite0/feature-vector,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/lite0-feature-vector/versions/1
+imagenet/efficientnet_v2_imagenet1k_b0/feature_vector,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet1k-b0-feature-vector/versions/2
+small_bert/bert_en_uncased_L-4_H-512_A-8,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/bert-en-uncased-l-4-h-512-a-8/versions/2
+universal-sentence-encoder-cmlm/multilingual-preprocess,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/cmlm-multilingual-preprocess/versions/2,skip,128989 AttributeError NoneType object has no attribute shape or dtype
+vggish,https://www.kaggle.com/models/google/vggish/frameworks/tensorFlow2/variations/vggish/versions/1,skip,120721 AssertionError No signatures for a model
+bert_multi_cased_L-12_H-768_A-12,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/multi-cased-l-12-h-768-a-12/versions/4
+imagenet/mobilenet_v2_130_224/classification,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/130-224-classification/versions/2
+tf2-preview/inception_v3/feature_vector,https://www.kaggle.com/models/google/inception-v3/frameworks/tensorFlow2/variations/tf2-preview-feature-vector/versions/4,skip,120721 AssertionError No signatures for a model
+mobilebert/uncased_L-24_H-128_B-512_A-4_F-4_OPT,https://www.kaggle.com/models/google/mobilebert/frameworks/tensorFlow1/variations/uncased-l-24-h-128-b-512-a-4-f-4-opt/versions/1
+bert_en_uncased_L-24_H-1024_A-16,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/en-uncased-l-24-h-1024-a-16/versions/4
+imagenet/mobilenet_v3_small_100_224/feature_vector,https://www.kaggle.com/models/google/mobilenet-v3/frameworks/tensorFlow2/variations/small-100-224-feature-vector/versions/1
+efficientdet/lite0/detection,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/lite0-detection/versions/1
+small_bert/bert_en_uncased_L-2_H-128_A-2,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/bert-en-uncased-l-2-h-128-a-2/versions/2
+albert_base,https://www.kaggle.com/models/google/albert/frameworks/tensorFlow1/variations/base/versions/3,skip,129153 TimeoutError or killed with a signal 11
+nnlm-ja-dim128,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/ja-dim128/versions/1,skip,120721 AssertionError No signatures for a model
+universal-sentence-encoder-multilingual-qa,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/multilingual-qa/versions/2,xfail,129830 unsupported operations RaggedTensorToSparse SegmentMean SentencepieceOp SentencepieceTokenizeOp
+nnlm-ja-dim128-with-normalization,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/ja-dim128-with-normalization/versions/1,skip,120721 AssertionError No signatures for a model
+LaBSE,https://www.kaggle.com/models/google/labse/frameworks/tensorFlow2/variations/labse/versions/2
+nnlm-en-dim50-with-normalization,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/en-dim50-with-normalization/versions/1,skip,120721 AssertionError No signatures for a model
+resnet_50/feature_vector,https://www.kaggle.com/models/tensorflow/resnet-50/frameworks/tensorFlow2/variations/feature-vector/versions/1
+universal-sentence-encoder-qa,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/qa/versions/2,xfail,127962 128994 128995 128996 unsupported operations LookupTableFindV2 LookupTableSizeV2 StaticRegexReplace StringSplit StringToHashBucketFast
+biggan-deep-256,https://www.kaggle.com/models/deepmind/biggan/frameworks/tensorFlow1/variations/deep-256/versions/1
+efficientdet/lite2/detection,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/lite2-detection/versions/1
+imagenet/mobilenet_v2_050_224/classification,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/050-224-classification/versions/2
+mobilebert/uncased_L-24_H-128_B-512_A-4_F-4_OPT/squadv1,https://www.kaggle.com/models/google/mobilebert/frameworks/tensorFlow1/variations/uncased-l-24-h-128-b-512-a-4-f-4-opt-squadv1/versions/1
+delf,https://www.kaggle.com/models/google/delf/frameworks/tensorFlow1/variations/delf/versions/1
+ssd_mobilenet_v2,https://www.kaggle.com/models/tensorflow/ssd-mobilenet-v2/frameworks/tensorFlow2/variations/ssd-mobilenet-v2/versions/1
+imagenet/mobilenet_v3_large_075_224/feature_vector,https://www.kaggle.com/models/google/mobilenet-v3/frameworks/tensorFlow2/variations/large-075-224-feature-vector/versions/1
+centernet/hourglass_512x512_kpts,https://www.kaggle.com/models/tensorflow/centernet-hourglass/frameworks/tensorFlow2/variations/512x512-kpts/versions/1,skip,129153 TimeoutError or killed with a signal 11
+bert_cased_L-12_H-768_A-12,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/cased-l-12-h-768-a-12/versions/1,skip,129153 TimeoutError or killed with a signal 11
+biggan-512,https://www.kaggle.com/models/deepmind/biggan/frameworks/tensorFlow1/variations/512/versions/2
+tf2-preview/gnews-swivel-20dim-with-oov,https://www.kaggle.com/models/google/gnews-swivel/frameworks/tensorFlow2/variations/tf2-preview-20dim-with-oov/versions/1,skip,128989 AttributeError NoneType object has no attribute shape or dtype
+tf2-preview/nnlm-es-dim50-with-normalization,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/tf2-preview-es-dim50-with-normalization/versions/1,skip,120721 AssertionError No signatures for a model
+efficientnet/b4/feature-vector,https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tensorFlow2/variations/b4-feature-vector/versions/1
+enformer,https://www.kaggle.com/models/deepmind/enformer/frameworks/tensorFlow2/variations/enformer/versions/1,skip,120721 AssertionError No signatures for a model
+efficientnet/b0/feature-vector,https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tensorFlow2/variations/b0-feature-vector/versions/1
+efficientnet/b0/feature-vector,https://www.kaggle.com/models/google/efficientnet/frameworks/tensorFlow1/variations/b0-feature-vector/versions/1
+aiy/vision/classifier/food_V1,https://www.kaggle.com/models/google/aiy/frameworks/tensorFlow1/variations/vision-classifier-food-v1/versions/1
+albert_en_base,https://www.kaggle.com/models/tensorflow/albert/frameworks/tensorFlow2/variations/en-base/versions/3
+imagenet/inception_v3/classification,https://www.kaggle.com/models/google/inception-v3/frameworks/tensorFlow2/variations/classification/versions/2
+nonsemantic-speech-benchmark/trill-distilled,https://www.kaggle.com/models/google/nonsemantic-speech-benchmark/frameworks/tensorFlow2/variations/trill-distilled/versions/3,skip,120721 AssertionError No signatures for a model
+efficientnet/lite4/feature-vector,https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tensorFlow1/variations/lite4-feature-vector/versions/2
+resnet_50/classification,https://www.kaggle.com/models/tensorflow/resnet-50/frameworks/tensorFlow2/variations/classification/versions/1
+imagenet/efficientnet_v2_imagenet21k_ft1k_m/feature_vector,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-ft1k-m-feature-vector/versions/2
+imagenet/inception_v1/classification,https://www.kaggle.com/models/google/inception-v1/frameworks/tensorFlow2/variations/classification/versions/2
+bit/m-r50x1,https://www.kaggle.com/models/google/bit/frameworks/tensorFlow2/variations/m-r50x1/versions/1
+progan-128,https://www.kaggle.com/models/google/progan-128/frameworks/tensorFlow1/variations/progan-128/versions/1
+biggan-256,https://www.kaggle.com/models/deepmind/biggan/frameworks/tensorFlow1/variations/256/versions/2
+nnlm-de-dim50-with-normalization,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/de-dim50-with-normalization/versions/1,skip,120721 AssertionError No signatures for a model
+imagenet/efficientnet_v2_imagenet21k_b0/feature_vector,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-b0-feature-vector/versions/1
+bert_multi_cased_preprocess,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/multi-cased-preprocess/versions/3,skip,128989 AttributeError NoneType object has no attribute shape or dtype
+imagenet/efficientnet_v2_imagenet21k_xl/feature_vector,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-xl-feature-vector/versions/1
+efficientnet/lite2/feature-vector,https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tensorFlow1/variations/lite2-feature-vector/versions/2
+tfgan/eval/inception,https://www.kaggle.com/models/tensorflow/inception/frameworks/tensorFlow1/variations/tfgan-eval-inception/versions/1,skip,120721 AssertionError No signatures for a model
+efficientdet/lite2/feature-vector,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/lite2-feature-vector/versions/1
+albert_lite_base,https://www.kaggle.com/models/tensorflow/albert/frameworks/tensorFlow2/variations/lite-base/versions/1,xfail,120720 InvalidArgumentError Graph execution error
+efficientnet/lite1/feature-vector,https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tensorFlow1/variations/lite1-feature-vector/versions/2
+imagenet/mobilenet_v3_large_100_224/feature_vector,https://www.kaggle.com/models/google/mobilenet-v3/frameworks/tensorFlow2/variations/large-100-224-feature-vector/versions/1
+efficientnet/lite4/classification,https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tensorFlow1/variations/lite4-classification/versions/2
+Wiki-words-250,https://www.kaggle.com/models/google/wiki-words/frameworks/tensorFlow2/variations/250/versions/1,skip,120721 AssertionError No signatures for a model
+efficientnet/lite3/feature-vector,https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tensorFlow1/variations/lite3-feature-vector/versions/2
+imagenet/inception_resnet_v2/feature_vector,https://www.kaggle.com/models/google/inception-resnet-v2/frameworks/tensorFlow2/variations/feature-vector/versions/2
+efficientdet/d0,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/d0/versions/1
+tfgan/eval/mnist/logits,https://www.kaggle.com/models/tensorflow/mnist/frameworks/tensorFlow1/variations/logits/versions/1,skip,120721 AssertionError No signatures for a model
+albert_en_preprocess,https://www.kaggle.com/models/tensorflow/albert/frameworks/tensorFlow2/variations/en-preprocess/versions/3,skip,128989 AttributeError NoneType object has no attribute shape or dtype
+bert_zh_L-12_H-768_A-12,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/zh-l-12-h-768-a-12/versions/4
+efficientdet/lite4/feature-vector,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/lite4-feature-vector/versions/2
+imagenet/mobilenet_v1_100_224/feature_vector,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/100-224-feature-vector/versions/2
+bert_chinese_L-12_H-768_A-12,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/chinese-l-12-h-768-a-12/versions/1,skip,129153 TimeoutError or killed with a signal 11
+mask_rcnn/inception_resnet_v2_1024x1024,https://www.kaggle.com/models/tensorflow/mask-rcnn-inception-resnet-v2/frameworks/tensorFlow2/variations/1024x1024/versions/1,xfail,128695 Inference results mismatch
+object_detection/mobile_object_localizer_v1,https://www.kaggle.com/models/google/mobile-object-localizer-v1/frameworks/tensorFlow1/variations/object-detection-mobile-object-localizer-v1/versions/1
+efficientdet/lite3/detection,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/lite3-detection/versions/1
+tf2-preview/inception_v3/classification,https://www.kaggle.com/models/google/inception-v3/frameworks/tensorFlow2/variations/tf2-preview-classification/versions/4,skip,120721 AssertionError No signatures for a model
+imagenet/mobilenet_v2_035_96/classification,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/035-96-classification/versions/2
+faster_rcnn/inception_resnet_v2_640x640,https://www.kaggle.com/models/tensorflow/faster-rcnn-inception-resnet-v2/frameworks/tensorFlow2/variations/640x640/versions/1
+imagenet/resnet_v2_50/classification,https://www.kaggle.com/models/google/resnet-v2/frameworks/tensorFlow2/variations/50-classification/versions/2
+aiy/vision/classifier/birds_V1,https://www.kaggle.com/models/google/aiy/frameworks/tensorFlow1/variations/vision-classifier-birds-v1/versions/1
+MuRIL,https://www.kaggle.com/models/google/muril/frameworks/tensorFlow2/variations/muril/versions/1
+efficientdet/lite1/feature-vector,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/lite1-feature-vector/versions/1
+random-nnlm-en-dim128,https://www.kaggle.com/models/google/random-nnlm-en/frameworks/tensorFlow1/variations/dim128/versions/1,xfail,127962 128995 128996 unsupported operations LookupTableFindV2 LookupTableSizeV2 SparseFillEmptyRows SparseSegmentSqrtN StringSplit StringToHashBucketFast
+imagenet/inception_resnet_v2/classification,https://www.kaggle.com/models/google/inception-resnet-v2/frameworks/tensorFlow2/variations/classification/versions/2
+ssd_mobilenet_v2/fpnlite_320x320,https://www.kaggle.com/models/tensorflow/ssd-mobilenet-v2/frameworks/tensorFlow2/variations/fpnlite-320x320/versions/1
+centernet/resnet50v1_fpn_512x512,https://www.kaggle.com/models/tensorflow/centernet-resnet/frameworks/tensorFlow2/variations/50v1-fpn-512x512/versions/1
+small_bert/bert_en_uncased_L-2_H-256_A-4,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/bert-en-uncased-l-2-h-256-a-4/versions/2
+imagenet/efficientnet_v2_imagenet1k_s/feature_vector,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet1k-s-feature-vector/versions/2
+biggan-deep-512,https://www.kaggle.com/models/deepmind/biggan/frameworks/tensorFlow1/variations/deep-512/versions/1
+universal-sentence-encoder-cmlm/multilingual-base-br,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/cmlm-multilingual-base-br/versions/1
+faster_rcnn/resnet50_v1_640x640,https://www.kaggle.com/models/tensorflow/faster-rcnn-resnet-v1/frameworks/tensorFlow2/variations/faster-rcnn-resnet50-v1-640x640/versions/1,skip,128695 Inference results mismatch
+imagenet/mobilenet_v3_large_075_224/classification,https://www.kaggle.com/models/google/mobilenet-v3/frameworks/tensorFlow2/variations/large-075-224-classification/versions/1
+imagenet/mobilenet_v3_small_075_224/classification,https://www.kaggle.com/models/google/mobilenet-v3/frameworks/tensorFlow2/variations/small-075-224-classification/versions/1
+tweening_conv3d_bair,https://www.kaggle.com/models/google/tweening-conv3d/frameworks/tensorFlow1/variations/bair/versions/1,skip,128817 Model references undeclared parameters
+efficientnet/b7/feature-vector,https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tensorFlow2/variations/b7-feature-vector/versions/1
+bert_en_cased_preprocess,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/en-cased-preprocess/versions/3,skip,128989 AttributeError NoneType object has no attribute shape or dtype
+bert_uncased_L-24_H-1024_A-16,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/uncased-l-24-h-1024-a-16/versions/1,skip,129153 TimeoutError or killed with a signal 11
+centernet/hourglass_512x512,https://www.kaggle.com/models/tensorflow/centernet-hourglass/frameworks/tensorFlow2/variations/512x512/versions/1
+imagenet/mobilenet_v2_035_128/feature_vector,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/035-128-feature-vector/versions/2
+efficientdet/d7,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/d7/versions/1
+albert_en_xxlarge,https://www.kaggle.com/models/tensorflow/albert/frameworks/tensorFlow2/variations/en-xxlarge/versions/3
+efficientnet/lite3/classification,https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tensorFlow1/variations/lite3-classification/versions/2
+efficientdet/lite3/feature-vector,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/lite3-feature-vector/versions/1
+MuRIL_preprocess,https://www.kaggle.com/models/google/muril/frameworks/tensorFlow2/variations/preprocess/versions/1,skip,128989 AttributeError NoneType object has no attribute shape or dtype
+imagenet/inception_v1/feature_vector,https://www.kaggle.com/models/google/inception-v1/frameworks/tensorFlow2/variations/feature-vector/versions/2
+efficientdet/lite3x/detection,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/lite3x-detection/versions/1
+midas/v2,https://www.kaggle.com/models/intel/midas/frameworks/tensorFlow1/variations/v2/versions/2
+universal-sentence-encoder-cmlm/multilingual-base,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/cmlm-multilingual-base/versions/1
+imagenet/mobilenet_v1_075_224/feature_vector,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/075-224-feature-vector/versions/2
+bit/m-r50x1/ilsvrc2012_classification,https://www.kaggle.com/models/google/bit/frameworks/tensorFlow2/variations/m-r50x1-ilsvrc2012-classification/versions/1
+imagenet/efficientnet_v2_imagenet1k_s/classification,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet1k-s-classification/versions/2
+nnlm-ja-dim50,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/ja-dim50/versions/1,skip,120721 AssertionError No signatures for a model
+electra_small,https://www.kaggle.com/models/google/electra/frameworks/tensorFlow2/variations/small/versions/2
+nonsemantic-speech-benchmark/trill,https://www.kaggle.com/models/google/nonsemantic-speech-benchmark/frameworks/tensorFlow2/variations/trill/versions/3,skip,120721 AssertionError No signatures for a model
+bigbigan-resnet50,https://www.kaggle.com/models/deepmind/bigbigan/frameworks/tensorFlow1/variations/resnet50/versions/1
+imagenet/resnet_v2_152/feature_vector,https://www.kaggle.com/models/google/resnet-v2/frameworks/tensorFlow2/variations/152-feature-vector/versions/2
+efficientnet/lite2/classification,https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tensorFlow1/variations/lite2-classification/versions/2
+experts/bert/pubmed,https://www.kaggle.com/models/google/experts-bert/frameworks/tensorFlow2/variations/pubmed/versions/2
+faster_rcnn/inception_resnet_v2_1024x1024,https://www.kaggle.com/models/tensorflow/faster-rcnn-inception-resnet-v2/frameworks/tensorFlow2/variations/1024x1024/versions/1
+ssd_mobilenet_v2/fpnlite_640x640,https://www.kaggle.com/models/tensorflow/ssd-mobilenet-v2/frameworks/tensorFlow2/variations/fpnlite-640x640/versions/1
+imagenet/resnet_v1_50/classification,https://www.kaggle.com/models/google/resnet-v1/frameworks/tensorFlow2/variations/50-classification/versions/2
+movinet/a5/base/kinetics-600/classification,https://www.kaggle.com/models/google/movinet/frameworks/tensorFlow2/variations/a5-base-kinetics-600-classification/versions/3
+biggan-128,https://www.kaggle.com/models/deepmind/biggan/frameworks/tensorFlow1/variations/128/versions/2
+Wiki-words-250-with-normalization,https://www.kaggle.com/models/google/wiki-words/frameworks/tensorFlow2/variations/250-with-normalization/versions/1,skip,120721 AssertionError No signatures for a model
+sentence-t5/st5-base,https://www.kaggle.com/models/google/sentence-t5/frameworks/tensorFlow2/variations/st5-base/versions/1
+movinet/a2/base/kinetics-600/classification,https://www.kaggle.com/models/google/movinet/frameworks/tensorFlow2/variations/a2-base-kinetics-600-classification/versions/3
+bert_zh_preprocess,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/zh-preprocess/versions/3,skip,128989 AttributeError NoneType object has no attribute shape or dtype
+bert_en_cased_L-24_H-1024_A-16,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/en-cased-l-24-h-1024-a-16/versions/4
+inaturalist/inception_v3/feature_vector,https://www.kaggle.com/models/google/inception-v3/frameworks/tensorFlow2/variations/inaturalist-inception-v3-feature-vector/versions/2
+efficientnet/lite1/classification,https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tensorFlow1/variations/lite1-classification/versions/2
+wav2vec2,https://www.kaggle.com/models/kaggle/wav2vec2/frameworks/tensorFlow2/variations/wav2vec2/versions/1
+experts/bert/wiki_books,https://www.kaggle.com/models/google/experts-bert/frameworks/tensorFlow2/variations/wiki-books/versions/2
+retinanet/resnet50_v1_fpn_640x640,https://www.kaggle.com/models/tensorflow/retinanet-resnet/frameworks/tensorFlow2/variations/50-v1-fpn-640x640/versions/1
+bert_en_wwm_uncased_L-24_H-1024_A-16,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/en-wwm-uncased-l-24-h-1024-a-16/versions/4
+cropnet/classifier/cassava_disease_V1,https://www.kaggle.com/models/google/cropnet/frameworks/tensorFlow2/variations/classifier-cassava-disease-v1/versions/1,skip,120721 AssertionError No signatures for a model
+midas/v2_1_small,https://www.kaggle.com/models/intel/midas/frameworks/tensorFlow1/variations/v2-1-small/versions/1
+object_detection/mobile_object_labeler_v1,https://www.kaggle.com/models/google/mobile-object-labeler-v1/frameworks/tensorFlow1/variations/object-detection-mobile-object-labeler-v1/versions/1
+imagenet/resnet_v2_101/classification,https://www.kaggle.com/models/google/resnet-v2/frameworks/tensorFlow2/variations/101-classification/versions/2
+electra_base,https://www.kaggle.com/models/google/electra/frameworks/tensorFlow2/variations/base/versions/2
+efficientdet/d4,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/d4/versions/1
+small_bert/bert_en_uncased_L-6_H-512_A-8,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/bert-en-uncased-l-6-h-512-a-8/versions/2
+mobilebert_multi_cased_L-24_H-128_B-512_A-4_F-4_OPT,https://www.kaggle.com/models/tensorflow/mobilebert/frameworks/tensorFlow2/variations/multi-cased-l-24-h-128-b-512-a-4-f-4-opt/versions/1,skip,120720 InvalidArgumentError Graph execution error
+i3d-kinetics-600,https://www.kaggle.com/models/deepmind/i3d-kinetics/frameworks/tensorFlow1/variations/600/versions/1
+imagenet/efficientnet_v2_imagenet21k_s/feature_vector,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-s-feature-vector/versions/2
+efficientdet/d1,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/d1/versions/1,skip,128695 Inference results mismatch
+nnlm-de-dim50,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/de-dim50/versions/1,skip,120721 AssertionError No signatures for a model
+ganeval-cifar10-convnet,https://www.kaggle.com/models/deepmind/ganeval-cifar10-convnet/frameworks/tensorFlow1/variations/ganeval-cifar10-convnet/versions/1
+musiq/ava,https://www.kaggle.com/models/google/musiq/frameworks/tensorFlow2/variations/ava/versions/1
+talkheads_ggelu_bert_en_base,https://www.kaggle.com/models/tensorflow/talkheads-ggelu-bert-en/frameworks/tensorFlow2/variations/base/versions/2
+nnlm-es-dim128,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/es-dim128/versions/1,skip,120721 AssertionError No signatures for a model
+esrgan-tf2,https://www.kaggle.com/models/kaggle/esrgan-tf2/frameworks/tensorFlow2/variations/esrgan-tf2/versions/1
+imagenet/mobilenet_v3_small_075_224/feature_vector,https://www.kaggle.com/models/google/mobilenet-v3/frameworks/tensorFlow2/variations/small-075-224-feature-vector/versions/1
+efficientnet/b2/feature-vector,https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tensorFlow2/variations/b2-feature-vector/versions/1
+efficientnet/b7/classification,https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tensorFlow2/variations/b7-classification/versions/1
+small_bert/bert_en_uncased_L-12_H-256_A-4,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/bert-en-uncased-l-12-h-256-a-4/versions/2
+imagenet/efficientnet_v2_imagenet21k_ft1k_xl/feature_vector,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-ft1k-xl-feature-vector/versions/1
+ssd_mobilenet_v1/fpn_640x640,https://www.kaggle.com/models/tensorflow/ssd-mobilenet-v1/frameworks/tensorFlow2/variations/fpn-640x640/versions/1
+mil-nce/s3d,https://www.kaggle.com/models/deepmind/mil-nce/frameworks/tensorFlow1/variations/s3d/versions/1,xfail,127962 129654 128996 unsupported operations LookupTableFindV2 StringLower StringSplitV2
+imagenet/nasnet_mobile/feature_vector,https://www.kaggle.com/models/google/nasnet/frameworks/tensorFlow2/variations/mobile-feature-vector/versions/2
+efficientnet/b4/feature-vector,https://www.kaggle.com/models/google/efficientnet/frameworks/tensorFlow1/variations/b4-feature-vector/versions/1
+imagenet/efficientnet_v2_imagenet21k_m/feature_vector,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-m-feature-vector/versions/2
+efficientdet/d2,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/d2/versions/1,skip,128695 Inference results mismatch
+Wiki-words-500,https://www.kaggle.com/models/google/wiki-words/frameworks/tensorFlow2/variations/500/versions/1,skip,120721 AssertionError No signatures for a model
+imagenet/inception_v2/feature_vector,https://www.kaggle.com/models/google/inception-v2/frameworks/tensorFlow2/variations/feature-vector/versions/2
+disease-classification,https://www.kaggle.com/models/agripredict/disease-classification/frameworks/tensorFlow2/variations/disease-classification/versions/1
+biggan-deep-128,https://www.kaggle.com/models/deepmind/biggan/frameworks/tensorFlow1/variations/deep-128/versions/1
+bit/m-r101x3,https://www.kaggle.com/models/google/bit/frameworks/tensorFlow2/variations/m-r101x3/versions/1
+centernet/hourglass_1024x1024,https://www.kaggle.com/models/tensorflow/centernet-hourglass/frameworks/tensorFlow2/variations/1024x1024/versions/1,skip,129153 TimeoutError or killed with a signal 11
+small_bert/bert_en_uncased_L-12_H-128_A-2,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/bert-en-uncased-l-12-h-128-a-2/versions/2
+centernet/resnet50v2_512x512,https://www.kaggle.com/models/tensorflow/centernet-resnet/frameworks/tensorFlow2/variations/50v2-512x512/versions/1,skip,128695 Inference results mismatch
+imagenet/resnet_v2_152/classification,https://www.kaggle.com/models/google/resnet-v2/frameworks/tensorFlow2/variations/152-classification/versions/2
+imagenet/mobilenet_v1_075_160/feature_vector,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/075-160-feature-vector/versions/2
+aiy/vision/classifier/plants_V1,https://www.kaggle.com/models/google/aiy/frameworks/tensorFlow1/variations/vision-classifier-plants-v1/versions/1
+imagenet/pnasnet_large/feature_vector,https://www.kaggle.com/models/google/pnasnet/frameworks/tensorFlow2/variations/large-feature-vector/versions/2
+faster_rcnn/resnet101_v1_640x640,https://www.kaggle.com/models/tensorflow/faster-rcnn-resnet-v1/frameworks/tensorFlow2/variations/faster-rcnn-resnet101-v1-640x640/versions/1,skip,128695 Inference results mismatch
+imagenet/mobilenet_v2_130_224/feature_vector,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/130-224-feature-vector/versions/2
+nnlm-es-dim128-with-normalization,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/es-dim128-with-normalization/versions/1,skip,120721 AssertionError No signatures for a model
+bit/m-r50x1/imagenet21k_classification,https://www.kaggle.com/models/google/bit/frameworks/tensorFlow2/variations/m-r50x1-imagenet21k-classification/versions/1
+imagenet/resnet_v1_101/feature_vector,https://www.kaggle.com/models/google/resnet-v1/frameworks/tensorFlow2/variations/101-feature-vector/versions/2
+experts/bert/wiki_books/sst2,https://www.kaggle.com/models/google/experts-bert/frameworks/tensorFlow2/variations/wiki-books-sst2/versions/2
+retinanet/resnet152_v1_fpn_1024x1024,https://www.kaggle.com/models/tensorflow/retinanet-resnet/frameworks/tensorFlow2/variations/152-v1-fpn-1024x1024/versions/1
+small_bert/bert_en_uncased_L-6_H-256_A-4,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/bert-en-uncased-l-6-h-256-a-4/versions/2
+movinet/a0/base/kinetics-600/classification,https://www.kaggle.com/models/google/movinet/frameworks/tensorFlow2/variations/a0-base-kinetics-600-classification/versions/3
+imagenet/efficientnet_v2_imagenet21k_ft1k_b0/feature_vector,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-ft1k-b0-feature-vector/versions/1
+imagenet/resnet_v2_101/feature_vector,https://www.kaggle.com/models/google/resnet-v2/frameworks/tensorFlow2/variations/101-feature-vector/versions/2
+imagenet/efficientnet_v2_imagenet21k_l/feature_vector,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-l-feature-vector/versions/2
+imagenet/nasnet_large/classification,https://www.kaggle.com/models/google/nasnet/frameworks/tensorFlow2/variations/large-classification/versions/2
+faster_rcnn/resnet152_v1_1024x1024,https://www.kaggle.com/models/tensorflow/faster-rcnn-resnet-v1/frameworks/tensorFlow2/variations/faster-rcnn-resnet152-v1-1024x1024/versions/1,skip,128695 Inference results mismatch
+vit_s16_fe,https://www.kaggle.com/models/spsayakpaul/vision-transformer/frameworks/tensorFlow2/variations/vit-s16-fe/versions/1,xfail,118324 unsupported operation XlaGather
+zh_segmentation,https://www.kaggle.com/models/google/zh-segmentation/frameworks/tensorFlow1/variations/zh-segmentation/versions/1
+wiki40b-lm-es,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorFlow1/variations/es/versions/1
+centernet/resnet50v1_fpn_512x512_kpts,https://www.kaggle.com/models/tensorflow/centernet-resnet/frameworks/tensorFlow2/variations/50v1-fpn-512x512-kpts/versions/1
+nnlm-es-dim50-with-normalization,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/es-dim50-with-normalization/versions/1,skip,120721 AssertionError No signatures for a model
+efficientdet/d6,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/d6/versions/1,skip,128695 Inference results mismatch
+cord-19/swivel-128d,https://www.kaggle.com/models/tensorflow/cord-19-swivel-128d/frameworks/tensorFlow2/variations/cord-19-swivel-128d/versions/2,skip,120721 AssertionError No signatures for a model
+albert_large,https://www.kaggle.com/models/google/albert/frameworks/tensorFlow1/variations/large/versions/3,skip,129153 TimeoutError or killed with a signal 11
+centernet/resnet50v2_512x512_kpts,https://www.kaggle.com/models/tensorflow/centernet-resnet/frameworks/tensorFlow2/variations/50v2-512x512-kpts/versions/1
+efficientnet/b7/feature-vector,https://www.kaggle.com/models/google/efficientnet/frameworks/tensorFlow1/variations/b7-feature-vector/versions/1
+efficientnet/b5/feature-vector,https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tensorFlow2/variations/b5-feature-vector/versions/1
+imagenet/nasnet_large/feature_vector,https://www.kaggle.com/models/google/nasnet/frameworks/tensorFlow2/variations/large-feature-vector/versions/2
+centernet/resnet101v1_fpn_512x512,https://www.kaggle.com/models/tensorflow/centernet-resnet/frameworks/tensorFlow2/variations/101v1-fpn-512x512/versions/1,skip,129153 TimeoutError or killed with a signal 11
+retinanet/resnet152_v1_fpn_640x640,https://www.kaggle.com/models/tensorflow/retinanet-resnet/frameworks/tensorFlow2/variations/152-v1-fpn-640x640/versions/1
+movinet/a0/stream/kinetics-600/classification,https://www.kaggle.com/models/google/movinet/frameworks/tensorFlow2/variations/a0-stream-kinetics-600-classification/versions/2
+imagenet/mobilenet_v1_025_224/feature_vector,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/025-224-feature-vector/versions/2
+unet/industrial/class_1,https://tfhub.dev/nvidia/unet/industrial/class_1/1,skip,Model is not available
+mobilebert_en_uncased_L-24_H-128_B-512_A-4_F-4_OPT,https://www.kaggle.com/models/tensorflow/mobilebert/frameworks/tensorFlow2/variations/en-uncased-l-24-h-128-b-512-a-4-f-4-opt/versions/1,skip,120720 InvalidArgumentError Graph execution error
+boundless/quarter,https://www.kaggle.com/models/google/boundless/frameworks/tensorFlow1/variations/quarter/versions/1
+gtr/gtr-base,https://www.kaggle.com/models/google/gtr/frameworks/tensorFlow2/variations/gtr-base/versions/1
+small_bert/bert_en_uncased_L-12_H-512_A-8,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/bert-en-uncased-l-12-h-512-a-8/versions/2
+LAReQA/mBERT_En_En,https://www.kaggle.com/models/google/lareqa/frameworks/tensorFlow1/variations/mbert-en-en/versions/1
+efficientdet/d5,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/d5/versions/1
+faster_rcnn/resnet101_v1_1024x1024,https://www.kaggle.com/models/tensorflow/faster-rcnn-resnet-v1/frameworks/tensorFlow2/variations/faster-rcnn-resnet101-v1-1024x1024/versions/1,skip,128695 Inference results mismatch
+film,https://www.kaggle.com/models/google/film/frameworks/tensorFlow2/variations/film/versions/1
+electra_large,https://www.kaggle.com/models/google/electra/frameworks/tensorFlow2/variations/large/versions/2
+small_bert/bert_uncased_L-2_H-128_A-2,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/bert-uncased-l-2-h-128-a-2/versions/2,skip,129153 TimeoutError or killed with a signal 11
+imagenet/mobilenet_v1_075_224/classification,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/075-224-classification/versions/2
+efficientdet/d3,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/d3/versions/1,skip,128695 Inference results mismatch
+distilbert_en_uncased_preprocess,https://www.kaggle.com/models/jeongukjae/distilbert/frameworks/tensorFlow2/variations/en-uncased-preprocess/versions/2,skip,128989 AttributeError NoneType object has no attribute shape or dtype
+movinet/a2/stream/kinetics-600/classification,https://www.kaggle.com/models/google/movinet/frameworks/tensorFlow2/variations/a2-stream-kinetics-600-classification/versions/2
+movinet/a4/base/kinetics-600/classification,https://www.kaggle.com/models/google/movinet/frameworks/tensorFlow2/variations/a4-base-kinetics-600-classification/versions/3
+efficientnet/b6/feature-vector,https://www.kaggle.com/models/google/efficientnet/frameworks/tensorFlow1/variations/b6-feature-vector/versions/1
+nnlm-zh-dim50,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/zh-dim50/versions/1,skip,120721 AssertionError No signatures for a model
+nnlm-id-dim128-with-normalization,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/id-dim128-with-normalization/versions/1,skip,120721 AssertionError No signatures for a model
+imagenet/efficientnet_v2_imagenet1k_b3/feature_vector,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet1k-b3-feature-vector/versions/2
+imagenet/efficientnet_v2_imagenet21k_ft1k_b3/feature_vector,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-ft1k-b3-feature-vector/versions/1
+humpback_whale,https://www.kaggle.com/models/google/humpback-whale/frameworks/tensorFlow2/variations/humpback-whale/versions/1,skip,120720 InvalidArgumentError Graph execution error
+nnlm-id-dim50,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/id-dim50/versions/1,skip,120721 AssertionError No signatures for a model
+nonsemantic-speech-benchmark/frill,https://www.kaggle.com/models/google/nonsemantic-speech-benchmark/frameworks/tensorFlow2/variations/frill/versions/1
+vit_s16_classification,https://www.kaggle.com/models/spsayakpaul/vision-transformer/frameworks/tensorFlow2/variations/vit-s16-classification/versions/1,xfail,118324 unsupported operation XlaGather
+faster_rcnn/resnet152_v1_800x1333,https://www.kaggle.com/models/tensorflow/faster-rcnn-resnet-v1/frameworks/tensorFlow2/variations/faster-rcnn-resnet152-v1-800x1333/versions/1
+bit/s-r152x4,https://www.kaggle.com/models/google/bit/frameworks/tensorFlow2/variations/s-r152x4/versions/1
+imagenet/resnet_v1_101/classification,https://www.kaggle.com/models/google/resnet-v1/frameworks/tensorFlow2/variations/101-classification/versions/2
+faster_rcnn/resnet50_v1_800x1333,https://www.kaggle.com/models/tensorflow/faster-rcnn-resnet-v1/frameworks/tensorFlow2/variations/faster-rcnn-resnet50-v1-800x1333/versions/1
+imagenet/efficientnet_v2_imagenet21k_ft1k_l/feature_vector,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-ft1k-l-feature-vector/versions/2
+distilbert_multi_cased_L-6_H-768_A-12,https://www.kaggle.com/models/jeongukjae/distilbert/frameworks/tensorFlow2/variations/multi-cased-l-6-h-768-a-12/versions/1
+imagenet/mobilenet_v2_050_224/feature_vector,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/050-224-feature-vector/versions/2
+roberta_en_cased_preprocess,https://www.kaggle.com/models/kaggle/roberta/frameworks/tensorFlow2/variations/en-cased-preprocess/versions/1,skip,128989 AttributeError NoneType object has no attribute shape or dtype
+efficientnet/b3/feature-vector,https://www.kaggle.com/models/google/efficientnet/frameworks/tensorFlow1/variations/b3-feature-vector/versions/1
+small_bert/bert_en_uncased_L-8_H-256_A-4,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/bert-en-uncased-l-8-h-256-a-4/versions/2
+efficientnet/b7/classification,https://www.kaggle.com/models/google/efficientnet/frameworks/tensorFlow1/variations/b7-classification/versions/1
+bit/s-r50x1/ilsvrc2012_classification,https://www.kaggle.com/models/google/bit/frameworks/tensorFlow2/variations/s-r50x1-ilsvrc2012-classification/versions/1
+tf2-preview/nnlm-ko-dim128-with-normalization,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/tf2-preview-ko-dim128-with-normalization/versions/1,skip,120721 AssertionError No signatures for a model
+imagenet/mobilenet_v2_100_160/feature_vector,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/100-160-feature-vector/versions/2
+imagenet/mobilenet_v1_025_128/classification,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/025-128-classification/versions/2
+experts/bit/r50x1/in21k/food,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-food/versions/1
+imagenet/resnet_v1_152/feature_vector,https://www.kaggle.com/models/google/resnet-v1/frameworks/tensorFlow2/variations/152-feature-vector/versions/2
+faster_rcnn/resnet101_v1_800x1333,https://www.kaggle.com/models/tensorflow/faster-rcnn-resnet-v1/frameworks/tensorFlow2/variations/faster-rcnn-resnet101-v1-800x1333/versions/1
+bit/s-r50x3,https://www.kaggle.com/models/google/bit/frameworks/tensorFlow2/variations/s-r50x3/versions/1
+smaller_LaBSE_15lang,https://www.kaggle.com/models/kaggle/smaller-labse-15lang/frameworks/tensorFlow2/variations/smaller-labse-15lang/versions/1
+imagenet/mobilenet_v2_100_96/classification,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/100-96-classification/versions/2
+imagenet/mobilenet_v2_100_192/feature_vector,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/100-192-feature-vector/versions/2
+tiny_video_net/tvn1,https://www.kaggle.com/models/google/tiny-video-net/frameworks/tensorFlow1/variations/tvn1/versions/1,skip,128817 Model references undeclared parameters
+nnlm-id-dim128,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/id-dim128/versions/1,skip,120721 AssertionError No signatures for a model
+lambert_en_uncased_L-24_H-1024_A-16,https://www.kaggle.com/models/tensorflow/lambert/frameworks/tensorFlow2/variations/en-uncased-l-24-h-1024-a-16/versions/2
+imagenet/amoebanet_a_n18_f448/classification,https://www.kaggle.com/models/google/amoebanet/frameworks/tensorFlow1/variations/a-n18-f448-classification/versions/1
+retinanet/resnet101_v1_fpn_1024x1024,https://www.kaggle.com/models/tensorflow/retinanet-resnet/frameworks/tensorFlow2/variations/101-v1-fpn-1024x1024/versions/1
+imagenet/mobilenet_v1_025_192/feature_vector,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/025-192-feature-vector/versions/2
+imagenet/mobilenet_v2_100_160/classification,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/100-160-classification/versions/2
+imagenet/inception_v2/classification,https://www.kaggle.com/models/google/inception-v2/frameworks/tensorFlow2/variations/classification/versions/2
+efficientnet/b5/feature-vector,https://www.kaggle.com/models/google/efficientnet/frameworks/tensorFlow1/variations/b5-feature-vector/versions/1
+distilbert_multi_cased_preprocess,https://www.kaggle.com/models/jeongukjae/distilbert/frameworks/tensorFlow2/variations/multi-cased-preprocess/versions/2,skip,128989 AttributeError NoneType object has no attribute shape or dtype
+nnlm-de-dim128,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/de-dim128/versions/1,skip,120721 AssertionError No signatures for a model
+bertseq2seq/roberta24_gigaword,https://www.kaggle.com/models/google/bertseq2seq/frameworks/tensorFlow1/variations/roberta24-gigaword/versions/1,skip,128817 Model references undeclared parameters
+vit_b8_fe,https://www.kaggle.com/models/spsayakpaul/vision-transformer/frameworks/tensorFlow2/variations/vit-b8-fe/versions/1,xfail,118324 unsupported operation XlaGather
+aiy/vision/classifier/insects_V1,https://www.kaggle.com/models/google/aiy/frameworks/tensorFlow1/variations/vision-classifier-insects-v1/versions/1
+bertseq2seq/roberta24_cnndm,https://www.kaggle.com/models/google/bertseq2seq/frameworks/tensorFlow1/variations/roberta24-cnndm/versions/1,skip,128817 Model references undeclared parameters
+movinet/a1/base/kinetics-600/classification,https://www.kaggle.com/models/google/movinet/frameworks/tensorFlow2/variations/a1-base-kinetics-600-classification/versions/3
+remote_sensing/eurosat-resnet50,https://www.kaggle.com/models/google/resnet50/frameworks/tensorFlow1/variations/remote-sensing-eurosat-resnet50/versions/1
+universal-sentence-encoder-cmlm/en-large,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/cmlm-en-large/versions/1
+imagenet/mobilenet_v2_050_96/feature_vector,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/050-96-feature-vector/versions/2
+efficientnet/b3/classification,https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tensorFlow2/variations/b3-classification/versions/1
+imagenet/efficientnet_v2_imagenet21k_b1/feature_vector,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-b1-feature-vector/versions/1
+universal-sentence-encoder-xling/en-de,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow1/variations/xling-en-de/versions/1
+bit/s-r101x1,https://www.kaggle.com/models/google/bit/frameworks/tensorFlow2/variations/s-r101x1/versions/1
+smaller_LaBSE_15lang_preprocess,https://www.kaggle.com/models/kaggle/smaller-labse-15lang/frameworks/tensorFlow2/variations/preprocess/versions/1,skip,128989 AttributeError NoneType object has no attribute shape or dtype
+vgg19-block5-conv2-unpooling-decoder,https://www.kaggle.com/models/emilutz/vgg19-unpooling-encoder-decoder/frameworks/tensorFlow2/variations/vgg19-block5-conv2-unpooling-decoder/versions/1,skip,120720 InvalidArgumentError Graph execution error
+imagenet/mobilenet_v1_050_224/classification,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/050-224-classification/versions/2
+efficientnet/b5/classification,https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tensorFlow2/variations/b5-classification/versions/1
+imagenet/efficientnet_v2_imagenet21k_b3/feature_vector,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-b3-feature-vector/versions/1
+experts/bert/wiki_books/mnli,https://www.kaggle.com/models/google/experts-bert/frameworks/tensorFlow2/variations/wiki-books-mnli/versions/2
+tf2-preview/nnlm-en-dim50-with-normalization,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/tf2-preview-en-dim50-with-normalization/versions/1,skip,120721 AssertionError No signatures for a model
+efficientnet/b1/feature-vector,https://www.kaggle.com/models/google/efficientnet/frameworks/tensorFlow1/variations/b1-feature-vector/versions/1,skip,128695 Inference results mismatch
+cropnet/feature_vector/concat,https://www.kaggle.com/models/google/cropnet/frameworks/tensorFlow2/variations/feature-vector-concat/versions/1,skip,120721 AssertionError No signatures for a model
+efficientnet/b5/classification,https://www.kaggle.com/models/google/efficientnet/frameworks/tensorFlow1/variations/b5-classification/versions/1
+bit/m-r101x1/ilsvrc2012_classification,https://www.kaggle.com/models/google/bit/frameworks/tensorFlow2/variations/m-r101x1-ilsvrc2012-classification/versions/1
+imagenet/efficientnet_v2_imagenet1k_l/classification,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet1k-l-classification/versions/2
+nnlm-zh-dim128,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/zh-dim128/versions/1,skip,120721 AssertionError No signatures for a model
+tf2-preview/nnlm-ja-dim128-with-normalization,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/tf2-preview-ja-dim128-with-normalization/versions/1,skip,120721 AssertionError No signatures for a model
+imagenet/resnet_v1_152/classification,https://www.kaggle.com/models/google/resnet-v1/frameworks/tensorFlow2/variations/152-classification/versions/2
+covid-twitter-bert,https://www.kaggle.com/models/kaggle/covid-twitter-bert/frameworks/tensorFlow2/variations/covid-twitter-bert/versions/2
+imagenet/efficientnet_v2_imagenet21k_b0/classification,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-b0-classification/versions/1
+silero-stt/en,https://tfhub.dev/silero/silero-stt/en/1,skip,Model is not available
+experts/bit/r50x1/in21k/clothing,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-clothing/versions/1
+roberta_en_cased_L-12_H-768_A-12,https://www.kaggle.com/models/kaggle/roberta/frameworks/tensorFlow2/variations/en-cased-l-12-h-768-a-12/versions/1
+on_device_vision/classifier/landmarks_classifier_north_america_V1,https://www.kaggle.com/models/google/landmarks/frameworks/tensorFlow1/variations/classifier-north-america-v1/versions/1
+bit/s-r50x3/ilsvrc2012_classification,https://www.kaggle.com/models/google/bit/frameworks/tensorFlow2/variations/s-r50x3-ilsvrc2012-classification/versions/1
+cond-biggan,https://www.kaggle.com/models/vtab/cond-biggan/frameworks/tensorFlow1/variations/cond-biggan/versions/1
+LAReQA/mBERT_X_Y,https://www.kaggle.com/models/google/lareqa/frameworks/tensorFlow1/variations/mbert-x-y/versions/1
+imagenet/mobilenet_v2_100_192/classification,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/100-192-classification/versions/2
+nnlm-es-dim50,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/es-dim50/versions/1,skip,120721 AssertionError No signatures for a model
+supcon/resnet_v1_50/imagenet/classification,https://www.kaggle.com/models/google/resnet-v1/frameworks/tensorFlow1/variations/50-imagenet-classification/versions/1
+nnlm-zh-dim128-with-normalization,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/zh-dim128-with-normalization/versions/1,skip,120721 AssertionError No signatures for a model
+experts/bit/r50x1/in21k/animal,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-animal/versions/1
+imagenet/mobilenet_v2_035_96/feature_vector,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/035-96-feature-vector/versions/2
+edgetpu/vision/deeplab-edgetpu/fused_argmax/xs,https://www.kaggle.com/models/google/deeplab-edgetpu/frameworks/tensorFlow2/variations/fused-argmax-xs/versions/1
+efficientnet/b2/classification,https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tensorFlow2/variations/b2-classification/versions/1
+sentence-t5/st5-large,https://www.kaggle.com/models/google/sentence-t5/frameworks/tensorFlow2/variations/st5-large/versions/1
+on_device_vision/classifier/landmarks_classifier_europe_V1,https://www.kaggle.com/models/google/landmarks/frameworks/tensorFlow1/variations/classifier-europe-v1/versions/1
+bit/m-r50x3/imagenet21k_classification,https://www.kaggle.com/models/google/bit/frameworks/tensorFlow2/variations/m-r50x3-imagenet21k-classification/versions/1
+mmv/s3d,https://www.kaggle.com/models/deepmind/mmv/frameworks/tensorFlow1/variations/s3d/versions/1
+soundstream/mel/decoder/music,https://www.kaggle.com/models/google/soundstream/frameworks/tensorFlow2/variations/mel-decoder-music/versions/1
+imagenet/mobilenet_v2_075_160/classification,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/075-160-classification/versions/2
+imagenet/efficientnet_v2_imagenet21k_ft1k_s/classification,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-ft1k-s-classification/versions/2
+imagenet/mobilenet_v2_075_128/feature_vector,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/075-128-feature-vector/versions/2
+ulmfit/en/sp35k_uncased,https://www.kaggle.com/models/edrone/ulmfit/frameworks/tensorFlow2/variations/en-sp35k-uncased/versions/1
+imagenet/efficientnet_v2_imagenet21k_ft1k_b0/classification,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-ft1k-b0-classification/versions/1
+imagenet/mobilenet_v2_075_96/feature_vector,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/075-96-feature-vector/versions/2
+bertseq2seq/roberta24_wikisplit,https://www.kaggle.com/models/google/bertseq2seq/frameworks/tensorFlow1/variations/roberta24-wikisplit/versions/1,skip,128817 Model references undeclared parameters
+imagenet/mobilenet_v1_100_128/feature_vector,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/100-128-feature-vector/versions/2
+regnety800mf_classification,https://www.kaggle.com/models/adityakane/regnety/frameworks/tensorFlow2/variations/800mf-classification/versions/1
+mmv/tsm-resnet50x2,https://www.kaggle.com/models/deepmind/mmv/frameworks/tensorFlow1/variations/tsm-resnet50x2/versions/1
+vgg19-block1-conv2-unpooling-encoder,https://www.kaggle.com/models/emilutz/vgg19-unpooling-encoder-decoder/frameworks/tensorFlow2/variations/vgg19-block1-conv2-unpooling-encoder/versions/1
+efficientnet/b2/classification,https://www.kaggle.com/models/google/efficientnet/frameworks/tensorFlow1/variations/b2-classification/versions/1
+imagenet/mobilenet_v2_050_160/feature_vector,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/050-160-feature-vector/versions/2
+imagenet/mobilenet_v2_075_224/feature_vector,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/075-224-feature-vector/versions/2
+cropnet/feature_vector/imagenet,https://www.kaggle.com/models/google/cropnet/frameworks/tensorFlow2/variations/feature-vector-imagenet/versions/1,skip,120721 AssertionError No signatures for a model
+nnlm-ko-dim50-with-normalization,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/ko-dim50-with-normalization/versions/1
+vgg19-block2-conv2-unpooling-encoder,https://www.kaggle.com/models/emilutz/vgg19-unpooling-encoder-decoder/frameworks/tensorFlow2/variations/vgg19-block2-conv2-unpooling-encoder/versions/1
+experts/bit/r50x1/in21k/solid,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-solid/versions/1
+efficientnet/b4/classification,https://www.kaggle.com/models/google/efficientnet/frameworks/tensorFlow1/variations/b4-classification/versions/1
+regnety400mf_classification,https://www.kaggle.com/models/adityakane/regnety/frameworks/tensorFlow2/variations/400mf-classification/versions/1
+bit/m-r152x4/ilsvrc2012_classification,https://www.kaggle.com/models/google/bit/frameworks/tensorFlow2/variations/m-r152x4-ilsvrc2012-classification/versions/1
+nnlm-zh-dim50-with-normalization,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/zh-dim50-with-normalization/versions/1,skip,120721 AssertionError No signatures for a model
+on_device_vision/classifier/landmarks_classifier_south_america_V1,https://www.kaggle.com/models/google/landmarks/frameworks/tensorFlow1/variations/classifier-south-america-v1/versions/1
+unsupervised-adversarial-training/cifar10/wrn_106,https://www.kaggle.com/models/deepmind/wrn-106/frameworks/tensorFlow1/variations/unsupervised-adversarial-training-cifar10-wrn-106/versions/1
+tf2-preview/nnlm-de-dim128-with-normalization,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/tf2-preview-de-dim128-with-normalization/versions/1,skip,120721 AssertionError No signatures for a model
+wiki40b-lm-zh-cn,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorFlow1/variations/zh-cn/versions/1
+on_device_vision/classifier/landmarks_classifier_africa_V1,https://www.kaggle.com/models/google/landmarks/frameworks/tensorFlow1/variations/classifier-africa-v1/versions/1
+regnety200mf_classification,https://www.kaggle.com/models/adityakane/regnety/frameworks/tensorFlow2/variations/200mf-classification/versions/1
+talkheads_ggelu_bert_en_large,https://www.kaggle.com/models/tensorflow/talkheads-ggelu-bert-en/frameworks/tensorFlow2/variations/large/versions/2
+imagenet/efficientnet_v2_imagenet1k_m/classification,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet1k-m-classification/versions/2
+HRNet/coco-hrnetv2-w48,https://www.kaggle.com/models/google/hrnet/frameworks/tensorFlow2/variations/hrnet-coco-hrnetv2-w48/versions/1,skip,120721 AssertionError No signatures for a model
+imagenet/mobilenet_v2_050_192/feature_vector,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/050-192-feature-vector/versions/2
+imagenet/mobilenet_v1_050_128/feature_vector,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/050-128-feature-vector/versions/2
+experts/bert/pubmed/squad2,https://www.kaggle.com/models/google/experts-bert/frameworks/tensorFlow2/variations/pubmed-squad2/versions/2
+german-mbmelgan,https://www.kaggle.com/models/myusufs/german-mbmelgan/frameworks/tensorFlow2/variations/german-mbmelgan/versions/1,skip,120720 InvalidArgumentError Graph execution error
+supcon/resnet_v1_101/imagenet/classification,https://www.kaggle.com/models/google/resnet-v1/frameworks/tensorFlow1/variations/101-imagenet-classification/versions/1
+wiki40b-lm-fr,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorFlow1/variations/fr/versions/1
+bit/m-r101x3/ilsvrc2012_classification,https://www.kaggle.com/models/google/bit/frameworks/tensorFlow2/variations/m-r101x3-ilsvrc2012-classification/versions/1
+imagenet/mobilenet_v1_100_160/feature_vector,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/100-160-feature-vector/versions/2
+imagenet/mobilenet_v2_035_128/classification,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/035-128-classification/versions/2
+edgetpu/vision/autoseg-edgetpu/fused_argmax/xs,https://www.kaggle.com/models/google/autoseg-edgetpu/frameworks/tensorFlow2/variations/fused-argmax-xs/versions/1
+bit/s-r101x1/ilsvrc2012_classification,https://www.kaggle.com/models/google/bit/frameworks/tensorFlow2/variations/s-r101x1-ilsvrc2012-classification/versions/1
+german-tacotron2,https://www.kaggle.com/models/myusufs/german-tacotron2/frameworks/tensorFlow2/variations/german-tacotron2/versions/1
+convnext_xlarge_21k_224,https://www.kaggle.com/models/spsayakpaul/convnext/frameworks/tensorFlow2/variations/xlarge-21k-224/versions/1
+gtr/gtr-large,https://www.kaggle.com/models/google/gtr/frameworks/tensorFlow2/variations/gtr-large/versions/1
+AraBERT,https://www.kaggle.com/models/kaggle/arabert/frameworks/tensorFlow2/variations/arabert/versions/1
+trillsson1,https://www.kaggle.com/models/google/trillsson/frameworks/tensorFlow2/variations/1/versions/1
+imagenet/mobilenet_v1_050_128/classification,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/050-128-classification/versions/2
+tf2-preview/nnlm-de-dim50-with-normalization,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/tf2-preview-de-dim50-with-normalization/versions/1,skip,120721 AssertionError No signatures for a model
+imagenet/mobilenet_v1_100_192/feature_vector,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/100-192-feature-vector/versions/2
+efficientnet/b6/classification,https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tensorFlow2/variations/b6-classification/versions/1
+vit_b8_classification,https://www.kaggle.com/models/spsayakpaul/vision-transformer/frameworks/tensorFlow2/variations/vit-b8-classification/versions/1,xfail,118324 unsupported operation XlaGather
+universal-sentence-encoder-xling/en-es,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow1/variations/xling-en-es/versions/1
+mil-nce/i3d,https://www.kaggle.com/models/deepmind/mil-nce/frameworks/tensorFlow1/variations/i3d/versions/1,xfail,127962 129654 128996 unsupported operations LookupTableFindV2 StringLower StringSplitV2
+vit_l16_fe,https://www.kaggle.com/models/spsayakpaul/vision-transformer/frameworks/tensorFlow2/variations/vit-l16-fe/versions/1,xfail,118324 unsupported operation XlaGather
+nonsemantic-speech-benchmark/frill-nofrontend,https://www.kaggle.com/models/google/nonsemantic-speech-benchmark/frameworks/tensorFlow2/variations/frill-nofrontend/versions/1
+vit_r50_l32_fe,https://www.kaggle.com/models/spsayakpaul/vision-transformer/frameworks/tensorFlow2/variations/vit-r50-l32-fe/versions/1,xfail,118324 118325 unsupported operation XlaGather XlaReduceWindow
+imagenet/efficientnet_v2_imagenet21k_ft1k_b2/feature_vector,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-ft1k-b2-feature-vector/versions/1
+remote_sensing/so2sat-resnet50,https://www.kaggle.com/models/google/resnet50/frameworks/tensorFlow1/variations/remote-sensing-so2sat-resnet50/versions/1
+imagenet/efficientnet_v2_imagenet21k_ft1k_b3/classification,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-ft1k-b3-classification/versions/1
+experts/bit/r50x1/in21k/spermatophyte,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-spermatophyte/versions/1
+uncond-biggan,https://www.kaggle.com/models/vtab/uncond-biggan/frameworks/tensorFlow1/variations/uncond-biggan/versions/1
+imagenet/efficientnet_v2_imagenet21k_ft1k_l/classification,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-ft1k-l-classification/versions/2
+tiny_video_net/tvn3,https://www.kaggle.com/models/google/tiny-video-net/frameworks/tensorFlow1/variations/tvn3/versions/1,skip,128817 Model references undeclared parameters
+imagenet/mobilenet_v2_035_192/classification,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/035-192-classification/versions/2
+tf2-preview/nnlm-ko-dim50,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/tf2-preview-ko-dim50/versions/1,skip,120721 AssertionError No signatures for a model
+imagenet/mobilenet_v2_035_160/classification,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/035-160-classification/versions/2
+small_bert/bert_uncased_L-4_H-128_A-2,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/bert-uncased-l-4-h-128-a-2/versions/2,skip,129153 TimeoutError or killed with a signal 11
+bit/m-r101x1/imagenet21k_classification,https://www.kaggle.com/models/google/bit/frameworks/tensorFlow2/variations/m-r101x1-imagenet21k-classification/versions/1
+efficientnet/b3/classification,https://www.kaggle.com/models/google/efficientnet/frameworks/tensorFlow1/variations/b3-classification/versions/1
+imagenet/efficientnet_v2_imagenet1k_b2/classification,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet1k-b2-classification/versions/2
+wav2vec2-xlsr-53,https://www.kaggle.com/models/kaggle/wav2vec2/frameworks/tensorFlow2/variations/xlsr-53/versions/1
+unet/industrial/class_10,https://tfhub.dev/nvidia/unet/industrial/class_10/1,skip,Model is not available
+movinet/a5/stream/kinetics-600/classification,https://www.kaggle.com/models/google/movinet/frameworks/tensorFlow2/variations/a5-stream-kinetics-600-classification/versions/2
+vit_r26_s32_lightaug_fe,https://www.kaggle.com/models/spsayakpaul/vision-transformer/frameworks/tensorFlow2/variations/vit-r26-s32-lightaug-fe/versions/1
+mmt/architecture_image-q-24,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/architecture-image-q-24/versions/1
+wiki40b-lm-nl,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorFlow1/variations/nl/versions/1
+imagenet/efficientnet_v2_imagenet21k_m/classification,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-m-classification/versions/2
+tf2-preview/nnlm-zh-dim50,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/tf2-preview-zh-dim50/versions/1,skip,120721 AssertionError No signatures for a model
+edgetpu/vision/deeplab-edgetpu/fused_argmax/s,https://www.kaggle.com/models/google/deeplab-edgetpu/frameworks/tensorFlow2/variations/fused-argmax-s/versions/1
+compare_gan/model_9_celebahq128_resnet19,https://www.kaggle.com/models/google/compare-gan/frameworks/tensorFlow1/variations/model-9-celebahq128-resnet19/versions/1,skip,128817 Model references undeclared parameters
+tf2-preview/nnlm-zh-dim128,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/tf2-preview-zh-dim128/versions/1,skip,120721 AssertionError No signatures for a model
+imagenet/mobilenet_v1_025_160/feature_vector,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/025-160-feature-vector/versions/2
+tweening_conv3d_kth,https://www.kaggle.com/models/google/tweening-conv3d/frameworks/tensorFlow1/variations/kth/versions/1,skip,128817 Model references undeclared parameters
+imagenet/efficientnet_v2_imagenet1k_b1/classification,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet1k-b1-classification/versions/2
+edgetpu/vision/autoseg-edgetpu/default_argmax/s,https://www.kaggle.com/models/google/autoseg-edgetpu/frameworks/tensorFlow2/variations/default-argmax-s/versions/1,skip,128695 Inference results mismatch
+LAReQA/mBERT_X_X_mono,https://www.kaggle.com/models/google/lareqa/frameworks/tensorFlow1/variations/mbert-x-x-mono/versions/1
+experts/bit/r50x1/in21k/object,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-object/versions/1
+small_bert/bert_en_uncased_L-10_H-256_A-4,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/bert-en-uncased-l-10-h-256-a-4/versions/2
+supcon/resnet_v1_200/imagenet/classification,https://www.kaggle.com/models/google/resnet-v1/frameworks/tensorFlow1/variations/200-imagenet-classification/versions/1
+small_bert/bert_uncased_L-6_H-128_A-2,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/bert-uncased-l-6-h-128-a-2/versions/2,skip,129153 TimeoutError or killed with a signal 11
+tf2-preview/nnlm-ja-dim50,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/tf2-preview-ja-dim50/versions/1,skip,120721 AssertionError No signatures for a model
+nnlm-ko-dim50,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/ko-dim50/versions/1,skip,120721 AssertionError No signatures for a model
+compare_gan/model_12_cifar10_resnet_cifar,https://www.kaggle.com/models/google/compare-gan/frameworks/tensorFlow1/variations/model-12-cifar10-resnet-cifar/versions/1,skip,128817 Model references undeclared parameters
+spiral/default-fluid-gansn-celebahq64-gen-19steps,https://www.kaggle.com/models/deepmind/spiral/frameworks/tensorFlow1/variations/default-fluid-gansn-celebahq64-gen-19steps/versions/1
+compare_gan/s3gan_5_128x128,https://www.kaggle.com/models/google/compare-gan/frameworks/tensorFlow1/variations/s3gan-5-128x128/versions/1
+convnext_base_1k_224_fe,https://www.kaggle.com/models/spsayakpaul/convnext/frameworks/tensorFlow2/variations/base-1k-224-fe/versions/1
+convnext_base_1k_384,https://www.kaggle.com/models/spsayakpaul/convnext/frameworks/tensorFlow2/variations/base-1k-384/versions/1
+edgetpu/vision/mobilenet-edgetpu-v2/l,https://www.kaggle.com/models/google/mobilenet-edgetpu-v2/frameworks/tensorFlow2/variations/l/versions/1
+small_bert/bert_uncased_L-4_H-512_A-8,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/bert-uncased-l-4-h-512-a-8/versions/2,skip,129153 TimeoutError or killed with a signal 11
+experts/bit/r50x1/in21k/flower,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-flower/versions/1
+distill_bit_r50x1_160_feature_extraction,https://www.kaggle.com/models/spsayakpaul/bit-resnet/frameworks/tensorFlow2/variations/distill-bit-r50x1-160-feature-extraction/versions/1
+edgetpu/vision/mobilenet-edgetpu-v2-feature-vector/l,https://www.kaggle.com/models/google/mobilenet-edgetpu-v2/frameworks/tensorFlow2/variations/feature-vector-l/versions/2
+spiral/default-wgangp-celebahq64-gen-19steps/agent5,https://www.kaggle.com/models/deepmind/spiral/frameworks/tensorFlow1/variations/default-wgangp-celebahq64-gen-19steps-agent5/versions/1
+image_augmentation/crop_rotate_color,https://www.kaggle.com/models/google/image-augmentation/frameworks/tensorFlow1/variations/crop-rotate-color/versions/1,skip,128817 Model references undeclared parameters
+tf2-preview/nnlm-id-dim50-with-normalization,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/tf2-preview-id-dim50-with-normalization/versions/1,skip,120721 AssertionError No signatures for a model
+imagenet/mobilenet_v2_035_192/feature_vector,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/035-192-feature-vector/versions/2
+small_bert/bert_uncased_L-12_H-768_A-12,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/bert-uncased-l-12-h-768-a-12/versions/2,skip,129153 TimeoutError or killed with a signal 11
+xlm_roberta_multi_cased_L-24_H-1024_A-16,https://www.kaggle.com/models/kaggle/xlm-roberta/frameworks/tensorFlow2/variations/multi-cased-l-24-h-1024-a-16/versions/1
+regnety600mf_classification,https://www.kaggle.com/models/adityakane/regnety/frameworks/tensorFlow2/variations/600mf-classification/versions/1
+convnext_tiny_1k_224,https://www.kaggle.com/models/spsayakpaul/convnext/frameworks/tensorFlow2/variations/tiny-1k-224/versions/1
+tf2-preview/nnlm-es-dim128,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/tf2-preview-es-dim128/versions/1,skip,120721 AssertionError No signatures for a model
+vision/embedder/fungi_V2,https://tfhub.dev/svampeatlas/vision/embedder/fungi_V2/1,skip,Model is not available
+imagenet/mobilenet_v1_050_128/quantops/feature_vector,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow1/variations/050-128-quantops-feature-vector/versions/2,skip,128695 Inference results mismatch
+wiki40b-lm-sr,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorFlow1/variations/sr/versions/1
+imagenet/mobilenet_v1_075_160/classification,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/075-160-classification/versions/2
+small_bert/bert_uncased_L-6_H-512_A-8,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/bert-uncased-l-6-h-512-a-8/versions/2,skip,129153 TimeoutError or killed with a signal 11
+tf2-preview/nnlm-es-dim50,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/tf2-preview-es-dim50/versions/1,skip,120721 AssertionError No signatures for a model
+sup-rotation-100,https://www.kaggle.com/models/vtab/sup-rotation-100/frameworks/tensorFlow1/variations/sup-rotation-100/versions/1
+wiki40b-lm-ko,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorFlow1/variations/ko/versions/1
+imagenet/mobilenet_v2_075_128/classification,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/075-128-classification/versions/2
+efficientdet/lite3x/feature-vector,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/lite3x-feature-vector/versions/1
+mmt/baseline_baseline,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/baseline-baseline/versions/1
+boundless/three_quarter,https://www.kaggle.com/models/google/boundless/frameworks/tensorFlow1/variations/three-quarter/versions/1
+imagenet/mobilenet_v1_100_160/classification,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/100-160-classification/versions/2
+unet/industrial/class_3,https://tfhub.dev/nvidia/unet/industrial/class_3/1,skip,Model is not available
+imagenet/mobilenet_v1_050_160/feature_vector,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/050-160-feature-vector/versions/2
+musiq/koniq-10k,https://www.kaggle.com/models/google/musiq/frameworks/tensorFlow2/variations/koniq-10k/versions/1
+vision/embedder/inaturalist_V2,https://tfhub.dev/inaturalist/vision/embedder/inaturalist_V2/1,skip,Model is not available
+relative-patch-location,https://www.kaggle.com/models/vtab/relative-patch-location/frameworks/tensorFlow1/variations/relative-patch-location/versions/1
+experts/bit/r50x1/in21k/mammal,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-mammal/versions/1
+imagenet/mobilenet_v1_100_128/quantops/classification,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow1/variations/100-128-quantops-classification/versions/2,skip,128695 Inference results mismatch
+ulmfit/en/sp35k_cased,https://www.kaggle.com/models/edrone/ulmfit/frameworks/tensorFlow2/variations/en-sp35k-cased/versions/1
+edgetpu/vision/mobilenet-edgetpu-v2-feature-vector/tiny,https://www.kaggle.com/models/google/mobilenet-edgetpu-v2/frameworks/tensorFlow2/variations/feature-vector-tiny/versions/2
+sentence-t5/st5-3b,https://www.kaggle.com/models/google/sentence-t5/frameworks/tensorFlow2/variations/st5-3b/versions/1
+tf2nq,https://www.kaggle.com/models/kaggle/tf2nq/frameworks/tensorFlow2/variations/tf2nq/versions/1
+bertseq2seq/bert24_en_de,https://www.kaggle.com/models/google/bertseq2seq/frameworks/tensorFlow1/variations/bert24-en-de/versions/1,skip,128817 Model references undeclared parameters
+edgetpu/nlp/mobilebert-edgetpu/m,https://www.kaggle.com/models/google/mobilebert-edgetpu/frameworks/tensorFlow2/variations/m/versions/1,skip,120720 InvalidArgumentError Graph execution error
+vit_b32_fe,https://www.kaggle.com/models/spsayakpaul/vision-transformer/frameworks/tensorFlow2/variations/vit-b32-fe/versions/1
+experts/bit/r50x1/in21k/structure,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-structure/versions/1
+vit_b32_classification,https://www.kaggle.com/models/spsayakpaul/vision-transformer/frameworks/tensorFlow2/variations/vit-b32-classification/versions/1
+wiki40b-lm-ca,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorFlow1/variations/ca/versions/1
+spiral/default-wgangp-celebahq64-gen-19steps/agent3,https://www.kaggle.com/models/deepmind/spiral/frameworks/tensorFlow1/variations/default-wgangp-celebahq64-gen-19steps-agent3/versions/1
+imagenet/mobilenet_v1_100_224/quantops/classification,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow1/variations/100-224-quantops-classification/versions/2,skip,128695 Inference results mismatch
+imagenet/mobilenet_v1_025_128/quantops/classification,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow1/variations/025-128-quantops-classification/versions/2,skip,128695 Inference results mismatch
+bit/s-r152x4/ilsvrc2012_classification,https://www.kaggle.com/models/google/bit/frameworks/tensorFlow2/variations/s-r152x4-ilsvrc2012-classification/versions/1
+ulmfit/pl/sp50k_uncased,https://www.kaggle.com/models/edrone/ulmfit/frameworks/tensorFlow2/variations/pl-sp50k-uncased/versions/1
+vgg19-block3-conv2-unpooling-encoder,https://www.kaggle.com/models/emilutz/vgg19-unpooling-encoder-decoder/frameworks/tensorFlow2/variations/vgg19-block3-conv2-unpooling-encoder/versions/1
+experts/bert/wiki_books/qqp,https://www.kaggle.com/models/google/experts-bert/frameworks/tensorFlow2/variations/wiki-books-qqp/versions/2
+remote_sensing/uc_merced-resnet50,https://www.kaggle.com/models/google/resnet50/frameworks/tensorFlow1/variations/remote-sensing-uc-merced-resnet50/versions/1
+mixer_b16_i1k_fe,https://www.kaggle.com/models/spsayakpaul/mlp-mixer/frameworks/tensorFlow2/variations/mixer-b16-i1k-fe/versions/1
+mmt/loss_single-modality-contrastive1024,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/loss-single-modality-contrastive1024/versions/1
+regnety600mf_feature_extractor,https://www.kaggle.com/models/adityakane/regnety/frameworks/tensorFlow2/variations/600mf-feature-extractor/versions/1
+exemplar,https://www.kaggle.com/models/vtab/exemplar/frameworks/tensorFlow1/variations/exemplar/versions/1
+imagenet/mobilenet_v1_025_192/classification,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/025-192-classification/versions/2
+wiki40b-lm-tr,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorFlow1/variations/tr/versions/1
+mixer_b16_sam_fe,https://www.kaggle.com/models/spsayakpaul/mlp-mixer/frameworks/tensorFlow2/variations/mixer-b16-sam-fe/versions/1
+logit_reconstruction/robust,https://www.kaggle.com/models/google/logit-reconstruction/frameworks/tensorFlow1/variations/robust/versions/1
+mmt/baseline_baseline-no-bert-transfer,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/baseline-baseline-no-bert-transfer/versions/1
+nnlm-ko-dim128,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/ko-dim128/versions/1,skip,120721 AssertionError No signatures for a model
+experts/bit/r50x1/in21k/angiosperm,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-angiosperm/versions/1
+vit_l16_classification,https://www.kaggle.com/models/spsayakpaul/vision-transformer/frameworks/tensorFlow2/variations/vit-l16-classification/versions/1
+wiki40b-lm-lt,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorFlow1/variations/lt/versions/1
+mixer_l16_i21k_classification,https://www.kaggle.com/models/spsayakpaul/mlp-mixer/frameworks/tensorFlow2/variations/mixer-l16-i21k-classification/versions/1
+wiki40b-lm-pl,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorFlow1/variations/pl/versions/1
+imagenet/efficientnet_v2_imagenet21k_b3/classification,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-b3-classification/versions/1
+spiral/default-wgangp-celebahq64-gen-19steps/agent8,https://www.kaggle.com/models/deepmind/spiral/frameworks/tensorFlow1/variations/default-wgangp-celebahq64-gen-19steps-agent8/versions/1
+experts/bit/r50x1/in21k/carnivore,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-carnivore/versions/1
+HRNet/ade20k-hrnetv2-w48,https://www.kaggle.com/models/google/hrnet/frameworks/tensorFlow2/variations/hrnet-ade20k-hrnetv2-w48/versions/1,skip,120721 AssertionError No signatures for a model
+wae-gan,https://www.kaggle.com/models/vtab/wae-gan/frameworks/tensorFlow1/variations/wae-gan/versions/1
+mmt/architecture_image-q-12,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/architecture-image-q-12/versions/1
+MuRIL-Large,https://www.kaggle.com/models/google/muril/frameworks/tensorFlow2/variations/large/versions/1
+spiral/default-wgangp-celebahq64-gen-19steps/agent9,https://www.kaggle.com/models/deepmind/spiral/frameworks/tensorFlow1/variations/default-wgangp-celebahq64-gen-19steps-agent9/versions/1
+swin_large_patch4_window7_224_in22k_fe,https://www.kaggle.com/models/spsayakpaul/swin/frameworks/tensorFlow2/variations/large-patch4-window7-224-in22k-fe/versions/1
+answer_equivalence/bem,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow2/variations/answer-equivalence-bem/versions/1
+wiki40b-lm-id,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorFlow1/variations/id/versions/1
+edgetpu/nlp/mobilebert-edgetpu/xs,https://www.kaggle.com/models/google/mobilebert-edgetpu/frameworks/tensorFlow2/variations/xs/versions/1,skip,120720 InvalidArgumentError Graph execution error
+experts/bit/r50x1/in21k/artifact,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-artifact/versions/1
+distilbert_en_cased_preprocess,https://www.kaggle.com/models/jeongukjae/distilbert/frameworks/tensorFlow2/variations/en-cased-preprocess/versions/2,skip,128989 AttributeError NoneType object has no attribute shape or dtype
+experts/bit/r50x1/in21k/conveyance,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-conveyance/versions/1
+wiki40b-lm-ar,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorFlow1/variations/ar/versions/1
+compare_gan/model_2_celebahq128_resnet19,https://www.kaggle.com/models/google/compare-gan/frameworks/tensorFlow1/variations/model-2-celebahq128-resnet19/versions/1,skip,128817 Model references undeclared parameters
+experts/bit/r50x1/in21k/living_thing,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-living-thing/versions/1
+wae-mmd,https://www.kaggle.com/models/vtab/wae-mmd/frameworks/tensorFlow1/variations/wae-mmd/versions/1
+american-sign-language,https://www.kaggle.com/models/sayannath235/american-sign-language/frameworks/tensorFlow2/variations/american-sign-language/versions/1
+vgg19-block4-conv2-unpooling-decoder,https://www.kaggle.com/models/emilutz/vgg19-unpooling-encoder-decoder/frameworks/tensorFlow2/variations/vgg19-block4-conv2-unpooling-decoder/versions/1,skip,120720 InvalidArgumentError Graph execution error
+experts/bit/r50x1/in21k/plant,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-plant/versions/1
+compare_gan/ssgan_128x128,https://www.kaggle.com/models/google/compare-gan/frameworks/tensorFlow1/variations/ssgan-128x128/versions/1
+spiral/default-wgangp-celebahq64-gen-19steps/agent4,https://www.kaggle.com/models/deepmind/spiral/frameworks/tensorFlow1/variations/default-wgangp-celebahq64-gen-19steps-agent4/versions/1
+image_augmentation/crop_color,https://www.kaggle.com/models/google/image-augmentation/frameworks/tensorFlow1/variations/crop-color/versions/1,skip,128817 Model references undeclared parameters
+vae,https://www.kaggle.com/models/vtab/vae/frameworks/tensorFlow1/variations/vae/versions/1
+experts/bit/r50x1/in21k/arthropod,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-arthropod/versions/1
+roberta_en_cased_L-24_H-1024_A-16,https://www.kaggle.com/models/kaggle/roberta/frameworks/tensorFlow2/variations/en-cased-l-24-h-1024-a-16/versions/1
+wiki40b-lm-fa,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorFlow1/variations/fa/versions/1
+vit_r26_s32_medaug_classification,https://www.kaggle.com/models/spsayakpaul/vision-transformer/frameworks/tensorFlow2/variations/vit-r26-s32-medaug-classification/versions/1
+remote_sensing/eurosat-ms-resnet50,https://www.kaggle.com/models/google/resnet50/frameworks/tensorFlow1/variations/remote-sensing-eurosat-ms-resnet50/versions/1
+compare_gan/model_10_lsun_bedroom_resnet19,https://www.kaggle.com/models/google/compare-gan/frameworks/tensorFlow1/variations/model-10-lsun-bedroom-resnet19/versions/1,skip,128817 Model references undeclared parameters
+convnext_xlarge_21k_1k_384_fe,https://www.kaggle.com/models/spsayakpaul/convnext/frameworks/tensorFlow2/variations/xlarge-21k-1k-384-fe/versions/1
+mobilevit_xxs_1k_256_fe,https://www.kaggle.com/models/kaggle/mobilevit/frameworks/tensorFlow2/variations/xxs-1k-256-fe/versions/1
+mmt/data_cc,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/data-cc/versions/1
+spiral/default-wgangp-celebahq64-gen-19steps/agent1,https://www.kaggle.com/models/deepmind/spiral/frameworks/tensorFlow1/variations/default-wgangp-celebahq64-gen-19steps-agent1/versions/1
+small_bert/bert_uncased_L-8_H-768_A-12,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/bert-uncased-l-8-h-768-a-12/versions/2,skip,129153 TimeoutError or killed with a signal 11
+edgetpu/vision/deeplab-edgetpu/fused_argmax/m,https://www.kaggle.com/models/google/deeplab-edgetpu/frameworks/tensorFlow2/variations/fused-argmax-m/versions/1
+image_augmentation/nas_imagenet,https://www.kaggle.com/models/google/image-augmentation/frameworks/tensorFlow1/variations/nas-imagenet/versions/1
+mixer_b16_i21k_fe,https://www.kaggle.com/models/spsayakpaul/mlp-mixer/frameworks/tensorFlow2/variations/mixer-b16-i21k-fe/versions/1,skip,128695 Inference results mismatch
+nonsemantic-speech-benchmark/trillsson1,https://www.kaggle.com/models/google/trillsson/frameworks/tensorFlow2/variations/nonsemantic-speech-benchmark-trillsson1/versions/1
+trillsson5,https://www.kaggle.com/models/google/trillsson/frameworks/tensorFlow2/variations/5/versions/1
+logit_reconstruction/inceptionv3,https://www.kaggle.com/models/google/logit-reconstruction/frameworks/tensorFlow1/variations/inceptionv3/versions/1
+spiral/default-wgangp-celebahq64-gen-19steps/agent6,https://www.kaggle.com/models/deepmind/spiral/frameworks/tensorFlow1/variations/default-wgangp-celebahq64-gen-19steps-agent6/versions/1
+tf2-preview/nnlm-id-dim128,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/tf2-preview-id-dim128/versions/1,skip,120721 AssertionError No signatures for a model
+LEALLA/LEALLA-large,https://www.kaggle.com/models/google/lealla/frameworks/tensorFlow2/variations/lealla-large/versions/1
+compare_gan/model_13_cifar10_resnet_cifar,https://www.kaggle.com/models/google/compare-gan/frameworks/tensorFlow1/variations/model-13-cifar10-resnet-cifar/versions/1,skip,128817 Model references undeclared parameters
+distilkobert_cased_L-3_H-768_A-12,https://www.kaggle.com/models/jeongukjae/distilkobert/frameworks/tensorFlow2/variations/cased-l-3-h-768-a-12/versions/1
+imagenet/mobilenet_v1_100_192/quantops/feature_vector,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow1/variations/100-192-quantops-feature-vector/versions/2,skip,128695 Inference results mismatch
+vit_b16_classification,https://www.kaggle.com/models/spsayakpaul/vision-transformer/frameworks/tensorFlow2/variations/vit-b16-classification/versions/1
+convnext_base_21k_1k_224,https://www.kaggle.com/models/spsayakpaul/convnext/frameworks/tensorFlow2/variations/base-21k-1k-224/versions/1
+compare_gan/model_11_cifar10_resnet_cifar,https://www.kaggle.com/models/google/compare-gan/frameworks/tensorFlow1/variations/model-11-cifar10-resnet-cifar/versions/1,skip,128817 Model references undeclared parameters
+wiki40b-lm-fi,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorFlow1/variations/fi/versions/1
+vit_r26_s32_medaug_fe,https://www.kaggle.com/models/spsayakpaul/vision-transformer/frameworks/tensorFlow2/variations/vit-r26-s32-medaug-fe/versions/1
+distill_bit_r50x1_224_feature_extraction,https://www.kaggle.com/models/spsayakpaul/bit-resnet/frameworks/tensorFlow2/variations/distill-bit-r50x1-224-feature-extraction/versions/1
+small_bert/bert_uncased_L-2_H-256_A-4,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/bert-uncased-l-2-h-256-a-4/versions/2,skip,129153 TimeoutError or killed with a signal 11
+edgetpu/vision/autoseg-edgetpu/fused_argmax/s,https://www.kaggle.com/models/google/autoseg-edgetpu/frameworks/tensorFlow2/variations/fused-argmax-s/versions/1
+image_augmentation/flipx_crop_rotate_color,https://www.kaggle.com/models/google/image-augmentation/frameworks/tensorFlow1/variations/flipx-crop-rotate-color/versions/1,skip,128817 Model references undeclared parameters
+circularnet_3,https://www.kaggle.com/models/google/circularnet/frameworks/tensorFlow2/variations/3/versions/1
+random-nnlm-en-dim50,https://www.kaggle.com/models/google/random-nnlm-en/frameworks/tensorFlow1/variations/dim50/versions/1,xfail,127962 128996 128995 unsupported operation LookupTableFindV2 LookupTableSizeV2 StringSplit StringToHashBucketFast
+mixer_b16_i21k_classification,https://www.kaggle.com/models/spsayakpaul/mlp-mixer/frameworks/tensorFlow2/variations/mixer-b16-i21k-classification/versions/1
+imagenet/mobilenet_v1_025_160/quantops/classification,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow1/variations/025-160-quantops-classification/versions/2,skip,128695 Inference results mismatch
+imagenet/mobilenet_v1_075_224/quantops/feature_vector,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow1/variations/075-224-quantops-feature-vector/versions/2,skip,128695 Inference results mismatch
+imagenet/mobilenet_v1_050_192/quantops/feature_vector,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow1/variations/050-192-quantops-feature-vector/versions/2,skip,128695 Inference results mismatch
+experts/bit/r50x1/in21k/herb,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-herb/versions/1
+sup-exemplar-100,https://www.kaggle.com/models/vtab/sup-exemplar-100/frameworks/tensorFlow1/variations/sup-exemplar-100/versions/1
+mixer_b16_sam_classification,https://www.kaggle.com/models/spsayakpaul/mlp-mixer/frameworks/tensorFlow2/variations/mixer-b16-sam-classification/versions/1
+imagenet/mobilenet_v1_075_224/quantops/classification,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow1/variations/075-224-quantops-classification/versions/2,skip,128695 Inference results mismatch
+wav2vec2-robust,https://www.kaggle.com/models/kaggle/wav2vec2/frameworks/tensorFlow2/variations/robust/versions/1
+mixer_l16_i1k_classification,https://www.kaggle.com/models/spsayakpaul/mlp-mixer/frameworks/tensorFlow2/variations/mixer-l16-i1k-classification/versions/1
+planet/vision/classifier/planet_v2,https://www.kaggle.com/models/google/planet-v2/frameworks/tensorFlow1/variations/planet-vision-classifier-planet-v2/versions/1
+wiki40b-lm-lv,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorFlow1/variations/lv/versions/1
+sentence-t5/st5-11b,https://www.kaggle.com/models/google/sentence-t5/frameworks/tensorFlow2/variations/st5-11b/versions/1
+gtr/gtr-xxl,https://www.kaggle.com/models/google/gtr/frameworks/tensorFlow2/variations/gtr-xxl/versions/1
+swin_base_patch4_window7_224_fe,https://www.kaggle.com/models/spsayakpaul/swin/frameworks/tensorFlow2/variations/base-patch4-window7-224-fe/versions/1
+small_bert/bert_uncased_L-8_H-128_A-2,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/bert-uncased-l-8-h-128-a-2/versions/2,skip,129153 TimeoutError or killed with a signal 11
+mmt/data_mscoco,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/data-mscoco/versions/1
+vit_r26_s32_lightaug_classification,https://www.kaggle.com/models/spsayakpaul/vision-transformer/frameworks/tensorFlow2/variations/vit-r26-s32-lightaug-classification/versions/1
+compare_gan/s3gan_10_256x256,https://www.kaggle.com/models/google/compare-gan/frameworks/tensorFlow1/variations/s3gan-10-256x256/versions/1
+experts/bit/r50x1/in21k/tree,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-tree/versions/1
+small_bert/bert_uncased_L-6_H-768_A-12,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/bert-uncased-l-6-h-768-a-12/versions/2,skip,129153 TimeoutError or killed with a signal 11
+imagenet/mobilenet_v2_075_96/classification,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/075-96-classification/versions/2
+mixer_b16_i1k_classification,https://www.kaggle.com/models/spsayakpaul/mlp-mixer/frameworks/tensorFlow2/variations/mixer-b16-i1k-classification/versions/1
+edgetpu/nlp/mobilebert-edgetpu/s,https://www.kaggle.com/models/google/mobilebert-edgetpu/frameworks/tensorFlow2/variations/s/versions/1,skip,120720 InvalidArgumentError Graph execution error
+convnext_large_21k_1k_384,https://www.kaggle.com/models/spsayakpaul/convnext/frameworks/tensorFlow2/variations/large-21k-1k-384/versions/1
+llr-pretrain-adv/latents,https://www.kaggle.com/models/deepmind/llr-pretrain-adv/frameworks/tensorFlow1/variations/latents/versions/1
+imagenet/mobilenet_v1_025_224/quantops/feature_vector,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow1/variations/025-224-quantops-feature-vector/versions/2,skip,128695 Inference results mismatch
+experts/bit/r50x1/in21k/consumer_goods,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-consumer-goods/versions/1
+swin_base_patch4_window7_224,https://www.kaggle.com/models/spsayakpaul/swin/frameworks/tensorFlow2/variations/base-patch4-window7-224/versions/1
+swin_small_patch244_window877_kinetics400_1k,https://www.kaggle.com/models/kaggle/video-swin-transformer/frameworks/tensorFlow2/variations/swin-small-patch244-window877-kinetics400-1k/versions/1
+experts/bit/r50x1/in21k/covering,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-covering/versions/1
+HRNet/msegpcontext-hrnetv2-w48,https://www.kaggle.com/models/google/hrnet/frameworks/tensorFlow2/variations/hrnet-msegpcontext-hrnetv2-w48/versions/1,skip,120721 AssertionError No signatures for a model
+convnext_large_21k_1k_224_fe,https://www.kaggle.com/models/spsayakpaul/convnext/frameworks/tensorFlow2/variations/large-21k-1k-224-fe/versions/1
+mmt/baseline-ft_baseline-no-bert-transfer,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/baseline-ft-baseline-no-bert-transfer/versions/1
+wiki40b-lm-el,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorFlow1/variations/el/versions/1
+imagenet/efficientnet_v2_imagenet21k_ft1k_b2/classification,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-ft1k-b2-classification/versions/1
+wiki40b-lm-ro,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorFlow1/variations/ro/versions/1
+convnext_base_21k_1k_224_fe,https://www.kaggle.com/models/spsayakpaul/convnext/frameworks/tensorFlow2/variations/base-21k-1k-224-fe/versions/1
+imagenet/mobilenet_v1_025_192/quantops/feature_vector,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow1/variations/025-192-quantops-feature-vector/versions/2,skip,128695 Inference results mismatch
+experts/bit/r50x1/in21k/foodstuff,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-foodstuff/versions/1
+imagenet/mobilenet_v1_075_128/quantops/classification,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow1/variations/075-128-quantops-classification/versions/2,skip,128695 Inference results mismatch
+wiki40b-lm-ms,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorFlow1/variations/ms/versions/1
+convnext_large_1k_224,https://www.kaggle.com/models/spsayakpaul/convnext/frameworks/tensorFlow2/variations/large-1k-224/versions/1
+convnext_large_21k_1k_384_fe,https://www.kaggle.com/models/spsayakpaul/convnext/frameworks/tensorFlow2/variations/large-21k-1k-384-fe/versions/1
+mobilevit_s_1k_256_fe,https://www.kaggle.com/models/kaggle/mobilevit/frameworks/tensorFlow2/variations/s-1k-256-fe/versions/1
+experts/bit/r50x1/in21k/abstraction,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-abstraction/versions/1
+wiki40b-lm-th,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorFlow1/variations/th/versions/1
+imagenet/mobilenet_v1_100_160/quantops/classification,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow1/variations/100-160-quantops-classification/versions/2,skip,128695 Inference results mismatch
+imagenet/efficientnet_v2_imagenet21k_b1/classification,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-b1-classification/versions/1
+mmt/data_sbu,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/data-sbu/versions/1
+mmt/data_combined-instance,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/data-combined-instance/versions/1
+semi-exemplar-10,https://www.kaggle.com/models/vtab/semi-exemplar-10/frameworks/tensorFlow1/variations/semi-exemplar-10/versions/1
+swin_tiny_patch4_window7_224,https://www.kaggle.com/models/spsayakpaul/swin/frameworks/tensorFlow2/variations/tiny-patch4-window7-224/versions/1
+vila/image,https://www.kaggle.com/models/google/vila/frameworks/tensorFlow2/variations/image/versions/1
+imagenet/mobilenet_v1_075_160/quantops/classification,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow1/variations/075-160-quantops-classification/versions/2,skip,128695 Inference results mismatch
+convnext_large_21k_1k_224,https://www.kaggle.com/models/spsayakpaul/convnext/frameworks/tensorFlow2/variations/large-21k-1k-224/versions/1
+mmt/architecture_vilbert-4block,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/architecture-vilbert-4block/versions/1
+imagenet/mobilenet_v1_050_160/quantops/classification,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow1/variations/050-160-quantops-classification/versions/2,skip,128695 Inference results mismatch
+mmt/architecture-ft_language-q-12,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/architecture-ft-language-q-12/versions/1
+convnext_small_1k_224_fe,https://www.kaggle.com/models/spsayakpaul/convnext/frameworks/tensorFlow2/variations/small-1k-224-fe/versions/1
+bit_resnet152x2_224_classification,https://www.kaggle.com/models/spsayakpaul/bit-resnet/frameworks/tensorFlow2/variations/bit-resnet152x2-224-classification/versions/1
+experts/bit/r50x1/in21k/relation,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-relation/versions/1
+mmt/architecture_single-modality,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/architecture-single-modality/versions/1
+convnext_xlarge_21k_1k_224_fe,https://www.kaggle.com/models/spsayakpaul/convnext/frameworks/tensorFlow2/variations/xlarge-21k-1k-224-fe/versions/1
+convnext_base_1k_384_fe,https://www.kaggle.com/models/spsayakpaul/convnext/frameworks/tensorFlow2/variations/base-1k-384-fe/versions/1
+compare_gan/model_4_lsun_bedroom_resnet19,https://www.kaggle.com/models/google/compare-gan/frameworks/tensorFlow1/variations/model-4-lsun-bedroom-resnet19/versions/1,skip,128817 Model references undeclared parameters
+experts/bit/r50x1/in21k/whole,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-whole/versions/1
+movinet/a3/stream/kinetics-600/classification,https://www.kaggle.com/models/google/movinet/frameworks/tensorFlow2/variations/a3-stream-kinetics-600-classification/versions/2
+experts/bit/r50x1/in21k/part,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-part/versions/1
+cait_s24_224_fe,https://www.kaggle.com/models/spsayakpaul/cait/frameworks/tensorFlow2/variations/s24-224-fe/versions/1
+experts/bit/r50x1/in21k/vertebrate,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-vertebrate/versions/1
+convnext_base_1k_224,https://www.kaggle.com/models/spsayakpaul/convnext/frameworks/tensorFlow2/variations/base-1k-224/versions/1
+deit_base_patch16_384,https://www.kaggle.com/models/spsayakpaul/deit/frameworks/tensorFlow2/variations/base-patch16-384/versions/1
+deit_small_distilled_patch16_224_fe,https://www.kaggle.com/models/spsayakpaul/deit/frameworks/tensorFlow2/variations/small-distilled-patch16-224-fe/versions/1
+llr-pretrain-adv/linear,https://www.kaggle.com/models/deepmind/llr-pretrain-adv/frameworks/tensorFlow1/variations/linear/versions/1
+edgetpu/vision/mobilenet-edgetpu-v2-feature-vector/m,https://www.kaggle.com/models/google/mobilenet-edgetpu-v2/frameworks/tensorFlow2/variations/feature-vector-m/versions/2
+mmt/architecture_vilbert-2block,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/architecture-vilbert-2block/versions/1
+mobilevit_xs_1k_256_fe,https://www.kaggle.com/models/kaggle/mobilevit/frameworks/tensorFlow2/variations/xs-1k-256-fe/versions/1
+convnext_base_21k_1k_384,https://www.kaggle.com/models/spsayakpaul/convnext/frameworks/tensorFlow2/variations/base-21k-1k-384/versions/1
+imagenet/mobilenet_v2_100_128/feature_vector,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/100-128-feature-vector/versions/2
+jigsaw,https://www.kaggle.com/models/vtab/jigsaw/frameworks/tensorFlow1/variations/jigsaw/versions/1
+imagenet/efficientnet_v2_imagenet21k_s/classification,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-s-classification/versions/2
+imagenet/mobilenet_v2_075_160/feature_vector,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/075-160-feature-vector/versions/2
+experts/bit/r50x1/in21k/matter,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-matter/versions/1
+imagenet/mobilenet_v2_035_224/feature_vector,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/035-224-feature-vector/versions/2
+klue_roberta_cased_L-24_H-1024_A-16,https://www.kaggle.com/models/jeongukjae/klue-roberta/frameworks/tensorFlow2/variations/cased-l-24-h-1024-a-16/versions/1
+imagenet/efficientnet_v2_imagenet21k_ft1k_b1/feature_vector,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-ft1k-b1-feature-vector/versions/1
+experts/bert/wiki_books/squad2,https://www.kaggle.com/models/google/experts-bert/frameworks/tensorFlow2/variations/wiki-books-squad2/versions/2
+convnext_tiny_1k_224_fe,https://www.kaggle.com/models/spsayakpaul/convnext/frameworks/tensorFlow2/variations/tiny-1k-224-fe/versions/1
+tf2-preview/nnlm-zh-dim50-with-normalization,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/tf2-preview-zh-dim50-with-normalization/versions/1,skip,120721 AssertionError No signatures for a model
+wiki40b-lm-de,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorFlow1/variations/de/versions/1
+mixer_b32_sam_fe,https://www.kaggle.com/models/spsayakpaul/mlp-mixer/frameworks/tensorFlow2/variations/mixer-b32-sam-fe/versions/1
+small_bert/bert_en_uncased_L-8_H-512_A-8,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/bert-en-uncased-l-8-h-512-a-8/versions/2
+tiny_video_net/mobile_1,https://www.kaggle.com/models/google/tiny-video-net/frameworks/tensorFlow1/variations/mobile-1/versions/1,skip,128817 Model references undeclared parameters
+vgg19-block5-conv2-unpooling-encoder,https://www.kaggle.com/models/emilutz/vgg19-unpooling-encoder-decoder/frameworks/tensorFlow2/variations/vgg19-block5-conv2-unpooling-encoder/versions/1,skip,128695 Inference results mismatch
+mmt/data-ft_sbu,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/data-ft-sbu/versions/1
+swin_s3_base_224,https://www.kaggle.com/models/spsayakpaul/swin/frameworks/tensorFlow2/variations/s3-base-224/versions/1
+mmt/data_cc-with-bert,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/data-cc-with-bert/versions/1
+experts/bit/r50x1/in21k/instrument,https://www.kaggle.com/models/google/experts-bit/frameworks/tensorFlow2/variations/r50x1-in21k-instrument/versions/1
+imagenet/mobilenet_v3_small_100_224/classification,https://www.kaggle.com/models/google/mobilenet-v3/frameworks/tensorFlow2/variations/small-100-224-classification/versions/1
+imagenet/efficientnet_v2_imagenet1k_b1/feature_vector,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet1k-b1-feature-vector/versions/2
+imagenet/efficientnet_v2_imagenet21k_xl/classification,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-xl-classification/versions/1
+bit/m-r152x4/imagenet21k_classification,https://www.kaggle.com/models/google/bit/frameworks/tensorFlow2/variations/m-r152x4-imagenet21k-classification/versions/1
+tf2-preview/nnlm-id-dim50,https://www.kaggle.com/models/google/nnlm/frameworks/tensorFlow2/variations/tf2-preview-id-dim50/versions/1,skip,120721 AssertionError No signatures for a model
+small_bert/bert_en_uncased_L-10_H-768_A-12,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/bert-en-uncased-l-10-h-768-a-12/versions/2
+unet/industrial/class_2,https://tfhub.dev/nvidia/unet/industrial/class_2/1,skip,Model is not available
+imagenet/mobilenet_v1_025_224/quantops/classification,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow1/variations/025-224-quantops-classification/versions/2,skip,128695 Inference results mismatch
+efficientnet/b0/classification,https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tensorFlow2/variations/b0-classification/versions/1
+convnext_large_1k_384_fe,https://www.kaggle.com/models/spsayakpaul/convnext/frameworks/tensorFlow2/variations/large-1k-384-fe/versions/1
+imagenet/efficientnet_v2_imagenet21k_b2/classification,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet21k-b2-classification/versions/1
+vgg19-block2-conv2-unpooling-decoder,https://www.kaggle.com/models/emilutz/vgg19-unpooling-encoder-decoder/frameworks/tensorFlow2/variations/vgg19-block2-conv2-unpooling-decoder/versions/1,skip,120720 InvalidArgumentError Graph execution error
+faster_rcnn/resnet50_v1_1024x1024,https://www.kaggle.com/models/tensorflow/faster-rcnn-resnet-v1/frameworks/tensorFlow2/variations/faster-rcnn-resnet50-v1-1024x1024/versions/1,skip,128695 Inference results mismatch
+Wiki-words-500-with-normalization,https://www.kaggle.com/models/google/wiki-words/frameworks/tensorFlow2/variations/500-with-normalization/versions/1,skip,120721 AssertionError No signatures for a model
+wiki40b-lm-zh-tw,https://www.kaggle.com/models/google/wiki40b-lm/frameworks/tensorFlow1/variations/zh-tw/versions/1

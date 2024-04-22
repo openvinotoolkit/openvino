@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "intel_gpu/plugin/usm_host_tensor.hpp"
 #include "intel_gpu/plugin/remote_tensor.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
-#include "openvino/runtime/make_tensor.hpp"
 #include <memory>
 
 namespace ov {

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """openvino module namespace, exposing factory functions for all ops and other classes."""
@@ -10,6 +10,7 @@ from openvino._pyopenvino import get_version
 __version__ = get_version()
 
 # Openvino pybind bindings and python extended classes
+from openvino._pyopenvino import Symbol
 from openvino._pyopenvino import Dimension
 from openvino._pyopenvino import Input
 from openvino._pyopenvino import Output

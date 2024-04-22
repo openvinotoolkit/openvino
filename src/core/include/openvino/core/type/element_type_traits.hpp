@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,7 +69,22 @@ struct element_type_traits<element::Type_t::u1> {
 };
 
 template <>
+struct element_type_traits<element::Type_t::u2> {
+    using value_type = int8_t;
+};
+
+template <>
+struct element_type_traits<element::Type_t::u3> {
+    using value_type = int8_t;
+};
+
+template <>
 struct element_type_traits<element::Type_t::u4> {
+    using value_type = int8_t;
+};
+
+template <>
+struct element_type_traits<element::Type_t::u6> {
     using value_type = int8_t;
 };
 
@@ -96,6 +111,16 @@ struct element_type_traits<element::Type_t::u64> {
 template <>
 struct element_type_traits<element::Type_t::nf4> {
     using value_type = int8_t;
+};
+
+template <>
+struct element_type_traits<element::Type_t::f8e4m3> {
+    using value_type = ov::float8_e4m3;
+};
+
+template <>
+struct element_type_traits<element::Type_t::f8e5m2> {
+    using value_type = ov::float8_e5m2;
 };
 
 template <>

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ class Convert : public Node {
 public:
     Convert(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
     Convert(const Shape &shape, const ov::element::Type &inPrc, const ov::element::Type &outPrc,
-                      const std::string &nodeName, const GraphContext::CPtr context);
+            const std::string &nodeName, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;

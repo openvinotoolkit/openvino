@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,10 +8,9 @@
 #include "memory.hpp"
 #include "scaled_attn.h"
 #include "common/cpu_convert.h"
-#include "common/cpu_memcpy.h"
 #include "utils/general_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "utils/ngraph_utils.hpp"
+#include "memory_desc/cpu_memory_desc_utils.h"
 #include "shape_inference/shape_inference_pass_through.hpp"
 #include "common/arbitrary_order_desc_creator.h"
 
@@ -123,13 +122,11 @@ MemoryOutputBase::MemoryOutputBase(const std::string id,
                                    const Shape& input_shape,
                                    const ov::element::Type& input_prc,
                                    const GraphContext::CPtr context) :
-    Node(type, name, context), MemoryNode(id) {
+    Node(type, {input_shape}, {}, {input_prc}, {}, name, context), MemoryNode(id) {
     isDynamic = input_shape.isDynamic();
     if (isDynamic) {
         shapeInference = PassThroughShapeInferFactory().makeShapeInfer();
     }
-    inputShapes.emplace_back(input_shape);
-    addOriginalInputPrecision(input_prc);
 }
 
 MemoryOutputBase::~MemoryOutputBase() {
@@ -256,7 +253,7 @@ void MemoryOutput::assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& me
 }
 
 void MemoryOutput::execute(dnnl::stream strm)  {
-    auto inputMem = getParentEdgeAt(0)->getMemoryPtr();
+    auto inputMem = getSrcMemoryAtPort(0);
     OPENVINO_ASSERT(assignedMem,
         "MemoryOutput ",
         getName(),
@@ -269,7 +266,7 @@ void MemoryOutput::execute(dnnl::stream strm)  {
 
 void MemoryOutput::executeDynamicImpl(dnnl::stream strm) {
     //first we have to resize the output memory
-    auto inputMem = getParentEdgeAt(0)->getMemoryPtr();
+    auto inputMem = getSrcMemoryAtPort(0);
     const auto& newDims = inputMem->getStaticDims();
     OPENVINO_ASSERT(extMemDesc,
         "MemoryOutput ",
@@ -543,7 +540,7 @@ void MemoryInput::execute(dnnl::stream strm) {
     if (!isExecutableFlag) return;
 
     auto&& src = getParentEdgeAt(0)->getMemory();
-    auto&& dst = getChildEdgesAtPort(0).front()->getMemoryPtr();
+    auto&& dst = getDstMemoryAtPort(0);
     dst->load(src);
 }
 

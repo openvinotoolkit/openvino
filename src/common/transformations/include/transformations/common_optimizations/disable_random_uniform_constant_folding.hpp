@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ class TRANSFORMATIONS_API DisableRandomUniformConstantFolding;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Disables ConstantFolding for RandomUniform operation. It is required as RandomUniform
  * should generate new sequence each run.
  */

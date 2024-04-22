@@ -26,7 +26,8 @@ different styles, actions, and contexts.
    drivers in the system - changes to have compatibility with
    transformers >= 4.30.1 (due to security vulnerability)
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Install Prerequisites <#install-prerequisites>`__
 -  `Convert models to OpenVINO Intermediate representation (IR)
@@ -51,14 +52,23 @@ different styles, actions, and contexts.
 Install Prerequisites
 ---------------------
 
- Install required packages.
+Install required packages.
 
 .. code:: ipython3
 
-    !pip install -q --upgrade pip
-    !pip install -q --extra-index-url https://download.pytorch.org/whl/cpu torch torchvision
-    !pip install -q transformers  huggingface-hub accelerate "diffusers==0.16.1" gradio
-    !pip install -q "openvino>=2023.1.0"
+    %pip install -q --upgrade pip
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu torch torchvision
+    %pip install -q transformers  huggingface-hub accelerate "diffusers>=0.16.1" gradio
+    %pip install -q "openvino>=2023.1.0"
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+    Note: you may need to restart the kernel to use updated packages.
+    Note: you may need to restart the kernel to use updated packages.
+    Note: you may need to restart the kernel to use updated packages.
+
 
 Clone FastComposer project from GitHub
 
@@ -72,6 +82,12 @@ Clone FastComposer project from GitHub
         !git clone https://github.com/mit-han-lab/fastcomposer.git
     else:
         print("FastComposer repo already cloned")
+
+
+.. parsed-literal::
+
+    FastComposer repo already cloned
+
 
 Download pretrained model.
 
@@ -91,11 +107,10 @@ Define a configuration and make instance of ``FastComposerModel``.
 
 .. code:: ipython3
 
+    from model import FastComposerModel
     from dataclasses import dataclass
     
     import torch
-    
-    from model import FastComposerModel
     
     
     @dataclass()
@@ -117,6 +132,34 @@ Define a configuration and make instance of ``FastComposerModel``.
     model = FastComposerModel.from_pretrained(config)
     model.load_state_dict(torch.load(config.finetuned_model_path, map_location="cpu"), strict=False)
 
+
+.. parsed-literal::
+
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
+      torch.utils._pytree._register_pytree_node(
+    WARNING[XFORMERS]: xFormers can't load C++/CUDA extensions. xFormers was built for:
+        PyTorch 2.1.0+cu121 with CUDA 1201 (you have 2.2.0+cu121)
+        Python  3.8.18 (you have 3.8.10)
+      Please reinstall xformers (see https://github.com/facebookresearch/xformers#installing-xformers)
+      Memory-efficient attention, SwiGLU, sparse and more won't be available.
+      Set XFORMERS_MORE_DETAILS=1 for more details
+    2024-02-22 11:01:58.013035: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-02-22 11:01:58.014759: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-02-22 11:01:58.051348: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2024-02-22 11:01:58.839838: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
+      torch.utils._pytree._register_pytree_node(
+
+
+
+
+.. parsed-literal::
+
+    _IncompatibleKeys(missing_keys=['vae.encoder.mid_block.attentions.0.to_q.weight', 'vae.encoder.mid_block.attentions.0.to_q.bias', 'vae.encoder.mid_block.attentions.0.to_k.weight', 'vae.encoder.mid_block.attentions.0.to_k.bias', 'vae.encoder.mid_block.attentions.0.to_v.weight', 'vae.encoder.mid_block.attentions.0.to_v.bias', 'vae.encoder.mid_block.attentions.0.to_out.0.weight', 'vae.encoder.mid_block.attentions.0.to_out.0.bias', 'vae.decoder.mid_block.attentions.0.to_q.weight', 'vae.decoder.mid_block.attentions.0.to_q.bias', 'vae.decoder.mid_block.attentions.0.to_k.weight', 'vae.decoder.mid_block.attentions.0.to_k.bias', 'vae.decoder.mid_block.attentions.0.to_v.weight', 'vae.decoder.mid_block.attentions.0.to_v.bias', 'vae.decoder.mid_block.attentions.0.to_out.0.weight', 'vae.decoder.mid_block.attentions.0.to_out.0.bias'], unexpected_keys=['text_encoder.embeddings.position_ids', 'image_encoder.vision_model.embeddings.position_ids', 'vae.encoder.mid_block.attentions.0.query.weight', 'vae.encoder.mid_block.attentions.0.query.bias', 'vae.encoder.mid_block.attentions.0.key.weight', 'vae.encoder.mid_block.attentions.0.key.bias', 'vae.encoder.mid_block.attentions.0.value.weight', 'vae.encoder.mid_block.attentions.0.value.bias', 'vae.encoder.mid_block.attentions.0.proj_attn.weight', 'vae.encoder.mid_block.attentions.0.proj_attn.bias', 'vae.decoder.mid_block.attentions.0.query.weight', 'vae.decoder.mid_block.attentions.0.query.bias', 'vae.decoder.mid_block.attentions.0.key.weight', 'vae.decoder.mid_block.attentions.0.key.bias', 'vae.decoder.mid_block.attentions.0.value.weight', 'vae.decoder.mid_block.attentions.0.value.bias', 'vae.decoder.mid_block.attentions.0.proj_attn.weight', 'vae.decoder.mid_block.attentions.0.proj_attn.bias'])
+
+
+
 Pipeline consist of next models: ``Unet``, ``TextEncoder``,
 ``ImageEncoder`` and ``PostfuseModule`` (MLP), ``object_transforms`` .
 
@@ -133,14 +176,14 @@ Convert text_encoder
 
 
 Model components are PyTorch modules, that can be converted with
-openvino.convert_model function directly. We also use
-openvino.save_model function to serialize the result of conversion.
-Let’s create a helper function.
+``ov.convert_model`` function directly. We also use ``ov.save_model``
+function to serialize the result of conversion. Let’s create a helper
+function.
 
 .. code:: ipython3
 
     import gc
-    import openvino
+    import openvino as ov
     
     
     def convert(model: torch.nn.Module, xml_path: str, example_input):
@@ -148,8 +191,8 @@ Let’s create a helper function.
         if not xml_path.exists():
             xml_path.parent.mkdir(parents=True, exist_ok=True)
             with torch.no_grad():
-                converted_model = openvino.convert_model(model, example_input=example_input)
-            openvino.save_model(converted_model, xml_path)
+                converted_model = ov.convert_model(model, example_input=example_input)
+            ov.save_model(converted_model, xml_path)
             
             # cleanup memory
             torch._C._jit_clear_class_registry()
@@ -175,6 +218,23 @@ padded to the maximum length accepted by the model.
     
     del model.text_encoder
     gc.collect();
+
+
+.. parsed-literal::
+
+    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
+
+
+.. parsed-literal::
+
+    [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:273: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if attn_weights.size() != (bsz * self.num_heads, tgt_len, src_len):
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:281: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if causal_attention_mask.size() != (bsz, 1, tgt_len, src_len):
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:313: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if attn_output.size() != (bsz * self.num_heads, tgt_len, self.head_dim):
+
 
 The Object Transform
 ~~~~~~~~~~~~~~~~~~~~
@@ -217,6 +277,15 @@ tensor of size [3, height, width].
     del object_transforms
     gc.collect();
 
+
+.. parsed-literal::
+
+    /home/ea/work/openvino_notebooks/notebooks/252-fastcomposer-image-generation/fastcomposer/fastcomposer/transforms.py:35: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if h == w:
+    /home/ea/work/openvino_notebooks/notebooks/252-fastcomposer-image-generation/fastcomposer/fastcomposer/transforms.py:37: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      elif h > w:
+
+
 The Image Encoder
 ~~~~~~~~~~~~~~~~~
 
@@ -236,6 +305,13 @@ input and transforms it into a high-dimensional vector or embeddings.
     
     del model.image_encoder
     gc.collect();
+
+
+.. parsed-literal::
+
+    /home/ea/work/openvino_notebooks/notebooks/252-fastcomposer-image-generation/model.py:108: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if h != self.image_size or w != self.image_size:
+
 
 Postfuse module
 ~~~~~~~~~~~~~~~
@@ -291,6 +367,33 @@ text encoder hidden state.
     
     gc.collect()
 
+
+.. parsed-literal::
+
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/diffusers/models/unet_2d_condition.py:915: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if dim % default_overall_up_factor != 0:
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/peft/tuners/loha/layer.py:303: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+      def forward(ctx, w1a, w1b, w2a, w2b, scale=torch.tensor(1)):
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/peft/tuners/loha/layer.py:326: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+      def forward(ctx, t1, w1a, w1b, t2, w2a, w2b, scale=torch.tensor(1)):
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/diffusers/models/downsampling.py:135: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      assert hidden_states.shape[1] == self.channels
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/diffusers/models/downsampling.py:144: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      assert hidden_states.shape[1] == self.channels
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/diffusers/models/upsampling.py:149: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      assert hidden_states.shape[1] == self.channels
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/diffusers/models/upsampling.py:165: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if hidden_states.shape[0] >= 64:
+
+
+
+
+.. parsed-literal::
+
+    16724
+
+
+
 Rebuild pipeline
 ----------------
 
@@ -303,17 +406,11 @@ convert outputs from numpy to torch types.
 .. code:: ipython3
 
     import numpy as np
-    from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
     from diffusers.pipelines.stable_diffusion import StableDiffusionPipelineOutput
     from diffusers.pipelines.stable_diffusion import StableDiffusionPipeline
     from diffusers.loaders import TextualInversionLoaderMixin
-    from diffusers.models import AutoencoderKL, UNet2DConditionModel
     from typing import Any, Callable, Dict, List, Optional, Union
-    from diffusers.schedulers import KarrasDiffusionSchedulers
-    from transformers import CLIPImageProcessor, CLIPTokenizer
     from PIL import Image
-    
-    from model import FastComposerTextEncoder
     
     
     class StableDiffusionFastCompposerPipeline(StableDiffusionPipeline):
@@ -323,27 +420,6 @@ convert outputs from numpy to torch types.
         This model inherits from [`StableDiffusionPipeline`]. Check the superclass documentation for the generic methods the
         library implements for all the pipelines (such as downloading or saving, running on a particular device, etc.)
         """
-        def __init__(
-            self,
-            vae: AutoencoderKL,
-            text_encoder: FastComposerTextEncoder,
-            tokenizer: CLIPTokenizer,
-            unet: UNet2DConditionModel,
-            scheduler: KarrasDiffusionSchedulers,
-            safety_checker: StableDiffusionSafetyChecker,
-            feature_extractor: CLIPImageProcessor,
-            requires_safety_checker: bool = True,
-        ):
-            super().__init__(
-                vae,
-                text_encoder,
-                tokenizer,
-                unet,
-                scheduler,
-                safety_checker,
-                feature_extractor,
-                requires_safety_checker,
-            )
     
     
         @torch.no_grad()
@@ -575,7 +651,7 @@ convert outputs from numpy to torch types.
                     The prompt or prompts not to guide the image generation. If not defined, one has to pass
                     `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is
                     less than `1`).
-                num_images_per_prompt (`int`, *optional*, defaults to 1):
+                num_images_per_prompt (`int`, *optional*, defaults to 1):_unwrap_model
                     The number of images to generate per prompt.
                 eta (`float`, *optional*, defaults to 0.0):
                     Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to
@@ -807,7 +883,6 @@ And replace all model in the pipeline by converted models.
             unet,
             object_transforms,
             postfuse_module,
-            device
     ):
         weight_dtype = torch.float32
     
@@ -821,7 +896,7 @@ And replace all model in the pipeline by converted models.
     
         pipe = StableDiffusionFastCompposerPipeline.from_pretrained(
             args.pretrained_model_name_or_path, torch_dtype=weight_dtype
-        ).to(device)
+        )
     
         pipe.object_transforms = object_transforms
         pipe.unet = unet
@@ -892,14 +967,38 @@ And replace all model in the pipeline by converted models.
                 ).images,
                 "run successfully",
             )
+
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
     
+    core = ov.Core()
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
     
-    core = openvino.Core()
-    compiled_unet = core.compile_model(unet_ir_xml_path)
-    compiled_text_encoder = core.compile_model(text_encoder_ir_xml_path)
-    compiled_image_encoder = core.compile_model(image_encoder_ir_xml_path)
-    compiled_postfuse_module = core.compile_model(postfuse_module_ir_xml_path)
-    compiled_object_transforms = core.compile_model(object_transforms_ir_xml_path)
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=3, options=('CPU', 'GPU.0', 'GPU.1', 'AUTO'), value='AUTO')
+
+
+
+.. code:: ipython3
+
+    compiled_unet = core.compile_model(unet_ir_xml_path, device.value)
+    compiled_text_encoder = core.compile_model(text_encoder_ir_xml_path, device.value)
+    compiled_image_encoder = core.compile_model(image_encoder_ir_xml_path, device.value)
+    compiled_postfuse_module = core.compile_model(postfuse_module_ir_xml_path, device.value)
+    compiled_object_transforms = core.compile_model(object_transforms_ir_xml_path, device.value)
     
     wrapped_model = ModelWrapper(
         create_pipeline(
@@ -909,9 +1008,21 @@ And replace all model in the pipeline by converted models.
             unet=compiled_unet,
             object_transforms=compiled_object_transforms,
             postfuse_module=compiled_postfuse_module,
-            device='cpu'
         )
     )
+
+
+
+.. parsed-literal::
+
+    Loading pipeline components...:   0%|          | 0/7 [00:00<?, ?it/s]
+
+
+.. parsed-literal::
+
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
+      torch.utils._pytree._register_pytree_node(
+
 
 Inference
 ---------
@@ -949,12 +1060,35 @@ that correlates with input images.
         num_images
     )
 
+
+.. parsed-literal::
+
+    Running model inference...
+
+
+
+.. parsed-literal::
+
+      0%|          | 0/50 [00:00<?, ?it/s]
+
+
+.. parsed-literal::
+
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/diffusers/pipelines/stable_diffusion/pipeline_stable_diffusion.py:533: FutureWarning: The decode_latents method is deprecated and will be removed in 1.0.0. Please use VaeImageProcessor.postprocess(...) instead
+      deprecate("decode_latents", "1.0.0", deprecation_message, standard_warn=False)
+
+
 Result consists of several (``num_images``) images and now it possible
 to display them.
 
 .. code:: ipython3
 
     display(result[0][0])
+
+
+
+.. image:: 252-fastcomposer-image-generation-with-output_files/252-fastcomposer-image-generation-with-output_32_0.png
+
 
 Run Gradio
 ----------

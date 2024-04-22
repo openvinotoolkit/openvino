@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -493,7 +493,7 @@ TEST_P(deconv_actv_eltw_actv, basic_cached) {
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, deconv_actv_eltw_actv, ::testing::ValuesIn(std::vector<deconv_test_params>{
     // Some fusings disabled under deconvolution -> convolution optimization
-    deconv_test_params{ CASE_DECONV_FP32_1, 3, 2, 5 },
+    deconv_test_params{ CASE_DECONV_FP32_1, 3, 3, 5 },
     deconv_test_params{ CASE_DECONV_FP32_2, 2, 2, 5 },
     deconv_test_params{ CASE_DECONV_FP32_3, 2, 2, 5 },
     deconv_test_params{ CASE_DECONV_FP32_4, 2, 2, 5 },

@@ -79,7 +79,7 @@ public:
 protected:
     template<typename T>
     void transpose(T& shape) {
-        IE_ASSERT(shape.size() > 1);
+        OPENVINO_ASSERT(shape.size() > 1);
         std::swap(*(shape.end() - 1), *(shape.end() - 2));
     }
 

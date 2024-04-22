@@ -7,7 +7,6 @@
 #include <string>
 
 #include "common_test_utils/common_utils.hpp"
-#include "file_utils.h"
 #include "openvino/core/any.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/util/file_util.hpp"

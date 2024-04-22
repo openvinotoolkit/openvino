@@ -21,7 +21,7 @@ class TRANSFORMATIONS_API TSDataMovementBackward;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief TSDataMovementForward transformation sinks Transpose through BatchToSpace, SpaceToBatch,
  * ReverseSequence and Pad operations in the forward direction.
  * These operations are categorized as "DataMovement" and are handled in a similar way in this transformation.
@@ -33,7 +33,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief TSDataMovementBackward transformation sinks Transpose through BatchToSpace, SpaceToBatch,
  * ReverseSequence and Pad operations in the backward direction.
  * These operations are categorized as "DataMovement" and are handled in a similar way in this transformation.

@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/core/shape.hpp"
 
 #include "openvino/core/shape_util.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/util/common_util.hpp"
-#include "validation_util.hpp"
 
 std::ostream& ov::operator<<(std::ostream& s, const Shape& shape) {
     s << "[";

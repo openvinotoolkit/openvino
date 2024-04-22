@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/single_op/generate_proposals.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/data_utils.hpp"
 
 namespace ov {
 namespace test {
@@ -116,18 +116,21 @@ void GenerateProposalsLayerTest::compare(const std::vector<ov::Tensor>& expected
         const auto expectedBuffer = static_cast<uint8_t*>(expected[i].data());
         const auto outputSize = i == 0 ? 4 : 1;
 
+        rel_threshold = ov::test::utils::tensor_comparation::calculate_default_rel_threshold(
+            expected[i].get_element_type(), actual[i].get_element_type());
+
         if (outType == ov::element::f32) {
-            LayerTestsUtils::LayerTestsCommon::Compare(reinterpret_cast<const float*>(expectedBuffer),
-                                                       reinterpret_cast<const float*>(actualBuffer),
-                                                       expectedNumRois * outputSize,
-                                                       rel_threshold,
-                                                       abs_threshold);
+            ov::test::utils::compare_raw_data(reinterpret_cast<const float*>(expectedBuffer),
+                                              reinterpret_cast<const float*>(actualBuffer),
+                                              expectedNumRois * outputSize,
+                                              rel_threshold,
+                                              abs_threshold);
         } else {
-            LayerTestsUtils::LayerTestsCommon::Compare(reinterpret_cast<const float16*>(expectedBuffer),
-                                                       reinterpret_cast<const float16*>(actualBuffer),
-                                                       expectedNumRois * outputSize,
-                                                       rel_threshold,
-                                                       abs_threshold);
+            ov::test::utils::compare_raw_data(reinterpret_cast<const float16*>(expectedBuffer),
+                                              reinterpret_cast<const float16*>(actualBuffer),
+                                              expectedNumRois * outputSize,
+                                              rel_threshold,
+                                              abs_threshold);
         }
 
         if (expectedNumRois < actualNumRois) {

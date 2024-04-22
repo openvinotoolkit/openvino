@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ public:
     virtual ~SharedAttribute() = default;
 
     /**
-     * @ingroup ie_transformation_common_api
+     * @ingroup ov_transformation_common_api
      * @brief SharedValueAttribute type for shared value attributes.
      * The attribute is used for attribute SharedValue value backward propagation.
      */

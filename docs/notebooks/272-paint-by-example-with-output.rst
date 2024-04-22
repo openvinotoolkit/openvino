@@ -1,10 +1,32 @@
 Paint By Example: Exemplar-based Image Editing with Diffusion Models
 ====================================================================
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
+
+-  `Stable Diffusion in Diffusers
+   library <#stable-diffusion-in-diffusers-library>`__
+-  `Download default images <#download-default-images>`__
+-  `Convert models to OpenVINO Intermediate representation (IR)
+   format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
+-  `Prepare Inference pipeline <#prepare-inference-pipeline>`__
+-  `Select inference device <#select-inference-device>`__
+-  `Configure Inference Pipeline <#configure-inference-pipeline>`__
+-  `Quantization <#quantization>`__
+
+   -  `Prepare Inference pipeline <#prepare-inference-pipeline>`__
+   -  `Run quantization <#run-quantization>`__
+   -  `Run inference and compare inference
+      time <#run-inference-and-compare-inference-time>`__
+   -  `Compare UNet file size <#compare-unet-file-size>`__
+
+-  `Interactive inference <#interactive-inference>`__
+
 Stable Diffusion in Diffusers library
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-To work with Stable Diffusion, we will use the Hugging Face
+To work with Stable Diffusion,
+we will use the Hugging Face
 `Diffusers <https://github.com/huggingface/diffusers>`__ library. To
 experiment with in-painting we can use Diffusers which exposes the
 `StableDiffusionInpaintPipeline <https://huggingface.co/docs/diffusers/using-diffusers/conditional_image_generation>`__
@@ -24,148 +46,14 @@ This is the detailed flowchart for the pipeline: |pipeline-flowchart|
 
 .. code:: ipython3
 
-    %pip install -q "gradio == 3.50.2"
-    %pip install -q "diffusers>=-1.14.0" "openvino>=2023.2.0" "transformers >= 4.25.1"
-
-
-.. parsed-literal::
-
-    Collecting gradio==3.50.2
-      Downloading gradio-3.50.2-py3-none-any.whl (20.3 MB)
-                                                  0.0/20.3 MB ? eta -:--:--
-                                                  0.4/20.3 MB 8.1 MB/s eta 0:00:03
-         -                                        1.0/20.3 MB 10.2 MB/s eta 0:00:02
-         ---                                      1.6/20.3 MB 11.0 MB/s eta 0:00:02
-         ---                                      1.9/20.3 MB 10.1 MB/s eta 0:00:02
-         ----                                     2.3/20.3 MB 10.5 MB/s eta 0:00:02
-         -----                                    2.6/20.3 MB 9.8 MB/s eta 0:00:02
-         ------                                   3.1/20.3 MB 9.8 MB/s eta 0:00:02
-         ------                                   3.5/20.3 MB 9.7 MB/s eta 0:00:02
-         -------                                  4.0/20.3 MB 9.8 MB/s eta 0:00:02
-         --------                                 4.4/20.3 MB 9.7 MB/s eta 0:00:02
-         ---------                                4.9/20.3 MB 9.8 MB/s eta 0:00:02
-         ----------                               5.4/20.3 MB 9.8 MB/s eta 0:00:02
-         -----------                              5.9/20.3 MB 9.9 MB/s eta 0:00:02
-         ------------                             6.4/20.3 MB 10.2 MB/s eta 0:00:02
-         -------------                            6.9/20.3 MB 10.2 MB/s eta 0:00:02
-         --------------                           7.4/20.3 MB 10.3 MB/s eta 0:00:02
-         ---------------                          7.9/20.3 MB 10.3 MB/s eta 0:00:02
-         ----------------                         8.3/20.3 MB 10.2 MB/s eta 0:00:02
-         -----------------                        8.8/20.3 MB 10.3 MB/s eta 0:00:02
-         ------------------                       9.4/20.3 MB 10.4 MB/s eta 0:00:02
-         -------------------                      9.9/20.3 MB 10.4 MB/s eta 0:00:01
-         -------------------                     10.3/20.3 MB 10.2 MB/s eta 0:00:01
-         --------------------                    10.8/20.3 MB 10.2 MB/s eta 0:00:01
-         ---------------------                   11.1/20.3 MB 10.2 MB/s eta 0:00:01
-         ----------------------                  11.6/20.3 MB 10.1 MB/s eta 0:00:01
-         -----------------------                 12.1/20.3 MB 10.2 MB/s eta 0:00:01
-         ------------------------                12.6/20.3 MB 10.4 MB/s eta 0:00:01
-         -------------------------               13.0/20.3 MB 10.4 MB/s eta 0:00:01
-         -------------------------               13.5/20.3 MB 10.4 MB/s eta 0:00:01
-         --------------------------              14.0/20.3 MB 10.4 MB/s eta 0:00:01
-         ---------------------------             14.5/20.3 MB 10.6 MB/s eta 0:00:01
-         ----------------------------            15.0/20.3 MB 10.6 MB/s eta 0:00:01
-         -----------------------------           15.5/20.3 MB 10.6 MB/s eta 0:00:01
-         ------------------------------          16.0/20.3 MB 10.6 MB/s eta 0:00:01
-         -------------------------------         16.5/20.3 MB 10.6 MB/s eta 0:00:01
-         --------------------------------        17.1/20.3 MB 10.6 MB/s eta 0:00:01
-         ---------------------------------       17.5/20.3 MB 10.7 MB/s eta 0:00:01
-         ----------------------------------      18.0/20.3 MB 10.7 MB/s eta 0:00:01
-         -----------------------------------     18.5/20.3 MB 10.7 MB/s eta 0:00:01
-         ------------------------------------    18.9/20.3 MB 10.6 MB/s eta 0:00:01
-         -------------------------------------   19.4/20.3 MB 10.6 MB/s eta 0:00:01
-         --------------------------------------  19.8/20.3 MB 10.4 MB/s eta 0:00:01
-         --------------------------------------  20.3/20.3 MB 10.6 MB/s eta 0:00:01
-         --------------------------------------  20.3/20.3 MB 10.6 MB/s eta 0:00:01
-         --------------------------------------  20.3/20.3 MB 10.6 MB/s eta 0:00:01
-         --------------------------------------  20.3/20.3 MB 10.6 MB/s eta 0:00:01
-         --------------------------------------  20.3/20.3 MB 10.6 MB/s eta 0:00:01
-         ---------------------------------------- 20.3/20.3 MB 8.5 MB/s eta 0:00:00
-    Requirement already satisfied: aiofiles<24.0,>=22.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (22.1.0)
-    Requirement already satisfied: altair<6.0,>=4.2.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (4.2.2)
-    Requirement already satisfied: fastapi in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (0.95.1)
-    Requirement already satisfied: ffmpy in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (0.3.0)
-    Collecting gradio-client==0.6.1 (from gradio==3.50.2)
-      Downloading gradio_client-0.6.1-py3-none-any.whl (299 kB)
-                                                  0.0/299.2 kB ? eta -:--:--
-         -------------------------------------- 299.2/299.2 kB 6.3 MB/s eta 0:00:00
-    Requirement already satisfied: httpx in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (0.24.0)
-    Requirement already satisfied: huggingface-hub>=0.14.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (0.14.1)
-    Collecting importlib-resources<7.0,>=1.3 (from gradio==3.50.2)
-      Downloading importlib_resources-6.1.1-py3-none-any.whl (33 kB)
-    Requirement already satisfied: jinja2<4.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (3.1.2)
-    Requirement already satisfied: markupsafe~=2.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (2.1.2)
-    Requirement already satisfied: matplotlib~=3.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (3.5.2)
-    Requirement already satisfied: numpy~=1.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (1.23.4)
-    Requirement already satisfied: orjson~=3.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (3.8.11)
-    Requirement already satisfied: packaging in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (23.1)
-    Requirement already satisfied: pandas<3.0,>=1.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (1.3.5)
-    Requirement already satisfied: pillow<11.0,>=8.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (9.5.0)
-    Requirement already satisfied: pydantic!=1.8,!=1.8.1,!=2.0.0,!=2.0.1,<3.0.0,>=1.7.4 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (1.10.7)
-    Requirement already satisfied: pydub in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (0.25.1)
-    Requirement already satisfied: python-multipart in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (0.0.6)
-    Requirement already satisfied: pyyaml<7.0,>=5.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (6.0)
-    Requirement already satisfied: requests~=2.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (2.29.0)
-    Requirement already satisfied: semantic-version~=2.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (2.10.0)
-    Requirement already satisfied: typing-extensions~=4.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (4.5.0)
-    Requirement already satisfied: uvicorn>=0.14.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (0.22.0)
-    Requirement already satisfied: websockets<12.0,>=10.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio==3.50.2) (11.0.2)
-    Requirement already satisfied: fsspec in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from gradio-client==0.6.1->gradio==3.50.2) (2023.4.0)
-    Requirement already satisfied: entrypoints in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from altair<6.0,>=4.2.0->gradio==3.50.2) (0.4)
-    Requirement already satisfied: jsonschema>=3.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from altair<6.0,>=4.2.0->gradio==3.50.2) (4.17.3)
-    Requirement already satisfied: toolz in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from altair<6.0,>=4.2.0->gradio==3.50.2) (0.12.0)
-    Requirement already satisfied: filelock in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from huggingface-hub>=0.14.0->gradio==3.50.2) (3.12.0)
-    Requirement already satisfied: tqdm>=4.42.1 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from huggingface-hub>=0.14.0->gradio==3.50.2) (4.65.0)
-    Requirement already satisfied: cycler>=0.10 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from matplotlib~=3.0->gradio==3.50.2) (0.11.0)
-    Requirement already satisfied: fonttools>=4.22.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from matplotlib~=3.0->gradio==3.50.2) (4.39.3)
-    Requirement already satisfied: kiwisolver>=1.0.1 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from matplotlib~=3.0->gradio==3.50.2) (1.4.4)
-    Requirement already satisfied: pyparsing>=2.2.1 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from matplotlib~=3.0->gradio==3.50.2) (2.4.7)
-    Requirement already satisfied: python-dateutil>=2.7 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from matplotlib~=3.0->gradio==3.50.2) (2.8.2)
-    Requirement already satisfied: pytz>=2017.3 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from pandas<3.0,>=1.0->gradio==3.50.2) (2023.3)
-    Requirement already satisfied: charset-normalizer<4,>=2 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from requests~=2.0->gradio==3.50.2) (3.1.0)
-    Requirement already satisfied: idna<4,>=2.5 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from requests~=2.0->gradio==3.50.2) (3.4)
-    Requirement already satisfied: urllib3<1.27,>=1.21.1 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from requests~=2.0->gradio==3.50.2) (1.26.15)
-    Requirement already satisfied: certifi>=2017.4.17 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from requests~=2.0->gradio==3.50.2) (2022.12.7)
-    Requirement already satisfied: click>=7.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from uvicorn>=0.14.0->gradio==3.50.2) (8.1.3)
-    Requirement already satisfied: h11>=0.8 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from uvicorn>=0.14.0->gradio==3.50.2) (0.14.0)
-    Requirement already satisfied: starlette<0.27.0,>=0.26.1 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from fastapi->gradio==3.50.2) (0.26.1)
-    Requirement already satisfied: httpcore<0.18.0,>=0.15.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from httpx->gradio==3.50.2) (0.17.0)
-    Requirement already satisfied: sniffio in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from httpx->gradio==3.50.2) (1.3.0)
-    Requirement already satisfied: colorama in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from click>=7.0->uvicorn>=0.14.0->gradio==3.50.2) (0.4.6)
-    Requirement already satisfied: anyio<5.0,>=3.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from httpcore<0.18.0,>=0.15.0->httpx->gradio==3.50.2) (3.6.2)
-    Requirement already satisfied: attrs>=17.4.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from jsonschema>=3.0->altair<6.0,>=4.2.0->gradio==3.50.2) (23.1.0)
-    Requirement already satisfied: pyrsistent!=0.17.0,!=0.17.1,!=0.17.2,>=0.14.0 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from jsonschema>=3.0->altair<6.0,>=4.2.0->gradio==3.50.2) (0.19.3)
-    Requirement already satisfied: six>=1.5 in c:\hackathon\openvino_notebooks\venv310\lib\site-packages (from python-dateutil>=2.7->matplotlib~=3.0->gradio==3.50.2) (1.16.0)
-    Installing collected packages: importlib-resources, gradio-client, gradio
-      Attempting uninstall: gradio-client
-        Found existing installation: gradio_client 0.1.4
-        Uninstalling gradio_client-0.1.4:
-          Successfully uninstalled gradio_client-0.1.4
-      Attempting uninstall: gradio
-        Found existing installation: gradio 3.28.1
-        Uninstalling gradio-3.28.1:
-          Successfully uninstalled gradio-3.28.1
-    Successfully installed gradio-3.50.2 gradio-client-0.6.1 importlib-resources-6.1.1
-    Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
-    
-    [notice] A new release of pip is available: 23.1 -> 23.3.1
-    [notice] To update, run: python.exe -m pip install --upgrade pip
+    %pip install -q torch torchvision --extra-index-url "https://download.pytorch.org/whl/cpu"
+    %pip install -q "diffusers>=0.25.0" "peft<=0.6.2" "openvino>=2023.2.0" "transformers>=4.25.1" ipywidgets opencv_python pillow "nncf>=2.7.0" "gradio==3.44.1"
 
 
 .. parsed-literal::
 
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
-    
-    [notice] A new release of pip is available: 23.1 -> 23.3.1
-    [notice] To update, run: python.exe -m pip install --upgrade pip
+    Note: you may need to restart the kernel to use updated packages.
 
 
 Download the model from `HuggingFace
@@ -174,22 +62,13 @@ This might take several minutes because it is over 5GB
 
 .. code:: ipython3
 
-    from diffusers import DPMSolverMultistepScheduler, DiffusionPipeline
+    from diffusers import DiffusionPipeline
+    from diffusers.schedulers import DDIMScheduler, LMSDiscreteScheduler, PNDMScheduler
+    
     
     pipeline = DiffusionPipeline.from_pretrained("Fantasy-Studio/Paint-By-Example")
     
-    scheduler_inpaint = DPMSolverMultistepScheduler.from_config(pipeline.scheduler.config)
-
-
-.. parsed-literal::
-
-    Cannot initialize model with low cpu memory usage because `accelerate` was not found in the environment. Defaulting to `low_cpu_mem_usage=False`. It is strongly recommended to install `accelerate` for faster and less memory-intense model loading. You can do so with: 
-    ```
-    pip install accelerate
-    ```
-    .
-    You are using a model of type clip_vision_model to instantiate a model of type clip. This is not supported for all configurations of models and can yield errors.
-
+    scheduler_inpaint = DDIMScheduler.from_config(pipeline.scheduler.config)
 
 .. code:: ipython3
 
@@ -208,6 +87,8 @@ This might take several minutes because it is over 5GB
 
 Download default images
 ~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Download default images.
 
@@ -235,53 +116,10 @@ Download default images.
     download_file("https://github-production-user-asset-6210df.s3.amazonaws.com/103226580/286377318-8841a801-1933-4523-a433-7d2fb64c47e6.jpg", "dog.jpg", "data/reference")
 
 
-
-
-.. parsed-literal::
-
-    data\image\0.png:   0%|          | 0.00/453k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    data\image\1.png:   0%|          | 0.00/545k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    data\image\2.png:   0%|          | 0.00/431k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    data\reference\bird.jpg:   0%|          | 0.00/835k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    data\reference\car.jpg:   0%|          | 0.00/414k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    data\reference\dog.jpg:   0%|          | 0.00/543k [00:00<?, ?B/s]
-
-
-
-
-.. parsed-literal::
-
-    WindowsPath('C:/hackathon/openvino_notebooks/notebooks/272-paint-by-example/data/reference/dog.jpg')
-
-
-
 Convert models to OpenVINO Intermediate representation (IR) format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Adapted from `236 Stable Diffusion v2 Infinite Zoom
 notebook <236-stable-diffusion-v2-with-output.html>`__
@@ -474,12 +312,6 @@ Do the conversion of the in-painting model:
     del image_encoder
     gc.collect();
 
-
-.. parsed-literal::
-
-    Image encoder will be loaded from model\paint_by_example\image_encoder.xml
-
-
 Do the conversion of the Unet model
 
 .. code:: ipython3
@@ -493,12 +325,6 @@ Do the conversion of the Unet model
         del unet_inpaint
         print(f"U-Net will be loaded from {UNET_OV_PATH_INPAINT}")
     gc.collect();
-
-
-.. parsed-literal::
-
-    U-Net will be loaded from model\paint_by_example\unet.xml
-
 
 Do the conversion of the VAE Encoder model
 
@@ -520,15 +346,10 @@ Do the conversion of the VAE Encoder model
     del vae_inpaint
     gc.collect();
 
-
-.. parsed-literal::
-
-    VAE encoder will be loaded from model\paint_by_example\vae_encoder.xml
-    VAE decoder will be loaded from model\paint_by_example\vae_decoder.xml
-
-
 Prepare Inference pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Function to prepare the mask and masked image.
 
@@ -548,7 +369,6 @@ now encode an image as the prompt.
     
     from transformers import CLIPImageProcessor
     from diffusers.pipelines.pipeline_utils import DiffusionPipeline
-    from diffusers.schedulers import DDIMScheduler, LMSDiscreteScheduler, PNDMScheduler
     from openvino.runtime import Model
     
     
@@ -639,6 +459,7 @@ decode –> image encode –> tokenizer –> Unet –> VAE model –> scheduler
             self.vae_encoder = vae_encoder
             self.image_encoder = image_encoder
             self.unet = unet
+            self.register_to_config(unet=unet)
             self._unet_output = unet.output(0)
             self._vae_d_output = vae_decoder.output(0)
             self._vae_e_output = vae_encoder.output(0) if vae_encoder is not None else None
@@ -747,7 +568,7 @@ decode –> image encode –> tokenizer –> Unet –> VAE model –> scheduler
             latent_timestep = timesteps[:1]
     
             # get the initial random noise unless the user supplied it
-            latents, meta = self.prepare_latents(None, latent_timestep)
+            latents, meta = self.prepare_latents(latent_timestep)
             mask, masked_image_latents = self.prepare_mask_latents(
                 mask,
                 masked_image,
@@ -822,13 +643,11 @@ decode –> image encode –> tokenizer –> Unet –> VAE model –> scheduler
     
             return image_embeddings
     
-        def prepare_latents(self, image:PIL.Image.Image = None, latent_timestep:torch.Tensor = None):
+        def prepare_latents(self, latent_timestep:torch.Tensor = None):
             """
             Function for getting initial latents for starting generation
             
             Parameters:
-                image (PIL.Image.Image, *optional*, None):
-                    Input image for generation, if not provided randon noise will be used as starting point
                 latent_timestep (torch.Tensor, *optional*, None):
                     Predicted by scheduler initial step for image generation, required for latent image mixing with nosie
             Returns:
@@ -837,18 +656,10 @@ decode –> image encode –> tokenizer –> Unet –> VAE model –> scheduler
             """
             latents_shape = (1, 4, self.height // 8, self.width // 8)
             noise = np.random.randn(*latents_shape).astype(np.float32)
-            if image is None:
-                # if we use LMSDiscreteScheduler, let's make sure latents are mulitplied by sigmas
-                if isinstance(self.scheduler, LMSDiscreteScheduler):
-                    noise = noise * self.scheduler.sigmas[0].numpy()
-                return noise, {}
-            input_image, meta = preprocess(image)
-            moments = self.vae_encoder(input_image)[self._vae_e_output]
-            mean, logvar = np.split(moments, 2, axis=1) 
-            std = np.exp(logvar * 0.5)
-            latents = (mean + std * np.random.randn(*mean.shape)) * 0.18215
-            latents = self.scheduler.add_noise(torch.from_numpy(latents), torch.from_numpy(noise), latent_timestep).numpy()
-            return latents, meta
+            # if we use LMSDiscreteScheduler, let's make sure latents are mulitplied by sigmas
+            if isinstance(self.scheduler, LMSDiscreteScheduler):
+                noise = noise * self.scheduler.sigmas[0].numpy()
+            return noise, {}
     
         def postprocess_image(self, image:np.ndarray, meta:Dict, output_type:str = "pil"):
             """
@@ -918,7 +729,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    from openvino.runtime import Core
+    from openvino import Core
     import ipywidgets as widgets
     
     core = Core()
@@ -937,12 +748,14 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=2, options=('CPU', 'GPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=4, options=('CPU', 'GPU.0', 'GPU.1', 'GPU.2', 'AUTO'), value='AUTO')
 
 
 
 Configure Inference Pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Configuration steps: 1. Load models on device 2. Configure tokenizer and
 scheduler 3. Create instance of OvStableDiffusionInpaintingPipeline
@@ -954,19 +767,476 @@ This can take a while to run.
 
     ov_config = {"INFERENCE_PRECISION_HINT": "f32"} if device.value != "CPU" else {}
     
-    image_encoder_inpaint = core.compile_model(IMAGE_ENCODER_OV_PATH_INPAINT, device.value)
-    unet_model_inpaint = core.compile_model(UNET_OV_PATH_INPAINT, device.value)
-    vae_decoder_inpaint = core.compile_model(VAE_DECODER_OV_PATH_INPAINT, device.value, ov_config)
-    vae_encoder_inpaint = core.compile_model(VAE_ENCODER_OV_PATH_INPAINT, device.value, ov_config)
     
-    ov_pipe_inpaint = OVStableDiffusionInpaintingPipeline(
-        image_processor=extractor,
-        image_encoder=image_encoder_inpaint,
-        unet=unet_model_inpaint,
-        vae_encoder=vae_encoder_inpaint,
-        vae_decoder=vae_decoder_inpaint,
-        scheduler=scheduler_inpaint,
+    def get_ov_pipeline():
+    
+        image_encoder_inpaint = core.compile_model(IMAGE_ENCODER_OV_PATH_INPAINT, device.value)
+        unet_model_inpaint = core.compile_model(UNET_OV_PATH_INPAINT, device.value)
+        vae_decoder_inpaint = core.compile_model(VAE_DECODER_OV_PATH_INPAINT, device.value, ov_config)
+        vae_encoder_inpaint = core.compile_model(VAE_ENCODER_OV_PATH_INPAINT, device.value, ov_config)
+        
+        ov_pipe_inpaint = OVStableDiffusionInpaintingPipeline(
+            image_processor=extractor,
+            image_encoder=image_encoder_inpaint,
+            unet=unet_model_inpaint,
+            vae_encoder=vae_encoder_inpaint,
+            vae_decoder=vae_decoder_inpaint,
+            scheduler=scheduler_inpaint,
+        )
+    
+        return ov_pipe_inpaint
+    
+    
+    ov_pipe_inpaint = get_ov_pipeline()
+
+Quantization
+------------
+
+
+
+`NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
+post-training quantization by adding quantization layers into model
+graph and then using a subset of the training dataset to initialize the
+parameters of these additional quantization layers. Quantized operations
+are executed in ``INT8`` instead of ``FP32``/``FP16`` making model
+inference faster.
+
+According to ``StableDiffusionInpaintingPipeline`` structure, UNet used
+for iterative denoising of input. It means that model runs in the cycle
+repeating inference on each diffusion step, while other parts of
+pipeline take part only once. That is why computation cost and speed of
+UNet denoising becomes the critical path in the pipeline. Quantizing the
+rest of the SD pipeline does not significantly improve inference
+performance but can lead to a substantial degradation of accuracy.
+
+The optimization process contains the following steps:
+
+1. Create a calibration dataset for quantization.
+2. Run ``nncf.quantize()`` to obtain quantized model.
+3. Save the ``INT8`` model using ``openvino.save_model()`` function.
+
+Please select below whether you would like to run quantization to
+improve model inference speed.
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    UNET_INT8_OV_PATH = Path("model/unet_int8.xml")
+    int8_ov_pipe_inpaint = None
+    
+    
+    to_quantize = widgets.Checkbox(
+        value=True,
+        description='Quantization',
+        disabled=False,
     )
+    
+    to_quantize
+
+
+
+
+.. parsed-literal::
+
+    Checkbox(value=True, description='Quantization')
+
+
+
+Let’s load ``skip magic`` extension to skip quantization if
+``to_quantize`` is not selected
+
+.. code:: ipython3
+
+    import sys
+    sys.path.append("../utils")
+    
+    if to_quantize.value and "GPU" in device.value:
+        to_quantize.value = False
+    
+    %load_ext skip_kernel_extension
+
+Prepare calibration dataset
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+We use 3 examples from
+`Paint-by-Example <https://github.com/Fantasy-Studio/Paint-by-Example>`__
+to create a calibration dataset.
+
+.. code:: ipython3
+
+    import PIL
+    import requests
+    from io import BytesIO
+    
+    
+    def download_image(url):
+        response = requests.get(url)
+        return PIL.Image.open(BytesIO(response.content)).convert("RGB")
+    
+    
+    example1 = ['https://github.com/Fantasy-Studio/Paint-by-Example/blob/main/examples/image/example_1.png?raw=true', 'https://github.com/Fantasy-Studio/Paint-by-Example/blob/main/examples/mask/example_1.png?raw=true', 'https://github.com/Fantasy-Studio/Paint-by-Example/blob/main/examples/reference/example_1.jpg?raw=true']
+    example2 = ['https://github.com/Fantasy-Studio/Paint-by-Example/blob/main/examples/image/example_2.png?raw=true', 'https://github.com/Fantasy-Studio/Paint-by-Example/blob/main/examples/mask/example_2.png?raw=true', 'https://github.com/Fantasy-Studio/Paint-by-Example/blob/main/examples/reference/example_2.jpg?raw=true']
+    example3 = ['https://github.com/Fantasy-Studio/Paint-by-Example/blob/main/examples/image/example_3.png?raw=true', 'https://github.com/Fantasy-Studio/Paint-by-Example/blob/main/examples/mask/example_3.png?raw=true', 'https://github.com/Fantasy-Studio/Paint-by-Example/blob/main/examples/reference/example_3.jpg?raw=true']
+    examples = [example1, example2, example3]
+    
+    
+    img_examples = []
+    for init_image_url, mask_image_url, example_image_url in examples:
+        init_image = download_image(init_image_url).resize((512, 512))
+        mask_image = download_image(mask_image_url).resize((512, 512))
+        example_image = download_image(example_image_url).resize((512, 512))
+        img_examples.append((init_image, mask_image, example_image))
+
+To collect intermediate model inputs for calibration we should customize
+``CompiledModel``.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    from tqdm.notebook import tqdm
+    from transformers import set_seed
+    from typing import Any, Dict, List
+    
+    
+    class CompiledModelDecorator(ov.CompiledModel):
+        def __init__(self, compiled_model, data_cache: List[Any] = None):
+            super().__init__(compiled_model)
+            self.data_cache = data_cache if data_cache else []
+    
+        def __call__(self, *args, **kwargs):
+            self.data_cache.append(*args)
+            return super().__call__(*args, **kwargs)
+    
+    
+    def collect_calibration_data(pipeline) -> List[Dict]:
+        original_unet = pipeline.unet
+        pipeline.unet = CompiledModelDecorator(original_unet)
+        pipeline.set_progress_bar_config(disable=True)
+        prev_example_image = None
+        for init_image, mask_image, example_image in img_examples:
+    
+            _ = pipeline(
+                image=init_image, 
+                mask_image=mask_image, 
+                reference_image=example_image,
+            )
+            if prev_example_image:
+                _ = pipeline(
+                    image=init_image, 
+                    mask_image=mask_image, 
+                    reference_image=prev_example_image,
+                )
+            prev_example_image = example_image
+    
+    
+        calibration_dataset = pipeline.unet.data_cache
+        pipeline.set_progress_bar_config(disable=False)
+        pipeline.unet = original_unet
+        
+        return calibration_dataset
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    UNET_INT8_OV_PATH = Path("model/unet_int8.xml")
+    if not UNET_INT8_OV_PATH.exists():
+        unet_calibration_data = collect_calibration_data(ov_pipe_inpaint)
+
+Run quantization
+~~~~~~~~~~~~~~~~
+
+
+
+Create a quantized model from the pre-trained converted OpenVINO model.
+
+   **NOTE**: Quantization is time and memory consuming operation.
+   Running quantization code below may take some time.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    import nncf
+    
+    
+    def get_quantized_pipeline():
+        if UNET_INT8_OV_PATH.exists():
+            print("Loading quantized model")
+            quantized_unet = core.read_model(UNET_INT8_OV_PATH)
+        else:
+            unet = core.read_model(UNET_OV_PATH_INPAINT)
+            quantized_unet = nncf.quantize(
+                model=unet,
+                preset=nncf.QuantizationPreset.MIXED,
+                calibration_dataset=nncf.Dataset(unet_calibration_data),
+                model_type=nncf.ModelType.TRANSFORMER,
+            )
+            ov.save_model(quantized_unet, UNET_INT8_OV_PATH)
+    
+        unet_optimized = core.compile_model(UNET_INT8_OV_PATH, device.value)
+    
+        image_encoder_inpaint = core.compile_model(IMAGE_ENCODER_OV_PATH_INPAINT, device.value)
+        vae_decoder_inpaint = core.compile_model(VAE_DECODER_OV_PATH_INPAINT, device.value, ov_config)
+        vae_encoder_inpaint = core.compile_model(VAE_ENCODER_OV_PATH_INPAINT, device.value, ov_config)
+    
+        int8_ov_pipe_inpaint = OVStableDiffusionInpaintingPipeline(
+            image_processor=extractor,
+            image_encoder=image_encoder_inpaint,
+            unet=unet_optimized,
+            vae_encoder=vae_encoder_inpaint,
+            vae_decoder=vae_decoder_inpaint,
+            scheduler=scheduler_inpaint,
+        )
+    
+        return int8_ov_pipe_inpaint
+    
+    
+    int8_ov_pipe_inpaint = get_quantized_pipeline()
+
+
+.. parsed-literal::
+
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, openvino
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
+
+
+
+.. parsed-literal::
+
+    INFO:nncf:121 ignored nodes were found by name in the NNCFGraph
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
+
+
+
+Run inference and compare inference time
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+OV pipeline:
+
+.. code:: ipython3
+
+    init_image, mask_image, example_image = img_examples[1]
+    
+    
+    ov_image = ov_pipe_inpaint(image=init_image, mask_image=mask_image, reference_image=example_image, seed=2)
+
+Quantized pipeline:
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    int8_image = int8_ov_pipe_inpaint(image=init_image, mask_image=mask_image, reference_image=example_image, seed=2)
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    import matplotlib.pyplot as plt
+    from PIL import Image
+    
+    def visualize_results(orig_img:Image.Image, optimized_img:Image.Image):
+        """
+        Helper function for results visualization
+    
+        Parameters:
+           orig_img (Image.Image): generated image using FP16 models
+           optimized_img (Image.Image): generated image using quantized models
+        Returns:
+           fig (matplotlib.pyplot.Figure): matplotlib generated figure contains drawing result
+        """
+        orig_title = "FP16 pipeline"
+        control_title = "INT8 pipeline"
+        figsize = (20, 20)
+        fig, axs = plt.subplots(1, 2, figsize=figsize, sharex='all', sharey='all')
+        list_axes = list(axs.flat)
+        for a in list_axes:
+            a.set_xticklabels([])
+            a.set_yticklabels([])
+            a.get_xaxis().set_visible(False)
+            a.get_yaxis().set_visible(False)
+            a.grid(False)
+        list_axes[0].imshow(np.array(orig_img))
+        list_axes[1].imshow(np.array(optimized_img))
+        list_axes[0].set_title(orig_title, fontsize=15)
+        list_axes[1].set_title(control_title, fontsize=15)
+    
+        fig.subplots_adjust(wspace=0.01, hspace=0.01)
+        fig.tight_layout()
+        return fig
+    
+    
+    visualize_results(ov_image["sample"][0], int8_image["sample"][0])
+
+
+
+.. image:: 272-paint-by-example-with-output_files/272-paint-by-example-with-output_41_0.png
+
+
+.. code:: ipython3
+
+    %%skip $to_quantize.value
+    
+    display(ov_image["sample"][0])
+
+Compare UNet file size
+~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    fp16_ir_model_size = UNET_OV_PATH_INPAINT.with_suffix(".bin").stat().st_size / 1024
+    quantized_model_size = UNET_INT8_OV_PATH.with_suffix(".bin").stat().st_size / 1024
+    
+    print(f"FP16 model size: {fp16_ir_model_size:.2f} KB")
+    print(f"INT8 model size: {quantized_model_size:.2f} KB")
+    print(f"Model compression rate: {fp16_ir_model_size / quantized_model_size:.3f}")
+
+
+.. parsed-literal::
+
+    FP16 model size: 1678780.62 KB
+    INT8 model size: 840725.98 KB
+    Model compression rate: 1.997
+
+
+Interactive inference
+---------------------
+
+
+
+Choose what model do you want to use in the interactive interface. You
+can choose both, FP16 and INT8.
+
+.. code:: ipython3
+
+    available_models = ['FP16']
+    
+    if UNET_INT8_OV_PATH.exists():
+        available_models.append('INT8')
+    
+    model_to_use = widgets.Select(
+        options=available_models,
+        value='FP16',
+        description='Select model:',
+        disabled=False,
+    )
+    
+    model_to_use   
+
+
+
+
+.. parsed-literal::
+
+    Select(description='Select model:', options=('FP16', 'INT8'), value='FP16')
+
+
+
+.. code:: ipython3
+
+    if 'INT8' == model_to_use.value:
+        chosen_pipeline = int8_ov_pipe_inpaint or get_quantized_pipeline()
+        ov_pipe_inpaint = None
+    else:
+        chosen_pipeline = ov_pipe_inpaint or get_ov_pipeline()
+        int8_ov_pipe_inpaint = None
+    
+    
+    gc.collect();
+
+Choose a source image and a reference image, draw a mask in source image
+and push “Paint!”
 
 .. code:: ipython3
 
@@ -975,13 +1245,14 @@ This can take a while to run.
     import os
     import gradio as gr
     
-    def predict(dict:gr.components.Image, reference:PIL.Image.Image, seed:int, step:int):
+    
+    def predict(input_dict, reference, seed, steps):
         """
             This function runs when the 'paint' button is pressed. It takes 3 input images. Takes generated image decoded by VAE decoder, unpad it to initila image size (if required), 
             normalize and convert to [0, 255] pixels range. Optionally, convertes it from np.ndarray to PIL.Image format
             
             Parameters:
-                dict (Dict):
+                input_dict (Dict):
                     Contains two images in a dictionary
                         'image' is the image that will be painted on
                         'mask' is the black/white image specifying where to paint (white) and not to paint (black)
@@ -989,13 +1260,15 @@ This can take a while to run.
                     Reference image that will be used by the model to know what to paint in the specified area
                 seed (int):
                     Used to initialize the random number generator state
-                step (int):
+                steps (int):
                     The number of denoising steps to run during inference. Low = fast/low quality, High = slow/higher quality
+                use_quantize_model (bool):
+                    Use fp16 or int8 model
             Returns:
                 image (PIL.Image.Image):
                     Postprocessed images
         """
-        width,height = dict["image"].size
+        width, height = input_dict["image"].size
     
         # If the image is not 512x512 then resize
         if width < height:
@@ -1007,8 +1280,8 @@ This can take a while to run.
             height = 512
             width = int((width / factor) / 8.0) * 8
     
-        init_image = dict["image"].convert("RGB").resize((width,height))
-        mask = dict["mask"].convert("RGB").resize((width,height))
+        init_image = input_dict["image"].convert("RGB").resize((width,height))
+        mask = input_dict["mask"].convert("RGB").resize((width,height))
     
         # If the image is not a 512x512 square then crop
         if width > height:
@@ -1028,14 +1301,14 @@ This can take a while to run.
         mask.save('output/mask.png')
         reference.save('output/ref.png')
     
-        mask = [mask]
+        mask = [mask]  
     
-        result = ov_pipe_inpaint(
+        result = chosen_pipeline(
             image=input_image,
             mask_image=mask,
             reference_image=reference,
             seed=seed,
-            num_inference_steps=step,
+            num_inference_steps=steps,
         )["sample"][0]
     
         out_dir = Path("output")
@@ -1046,39 +1319,39 @@ This can take a while to run.
     
     
     example = {}
+    title = f'# {model_to_use.value} pipeline'
     ref_dir = 'data/reference'
     image_dir = 'data/image'
-    ref_list = [os.path.join(ref_dir,file) for file in os.listdir(ref_dir)]
+    ref_list = [os.path.join(ref_dir,file) for file in os.listdir(ref_dir) if file.endswith(".jpg")]
     ref_list.sort()
-    image_list = [os.path.join(image_dir,file) for file in os.listdir(image_dir)]
+    image_list = [os.path.join(image_dir,file) for file in os.listdir(image_dir) if file.endswith(".png")]
     image_list.sort()
     
     
     image_blocks = gr.Blocks()
     with image_blocks as demo:
+        gr.Markdown(title)
         with gr.Group():
-            with gr.Box():
-                with gr.Row():
-                    with gr.Column():
-                        image = gr.Image(source='upload', tool='sketch', elem_id="image_upload", type="pil", label="Source Image")
-                        reference = gr.Image(source='upload', elem_id="image_upload", type="pil", label="Reference Image")
+            with gr.Row():
+                with gr.Column():
+                    image = gr.Image(source='upload', tool='sketch', elem_id="image_upload", type="pil", label="Source Image")
+                    reference = gr.Image(source='upload', elem_id="image_upload", type="pil", label="Reference Image")
     
-                    with gr.Column():
-                        image_out = gr.Image(label="Output", elem_id="output-img")
-                        steps = gr.Slider(label="Steps", value=15, minimum=2, maximum=75, step=1,interactive=True)
+                with gr.Column():
+                    image_out = gr.Image(label="Output", elem_id="output-img")
+                    steps = gr.Slider(label="Steps", value=15, minimum=2, maximum=75, step=1, interactive=True)
+                    seed = gr.Slider(0, 10000, label='Seed (0 = random)', value=0, step=1)
     
-                        seed = gr.Slider(0, 10000, label='Seed (0 = random)', value=0, step=1)
-    
-                        with gr.Row(elem_id="prompt-container"):
-                            btn = gr.Button("Paint!")
-                               
-                with gr.Row():
-                    with gr.Column():
-                        gr.Examples(image_list, inputs=[image],label="Examples - Source Image",examples_per_page=12)
-                    with gr.Column():
-                        gr.Examples(ref_list, inputs=[reference],label="Examples - Reference Image",examples_per_page=12)
-                
-                btn.click(fn=predict, inputs=[image, reference, seed, steps], outputs=[image_out])
+                    with gr.Row(elem_id="prompt-container"):
+                        btn = gr.Button("Paint!")
+                           
+            with gr.Row():
+                with gr.Column():
+                    gr.Examples(image_list, inputs=[image], label="Examples - Source Image", examples_per_page=12)
+                with gr.Column():
+                    gr.Examples(ref_list, inputs=[reference], label="Examples - Reference Image", examples_per_page=12)
+            
+            btn.click(fn=predict, inputs=[image, reference, seed, steps], outputs=[image_out],)
     
     # Launching the Gradio app
     try:
@@ -1088,17 +1361,3 @@ This can take a while to run.
     # if you are launching remotely, specify server_name and server_port
     # image_blocks.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-    
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-.. .. raw:: html
-
-..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="680" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
-

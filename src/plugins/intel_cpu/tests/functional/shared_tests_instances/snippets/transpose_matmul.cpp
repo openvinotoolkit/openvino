@@ -3,8 +3,9 @@
 //
 
 #include "snippets/transpose_matmul.hpp"
+
 #include "common_test_utils/test_constants.hpp"
-#include "ie_system_conf.h"
+#include "openvino/runtime/system_conf.hpp"
 
 namespace ov {
 namespace test {

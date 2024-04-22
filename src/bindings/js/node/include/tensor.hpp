@@ -1,16 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
 
 #include <napi.h>
 
-#include "element_type.hpp"
-#include "errors.hpp"
-#include "helper.hpp"
-#include "openvino/core/shape.hpp"
-#include "openvino/core/type/element_type.hpp"
-#include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 class TensorWrap : public Napi::ObjectWrap<TensorWrap> {
@@ -34,12 +28,7 @@ public:
      * @param env The environment in which to construct a JavaScript class.
      * @return Napi::Function representing the constructor function for the Javascript Tensor class.
      */
-    static Napi::Function get_class_constructor(Napi::Env env);
-
-    /** @brief This method is called during initialization of OpenVino native add-on.
-     * It exports JavaScript Tensor class.
-     */
-    static Napi::Object init(Napi::Env env, Napi::Object exports);
+    static Napi::Function get_class(Napi::Env env);
 
     ov::Tensor get_tensor() const;
     void set_tensor(const ov::Tensor& tensor);
@@ -62,6 +51,8 @@ public:
     Napi::Value get_shape(const Napi::CallbackInfo& info);
     /** @return Napi::String containing ov::element type. */
     Napi::Value get_element_type(const Napi::CallbackInfo& info);
+   /**@return Napi::Number containing tensor size as total number of elements.*/
+    Napi::Value get_size(const Napi::CallbackInfo& info);
 
 private:
     ov::Tensor _tensor;

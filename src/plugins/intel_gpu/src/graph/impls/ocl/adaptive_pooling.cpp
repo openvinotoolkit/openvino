@@ -14,7 +14,7 @@ struct adaptive_pooling_impl : public typed_primitive_impl_ocl<adaptive_pooling>
     using parent = typed_primitive_impl_ocl<adaptive_pooling>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::adaptive_pooling_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::adaptive_pooling_params, kernel_selector::adaptive_pooling_optional_params>;
+    using kernel_params_t = kernel_selector::adaptive_pooling_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::adaptive_pooling_impl)
 
@@ -22,23 +22,10 @@ struct adaptive_pooling_impl : public typed_primitive_impl_ocl<adaptive_pooling>
         return make_unique<adaptive_pooling_impl>(*this);
     }
 
-protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<adaptive_pooling>& instance) const override {
-        kernel_arguments_data args;
-        const auto num_inputs = instance.inputs_memory_count();
-        for (size_t i = 0; i < num_inputs; ++i) {
-            args.inputs.push_back(instance.input_memory_ptr(i));
-        }
-
-        args.outputs = {instance.output_memory_ptr()};
-        return args;
-    }
-
 public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<adaptive_pooling>();
         auto params = get_default_params<kernel_selector::adaptive_pooling_params>(impl_param);
-        auto optional_params = get_default_optional_params<kernel_selector::adaptive_pooling_optional_params>(impl_param.get_program());
 
         if (primitive->mode == adaptive_pooling_mode::average) {
             params.mode = kernel_selector::PoolType::AVG;
@@ -56,11 +43,16 @@ public:
                 }
                 default: OPENVINO_ASSERT(false, "[GPU] Not supported index element type");
             }
-
-            params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(2)));
+            bool allow_new_shape_infer = impl_param.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+            if (allow_new_shape_infer) {
+                params.outputs_num = 2;
+                params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(1)));
+            } else {
+                params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(2)));
+            }
         }
 
-        return {params, optional_params};
+        return params;
     }
 };
 

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -91,7 +91,7 @@ class TestPRelu(OnnxRuntimeLayerTest):
 
         return onnx_net, ref_net
 
-    # Note: IE only support slopes of one element or of size equal to number of channels.
+    # Note: OV only support slopes of one element or of size equal to number of channels.
     test_data_shared_channels = [
         dict(shape=[10, 12], slope_shape=[12]),
         dict(shape=[8, 10, 12], slope_shape=[10, 1]),

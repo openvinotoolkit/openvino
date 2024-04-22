@@ -22,7 +22,7 @@ constexpr std::array<bool, 2> detectNegative = {true, false};
 
 constexpr std::array<bool, 2> detectPositive = {true, false};
 
-const std::map<std::string, std::string> additional_config = {};
+const ov::AnyMap additional_config = {};
 
 const auto isInfParams = ::testing::Combine(::testing::ValuesIn(inShapesStatic),
                                             ::testing::ValuesIn(detectNegative),

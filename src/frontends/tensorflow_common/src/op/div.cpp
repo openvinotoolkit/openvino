@@ -1,9 +1,15 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "common_op_table.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/less.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/mod.hpp"
+#include "openvino/op/not_equal.hpp"
+#include "openvino/op/select.hpp"
 
 using namespace std;
 using namespace ov::op;

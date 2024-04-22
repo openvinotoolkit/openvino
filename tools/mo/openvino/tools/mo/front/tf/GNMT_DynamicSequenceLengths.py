@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -134,5 +134,5 @@ class GNMT_sequence_lengths(FrontReplacementPattern):
                 "Model can not be translated in a reshape-able way.\n"
                 "Model Optimizer key static_shape was turned on to prevent related errors.\n"
                 "There will be no success changing input shapes of the model with the help of "
-                "InferenceEngine reshape method", extra={'is_warning': True})
+                "OpenVINO reshape method", extra={'is_warning': True})
             graph.graph['cmd_params'].static_shape = True

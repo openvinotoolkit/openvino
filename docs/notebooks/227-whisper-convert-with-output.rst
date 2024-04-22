@@ -24,14 +24,14 @@ Download the model. 2. Instantiate the PyTorch model pipeline. 3.
 Convert model to OpenVINO IR, using model conversion API. 4. Run the
 Whisper pipeline with OpenVINO models.
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Prerequisites <#prerequisites>`__
 -  `Instantiate model <#instantiate-model>`__
 
    -  `Convert model to OpenVINO Intermediate Representation (IR)
-      format. <#convert-model-to-openvino-intermediate-representation-ir-format>`__
+      format. <#convert-model-to-openvino-intermediate-representation-ir-format->`__
    -  `Convert Whisper Encoder to OpenVINO
       IR <#convert-whisper-encoder-to-openvino-ir>`__
    -  `Convert Whisper decoder to OpenVINO
@@ -56,9 +56,9 @@ Install dependencies.
 
     %pip install -q "openvino>=2023.1.0"
     %pip install -q "python-ffmpeg<=1.0.16" moviepy transformers --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q -I "git+https://github.com/garywu007/pytube.git"
-    %pip install -q -U gradio
-    %pip install -q -I "git+https://github.com/openai/whisper.git@fcfeaf1b61994c071bba62da47d7846933576ac9" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "git+https://github.com/garywu007/pytube.git"
+    %pip install -q  gradio
+    %pip install -q "openai-whisper==20231117" --extra-index-url https://download.pytorch.org/whl/cpu
 
 Instantiate model
 -----------------
@@ -562,9 +562,9 @@ Interactive demo
 
 
 
-.. .. raw:: html
 
-..    <div><iframe src="http://127.0.0.1:7862/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 
 
 .. parsed-literal::

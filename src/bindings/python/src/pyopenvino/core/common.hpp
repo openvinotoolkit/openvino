@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -84,6 +84,19 @@ py::array array_from_tensor(ov::Tensor&& t, bool is_shared);
 
 }; // namespace array_helpers
 
+// Helpers for shapes
+namespace shape_helpers {
+
+template <typename T>
+void get_slice(T& result, const T& shape, size_t start, const size_t step, const size_t slicelength) {
+    for (size_t i = 0; i < slicelength; ++i) {
+        result[i] = shape[start];
+        start += step;
+    }
+}
+
+}; // namespace shape_helpers
+
 template <typename T>
 T create_copied(py::array& array);
 
@@ -116,7 +129,7 @@ void set_request_tensors(ov::InferRequest& request, const py::dict& inputs);
 
 uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual);
 
-py::dict outputs_to_dict(InferRequestWrapper& request, bool share_outputs);
+py::dict outputs_to_dict(InferRequestWrapper& request, bool share_outputs, bool decode_strings);
 
 ov::pass::Serialize::Version convert_to_version(const std::string& version);
 

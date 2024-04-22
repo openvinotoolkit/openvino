@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,9 @@
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "scatter_elements_update_shape_inference.hpp"
 #include "utils.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -98,10 +98,10 @@ bool util::ScatterElementsUpdateBase::evaluate_upper(ov::TensorVector& output_va
     return get_input_tensor(1).has_and_set_bound() && ov::default_upper_bound_evaluator(this, output_values);
 }
 
-bool util::ScatterElementsUpdateBase::evaluate_label(TensorLabelVector& output_labels) const {
-    OV_OP_SCOPE(util_ScatterNDUpdate_evaluate_label);
+bool util::ScatterElementsUpdateBase::evaluate_symbol(TensorSymbolVector& output_symbols) const {
+    OV_OP_SCOPE(util_ScatterNDUpdate_evaluate_symbol);
 
-    return ov::default_label_evaluator(this, {0, 2}, output_labels);
+    return ov::default_symbol_evaluator(this, {0, 2}, output_symbols);
 }
 
 int64_t util::ScatterElementsUpdateBase::get_normalized_axis(const TensorVector& inputs) const {

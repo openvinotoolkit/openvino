@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,5 +48,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_PrePostProcess_GPU,
                          ::testing::Combine(::testing::ValuesIn(GPU_smoke_preprocess_functions()),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          PrePostProcessTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_PostProcess,
+    PostProcessTest,
+    ::testing::Combine(::testing::ValuesIn(ov::builder::preprocess::generic_postprocess_functions()),
+                       ::testing::Values(ov::test::utils::DEVICE_GPU)),
+    PostProcessTest::getTestCaseName);
 
 }  // namespace

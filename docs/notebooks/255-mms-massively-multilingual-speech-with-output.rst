@@ -29,33 +29,51 @@ it. Additional models quantization step is employed to improve models
 inference speed. In the end of the notebook there’s a Gradio-based
 interactive demo.
 
-**Table of contents:**
---
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-- `Prerequisites <#>`__
-- `Prepare an example audio <#>`__
-- `Language Identification (LID) <#>`__
-- `Download pretrained model and processor <#>`__
-- `Use the original model to run an inference <#>`__
-- `Convert to OpenVINO IR model and run an inference <#>`__
-- `Automatic Speech Recognition (ASR) <#>`__
-- `Download pretrained model and processor <#>`__
-- `Use the original model to run an inference <#>`__
-- `Convert to OpenVINO IR model and run an inference <#>`__
-- `Quantization <#>`__
-- `Preparing calibration dataset <#>`__
-- `Language identification model quantization <#>`__
-- `Speech recognition model quantization <#>`__
-- `Compare model size, performance and accuracy <#>`__
-- `Interactive demo with Gradio <#>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Prepare an example audio <#prepare-an-example-audio>`__
+-  `Language Identification (LID) <#language-identification-lid>`__
+
+   -  `Download pretrained model and
+      processor <#download-pretrained-model-and-processor>`__
+   -  `Use the original model to run an
+      inference <#use-the-original-model-to-run-an-inference>`__
+   -  `Convert to OpenVINO IR model and run an
+      inference <#convert-to-openvino-ir-model-and-run-an-inference>`__
+
+-  `Automatic Speech Recognition
+   (ASR) <#automatic-speech-recognition-asr>`__
+
+   -  `Download pretrained model and
+      processor <#download-pretrained-model-and-processor>`__
+   -  `Use the original model for
+      inference <#use-the-original-model-for-inference>`__
+   -  `Convert to OpenVINO IR model and run
+      inference <#convert-to-openvino-ir-model-and-run-inference>`__
+
+-  `Quantization <#quantization>`__
+
+   -  `Preparing calibration dataset <#preparing-calibration-dataset>`__
+   -  `Language identification model
+      quantization <#language-identification-model-quantization>`__
+   -  `Speech recognition model
+      quantization <#speech-recognition-model-quantization>`__
+   -  `Compare model size, performance and
+      accuracy <#compare-model-size-performance-and-accuracy>`__
+
+-  `Interactive demo with Gradio <#interactive-demo-with-gradio>`__
 
 Prerequisites
---------------------
+-------------
+
+
 
 .. code:: ipython3
 
     %pip install -q --upgrade pip
-    %pip install -q "transformers>=4.33.1" "openvino>=2023.1.0" "numpy>=1.21.0,<=1.24" "nncf>=2.6.0" 
+    %pip install -q "transformers>=4.33.1" "openvino>=2023.1.0" "numpy>=1.21.0,<=1.24" "nncf>=2.7.0" 
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu torch datasets accelerate soundfile librosa gradio jiwer
 
 .. code:: ipython3
@@ -70,10 +88,10 @@ Prepare an example audio
 ------------------------
 
 
-Read an audio file and process the audio
-data. Make sure that the audio data is sampled to 16000 kHz. For this
-example we will use `a streamable version of the Multilingual
-LibriSpeech (MLS)
+
+Read an audio file and process the audio data. Make sure that the audio
+data is sampled to 16000 kHz. For this example we will use `a streamable
+version of the Multilingual LibriSpeech (MLS)
 dataset <https://huggingface.co/datasets/multilingual_librispeech>`__.
 It supports contains example on 7 languages:
 ``'german', 'dutch', 'french', 'spanish', 'italian', 'portuguese', 'polish'``.
@@ -155,14 +173,17 @@ transcription.
 
 
 Language Identification (LID)
-------------------------------
+-----------------------------
+
+
 
 Download pretrained model and processor
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Different LID models are
-available based on the number of languages they can recognize - 126,
-256, 512, 1024, 2048, 4017. We will use 126.
+
+
+Different LID models are available based on the number of languages they
+can recognize - 126, 256, 512, 1024, 2048, 4017. We will use 126.
 
 .. code:: ipython3
 
@@ -174,7 +195,9 @@ available based on the number of languages they can recognize - 126,
     lid_model = Wav2Vec2ForSequenceClassification.from_pretrained(model_id)
 
 Use the original model to run an inference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -194,7 +217,9 @@ Use the original model to run an inference
 
 
 Convert to OpenVINO IR model and run an inference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Select device from dropdown list for running inference using OpenVINO
 
@@ -343,18 +368,22 @@ Let’s check another language.
 Automatic Speech Recognition (ASR)
 ----------------------------------
 
-### Download pretrained model and processor
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Download pretrained model
-and processor. By default, MMS loads adapter weights for English. If you
-want to load adapter weights of another language make sure to specify
-``target_lang=<your-chosen-target-lang>`` as well as
-``ignore_mismatched_sizes=True``. The ``ignore_mismatched_sizes=True``
-keyword has to be passed to allow the language model head to be resized
-according to the vocabulary of the specified language. Similarly, the
-processor should be loaded with the same target language. It is also
-possible to change the supported language later.
+
+Download pretrained model and processor
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+Download pretrained model and processor. By default, MMS loads adapter
+weights for English. If you want to load adapter weights of another
+language make sure to specify ``target_lang=<your-chosen-target-lang>``
+as well as ``ignore_mismatched_sizes=True``. The
+``ignore_mismatched_sizes=True`` keyword has to be passed to allow the
+language model head to be resized according to the vocabulary of the
+specified language. Similarly, the processor should be loaded with the
+same target language. It is also possible to change the supported
+language later.
 
 .. code:: ipython3
 
@@ -399,7 +428,9 @@ detected in the previous step.
 
 
 Use the original model for inference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -418,13 +449,15 @@ Use the original model for inference
     grisé par ce parfum il fit des vers en l'honneur de l'humble fleur des bois et il les récita tout haut à ses pieds une violette l'entendit elle crut qu'il ne parlait que pour elle
 
 
-Convert to OpenVINO IR model and run inference 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Convert to OpenVINO IR model and run inference
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Convert to OpenVINO IR model format with ``ov.convert_model`` function directly. Use
-``ov.save_model`` function to serialize the result of conversion. For
-convenience of further use, we will create a function for these
-purposes.
+
+
+Convert to OpenVINO IR model format with ``ov.convert_model`` function
+directly. Use ``ov.save_model`` function to serialize the result of
+conversion. For convenience of further use, we will create a function
+for these purposes.
 
 .. code:: ipython3
 
@@ -487,7 +520,9 @@ Run inference.
 
 
 Quantization
---------------------
+------------
+
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -541,7 +576,9 @@ not selected
     %load_ext skip_kernel_extension
 
 Preparing calibration dataset
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Select the language to quantize the model for:
 
@@ -578,7 +615,9 @@ Create calibration dataset for quantization.
         calibration_data.append(data["input_values"])
 
 Language identification model quantization
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Run LID model quantization.
 
@@ -594,7 +633,6 @@ Run LID model quantization.
         quantized_lid_model = nncf.quantize(
             get_lid_model(lid_model_xml_path, compiled=False),
             calibration_dataset=nncf.Dataset(calibration_data),
-            preset=nncf.QuantizationPreset.MIXED,
             subset_size=len(calibration_data),
             model_type=nncf.ModelType.TRANSFORMER
         )
@@ -642,7 +680,9 @@ Detect language with the quantized model.
 
 
 Speech recognition model quantization
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Run ASR model quantization.
 
@@ -657,7 +697,6 @@ Run ASR model quantization.
         quantized_asr_model = nncf.quantize(
             get_asr_model(asr_model_xml_path_template, language_id, compiled=False),
             calibration_dataset=nncf.Dataset(calibration_data),
-            preset=nncf.QuantizationPreset.MIXED,
             subset_size=len(calibration_data),
             model_type=nncf.ModelType.TRANSFORMER
         )
@@ -717,7 +756,9 @@ produced by original model.
 
 
 Compare model size, performance and accuracy
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 First we compare model size.
 
@@ -828,9 +869,12 @@ speech recognition models.
 
 
 Interactive demo with Gradio
------------------------------
+----------------------------
 
-In this demo you can try your own examples. Make sure that the audio data is sampled to 16000 kHz.
+
+
+In this demo you can try your own examples. Make sure that the audio
+data is sampled to 16000 kHz.
 
 .. code:: ipython3
 
@@ -934,9 +978,9 @@ In this demo you can try your own examples. Make sure that the audio data is sam
 
 
 
-.. .. raw:: html
 
-..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 
 
 .. parsed-literal::

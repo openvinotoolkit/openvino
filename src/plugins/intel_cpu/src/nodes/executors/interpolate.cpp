@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -453,7 +453,7 @@ inline VectorDims getBlockND(const VectorDims& shape) {
 }
 
 const uint8_t* ov::intel_cpu::InterpolateExecutor::padPreprocess(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) {
-    const uint8_t *src_data_origin = reinterpret_cast<uint8_t*>(src[0]->getData());
+    const uint8_t *src_data_origin = src[0]->getDataAs<uint8_t>();
 
     const auto &srcDim = src[0]->getStaticDims();
     const auto &dstDim = dst[0]->getStaticDims();

@@ -16,7 +16,7 @@ struct TransposeParams {
     PermuteParams permuteParams;
 };
 
-class TransposeExecutor {
+class TransposeExecutor : public Executor {
 public:
     static jit_permute_config_params prepareParams(const PermuteParams& params);
     explicit TransposeExecutor(const ExecutorContext::CPtr context);
@@ -24,8 +24,6 @@ public:
                       const std::vector<MemoryDescPtr>& srcDescs,
                       const std::vector<MemoryDescPtr>& dstDescs,
                       const dnnl::primitive_attr &attr) = 0;
-    virtual void exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst, const int MB) = 0;
-    virtual impl_desc_type getImplType() const = 0;
     virtual ~TransposeExecutor() = default;
 protected:
     PermuteParams permuteParams;

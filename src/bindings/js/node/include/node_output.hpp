@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
 
 #include <napi.h>
 
-#include "helper.hpp"
 #include "openvino/core/node_output.hpp"
 
 template <class NodeType>
@@ -21,12 +20,7 @@ public:
      * @param env The environment in which to construct a JavaScript class.
      * @return Napi::Function representing the constructor function for the Javascript Output class.
      */
-    static Napi::Function get_class_constructor(Napi::Env env);
-
-    /** @brief This method is called during initialization of OpenVino native add-on.
-     * It exports JavaScript Output class.
-     */
-    static Napi::Object init(Napi::Env env, Napi::Object exports);
+    static Napi::Function get_class(Napi::Env env);
 
     ov::Output<ov::Node> get_output() const;
 
@@ -54,12 +48,7 @@ public:
      * @param env The environment in which to construct a JavaScript class.
      * @return Napi::Function representing the constructor function for the Javascript Output class.
      */
-    static Napi::Function get_class_constructor(Napi::Env env);
-
-    /** @brief This method is called during initialization of OpenVino native add-on.
-     * It exports JavaScript Output class.
-     */
-    static Napi::Object init(Napi::Env env, Napi::Object exports);
+    static Napi::Function get_class(Napi::Env env);
 
     ov::Output<const ov::Node> get_output() const;
 

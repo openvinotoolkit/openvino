@@ -24,6 +24,12 @@ public:
             return create(loop_begin, params...);
         } else if (const auto loop_end = ov::as_type_ptr<op::LoopEnd>(n)) {
             return create(loop_end, params...);
+#ifdef SNIPPETS_DEBUG_CAPS
+        } else if (const auto perf_counter = ov::as_type_ptr<op::PerfCountBeginBase>(n)) {
+            return create(perf_counter, params...);
+        } else if (const auto perf_counter = ov::as_type_ptr<op::PerfCountEndBase>(n)) {
+            return create(perf_counter, params...);
+#endif
         }
         return create(n, params...);
     }
@@ -48,6 +54,17 @@ private:
     static ExpressionPtr create(const std::shared_ptr<op::LoopBegin>& n, const std::vector<PortConnectorPtr>& inputs, const LinearIR& linear_ir);
     static ExpressionPtr create(const std::shared_ptr<op::LoopEnd>& n, const std::vector<PortConnectorPtr>& inputs, const LinearIR& linear_ir);
     static ExpressionPtr create(const std::shared_ptr<ov::Node>& n, const std::vector<PortConnectorPtr>& inputs, const LinearIR& linear_ir);
+
+    // Note: PerfCountBegin nodes have a PerfCountEnd ov::Output, but corresponding expression should not have any outputs to avoid register allocation
+#ifdef SNIPPETS_DEBUG_CAPS
+    static ExpressionPtr create(const std::shared_ptr<op::PerfCountBeginBase>& n,
+                                                   const std::vector<PortConnectorPtr>& inputs,
+                                                   const LinearIR& linear_ir);
+    static ExpressionPtr create(const std::shared_ptr<op::PerfCountEndBase>& n,
+                                                   const std::vector<PortConnectorPtr>& inputs,
+                                                   const LinearIR& linear_ir);
+    static ExpressionPtr create_without_connections(const std::shared_ptr<ov::Node>& n, const LinearIR& linear_ir);
+#endif
 
     // Creates inputs for expression using parent output port connectors
     static void create_expression_inputs(const LinearIR& linear_ir, const ExpressionPtr& expr);

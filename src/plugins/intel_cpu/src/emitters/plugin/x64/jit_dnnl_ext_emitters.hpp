@@ -7,6 +7,7 @@
 #include "openvino/opsets/opset5.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "jit_dnnl_emitters.hpp"
+#include "utils/ngraph_utils.hpp"
 
 namespace ov {
 namespace intel_cpu {

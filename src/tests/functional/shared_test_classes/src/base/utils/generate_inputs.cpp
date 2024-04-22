@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <math.h>
+#include <algorithm>
+#include <functional>
+
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
 
 #include "openvino/op/ops.hpp"
@@ -14,29 +18,11 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/single_op/roi_align.hpp"
 
-#include "ov_models/utils/data_utils.hpp"
+#include "common_test_utils/data_utils.hpp"
 
 namespace ov {
 namespace test {
 namespace utils {
-
-namespace {
-struct {
-    double max = 0;
-    double min = 0;
-    bool is_defined = false;
-} const_range;
-}  // namespace
-
-void set_const_ranges(double _min, double _max) {
-    const_range.max = _max;
-    const_range.min = _min;
-    const_range.is_defined = true;
-}
-
-void reset_const_ranges() {
-    const_range.is_defined = false;
-}
 
 std::vector<uint8_t> color_test_image(size_t height, size_t width, int b_step, ov::preprocess::ColorFormat format) {
     // Test all possible r/g/b values within dimensions
@@ -108,16 +94,6 @@ ov::Tensor generate(const std::shared_ptr<ov::Node>& node,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
     InputGenerateData inGenData;
-
-    if (const_range.is_defined) {
-        auto min_orig = inGenData.start_from;
-        auto max_orig = inGenData.start_from + inGenData.range * inGenData.resolution;
-        auto min_ref = const_range.min;
-        auto max_ref = const_range.max;
-        if (min_orig < min_ref || min_orig == 0)
-            inGenData.start_from = min_ref;
-        inGenData.range = (max_orig > max_ref || max_orig == 10 ? max_ref : max_orig - inGenData.start_from) - inGenData.start_from;
-    }
 
     if (elemType.is_real()) {
         set_real_number_generation_data(inGenData);
@@ -246,6 +222,41 @@ ov::Tensor generate(const std::shared_ptr<ov::op::v0::DetectionOutput>& node,
     return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData);
 }
 
+namespace {
+template <typename GetItemF>
+bool get_const_value(const std::shared_ptr<ov::Node>& node, float& value, const GetItemF& get_item_func) {
+    auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(node);
+    if (!const_node)
+        return false;
+
+    auto const_value = const_node->cast_vector<float>();
+
+    const auto it = get_item_func(const_value);
+    if (it == const_value.end()) {
+        return false;
+    }
+    value = *it;
+    return true;
+}
+
+using Vec = std::vector<float>;
+bool get_fq_scalar_range(const std::shared_ptr<ov::op::v0::FakeQuantize> &node, float& min_value, float& max_value) {
+    auto get_min_value = [](const Vec& v) {
+        return std::min_element(v.begin(), v.end());
+    };
+    if (!get_const_value(node->get_input_node_shared_ptr(1), min_value, get_min_value))
+        return false;
+
+    auto get_max_value = [](const Vec& v) {
+        return std::max_element(v.begin(), v.end());
+    };
+    if (!get_const_value(node->get_input_node_shared_ptr(2), max_value, get_max_value))
+        return false;
+
+    return true;
+}
+} // namespace
+
 ov::Tensor generate(const std::shared_ptr<ov::op::v0::FakeQuantize>& node,
                              size_t port,
                              const ov::element::Type& elemType,
@@ -253,15 +264,15 @@ ov::Tensor generate(const std::shared_ptr<ov::op::v0::FakeQuantize>& node,
     int seed = 1;
     size_t constDataSize = ov::shape_size(targetShape);
     std::vector<float> inputLowData, inputHighData, outputLowData, outputHighData;
-    inputLowData = NGraphFunctions::Utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
+    inputLowData = ov::test::utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
     if (node->get_levels() != 2) {
-        inputHighData = NGraphFunctions::Utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
-        outputLowData = NGraphFunctions::Utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
-        outputHighData = NGraphFunctions::Utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
+        inputHighData = ov::test::utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
+        outputLowData = ov::test::utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
+        outputHighData = ov::test::utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
     } else {
         inputHighData = inputLowData;
-        outputLowData = NGraphFunctions::Utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
-        outputHighData = NGraphFunctions::Utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
+        outputLowData = ov::test::utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
+        outputHighData = ov::test::utils::generateVector<ov::element::f32>(constDataSize, 10, 1, seed);
 
         for (int i = 0; i < constDataSize; i++) {
             if (outputLowData[i] > outputHighData[i]) {
@@ -297,6 +308,11 @@ ov::Tensor generate(const std::shared_ptr<ov::op::v0::FakeQuantize>& node,
         case 4:
             return ov::test::utils::create_tensor<float>(elemType, targetShape, outputHighData, outputHighData.size());
         default: {
+            float min_value = {}, max_value = {};
+            if (get_fq_scalar_range(node, min_value, max_value)) {
+                return ov::test::utils::create_and_fill_tensor_real_distribution(elemType, targetShape, min_value, max_value, 0);
+            }
+
             InputGenerateData inGenData;
             inGenData.range = 10.f;
             inGenData.resolution = 1.0f;
@@ -447,7 +463,6 @@ ov::Tensor generate(const std::shared_ptr<ov::op::v3::Bucketize>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
-    InferenceEngine::Blob::Ptr blobPtr;
     switch (port) {
         case 0: {
             auto data_size = shape_size(targetShape);

@@ -13,7 +13,7 @@ struct multinomial_impl : typed_primitive_impl_ocl<multinomial> {
     using parent = typed_primitive_impl_ocl<multinomial>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::multinomial_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::multinomial_params, kernel_selector::multinomial_optional_params>;
+    using kernel_params_t = kernel_selector::multinomial_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::multinomial_impl)
 
@@ -25,16 +25,15 @@ struct multinomial_impl : typed_primitive_impl_ocl<multinomial> {
         const auto& primitive = impl_param.typed_desc<multinomial>();
         auto params = get_default_params<kernel_selector::multinomial_params>(impl_param, is_shape_agnostic);
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
-        auto optional_params = get_default_optional_params<kernel_selector::multinomial_optional_params>(impl_param.get_program());
         params.output_data_type = primitive->output_data_type;
         params.with_replacement = primitive->with_replacement;
         params.log_probs = primitive->log_probs;
-        return {params, optional_params};
+        return params;
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
-        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
     }
 };
 

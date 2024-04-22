@@ -21,14 +21,17 @@ namespace pass {
  * @param m_buffer_allocation_rank - rank of shape for memory allocation: shape[shape_rank - normalize(m_allocation_rank) : shape_rank]
  * @ingroup snippets
  */
-class InsertBuffers : public Pass {
+class InsertBuffers : public RangedPass {
 public:
-    OPENVINO_RTTI("InsertBuffers", "Pass")
+    OPENVINO_RTTI("InsertBuffers", "RangedPass")
     InsertBuffers(int32_t buffer_allocation_rank);
-    bool run(LinearIR& linear_ir) override;
+    bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 
 private:
-    void insertion(LinearIR& linear_ir, const LinearIR::constExprIt& expr_it, const LinearIR::LoopManagerPtr& loop_manager,
+    void insertion(LinearIR& linear_ir,
+                   const LinearIR::constExprIt& begin_it,
+                   const LinearIR::constExprIt& end_it,
+                   const LinearIR::LoopManagerPtr& loop_manager,
                    const std::vector<LinearIR::LoopManager::LoopPort>& loop_entries,
                    const std::vector<LinearIR::LoopManager::LoopPort>& loop_exits);
 

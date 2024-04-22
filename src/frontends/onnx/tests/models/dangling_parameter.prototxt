@@ -1,5 +1,5 @@
 ir_version: 4
-producer_name: "pytorch"
+producer_name: "OpenVINO ONNX Frontend"
 producer_version: "1.2"
 graph {
   node {

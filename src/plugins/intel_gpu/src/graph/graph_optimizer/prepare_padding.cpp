@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 #include "program_node.h"
 #include "pass_manager.h"
 #include "convolution_inst.h"
+#include "mvn_inst.h"
 #include "sliding_window_utils.hpp"
 #include <algorithm>
 
@@ -78,7 +79,7 @@ void prepare_padding::run(program& p) {
                 pad_u.spatial[1] = pe_y;
                 pad_u.spatial[2] = pe_z;
 
-                auto in_layout = prim_node.input().get_output_layout();
+                auto in_layout = prim_node.get_input_layout();
 
                 const auto& actual_lpad = in_layout.data_padding.lower_size();
                 const auto& actual_upad = in_layout.data_padding.upper_size();
@@ -98,7 +99,7 @@ void prepare_padding::run(program& p) {
 
                 auto filter_size = prim_node.weights().get_output_layout().get_tensor();
 
-                auto needed_padding = calc_sliding_window_needed_input_padding(prim_node.input().get_output_layout(),
+                auto needed_padding = calc_sliding_window_needed_input_padding(prim_node.get_input_layout(),
                                                                                prim->output_size,
                                                                                filter_size,
                                                                                prim->pad,
@@ -123,7 +124,7 @@ void prepare_padding::run(program& p) {
                 }
 
                 if (node->get_output_layout().format == format::b_fs_yx_fsv16)
-                    needed_padding = calc_sliding_window_needed_input_padding(prim_node.input().get_output_layout(),
+                    needed_padding = calc_sliding_window_needed_input_padding(prim_node.get_input_layout(),
                                                                               prim->output_size,
                                                                               size,
                                                                               ov::CoordinateDiff(prim->pads_begin.begin(), prim->pads_begin.end()),
@@ -132,7 +133,7 @@ void prepare_padding::run(program& p) {
                                                                               false,
                                                                               1);
                 else
-                    needed_padding = prim_node.input().get_output_layout().data_padding;
+                    needed_padding = prim_node.get_input_layout().data_padding;
 
                 add_required_padding(prim_node, needed_padding);
             }
@@ -240,6 +241,16 @@ void prepare_padding::run(program& p) {
             padding_end_z = std::max<tensor::value_type>(input_limit_z - prev_prim_output_layout.spatial(2), 0);
         }
 
+        auto& input = node.get_dependency(0);
+        // WA to add reorder between MVN and Conv because Conv need input data with padding but MVN opt kernel with default format does not support padding.
+        // TODO: MVN opt kernel should support padding.
+        if (node.get_preferred_impl_type() == impl_types::ocl && input.is_type<mvn>()
+            && format::is_default_format(input.get_output_layout().format)) { // check the allowed format to avoid perf drop by unnecessary reorder addition.
+            auto new_reorder = std::make_shared<reorder>(node.id() + "_padding_reorder_for_" + input.id(), input.id(), input.get_output_layout());
+            auto& new_reorder_node = p.get_or_create(new_reorder);
+            p.add_intermediate(new_reorder_node, node, input);
+        }
+
         // Adjust right padding, so entire buffer size in X dimension is properly aligned.
         // TODO: NOTE: Will be reenabled with next check-in once heuristic for line-aligned algorithm will be added.
         // auto needed_buffer_size_x = static_cast<cldnn::tensor::value_type>(
@@ -248,6 +259,6 @@ void prepare_padding::run(program& p) {
 
         cldnn::padding needed_padding({0, 0, padding_begin_x, padding_begin_y, padding_begin_z}, {0, 0, padding_end_x, padding_end_y, padding_end_z}, 0);
         needed_padding = padding::max(prev_prim_output_layout.data_padding, needed_padding);
-        p.apply_needed_padding(node, conv_input_node, needed_padding);
+        p.apply_needed_padding(node, node.get_dependency(0), needed_padding);
     }
 }

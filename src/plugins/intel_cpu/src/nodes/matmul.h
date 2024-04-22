@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,7 +51,8 @@ private:
     using executorPtr = std::shared_ptr<DnnlExecutor>;
     executorPtr execPtr = nullptr;
     dnnl::memory::desc getBiasDescFrom(const DnnlMemoryDescCPtr outMemDesc);
-    std::pair<Shape, Shape> makeDummyInputShapes(const Shape& in0, const Shape& in1) const;
+    std::pair<Shape, Shape>
+    makeDummyInputShapes(const Shape& in0, const Shape& in1, const Shape& out) const;
 
     bool withBiases;
 

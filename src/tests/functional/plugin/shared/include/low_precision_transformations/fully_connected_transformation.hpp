@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,19 +6,18 @@
 
 #include <string>
 #include <memory>
-#include <ngraph/ngraph.hpp>
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 class MatMulShapes {
 public:
-    ngraph::PartialShape inputA;
-    ngraph::PartialShape inputB;
+    ov::PartialShape inputA;
+    ov::PartialShape inputB;
     bool transposeA;
     bool transposeB;
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
+    ov::element::Type,
     MatMulShapes,
     std::string,
     ov::pass::low_precision::LayerTransformation::Params> FullyConnectedTransformationParams;

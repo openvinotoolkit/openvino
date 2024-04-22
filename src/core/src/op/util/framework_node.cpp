@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -132,7 +132,7 @@ void ov::op::util::FrameworkNode::validate_and_infer_types() {
             out << "Input descriptor for " << get_friendly_name() << " node has been changed:" << std::endl;
             out << "Before: " << std::get<0>(m_inputs_desc[i]) << ", " << std::get<1>(m_inputs_desc[i]) << std::endl;
             out << "After:  " << input_pshape << ", " << input_type << std::endl;
-            out << "Please specify InferenceEngine Extensions to support this case.";
+            out << "Please specify OpenVINO Extensions to support this case.";
             return out.str();
         };
 

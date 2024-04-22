@@ -45,33 +45,49 @@ post <https://huggingface.co/blog/lcm_lora>`__
 This notebook explores how to speed up ControlNet pipeline using LCM
 LoRA, OpenVINO and quantization with
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__. Let us get
-“controlling”! 
+“controlling”!
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
+-  `Background <#background>`__
 
-- `Background <#background>`__
-- `Stable Diffusion <#stable-diffusion>`__
-- `controlnet <#controlnet>`__
-- `Low-Rank Adaptation of Large Language Models (LoRA) <#low-rank-adaptation-of-large-language-models-lora>`__
-- `Prerequisites <#prerequisites>`__
-- `Load Original Diffusers pipeline and prepare models for conversion <#load-original-diffusers-pipeline-and-prepare-models-for-conversion>`__
-- `Condition Image <#condition-image>`__
-- `Convert models to OpenVINO Intermediate representation (IR) format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
-- `ControlNet conversion <#controlnet-conversion>`__
-- `U-Net <#u-net>`__
-- `textencoder <#text-encoder>`__
-- `VAE Decoder conversion <#vae-decoder-conversion>`__
-- `Prepare Inference pipeline <#prepare-inference-pipeline>`__
-- `Prepare tokenizer and LCMScheduler <#prepare-tokenizer-and-lcmscheduler>`__
-- `Select inference device for Stable Diffusion pipeline <#select-inference-device-for-stable-diffusion-pipeline>`__
-- `Running Text-to-Image Generation with ControlNet Conditioning and OpenVINO <#running-text-to-image-generation-with-controlnet-conditioning-and-openvino>`__
-- `Quantization <#quantization>`__
-- `Prepare calibration datasets <#prepare-calibration-datasets>`__
-- `Run quantization <#run-quantization>`__
-- `Compare inference time of the FP16 and INT8 models <#compare-inference-time-of-the-fp-and-int-models>`__
-- `Compare model file sizes <#compare-model-file-sizes>`__
-- `Interactive Demo <#interactive-demo>`__
+   -  `Stable Diffusion <#stable-diffusion>`__
+   -  `ControlNet <#controlnet>`__
+   -  `Low-Rank Adaptation of Large Language Models
+      (LoRA) <#low-rank-adaptation-of-large-language-models-lora>`__
+
+-  `Prerequisites <#prerequisites>`__
+-  `Load Original Diffusers pipeline and prepare models for
+   conversion <#load-original-diffusers-pipeline-and-prepare-models-for-conversion>`__
+-  `Condition Image <#condition-image>`__
+-  `Convert models to OpenVINO Intermediate representation (IR)
+   format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
+
+   -  `ControlNet conversion <#controlnet-conversion>`__
+   -  `U-Net <#u-net>`__
+   -  `Text Encoder <#text-encoder>`__
+   -  `VAE Decoder conversion <#vae-decoder-conversion>`__
+
+-  `Prepare Inference pipeline <#prepare-inference-pipeline>`__
+
+   -  `Prepare tokenizer and
+      LCMScheduler <#prepare-tokenizer-and-lcmscheduler>`__
+   -  `Select inference device for Stable Diffusion
+      pipeline <#select-inference-device-for-stable-diffusion-pipeline>`__
+
+-  `Running Text-to-Image Generation with ControlNet Conditioning and
+   OpenVINO <#running-text-to-image-generation-with-controlnet-conditioning-and-openvino>`__
+-  `Quantization <#quantization>`__
+
+   -  `Prepare calibration datasets <#prepare-calibration-datasets>`__
+   -  `Run quantization <#run-quantization>`__
+   -  `Compare inference time of the FP16 and INT8
+      models <#compare-inference-time-of-the-fp16-and-int8-models>`__
+
+      -  `Compare model file sizes <#compare-model-file-sizes>`__
+
+-  `Interactive Demo <#interactive-demo>`__
 
 Background
 ----------
@@ -208,7 +224,7 @@ Install required packages
 
 .. code:: ipython3
 
-    %pip install -q "torch" transformers "diffusers>=0.22.0" "controlnet-aux>=0.0.6" accelerate --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "torch" transformers "diffusers>=0.22.0" "controlnet-aux>=0.0.6" "peft==0.6.2" accelerate --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "openvino>=2023.2.0" pillow gradio datasets "nncf>=2.7.0"
 
 Prepare PyTorch models
@@ -775,7 +791,7 @@ Prepare Inference pipeline
 
 We already deeply discussed how the ControlNet-guided pipeline works on
 example pose-controlled generation in `controlnet
-notebook <../235-controlnet-stable-diffusion>`__. In our current
+notebook <235-controlnet-stable-diffusion-with-output.html>`__. In our current
 example, the pipeline remains without changes. Similarly to Diffusers
 ``StableDiffusionControlNetPipeline``, we define our own
 ``OVControlNetStableDiffusionPipeline`` inference pipeline based on

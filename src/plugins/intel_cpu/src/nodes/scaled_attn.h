@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ namespace node {
 
 class ScaledDotProductAttention : public Node {
 public:
-    ScaledDotProductAttention(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    ScaledDotProductAttention(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {}
     bool created() const override {
@@ -34,7 +34,7 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void execute(dnnl::stream strm) override;
     void createPrimitive() override;
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     enum KernelTypes { KT_REF, KT_ONEDNN, KT_MLAS};
 
@@ -48,6 +48,7 @@ public:
 
 private:
     void gatherConcatPastkv(const MemoryPtr& mem_cur_k, const MemoryPtr& mem_cur_v, const MemoryPtr& mem_beam_idx);
+    void gatherConcatPastkvForPagedAttn(const std::vector<MemoryPtr>& inputs);
     void updateBeamTable(const MemoryPtr& mem_beam_idx, size_t new_q_len);
     void updatePastkv(const MemoryPtr& mem_cur_k, const MemoryPtr& mem_cur_v);
     ov::element::Type getRuntimePrecision() const override;
@@ -55,13 +56,16 @@ private:
 
     struct Config {
         ScaledDotProductAttentionWithKVCache::Config config;
+        bool is_pageattn = false;
     };
 
     struct Executor {
         virtual void execute(dnnl::stream strm, const Config& config, const std::vector<MemoryPtr>& inputs, const MemoryPtr output,
-                             const MemoryPtr presentk_input, const MemoryPtr presentv_input, const MemoryPtr beam_input) = 0;
+                             const MemoryPtr presentk_input, const MemoryPtr presentv_input, const MemoryPtr beam_input,
+                             const PlainTensor& k_scale_zp, const PlainTensor& v_scale_zp) = 0;
     };
 
+    bool m_is_pageattn;
     Config m_config;
     std::shared_ptr<Executor> m_executor;
     template <KernelTypes KType, typename T> struct AttentionExecutor;
@@ -70,7 +74,20 @@ private:
     std::shared_ptr<VariableStateKVcache> m_k_state;
     std::shared_ptr<VariableStateKVcache> m_v_state;
 
-    PlainTensor m_tmp_reorder;
+    // PagedAttention input index
+    static const size_t ID_Q = 0;
+    static const size_t ID_K = 1;
+    static const size_t ID_V = 2;
+    static const size_t ID_KCACHE = 3;
+    static const size_t ID_VCACHE = 4;
+    static const size_t ID_IS_PROMPT = 5;
+    static const size_t ID_SLOT_MAPPING = 6;
+    static const size_t ID_MAX_CONTEXT_LEN = 7;
+    static const size_t ID_CONTEXT_LENS = 8;
+    static const size_t ID_BLOCK_TABLES = 9;
+    static const size_t ID_SCALE = 10;
+    static const size_t ID_ALIBI_SLOPES = 11;
+    static const size_t ID_SLIDING_WINDOW = 12;
 };
 
 }  // namespace node

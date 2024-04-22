@@ -1,14 +1,13 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
-#include <ie_system_conf.h>
 
 #include <future>
-#include <ie_parallel.hpp>
 #include <thread>
 
+#include "openvino/core/parallel.hpp"
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "openvino/runtime/threading/immediate_executor.hpp"
 

@@ -32,23 +32,21 @@ This tutorial consists of the following steps
 -  Preparing the PyTorch model
 -  Download and prepare data
 -  Check inference with the PyTorch model
--  Convert to ONNX format
--  Convert ONNX Model to OpenVINO Intermediate Representation
+-  Convert Model to OpenVINO Intermediate Representation
 -  Verify inference with the converted model
 
 .. |image0| image:: https://user-images.githubusercontent.com/34324155/143044111-94676f64-7ba8-4081-9011-f8054bed7030.png
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Prepare PyTorch Model <#prepare-pytorch-model>`__
 
    -  `Install necessary packages <#install-necessary-packages>`__
    -  `Imports and Settings <#imports-and-settings>`__
 
--  `Export to ONNX <#export-to-onnx>`__
--  `Convert ONNX to OpenVINO Intermediate
-   Representation <#convert-onnx-to-openvino-intermediate-representation>`__
+-  `Convert model to OpenVINO Intermediate
+   Representation <#convert-model-to-openvino-intermediate-representation>`__
 -  `Select inference device <#select-inference-device>`__
 -  `Verify Model Inference <#verify-model-inference>`__
 
@@ -64,8 +62,13 @@ Install necessary packages
 
 .. code:: ipython3
 
-    !pip install -q "openvino>=2023.1.0"
-    !pip install -q fvcore --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "openvino>=2023.3.0" fvcore --extra-index-url https://download.pytorch.org/whl/cpu
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
 
 Imports and Settings
 ~~~~~~~~~~~~~~~~~~~~
@@ -714,49 +717,37 @@ inference using the same. The top 5 predictions can be seen below.
     Predicted labels: archery, throwing axe, playing paintball, golf driving, riding or walking with horse
 
 
-Export to ONNX
---------------
+Convert model to OpenVINO Intermediate Representation
+-----------------------------------------------------
 
 
 
 Now that we have obtained our trained model and checked inference with
-it, we export the PyTorch model to Open Neural Network Exchange(ONNX)
-format, an open format for representing machine learning models, so that
-we can use model conversion API to convert it to OpenVINO Intermediate
-Representation format(IR). This can be later used to run inference using
-the OpenVINO Runtime. Note that although the OpenVINO Runtime supports
-running ONNX models directly, converting to IR format enables us to take
-advantage of OpenVINO’s optimization features including model
-quantization.
+it, we export the PyTorch model to OpenVINO IR format. In this format,
+the network is represented using two files: an ``xml`` file describing
+the network architecture and an accompanying binary file that stores
+constant values such as convolution weights in a binary format. We can
+use model conversion API for converting into IR format as follows. The
+``ov.convert_model`` method returns an ``ov.Model`` object that can
+either be compiled and inferred or serialized.
 
 .. code:: ipython3
 
-    ONNX_MODEL_PATH = MODEL_DIR / "slowfast-r50.onnx"
+    class ModelWrapper(torch.nn.Module):
+        def __init__(self, model):
+            super().__init__()
+            self.model = model
+    
+        def forward(self, input):
+            return model(list(input))
+    
+    
     dummy_input = [torch.randn((1, 3, 8, 256, 256)), torch.randn([1, 3, 32, 256, 256])]
-    torch.onnx.export(
-        model=model,
-        args=dummy_input,
-        f=ONNX_MODEL_PATH,
-        export_params=True,
-    )
-
-Convert ONNX to OpenVINO Intermediate Representation
-----------------------------------------------------
-
-
-
-Now that our ONNX model is ready, we can convert it to IR format. In
-this format, the network is represented using two files: an ``xml`` file
-describing the network architecture and an accompanying binary file that
-stores constant values such as convolution weights in a binary format.
-We can use model conversion API for converting into IR format as
-follows. The ``ov.convert_model`` method returns an ``ov.Model`` object
-that can either be compiled and inferred or serialized.
-
-.. code:: ipython3
-
-    model = ov.convert_model(ONNX_MODEL_PATH)
+    
+    model = ov.convert_model(ModelWrapper(model), example_input=(dummy_input,))
     IR_PATH = MODEL_DIR / "slowfast-r50.xml"
+    
+    
     
     # serialize model for saving IR
     ov.save_model(model=model, output_model=str(IR_PATH), compress_to_fp16=False)

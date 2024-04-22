@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -64,7 +64,7 @@ def test_reshape_opset5():
             [make_tensor_value_info("reshaped", onnx.TensorProto.FLOAT, ())],
         )
 
-        model = make_model(graph, producer_name="ngraph ONNX Importer")
+        model = make_model(graph, producer_name="OpenVINO ONNX Frontend")
         model.opset_import[0].version = 5
         graph_model_function = import_onnx_model(model)
         runtime = get_runtime()

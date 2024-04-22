@@ -1,6 +1,6 @@
 # Build OpenVINO™ Runtime for Android systems
 
-This article describes how to build Inference Engine for Android operating systems.
+This article describes how to build OpenVINO for Android operating systems.
 
 ## Software requirements
 

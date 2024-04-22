@@ -18,8 +18,7 @@ multiclass_nms_kernel_selector::Instance() {
 }
 
 KernelsData multiclass_nms_kernel_selector::GetBestKernels(
-    const Params& params,
-    const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::MULTICLASS_NMS);
+    const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::MULTICLASS_NMS);
 }
 }  // namespace kernel_selector

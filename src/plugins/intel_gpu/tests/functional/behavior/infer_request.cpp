@@ -8,7 +8,6 @@
 #include "common_test_utils/node_builders/activation.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/runtime/core.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "transformations/utils/utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
@@ -273,5 +272,39 @@ TEST(VariablesTest, smoke_set_get_state_with_convert) {
     state_tensor = variable.get_state();
 
     ov::test::utils::compare(tensor_to_set, state_tensor, 1e-5f, 1e-5f);
+}
+
+TEST(TensorTest, smoke_outputTensorShapesForDynamicInput) {
+    auto core = ov::Core();
+    using namespace ov::preprocess;
+    auto p = PrePostProcessor(ov::test::utils::make_split_multi_conv_concat());
+    p.input().tensor().set_element_type(ov::element::i8);
+    p.input().preprocess().convert_element_type(ov::element::f32);
+
+    auto function = p.build();
+    std::map<size_t, ov::PartialShape> shapes = { {0, ov::PartialShape{-1, -1, -1, -1}} };
+    function->reshape(shapes);
+    auto exec_net = core.compile_model(function, ov::test::utils::DEVICE_GPU);
+    auto inf_req = exec_net.create_infer_request();
+
+    ov::Tensor t1(ov::element::i8, {1, 4, 20, 40});
+    ov::Tensor t2(ov::element::i8, {1, 4, 40, 20});
+    ov::Tensor t3(ov::element::i8, {1, 4, 20, 40});
+    const ov::Shape output1_shape = {1, 10, 12, 32};
+    const ov::Shape output2_shape = {1, 10, 32, 12};
+    const ov::Shape output3_shape = {1, 10, 12, 32};
+
+    // Check output shape of output tensor is correct
+    ASSERT_NO_THROW(inf_req.set_input_tensor(t1));
+    ASSERT_NO_THROW(inf_req.infer());
+    ASSERT_EQ(inf_req.get_output_tensor().get_shape(), output1_shape);
+
+    ASSERT_NO_THROW(inf_req.set_input_tensor(t2));
+    ASSERT_NO_THROW(inf_req.infer());
+    ASSERT_EQ(inf_req.get_output_tensor().get_shape(), output2_shape);
+
+    ASSERT_NO_THROW(inf_req.set_input_tensor(t3));
+    ASSERT_NO_THROW(inf_req.infer());
+    ASSERT_EQ(inf_req.get_output_tensor().get_shape(), output3_shape);
 }
 } // namespace

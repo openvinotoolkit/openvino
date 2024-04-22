@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -485,6 +485,23 @@ void parallel_for2d(const T0& D0, const T1& D1, const F& func) {
 #endif
 }
 
+template <typename T0, typename T1, typename F>
+void parallel_for2d_dynamic(const T0& D0, const T1& D1, const F& func) {
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+    tbb::parallel_for(tbb::blocked_range2d<T0, T1>(0, D0, 0, D1), [=](const tbb::blocked_range2d<T0, T1>& r) {
+        for (T0 d0 = r.rows().begin(); d0 < r.rows().end(); d0++) {
+            for (T1 d1 = r.cols().begin(); d1 < r.cols().end(); d1++) {
+                func(d0, d1);
+            }
+        }
+    });
+#else
+    parallel_for2d(D0, D1, [&](size_t d0, size_t d1) {
+        func(d0, d1);
+    });
+#endif
+}
+
 template <typename T0, typename T1, typename T2, typename F>
 void for_3d(const int& ithr, const int& nthr, const T0& D0, const T1& D1, const T2& D2, const F& func) {
     const size_t work_amount = (size_t)D0 * D1 * D2;
@@ -531,6 +548,26 @@ void parallel_for3d(const T0& D0, const T1& D1, const T2& D2, const F& func) {
     for_3d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, D2, func);
 #elif OV_THREAD == OV_THREAD_SEQ
     for_3d(0, 1, D0, D1, D2, func);
+#endif
+}
+
+template <typename T0, typename T1, typename T2, typename F>
+void parallel_for3d_dynamic(const T0& D0, const T1& D1, const T2& D2, const F& func) {
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+    tbb::parallel_for(tbb::blocked_range3d<T0, T1, T2>(0, D0, 0, D1, 0, D2),
+                      [=](const tbb::blocked_range3d<T0, T1, T2>& r) {
+                          for (T0 d0 = r.pages().begin(); d0 < r.pages().end(); d0++) {
+                              for (T1 d1 = r.rows().begin(); d1 < r.rows().end(); d1++) {
+                                  for (T2 d2 = r.cols().begin(); d2 < r.cols().end(); d2++) {
+                                      func(d0, d1, d2);
+                                  }
+                              }
+                          }
+                      });
+#else
+    parallel_for3d(D0, D1, D2, [&](size_t d0, size_t d1, size_t d2) {
+        func(d0, d1, d2);
+    });
 #endif
 }
 

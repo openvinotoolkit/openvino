@@ -5,7 +5,7 @@ from setuptools import setup
 
 setup(
     name='openvino-sphinx-theme',
-    version='0.0.1',
+    version='0.0.2',
     packages=['openvino_sphinx_theme'],
     maintainer='OpenVINO Documentation Team',
     include_package_data=True,

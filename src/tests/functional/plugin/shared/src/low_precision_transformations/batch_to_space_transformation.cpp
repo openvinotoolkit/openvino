@@ -6,15 +6,14 @@
 
 #include <memory>
 #include <tuple>
-#include <ie_core.hpp>
 
-#include <transformations/init_node_info.hpp>
+#include "transformations/init_node_info.hpp"
 #include "ov_lpt_models/batch_to_space.hpp"
 
 namespace LayerTestsDefinitions {
 
 std::string BatchToSpaceTransformation::getTestCaseName(const testing::TestParamInfo<BatchToSpaceTransformationParams>& obj) {
-    ngraph::element::Type input_type;
+    ov::element::Type input_type;
     std::string target_device;
     BatchToSpaceTransformationParam param;
     std::tie(input_type, target_device, param) = obj.param;
@@ -25,11 +24,13 @@ std::string BatchToSpaceTransformation::getTestCaseName(const testing::TestParam
 }
 
 void BatchToSpaceTransformation::SetUp() {
-    ngraph::element::Type input_type;
+    ov::element::Type input_type;
     BatchToSpaceTransformationParam param;
     std::tie(input_type, targetDevice, param) = this->GetParam();
 
-    function = ngraph::builder::subgraph::BatchToSpaceFunction::get(
+    init_input_shapes(param.input_shape);
+
+    function = ov::builder::subgraph::BatchToSpaceFunction::get(
         param.input_shape,
         input_type,
         param.fake_quantize,
@@ -38,8 +39,8 @@ void BatchToSpaceTransformation::SetUp() {
         param.crops_end);
 }
 
-void BatchToSpaceTransformation::Run() {
-    LayerTestsCommon::Run();
+void BatchToSpaceTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<2>(GetParam());
     auto expected_type = params.expected_kernel_type;
@@ -48,13 +49,13 @@ void BatchToSpaceTransformation::Run() {
         expected_type = "f16";
     }
 
-    const auto actual_type = getRuntimePrecisionByType(params.layer_type);
+    const auto actual_type = get_runtime_precision_by_type(params.layer_type);
     EXPECT_EQ(actual_type, expected_type);
 }
 
 TEST_P(BatchToSpaceTransformation, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

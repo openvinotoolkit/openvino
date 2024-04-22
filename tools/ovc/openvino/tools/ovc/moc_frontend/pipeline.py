@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -104,7 +104,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                 model.add_name_for_tensor(new_input['node'], new_input['input_name'])
             except NotImplementedFailure as e:
                 # some frontends might not implement this method
-                log.warn('Could not add an additional name to a tensor pointed to by \'{}\'. Details: {}'.format(
+                log.warning('Could not add an additional name to a tensor pointed to by \'{}\'. Details: {}'.format(
                     new_input['input_name'], str(e)))
 
     enabled_transforms, disabled_transforms = get_enabled_and_disabled_transforms()
@@ -181,7 +181,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                 input_model.set_partial_shape(
                     user_shape['node'], user_shape['shape'])
             if user_shape.get('data_type') is not None:
-                data_type = get_element_type(user_shape['data_type'])
+                data_type = user_shape['data_type']
                 log.debug('Set data type: {}'.format(data_type))
                 input_model.set_element_type(user_shape['node'], data_type)
 

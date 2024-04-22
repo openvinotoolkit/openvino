@@ -39,17 +39,25 @@ size_t OptimizeDomain::optimize(std::vector<VectorDims>& input_shapes,
         const auto master_prelast = *++master_shape.rbegin();
         return std::all_of(input_shapes.begin(), input_shapes.end(),
                            [=](const VectorDims& s) {
+                               OPENVINO_ASSERT(s.size() >= 2, "LastDimsNotBroadcasted can't process shape with less than two dims");
                                return *s.rbegin() == master_last &&
                                       *++s.rbegin() == master_prelast;
                             });
     };
 
+    // Index of InputShape with the minimal rank
+    size_t min_rank_idx = 0;
+    for (size_t i = 1; i < input_shapes.size(); ++i) {
+        if (input_shapes[i].size() < input_shapes[min_rank_idx].size())
+            min_rank_idx = i;
+    }
+
     size_t jit_work_amount = master_shape.back();
     size_t num_dims_collapsed = 0;
     while (jit_work_amount < min_jit_work_amount &&
+           (num_dims_collapsed + 1) < input_shapes[min_rank_idx].size() &&
            can_increase_jit_work_amount(master_shape, min_parallel_work_amount, total_work_amount) &&
-           LastDimsNotBroadcasted(input_shapes, master_shape) &&
-           num_dims_collapsed < master_shape.size() - 1) {
+           LastDimsNotBroadcasted(input_shapes, master_shape)) {
         for (auto &s : input_shapes)
             CollapseLastDim(s);
 
@@ -73,15 +81,23 @@ bool OptimizeDomain::run(snippets::lowered::LinearIR& linear_ir) {
     const auto& config = linear_ir.get_config();
     if (linear_ir.empty())
         return false;
+
     m_tile_rank = 1;
+
     if (!config.m_enable_domain_optimization) {
         // Note: this is a special case: if optimization is not allowed, always assume 2D tile
         m_tile_rank = 2;
         return false;
     }
+
+    VectorDims master_shape = linear_ir.get_master_shape();
+    if (linear_ir.is_dynamic()) {
+        m_tile_rank = master_shape.size() > 1 ? 2 : 1;
+        return false;
+    }
+
     OPENVINO_ASSERT(config.m_min_parallel_work_amount != 0, "OptimizeDomain: Min parallel work amount can't equal to zero");
     std::vector<VectorDims> input_shapes;
-    VectorDims master_shape = linear_ir.get_master_shape();
     bool blocked_input_shapes = false;
     for (const auto& io_expr : linear_ir.get_IO_ops()) {
         if (io_expr->get_type() == snippets::lowered::IOExpression::io_type::INPUT) {
@@ -100,7 +116,7 @@ bool OptimizeDomain::run(snippets::lowered::LinearIR& linear_ir) {
                                                         io_expr;
             const auto& shape = utils::get_preordered_vdims(shape_producing_expr->get_output_port(0));
             OPENVINO_ASSERT(std::none_of(shape.begin(), shape.end(),
-                                        [](size_t d) {return d == snippets::IShapeInferSnippets::DYNAMIC_DIMENSION; }),
+                                        [](size_t d) { return utils::is_dynamic_value(d); }),
                             "OptimizeDomain pass does not support dynamic shapes");
             input_shapes.emplace_back(shape);
         }

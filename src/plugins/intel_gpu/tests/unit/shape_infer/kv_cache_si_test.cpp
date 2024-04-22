@@ -24,6 +24,7 @@ struct kv_cache_test_params {
     std::vector<layout> input_layouts;
     int64_t concat_axis;
     int64_t gather_axis;
+    bool indirect;
     layout expected_layout;
 };
 
@@ -46,7 +47,7 @@ TEST_P(kv_cache_test, shape_infer) {
 
     ov::op::util::VariableInfo info{p.input_layouts[0].get_partial_shape(), p.input_layouts[0].data_type, "v0"};
 
-    auto kv_cache_prim = std::make_shared<kv_cache>("output", input_prims_ids, info, p.concat_axis, p.gather_axis);
+    auto kv_cache_prim = std::make_shared<kv_cache>("output", input_prims_ids, info, p.concat_axis, p.gather_axis, p.indirect);
     auto& kv_cache_node = prog.get_or_create(kv_cache_prim);
     for (size_t i = 0; i < p.input_layouts.size(); i++) {
         auto& input_node = prog.get_or_create(input_prims[i]);
@@ -69,6 +70,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, kv_cache_test,
             },
             2,
             0,
+            false,
             layout{ov::PartialShape{-1, 2, -1, 4}, data_types::f32, format::bfyx}
         },
         {
@@ -78,6 +80,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, kv_cache_test,
             },
             2,
             0,
+            false,
             layout{ov::PartialShape{1, 2, 10, 4}, data_types::f16, format::bfyx}
         },
     }));

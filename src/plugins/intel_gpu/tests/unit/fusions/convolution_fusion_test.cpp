@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -770,7 +770,7 @@ TEST_P(conv_fp32_wrong_bias, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_wrong_bias, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_FP32_15, 3, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_15, 3, 3, 3 },
 }));
 
 class conv_fp32_add_per_element_planar_const : public ConvFusingTest {};
@@ -1488,43 +1488,6 @@ TEST_P(conv_fp32_eltwise_b_fs_zyx_fsv16, vector_ops) {
     execute(p);
 }
 
-class conv_fp32_swish : public ConvFusingTest {};
-TEST_P(conv_fp32_swish, basic) {
-    auto p = GetParam();
-    create_topologies(
-        input_layout("input", get_input_layout(p)),
-        data("weights", get_mem(get_weights_layout(p))),
-        data("bias", get_mem(get_per_channel_layout(p))),
-        convolution("conv_prim", input_info("input"), "weights", "bias", p.groups, p.stride, p.dilation, p.pad, p.pad, format::is_grouped(get_weights_layout(p).format)),
-        activation("sigmoid", input_info("conv_prim"), activation_func::logistic),
-        eltwise("mul", { input_info("conv_prim"), input_info("sigmoid") }, eltwise_mode::prod),
-        reorder("reorder_bfyx", input_info("mul"), p.default_format, data_types::f32)
-    );
-
-    if (engine.get_device_info().supports_immad &&
-        p.default_type == data_types::f16) {
-        GTEST_SKIP(); // Issue: 94154
-    }
-
-    tolerance = default_tolerance(p.default_type);
-    if (p.default_type == data_types::f16) {
-        tolerance *= 3.f; // Issue: 94154
-    }
-    execute(p);
-}
-
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_swish, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    // convolution_test_params{ CASE_CONV_FP32_1, 2, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP32_2, 2, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP32_3, 2, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP32_4, 2, 2, 4 },
-
-    // convolution_test_params{ CASE_CONV_FP32_1, 2, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP16_2, 2, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP16_3, 2, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP16_4, 2, 2, 4 },
-}));
-
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_eltwise_b_fs_zyx_fsv16, ::testing::ValuesIn(std::vector<convolution_test_params>{
     convolution_test_params{ CASE_CONV_FP32_6, 2, 2, 3 },
     convolution_test_params{ CASE_CONV_FP32_7, 2, 2, 3 },
@@ -1856,7 +1819,7 @@ TEST_P(conv_fp32_group_conv_eltwise_sum, basic) {
 #define CASE_GROUP_CONV_ELTW_FP32_1 { 1, 48, 3, 3 }, { 1, 48, 3, 3 }, { 1, 48, 3, 3 }, { 16, 3, 3, 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 16, data_types::f32, format::bfyx, data_types::f32, format::g_os_iyx_osv16, data_types::f32, format::bfyx
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_group_conv_eltwise_sum, ::testing::ValuesIn(std::vector<conv_eltw_test_params>{
-    conv_eltw_test_params{ CASE_GROUP_CONV_ELTW_FP32_1, 3, 2, 3 },
+    conv_eltw_test_params{ CASE_GROUP_CONV_ELTW_FP32_1, 3, 3, 3 },
 }));
 
 class conv_swap_xy_with_eltwise_diff_sizes : public ConvEltwTest {};
@@ -2028,52 +1991,6 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_eltwise, ::testing::ValuesIn(std
     convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 2, 3 },
     convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 2, 3 },
     convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 2, 3 },
-}));
-
-class conv_int8_scale_shift_swish : public ConvFusingTest {};
-TEST_P(conv_int8_scale_shift_swish, basic) {
-    auto p = GetParam();
-    create_topologies(
-        input_layout("input", get_input_layout(p)),
-        data("weights", get_mem(get_weights_layout(p))),
-        data("bias", get_mem(get_per_channel_layout(p))),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/255.f)),
-        data("shift_data", get_mem(get_per_channel_layout(p), 1)),
-        convolution("conv_prim", input_info("input"), "weights", "bias", p.groups, p.stride, p.dilation, p.pad, p.pad, format::is_grouped(get_weights_layout(p).format)),
-        eltwise("scale0", { input_info("conv_prim"), input_info("scale_data") }, eltwise_mode::prod),
-        eltwise("scale1", { input_info("conv_prim"), input_info("scale_data") }, eltwise_mode::prod),
-        eltwise("shift0", { input_info("scale0"), input_info("shift_data") }, eltwise_mode::sum),
-        eltwise("shift1", { input_info("scale1"), input_info("shift_data") }, eltwise_mode::sum),
-        activation("sigmoid", input_info("shift0"), activation_func::logistic),
-        eltwise("mul", { input_info("shift1"), input_info("sigmoid") }, eltwise_mode::prod),
-        reorder("reorder_bfyx", input_info("mul"), p.default_format, data_types::f32)
-    );
-
-    // high tolerance because many eltwise operations
-    tolerance = default_tolerance(p.default_type) * 10;
-    execute(p, -20, 20);
-}
-
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_shift_swish, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 8 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 8 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2, 8 },
-    convolution_test_params{ CASE_CONV_U8S8_4, 2, 2, 8 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 8 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2, 8 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 8 },
-    convolution_test_params{ CASE_CONV_S8S8_4, 2, 2, 8 },
-
-    convolution_test_params{ CASE_CONV3D_U8S8_1, 2, 2, 8 },
-    convolution_test_params{ CASE_CONV3D_U8S8_2, 2, 2, 8 },
-    convolution_test_params{ CASE_CONV3D_U8S8_3, 2, 2, 8 },
-    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 2, 8 },
-    convolution_test_params{ CASE_CONV3D_U8S8_5, 2, 2, 8 },
-    convolution_test_params{ CASE_CONV3D_S8S8_1, 2, 2, 8 },
-    convolution_test_params{ CASE_CONV3D_S8S8_2, 2, 2, 8 },
-    convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 2, 8 },
-    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 2, 8 },
-    convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 2, 8 },
 }));
 
 class conv_int8_prelu_eltwise : public ConvFusingTest {};
@@ -2874,268 +2791,6 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_prelu_quantize_i8_eltwise_
     convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 7 },
     convolution_test_params{ CASE_CONV_S8S8_5, 2, 2, 7 },
 }));
-
-class conv_int8_asymmetric_weights : public ConvFusingTest {};
-TEST_P(conv_int8_asymmetric_weights, basic) {
-    auto p = GetParam();
-    auto weights_format = format::get_default_format(p.weights_format.dimension());
-    auto weights_layout = (format::is_grouped(get_weights_layout(p).format)) ? get_weights_layout(p, weights_format) :
-                                           get_weights_layout(p);
-    create_topologies(
-        input_layout("input", get_input_layout(p)),
-        data("weights", get_mem(weights_layout)),
-        data("bias", get_mem(get_per_channel_layout(p))),
-        data("w_zp", get_mem(get_weights_zp_layout(p), 1, 127)),
-        eltwise("w_sub", { input_info("weights"), input_info("w_zp") }, eltwise_mode::sub, data_types::f32),
-        convolution("conv_prim", input_info("input"), { "w_sub" }, "bias", p.groups, p.stride, p.dilation, p.pad, p.pad, format::is_grouped(get_weights_layout(p).format)),
-        reorder("reorder_bfyx", input_info("conv_prim"), p.default_format, data_types::f32)
-    );
-
-    tolerance = 1.f;
-
-    auto input_prim = get_mem(get_input_layout(p));
-    network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
-    network network_fused(this->engine, this->topology_fused, cfg_fused);
-    network_fused.set_input_data("input", input_prim);
-    network_not_fused.set_input_data("input", input_prim);
-
-    ASSERT_FALSE(network_fused.get_primitives_info().empty());
-    ASSERT_FALSE(network_not_fused.get_primitives_info().empty());
-
-    // Search for both conv_prim and reorder_bfyx, as in case of fused topology convolution will be merged with the last reorder
-    auto find_conv = [](primitive_info& p) -> bool {
-        if (p.original_id == "conv_prim" || p.original_id == "reorder_bfyx")
-            return true;
-        return false;
-    };
-
-    auto pi_fused = network_fused.get_primitives_info();
-    auto pi_not_fused = network_not_fused.get_primitives_info();
-    auto info_fused = std::find_if(pi_fused.begin(), pi_fused.end(), find_conv);
-    auto info_not_fused = std::find_if(pi_not_fused.begin(), pi_not_fused.end(), find_conv);
-
-    ASSERT_TRUE(info_fused != pi_fused.end());
-    ASSERT_TRUE(info_not_fused != pi_not_fused.end());
-
-    ASSERT_EQ(info_fused->c_dependencies.size(), 4lu);  // input + weights + bias + w_zp
-    ASSERT_EQ(info_not_fused->c_dependencies.size(), 3lu);  // input + weights + bias
-
-    compare(network_not_fused, network_fused, p);
-}
-
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_asymmetric_weights, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 2 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 2 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2, 2 },
-    convolution_test_params{ CASE_CONV_U8S8_4, 2, 2, 2 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 2 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2, 2 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 2 },
-    convolution_test_params{ CASE_CONV_S8S8_4, 2, 2, 2 },
-
-    convolution_test_params{ CASE_CONV3D_U8S8_1, 2, 2, 2 },
-    convolution_test_params{ CASE_CONV3D_U8S8_2, 2, 2, 2 },
-    convolution_test_params{ CASE_CONV3D_U8S8_3, 2, 2, 2 },
-    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 2, 2 },
-    convolution_test_params{ CASE_CONV3D_S8S8_1, 2, 2, 2 },
-    convolution_test_params{ CASE_CONV3D_S8S8_2, 2, 2, 2 },
-    convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 2, 2 },
-    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 2, 2 },
-}));
-
-class conv_int8_asymmetric_data : public ConvFusingTest {};
-TEST_P(conv_int8_asymmetric_data, basic) {
-    auto p = GetParam();
-    auto weights_format = format::get_default_format(p.weights_format.dimension());
-    auto weights_layout = (p.groups > 1) ? get_weights_layout(p, weights_format) : get_weights_layout(p);
-
-    create_topologies(
-        input_layout("input", get_input_layout(p)),
-        data("weights", get_mem(weights_layout)),
-        data("bias", get_mem(get_per_channel_layout(p))),
-        data("a_zp", get_mem(get_activations_zp_layout(p), 1, 127)),
-        eltwise("a_sub", { input_info("input"), input_info("a_zp") }, eltwise_mode::sub, data_types::f32),
-        convolution("conv_prim", input_info("a_sub"), "weights", "bias", p.groups, p.stride, p.dilation, p.pad, p.pad, format::is_grouped(get_weights_layout(p).format)),
-        reorder("reorder_bfyx", input_info("conv_prim"), p.default_format, data_types::f32)
-    );
-
-    tolerance = 1.f;
-
-    auto input_prim = get_mem(get_input_layout(p));
-    network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
-    network network_fused(this->engine, this->topology_fused, cfg_fused);
-    network_fused.set_input_data("input", input_prim);
-    network_not_fused.set_input_data("input", input_prim);
-
-    ASSERT_FALSE(network_fused.get_primitives_info().empty());
-    ASSERT_FALSE(network_not_fused.get_primitives_info().empty());
-
-    // Search for both conv_prim and reorder_bfyx, as in case of fused topology convolution will be merged with the last reorder
-    auto find_conv = [](primitive_info& p) -> bool {
-        if (p.original_id == "conv_prim" || p.original_id == "reorder_bfyx")
-            return true;
-        return false;
-    };
-
-    auto pi_fused = network_fused.get_primitives_info();
-    auto pi_not_fused = network_not_fused.get_primitives_info();
-    auto info_fused = std::find_if(pi_fused.begin(), pi_fused.end(), find_conv);
-    auto info_not_fused = std::find_if(pi_not_fused.begin(), pi_not_fused.end(), find_conv);
-
-    ASSERT_TRUE(info_fused != pi_fused.end());
-    ASSERT_TRUE(info_not_fused != pi_not_fused.end());
-
-    ASSERT_EQ(info_fused->c_dependencies.size(), 5lu);  // input + weights + bias + a_zp + comp
-    ASSERT_EQ(info_not_fused->c_dependencies.size(), 3lu);  // input + weights + bias
-
-    compare(network_not_fused, network_fused, p);
-}
-
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_asymmetric_data, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_4, 2, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_4, 2, 2, 3 },
-
-    convolution_test_params{ CASE_CONV3D_U8S8_1, 2, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_2, 2, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_3, 2, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_5, 2, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_1, 2, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_2, 2, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 2, 3 },
-}));
-
-class conv_int8_asymmetric_data_and_weights : public ConvFusingTest {};
-TEST_P(conv_int8_asymmetric_data_and_weights, basic) {
-    auto p = GetParam();
-    auto weights_format = format::get_default_format(p.weights_format.dimension());
-    auto weights_layout = (p.groups > 1) ? get_weights_layout(p, weights_format) : get_weights_layout(p);
-
-    create_topologies(
-        input_layout("input", get_input_layout(p)),
-        data("weights", get_mem(weights_layout)),
-        data("bias", get_mem(get_per_channel_layout(p))),
-        data("a_zp", get_mem(get_activations_zp_layout(p), 1, 127)),
-        data("w_zp", get_mem(get_weights_zp_layout(p), 1, 127)),
-        eltwise("a_sub", { input_info("input"), input_info("a_zp") }, eltwise_mode::sub, data_types::f32),
-        eltwise("w_sub", { input_info("weights"), input_info("w_zp") }, eltwise_mode::sub, data_types::f32),
-        convolution("conv_prim", input_info("a_sub"), { "w_sub" }, "bias", p.groups, p.stride, p.dilation, p.pad, p.pad, format::is_grouped(get_weights_layout(p).format)),
-        reorder("reorder_bfyx", input_info("conv_prim"), p.default_format, data_types::f32)
-    );
-
-    tolerance = 1.f;
-
-    auto input_prim = get_mem(get_input_layout(p));
-    network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
-    network network_fused(this->engine, this->topology_fused, cfg_fused);
-    network_fused.set_input_data("input", input_prim);
-    network_not_fused.set_input_data("input", input_prim);
-
-    ASSERT_FALSE(network_fused.get_primitives_info().empty());
-    ASSERT_FALSE(network_not_fused.get_primitives_info().empty());
-
-    // Search for both conv_prim and reorder_bfyx, as in case of fused topology convolution will be merged with the last reorder
-    auto find_conv = [](primitive_info& p) -> bool {
-        if (p.original_id == "conv_prim" || p.original_id == "reorder_bfyx")
-            return true;
-        return false;
-    };
-
-    auto pi_fused = network_fused.get_primitives_info();
-    auto pi_not_fused = network_not_fused.get_primitives_info();
-    auto info_fused = std::find_if(pi_fused.begin(), pi_fused.end(), find_conv);
-    auto info_not_fused = std::find_if(pi_not_fused.begin(), pi_not_fused.end(), find_conv);
-
-    ASSERT_TRUE(info_fused != pi_fused.end());
-    ASSERT_TRUE(info_not_fused != pi_not_fused.end());
-
-    ASSERT_EQ(info_fused->c_dependencies.size(), 6lu);  // input + weights + bias + a_zp + w_zp + comp
-    ASSERT_EQ(info_not_fused->c_dependencies.size(), 3lu);  // input + weights + bias
-
-    compare(network_not_fused, network_fused, p);
-}
-
-TEST_P(conv_int8_asymmetric_data_and_weights, eltwise) {
-    auto p = GetParam();
-    auto weights_format = format::get_default_format(p.weights_format.dimension());
-    auto weights_layout = (p.groups > 1) ? get_weights_layout(p, weights_format) : get_weights_layout(p);
-
-    create_topologies(
-        input_layout("input", get_input_layout(p)),
-        data("weights1", get_mem(weights_layout)),
-        data("weights2", get_mem(weights_layout)),
-        eltwise("weights", { input_info("weights1"), input_info("weights2") }, eltwise_mode::sub, data_types::i8),
-        data("bias", get_mem(get_per_channel_layout(p))),
-        data("a_zp", get_mem(get_activations_zp_layout(p), 1, 127)),
-        data("w_zp", get_mem(get_weights_zp_layout(p), 1, 127)),
-        eltwise("a_sub", { input_info("input"), input_info("a_zp") }, eltwise_mode::sub, data_types::f32),
-        eltwise("w_sub", { input_info("weights"), input_info("w_zp") }, eltwise_mode::sub, data_types::f32),
-        convolution("conv_prim", input_info("a_sub"), "w_sub", "bias", p.groups, p.stride, p.dilation, p.pad, p.pad, format::is_grouped(get_weights_layout(p).format)),
-        reorder("reorder_bfyx", input_info("conv_prim"), p.default_format, data_types::f32)
-    );
-
-    tolerance = 1.f;
-
-    auto input_prim = get_mem(get_input_layout(p));
-    network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
-    network network_fused(this->engine, this->topology_fused, cfg_fused);
-    network_fused.set_input_data("input", input_prim);
-    network_not_fused.set_input_data("input", input_prim);
-
-    ASSERT_FALSE(network_fused.get_primitives_info().empty());
-    ASSERT_FALSE(network_not_fused.get_primitives_info().empty());
-
-    // Search for both conv_prim and reorder_bfyx, as in case of fused topology convolution will be merged with the last reorder
-    auto find_conv = [](primitive_info& p) -> bool {
-        if (p.original_id == "conv_prim" || p.original_id == "reorder_bfyx")
-            return true;
-        return false;
-    };
-
-    auto pi_fused = network_fused.get_primitives_info();
-    auto pi_not_fused = network_not_fused.get_primitives_info();
-    auto info_fused = std::find_if(pi_fused.begin(), pi_fused.end(), find_conv);
-    auto info_not_fused = std::find_if(pi_not_fused.begin(), pi_not_fused.end(), find_conv);
-
-    ASSERT_TRUE(info_fused != pi_fused.end());
-    ASSERT_TRUE(info_not_fused != pi_not_fused.end());
-
-    ASSERT_EQ(info_fused->c_dependencies.size(), 5lu);  // input + weights + bias + a_zp + w_zp + comp
-    ASSERT_EQ(info_not_fused->c_dependencies.size(), 3lu);  // input + weights + bias
-
-    compare(network_not_fused, network_fused, p);
-}
-
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_asymmetric_data_and_weights, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_4, 2, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_4, 2, 2, 3 },
-
-    convolution_test_params{ CASE_CONV3D_U8S8_1, 2, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_2, 2, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_3, 2, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_5, 2, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_1, 2, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_2, 2, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 2, 3 },
-}));
-
 
 class conv_i8_activation_eltwise_diff_sizes : public ConvEltwTest {};
 TEST_P(conv_i8_activation_eltwise_diff_sizes, basic) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -128,6 +128,54 @@ void PreStepsList::add_mean_impl(const std::vector<float>& values) {
             return std::make_tuple(std::vector<Output<Node>>{new_op}, false);
         },
         "mean " + vector_to_string(values));
+}
+
+void PreStepsList::add_pad_impl(const std::vector<int>& pads_begin,
+                                const std::vector<int>& pads_end,
+                                const std::vector<float>& pad_values,
+                                PaddingMode mode) {
+    std::string name;
+    name = "pad(begin " + vector_to_string(pads_begin) + ", end " + vector_to_string(pads_end);
+    switch (mode) {
+    case PaddingMode::CONSTANT:
+        name += ", with " + vector_to_string(pad_values) + ")";
+        break;
+    case PaddingMode::EDGE:
+        name += ", copied from edge)";
+        break;
+    case PaddingMode::REFLECT:
+        name += ", reflected from tensor)";
+        break;
+    case PaddingMode::SYMMETRIC:
+        name += ", symmetrically added from tensor)";
+        break;
+    }
+
+    m_actions.emplace_back(
+        [pads_begin, pads_end, pad_values, mode](const std::vector<Output<Node>>& nodes,
+                                                 const std::shared_ptr<Model>& function,
+                                                 PreprocessingContext& ctxt) {
+            OPENVINO_ASSERT(nodes.size() == 1,
+                            "Can't pad multi-plane input. Suggesting to convert current image to "
+                            "RGB/BGR color format using 'PreProcessSteps::convert_color'");
+
+            const auto& node = nodes[0];
+            auto element_type = nodes[0].get_element_type();
+            OPENVINO_ASSERT(element_type.is_real(),
+                            "Pad preprocessing can be applied to 'float' inputs. Consider using of "
+                            "'convert_element_type' before padding. Current type is: ",
+                            element_type);
+
+            auto pad_value = opset8::Constant::create(node.get_element_type(), Shape{}, pad_values);
+
+            auto npads_begin = opset8::Constant::create(element::i64, Shape{pads_begin.size()}, pads_begin);
+            auto npads_end = opset8::Constant::create(element::i64, Shape{pads_end.size()}, pads_end);
+            auto npad_value = opset8::Constant::create(element_type, Shape{}, pad_values);
+
+            auto pad = std::make_shared<opset8::Pad>(node, npads_begin, npads_end, npad_value, mode);
+            return std::make_tuple(std::vector<Output<Node>>{pad}, true);
+        },
+        name);
 }
 
 void PreStepsList::add_convert_impl(const element::Type& type) {
@@ -695,5 +743,76 @@ void PostStepsList::add_convert_layout_impl(const std::vector<uint64_t>& dims) {
         },
         "convert layout " + vector_to_string(dims));
 }
+
+void PostStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
+    m_actions.emplace_back(
+        [dst_format](const Output<Node>& node, PostprocessingContext& context) {
+            if (context.color_format() == dst_format) {
+                return std::make_tuple(node, false);
+            } else if ((context.color_format() == ColorFormat::RGB || context.color_format() == ColorFormat::BGR) &&
+                       (dst_format == ColorFormat::RGB || dst_format == ColorFormat::BGR)) {
+                auto res = reverse_channels({node}, context);
+                context.color_format() = dst_format;
+                return res;
+            } else {
+                OPENVINO_THROW("Source color format '",
+                               color_format_name(context.color_format()),
+                               "' is not convertible to '",
+                               color_format_name(dst_format),
+                               "'");
+            }
+        },
+        "convert color (" + color_format_name(dst_format) + ")");
+}
+
+std::tuple<Output<Node>, bool> PostStepsList::reverse_channels(const Output<Node>& node,
+                                                               PostprocessingContext& context) {
+    OPENVINO_ASSERT(ov::layout::has_channels(context.layout()),
+                    "Layout ",
+                    context.layout().to_string(),
+                    " doesn't have `channels` dimension");
+    const auto& shape = node.get_partial_shape();
+    if (shape.rank().is_static()) {
+        // This block of code is to preserve output shape if it contains dynamic dimensions
+        // Otherwise, dynamic version will transform shape {?,3,?,?} to {?,?,?,?} which is still ok but not desired
+        auto channels_idx = get_and_check_channels_idx(context.layout(), shape);
+        if (shape[channels_idx].is_static()) {
+            auto channels_count = shape[channels_idx].get_length();
+            // Add range from constants
+            auto range_from = op::v0::Constant::create(element::i64, {}, {channels_count - 1});
+            auto range_to = op::v0::Constant::create(element::i64, {}, {-1});
+            auto range_step = op::v0::Constant::create(element::i64, {}, {-1});
+            auto range = std::make_shared<op::v4::Range>(range_from, range_to, range_step, element::i32);
+
+            auto constant_axis = op::v0::Constant::create(element::i32, {1}, {channels_idx});
+            auto convert = std::make_shared<op::v8::Gather>(node, range, constant_axis);
+            return std::make_tuple(convert, false);
+        }
+    }
+
+    auto channels_idx = ov::layout::channels_idx(context.layout());
+    // Get shape of user's input tensor (e.g. Tensor[1, 3, 224, 224] -> {1, 3, 224, 224})
+    auto shape_of = std::make_shared<ov::op::v0::ShapeOf>(node);  // E.g. {1, 3, 224, 224}
+
+    auto constant_chan_idx = op::v0::Constant::create(element::i32, {}, {channels_idx});  // E.g. 1
+    auto constant_chan_axis = op::v0::Constant::create(element::i32, {}, {0});
+    // Gather will return scalar with number of channels (e.g. 3)
+    auto gather_channels_num = std::make_shared<op::v8::Gather>(shape_of, constant_chan_idx, constant_chan_axis);
+
+    // Create Range from channels_num-1 to 0 (e.g. {2, 1, 0})
+    auto const_minus1 = op::v0::Constant::create(element::i64, {}, {-1});
+    auto channels_num_minus1 = std::make_shared<op::v1::Add>(gather_channels_num, const_minus1);  // E.g. 3-1=2
+    // Add range
+    auto range_to = op::v0::Constant::create(element::i64, {}, {-1});
+    auto range_step = op::v0::Constant::create(element::i64, {}, {-1});
+    // E.g. {2, 1, 0}
+    auto range = std::make_shared<op::v4::Range>(channels_num_minus1, range_to, range_step, element::i32);
+
+    // Gather slices in reverse order (indexes are specified by 'range' operation)
+    auto constant_axis = op::v0::Constant::create(element::i32, {1}, {channels_idx});
+    auto gather = std::make_shared<op::v8::Gather>(node, range, constant_axis);
+    return std::make_tuple(gather, false);
+}
+
 }  // namespace preprocess
 }  // namespace ov

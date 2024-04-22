@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,11 +28,15 @@ using LSTMSequenceParams = typename std::tuple<
 
 
 class LSTMSequenceTest : public testing::WithParamInterface<LSTMSequenceParams>,
-                     virtual public ov::test::SubgraphBaseTest {
+                         virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<LSTMSequenceParams> &obj);
 protected:
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void SetUp() override;
+
+private:
+    size_t max_seq_lengths;
 };
 }  // namespace test
 }  // namespace ov

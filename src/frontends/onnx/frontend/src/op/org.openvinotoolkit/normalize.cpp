@@ -1,21 +1,27 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "op/org.openvinotoolkit/normalize.hpp"
 
-#include "default_opset.hpp"
-#include "ngraph/op/normalize_l2.hpp"
 #include "openvino/frontend/exception.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/normalize_l2.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "utils/common.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+using namespace ov::op;
+using ov::Shape;
+
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-OutputVector normalize(const Node& node) {
-    auto inputs = node.get_ng_inputs();
+ov::OutputVector normalize(const ov::frontend::onnx::Node& node) {
+    auto inputs = node.get_ov_inputs();
     FRONT_END_GENERAL_CHECK(inputs.size() == 2, "Invalid number of inputs");
 
     auto data = inputs[0];
@@ -23,7 +29,7 @@ OutputVector normalize(const Node& node) {
     int64_t across_spatial = node.get_attribute_value<int64_t>("across_spatial", 0);
     int64_t channel_shared = node.get_attribute_value<int64_t>("channel_shared", 0);
 
-    std::shared_ptr<ngraph::Node> weights;
+    std::shared_ptr<ov::Node> weights;
     if (channel_shared) {
         FRONT_END_GENERAL_CHECK(ov::op::util::is_constant(inputs[1].get_node()),
                                 "Weights input must be a constant if channel_shared is set to 1");
@@ -43,25 +49,23 @@ OutputVector normalize(const Node& node) {
             weights_shape.push_back(1);
         }
         auto new_shape =
-            std::make_shared<default_opset::Constant>(element::i64, Shape{weights_shape.size()}, weights_shape);
-        weights = std::make_shared<default_opset::Reshape>(inputs[1], new_shape, true);
+            std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{weights_shape.size()}, weights_shape);
+        weights = std::make_shared<v1::Reshape>(inputs[1], new_shape, true);
     }
 
-    std::shared_ptr<ngraph::Node> axes;
+    std::shared_ptr<ov::Node> axes;
     if (!across_spatial) {
-        axes = std::make_shared<default_opset::Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
+        axes = std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1});
     } else {
         axes = common::get_monotonic_range_along_node_rank(data, 1);
     }
 
-    return {std::make_shared<default_opset::Multiply>(
-        std::make_shared<default_opset::NormalizeL2>(data, axes, eps, ngraph::op::EpsMode::ADD),
-        weights)};
+    return {std::make_shared<v1::Multiply>(std::make_shared<v0::NormalizeL2>(data, axes, eps, ov::op::EpsMode::ADD),
+                                           weights)};
 }
 
 }  // namespace set_1
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -447,7 +447,7 @@ def main():
         keys = compiled_model.get_property(properties.supported_properties())
         logger.info("Model:")
         for k in keys:
-            skip_keys = ('SUPPORTED_METRICS', 'SUPPORTED_CONFIG_KEYS', properties.supported_properties())
+            skip_keys = (properties.supported_properties())
             if k not in skip_keys:
                 value = compiled_model.get_property(k)
                 if k == properties.device.properties():

@@ -28,10 +28,10 @@ jit_memory_emitter::jit_memory_emitter(jit_generator* h, cpu_isa_t isa, const Ex
 jit_load_memory_emitter::jit_load_memory_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_memory_emitter(h, isa, expr) {
     if (src_prc != dst_prc)
-        OPENVINO_THROW("jit_load_memory_emitter supports only equal input and output types but gets: ",
-                       src_prc.get_type_name(),
-                       " and ",
-                       dst_prc.get_type_name());
+        OV_CPU_JIT_EMITTER_THROW("supports only equal input and output types but gets: ",
+                                 src_prc.get_type_name(),
+                                 " and ",
+                                 dst_prc.get_type_name());
 
     const auto load = std::dynamic_pointer_cast<snippets::op::Load>(expr->get_node());
     count = load->get_count();
@@ -49,14 +49,14 @@ void jit_load_memory_emitter::emit_impl(const std::vector<size_t>& in,
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        OPENVINO_THROW("Load emitter doesn't support ", host_isa_);
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
 template <cpu_isa_t isa>
 void jit_load_memory_emitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     if (!load_emitter)
-        OPENVINO_THROW("Load CPU emitter isn't initialized for jit_load_memory_emitter!");
+        OV_CPU_JIT_EMITTER_THROW("Load CPU emitter isn't initialized!");
     load_emitter->emit_code({in[0], byte_offset}, {out[0]}, aux_vec_idxs, aux_gpr_idxs);
 }
 
@@ -67,10 +67,10 @@ void jit_load_memory_emitter::emit_data() const {
 jit_load_broadcast_emitter::jit_load_broadcast_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_memory_emitter(h, isa, expr) {
     if (src_prc != dst_prc)
-        OPENVINO_THROW("BroadcastEmitters support only equal input and output types but gets: ",
-                       src_prc.get_type_name(),
-                       " and ",
-                       dst_prc.get_type_name());
+        OV_CPU_JIT_EMITTER_THROW("supports only equal input and output types but gets: ",
+                                 src_prc.get_type_name(),
+                                 " and ",
+                                 dst_prc.get_type_name());
 
     const auto broadcast_load = std::dynamic_pointer_cast<snippets::op::BroadcastLoad>(expr->get_node());
     byte_offset = broadcast_load->get_offset();
@@ -86,7 +86,7 @@ void jit_load_broadcast_emitter::emit_impl(const std::vector<size_t>& in,
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        OPENVINO_THROW("BroadcastLoad emitter doesn't support ", host_isa_);
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -103,7 +103,7 @@ void jit_load_broadcast_emitter::emit_isa(const std::vector<size_t> &in, const s
         case 4: h->uni_vbroadcastss(vmm_dst, h->ptr[in_reg + byte_offset]); break;
         case 2: h->vpbroadcastw(vmm_dst, h->ptr[in_reg + byte_offset]); break;
         case 1: h->vpbroadcastb(vmm_dst, h->ptr[in_reg + byte_offset]); break;
-        default: OPENVINO_THROW(!"unsupported data type");
+        default: OV_CPU_JIT_EMITTER_THROW("Unsupported data type");
     }
 }
 
@@ -125,14 +125,14 @@ void jit_load_convert_emitter::emit_impl(const std::vector<size_t>& in,
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        OPENVINO_THROW("LoadConvert emitter doesn't support ", host_isa_);
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
 template <cpu_isa_t isa>
 void jit_load_convert_emitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     if (!load_emitter)
-        OPENVINO_THROW("Load CPU emitter isn't initialized for jit_load_memory_emitter!");
+        OV_CPU_JIT_EMITTER_THROW("Load CPU emitter isn't initialized!");
     load_emitter->emit_code({in[0], byte_offset}, {out[0]}, aux_vec_idxs, aux_gpr_idxs);
 }
 
@@ -142,10 +142,10 @@ void jit_load_convert_emitter::emit_data() const {
 
 jit_store_memory_emitter::jit_store_memory_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : jit_memory_emitter(h, isa, expr) {
     if (src_prc != dst_prc)
-        OPENVINO_THROW("jit_store_memory_emitter supports only equal input and output types but gets: ",
-                       src_prc.get_type_name(),
-                       " and ",
-                       dst_prc.get_type_name());
+        OV_CPU_JIT_EMITTER_THROW("supports only equal input and output types but gets: ",
+                                 src_prc.get_type_name(),
+                                 " and ",
+                                 dst_prc.get_type_name());
 
     const auto store = ov::as_type_ptr<snippets::op::Store>(expr->get_node());
     count = store->get_count();
@@ -163,14 +163,14 @@ void jit_store_memory_emitter::emit_impl(const std::vector<size_t>& in,
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        OPENVINO_THROW("Store emitter doesn't support ", host_isa_);
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
 template <cpu_isa_t isa>
 void jit_store_memory_emitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     if (!store_emitter)
-        OPENVINO_THROW("Store CPU emitter isn't initialized for jit_store_memory_emitter!");
+        OV_CPU_JIT_EMITTER_THROW("Store CPU emitter isn't initialized!");
     store_emitter->emit_code({in[0], byte_offset}, {out[0]}, aux_vec_idxs, aux_gpr_idxs);
 }
 
@@ -201,14 +201,14 @@ void jit_store_convert_emitter::emit_impl(const std::vector<size_t>& in,
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        OPENVINO_THROW("StoreConvert emitter doesn't support ", host_isa_);
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
 template <cpu_isa_t isa>
 void jit_store_convert_emitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     if (!store_emitter)
-        OPENVINO_THROW("Store CPU emitter isn't initialized for jit_store_memory_emitter!");
+        OV_CPU_JIT_EMITTER_THROW("Store CPU emitter isn't initialized!");
     store_emitter->emit_code({in[0], byte_offset}, {out[0]}, aux_vec_idxs, aux_gpr_idxs);
 }
 

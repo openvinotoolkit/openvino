@@ -1,13 +1,12 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "behavior/ov_plugin/properties_tests.hpp"
 
-#include <openvino/runtime/auto/properties.hpp>
+#include "openvino/runtime/auto/properties.hpp"
 
 using namespace ov::test::behavior;
-using namespace InferenceEngine::PluginConfigParams;
 
 namespace {
 const std::vector<ov::AnyMap> multi_Auto_properties = {
@@ -25,7 +24,8 @@ const std::vector<ov::AnyMap> multi_Auto_properties = {
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::intel_auto::device_bind_buffer("NO")},
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::intel_auto::enable_startup_fallback("YES")},
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::intel_auto::enable_startup_fallback("NO")},
-};
+    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::enable_profiling(true)},
+    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::enable_profiling(false)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiBehaviorTests,
                          OVPropertiesTests,
@@ -42,7 +42,9 @@ const std::vector<ov::AnyMap> multi_setcore_properties = {
 const std::vector<ov::AnyMap> multi_compileModel_properties = {
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE),
      ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
-     ov::hint::model_priority(ov::hint::Priority::MEDIUM)}};
+     ov::hint::model_priority(ov::hint::Priority::MEDIUM)},
+    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::enable_profiling(true)},
+    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::enable_profiling(false)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_MultiCompileModelBehaviorTests,
                          OVSetPropComplieModleGetPropTests,
@@ -71,7 +73,9 @@ const std::vector<ov::AnyMap> auto_compileModel_properties = {
      ov::hint::model_priority(ov::hint::Priority::MEDIUM)},
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE),
      ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
-     ov::hint::model_priority(ov::hint::Priority::MEDIUM)}};
+     ov::hint::model_priority(ov::hint::Priority::MEDIUM)},
+    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::enable_profiling(true)},
+    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::enable_profiling(false)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoCompileModelBehaviorTests,
                          OVSetPropComplieModleGetPropTests,
@@ -115,7 +119,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiSetAndCompileModelBehaviorTestsThrow,
                          OVSetUnsupportPropCompileModelWithoutConfigTests::getTestCaseName);
 
 //
-// IE Class GetMetric
+// OV Class GetMetric
 //
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoOVGetMetricPropsTest, OVGetMetricPropsTest, ::testing::Values("MULTI", "AUTO"));
@@ -129,11 +133,11 @@ INSTANTIATE_TEST_SUITE_P(
     OVCheckGetSupportedROMetricsPropsTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-    OVCheckSetSupportedRWMandatoryMetricsPropsTests,
+    smoke_OVCheckSetSupportedRWMetricsPropsTests,
     OVCheckSetSupportedRWMetricsPropsTests,
     ::testing::Combine(::testing::Values("MULTI:TEMPLATE", "AUTO:TEMPLATE"),
-                       ::testing::ValuesIn(OVCheckSetSupportedRWMetricsPropsTests::getRWMandatoryPropertiesValues(
-                           {ov::hint::model_priority.name(), ov::log::level.name()}))),
+                       ::testing::ValuesIn(OVCheckSetSupportedRWMetricsPropsTests::getRWOptionalPropertiesValues(
+                           {ov::log::level.name()}))),
     OVCheckSetSupportedRWMetricsPropsTests::getTestCaseName);
 
 const std::vector<ov::AnyMap> multiConfigs = {{ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE)}};
@@ -161,7 +165,7 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_MultiAutoOVCheckSetSupportedRWMetricsPropsTests,
     OVCheckSetSupportedRWMetricsPropsTests,
     ::testing::Combine(::testing::Values("MULTI:TEMPLATE", "AUTO:TEMPLATE"),
-                       ::testing::ValuesIn(OVCheckSetSupportedRWMetricsPropsTests::getRWMandatoryPropertiesValues(
-                           {ov::hint::model_priority.name(), ov::log::level.name()}))),
+                       ::testing::ValuesIn(OVCheckSetSupportedRWMetricsPropsTests::getRWOptionalPropertiesValues(
+                           {ov::log::level.name()}))),
     OVCheckSetSupportedRWMetricsPropsTests::getTestCaseName);
 }  // namespace

@@ -9,51 +9,66 @@ The declaration in `.hpp` can look like:
 ```cpp
 #pragma once
 
-#include "ngraph/node.hpp"
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 
-OutputVector custom_add(const Node& node);
+ov::OutputVector custom_add(const ov::frontend::onnx::Node& node);
 
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 ```
-The definition in `.cpp` contains an implementation of transformation from [ngraph::onnx_import::Node](../../../../src/frontends/onnx/frontend/include/onnx_import/core/node.hpp) to [ov::OutputVector](../../../../src/core/include/openvino/core/node_vector.hpp). Such implementation can look like:
+The definition in `.cpp` contains an implementation of transformation from [ov::frontend::onnx::Node](../../../../src/frontends/onnx/frontend/include/onnx_import/core/node.hpp) to [ov::OutputVector](../../../../src/core/include/openvino/core/node_vector.hpp). Such implementation can look like:
 ```cpp
 #include "op/org.openvinotoolkit/custom_add.hpp"
 
-#include <memory>
-
-#include "default_opset.hpp"
+#include "exceptions.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/multiply.hpp"
 #include "utils/common.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 
-OutputVector custom_add(const Node& node) {
-    const auto in1 = node.get_ng_inputs().at(0);
-    const auto in2 = node.get_ng_inputs().at(1);
+ov::OutputVector custom_add(const ov::frontend::onnx::Node& node) {
+    const auto& inputs = node.get_ov_inputs();
+    CHECK_VALID_NODE(node,
+                     inputs.size() == 2,
+                     "CustomAdd should have exactly 2 inputs, got: ",
+                     inputs.size());
+    const auto in1 = inputs[0];
+    const auto in2 = inputs[1];
     const auto alpha = node.get_attribute_value<float>("alpha", 1);
-    const auto alpha_node =
-        std::make_shared<default_opset::Convert>(default_opset::Constant::create(element::f32, {}, {alpha}),
-                                                 in1.get_element_type());
 
-    const auto add = std::make_shared<default_opset::Add>(in1, in2);
-    return {std::make_shared<default_opset::Multiply>(add, alpha_node)};
+    CHECK_VALID_NODE(node,
+                     alpha >= 1 && alpha < 100,
+                     "CustomAdd accepts alpha in a range [1, 100), got: ",
+                     alpha);
+
+    const auto alpha_node =
+        std::make_shared<v0::Convert>(v0::Constant::create(ov::element::f32, {}, {alpha}), in1.get_element_type());
+
+    const auto add = std::make_shared<v1::Add>(in1, in2);
+    return {std::make_shared<v1::Multiply>(add, alpha_node)};
 }
 
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 ```
 The next step is to register a new op in [ops_bridge](../../../../src/frontends/onnx/frontend/src/ops_bridge.cpp). For `org.openvinotoolkit.CustomAdd`, the registration can look like:
 ```cpp

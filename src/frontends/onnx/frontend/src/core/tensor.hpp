@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,22 +21,19 @@
 
 using namespace ov::frontend::onnx::common;
 
-namespace ngraph {
-namespace onnx_import {
-// Detecting automatically the underlying type used to store the information
-// for data type of values a tensor is holding. A bug was discovered in protobuf
-// which forced ONNX team to switch from `enum TensorProto_DataType` to `int32`
-// in order to workaround the bug. This line allows using both versions of ONNX
-// generated wrappers.
-using TensorProto_DataType = decltype(ONNX_NAMESPACE::TensorProto{}.data_type());
+namespace ov {
+namespace frontend {
+namespace onnx {
+
+using ::ONNX_NAMESPACE::TensorProto;
+using ::ONNX_NAMESPACE::TensorProto_DataLocation;
+using ::ONNX_NAMESPACE::TensorProto_DataType;
+using ::ONNX_NAMESPACE::TensorProto_DataType_Name;
 
 #define ONNX_INVALID_DATA_TYPE(data_type, expected) \
-    OPENVINO_THROW("Invalid data type ", ONNX_NAMESPACE::TensorProto_DataType_Name(data_type), " expected: ", expected)
-#define ONNX_UNSUPPORTED_DATA_TYPE(data_type, expected)                  \
-    OPENVINO_THROW("Unsupported data type ",                             \
-                   ONNX_NAMESPACE::TensorProto_DataType_Name(data_type), \
-                   " expected: ",                                        \
-                   expected)
+    OPENVINO_THROW("Invalid data type ", TensorProto_DataType_Name(data_type), " expected: ", expected)
+#define ONNX_UNSUPPORTED_DATA_TYPE(data_type, expected) \
+    OPENVINO_THROW("Unsupported data type ", TensorProto_DataType_Name(data_type), " expected: ", expected)
 
 namespace detail {
 namespace {
@@ -65,38 +62,36 @@ inline std::vector<T> __get_raw_data(const std::string& raw_data, int onnx_data_
 class Tensor {
 public:
     enum class Type {
-        undefined = ONNX_NAMESPACE::TensorProto_DataType_UNDEFINED,
-        float32 = ONNX_NAMESPACE::TensorProto_DataType_FLOAT,
-        uint8 = ONNX_NAMESPACE::TensorProto_DataType_UINT8,
-        int8 = ONNX_NAMESPACE::TensorProto_DataType_INT8,
-        uint16 = ONNX_NAMESPACE::TensorProto_DataType_UINT16,
-        int16 = ONNX_NAMESPACE::TensorProto_DataType_INT16,
-        int32 = ONNX_NAMESPACE::TensorProto_DataType_INT32,
-        int64 = ONNX_NAMESPACE::TensorProto_DataType_INT64,
-        string = ONNX_NAMESPACE::TensorProto_DataType_STRING,
-        boolean = ONNX_NAMESPACE::TensorProto_DataType_BOOL,
-        float16 = ONNX_NAMESPACE::TensorProto_DataType_FLOAT16,
-        float64 = ONNX_NAMESPACE::TensorProto_DataType_DOUBLE,
-        uint32 = ONNX_NAMESPACE::TensorProto_DataType_UINT32,
-        uint64 = ONNX_NAMESPACE::TensorProto_DataType_UINT64,
-        bfloat16 = ONNX_NAMESPACE::TensorProto_DataType_BFLOAT16,
-        complex64 = ONNX_NAMESPACE::TensorProto_DataType_COMPLEX64,
-        complex128 = ONNX_NAMESPACE::TensorProto_DataType_COMPLEX128
+        undefined = TensorProto_DataType::TensorProto_DataType_UNDEFINED,
+        float32 = TensorProto_DataType::TensorProto_DataType_FLOAT,
+        uint8 = TensorProto_DataType::TensorProto_DataType_UINT8,
+        int8 = TensorProto_DataType::TensorProto_DataType_INT8,
+        uint16 = TensorProto_DataType::TensorProto_DataType_UINT16,
+        int16 = TensorProto_DataType::TensorProto_DataType_INT16,
+        int32 = TensorProto_DataType::TensorProto_DataType_INT32,
+        int64 = TensorProto_DataType::TensorProto_DataType_INT64,
+        string = TensorProto_DataType::TensorProto_DataType_STRING,
+        boolean = TensorProto_DataType::TensorProto_DataType_BOOL,
+        float16 = TensorProto_DataType::TensorProto_DataType_FLOAT16,
+        float64 = TensorProto_DataType::TensorProto_DataType_DOUBLE,
+        uint32 = TensorProto_DataType::TensorProto_DataType_UINT32,
+        uint64 = TensorProto_DataType::TensorProto_DataType_UINT64,
+        bfloat16 = TensorProto_DataType::TensorProto_DataType_BFLOAT16,
+        complex64 = TensorProto_DataType::TensorProto_DataType_COMPLEX64,
+        complex128 = TensorProto_DataType::TensorProto_DataType_COMPLEX128
     };
 
     Tensor() = delete;
-    Tensor(const ONNX_NAMESPACE::TensorProto& tensor,
-           const std::string& model_dir,
-           detail::MappedMemoryHandles mmap_cache)
+    Tensor(const TensorProto& tensor, const std::string& model_dir, detail::MappedMemoryHandles mmap_cache)
         : m_tensor_proto{&tensor},
           m_shape{std::begin(tensor.dims()), std::end(tensor.dims())},
           m_model_dir{model_dir},
           m_mmap_cache{mmap_cache} {
-        if (m_shape == Shape{0}) {
+        if (m_shape == ov::Shape{0}) {
             // It's possible to construct a tensor in ONNX with "dims: 0" property
-            // Such tensor contains a scalar. This results in a Shape{0} stored in m_shape.
-            // In OpenVINO a scalar is represented with Shape{} and thus this replacement.
-            m_shape = Shape{};
+            // Such tensor contains a scalar. This results in a ov::Shape{0} stored in m_shape.
+            // In OpenVINO a scalar is represented with ov::Shape{} and thus this replacement.
+            m_shape = ov::Shape{};
         }
     }
 
@@ -106,7 +101,7 @@ public:
     Tensor& operator=(const Tensor&) = delete;
     Tensor& operator=(Tensor&&) = delete;
 
-    const Shape& get_shape() const {
+    const ov::Shape& get_shape() const {
         return m_shape;
     }
     template <typename T>
@@ -131,38 +126,38 @@ public:
         return static_cast<Type>(m_tensor_proto->data_type());
     }
 
-    const element::Type& get_ov_type() const {
+    const ov::element::Type& get_ov_type() const {
         if (!m_tensor_proto->has_data_type()) {
             FRONT_END_THROW("Tensor has no specified data type");
         }
         switch (m_tensor_proto->data_type()) {
-        case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_BOOL:
-            return element::boolean;
-        case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_FLOAT:
-            return element::f32;
-        case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_FLOAT16:
-            return element::f16;
-        case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_DOUBLE:
-            return element::f64;
-        case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_INT8:
-            return element::i8;
-        case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_INT16:
-            return element::i16;
-        case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_INT32:
-            return element::i32;
-        case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_INT64:
-            return element::i64;
-        case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT8:
-            return element::u8;
-        case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT16:
-            return element::u16;
-        case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT32:
-            return element::u32;
-        case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT64:
-            return element::u64;
-        case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_BFLOAT16:
-            return element::bf16;
-        case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UNDEFINED:
+        case TensorProto_DataType::TensorProto_DataType_BOOL:
+            return ov::element::boolean;
+        case TensorProto_DataType::TensorProto_DataType_FLOAT:
+            return ov::element::f32;
+        case TensorProto_DataType::TensorProto_DataType_FLOAT16:
+            return ov::element::f16;
+        case TensorProto_DataType::TensorProto_DataType_DOUBLE:
+            return ov::element::f64;
+        case TensorProto_DataType::TensorProto_DataType_INT8:
+            return ov::element::i8;
+        case TensorProto_DataType::TensorProto_DataType_INT16:
+            return ov::element::i16;
+        case TensorProto_DataType::TensorProto_DataType_INT32:
+            return ov::element::i32;
+        case TensorProto_DataType::TensorProto_DataType_INT64:
+            return ov::element::i64;
+        case TensorProto_DataType::TensorProto_DataType_UINT8:
+            return ov::element::u8;
+        case TensorProto_DataType::TensorProto_DataType_UINT16:
+            return ov::element::u16;
+        case TensorProto_DataType::TensorProto_DataType_UINT32:
+            return ov::element::u32;
+        case TensorProto_DataType::TensorProto_DataType_UINT64:
+            return ov::element::u64;
+        case TensorProto_DataType::TensorProto_DataType_BFLOAT16:
+            return ov::element::bf16;
+        case TensorProto_DataType::TensorProto_DataType_UNDEFINED:
             FRONT_END_THROW("Data type is Undefined");
         default:
             ONNX_UNSUPPORTED_DATA_TYPE(
@@ -172,7 +167,7 @@ public:
     }
 
     operator TensorProto_DataType() const {
-        return m_tensor_proto->data_type();
+        return static_cast<TensorProto_DataType>(m_tensor_proto->data_type());
     }
 
     std::shared_ptr<ov::op::v0::Constant> get_ov_constant() const {
@@ -180,32 +175,32 @@ public:
             FRONT_END_THROW("Loading segments isn't supported");
         }
         switch (m_tensor_proto->data_type()) {
-        case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_BOOL:
-            return make_ov_constant<char>(element::boolean);
-        case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_FLOAT:
-            return make_ov_constant<float>(element::f32);
-        case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_FLOAT16:
-            return make_ov_constant<ov::float16>(element::f16);
-        case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_DOUBLE:
-            return make_ov_constant<double>(element::f64);
-        case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_INT8:
-            return make_ov_constant<int8_t>(element::i8);
-        case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_INT16:
-            return make_ov_constant<int16_t>(element::i16);
-        case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_INT32:
-            return make_ov_constant<int32_t>(element::i32);
-        case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_INT64:
-            return make_ov_constant<int64_t>(element::i64);
-        case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT8:
-            return make_ov_constant<uint8_t>(element::u8);
-        case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT16:
-            return make_ov_constant<uint16_t>(element::u16);
-        case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT32:
-            return make_ov_constant<uint32_t>(element::u32);
-        case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT64:
-            return make_ov_constant<uint64_t>(element::u64);
-        case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_BFLOAT16:
-            return make_ov_constant<ov::bfloat16>(element::bf16);
+        case TensorProto_DataType::TensorProto_DataType_BOOL:
+            return make_ov_constant<char>(ov::element::boolean);
+        case TensorProto_DataType::TensorProto_DataType_FLOAT:
+            return make_ov_constant<float>(ov::element::f32);
+        case TensorProto_DataType::TensorProto_DataType_FLOAT16:
+            return make_ov_constant<ov::float16>(ov::element::f16);
+        case TensorProto_DataType::TensorProto_DataType_DOUBLE:
+            return make_ov_constant<double>(ov::element::f64);
+        case TensorProto_DataType::TensorProto_DataType_INT8:
+            return make_ov_constant<int8_t>(ov::element::i8);
+        case TensorProto_DataType::TensorProto_DataType_INT16:
+            return make_ov_constant<int16_t>(ov::element::i16);
+        case TensorProto_DataType::TensorProto_DataType_INT32:
+            return make_ov_constant<int32_t>(ov::element::i32);
+        case TensorProto_DataType::TensorProto_DataType_INT64:
+            return make_ov_constant<int64_t>(ov::element::i64);
+        case TensorProto_DataType::TensorProto_DataType_UINT8:
+            return make_ov_constant<uint8_t>(ov::element::u8);
+        case TensorProto_DataType::TensorProto_DataType_UINT16:
+            return make_ov_constant<uint16_t>(ov::element::u16);
+        case TensorProto_DataType::TensorProto_DataType_UINT32:
+            return make_ov_constant<uint32_t>(ov::element::u32);
+        case TensorProto_DataType::TensorProto_DataType_UINT64:
+            return make_ov_constant<uint64_t>(ov::element::u64);
+        case TensorProto_DataType::TensorProto_DataType_BFLOAT16:
+            return make_ov_constant<ov::bfloat16>(ov::element::bf16);
         default:
             ONNX_UNSUPPORTED_DATA_TYPE(
                 m_tensor_proto->data_type(),
@@ -219,7 +214,7 @@ private:
                                           std::is_same<T, int32_t>::value || std::is_same<T, int64_t>::value ||
                                           std::is_same<T, uint64_t>::value,
                                       bool>::type = true>
-    std::shared_ptr<ov::op::v0::Constant> make_ov_constant(const element::Type& type) const {
+    std::shared_ptr<ov::op::v0::Constant> make_ov_constant(const ov::element::Type& type) const {
         std::shared_ptr<ov::op::v0::Constant> constant{nullptr};
         size_t data_size = get_data_size();
         if (has_external_data()) {
@@ -257,7 +252,7 @@ private:
                                           !std::is_same<T, int32_t>::value && !std::is_same<T, int64_t>::value &&
                                           !std::is_same<T, uint64_t>::value,
                                       bool>::type = true>
-    std::shared_ptr<ov::op::v0::Constant> make_ov_constant(const element::Type& type) const {
+    std::shared_ptr<ov::op::v0::Constant> make_ov_constant(const ov::element::Type& type) const {
         std::shared_ptr<ov::op::v0::Constant> constant{nullptr};
         auto data = get_data<T>();
         auto data_size = data.size();
@@ -276,8 +271,7 @@ private:
 
     bool has_external_data() const {
         return m_tensor_proto->has_data_location() &&
-               m_tensor_proto->data_location() ==
-                   ONNX_NAMESPACE::TensorProto_DataLocation::TensorProto_DataLocation_EXTERNAL;
+               m_tensor_proto->data_location() == TensorProto_DataLocation::TensorProto_DataLocation_EXTERNAL;
     }
 
     template <typename T>
@@ -297,15 +291,15 @@ private:
             return m_tensor_proto->raw_data().data();
         }
         switch (m_tensor_proto->data_type()) {
-        case ONNX_NAMESPACE::TensorProto_DataType_FLOAT:
+        case TensorProto_DataType::TensorProto_DataType_FLOAT:
             return m_tensor_proto->float_data().data();
-        case ONNX_NAMESPACE::TensorProto_DataType_INT32:
+        case TensorProto_DataType::TensorProto_DataType_INT32:
             return m_tensor_proto->int32_data().data();
-        case ONNX_NAMESPACE::TensorProto_DataType_INT64:
+        case TensorProto_DataType::TensorProto_DataType_INT64:
             return m_tensor_proto->int64_data().data();
-        case ONNX_NAMESPACE::TensorProto_DataType_UINT64:
+        case TensorProto_DataType::TensorProto_DataType_UINT64:
             return m_tensor_proto->uint64_data().data();
-        case ONNX_NAMESPACE::TensorProto_DataType_DOUBLE:
+        case TensorProto_DataType::TensorProto_DataType_DOUBLE:
             return m_tensor_proto->double_data().data();
         }
         ONNX_INVALID_DATA_TYPE(m_tensor_proto->data_type(), "FLOAT, INT32, INT64, UINT64, DOUBLE");
@@ -316,22 +310,22 @@ private:
             return m_tensor_proto->raw_data().size() / get_onnx_data_size(m_tensor_proto->data_type());
         }
         switch (m_tensor_proto->data_type()) {
-        case ONNX_NAMESPACE::TensorProto_DataType_FLOAT:
+        case TensorProto_DataType::TensorProto_DataType_FLOAT:
             return m_tensor_proto->float_data_size();
-        case ONNX_NAMESPACE::TensorProto_DataType_INT32:
+        case TensorProto_DataType::TensorProto_DataType_INT32:
             return m_tensor_proto->int32_data_size();
-        case ONNX_NAMESPACE::TensorProto_DataType_INT64:
+        case TensorProto_DataType::TensorProto_DataType_INT64:
             return m_tensor_proto->int64_data_size();
-        case ONNX_NAMESPACE::TensorProto_DataType_UINT64:
+        case TensorProto_DataType::TensorProto_DataType_UINT64:
             return m_tensor_proto->uint64_data_size();
-        case ONNX_NAMESPACE::TensorProto_DataType_DOUBLE:
+        case TensorProto_DataType::TensorProto_DataType_DOUBLE:
             return m_tensor_proto->double_data_size();
         }
         ONNX_INVALID_DATA_TYPE(m_tensor_proto->data_type(), "FLOAT, INT32, INT64, UINT64, DOUBLE");
     }
 
-    const ONNX_NAMESPACE::TensorProto* m_tensor_proto;
-    Shape m_shape;
+    const TensorProto* m_tensor_proto;
+    ov::Shape m_shape;
     std::string m_model_dir;
     detail::MappedMemoryHandles m_mmap_cache;
 };
@@ -379,5 +373,6 @@ std::vector<uint64_t> Tensor::get_data() const;
 template <>
 std::vector<char> Tensor::get_data() const;
 
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,7 +52,7 @@ void DFTLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStat
     }
 
     inputs.clear();
-    runtime::Tensor data_tensor = ov::test::utils::create_and_fill_tensor_act_dft(funcInput->get_element_type(),
+    Tensor data_tensor = ov::test::utils::create_and_fill_tensor_act_dft(funcInput->get_element_type(),
                                             targetInputStaticShapes[0],
                                             inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
     inputs.insert({funcInput->get_node_shared_ptr(), data_tensor});
@@ -103,6 +103,12 @@ void DFTLayerTest::SetUp() {
 
     auto result = std::make_shared<ov::op::v0::Result>(dft);
     function = std::make_shared<ov::Model>(result, ov::ParameterVector{param}, "DFT");
+
+    if (model_type == ov::element::f32) {
+        abs_threshold = 8e-5;
+    } else if (model_type == ov::element::bf16) {
+        abs_threshold = 5e-7;
+    }
 }
 }  // namespace test
 }  // namespace ov

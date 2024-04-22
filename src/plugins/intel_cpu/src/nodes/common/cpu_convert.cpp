@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -231,6 +231,9 @@ const std::tuple<U, U> & Range<T, U>::fit(const ov::element::Type & prec) {
         uint64_t ubound;
         switch (prec) {
             case ov::element::boolean:
+                lbound = static_cast<int64_t>(std::numeric_limits<bool>::lowest());
+                ubound = static_cast<uint64_t>(std::numeric_limits<bool>::max());
+                break;
             case ov::element::u8:
                 lbound = static_cast<int64_t>(std::numeric_limits<uint8_t>::lowest());
                 ubound = static_cast<uint64_t>(std::numeric_limits<uint8_t>::max());

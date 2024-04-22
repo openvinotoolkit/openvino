@@ -1,8 +1,8 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/ov_executable_network/exec_network_base.hpp"
+#include "behavior/compiled_model/compiled_model_base.hpp"
 
 using namespace ov::test::behavior;
 namespace {
@@ -14,10 +14,10 @@ auto autoBatchConfigs = []() {
          {ov::auto_batch_timeout.name(), "0"}}};
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
-                         OVExecutableNetworkBaseTest,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_BATCH),
-                                            ::testing::ValuesIn(autoBatchConfigs())),
-                         OVExecutableNetworkBaseTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, OVCompiledModelBaseTest,
+                         ::testing::Combine(
+                                 ::testing::Values(ov::test::utils::DEVICE_BATCH),
+                                 ::testing::ValuesIn(autoBatchConfigs())),
+                         OVCompiledModelBaseTest::getTestCaseName);
 
 }  // namespace

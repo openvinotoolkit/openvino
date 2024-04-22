@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from typing import Any, Iterable, Union, Optional, Dict
@@ -57,6 +57,8 @@ class InferRequest(_InferRequestWrapper):
         inputs: Any = None,
         share_inputs: bool = False,
         share_outputs: bool = False,
+        *,
+        decode_strings: bool = True,
     ) -> OVDict:
         """Infers specified input(s) in synchronous mode.
 
@@ -111,9 +113,18 @@ class InferRequest(_InferRequestWrapper):
                               is connected to OpenVINO objects.
 
                               Note: Use with extra care, shared data can be modified or lost during runtime!
+                              Note: String/textual data will always be copied!
 
                               Default value: False
         :type share_outputs: bool, optional
+        :param decode_strings: Controls decoding outputs of textual based data.
+
+                               If set to `True` string outputs will be returned as numpy arrays of `U` kind.
+
+                               If set to `False` string outputs will be returned as numpy arrays of `S` kind.
+
+                               Default value: True
+        :type decode_strings: bool, optional, keyword-only
 
         :return: Dictionary of results from output tensors with port/int/str keys.
         :rtype: OVDict
@@ -122,7 +133,7 @@ class InferRequest(_InferRequestWrapper):
             self,
             inputs,
             is_shared=share_inputs,
-        ), share_outputs=share_outputs))
+        ), share_outputs=share_outputs, decode_strings=decode_strings))
 
     def start_async(
         self,
@@ -212,9 +223,10 @@ class CompiledModel(CompiledModelBase):
     multiple optimization transformations, then mapping to compute kernels.
     """
 
-    def __init__(self, other: CompiledModelBase) -> None:
+    def __init__(self, other: CompiledModelBase, weights: Optional[bytes] = None) -> None:
         # Private memeber to store already created InferRequest
         self._infer_request: Optional[InferRequest] = None
+        self._weights = weights
         super().__init__(other)
 
     def get_runtime_model(self) -> Model:
@@ -268,6 +280,8 @@ class CompiledModel(CompiledModelBase):
         inputs: Any = None,
         share_inputs: bool = True,
         share_outputs: bool = False,
+        *,
+        decode_strings: bool = True,
     ) -> OVDict:
         """Callable infer wrapper for CompiledModel.
 
@@ -330,9 +344,18 @@ class CompiledModel(CompiledModelBase):
                               is connected to OpenVINO objects.
 
                               Note: Use with extra care, shared data can be modified or lost during runtime!
+                              Note: String/textual data will always be copied!
 
                               Default value: False
         :type share_outputs: bool, optional
+        :param decode_strings: Controls decoding outputs of textual based data.
+
+                               If set to `True` string outputs will be returned as numpy arrays of `U` kind.
+
+                               If set to `False` string outputs will be returned as numpy arrays of `S` kind.
+
+                               Default value: True
+        :type decode_strings: bool, optional, keyword-only
 
         :return: Dictionary of results from output tensors with port/int/str as keys.
         :rtype: OVDict
@@ -344,6 +367,7 @@ class CompiledModel(CompiledModelBase):
             inputs,
             share_inputs=share_inputs,
             share_outputs=share_outputs,
+            decode_strings=decode_strings,
         )
 
 
@@ -460,11 +484,14 @@ class Core(CoreBase):
         model: Union[Model, str, Path],
         device_name: Optional[str] = None,
         config: Optional[dict] = None,
+        *,
+        weights: Optional[bytes] = None
     ) -> CompiledModel:
         """Creates a compiled model.
 
         Creates a compiled model from a source Model object or
-        reads model and creates a compiled model from IR / ONNX / PDPD / TF and TFLite file.
+        reads model and creates a compiled model from IR / ONNX / PDPD / TF and TFLite file or
+        creates a compiled model from a IR xml and weights in memory.
         This can be more efficient than using read_model + compile_model(model_in_memory_object) flow,
         especially for cases when caching is enabled and cached model is available.
         If device_name is not specified, the default OpenVINO device will be selected by AUTO plugin.
@@ -480,17 +507,29 @@ class Core(CoreBase):
         :param config: Optional dict of pairs:
                        (property name, property value) relevant only for this load operation.
         :type config: dict, optional
+        :param weights: Optional. Weights of model in memory to be loaded to the model.
+        :type weights: bytes, optional, keyword-only
         :return: A compiled model.
         :rtype: openvino.runtime.CompiledModel
         """
-        if device_name is None:
+        if weights is None:
+            if device_name is None:
+                return CompiledModel(
+                    super().compile_model(model, {} if config is None else config),
+                )
             return CompiledModel(
-                super().compile_model(model, {} if config is None else config),
+                super().compile_model(model, device_name, {} if config is None else config),
             )
-
-        return CompiledModel(
-            super().compile_model(model, device_name, {} if config is None else config),
-        )
+        else:
+            if device_name is None:
+                return CompiledModel(
+                    super().compile_model(model, weights, {} if config is None else config),
+                    weights=weights,
+                )
+            return CompiledModel(
+                super().compile_model(model, weights, device_name, {} if config is None else config),
+                weights=weights,
+            )
 
     def import_model(
         self,

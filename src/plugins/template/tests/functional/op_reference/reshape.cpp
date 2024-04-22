@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,10 +28,8 @@ struct ReshapeParams {
         m_input_type = input_type;
         m_expected_type = expected_type;
         m_zero_flag = zero_flag;
-        m_input_value = input_shape.size() > 0 ? CreateTensor(input_shape, input_type, input_value)
-                                               : CreateTensor(input_type, input_value);
-        m_expected_value = expected_shape.size() > 0 ? CreateTensor(expected_shape, expected_type, expected_value)
-                                                     : CreateTensor(expected_type, expected_value);
+        m_input_value = CreateTensor(input_shape, input_type, input_value);
+        m_expected_value = CreateTensor(expected_shape, expected_type, expected_value);
     }
 
     template <class T>
@@ -105,7 +103,7 @@ struct ReshapeShuffleParams {
 class ReferenceReshapeLayerTest : public testing::TestWithParam<ReshapeParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        const auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params.m_input_type,
                                   params.m_expected_type,
                                   params.m_input_shape,
@@ -116,7 +114,7 @@ public:
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<ReshapeParams>& obj) {
-        const auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
 
         result << "input_shape=" << param.m_input_shape << "; ";
@@ -146,7 +144,7 @@ class ReferenceReshapeShuffleLayerTest : public testing::TestWithParam<ReshapeSh
                                          public CommonReferenceTest {
 public:
     void SetUp() override {
-        const auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params.m_input_type,
                                   params.m_expected_type,
                                   params.m_input_shape1,
@@ -159,7 +157,7 @@ public:
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<ReshapeShuffleParams>& obj) {
-        const auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
 
         result << "input_shape=" << param.m_input_shape1 << "; ";
@@ -235,6 +233,49 @@ std::vector<ReshapeParams> generateParamsForReshape() {
     return params;
 }
 
+std::vector<ReshapeParams> generateParamsForReshapeString() {
+    const auto ET = ov::element::string;
+    using T = typename element_type_traits<ov::element::string>::value_type;
+
+    std::vector<ReshapeParams> params{
+        ReshapeParams(Shape{2, 2, 3},
+                      Shape{12},
+                      ET,
+                      ET,
+                      std::vector<T>{"A", ",b", "c. ", "d D ", " e ", "FgH", "1;2;3;", "\n ", " \n\n ", "\0", " ", "."},
+                      std::vector<T>{"A", ",b", "c. ", "d D ", " e ", "FgH", "1;2;3;", "\n ", " \n\n ", "\0", " ", "."},
+                      false),
+        ReshapeParams(Shape{12},
+                      Shape{2, 3, 2},
+                      ET,
+                      ET,
+                      std::vector<T>{"A", ",b", "c. ", "d D ", " e ", "FgH", "1;2;3;", "\n ", " \n\n ", "\0", " ", "."},
+                      std::vector<T>{"A", ",b", "c. ", "d D ", " e ", "FgH", "1;2;3;", "\n ", " \n\n ", "\0", " ", "."},
+                      false),
+        ReshapeParams(Shape{2, 2, 3},
+                      Shape{4, 3},
+                      ET,
+                      ET,
+                      std::vector<T>{"A", ",b", "c. ", "d D ", " e ", "FgH", "1;2;3;", "\n ", " \n\n ", "\0", " ", "."},
+                      std::vector<T>{"A", ",b", "c. ", "d D ", " e ", "FgH", "1;2;3;", "\n ", " \n\n ", "\0", " ", "."},
+                      false),
+        ReshapeParams(Shape{4, 3},
+                      Shape{2, 3, 2},
+                      ET,
+                      ET,
+                      std::vector<T>{"A", ",b", "c. ", "d D ", " e ", "FgH", "1;2;3;", "\n ", " \n\n ", "\0", " ", "."},
+                      std::vector<T>{"A", ",b", "c. ", "d D ", " e ", "FgH", "1;2;3;", "\n ", " \n\n ", "\0", " ", "."},
+                      false),
+        ReshapeParams(Shape{1},
+                      Shape{1, 1},
+                      ET,
+                      ET,
+                      std::vector<T>{" A, a, B; b; "},
+                      std::vector<T>{" A, a, B; b; "},
+                      false)};
+    return params;
+}
+
 template <element::Type_t ET>
 std::vector<ReshapeParams> generateParamsForReshape8Bit() {
     using T = typename element_type_traits<ET>::value_type;
@@ -283,7 +324,8 @@ std::vector<ReshapeParams> generateCombinedParamsForReshape() {
                                                                 generateParamsForReshape<element::Type_t::u32>(),
                                                                 generateParamsForReshape<element::Type_t::u16>(),
                                                                 generateParamsForReshape8Bit<element::Type_t::i8>(),
-                                                                generateParamsForReshape8Bit<element::Type_t::u8>()};
+                                                                generateParamsForReshape8Bit<element::Type_t::u8>(),
+                                                                generateParamsForReshapeString()};
 
     std::vector<ReshapeParams> combinedParams;
 

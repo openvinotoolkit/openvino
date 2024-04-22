@@ -1,9 +1,8 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/subgraph/reshape_permute_conv_permute_reshape_act.hpp"
-#include "ov_models/builders.hpp"
 #include "common_test_utils/node_builders/convolution.hpp"
 
 namespace ov {

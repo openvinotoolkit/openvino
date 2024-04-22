@@ -46,9 +46,9 @@ size_t DefineBufferClusters::get_cluster_buffer_id(const AllocateBuffers::Buffer
 DefineBufferClusters::BufferPorts DefineBufferClusters::get_input_buffers(const ExpressionPtr& loop_expr) const {
     BufferPorts input_buffers;
 
-    const auto loop_end = ov::as_type_ptr<op::LoopEnd>(loop_expr->get_node());
+    const auto loop_end = ov::as_type_ptr<op::LoopEndStatic>(loop_expr->get_node());
     const auto in_count = loop_end->get_input_num();
-    const auto connectors = loop_expr->get_input_port_connectors();
+    const auto& connectors = loop_expr->get_input_port_connectors();
 
     // Input Buffers
     for (size_t i = 0; i < in_count; ++i) {
@@ -66,10 +66,10 @@ DefineBufferClusters::BufferPorts DefineBufferClusters::get_input_buffers(const 
 DefineBufferClusters::BufferPorts DefineBufferClusters::get_output_buffers(const ExpressionPtr& loop_expr) const {
     BufferPorts output_buffers;
 
-    const auto loop_end = ov::as_type_ptr<op::LoopEnd>(loop_expr->get_node());
+    const auto loop_end = ov::as_type_ptr<op::LoopEndStatic>(loop_expr->get_node());
     const auto in_count = loop_end->get_input_num();
     const auto out_count = loop_end->get_output_num();
-    const auto connectors = loop_expr->get_input_port_connectors();
+    const auto& connectors = loop_expr->get_input_port_connectors();
 
     for (size_t i = in_count; i < in_count + out_count; ++i) {
         for (const auto& consumer : connectors[i]->get_consumers()) {
@@ -85,7 +85,7 @@ DefineBufferClusters::BufferPorts DefineBufferClusters::get_output_buffers(const
 
 void DefineBufferClusters::parse_loop(const LinearIR::constExprIt& expr_it) {
     const auto& expr = *expr_it;
-    const auto loop_end = ov::as_type_ptr<op::LoopEnd>(expr->get_node());
+    const auto loop_end = ov::as_type_ptr<op::LoopEndStatic>(expr->get_node());
     const auto& ptr_increments = loop_end->get_ptr_increments();
     const auto& final_offsets = loop_end->get_finalization_offsets();
     const auto& data_sizes = loop_end->get_element_type_sizes();
@@ -161,7 +161,7 @@ void DefineBufferClusters::parse_nested_loops(const BufferPorts& input_buffers, 
                ((inner_buffer_data_size * inner_buffer_final_offsets * -1) == outer_buffer_ptr_increment * outer_buffer_data_size);
     };
 
-    const auto outer_loop_end = ov::as_type_ptr<op::LoopEnd>(outer_loop_end_expr_it->get()->get_node());
+    const auto outer_loop_end = ov::as_type_ptr<op::LoopEndStatic>(outer_loop_end_expr_it->get()->get_node());
     const auto outer_loop_begin = outer_loop_end->get_loop_begin();
     const auto& outer_ptr_increments = outer_loop_end->get_ptr_increments();
     const auto& outer_data_sizes = outer_loop_end->get_element_type_sizes();
@@ -213,16 +213,16 @@ int64_t DefineBufferClusters::get_buffer_finalization_offset(const ExpressionPtr
     };
     int64_t final_offset = 0;
     int64_t last_loop_exec_order = 0;
-    const auto buffer_outs = buffer_expr->get_output_port_connectors();
+    const auto& buffer_outs = buffer_expr->get_output_port_connectors();
     for (const auto& buffer_out : buffer_outs) {
         const auto consumers = buffer_out->get_consumers();
         for (const auto& consumer : consumers) {
             const auto consumer_expr = consumer.get_expr();
-            const auto loop_end = ov::as_type_ptr<ov::snippets::op::LoopEnd>(consumer_expr->get_node());
+            const auto loop_end = ov::as_type_ptr<ov::snippets::op::LoopEndStatic>(consumer_expr->get_node());
             if (loop_end && consumer_expr->get_loop_ids() == buffer_expr->get_loop_ids()) {
                 const auto loop_order = ov::snippets::pass::GetTopologicalOrder(loop_end);
                 if (loop_order > last_loop_exec_order) {
-                    const auto loop_inputs = consumer_expr->get_input_port_connectors();
+                    const auto& loop_inputs = consumer_expr->get_input_port_connectors();
                     final_offset = loop_end->get_finalization_offsets()[index(loop_inputs, buffer_out)];
                     last_loop_exec_order = loop_order;
                 }
@@ -243,7 +243,7 @@ bool DefineBufferClusters::unite_nested_clusters(const AllocateBuffers::BufferCl
         auto& up_idx = is_outer_up ? outer_idx : inner_idx;
         auto& down_idx = is_outer_up ? inner_idx : outer_idx;
         if (are_buffer_neighbours(up_buffer, down_buffer, common_loop_end_expr, up_idx, down_idx)) {
-            const auto common_loop_end = ov::as_type_ptr<op::LoopEnd>(common_loop_end_expr->get_node());
+            const auto common_loop_end = ov::as_type_ptr<op::LoopEndStatic>(common_loop_end_expr->get_node());
             const auto& inner_ptr_increments = common_loop_end->get_ptr_increments();
             const auto& inner_final_offsets = common_loop_end->get_finalization_offsets();
             const auto& inner_data_sizes = common_loop_end->get_element_type_sizes();
@@ -289,7 +289,7 @@ bool DefineBufferClusters::are_buffer_neighbours(const ExpressionPtr& up, const 
     for (const auto& out : up->get_output_port_connectors()) {
         for (const auto& buffer_consumer : out->get_consumers()) {
             const auto buffer_consumer_expr = buffer_consumer.get_expr();
-            const auto loop_end = ov::as_type_ptr<op::LoopEnd>(buffer_consumer_expr->get_node());
+            const auto loop_end = ov::as_type_ptr<op::LoopEndStatic>(buffer_consumer_expr->get_node());
             if (!loop_end)
                 continue;
             const auto& loop_inputs = buffer_consumer_expr->get_input_port_connectors();
@@ -320,13 +320,13 @@ void DefineBufferClusters::parse_memory_access_op(const ExpressionPtr& expr) {
     }
 }
 
-bool DefineBufferClusters::run(LinearIR& linear_ir) {
+bool DefineBufferClusters::run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::DefineBufferClusters");
 
-    for (auto expr_it = linear_ir.cbegin(); expr_it != linear_ir.cend(); ++expr_it) {
+    for (auto expr_it = begin; expr_it != end; ++expr_it) {
         const auto& expr = *expr_it;
         const auto op = expr->get_node();
-        if (ov::is_type<op::LoopEnd>(op)) {
+        if (ov::is_type<op::LoopEndStatic>(op)) {
             parse_loop(expr_it);
             continue;
         }
