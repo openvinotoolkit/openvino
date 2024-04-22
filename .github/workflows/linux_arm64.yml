@@ -329,7 +329,7 @@ jobs:
 
   JS_API:
     name: OpenVINO JS API
-    needs: [ Build, Smart_CI ]
+    needs: [ Build, Docker, Smart_CI ]
     if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
     uses: ./.github/workflows/job_openvino_js.yml
     with:
@@ -349,7 +349,7 @@ jobs:
 
   Openvino_tokenizers:
     name: OpenVINO tokenizers extension
-    needs: [ Build, Smart_CI ]
+    needs: [ Build, Docker, Smart_CI ]
     uses: ./.github/workflows/job_tokenizers.yml
     with:
       runner: 'aks-linux-16-cores-arm'
@@ -360,7 +360,7 @@ jobs:
 
   CXX_Unit_Tests:
     name: C++ unit tests
-    needs: [ Build, Smart_CI ]
+    needs: [ Build, Docker, Smart_CI ]
     uses: ./.github/workflows/job_cxx_unit_tests.yml
     with:
       runner: 'aks-linux-16-cores-arm'
@@ -369,7 +369,7 @@ jobs:
 
   Python_Unit_Tests:
     name: Python unit tests
-    needs: [ Build, Smart_CI ]
+    needs: [ Build, Docker, Smart_CI ]
     uses: ./.github/workflows/job_python_unit_tests.yml
     with:
       runner: 'aks-linux-16-cores-arm'
@@ -378,7 +378,7 @@ jobs:
 
   TensorFlow_Layer_Tests:
     name: TensorFlow Layer Tests
-    needs: [ Build, Smart_CI, Openvino_tokenizers ]
+    needs: [ Build, Docker, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_tensorflow_layer_tests.yml
     with:
       runner: 'aks-linux-16-cores-arm'
@@ -389,7 +389,7 @@ jobs:
   CPU_Functional_Tests:
     name: CPU functional tests
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
-    needs: [ Build, Smart_CI ]
+    needs: [ Build, Docker, Smart_CI ]
     uses: ./.github/workflows/job_cpu_functional_tests.yml
     with:
       runner: 'aks-linux-16-cores-arm'
@@ -400,7 +400,7 @@ jobs:
     if: ${{ 'false' }} # TODO: Enable once the dependencies are ready for arm (no tensorflow-text available for arm from PyPI)
     # if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
     #     fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
-    needs: [ Build, Smart_CI, Openvino_tokenizers]
+    needs: [ Build, Docker, Smart_CI, Openvino_tokenizers]
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
       runner: 'aks-linux-16-cores-arm'
@@ -411,7 +411,7 @@ jobs:
     name: PyTorch Models tests
     if: ${{ 'false' }} # TODO: Enable once the dependencies are ready for arm (no tensorflow-text available for arm from PyPI)
     # if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test
-    needs: [ Build, Smart_CI ]
+    needs: [ Build, Docker, Smart_CI ]
     uses: ./.github/workflows/job_pytorch_models_tests.yml
     with:
       runner: 'aks-linux-16-cores-arm'
