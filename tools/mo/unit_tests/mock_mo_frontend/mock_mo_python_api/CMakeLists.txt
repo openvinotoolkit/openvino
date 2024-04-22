@@ -30,6 +30,11 @@ if(Python3_VERSION_MINOR GREATER_EQUAL 11)
 else()
     set(pybind11_min_version 2.8.0)
 endif()
+if(CMAKE_CROSSCOMPILING)
+    set(pybind11_min_version 2.12.0)
+endif()
+# search for FindPython3.cmake instead of legacy modules
+set(PYBIND11_FINDPYTHON ON)
 
 find_package(pybind11 ${pybind11_min_version} QUIET)
 

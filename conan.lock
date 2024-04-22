@@ -4,7 +4,7 @@
         "xbyak/6.73#250bc3bc73379f90f255876c1c00a4cd%1691853024.351",
         "snappy/1.1.10#916523630083f6d855cb2977de8eefb6%1689780661.062",
         "rapidjson/cci.20220822#8ca51918340f3a21127822258e95ec0f%1663194355.698",
-        "pybind11/2.10.4#dd44c80a5ed6a2ef11194380daae1248%1682692198.909",
+        "pybind11/2.12.0#1bf487c19d580200ba9b74afcc4174b4%1711607911.876",
         "pugixml/1.13#f615c1fcec55122b2e177d17061276e7%1691917296.869",
         "protobuf/3.21.12#d9f5f4e3b86552552dda4c0a2e928eeb%1685218275.69",
         "opencl-icd-loader/2023.04.17#5f73dd9f0c023d416a7f162e320b9c77%1692732261.088",
@@ -31,5 +31,6 @@
         "automake/1.16.5#058bda3e21c36c9aa8425daf3c1faf50%1688481772.751",
         "autoconf/2.71#53be95d228b2dcb30dc199cb84262d8f%1693395343.513"
     ],
-    "python_requires": []
+    "python_requires": [],
+    "config_requires": []
 }
