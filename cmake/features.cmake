@@ -151,8 +151,8 @@ else()
     set(ENABLE_SYSTEM_LIBS_DEFAULT OFF)
 endif()
 
-if(ANDROID)
-    # when protobuf from /usr/include is used, then Android toolchain ignores include paths
+if(ANDROID OR RISCV64)
+    # when protobuf from /usr/include is used, then Android / Risc-V toolchain ignores include paths
     # but if we build for Android using vcpkg / conan / etc where flatbuffers is not located in
     # the /usr/include folders, we can still use 'system' flatbuffers
     set(ENABLE_SYSTEM_FLATBUFFERS_DEFAULT OFF)
