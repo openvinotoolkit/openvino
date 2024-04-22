@@ -113,6 +113,17 @@ public:
     std::vector<PortDescriptorPtr> outputs{};
 };
 
+template<typename T>
+void set_port_desc(const T& port, std::vector<size_t> subtensor) {
+    const auto& shape = port.get_shape();
+    for (size_t i = 1; i <= std::min(subtensor.size(), shape.size()); i++) {
+        auto& dim = subtensor[subtensor.size() - i];
+        if (dim != PortDescriptor::ServiceDimensions::FULL_DIM)
+            dim = std::min(dim, shape[shape.size() - i]);
+    }
+    PortDescriptorUtils::set_port_descriptor_ptr(port, std::make_shared<PortDescriptor>(shape, subtensor));
+}
+
 } // namespace lowered
 } // namespace snippets
 } // namespace ov

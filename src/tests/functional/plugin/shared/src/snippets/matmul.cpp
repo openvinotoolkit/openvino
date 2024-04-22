@@ -60,12 +60,12 @@ void MatMulBiasQuantized::init_subgraph(const std::vector<PartialShape>& inputSh
     function = f.getOriginal();
 }
 
-void MatMulsQuantized::init_subgraph(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& types) {
+void MatMulQuantized::init_subgraph(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& types) {
     auto f = ov::test::snippets::MatMulsQuantizedFunction(inputShapes, types);
     function = f.getOriginal();
 }
 
-void MatMulsQuantizedSoftmax::init_subgraph(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& types) {
+void MatMulQuantizedSoftmax::init_subgraph(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& types) {
     auto f = ov::test::snippets::MatMulsQuantizedSoftmaxFunction(inputShapes, types);
     function = f.getOriginal();
 }
@@ -95,13 +95,13 @@ TEST_P(MatMulBiasQuantized, CompareWithRefImpl) {
     validateNumSubgraphs();
 }
 
-TEST_P(MatMulsQuantized, CompareWithRefImpl) {
+TEST_P(MatMulQuantized, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();
 }
 
-TEST_P(MatMulsQuantizedSoftmax, CompareWithRefImpl) {
+TEST_P(MatMulQuantizedSoftmax, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     abs_threshold = 4e-6;
     run();

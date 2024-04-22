@@ -13,7 +13,7 @@ namespace snippets {
 namespace op {
 
 Load::Load(const Output<Node>& x, const size_t count, const size_t offset)
-    : MemoryAccess({x}, std::set<size_t>{0}, std::set<size_t>{}) {
+    : MemoryAccess(std::set<size_t>{0}, std::set<size_t>{}), Op({x}) {
     set_input_port_descriptor({count, offset}, 0);
     constructor_validate_and_infer_types();
 }
@@ -29,6 +29,10 @@ void Load::validate_memory_access_params() const {
 void Load::validate_and_infer_types() {
     validate_memory_access_params();
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+}
+
+bool Load::visit_attributes(AttributeVisitor& visitor) {
+    return MemoryAccess::visit_attributes(visitor);
 }
 
 std::shared_ptr<Node> Load::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -60,7 +64,7 @@ void LoadReshape::validate_and_infer_types() {
 }
 
 bool LoadReshape::visit_attributes(AttributeVisitor& visitor) {
-    Load::visit_attributes(visitor);
+    MemoryAccess::visit_attributes(visitor);
     visitor.on_attribute("order", m_order);
     return true;
 }
