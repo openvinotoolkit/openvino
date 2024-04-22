@@ -12,7 +12,7 @@ const std::vector<std::string>& get_supported_types() {
     return supported_element_types;
 }
 
-ov::element::Type_t get_ov_type(napi_typedarray_type type) {
+const ov::element::Type_t& get_ov_type(napi_typedarray_type type) {
     static const std::unordered_map<napi_typedarray_type, ov::element::Type_t> typedarray_to_ov_type{
         {napi_int8_array, ov::element::Type_t::i8},
         {napi_uint8_array, ov::element::Type_t::u8},

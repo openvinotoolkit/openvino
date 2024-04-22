@@ -18,7 +18,11 @@ const std::vector<std::string>& get_supported_types();
 
 typedef std::variant<napi_valuetype, napi_typedarray_type, js_type> napi_types;
 
-ov::element::Type_t get_ov_type(napi_typedarray_type type);
+/**
+ * @brief Gets corresponding ov::element::Type_t to the passed TypedArray type
+ * @throw Exception if there is no corresponing or supported ov::element::Type_t
+ */
+const ov::element::Type_t& get_ov_type(napi_typedarray_type type);
 
 /**
  * @brief  Template function to convert Javascript data types into C++ data types
