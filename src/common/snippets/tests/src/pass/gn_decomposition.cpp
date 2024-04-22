@@ -30,7 +30,7 @@ void GNDecompositionTest::SetUp() {
     size_t num_group;
     float eps;
     std::tie(data_shape, num_group, eps) = this->GetParam();
-    OPENVINO_ASSERT(data_shape.rank().get_length() >= 2, "First input rank for group normalization op should be greater or equal to 2");
+    OPENVINO_ASSERT(data_shape.size() >= 2, "First input rank for group normalization op should be greater than 1");
     PartialShape scaleShiftShape = PartialShape{data_shape[1]};
     std::vector<PartialShape> input_shapes = { data_shape, scaleShiftShape, scaleShiftShape};
     snippets_model = std::make_shared<GroupNormalizationFunction>(input_shapes, num_group, eps);

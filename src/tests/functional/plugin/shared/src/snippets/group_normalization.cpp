@@ -57,7 +57,7 @@ InputShape GroupNormalization::ExtractScaleShiftShape(const InputShape& shape) {
     std::vector<ov::Shape> biasShape;
     std::transform(shape.second.cbegin(), shape.second.cend(), std::back_inserter(biasShape),
         [](const ov::Shape& s)->ov::Shape {
-            OPENVINO_ASSERT(s.size() >= 2, "First input rank for group normalization op should be greater or equal to 2");
+            OPENVINO_ASSERT(s.size() >= 2, "First input rank for group normalization op should be greater than 1");
             return {s[1]};
         });
     InputShape biasInputShape {

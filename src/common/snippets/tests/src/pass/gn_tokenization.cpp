@@ -4,55 +4,61 @@
 
 #include <gtest/gtest.h>
 #include <pass/gn_tokenization.hpp>
-#include "subgraph_group_normalization.hpp"
 #include "snippets/pass/gn_tokenization.hpp"
+#include "common_test_utils/common_utils.hpp"
 
 namespace ov {
 namespace test {
 namespace snippets {
 
+std::string TokenizeGNSnippetsTests::getTestCaseName(testing::TestParamInfo<GroupNormalizationParams> obj) {
+    PartialShape input_shape;
+    size_t num_group;
+    float eps;
+    std::tie(input_shape, num_group, eps) = obj.param;
+    std::ostringstream result;
+    result << "IS=" << ov::test::utils::partialShape2str({input_shape}) << "_";
+    result << "num_group=" << num_group << "_";
+    result << "eps=" << eps;
+    return result.str();
+}
 
-void TokenizeGNSnippetsTests::run() {
-    ASSERT_TRUE(model);
+void TokenizeGNSnippetsTests::SetUp() {
+    TransformationTestsF::SetUp();
+    PartialShape data_shape;
+    size_t num_group;
+    float eps;
+    std::tie(data_shape, num_group, eps) = this->GetParam();
+    OPENVINO_ASSERT(data_shape.size() >= 2, "First input rank for group normalization op should be greater than 1");
+    PartialShape scaleShiftShape = PartialShape{data_shape[1]};
+    std::vector<PartialShape> input_shapes = { data_shape, scaleShiftShape, scaleShiftShape};
+    snippets_model = std::make_shared<GroupNormalizationFunction>(input_shapes, num_group, eps);
     manager.register_pass<ov::snippets::pass::TokenizeGNSnippets>();
-    disable_rt_info_check();
 }
 
-TEST_F(TokenizeGNSnippetsTests, smoke_Snippets_GN_Tokenization_2D) {
-    const auto &f = GroupNormalizationFunction(std::vector<PartialShape>{{1, 10}, {10}, {10}}, 2, 0.00001f);
-    model = f.getOriginal();
-    model_ref = f.getReference();
-    run();
+TEST_P(TokenizeGNSnippetsTests, smoke_TokenizeGNSnippets) {
+    model = snippets_model->getOriginal();
+    model_ref = snippets_model->getReference();
 }
 
-TEST_F(TokenizeGNSnippetsTests, smoke_Snippets_GN_Tokenization_3D) {
-    const auto &f = GroupNormalizationFunction(std::vector<PartialShape>{{1, 10, 1}, {10}, {10}}, 2, 0.00001f);
-    model = f.getOriginal();
-    model_ref = f.getReference();
-    run();
-}
+namespace {
 
-TEST_F(TokenizeGNSnippetsTests, smoke_Snippets_GN_Tokenization_4D) {
-    const auto &f = GroupNormalizationFunction(std::vector<PartialShape>{{1, 8, 8, 8}, {8}, {8}}, 2, 0.00001f);
-    model = f.getOriginal();
-    model_ref = f.getReference();
-    run();
-}
+const std::vector<ov::PartialShape> input_shapes{
+    {3, 10},
+    {3, 10, 1},
+    {3, 10, 2, 2},
+    {1, 20, 2, 2, 3},
+    {1, 20, 2, 2, 3, 3}
+};
 
-TEST_F(TokenizeGNSnippetsTests, smoke_Snippets_GN_Tokenization_5D) {
-    const auto &f = GroupNormalizationFunction(std::vector<PartialShape>{{1, 16, 1, 1, 1}, {16}, {16}}, 4, 0.00001f);
-    model = f.getOriginal();
-    model_ref = f.getReference();
-    run();
-}
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_GNTokenize,
+                         TokenizeGNSnippetsTests,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes),
+                                            ::testing::Values(5),
+                                            ::testing::Values(0.0001)),
+                         TokenizeGNSnippetsTests::getTestCaseName);
 
-TEST_F(TokenizeGNSnippetsTests, smoke_Snippets_GN_Tokenization_6D) {
-    const auto &f = GroupNormalizationFunction(std::vector<PartialShape>{{1, 16, 1, 1, 1, 2}, {16}, {16}}, 8, 0.00001f);
-    model = f.getOriginal();
-    model_ref = f.getReference();
-    run();
-}
-
+}  // namespace
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov
