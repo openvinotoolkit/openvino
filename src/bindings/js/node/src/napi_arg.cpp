@@ -4,20 +4,20 @@
 #include "node/include/napi_arg.hpp"
 
 namespace NapiTypename {
-static const std::string UNDEFINED_STR = "Undefined";
-static const std::string NULL_STR = "Null";
-static const std::string BOOLEAN_STR = "Boolean";
-static const std::string NUMBER_STR = "Number";
-static const std::string STIRNG_STR = "String";
-static const std::string SYMBOL_STR = "Symbol";
-static const std::string OBJECT_STR = "Object";
-static const std::string FUNCTION_STR = "Function";
-static const std::string EXTERNAL_STR = "External";
-static const std::string BIGINT_STR = "BigInt";
-static const std::string UNKNOWN_STR = "Unknown";
+static const char UNDEFINED_STR[] = "Undefined";
+static const char NULL_STR[] = "Null";
+static const char BOOLEAN_STR[] = "Boolean";
+static const char NUMBER_STR[] = "Number";
+static const char STIRNG_STR[] = "String";
+static const char SYMBOL_STR[] = "Symbol";
+static const char OBJECT_STR[] = "Object";
+static const char FUNCTION_STR[] = "Function";
+static const char EXTERNAL_STR[] = "External";
+static const char BIGINT_STR[] = "BigInt";
+static const char UNKNOWN_STR[] = "Unknown";
 }  // namespace NapiTypename
 namespace NapiArg {
-const std::string& get_type_name(napi_valuetype type) {
+const char* get_type_name(napi_valuetype type) {
     switch (type) {
     case napi_undefined:
         return NapiTypename::UNDEFINED_STR;
@@ -54,21 +54,16 @@ const std::string& get_type_name(napi_valuetype type) {
     }
 }
 
-std::string create_error_message(const std::string& key, const std::string& expected, const std::string real) {
-    return "Argument #" + key + " has type '" + real + "', expected '" + expected + "'";
+std::string create_error_message(const std::string& key, const char* expected, const char* real) {
+    return "Argument #" + key + " has type '" + std::string(real) + "', expected '" + std::string(expected) + "'";
 }
 
 std::string create_error_message(const std::string key, napi_valuetype expected_type, napi_valuetype real_type) {
-    std::string expected_type_str = get_type_name(expected_type);
-    std::string real_type_str = get_type_name(real_type);
-
-    return create_error_message(key, expected_type_str, real_type_str);
+    return create_error_message(key, get_type_name(expected_type), get_type_name(real_type));
 }
 
-std::string create_error_message(const std::string& key, const std::string& expected, const napi_valuetype& real_type) {
-    std::string real_type_str = get_type_name(real_type);
-
-    return create_error_message(key, expected, real_type_str);
+std::string create_error_message(const std::string& key, const char* expected, const napi_valuetype& real_type) {
+    return create_error_message(key, expected, get_type_name(real_type));
 }
 
 void check_type(const napi_valuetype expected_type, const std::string key, const Napi::Value& value) {
