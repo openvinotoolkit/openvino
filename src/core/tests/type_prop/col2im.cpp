@@ -24,8 +24,8 @@ class TypePropCol2ImTest : public TypePropOpTest<op::v15::Col2Im> {};
 TEST_F(TypePropCol2ImTest, default_ctor) {
     const auto op = make_op();
     const auto data = std::make_shared<Parameter>(element::i32, PartialShape{3, 12, 225});
-    const auto output_size = std::make_shared<Parameter>(element::i64, PartialShape{16, 16});
-    const auto kernel_size = std::make_shared<Parameter>(element::i64, PartialShape{2, 2});
+    const auto output_size = std::make_shared<Parameter>(element::i64, PartialShape{2});
+    const auto kernel_size = std::make_shared<Parameter>(element::i64, PartialShape{2});
 
     op->set_arguments(ov::OutputVector{data, output_size, kernel_size});
     op->validate_and_infer_types();
@@ -33,36 +33,35 @@ TEST_F(TypePropCol2ImTest, default_ctor) {
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_input_size(), 3);
     EXPECT_EQ(op->get_output_element_type(0), element::i32);
-    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 3, 16, 16}));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}));
 }
 
 TEST_F(TypePropCol2ImTest, non_default_args) {
-    const auto op = make_op();
-    const auto data = std::make_shared<Parameter>(element::i64, PartialShape{3, 12, 81});
-    const auto output_size = std::make_shared<Parameter>(element::i64, PartialShape{16, 16});
-    const auto kernel_size = std::make_shared<Parameter>(element::i64, PartialShape{2, 2});
-    const auto strides = std::make_shared<Parameter>(element::i64, PartialShape{2, 2});
-    const auto dilations = std::make_shared<Parameter>(element::i64, PartialShape{2, 2});
-    const auto pads_begin = std::make_shared<Parameter>(element::i64, PartialShape{2, 2});
-    const auto pads_end = std::make_shared<Parameter>(element::i64, PartialShape{2, 2});
+    const auto data = std::make_shared<Parameter>(element::i64, Shape{3, 12, 81});
+    const auto output_size = std::make_shared<Parameter>(element::i64, Shape{2});
+    const auto kernel_size = std::make_shared<Parameter>(element::i64, Shape{2});
+    const auto strides = Strides{2, 2};
+    const auto dilations = Strides{2, 2};
+    const auto pads_begin = Shape{2, 2};
+    const auto pads_end = Shape{2, 2};
 
-    op->set_arguments(ov::OutputVector{data, output_size, kernel_size, strides, dilations, pads_begin, pads_end});
+    const auto op = std::make_shared<ov::op::v15::Col2Im>(data, output_size, kernel_size, strides, dilations, pads_begin, pads_end);
     op->validate_and_infer_types();
 
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_input_size(), 3);
     EXPECT_EQ(op->get_output_element_type(0), element::i64);
-    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 3, 16, 16}));
-    //EXPECT_EQ(op->get_strides(), (Strides{2, 2}));
-    //EXPECT_EQ(op->get_dilations(), (Strides{2, 2}));
-    //EXPECT_EQ(op->get_pads_begin(), (Shape{2, 2}));
-    //EXPECT_EQ(op->get_pads_end(), (Shape{2, 2}));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}));
+    EXPECT_EQ(op->get_strides(), (Strides{2, 2}));
+    EXPECT_EQ(op->get_dilations(), (Strides{2, 2}));
+    EXPECT_EQ(op->get_pads_begin(), (Shape{2, 2}));
+    EXPECT_EQ(op->get_pads_end(), (Shape{2, 2}));
 }
 
 TEST_F(TypePropCol2ImTest, incorrect_types) {
     const auto data = std::make_shared<Parameter>(element::i32, PartialShape{3, 12, 225});
-    const auto output_size = std::make_shared<Parameter>(element::i64, PartialShape{16, 16});
-    const auto kernel_size = std::make_shared<Parameter>(element::i64, PartialShape{2, 2});
+    const auto output_size = std::make_shared<Parameter>(element::i64, PartialShape{2});
+    const auto kernel_size = std::make_shared<Parameter>(element::i64, PartialShape{2});
     {
         const auto data_f32 = std::make_shared<Parameter>(element::f32, PartialShape{3, 12, 225});
         OV_EXPECT_THROW(std::ignore = make_op(data_f32, output_size, kernel_size),
@@ -82,21 +81,6 @@ TEST_F(TypePropCol2ImTest, incorrect_types) {
                         HasSubstr("The element type of the kernel_size tensor must be i32 or i64 type"));
     }
 }
-
-//TEST_F(TypePropCol2ImTest, incorrect_number_of_blocks) {
-//    const auto op = make_op();
-//    const auto data = std::make_shared<Parameter>(element::i32, PartialShape{3, 12, 225});
-//    const auto output_size = std::make_shared<Parameter>(element::i64, PartialShape{16, 16});
-//    const auto kernel_size = std::make_shared<Parameter>(element::i64, PartialShape{2, 2});
-//
-//    op->set_arguments(ov::OutputVector{data, output_size, kernel_size});
-//    op->validate_and_infer_types();
-//
-//    EXPECT_EQ(op->get_output_size(), 1);
-//    EXPECT_EQ(op->get_input_size(), 3);
-//    EXPECT_EQ(op->get_output_element_type(0), element::i32);
-//    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 3, 16, 16}));
-//}
 
 }  // namespace test
 }  // namespace ov
