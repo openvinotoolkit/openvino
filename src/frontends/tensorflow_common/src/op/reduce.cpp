@@ -37,10 +37,19 @@ OutputVector translate_prod_op(const NodeContext& node) {
     auto input = node.get_input(0);
     auto axis = node.get_input(1);
     auto keep_dims = node.get_attribute<bool>("keep_dims", false);
+    // Adjust the axis if it's negative
+    auto zero = make_shared<v0::Constant>(ov::element::i32, Shape{}, 0);
+    auto one = make_shared<v0::Constant>(ov::element::i32, Shape{}, 1);
+    auto condition = make_shared<v1::Less>(axis, zero);
+    auto updated_axis = make_shared<v1::Subtract>(axis, one);
+
+    // Choose between original axis and updated axis
+    auto selected_axis = make_shared<v1::Select>(condition, updated_axis, axis);
+
     auto complex_type_input = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
     if (complex_type_input) {
         input = complex_type_input->input_value(0);
-        auto prod_op = make_shared<v1::ReduceProd>(input, axis, keep_dims);
+        auto prod_op = make_shared<v1::ReduceProd>(input, selected_axis, keep_dims);
         auto complex_result = make_shared<ComplexTypeMark>(prod_op, complex_type_input->get_complex_part_type());
         set_node_name(node.get_name(), prod_op);
         return {complex_result};
@@ -56,7 +65,6 @@ template OutputVector translate_direct_reduce_op<v1::ReduceLogicalAnd>(const Nod
 template OutputVector translate_direct_reduce_op<v1::ReduceMax>(const NodeContext& node);
 template OutputVector translate_direct_reduce_op<v1::ReduceMean>(const NodeContext& node);
 template OutputVector translate_direct_reduce_op<v1::ReduceMin>(const NodeContext& node);
-template OutputVector translate_direct_reduce_op<v1::ReduceProd>(const NodeContext& node);
 template OutputVector translate_direct_reduce_op<v1::ReduceSum>(const NodeContext& node);
 template OutputVector translate_direct_reduce_op<v4::ReduceL2>(const NodeContext& node);
 }  // namespace op
