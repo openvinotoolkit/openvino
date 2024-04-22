@@ -281,6 +281,11 @@ jobs:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'false'
 
+      - name: Show cloned
+        run: |
+          ls -la
+          ls -la ${OPENVINO_REPO}
+
       - name: Docs Python snippets
         if: runner.os != 'macOS'
         run: |
