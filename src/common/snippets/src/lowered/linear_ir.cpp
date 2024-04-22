@@ -73,6 +73,11 @@ ExpressionPtr LinearIR::create_expression(const std::shared_ptr<Node>& n, const 
     for (size_t i = 0; i < consumers.size(); ++i) {
         const auto& port_consumers = consumers[i];
         replace_input_port_connectors(port_consumers, new_expr->get_output_port_connector(i));
+        if (!port_consumers.empty())
+            new_expr->get_output_port_descriptor(i)->set_reg(port_consumers.cbegin()->get_descriptor_ptr()->get_reg());
+    }
+    for (size_t i = 0; i < new_expr->get_input_count(); ++i) {
+        new_expr->get_input_port_descriptor(i)->set_reg(new_expr->get_input_port_connector(i)->get_source().get_descriptor_ptr()->get_reg());
     }
 
     if (update_loop_ports) {
@@ -382,6 +387,11 @@ LinearIR::exprIt LinearIR::replace_with_expr(const std::vector<ExpressionPtr>& o
     for (size_t i = 0; i < consumers.size(); ++i) {
         const auto& port_consumers = consumers[i];
         replace_input_port_connectors(port_consumers, new_expr->get_output_port_connector(i));
+        if (!port_consumers.empty())
+            new_expr->get_output_port_descriptor(i)->set_reg(port_consumers.cbegin()->get_descriptor_ptr()->get_reg());
+    }
+    for (size_t i = 0; i < new_expr->get_input_count(); ++i) {
+        new_expr->get_input_port_descriptor(i)->set_reg(new_expr->get_input_port_connector(i)->get_source().get_descriptor_ptr()->get_reg());
     }
 
     const auto new_expr_it = insert(place, new_expr);
