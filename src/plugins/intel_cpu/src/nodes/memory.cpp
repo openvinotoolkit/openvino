@@ -450,7 +450,7 @@ MemoryInputBase* MemoryStatesRegister::getMemoryInputByName(const std::string& n
     if (it == memory_inputs.end()) {
         return nullptr;
     }
-    return it->second;
+    return static_cast<MemoryInputBase*>(it->second);
 }
 
 MemoryOutputBase* MemoryStatesRegister::getMemoryOutputByName(const std::string& name) {
@@ -458,7 +458,7 @@ MemoryOutputBase* MemoryStatesRegister::getMemoryOutputByName(const std::string&
     if (it == memory_outputs.end()) {
         return nullptr;
     }
-    return it->second;
+    return static_cast<MemoryOutputBase*>(it->second);
 }
 
 bool MemoryInput::needShapeInfer() const {

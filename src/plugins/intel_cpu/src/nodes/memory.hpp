@@ -21,13 +21,17 @@ class ScaledDotProductAttention;
 
 class MemoryStatesRegister {
 public:
-    using InputNodesMap = std::unordered_map<std::string, MemoryInputBase*>;
-    using OutputNodesMap = std::unordered_map<std::string, MemoryOutputBase*>;
+    using InputNodesMap = std::unordered_map<std::string, MemoryStateNode*>;
+    using OutputNodesMap = std::unordered_map<std::string, MemoryNode*>;
 
 public:
     void registerOutput(MemoryOutputBase * node);
     void registerInput(MemoryInputBase * node);
     void remove(MemoryNode* node);
+
+    const InputNodesMap& getMemoryStates() const {
+        return memory_inputs;
+    }
 
 private:
     MemoryInputBase* getMemoryInputByName(const std::string& name);

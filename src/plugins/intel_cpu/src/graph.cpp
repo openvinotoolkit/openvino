@@ -28,7 +28,7 @@
 #include "nodes/convert.h"
 #include "nodes/input.h"
 #include "nodes/reorder.h"
-#include "nodes/memory_state_base.h"
+#include "nodes/memory.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
@@ -297,7 +297,6 @@ void Graph::InitGraph(bool optimize) {
 #endif
 
     ExtractExecutableNodes();
-    SearchInternalStateNodes();
 
     status = hasDynNodes ? Status::ReadyDynamic : Status::ReadyStatic;
 
@@ -1880,16 +1879,8 @@ std::shared_ptr<ov::Model> Graph::dump() const {
     return dump_graph_as_ie_ngraph_net(*this);
 }
 
-void Graph::SearchInternalStateNodes() {
-    for (auto&& node : graphNodes) {
-        if (node->getType() == Type::MemoryInput) {
-            auto cur_node = std::dynamic_pointer_cast<node::MemoryStateNode>(node);
-            if (!cur_node) {
-                OPENVINO_THROW("Cannot cast ", node->getName(), " to MemoryStateNode");
-            }
-            internalStateNodes.insert({cur_node->getId(), cur_node});
-        }
-    }
+const std::unordered_map<std::string, node::MemoryStateNode*>& Graph::getInternalStateNodes() const {
+    return context->getMemoryStatesRegister()->getMemoryStates();
 }
 
 }   // namespace intel_cpu
