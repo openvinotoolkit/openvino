@@ -82,6 +82,25 @@ OutputVector translate_select_op(const NodeContext& node) {
     auto condition = node.get_input(0);
     auto x = node.get_input(1);
     auto y = node.get_input(2);
+    // compute number of dimensions to unsqueeze the condition
+    auto cond_rank = compute_subgraph_scalar_rank(condition, element::i32);
+    auto x_rank = compute_subgraph_scalar_rank(x, element::i32);
+    auto num_new_axes = make_shared<v1::Subtract>(x_rank, cond_rank);
+
+    // generate a new shape for the condition
+    auto const_one = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
+    auto new_subshape = make_shared<v3::Broadcast>(const_one, num_new_axes);
+    auto cond_shape = make_shared<v3::ShapeOf>(condition, element::i32);
+    // use extra dimensions in the begin to avoid concatenation of empty tensors that is not supported by Concat
+    auto const_1 = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
+    auto new_cond_shape = make_shared<v0::Concat>(OutputVector{const_1, cond_shape, new_subshape}, 0);
+
+    // prepare the condition to have the same rank as operands `x` and `y`
+    auto prep_cond = make_shared<v1::Reshape>(condition, new_cond_shape, false)->output(0);
+    // squeeze prep_cond by one extra dimension specially added
+    auto const_0 = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
+    prep_cond = make_shared<v0::Squeeze>(prep_cond, const_0);
+
     auto complex_type_mark_x = as_type_ptr<ComplexTypeMark>(x.get_node_shared_ptr());
     auto complex_type_mark_y = as_type_ptr<ComplexTypeMark>(y.get_node_shared_ptr());
     auto x_rank = compute_subgraph_scalar_rank(x, element::i32);
@@ -108,14 +127,6 @@ OutputVector translate_select_op(const NodeContext& node) {
             make_shared<ComplexTypeMark>(concat_result->output(0), complex_type_mark_x->get_complex_part_type());
         return {complex_result};
     }
-
-    auto cond_shape = make_shared<v3::ShapeOf>(x, element::i32);
-    auto const_1 = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
-    auto new_cond_shape = make_shared<v0::Concat>(OutputVector{const_1, cond_shape}, 0);
-
-    auto prep_cond = make_shared<v1::Reshape>(condition, new_cond_shape, false)->output(0);
-    auto const_0 = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
-    prep_cond = make_shared<v0::Squeeze>(prep_cond, const_0);
 
     return translate_select_base_op(node, prep_cond, x, y);
 }
