@@ -83,23 +83,23 @@ OpenVINO™ Runtime enables you to use different approaches to work with model i
    the ``get_any_name`` method was introduced. These methods may return empty names list/empty name
    if the names are not present.
 
-  .. tab-set::
+   .. tab-set::
 
-     .. tab-item:: Python
-        :sync: py
+      .. tab-item:: Python
+         :sync: py
 
-        .. code-block:: python
+         .. code-block:: python
 
-           ov_model_input = model.input(original_fw_in_tensor_name)
-           ov_model_output = model.output(original_fw_out_tensor_name)
+            ov_model_input = model.input(original_fw_in_tensor_name)
+            ov_model_output = model.output(original_fw_out_tensor_name)
 
-     .. tab-item:: C++
-        :sync: cpp
+      .. tab-item:: C++
+         :sync: cpp
 
-        .. code-block:: cpp
+         .. code-block:: cpp
 
-           auto ov_model_input = ov_model->input(original_fw_in_tensor_name);
-           auto ov_model_output = ov_model->output(original_fw_out_tensor_name);
+            auto ov_model_input = ov_model->input(original_fw_in_tensor_name);
+            auto ov_model_output = ov_model->output(original_fw_out_tensor_name);
 
 For details on how to build a model in OpenVINO™ Runtime, see the :ref:`Build a Model in OpenVINO Runtime <ov_ug_build_model>` section.
 
