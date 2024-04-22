@@ -39,6 +39,7 @@ jobs:
           sparse-checkout: |
             .github/actions/setup_apt
             .github/actions/cache
+            .github/actions/setup_python
 
       - name: Setup apt
         if: runner.os == 'Linux'
@@ -55,6 +56,13 @@ jobs:
           key: ${{ runner.os }}-${{ runner.arch }}-apt-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-apt
+
+      - name: Setup Python 3.11
+        uses: ./.github/actions/setup_python
+        with:
+          version: '3.11'
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: ${{ runner.os == 'Linux' }}
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v4
@@ -89,21 +97,6 @@ jobs:
       - name: Install OpenVINO dependencies (Linux)
         if: runner.os == 'Linux'
         run: $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -c=gpu -y
-
-      - name: Fetch setup_python action
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            .github/actions/setup_python/action.yml
-          sparse-checkout-cone-mode: false
-          path: 'openvino'
-
-      - name: Setup Python 3.11
-        uses: ./openvino/.github/actions/setup_python
-        with:
-          version: '3.11'
-          should-setup-pip-paths: 'false'
-          self-hosted-runner: ${{ runner.os == 'Linux' }}
 
       - name: Install python dependencies for run_parallel.py
         run: python3 -m pip install -r ${INSTALL_TEST_DIR}/functional_test_utils/layer_tests_summary/requirements.txt

@@ -23,6 +23,7 @@ on:
 
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
+  APT_CACHE_PATH: /mount/caches/apt/ubuntu_20/${{ github.base_ref || github.ref_name }}
   PYTHON_VERSION: '3.11'
 
 jobs:
@@ -47,13 +48,30 @@ jobs:
           echo "OPENVINO_TOKENIZERS_REPO=$GITHUB_WORKSPACE/openvino_tokenizers" >> "$GITHUB_ENV"
           echo "EXTENSION_BUILD_DIR=$GITHUB_WORKSPACE/build" >> "$GITHUB_ENV"
 
-      - name: checkout action
+      - name: checkout actions
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
             .github/actions/setup_python
+            .github/actions/setup_apt
             .github/actions/cache
             install_build_dependencies.sh
+
+      - name: Setup apt
+        if: runner.os == 'Linux'
+        uses: ./.github/actions/setup_apt
+
+      - name: Setup apt cache
+        if: runner.os == 'Linux'
+        uses: ./.github/actions/cache
+        with:
+          save-always: true # TODO: for the 1st run only
+          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          cache-path: ${{ env.APT_CACHE_PATH }}
+          path: '/var/cache/apt/archives'
+          key: ${{ runner.os }}-${{ runner.arch }}-apt-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-apt
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./.github/actions/setup_python
