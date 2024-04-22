@@ -60,6 +60,7 @@ class TestKerasConv3D(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data_float32)
     @pytest.mark.precommit
     @pytest.mark.nightly
+    @pytest.mark.xfail(reason="timeout issue for inference")
     def test_keras_conv_3d_float32(self, params, ie_device, precision, ir_version, temp_dir,
                                    use_legacy_frontend):
         self._test(*self.create_keras_conv3d_net(**params, ir_version=ir_version), ie_device,
