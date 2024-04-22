@@ -151,7 +151,7 @@ else()
     set(ENABLE_SYSTEM_LIBS_DEFAULT OFF)
 endif()
 
-if(ANDROID OR RISCV64)
+if(CMAKE_CROSSCOMPILING AND (ANDROID OR RISCV64))
     # when protobuf from /usr/include is used, then Android / Risc-V toolchain ignores include paths
     # but if we build for Android using vcpkg / conan / etc where flatbuffers is not located in
     # the /usr/include folders, we can still use 'system' flatbuffers
