@@ -60,8 +60,6 @@ void ov::descriptor::Tensor::set_value_symbol(const TensorSymbol& value_symbol) 
 }
 
 const ov::Shape& ov::descriptor::Tensor::get_shape() const {
-    OPENVINO_ASSERT(m_partial_shape.is_static(), "get_shape was called on a descriptor::Tensor with dynamic shape");
-
     if (m_shape_changed) {
         m_shape = m_partial_shape.to_shape();
         m_shape_changed = false;
