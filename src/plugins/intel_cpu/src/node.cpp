@@ -1377,6 +1377,7 @@ bool Node::canBePerformedAsScaleShift(const Node *parentNode) const {
         }
     }
 
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
     const auto isBroadcastableToDataInput = [&]() {
         auto& dataShape = getInputShapeAtPort(fusingPort).getDims();
         for (size_t i = 0; i < getParentEdges().size(); i++) {
@@ -1400,6 +1401,7 @@ bool Node::canBePerformedAsScaleShift(const Node *parentNode) const {
         }
         return false;
     };
+#endif
 
 #if defined(OPENVINO_ARCH_X86_64)
     return (one_of(getAlgorithm(), Algorithm::EltwiseAdd,
