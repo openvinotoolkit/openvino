@@ -5,6 +5,7 @@
 #include "openvino/runtime/iplugin.hpp"
 
 #include "openvino/op/convert.hpp"
+#include "openvino/op/ops.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/pass/manager.hpp"
@@ -33,6 +34,9 @@ std::unordered_set<std::string> get_removed_nodes(const std::shared_ptr<const ov
     return result;
 }
 
+bool is_graph_input_node(const std::shared_ptr<ov::Node>& node) {
+    return ov::op::util::is_parameter(node) || ov::op::util::is_constant(node);
+}
 }  // namespace
 
 ov::IPlugin::IPlugin() : m_executor_manager(ov::threading::executor_manager()) {}
@@ -113,9 +117,11 @@ std::unordered_set<std::string> ov::get_supported_nodes(
         return names;
     };
 
+    std::map<std::string, std::shared_ptr<ov::Node>> transformed_model_op_map;
     // Collect all operation names even there are no such names in original model
     for (auto&& op : ops) {
         auto names = get_names_set(op);
+        transformed_model_op_map[op->get_friendly_name()] = op;
         if (is_node_supported(op)) {
             supported.insert(names.begin(), names.end());
         } else {
@@ -195,27 +201,49 @@ std::unordered_set<std::string> ov::get_supported_nodes(
         }
     };
 
+    auto insert_op_to_supported = [&](const NodePtr& node) {
+        if (is_node_supported(node)) {
+            auto names = get_names_set(node);
+            for (auto& name : get_names_set(node)) {
+                supported.insert(name);
+            }
+        }
+    };
+    auto has_unsupported_source1 =
+        [&get_input_node](const NameSet& supported, const NodePtr& op, bool const_only = false) -> bool {
+        for (auto& input : op->inputs()) {
+            const auto& node = get_input_node(input);
+            if (!supported.count(node->get_friendly_name()) && !is_graph_input_node(node)) {
+                return true;
+            }
+        }
+        return false;
+    };
+
     auto check_pairs = [](std::map<std::string, int> pair_checker) {
         return std::all_of(pair_checker.begin(), pair_checker.end(), [](const std::pair<std::string, int>& val) {
             return val.second == 2;
         });
     };
 
-    // Check the ops to make sure Assign and ReadValue operations in pairs on the network
-    std::map<std::string, int> pair_checker;
-    for (auto&& op : ops) {
-        if (supported.count(op->get_friendly_name())) {
-            if (const auto& assign = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(op)) {
-                if (pair_checker.count(assign->get_variable_id()) == 0) {
-                    pair_checker[assign->get_variable_id()] = 1;
-                } else {
-                    pair_checker[assign->get_variable_id()]++;
+    auto new_check_pairs = [&](std::map<std::string, int>& pair_checker, const NameSet& supported) {
+        for (auto&& op : ops) {
+            if (supported.count(op->get_friendly_name())) {
+                if (const auto& assign = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(op)) {
+                    if (pair_checker.count(assign->get_variable_id()) == 0) {
+                        pair_checker[assign->get_variable_id()] = 1;
+                    } else {
+                        pair_checker[assign->get_variable_id()]++;
+                    }
                 }
             }
         }
-    }
+        return check_pairs(pair_checker);
+    };
 
-    if (!check_pairs(pair_checker)) {
+    // Check the ops to make sure Assign and ReadValue operations in pairs on the network
+    std::map<std::string, int> pair_checker;
+    if (!new_check_pairs(pair_checker, supported)) {
         for (auto& op : ops) {
             if (const auto& assign = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(op)) {
                 if (pair_checker[assign->get_variable_id()] == 1) {
@@ -236,11 +264,26 @@ std::unordered_set<std::string> ov::get_supported_nodes(
         }
     }
 
+    auto get_matmul_size = [&](const NodePtr& op) {
+        int64_t op_size = 1;
+        for (auto& input : op->inputs()) {
+            const auto& node = get_input_node(input);
+            for (size_t shape_id = 0; shape_id < node->get_output_partial_shape(0).size(); shape_id++) {
+                if (!node->get_output_partial_shape(0)[shape_id].is_dynamic()) {
+                    int64_t len = node->get_output_partial_shape(0)[shape_id].get_length();
+                    if (len >= 1)
+                        op_size *= len;
+                }
+            }
+        }
+        return op_size;
+    };
+
     size_t total_ops_size = 0;
     for (auto&& op : ops) {
-        if (ov::op::util::is_constant(op)) {
-            const auto const_byte_size = op->get_element_type().size() * shape_size(op->get_shape());
-            total_ops_size += const_byte_size;
+        if (ov::is_type<ov::op::v0::MatMul>(op)) {
+            auto op_size = get_matmul_size(op);
+            total_ops_size += op_size;
         }
     }
     // If there is no constant or supported nodes in the model, mark query_by_memory_control as false
@@ -282,9 +325,8 @@ std::unordered_set<std::string> ov::get_supported_nodes(
                             temp_pair_checker[assign->get_variable_id()]++;
                         }
                     }
-                    if (ov::op::util::is_constant(op) && !ready_split) {
-                        const auto const_byte_size = op->get_element_type().size() * shape_size(op->get_shape());
-                        total_size += const_byte_size;
+                    if (ov::is_type<ov::op::v0::MatMul>(op) && !ready_split) {
+                        total_size += get_matmul_size(op);
                         // If the total size is 1.05 times larger than the user's requirement:
                         // - If has_min_graph = false, it means there is no nodes meets requirement, so need cancel
                         //   split and break
@@ -327,7 +369,23 @@ std::unordered_set<std::string> ov::get_supported_nodes(
                     }
                 }
             }
+            // Filter the fused ops
+            for (auto& op : model->get_ordered_ops()) {
+                const auto& name = op->get_friendly_name();
+                if (removed_nodes.count(name)) {
+                    if (has_all_consumers_unsupported(supported, op) &&
+                        has_all_consumers_unsupported(removed_nodes, op)) {
+                        if (transformed_model_op_map.find(name) != transformed_model_op_map.end()) {
+                            remove_op_from_supported(transformed_model_op_map[name]);
+                        } else {
+                            remove_op_from_supported(op);
+                        }
+                        removed_nodes.erase(name);
+                    }
+                }
+            }
             // Add the ops to supported that removed by transformations and it has supported users
+            // For example:
             //
             // constant_compressed(to be marked as supported)
             //         |
@@ -335,21 +393,33 @@ std::unordered_set<std::string> ov::get_supported_nodes(
             //         |
             //       divide(already in supported)
             //
-            // In case the dependency relationships of some nodes, so traverse the entire model to ensure accurate
-            // split. For example: In the graph above, constant_compressed op will be first obtained by
-            // get_ordered_ops(), but it depends on convert op, so need loop again to mark constant_compressed op after
-            // convert op is marked.
-            bool update_supported = true;
-            while (update_supported) {
-                update_supported = false;
-                for (auto& op : model->get_ordered_ops()) {
-                    if (!supported.count(op->get_friendly_name()) && has_users_supported(supported, op) &&
-                        !unsupported.count(op->get_friendly_name())) {
-                        supported.insert(op->get_friendly_name());
-                        update_supported = true;
+            for (auto& op : model->get_ordered_ops()) {
+                const auto& name = op->get_friendly_name();
+                if (!supported.count(name)) {
+                    if (has_users_supported(supported, op)) {
+                        if (transformed_model_op_map.find(name) != transformed_model_op_map.end()) {
+                            insert_op_to_supported(transformed_model_op_map[name]);
+                        } else {
+                            insert_op_to_supported(op);
+                        }
                     }
                 }
             }
+
+            for (auto& op : model->get_ordered_ops()) {
+                const auto& name = op->get_friendly_name();
+                if ((has_unsupported_source1(supported, op) ||
+                     (ov::op::util::is_constant(op) && !has_users_supported(supported, op))) &&
+                    supported.count(name)) {
+                    remove_op_from_supported(op);
+                }
+            }
+
+            std::map<std::string, int> temp_pair_checker_2;
+            if (!new_check_pairs(temp_pair_checker_2, supported)) {
+                continue;
+            }
+
             // Calculate the data size that needs to be transmitted after the current model is split
             int64_t total_len = 0;
             for (auto& op : model->get_ordered_ops()) {
@@ -395,13 +465,16 @@ std::unordered_set<std::string> ov::get_supported_nodes(
             res.insert(name);
         }
     }
-
-    // Remove parameters (or parameter + convert) which has no supported consumers
+    // Remove parameters (or parameter/constant + convert) which has no supported consumers
     // and results (or result + convert) which has no supported source node
     for (auto& op : model->get_ordered_ops()) {
         if (ov::is_type<ov::op::v0::Convert>(op)) {
-            if (ov::op::util::is_parameter(get_input_node(op->input(0))) && has_all_consumers_unsupported(res, op)) {
+            if (is_graph_input_node(get_input_node(op->input(0))) && has_all_consumers_unsupported(res, op)) {
                 res.erase(op->get_friendly_name());
+                for (auto& input : op->inputs()) {
+                    const auto& node = get_input_node(input);
+                    res.erase(node->get_friendly_name());
+                }
             }
         } else {
             auto outputs = op->outputs();
