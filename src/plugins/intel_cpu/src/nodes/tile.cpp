@@ -110,7 +110,7 @@ void Tile::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    supportedPrimitiveDescriptors = getSupportedConfigs(this);
+    supportedPrimitiveDescriptors = getSupportedConfigs(this, outputShapes.size());
 }
 
 bool Tile::needPrepareParams() const {
