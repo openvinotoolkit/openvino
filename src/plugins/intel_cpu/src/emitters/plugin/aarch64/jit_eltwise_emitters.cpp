@@ -163,9 +163,9 @@ void jit_clamp_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const s
     TReg dst = TReg(out_vec_idxs[0]);
 
     h->ld1r(aux.s, table_val2("min"));
-    h->fmax(dst.s, src.s, aux.s);
+    h->fmaxnm(dst.s, src.s, aux.s);
     h->ld1r(aux.s, table_val2("max"));
-    h->fmin(dst.s, dst.s, aux.s);
+    h->fminnm(dst.s, dst.s, aux.s);
 }
 
 std::set<std::vector<element::Type>> jit_clamp_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
