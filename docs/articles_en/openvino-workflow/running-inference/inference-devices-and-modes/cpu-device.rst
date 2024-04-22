@@ -103,9 +103,9 @@ Thus, no special steps are required to run a model with ``bf16`` or ``f16`` infe
 
 Using the half-precision provides the following performance benefits:
 
-- ``bfloat16`` and ``float16`` data types allow using Intel® Advanced Matrix Extension (AMX) on 4+ generation Intel® Xeon® Scalable Processors, which provides dramatically faster computations on corresponding hardware in comparison with AVX512 or AVX2 instructions in many DL operation implementations.
-- ``float16`` data type allows using ``armv8.2-a+fp16`` extension on ARM64 CPUs, which significantly improves performance due to doubled vector capacity.
-- Reduced memory footprint since most of weight and activation tensors are stored in half-precision.
+- ``bfloat16`` and ``float16`` data types enable Intel® Advanced Matrix Extension (AMX) on 4+ generation Intel® Xeon® Scalable Processors, resulting in significantly faster computations on the corresponding hardware compared to AVX512 or AVX2 instructions in many deep learning operation implementations.
+- ``float16`` data type enables the ``armv8.2-a+fp16`` extension on ARM64 CPUs, which significantly improves performance due to the doubled vector capacity.
+- Memory footprint is reduced since most weight and activation tensors are stored in half-precision.
 
 For more details about the ``bfloat16`` format, see
 the `BFLOAT16 – Hardware Numerics Definition white paper <https://software.intel.com/content/dam/develop/external/us/en/documents/bf16-hardware-numerics-definition-white-paper.pdf>`__.
