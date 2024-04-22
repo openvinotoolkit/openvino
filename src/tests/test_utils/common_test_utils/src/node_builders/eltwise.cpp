@@ -12,6 +12,8 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/erf.hpp"
 #include "openvino/op/floor_mod.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
 #include "openvino/op/mod.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
@@ -51,6 +53,10 @@ std::shared_ptr<ov::Node> make_eltwise(const ov::Output<Node>& in0,
         return std::make_shared<ov::op::v13::BitwiseOr>(in0, in1);
     case ov::test::utils::EltwiseTypes::BITWISE_XOR:
         return std::make_shared<ov::op::v13::BitwiseXor>(in0, in1);
+    case ov::test::utils::EltwiseTypes::ELTWISE_MINIMUM:
+        return std::make_shared<ov::op::v1::Minimum>(in0, in1);
+    case ov::test::utils::EltwiseTypes::ELTWISE_MAXIMUM:
+        return std::make_shared<ov::op::v1::Maximum>(in0, in1);
     default: {
         OPENVINO_THROW("Incorrect type of Eltwise operation");
     }
