@@ -179,8 +179,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ConvertCPULayerTest.*outFmts=(nhwc|nChw8c|nChw16c).*)",
         // Need to generate sequence exactly in the i64 data type. Enable in scope of i64 enabling.
         R"(.*RandomUniformLayerTestCPU.*OutPrc=i64.*)",
-        // Issue: 123321
-        R"(.*smoke_RNNSequenceCommonZeroClip/RNNSequenceTest.Inference.*hidden_size=10.*relu.*)",
         // Issue: 123815 (Tests are sensintive to available thread count on testing machines)
         R"(.*smoke_Snippets_MHA_.?D_SplitDimensionM.*)",
         // Issue: 122356
