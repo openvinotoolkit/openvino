@@ -1,9 +1,10 @@
 # Copyright (C) 2022-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import pytest
 import tensorflow as tf
-
 from common.tf2_layer_test_class import CommonTF2LayerTest
 
 
@@ -59,6 +60,8 @@ class TestKerasConv3DTranspose(CommonTF2LayerTest):
     @pytest.mark.nightly
     def test_keras_conv_3D_transpose_float32(self, params, ie_device, precision, ir_version,
                                              temp_dir, use_legacy_frontend):
+        if platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
+            pytest.skip("timeout issue for inference on ARM")
         self._test(*self.create_keras_conv_3d_transpose_net(**params, ir_version=ir_version),
                    ie_device, precision,
                    temp_dir=temp_dir, ir_version=ir_version,

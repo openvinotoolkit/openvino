@@ -75,6 +75,10 @@ class TestLookupTableFindOps(CommonTFLayerTest):
              all_keys=['PyTorch', 'TensorFlow', 'JAX', 'Lightning', 'MindSpore', 'OpenVINO'],
              all_values=[200, 100, 0, -3, 10, 1],
              default_value=0, invalid_key='AbraCadabra'),
+        dict(keys_type=str, values_type=np.int32,
+             all_keys=['First sentence', 'Second one', '', 'Third', 'Fourth Sentence', 'etc.'],
+             all_values=[-1, 2, 0, -3, 0, 1],
+             default_value=100, invalid_key='AbraCadabra'),
     ]
 
     @pytest.mark.parametrize("hash_table_type", [0, 1])
@@ -87,7 +91,7 @@ class TestLookupTableFindOps(CommonTFLayerTest):
         if ie_device == 'GPU' or run_in_jenkins():
             pytest.skip("operation extesion is not supported on GPU or "
                         "No layout format available for gather:LookupTableFind issue")
-        if params['keys_type'] == str and params['values_type'] == np.int64:
+        if params['keys_type'] == str:
             if platform.system() in ('Darwin') or platform.machine() in ['arm', 'armv7l',
                                                                          'aarch64',
                                                                          'arm64',
