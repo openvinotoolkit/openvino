@@ -267,6 +267,7 @@ void NmsRotatedLayerTestGPU::compare(const std::vector<ov::Tensor> &expectedOutp
 
     ASSERT_EQ(expected.size(), actual.size());
     for (size_t i = 0; i < expected.size(); ++i) {
+        abs_threshold = ov::test::utils::get_eps_by_ov_type(ov::element::f32) * expected[i].score;
         ASSERT_EQ(expected[i], actual[i]) << ", i=" << i;
         ASSERT_NEAR(expected[i].score, actual[i].score, abs_threshold) << ", i=" << i;
     }

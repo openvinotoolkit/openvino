@@ -1,4 +1,4 @@
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -33,25 +33,21 @@ class TestKerasConv1D(CommonTF2LayerTest):
         return tf2_net, ref_net
 
     test_data_float32 = [
-        pytest.param(dict(conv_params=dict(filters=27, kernel_size=3, padding="valid", strides=2),
-                          input_names=["x"],
-                          input_shapes=[[5, 7, 6]], input_type=tf.float32),
-                     marks=pytest.mark.precommit),
-        pytest.param(
-            dict(conv_params=dict(filters=10, kernel_size=5, padding="same", dilation_rate=4),
-                 input_names=["x"], input_shapes=[[5, 7, 8]], input_type=tf.float32),
-            marks=pytest.mark.precommit),
-
+        dict(conv_params=dict(filters=27, kernel_size=3, padding="valid", strides=2),
+             input_names=["x"],
+             input_shapes=[[5, 7, 6]], input_type=tf.float32),
+        dict(conv_params=dict(filters=10, kernel_size=5, padding="same", dilation_rate=4),
+             input_names=["x"], input_shapes=[[5, 7, 8]], input_type=tf.float32),
         dict(conv_params=dict(filters=10, kernel_size=5, padding="same", strides=3),
              input_names=["x"],
              input_shapes=[[5, 7, 8]], input_type=tf.float32),
         dict(conv_params=dict(filters=27, kernel_size=3, padding="valid", dilation_rate=3),
              input_names=["x"],
              input_shapes=[[5, 7, 6]], input_type=tf.float32),
-        pytest.param(dict(conv_params=dict(filters=27, kernel_size=3, padding="valid", dilation_rate=3,
-                                           activation="swish",
-                                           use_bias=True), input_names=["x"], input_shapes=[[5, 7, 6]],
-                          input_type=tf.float32), marks=pytest.mark.precommit_tf_fe),
+        dict(conv_params=dict(filters=27, kernel_size=3, padding="valid", dilation_rate=3,
+                              activation="swish",
+                              use_bias=True), input_names=["x"], input_shapes=[[5, 7, 6]],
+             input_type=tf.float32),
         dict(conv_params=dict(filters=10, kernel_size=5, padding="same", dilation_rate=4,
                               activation="softmax",
                               use_bias=False), input_names=["x"], input_shapes=[[5, 7, 8]],
@@ -59,6 +55,7 @@ class TestKerasConv1D(CommonTF2LayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_float32)
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_keras_conv_1d_float32(self, params, ie_device, precision, ir_version, temp_dir,
                                    use_legacy_frontend):

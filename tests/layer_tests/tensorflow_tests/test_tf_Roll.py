@@ -25,7 +25,7 @@ class TestTFRoll(CommonTFLayerTest):
 
     test_data = [dict(shift=[1], axis=[-1], x_shape=[4, 3], input_type=tf.float32),
                  pytest.param(dict(shift=[1, 5, -7], axis=[0, 1, 1], x_shape=[2, 3, 5], input_type=tf.float16),
-                              marks=pytest.mark.precommit_tf_fe),
+                              marks=pytest.mark.precommit),
                  dict(shift=[11, -8], axis=[-1, -2], x_shape=[3, 4, 3, 1], input_type=tf.int32),
                  dict(shift=[7, -2, 5], axis=[0, -1, -1], x_shape=[5, 2, 3, 7],
                       input_type=tf.int64),

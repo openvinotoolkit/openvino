@@ -36,6 +36,9 @@ The easiest way to obtain a model is to download it from an online database, suc
   This option, while convenient, offers lower performance and stability, as well as fewer
   optimization options.
 
+  For PyTorch models, you can use the dedicated :doc:`torch.compile <./torch-compile>`
+  implementation.
+
 * Explicitly :doc:`convert the model to OpenVINO IR <model-preparation/convert-model-to-ir>`.
   This approach offers the best possible results and is the recommended one, especially for
   production-ready solutions. Consider storing your model in this format to minimize

@@ -51,7 +51,7 @@ class TestCTCGreedyDecoder(CommonTFLayerTest):
             dict(
             input_shape = [6, 1, 4],
             ),
-            marks=pytest.mark.precommit_tf_fe),
+            marks=pytest.mark.precommit),
         dict(
             input_shape = [10, 1, 7],
         ),

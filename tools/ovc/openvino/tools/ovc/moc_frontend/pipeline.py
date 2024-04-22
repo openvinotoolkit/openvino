@@ -181,7 +181,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                 input_model.set_partial_shape(
                     user_shape['node'], user_shape['shape'])
             if user_shape.get('data_type') is not None:
-                data_type = get_element_type(user_shape['data_type'])
+                data_type = user_shape['data_type']
                 log.debug('Set data type: {}'.format(data_type))
                 input_model.set_element_type(user_shape['node'], data_type)
 
