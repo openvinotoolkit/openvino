@@ -26,6 +26,7 @@ OutputVector translate_reverse_sequence_op(const NodeContext& node) {
     // retrieve attributes
     auto seq_dim = node.get_attribute<int64_t>("seq_dim");
     auto batch_dim = node.get_attribute<int64_t>("batch_dim", 0);
+
     // handling negative values
     if (seq_dim < 0) {
         seq_dim -= 1;
@@ -36,13 +37,25 @@ OutputVector translate_reverse_sequence_op(const NodeContext& node) {
 
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
     if (complex_type_mark) {
-        auto reverse_sequence =
-            make_shared<v0::ReverseSequence>(input, seq_lengths, updated_batch_dim, updated_seq_dim);
-        set_node_name(node.get_name(), reverse_sequence);
+        auto base_input = complex_type_mark->input_value(0);
+        // Split into real and imaginary parts
+        auto gather_index_real = make_shared<v0::Constant>(element::i32, Shape{}, 0);
+        auto gather_index_imag = make_shared<v0::Constant>(element::i32, Shape{}, 1);
+        auto input_real =
+            make_shared<v8::Gather>(base_input, gather_index_real, v0::Constant::create(element::i32, Shape{}, {-1}));
+        auto input_imag =
+            make_shared<v8::Gather>(base_input, gather_index_imag, v0::Constant::create(element::i32, Shape{}, {-1}));
 
-        auto complex_reverse =
-            make_shared<ComplexTypeMark>(reverse_sequence, complex_type_mark->get_complex_part_type());
-        return {complex_reverse};
+        // Reverse sequence for real and imaginary parts
+        auto reversed_real = make_shared<v0::ReverseSequence>(input_real, seq_lengths, batch_dim, seq_dim);
+        auto reversed_imag = make_shared<v0::ReverseSequence>(input_imag, seq_lengths, batch_dim, seq_dim);
+
+        // Recombine into a complex tensor
+        auto complex_concat = make_shared<v0::Concat>(OutputVector{reversed_real, reversed_imag}, -1);
+        auto complex_result = make_shared<ComplexTypeMark>(complex_concat, complex_type_mark->get_complex_part_type());
+
+        set_node_name(node.get_name(), complex_result);
+        return {complex_result};
     }
 
     auto reverse_sequence = make_shared<v0::ReverseSequence>(input, seq_lengths, batch_dim, seq_dim);
