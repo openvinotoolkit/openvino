@@ -80,9 +80,10 @@ jobs:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
           sparse-checkout-cone-mode: false
+          path: 'action_root'
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: .github/actions/setup_python
+        uses: ./action_root/.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
           pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH || '' }}
