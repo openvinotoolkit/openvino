@@ -182,7 +182,14 @@ static void regclass_graph_PreProcessSteps(py::module m) {
         py::arg("pads_begin"),
         py::arg("pads_end"),
         py::arg("value"),
-        py::arg("mode"));
+        py::arg("mode"),
+        R"(
+            Adds padding preprocessing operation.
+            :param operation: Destination type. If not specified, type will be taken from model input's element type
+            :type operation: openvino.runtime.Type
+            :return: Reference to itself, allows chaining of calls in client's code in a builder-like manner.
+            :rtype: openvino.runtime.preprocess.PreProcessSteps
+        )");
 
     steps.def(
         "pad",
@@ -196,7 +203,14 @@ static void regclass_graph_PreProcessSteps(py::module m) {
         py::arg("pads_begin"),
         py::arg("pads_end"),
         py::arg("value"),
-        py::arg("mode"));
+        py::arg("mode"),
+        R"(
+            Adds padding preprocessing operation.
+            :param operation: Destination type. If not specified, type will be taken from model input's element type
+            :type operation: openvino.runtime.Type
+            :return: Reference to itself, allows chaining of calls in client's code in a builder-like manner.
+            :rtype: openvino.runtime.preprocess.PreProcessSteps
+        )");
 }
 
 static void regclass_graph_PostProcessSteps(py::module m) {
