@@ -1184,11 +1184,11 @@ void primitive_inst::do_runtime_sync_if_needed() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_sync_if_needed: " + id()));
     // if current node can be optimized, and needs sync because of cpu impl users, or the successor node needs sync
     // add barrier for in order queue
-    // TODO: how to handle predecessors nodes which has cpu impls??
+    // TODO: how to handle predecessors nodes which has cpu impls, or do we really need to check this??
     if (can_be_optimized() && needs_completion_event() && !is_output()) {
         auto queue_type = get_network().get_stream().get_queue_type();
         if (queue_type == QueueTypes::in_order)
-            get_network().get_stream().enqueue_barrier();
+            get_network().get_stream().finish();
     }
     GPU_DEBUG_TRACE_DETAIL << "[do_runtime_sync_point] " << id() << std::endl;
 }
