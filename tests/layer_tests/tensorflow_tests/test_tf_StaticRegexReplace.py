@@ -36,7 +36,7 @@ class TestStaticRegexReplace(CommonTFLayerTest):
         return tf_net, ref_net
 
     @pytest.mark.parametrize('input_shape', [[], [2], [3, 4], [1, 3, 2]])
-    @pytest.mark.parametrize('pattern', ['(\s)|(-)', '[A-Z]{2,}', '^\s+|\s+$'])
+    @pytest.mark.parametrize('pattern', [r'(\s)|(-)', r'[A-Z]{2,}', r'^\s+|\s+$'])
     @pytest.mark.parametrize('rewrite', ['', 'replacement word'])
     @pytest.mark.parametrize('replace_global', [None, True, False])
     @pytest.mark.precommit
