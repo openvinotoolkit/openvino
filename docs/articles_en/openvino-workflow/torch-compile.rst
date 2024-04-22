@@ -104,22 +104,6 @@ You can also set OpenVINO specific configuration options by adding them as a dic
    model = torch.compile(model, backend="openvino", options=opts)
 
 
-.. important::
-
-   The environment variables used in the previous release are still available but are not
-   recommended. They will be removed fully in future releases.
-
-   .. dropdown:: Click to view the deprecated options.
-
-      * ``OPENVINO_TORCH_BACKEND_DEVICE`` - enables selecting a specific hardware device to run the application.
-        By default, the OpenVINO backend for ``torch.compile`` runs PyTorch applications using the CPU. Setting
-        this variable to ``GPU.0``, for example, will make the application use the integrated graphics processor instead.
-      * ``OPENVINO_TORCH_MODEL_CACHING``- enables saving the optimized model files to a hard drive, after the first application run.
-        This makes them available for the following application executions, reducing the first-inference latency.
-        By default, this variable is set to ``False``. Setting it to ``True`` enables caching.
-      * ``OPENVINO_TORCH_CACHE_DIR``- enables defining a custom directory for the model files (if ``model_caching`` is set to ``True``).
-        By default, the OpenVINO IR is saved in the ``cache`` sub-directory, created in the application's root directory.
-
 Windows support
 +++++++++++++++++++++
 
