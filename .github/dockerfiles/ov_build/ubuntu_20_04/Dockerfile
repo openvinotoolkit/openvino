@@ -2,8 +2,11 @@ FROM openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
 
 USER root
 
-# Set apt retries
-RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+# Set apt options
+RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries && \
+    echo 'APT::Get::Assume-Yes "true";' >> /etc/apt/apt.conf && \
+    echo 'APT::Get::Fix-Broken "true";' >> /etc/apt/apt.conf && \
+    echo 'APT::Get::no-install-recommends "true";' >> /etc/apt/apt.conf
 
 # to prevent apt-get from waiting user input
 ENV DEBIAN_FRONTEND="noninteractive"
@@ -12,11 +15,11 @@ ENV DEBIAN_FRONTEND="noninteractive"
 ENV TZ="Europe/London"
 
 RUN apt-get update && \
-    apt-get install --assume-yes --no-install-recommends software-properties-common && \
+    apt-get install software-properties-common && \
     add-apt-repository --yes --no-update ppa:git-core/ppa && \
     add-apt-repository --yes --no-update ppa:deadsnakes/ppa && \
     apt-get update && \
-    apt-get install --assume-yes --no-install-recommends \
+    apt-get install \
         curl \
         # Install git
         git \
