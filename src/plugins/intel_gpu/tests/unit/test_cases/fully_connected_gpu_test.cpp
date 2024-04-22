@@ -2925,6 +2925,10 @@ TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_b1g32) {
     this->test_compressed_int4_scale(false, true, 1, 32);
 }
 
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_b48g32) {
+    this->test_compressed_int4_scale(false, true, 48, 32);
+}
+
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_b1g64) {
     this->test_compressed_int4_scale(false, true, 1, 64);
 }
