@@ -427,6 +427,29 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_Snippets_MHAWOTransposeEnforceBF16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHAEnforceBF16.*)");
     }
+#ifdef SNIPPETS_LIBXSMM_TPP
+    // TPP performs precision conversion implicitly, it makes all Convert tests irrelevant
+    retVector.emplace_back(R"(.*smoke_Snippets_Convert.*)");
+    // ABS and ROUND operations are needed for TPP support. Disable, since low precisions are not supported by TPP yet.
+    retVector.emplace_back(R"(.*smoke_Snippets_FQ.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_TransposeMatMulFQ.*)");
+    // TPP doesn't support op with 2 outs, when one of them is Result (ticket: 130642)
+    retVector.emplace_back(R"(.*smoke_Snippets_MaxNumParamsEltwise.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_Eltwise_TwoResults.*)");
+    // Accuracy problem with Exp + Reciprocal combination on TPP side (ticket: 130699)
+    retVector.emplace_back(R"(.*smoke_Snippets_ExpReciprocal.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_AddSoftmax.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_TransposeSoftmaxEltwise.*)");
+    // Low-precision Matmuls are not supported by TPP yet
+    retVector.emplace_back(R"(.*smoke_Snippets_MatMulFQ.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_MatMulBiasQuantized.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_MatMulQuantized.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_MatMulQuantizedSoftmax.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_MHAINT8MatMul.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_MHAQuantMatMul0.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_MHAFQ.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_PrecisionPropagation_Convertion.*)");
+#endif
 
     if (ov::with_cpu_x86_avx512_core_amx()) {
         // Issue: 130463
