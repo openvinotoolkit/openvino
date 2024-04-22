@@ -283,6 +283,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_RDFT_2d/RDFTLayerTest.Inference/IS=\(100.16\)_modelType=f32_Axes=\((0.1|_2._1|1.0)\)_SignalSize=\(\).*)",
         // Issue: 134470
         R"(.*smoke.*StatefulModelStateInLoopBody.*)",
+        // Issue: 123274 (Dynamic Softmax aren't supported)
+        R"(smoke_Snippets_(Softmax|AddSoftmax).*\[.*\?.*\].*)",
+        R"(smoke_Snippets_BroadcastSelect_Dynamic.*)",
     };
 
 #if defined(OPENVINO_ARCH_X86)
