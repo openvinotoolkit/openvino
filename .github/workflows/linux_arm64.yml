@@ -66,6 +66,7 @@ jobs:
         with:
           images: |
             ov_build/ubuntu_20_04_arm64
+            ov_test/ubuntu_20_04_arm64
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           pr_changes_environment: ${{ fromJSON(needs.Smart_CI.outputs.affected_components).docker.build }}
@@ -136,13 +137,14 @@ jobs:
         with:
           version: "v0.7.5"
 
-      - name: Setup pip cache
-        uses: ./openvino/.github/actions/setup_pip_cache
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'true'
           show-cache-info: 'true'
+          skip-python-install: 'true'
 
       - name: Install python dependencies
         run: |
@@ -322,7 +324,7 @@ jobs:
     uses: ./.github/workflows/job_samples_tests.yml
     with:
       runner: 'aks-linux-16-cores-arm'
-      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
 
   JS_API:
@@ -332,7 +334,7 @@ jobs:
     uses: ./.github/workflows/job_openvino_js.yml
     with:
       runner: 'aks-linux-16-cores-arm'
-      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04"}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_arm64 }}"}'
 
   ONNX_Runtime:
     name: ONNX Runtime Integration
@@ -352,7 +354,7 @@ jobs:
     with:
       runner: 'aks-linux-16-cores-arm'
       shell: bash
-      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"]}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_arm64 }}", "volumes": ["/mount:/mount"]}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
     if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
 
@@ -362,7 +364,7 @@ jobs:
     uses: ./.github/workflows/job_cxx_unit_tests.yml
     with:
       runner: 'aks-linux-16-cores-arm'
-      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
 
   Python_Unit_Tests:
@@ -371,7 +373,7 @@ jobs:
     uses: ./.github/workflows/job_python_unit_tests.yml
     with:
       runner: 'aks-linux-16-cores-arm'
-      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"]}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}", "volumes": ["/mount:/mount"]}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
 
   TensorFlow_Layer_Tests:
@@ -381,7 +383,7 @@ jobs:
     with:
       runner: 'aks-linux-16-cores-arm'
       shell: bash
-      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"]}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}", "volumes": ["/mount:/mount"]}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
 
   CPU_Functional_Tests:
@@ -391,7 +393,7 @@ jobs:
     uses: ./.github/workflows/job_cpu_functional_tests.yml
     with:
       runner: 'aks-linux-16-cores-arm'
-      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}
 
   TensorFlow_Models_Tests:
     name: TensorFlow Models tests
@@ -402,7 +404,7 @@ jobs:
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
       runner: 'aks-linux-16-cores-arm'
-      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04"}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}"}'
       model_scope: 'precommit'
 
   PyTorch_Models_Tests:
@@ -413,7 +415,7 @@ jobs:
     uses: ./.github/workflows/job_pytorch_models_tests.yml
     with:
       runner: 'aks-linux-16-cores-arm'
-      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04"}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}"}'
       event: ${{ github.event_name }}
 
   Overall_Status:
