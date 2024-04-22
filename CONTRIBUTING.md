@@ -3,9 +3,6 @@
 OpenVINO™ always thrives to improve, and user contributions are one of the opportunities
 that are crucial for this process. Read on to find out how you can participate.
 
-> **NOTE**: By contributing to the OpenVINO project, you agree that your contributions will be
-licensed under [the terms](./LICENSE).
-
 ## Forms of contribution
 
 ### Provide feedback
@@ -25,11 +22,12 @@ licensed under [the terms](./LICENSE).
 
 ### Contribute code changes
 
-First of all, always start by checking if the change has not been implemented before!
-Build OpenVINO, using the latest master branch and verify that your changes are still
-applicable. If somebody else is already working on it, you may still help, having
-aligned with the other developer. Also, do not address issues that only affect older
-non-LTS releases, like 2022.2.
+First, check if the changes you want to make have not already been implemented.
+Build OpenVINO from the latest master branch to confirm that your changes still apply.
+If somebody else is already working on the same issue, you can still contribute by coordinating
+with them. Avoid addressing issues specific to older non-LTS releases, like 2022.2.
+For more information, refer to the
+[Release Policy](https://docs.openvino.ai/nightly/about-openvino/release-notes-openvino/release-policy.html).
 
    * **Fix bugs**
 
@@ -96,7 +94,7 @@ a **Pull Request**, following the [guidelines](./CONTRIBUTING_DOCS.md).
 ## Technical guide
 
 This section will start you off with a few simple steps to begin your contribution.
-In case of any doubts, you can talk to
+In case of any doubts, don't hesitate to reach out to
 [the development team](https://github.com/orgs/openvinotoolkit/teams/openvino-developers/teams).
 Remember, your questions help us keep improving OpenVINO.
 
@@ -161,3 +159,7 @@ approved by maintainers.
 - Learn more about [OpenVINO architecture](./src/docs/architecture.md)
 - Check out a [blog post on contributing to OpenVINO](https://medium.com/openvino-toolkit/how-to-contribute-to-an-ai-open-source-project-c741f48e009e)
 - Visit [Intel DevHub Discord server](https://discord.gg/7pVRxUwdWG) to join discussions and talk to OpenVINO developers.
+
+## License
+
+> **NOTE**: By making a contribution to the OpenVINO project, you agree to the terms of the [LICENSE](./LICENSE).

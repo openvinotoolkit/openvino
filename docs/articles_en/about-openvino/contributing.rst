@@ -4,11 +4,6 @@ Contribute to OpenVINO
 OpenVINO™ always thrives to improve, and user contributions are one of the opportunities
 that are crucial for this process. Read on to find out how you can participate.
 
-.. note::
-
-   By contributing to the OpenVINO project, you agree that your contributions will be
-   licensed under `the terms <https://github.com/openvinotoolkit/openvino/blob/master/LICENSE>`__.
-
 Forms of contribution
 #####################
 
@@ -40,7 +35,8 @@ First of all, always start by checking if the change has not been implemented be
 Build OpenVINO, using the latest master branch and verify that your changes are still
 applicable. If somebody else is already working on it, you may still help, having
 aligned with the other developer. Also, do not address issues that only affect older
-non-LTS releases, like 2022.2.
+non-LTS releases, like 2022.2. For more information, refer to the
+:doc:`Release Policy <./release-notes-openvino/release-policy>`.
 
 .. rubric:: Fix bugs
    :name: fix-bugs
@@ -193,3 +189,10 @@ Additional Resources
 - Learn more about `OpenVINO architecture <https://github.com/openvinotoolkit/openvino/blob/master/src/docs/architecture.md>`__.
 - Check out a `blog post on contributing to OpenVINO <https://medium.com/openvino-toolkit/how-to-contribute-to-an-ai-open-source-project-c741f48e009e>`__.
 - Visit `Intel DevHub Discord server <https://discord.gg/7pVRxUwdWG>`__ to join discussions and talk to OpenVINO developers.
+
+License
+#####################
+
+.. note::
+
+   By making a contribution to the OpenVINO project, you agree to the terms of the `LICENSE <https://github.com/openvinotoolkit/openvino/blob/master/LICENSE>`__.

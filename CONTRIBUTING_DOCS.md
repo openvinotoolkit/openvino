@@ -1,5 +1,29 @@
 # OpenVINO Documentation Guide
 
+## Table of contents
+
+* [Basic article structure](#basic-article-structure)
+  * [White spaces](#white-spaces)
+  * [Headings (including the article title)](#headings-including-the-article-title-)
+  * [Line length](#line-length)
+  * [Tables](#tables)
+* [Cross-linking](#cross-linking)
+* [File naming and structure](#file-naming-and-structure)
+* [Sphinx directives](#sphinx-directives)
+  * [Code block formatting](#code-block-formatting)
+  * [Images](#images)
+  * [Tabs](#tabs-sphinx-design-documentation)
+  * [Panels and drop-downs](#panels-and-drop-downs-sphinx-design-documentation)
+  * [Html includes](#html-includes)
+  * [Escaping functional characters (e.g. double hyphens)](#escaping-functional-characters-eg-double-hyphens)
+  * [Tables](#tables-1)
+  * [ScrollBox](#scrollbox)
+  * [Admonitions / disclaimers](#admonitions--disclaimers)
+* [Writing Tips](#writing-tips)
+* [Screenshots and videos](#screenshots-and-videos)
+  * [Screenshots](#screenshots)
+  * [Videos](#videos)
+
 ## Basic article structure
 
 OpenVINO documentation is built using [Sphinx](https://www.sphinx-doc.org/) and the [reStructuredText](https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html) formatting.
@@ -47,7 +71,7 @@ Tables may be difficult to implement well in websites. For example, longer porti
 of text, like descriptions, may render them difficult to read (e.g. improper cell
 widths or heights). Complex tables may also be difficult to read in source files.
 To prevent that, check the [table directive documentation](https://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html#table-directives)
-and see our custom directives. Use the following guidelines for easier editing:
+and see our [custom directives](#tables-1). Use the following guidelines for easier editing:
 
 * For very big and complex data sets: use a list instead of a table or remove
   the problematic content from the table and implement it differently.
