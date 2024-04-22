@@ -883,6 +883,7 @@ def test_roi_align(data_shape, rois, batch_indices, pooled_h, pooled_w, sampling
     assert node.get_output_element_type(0) == Type.f32
     assert list(node.get_output_shape(0)) == expected_shape
 
+
 @pytest.mark.parametrize("op_name", ["psroipooling", "psroiPoolingOpset1"])
 def test_psroi_pooling(op_name):
     inputs = ov.parameter([1, 72, 4, 5], dtype=np.float32)
@@ -1940,7 +1941,8 @@ def test_non_max_suppression(boxes_shape, scores_shape, max_output_boxes, expect
     ],
 )
 @pytest.mark.parametrize("op_name", ["NonMaxSuppression", "NonMaxSuppressionV3"])
-def test_non_max_suppression_non_default_args(boxes_shape, scores_shape, max_output_boxes, iou_threshold, score_threshold, soft_nms_sigma, expected_shape, op_name):
+def test_non_max_suppression_non_default_args(boxes_shape, scores_shape, max_output_boxes, iou_threshold,
+                                              score_threshold, soft_nms_sigma, expected_shape, op_name):
     boxes_parameter = ov.parameter(boxes_shape, name="Boxes", dtype=np.float32)
     scores_parameter = ov.parameter(scores_shape, name="Scores", dtype=np.float32)
 
@@ -2375,6 +2377,7 @@ def test_unique_opset10():
     assert node.get_output_element_type(1) == Type.i64
     assert node.get_output_element_type(2) == Type.i64
     assert node.get_output_element_type(3) == Type.i64
+
 
 @pytest.mark.parametrize("op_name", ["topK", "topKOpset11"])
 def test_topk_opset11(op_name):

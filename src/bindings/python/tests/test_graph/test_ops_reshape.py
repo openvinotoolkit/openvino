@@ -117,6 +117,7 @@ def test_broadcast_numpy(op_name):
     assert node.get_friendly_name() == op_name
     assert node.get_output_size() == 1
 
+
 @pytest.mark.parametrize("op_name", ["broadcast", "broadcast_bidiretional"])
 def test_broadcast_bidirectional(op_name):
     data_shape = [16, 1, 1]

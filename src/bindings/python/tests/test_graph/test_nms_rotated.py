@@ -28,7 +28,7 @@ def test_nms_rotated_default_attrs(boxes_shape, scores_shape, max_output_boxes, 
     iou_threshold = make_constant_node(iou_threshold, np.float32)
     score_threshold = make_constant_node(score_threshold, np.float32)
 
-    node = ov_opset13.nms_rotated(boxes_parameter, scores_parameter, max_output_boxes, 
+    node = ov_opset13.nms_rotated(boxes_parameter, scores_parameter, max_output_boxes,
                                   iou_threshold, score_threshold, name=op_name)
     assert node.get_type_name() == "NMSRotated"
     assert node.get_friendly_name() == op_name

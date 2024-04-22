@@ -31,6 +31,7 @@ def test_convolution_2d(strides, pads_begin, pads_end, dilations, expected_shape
     assert list(node.get_output_shape(0)) == expected_shape
     assert node.get_output_element_type(0) == Type.f32
 
+
 @pytest.mark.parametrize("op_name", ["Convolution", "convolution", "ConvolutionOpset8"])
 def test_convolution_backprop_data(op_name):
 
