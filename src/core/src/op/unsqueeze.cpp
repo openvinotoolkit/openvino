@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -71,10 +71,10 @@ bool ov::op::v0::Unsqueeze::evaluate_upper(ov::TensorVector& output_values) cons
     return get_input_tensor(1).has_and_set_bound() && default_upper_bound_evaluator(this, output_values);
 }
 
-bool ov::op::v0::Unsqueeze::evaluate_label(TensorLabelVector& output_labels) const {
+bool ov::op::v0::Unsqueeze::evaluate_symbol(TensorSymbolVector& output_symbols) const {
     if (!get_input_tensor(1).has_and_set_bound())
         return false;
-    return ov::util::default_label_evaluator(this, output_labels);
+    return ov::util::default_symbol_evaluator(this, output_symbols);
 }
 
 bool ov::op::v0::Unsqueeze::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {

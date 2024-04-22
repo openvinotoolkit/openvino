@@ -5,8 +5,8 @@ OpenVINO™ Python API Exclusives
 
 
 .. meta::
-   :description: OpenVINO™ Runtime Python API includes additional features to 
-                 improve user experience and provide simple yet powerful tool 
+   :description: OpenVINO™ Runtime Python API includes additional features to
+                 improve user experience and provide simple yet powerful tool
                  for Python users.
 
 
@@ -34,7 +34,9 @@ Besides functions aligned to C++ API, some of them have their Python counterpart
    :fragment: [properties_example]
 
 
-Refer to Python API documentation on which helper functions or properties are available for different classes.
+Refer to `Python API documentation <../../../api/ie_python_api/api.html>`__,
+where helper functions or properties are available for different classes.
+
 
 Working with Tensor
 ####################
@@ -102,15 +104,15 @@ Synchronous calls return a special data structure called ``OVDict``. It can be c
    :fragment: [ov_dict]
 
 
-.. note:: 
-   
+.. note::
+
    It is possible to convert ``OVDict`` to a native dictionary using the ``to_dict()`` method.
 
 
-.. warning:: 
+.. warning::
 
-   Using ``to_dict()`` results in losing access via strings and integers. Additionally, 
-   it performs a shallow copy, thus any modifications may affect the original 
+   Using ``to_dict()`` results in losing access via strings and integers. Additionally,
+   it performs a shallow copy, thus any modifications may affect the original
    object as well.
 
 
@@ -128,7 +130,7 @@ The ``start_async`` function call is not required to be synchronized - it waits 
    :language: python
    :fragment: [asyncinferqueue]
 
-.. warning:: 
+.. warning::
 
    ``InferRequest`` objects that can be acquired by iterating over a ``AsyncInferQueue`` object or by ``[id]`` guaranteed to work with read-only methods like getting tensors.
    Any mutating methods (e.g. start_async, set_callback) of a single request will put the parent AsyncInferQueue object in an invalid state.
@@ -180,7 +182,7 @@ To extract low precision values from a tensor into the *numpy* array, you can us
 Release of GIL
 ++++++++++++++++++++
 
-Some functions in Python API release the Global Lock Interpreter (GIL) while running work-intensive code. This can help you achieve more parallelism in your application, using Python threads. For more information about GIL, refer to the Python documentation.
+Some functions in Python API release the Global Lock Interpreter (GIL) while running work-intensive code. This can help you achieve more parallelism in your application, using Python threads. For more information about GIL, refer to the `Python API documentation <../../../api/ie_python_api/api.html>`__.
 
 
 .. doxygensnippet:: docs/snippets/ov_python_exclusives.py

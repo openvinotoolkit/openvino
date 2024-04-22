@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -92,6 +92,7 @@ struct memory {
 #endif
 
     std::shared_ptr<MemoryTracker> get_mem_tracker() const { return m_mem_tracker; }
+    GPU_DEBUG_CODE(bool from_memory_pool = false);
 
 protected:
     engine* _engine;

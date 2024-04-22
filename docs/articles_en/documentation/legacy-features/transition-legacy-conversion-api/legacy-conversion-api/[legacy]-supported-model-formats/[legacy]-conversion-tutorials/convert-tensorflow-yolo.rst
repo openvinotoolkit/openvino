@@ -5,14 +5,14 @@ Converting TensorFlow YOLO Models
 
 
 .. meta::
-   :description: Learn how to convert YOLO models from 
+   :description: Learn how to convert YOLO models from
                  TensorFlow to the OpenVINO Intermediate Representation.
 
 .. danger::
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <tutorials>`.
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <../../../../../../learn-openvino/interactive-tutorials-python>`.
 
 This document explains how to convert real-time object detection YOLOv1, YOLOv2, YOLOv3 and YOLOv4 public models to the Intermediate Representation (IR). All YOLO models are originally implemented in the DarkNet framework and consist of two files:
 
@@ -58,11 +58,18 @@ This section explains how to convert the YOLOv4 Keras model from the `repository
         python keras-YOLOv3-model-set/tools/model_converter/convert.py <path_to_cfg_file>/yolov4-tiny.cfg <path_to_weights>/yolov4-tiny.weights <saved_model_dir>
 
 
-4. Run model conversion for from the TensorFlow 2 format to an IR:
+4. Run model conversion from the TensorFlow 2 to an IR format:
 
    .. note::
 
       Before you run the conversion, make sure you have installed all the model conversion API dependencies for TensorFlow 2.
+
+      If you get errors, you may need to add the additional step to divide the input by 255:
+
+      .. code-block:: sh
+
+         --scale_values=image_input[255]
+
 
    .. code-block:: sh
 
@@ -208,10 +215,10 @@ where:
 
 .. note::
 
-   The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the ``RGB<->BGR`` conversion specifying the command-line parameter: ``reverse_input_channels``. Otherwise, inference results may be incorrect. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the :doc:`Converting a Model to Intermediate Representation (IR) <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
+   The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the ``RGB<->BGR`` conversion specifying the command-line parameter: ``reverse_input_channels``. Otherwise, inference results may be incorrect. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the :doc:`Converting a Model to Intermediate Representation (IR) <../../[legacy]-setting-input-shapes>` guide.
 
 
-OpenVINO toolkit provides a demo that uses YOLOv3 model. Refer to the :doc:`Object Detection C++ Demo <omz_demos_object_detection_demo_cpp>` for more information.
+OpenVINO toolkit provides a demo that uses YOLOv3 model. Refer to the :doc:`Object Detection C++ Demo <../../../../../../omz_demos_object_detection_demo_cpp>` for more information.
 
 Converting YOLOv1 and YOLOv2 Models to the IR
 #############################################
@@ -308,10 +315,10 @@ where:
 
 * ``batch`` defines shape of model input. In the example, ``batch`` is equal to 1, but you can also specify other integers larger than 1.
 * ``scale`` specifies scale factor that input values will be divided by. The model was trained with input values in the range ``[0,1]``. OpenVINO toolkit samples read input images as values in ``[0,255]`` range, so the scale 255 must be applied.
-* ``transformations_config`` adds missing ``Region`` layers to the model. In the IR, the ``Region`` layer has name ``RegionYolo``. For other applicable parameters, refer to the :doc:`Convert Model from TensorFlow <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>` guide.
+* ``transformations_config`` adds missing ``Region`` layers to the model. In the IR, the ``Region`` layer has name ``RegionYolo``. For other applicable parameters, refer to the :doc:`Convert Model from TensorFlow <../[legacy]-convert-tensorflow>` guide.
 
 .. note::
 
-   The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the ``RGB<->BGR`` conversion specifying the command-line parameter: ``reverse_input_channels``. Otherwise, inference results may be incorrect. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the :doc:`Converting a Model to Intermediate Representation (IR) <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
+   The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the ``RGB<->BGR`` conversion specifying the command-line parameter: ``reverse_input_channels``. Otherwise, inference results may be incorrect. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the :doc:`Converting a Model to Intermediate Representation (IR) <../../[legacy]-setting-input-shapes>` guide.
 
 

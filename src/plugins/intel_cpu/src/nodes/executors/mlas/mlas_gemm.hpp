@@ -27,13 +27,18 @@ public:
     }
 
     // offloads execution data preparation from the exec call
-    void update(const MemoryArgs& memory) override;
+    bool update(const MemoryArgs& memory) override;
 
     static bool supports(const FCConfig& config);
 
+    void moveMemToNumaNode(int numaNodeID) override;
+
 private:
+    const FCAttrs& m_attrs;
+    const MemoryArgs& m_memoryArgs;
     const MemoryCPtr packedWeights;
     int64_t M, N, K;
+    int curNumaNode = -1;
 };
 
 using MlasGemmExecutorPtr = std::shared_ptr<MlasGemmExecutor>;

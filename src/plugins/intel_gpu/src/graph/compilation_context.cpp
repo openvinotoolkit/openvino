@@ -1,4 +1,4 @@
-// Copyright (C) 2022-2023 Intel Corporation
+// Copyright (C) 2022-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,11 +25,10 @@ public:
         auto promise = std::make_shared<std::promise<void>>();
 
         std::lock_guard<std::mutex> lock(_mutex);
-        futures.emplace_back(promise->get_future());
 
         if (_task_keys.find(key) == _task_keys.end()) {
             if (_task_executor != nullptr) {
-                _task_keys.insert(key);
+                _task_keys.insert({key, promise->get_future()});
                 _task_executor->run([task, promise] {
                     task();
                     promise->set_value();
@@ -64,11 +63,7 @@ public:
         _stop_compilation = true;
 
         // Flush all remaining tasks.
-        for (auto&& future : futures) {
-            if (future.valid()) {
-                future.wait();
-            }
-        }
+        wait_all();
 
         {
             std::lock_guard<std::mutex> lock(_mutex);
@@ -79,8 +74,10 @@ public:
     }
 
     void wait_all() override {
-        for (auto&& future : futures) {
-            future.wait();
+        for (auto&& key_future : _task_keys) {
+            if (key_future.second.valid()) {
+                key_future.second.wait();
+            }
         }
     }
 
@@ -88,9 +85,8 @@ private:
     ov::threading::IStreamsExecutor::Config _task_executor_config;
     std::shared_ptr<ov::threading::IStreamsExecutor> _task_executor;
     std::mutex _mutex;
-    std::unordered_set<kernel_impl_params, kernel_impl_params::Hasher> _task_keys;
+    std::unordered_map<kernel_impl_params, std::future<void>, kernel_impl_params::Hasher> _task_keys;
     std::atomic_bool _stop_compilation{false};
-    std::vector<std::future<void>> futures;
 };
 
 std::shared_ptr<ICompilationContext> ICompilationContext::create(ov::threading::IStreamsExecutor::Config task_executor_config) {

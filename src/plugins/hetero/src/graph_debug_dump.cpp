@@ -29,12 +29,12 @@ static const std::vector<std::string> colors = {
 void dump_affinities(const std::shared_ptr<ov::Model>& model,
                      const std::map<std::string, std::string>& supported_ops_map,
                      const std::unordered_set<std::string>& devices) {
-    auto name = model->get_friendly_name();
+    const auto& name = model->get_friendly_name();
     // clang-format off
     ov::pass::VisualizeTree{
         "hetero_affinity_" + name + ".dot",
         [&](const ov::Node& node, std::vector<std::string>& attributes) {
-            auto nodeDevice = supported_ops_map.at(node.get_friendly_name());
+            const auto& nodeDevice = supported_ops_map.at(node.get_friendly_name());
             int colorIndex = 0;
             for (auto&& device : devices) {
                 if (device == nodeDevice) {
@@ -60,7 +60,7 @@ void dump_affinities(const std::shared_ptr<ov::Model>& model,
 void dump_subgraphs(const std::shared_ptr<ov::Model>& model,
                     const std::map<std::string, std::string>& supported_ops_map,
                     const std::map<std::string, int>& map_id) {
-    auto name = model->get_friendly_name();
+    const auto& name = model->get_friendly_name();
     // clang-format off
     ov::pass::VisualizeTree{
         "hetero_subgraphs_" + name + ".dot",

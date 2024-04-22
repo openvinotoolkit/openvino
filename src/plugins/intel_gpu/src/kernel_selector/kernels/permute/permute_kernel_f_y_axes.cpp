@@ -24,7 +24,10 @@ size_t GetDivisor(const size_t input_size) {
         return input_size % i == 0;
     };
     auto result = std::find_if(begin(v), end(v), is_divided);
-    return *result;
+    if (result != end(v)) {
+        return *result;
+    }
+    return 1;
 }
 
 bool IsSimpleMemCopyOperation(const permute_params& params) {
@@ -190,8 +193,8 @@ CommonDispatchData PermuteKernel_f_y_axes::SetDefault(const permute_params& para
     return dispatchData;
 }
 
-bool PermuteKernel_f_y_axes::Validate(const Params& p, const optional_params& o) const {
-    if (!Parent::Validate(p, o)) {
+bool PermuteKernel_f_y_axes::Validate(const Params& p) const {
+    if (!Parent::Validate(p)) {
         return false;
     }
 
@@ -238,8 +241,7 @@ bool PermuteKernel_f_y_axes::Validate(const Params& p, const optional_params& o)
     return true;
 }
 
-KernelsPriority PermuteKernel_f_y_axes::GetKernelsPriority(const Params& /*params*/,
-                                                           const optional_params& /*options*/) const {
+KernelsPriority PermuteKernel_f_y_axes::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_3;
 }
 

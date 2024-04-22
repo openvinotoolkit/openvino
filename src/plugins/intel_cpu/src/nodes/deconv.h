@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -95,7 +95,7 @@ private:
     bool useACL = false;
     DeconvAttrs deconvAttrs;
 
-    Shape inShape;
+    Shape inShape, outShape;
 
     AttrPtr pAttr;
 

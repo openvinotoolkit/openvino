@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,18 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "transformations/rt_info/attributes.hpp"
 #include "transformations_visibility.hpp"
+
+/* This macro is intended to fix C++20 [=] lambda
+warning. Although C++20 identifier is 202002L,
+some compilers supporting C++20, or their drafts like
+C++2a, producing the warning, are using 201402L value.
+Also, MSVC requires a special check due to the
+__cplusplus value compatibility issues.*/
+#if (defined(_MSVC_LANG) && (_MSVC_LANG >= 202002L)) || (__cplusplus >= 201402L)
+#    define OV_CAPTURE_CPY_AND_THIS =, this
+#else
+#    define OV_CAPTURE_CPY_AND_THIS =
+#endif /* C++20 */
 
 namespace ov {
 namespace op {
@@ -247,12 +259,14 @@ TRANSFORMATIONS_API std::vector<Input<Node>> get_node_target_inputs(const std::s
 TRANSFORMATIONS_API std::shared_ptr<Node> node_to_get_shape_value_of_indices_from_shape_node(
     const std::shared_ptr<Node>& shape_node,
     const std::vector<size_t>& indices,
-    const std::vector<std::shared_ptr<Node>>& copy_rt_info_from = {});
+    const std::vector<std::shared_ptr<Node>>& copy_rt_info_from = {},
+    const ov::element::Type& shape_path_precision = ov::element::i64);
 
 TRANSFORMATIONS_API std::shared_ptr<Node> node_to_get_shape_value_of_indices_from_shape_source(
     const Output<Node>& shape_source,
     const std::vector<size_t>& indices,
-    const std::vector<std::shared_ptr<Node>>& copy_rt_info_from = {});
+    const std::vector<std::shared_ptr<Node>>& copy_rt_info_from = {},
+    const ov::element::Type& shape_path_precision = ov::element::i64);
 
 TRANSFORMATIONS_API bool is_dequantization_subgraph(const Output<Node>& node);
 
@@ -263,6 +277,8 @@ TRANSFORMATIONS_API bool can_eliminate_eltwise_node(const std::shared_ptr<Node>&
 TRANSFORMATIONS_API bool is_constant_and_all_values_equal_int(const Output<Node>& output, const int64_t& v);
 
 TRANSFORMATIONS_API bool is_on_constant_path(const ov::Output<ov::Node>& output);
+
+TRANSFORMATIONS_API bool process_subgraph(ov::pass::ModelPass& model_pass, const std::shared_ptr<Node>& node);
 
 template <typename T>
 ov::pass::pattern::op::ValuePredicate constant_predicate(std::function<bool(const std::vector<T>&)> predicate) {

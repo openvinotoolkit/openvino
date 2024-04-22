@@ -6,10 +6,12 @@
 
 #include <memory>
 
+#include "itt.hpp"
+#include "openvino/util/log.hpp"
+
 #include "openvino/op/batch_to_space.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "low_precision/network_helper.hpp"
-#include "itt.hpp"
 
 namespace ov {
 namespace pass {
@@ -50,7 +52,9 @@ bool BatchToSpaceTransformation::transform(TransformationContext& context, ov::p
     }
 
     const std::shared_ptr<Node> op = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
-    moveDequantizationAfter(context, op, NetworkHelper::getDequantization(op, defaultPrecisions));
+    const auto newOperation = moveDequantizationAfter(context, op, NetworkHelper::getDequantization(op, defaultPrecisions));
+
+    OPENVINO_DEBUG << "LPT: done: " << newOperation;
     return true;
 }
 

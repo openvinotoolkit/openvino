@@ -14,7 +14,12 @@
 #define ACC_VEC_TYPE                    MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, VEC_SIZE)
 #define TO_ACC_VEC_TYPE(x)              CAT(convert_, ACC_VEC_TYPE)(x)
 #define OUT_VEC_TYPE                    MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE)
-#define TO_OUT_VEC_TYPE(x)              CAT(convert_, OUT_VEC_TYPE)(x)
+
+#ifdef RTE_OUTPUT
+    #define TO_OUT_VEC_TYPE(x)          CAT(CAT(convert_, OUT_VEC_TYPE), _rte)(x)
+#else
+    #define TO_OUT_VEC_TYPE(x)          CAT(convert_, OUT_VEC_TYPE)(x)
+#endif
 
 inline float FUNC(get_original_coordinate)(float num, float scale, int length_resized, int length_original)
 {

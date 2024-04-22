@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/read_value.hpp"
@@ -29,8 +29,8 @@ struct ReadValueAssignParams {
           m_output_shape(output_shape),
           m_input_type(input_type),
           m_output_type(ouput_type),
-          m_input_data(CreateTensor(input_type, input_values)),
-          m_expected_data(CreateTensor(ouput_type, output_values)),
+          m_input_data(CreateTensor(input_shape, input_type, input_values)),
+          m_expected_data(CreateTensor(output_shape, ouput_type, output_values)),
           m_variable_id(variable_id) {}
     Shape m_input_shape;
     Shape m_output_shape;
@@ -298,6 +298,7 @@ protected:
                                                                 i,
                                                                 1e-2f,
                                                                 -1.f,
+                                                                true,
                                                                 0);
         }
     }

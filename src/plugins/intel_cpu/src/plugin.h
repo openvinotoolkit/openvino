@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,10 +10,10 @@
 namespace ov {
 namespace intel_cpu {
 
-class Engine : public ov::IPlugin {
+class Plugin : public ov::IPlugin {
 public:
-    Engine();
-    ~Engine();
+    Plugin();
+    ~Plugin();
 
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                       const ov::AnyMap& properties) const override;
@@ -57,21 +57,7 @@ private:
     ov::AnyMap m_compiled_model_runtime_properties;
 
     std::shared_ptr<void> specialSetup;
-
-#if defined(OV_CPU_WITH_ACL)
-    struct SchedulerGuard {
-        SchedulerGuard();
-        ~SchedulerGuard();
-        static std::shared_ptr<SchedulerGuard> instance();
-        static std::mutex mutex;
-        // separate mutex for saving ACLScheduler state in destructor
-        mutable std::mutex dest_mutex;
-        static std::weak_ptr<SchedulerGuard> ptr;
-    };
-
-    std::shared_ptr<SchedulerGuard> scheduler_guard;
-#endif
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

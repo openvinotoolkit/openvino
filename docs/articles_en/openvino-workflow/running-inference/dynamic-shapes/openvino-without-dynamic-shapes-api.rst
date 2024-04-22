@@ -11,7 +11,7 @@ When Dynamic Shapes API is Not Applicable
 
 
 Several approaches to emulate dynamic shapes are considered in this article.
-Apply the following methods only if the :doc:`native dynamic shape API <openvino_docs_OV_UG_DynamicShapes>` does not work or does not perform as expected.
+Apply the following methods only if the :doc:`native dynamic shape API <../dynamic-shapes>` does not work or does not perform as expected.
 
 Padding
 ####################

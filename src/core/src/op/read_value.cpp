@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -142,7 +142,6 @@ bool ReadValue::evaluate(TensorVector& outputs,
                          const EvaluationContext& evaluation_context) const {
     OV_OP_SCOPE(v6_ReadValue_evaluate);
     OPENVINO_ASSERT(outputs.size() == 1);
-    OPENVINO_ASSERT(inputs.size() == 1);
 
     const auto& found_context = evaluation_context.find("VariableContext");
     NODE_VALIDATION_CHECK(this, found_context != evaluation_context.end(), "VariableContext not found.");
@@ -151,9 +150,22 @@ bool ReadValue::evaluate(TensorVector& outputs,
     const auto& var_value = variable_values.find(m_variable);
 
     const auto use_context = var_value != variable_values.end() && !var_value->second->get_reset();
-
     auto& output = outputs[0];
-    const auto& input = use_context ? var_value->second->get_state() : inputs[0];
+    Tensor input;
+    if (use_context) {
+        input = var_value->second->get_state();
+    } else {
+        if (!inputs.empty()) {
+            input = inputs[0];
+        } else {
+            auto var_info = m_variable->get_info();
+            OPENVINO_ASSERT(var_info.data_shape.is_static() && var_info.data_type.is_static());
+            const auto& shape = var_info.data_shape.get_shape();
+            const auto& type = var_info.data_type;
+            input = ov::Tensor(type, shape);
+            memset(input.data(), 0, input.get_byte_size());
+        }
+    }
     output.set_shape(input.get_shape());
     std::memcpy(output.data(), input.data(), output.get_byte_size());
     return true;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1110,6 +1110,10 @@ std::shared_ptr<MemoryDesc> Convolution::getSrcMemDesc(const dnnl::primitive_des
 }
 
 bool Convolution::canFuse(const NodePtr& node) const {
+#if defined(OV_CPU_WITH_ACL)
+    if (!fusedWith.empty())
+        return false;
+#endif
     return canFuseSimpleOperation(node);
 }
 

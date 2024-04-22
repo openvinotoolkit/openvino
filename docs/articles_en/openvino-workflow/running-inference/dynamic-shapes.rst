@@ -8,7 +8,7 @@ Dynamic Shapes
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_OV_UG_NoDynamicShapes
+   dynamic-shapes/openvino-without-dynamic-shapes-api
 
 .. meta::
    :description: The Reshape method in OpenVINO Runtime API can handle dynamic
@@ -16,7 +16,7 @@ Dynamic Shapes
                  model compilation.
 
 
-As it was demonstrated in the :doc:`Changing Input Shapes <openvino_docs_OV_UG_ShapeInference>` article, there are models that support changing input shapes before model compilation in ``Core::compile_model``.
+As it was demonstrated in the :doc:`Changing Input Shapes <changing-input-shape>` article, there are models that support changing input shapes before model compilation in ``Core::compile_model``.
 Reshaping models provides an ability to customize the model input shape for the exact size required in the end application.
 This article explains how the ability of model to reshape can further be leveraged in more dynamic scenarios.
 
@@ -39,7 +39,7 @@ Below are several examples of dimensions that can be naturally dynamic:
 
 There are various methods to address input dynamic dimensions through combining multiple pre-reshaped models and input data padding.
 The methods are sensitive to model internals, do not always give optimal performance and are cumbersome.
-For a short overview of the methods, refer to the :doc:`When Dynamic Shapes API is Not Applicable <openvino_docs_OV_UG_NoDynamicShapes>` page.
+For a short overview of the methods, refer to the :doc:`When Dynamic Shapes API is Not Applicable <dynamic-shapes/openvino-without-dynamic-shapes-api>` page.
 Apply those methods only if native dynamic shape API described in the following sections does not work or does not perform as expected.
 
 The decision about using dynamic shapes should be based on proper benchmarking of a real application with real data.
@@ -64,7 +64,7 @@ Model input dimensions can be specified as dynamic using the model.reshape metho
 
    Some models may already have dynamic shapes out of the box and do not require additional configuration. This can either be because it was generated with dynamic shapes from the source framework, or because it was converted with Model Conversion API to use dynamic shapes. For more information, see the Dynamic Dimensions “Out of the Box” section.
 
-The examples below show how to set dynamic dimensions with a model that has a static ``[1, 3, 224, 224]`` input shape (such as `mobilenet-v2 <https://docs.openvino.ai/2023.3/omz_models_model_mobilenet_v2.html>`__). The first example shows how to change the first dimension (batch size) to be dynamic. In the second example, the third and fourth dimensions (height and width) are set as dynamic.
+The examples below show how to set dynamic dimensions with a model that has a static ``[1, 3, 224, 224]`` input shape. The first example shows how to change the first dimension (batch size) to be dynamic. In the second example, the third and fourth dimensions (height and width) are set as dynamic.
 
 .. tab-set::
 
@@ -113,7 +113,7 @@ The examples above assume that the model has a single input layer. To change mod
             :fragment: ov_dynamic_shapes:reshape_multiple_inputs
 
 
-For more examples of how to change multiple input layers, see :doc:`Changing Input Shapes <openvino_docs_OV_UG_ShapeInference>`.
+For more examples of how to change multiple input layers, see :doc:`Changing Input Shapes <changing-input-shape>`.
 
 Undefined Dimensions "Out Of the Box"
 -------------------------------------
@@ -141,7 +141,7 @@ To check if a model already has dynamic dimensions, first load it with the ``rea
 
 If the input model already has dynamic dimensions, that will not change during inference. If the inputs will not be used dynamically, it is recommended to set them to static values using the ``reshape`` method to save application memory and potentially improve inference speed. The OpenVINO API supports any combination of static and dynamic dimensions.
 
-Static and dynamic dimensions can also be set when converting the model with ``convert_model()``. It has identical capabilities to the ``reshape`` method, so you can save time by converting the model with dynamic shapes beforehand rather than in the application code. To get information about setting input shapes using ``convert_model()``,  refer to :doc:`Setting Input Shapes <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>`.
+Static and dynamic dimensions can also be set when converting the model with ``convert_model()``. It has identical capabilities to the ``reshape`` method, so you can save time by converting the model with dynamic shapes beforehand rather than in the application code. To get information about setting input shapes using ``convert_model()``,  refer to :doc:`Setting Input Shapes <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/[legacy]-setting-input-shapes>`.
 
 Dimension Bounds
 ----------------
@@ -177,7 +177,7 @@ The lower and/or upper bounds of a dynamic dimension can also be specified. They
     .. tab-item:: C
         :sync: c
 
-        The dimension bounds can be coded as arguments for `ov_dimension <https://docs.openvino.ai/2023.3/api/c_cpp_api/structov__dimension.html>`__, as shown in these examples:
+        The dimension bounds can be coded as arguments for `ov_dimension <https://docs.openvino.ai/2024/api/c_cpp_api/structov__dimension.html>`__, as shown in these examples:
 
         .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.c
            :language: cpp
@@ -192,14 +192,14 @@ For the same reason, it is not recommended to leave dimensions as undefined, wit
 
 When specifying bounds, the lower bound is not as important as the upper one. The upper bound allows inference devices to allocate memory for intermediate tensors more precisely. It also allows using a fewer number of tuned kernels for different sizes.
 More precisely, benefits of specifying the lower or upper bound is device dependent.
-Depending on the plugin, specifying the upper bounds can be required. For information about dynamic shapes support on different devices, refer to the :doc:`feature support table <openvino_supported_devices>`.
+Depending on the plugin, specifying the upper bounds can be required. For information about dynamic shapes support on different devices, refer to the :doc:`feature support table <../../about-openvino/compatibility-and-support/supported-devices>`.
 
 If the lower and upper bounds for a dimension are known, it is recommended to specify them, even if a plugin can execute a model without the bounds.
 
 Preparing and Inferencing Dynamic Data
 ++++++++++++++++++++++++++++++++++++++
 
-After configuring a model with the ``reshape`` method, the next steps are to create tensors with the appropriate data shape and pass them to the model as an inference request. This is similar to the regular steps described in :doc:`Integrate OpenVINO™ with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`. However, tensors can now be passed into the model with different shapes.
+After configuring a model with the ``reshape`` method, the next steps are to create tensors with the appropriate data shape and pass them to the model as an inference request. This is similar to the regular steps described in :doc:`Integrate OpenVINO™ with Your Application <integrate-openvino-with-your-application>`. However, tensors can now be passed into the model with different shapes.
 
 The sample below shows how a model can accept different input shapes. In the first case, the model runs inference on a 1x128 input shape and returns a result. In the second case, a 1x200 input shape is used, which the model can still handle because it is dynamically shaped.
 
@@ -227,7 +227,7 @@ The sample below shows how a model can accept different input shapes. In the fir
            :fragment: ov_dynamic_shapes:set_input_tensor
 
 
-For more information on how to apply input data to a model and run inference, see :doc:`OpenVINO™ Inference Request <openvino_docs_OV_UG_Infer_request>`.
+For more information on how to apply input data to a model and run inference, see :doc:`OpenVINO™ Inference Request <integrate-openvino-with-your-application/inference-request>`.
 
 
 Dynamic Shapes in Outputs

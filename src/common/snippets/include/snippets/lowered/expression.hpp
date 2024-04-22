@@ -19,7 +19,7 @@ namespace lowered {
 
 class LinearIR;
 using ExpressionPtr = std::shared_ptr<Expression>;
-using ExressionMap = std::unordered_map<Expression*, ExpressionPtr>;
+using ExpressionMap = std::unordered_map<Expression*, ExpressionPtr>;
 class Expression : public std::enable_shared_from_this<Expression> {
     friend class LinearIR;
     friend class ExpressionPort;
@@ -36,13 +36,13 @@ public:
 
     const PortConnectorPtr& get_input_port_connector(size_t i) const;
     const PortConnectorPtr& get_output_port_connector(size_t i) const;
-    std::vector<PortConnectorPtr> get_input_port_connectors() const { return m_input_port_connectors; }
-    std::vector<PortConnectorPtr> get_output_port_connectors() const { return m_output_port_connectors; }
+    const std::vector<PortConnectorPtr>& get_input_port_connectors() const { return m_input_port_connectors; }
+    const std::vector<PortConnectorPtr>& get_output_port_connectors() const { return m_output_port_connectors; }
 
     const PortDescriptorPtr& get_input_port_descriptor(size_t i) const;
     const PortDescriptorPtr& get_output_port_descriptor(size_t i) const;
-    std::vector<PortDescriptorPtr> get_input_port_descriptors() const { return m_input_port_descriptors; }
-    std::vector<PortDescriptorPtr> get_output_port_descriptors() const { return m_output_port_descriptors; }
+    const std::vector<PortDescriptorPtr>& get_input_port_descriptors() const { return m_input_port_descriptors; }
+    const std::vector<PortDescriptorPtr>& get_output_port_descriptors() const { return m_output_port_descriptors; }
 
     size_t get_input_count() const { return m_input_port_connectors.size(); }
     size_t get_output_count() const { return m_output_port_connectors.size(); }
@@ -63,7 +63,7 @@ public:
     void set_loop_ids(const std::vector<size_t>& loops);
     virtual ExpressionPtr clone_with_new_inputs(const std::vector<PortConnectorPtr>& new_inputs,
                                                 const std::shared_ptr<Node>& new_node) const;
-    ExpressionPtr clone_with_new_inputs(const ExressionMap& expr_map, const std::shared_ptr<Node>& new_node) const;
+    ExpressionPtr clone_with_new_inputs(const ExpressionMap& expr_map, const std::shared_ptr<Node>& new_node) const;
 
 protected:
     Expression(const Expression& other);

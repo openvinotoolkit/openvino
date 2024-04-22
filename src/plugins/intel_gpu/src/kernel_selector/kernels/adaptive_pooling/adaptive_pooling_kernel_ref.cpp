@@ -28,13 +28,12 @@ ParamsKey AdaptivePoolingRef::GetSupportedKey() const {
     return k;
 }
 
-KernelsPriority AdaptivePoolingRef::GetKernelsPriority(const Params&, const optional_params&) const {
+KernelsPriority AdaptivePoolingRef::GetKernelsPriority(const Params&) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
-bool AdaptivePoolingRef::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::ADAPTIVE_POOLING
-        || o.GetType() != KernelType::ADAPTIVE_POOLING) {
+bool AdaptivePoolingRef::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::ADAPTIVE_POOLING) {
         return false;
     }
 
@@ -72,8 +71,8 @@ AdaptivePoolingRef::DispatchData SetDefault(const adaptive_pooling_params& param
 }
 }  // namespace
 
-KernelsData AdaptivePoolingRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData AdaptivePoolingRef::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -81,7 +80,7 @@ KernelsData AdaptivePoolingRef::GetKernelsData(const Params& params, const optio
     const adaptive_pooling_params& new_params = static_cast<const adaptive_pooling_params&>(params);
 
     const auto dispatchData = SetDefault(new_params);
-    const auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params, options);
+    const auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params);
 
     auto cldnn_jit = MakeBaseParamsJitConstants(new_params);
 

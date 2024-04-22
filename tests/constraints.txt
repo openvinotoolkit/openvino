@@ -8,10 +8,11 @@ pymongo>=3.12.0
 PyYAML>=5.4.1
 scipy>=1.7; python_version <= "3.8"
 scipy>=1.11.1; python_version >= "3.9"
+sympy>=1.10
 wheel>=0.38.1
 defusedxml>=0.7.1
 fastjsonschema~=2.17.1
-tensorflow>=2.5,<2.16.0
+tensorflow>=2.5,<2.17.0
 test-generator==0.1.2
 requests>=2.25.1
 opencv-python>=4.5
@@ -25,3 +26,6 @@ pytest-timeout==2.2.0
 jax<=0.4.14
 jaxlib<=0.4.14
 torch>=1.13,<2.3
+kornia==0.7.0
+networkx<=3.1.0
+keras>=2.0.0,<3.0.0

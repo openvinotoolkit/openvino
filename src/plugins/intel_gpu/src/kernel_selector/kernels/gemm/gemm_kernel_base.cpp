@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -114,13 +114,17 @@ std::vector<std::string> GemmKernelBase::GetTransposedDims(const std::vector<int
             break;
         case 6:
             if (is_tiled_opt) {
-                dim_ids.push_back("(y+write_id)");
+                dim_ids.push_back("(y+y_write_id)");
             } else {
                 dim_ids.push_back("y");
             }
             break;
         case 7:
-            dim_ids.push_back("x");
+            if (is_tiled_opt) {
+                dim_ids.push_back("(x+x_write_id)");
+            } else {
+                dim_ids.push_back("x");
+            }
             break;
         default:
             break;
@@ -211,6 +215,40 @@ JitConstants GemmKernelBase::GetJitConstants(const gemm_params& params) const {
         jit.AddConstant(MakeJitConstant("BIAS_TERM", 1));
     }
 
+    auto get_broadcast_input_str = [](const size_t input_rank, const int64_t axes, const int64_t val) {
+        std::vector<std::string> dims;
+        if (input_rank == 1) {
+            dims = {"x"};
+        } else if (input_rank == 2) {
+            dims = {"y", "x"};
+        } else if (input_rank == 3) {
+            dims = {"f", "y", "x"};
+        } else if (input_rank == 4) {
+            dims = {"b", "f", "y", "x"};
+        } else if (input_rank == 5) {
+            dims = {"b", "f", "z", "y", "x"};
+        } else if (input_rank == 6) {
+            dims = {"b", "f", "w", "z", "y", "x"};
+        }
+        return dims[axes] + " /= " + std::to_string(val) + ";";
+    };
+    if (params.input0_broadcast_val != 0) {
+        jit.AddConstants({
+            MakeJitConstant("BROADCAST_INPUT0", true),
+            MakeJitConstant("DO_BROADCAST_INPUT0", get_broadcast_input_str(params.inputs[0].GetDims().size(),
+                                                                           params.input0_reshape_axes,
+                                                                           params.input0_broadcast_val)),
+        });
+    }
+    if (params.input1_broadcast_val != 0) {
+        jit.AddConstants({
+            MakeJitConstant("BROADCAST_INPUT1", true),
+            MakeJitConstant("DO_BROADCAST_INPUT1", get_broadcast_input_str(params.inputs[1].GetDims().size(),
+                                                                           params.input1_reshape_axes,
+                                                                           params.input1_broadcast_val)),
+        });
+    }
+
     jit.AddConstants({
         MakeJitConstant("TRANSPOSE_X_LAST", 0),
         MakeJitConstant("TRANSPOSE_Y_LAST", 1),
@@ -251,9 +289,8 @@ void GemmKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData GemmKernelBase::GetCommonKernelsData(const Params& params,
-                                                 const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData GemmKernelBase::GetCommonKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return KernelsData();
     }
 
@@ -263,7 +300,7 @@ KernelsData GemmKernelBase::GetCommonKernelsData(const Params& params,
     KernelData k_data = KernelData::Default<gemm_params>(params);
     GetUpdateDispatchDataFunc(k_data);
     auto cldnn_jit = GetJitConstants(prim_params);
-    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = k_data.kernels[0];
@@ -279,7 +316,7 @@ KernelsData GemmKernelBase::GetCommonKernelsData(const Params& params,
                      (uint32_t)prim_params.inputs.size(),
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     prim_params.has_dynamic_tensors());
+                     prim_params.is_shape_agnostic);
 
     return {k_data};
 }
@@ -288,7 +325,7 @@ JitConstants GemmKernelBase::GetFusedPrimitivesJitConstants(const gemm_params&, 
     return {};
 }
 
-bool GemmKernelBase::Validate(const Params& p, const optional_params&) const {
+bool GemmKernelBase::Validate(const Params& p) const {
     const gemm_params& params = static_cast<const gemm_params&>(p);
 
     if (params.GetType() != KernelType::GEMM) {

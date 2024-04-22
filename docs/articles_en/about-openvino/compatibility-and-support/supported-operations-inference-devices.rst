@@ -8,13 +8,13 @@ This page presents operations supported by OpenVINO inference devices. The table
 for a more detailed and most recent listing of operations that are implemented and tested:
 
 
-.. button-link:: _static/download/conformance_reports/opset_report_omz_static.html
+.. button-link:: ../../_static/download/conformance_reports/opset_report_omz_static.html
    :color: primary
    :outline:
 
    See the full conformance report table (static)
 
-.. button-link:: _static/download/conformance_reports/opset_report_omz_dynamic.html
+.. button-link:: ../../_static/download/conformance_reports/opset_report_omz_dynamic.html
    :color: primary
    :outline:
 
@@ -172,7 +172,7 @@ for a more detailed and most recent listing of operations that are implemented a
 =================================  ===============  ==============  ==================
 
 |   `*` - support is limited to the specific parameters.
-|   `**` - support is implemented via :doc:`Extensibility mechanism <openvino_docs_Extensibility_UG_Intro>`.
+|   `**` - support is implemented via :doc:`Extensibility mechanism <../../documentation/openvino-extensibility>`.
 |   `***` - supports NCDHW layout.
 |   `****` - support is implemented via runtime reference.
 

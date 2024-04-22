@@ -95,8 +95,9 @@ Prerequisites
 .. code:: ipython3
 
     import sys
+    import platform
     
-    %pip install -q soundfile pytorchvideo ftfy "timm>=0.6.7" einops fvcore "openvino>=2023.1.0" numpy scipy matplotlib --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q soundfile pytorchvideo ftfy "timm>=0.6.7" einops fvcore "openvino>=2023.1.0" numpy scipy --extra-index-url https://download.pytorch.org/whl/cpu
     
     if sys.version_info.minor < 8:
         %pip install -q "decord"
@@ -107,6 +108,11 @@ Prerequisites
         %pip install -q "torch>=2.0.1" "torchvision>=0.15.2,<0.17.0" "torchaudio>=2.0.2"
     else:
         %pip install -q "torch>=2.0.1" "torchvision>=0.15.2,<0.17.0" "torchaudio>=2.0.2" --index-url https://download.pytorch.org/whl/cpu
+    
+    if platform.system() != "Windows":
+        %pip install -q "matplotlib>=3.4"
+    else:
+        %pip install -q "matplotlib>=3.4,<3.7"
 
 .. code:: ipython3
 
@@ -204,7 +210,7 @@ Convert Model to OpenVINO Intermediate Representation (IR) format
 
 OpenVINO supports PyTorch through Model Conversion API. You will use
 `model conversion Python
-API <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
+API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__
 to convert model to IR format. The ``ov.convert_model`` function returns
 OpenVINO Model class instance ready to load on a device or save on a
 disk for next loading using ``ov.save_model``.

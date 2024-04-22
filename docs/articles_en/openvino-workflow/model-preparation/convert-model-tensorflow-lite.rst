@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite}
+.. {#convert-model-tensorflow_Lite}
 
 Converting a TensorFlow Lite Model
 ==================================
@@ -28,12 +28,12 @@ To convert an TensorFlow Lite model, run model conversion with the path to the `
 
          ovc your_model_file.tflite
 
-.. note:: TensorFlow Lite model file can be loaded by ``openvino.Core.read_model`` or ``openvino.Core.compile_model`` methods by OpenVINO runtime API without preparing OpenVINO IR first. Refer to the :doc:`inference example <openvino_docs_OV_UG_Integrate_OV_with_your_application>` for more details. Using ``openvino.convert_model`` is still recommended if model load latency matters for the inference application.
+.. note:: TensorFlow Lite model file can be loaded by ``openvino.Core.read_model`` or ``openvino.Core.compile_model`` methods by OpenVINO runtime API without preparing OpenVINO IR first. Refer to the :doc:`inference example <../running-inference/integrate-openvino-with-your-application>` for more details. Using ``openvino.convert_model`` is still recommended if model load latency matters for the inference application.
 
 Supported TensorFlow Lite Layers
 ###################################
 
-For the list of supported standard layers, refer to the :doc:`Supported Operations <openvino_resources_supported_operations_frontend>` page.
+For the list of supported standard layers, refer to the :doc:`Supported Operations <../../about-openvino/compatibility-and-support/supported-operations-framework-frontend>` page.
 
 Supported TensorFlow Lite Models
 ###################################

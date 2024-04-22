@@ -7,18 +7,18 @@
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Conversion Parameters <openvino_docs_OV_Converter_UG_Conversion_Options>` article. 
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Conversion Parameters <../../../../openvino-workflow/model-preparation/conversion-parameters>` article.
 
 Input data for inference can be different from the training dataset and requires
 additional preprocessing before inference. To accelerate the whole pipeline including
 preprocessing and inference, model conversion API provides special parameters such as ``mean_values``,
-``scale_values``, ``reverse_input_channels``, and ``layout``. 
+``scale_values``, ``reverse_input_channels``, and ``layout``.
 
 Based on these parameters, model conversion API generates OpenVINO IR with additionally inserted sub-graphs
 to perform the defined preprocessing. This preprocessing block can perform mean-scale
 normalization of input data, reverting data along channel dimension, and changing
 the data layout. See the following sections for details on the parameters, or the
-:doc:`Overview of Preprocessing API <openvino_docs_OV_UG_Preprocessing_Overview>`
+:doc:`Overview of Preprocessing API <../../../../openvino-workflow/running-inference/optimize-inference/optimize-preprocessing>`
 for the same functionality in OpenVINO Runtime.
 
 Specifying Layout
@@ -31,7 +31,7 @@ Layout defines the meaning of dimensions in shape and can be specified for both
 inputs and outputs. Some preprocessing requires to set input layouts, for example,
 setting a batch, applying mean or scales, and reversing input channels (BGR<->RGB).
 
-For the layout syntax, check the :doc:`Layout API overview <openvino_docs_OV_UG_Layout_Overview>`.
+For the layout syntax, check the :doc:`Layout API overview <../../../../openvino-workflow/running-inference/optimize-inference/optimize-preprocessing/layout-api-overview>`.
 To specify the layout, you can use the ``layout`` option followed by the layout value.
 
 For example, the following command specifies the ``NHWC`` layout for a Tensorflow
@@ -251,5 +251,5 @@ model and embeds the ``reverse_input_channel`` preprocessing block into OpenVINO
 Additional Resources
 ####################
 
-* :doc:`Overview of Preprocessing API <openvino_docs_OV_UG_Preprocessing_Overview>`
+* :doc:`Overview of Preprocessing API <../../../../openvino-workflow/running-inference/optimize-inference/optimize-preprocessing>`
 

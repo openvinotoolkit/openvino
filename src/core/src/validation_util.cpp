@@ -9,13 +9,15 @@
 
 #include "bound_evaluate.hpp"
 #include "compare.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/constant_fold_utils.hpp"
+#include "openvino/core/dimension.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/negative.hpp"
 #include "openvino/op/ops.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "openvino/util/common_util.hpp"
-#include "sequnce_generator.hpp"
+#include "sequence_generator.hpp"
 
 namespace {
 const auto normalize_axis_to = [](const int64_t& tensor_rank) {
@@ -35,6 +37,26 @@ std::string normalize_axis_error_msg(const int64_t& axis, const int64_t& lower, 
         .append(std::to_string(upper))
         .append("].");
 }
+
+ov::OutputVector get_inputs_from_map(const std::shared_ptr<ov::Node>& node,
+                                     const std::map<ov::Output<ov::Node>, std::shared_ptr<ov::Node>>& node_map) {
+    size_t num_inputs = node->get_input_size();
+
+    ov::OutputVector inputs;
+    inputs.reserve(num_inputs);
+
+    for (size_t i = 0; i < num_inputs; i++) {
+        auto input = node->input_value(i);
+        if (node_map.count(input) > 0) {
+            inputs.push_back(node_map.at(input));
+        } else {
+            inputs.push_back(input);
+        }
+    }
+
+    return inputs;
+}
+
 }  // namespace
 
 int64_t ov::util::normalize(const int64_t& value, const int64_t& max) {
@@ -54,33 +76,80 @@ std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const ov::
     if (const auto& c = ov::as_type_ptr<op::v0::Constant>(subgraph_sink.get_node_shared_ptr()))
         return c;
 
-    const auto node = subgraph_sink.get_node();
-    const auto num_inputs = node->get_input_size();
-    if (num_inputs == 0)
-        return nullptr;
+    std::map<Output<Node>, std::shared_ptr<Node>> node_map;
+    std::stack<std::shared_ptr<Node>> stack;
+    stack.push(subgraph_sink.get_node_shared_ptr());
 
-    if (subgraph_sink.get_tensor().has_and_set_bound()) {
-        const auto& lower = subgraph_sink.get_tensor().get_lower_value();
-        return std::make_shared<ov::op::v0::Constant>(lower);
-    }
-
-    if (ov::is_type<op::util::ShapeOfBase>(node) && node->get_input_partial_shape(0).is_dynamic()) {
-        return nullptr;
-    }
-
-    OutputVector inputs;
-    inputs.reserve(num_inputs);
-    for (size_t i = 0; i < num_inputs; i++) {
-        auto constant = constantfold_subgraph(node->input_value(i));
-        if (constant == nullptr)
+    while (!stack.empty()) {
+        auto node = stack.top();
+        size_t num_inputs = node->get_input_size();
+        if (num_inputs == 0)
             return nullptr;
-        inputs.push_back(constant);
+
+        if (ov::pass::constant_folding_is_disabled(node))
+            return nullptr;
+
+        if (ov::is_type<op::util::ShapeOfBase>(node) && node->get_input_partial_shape(0).is_dynamic())
+            return nullptr;
+
+        bool node_has_bounds_set = true;
+        for (size_t i = 0; i < node->get_output_size(); i++) {
+            const auto& tensor = node->get_output_tensor(i);
+            bool tensor_has_bounds_set = tensor.has_and_set_bound();
+            node_has_bounds_set = node_has_bounds_set && tensor_has_bounds_set;
+            if (tensor_has_bounds_set) {
+                const auto& lower = node->get_output_tensor(i).get_lower_value();
+                auto constant = std::make_shared<ov::op::v0::Constant>(lower);
+                node_map[node->output(i)] = constant;
+            }
+        }
+
+        if (node_has_bounds_set) {
+            stack.pop();
+            continue;
+        }
+
+        auto original_node = node;
+        const auto inputs = get_inputs_from_map(node, node_map);
+
+        if (ov::util::node_requires_precision_conversion(node.get())) {
+            node = ov::util::convert_to_supported_precision(node.get(), inputs);
+        }
+
+        OutputVector outputs(node->get_output_size());
+        if (node->constant_fold(outputs, inputs)) {
+            stack.pop();
+            for (size_t i = 0; i < outputs.size(); i++) {
+                node_map[original_node->output(i)] = outputs[i].get_node_shared_ptr();
+            }
+        } else {
+            size_t stack_size_before = stack.size();
+            for (size_t i = node->get_input_size(); i > 0; i--) {
+                auto input = original_node->input_value(i - 1);
+                if (node_map.count(input) == 0 && !ov::op::util::is_constant(input.get_node())) {
+                    stack.push(input.get_node_shared_ptr());
+                }
+            }
+            // if none of the inputs was pushed to stack, it means the node that was not constantfolded
+            // is processed the second time. If that case - the node is not constfoldable.
+            // A good example would be a node that all of its inputs are constants and yet it cannot be constantfolded
+            // for some reason (like lack of evaluate, it's a op::util::FrameworkNode, etc.).
+            if (stack_size_before == stack.size()) {
+                return nullptr;
+            }
+        }
     }
 
-    OutputVector outputs(node->get_output_size());
-    if (!node->constant_fold(outputs, inputs))
-        return nullptr;
-    return ov::as_type_ptr<op::v0::Constant>(outputs[subgraph_sink.get_index()].get_node_shared_ptr());
+    auto constant = node_map.at(subgraph_sink);
+    if (constant->get_element_type() != subgraph_sink.get_element_type()) {
+        auto convert = std::make_shared<op::v0::Convert>(constant, subgraph_sink.get_element_type());
+        OutputVector output(1);
+        if (!convert->constant_fold(output, OutputVector{constant}))
+            return nullptr;
+        constant = output[0].get_node_shared_ptr();
+    }
+
+    return ov::as_type_ptr<op::v0::Constant>(constant);
 }
 
 namespace ov {
@@ -215,8 +284,8 @@ bool evaluate_as_partial_shape(const ov::Output<ov::Node>& output, ov::PartialSh
         auto upper_bound = std::make_shared<op::v0::Constant>(ub.get_element_type(), ub.get_shape(), ub.data())
                                ->cast_vector<int64_t>();
         OPENVINO_ASSERT(lower_bound.size() == upper_bound.size());
-        const TensorLabel& labels = output.get_tensor().get_value_label();
-        OPENVINO_ASSERT(labels.empty() || lower_bound.size() == labels.size());
+        const TensorSymbol& symbols = output.get_tensor().get_value_symbol();
+        OPENVINO_ASSERT(symbols.empty() || lower_bound.size() == symbols.size());
 
         std::vector<Dimension> resulting_pshape(lower_bound.size());
         for (size_t i = 0; i < lower_bound.size(); ++i) {
@@ -229,8 +298,8 @@ bool evaluate_as_partial_shape(const ov::Output<ov::Node>& output, ov::PartialSh
                     low = std::numeric_limits<std::int64_t>::max();
             }
             resulting_pshape[i] = {low, up};
-            if (!labels.empty() && labels[i])
-                DimensionTracker::set_label(resulting_pshape[i], labels[i]);
+            if (!symbols.empty())
+                resulting_pshape[i].set_symbol(symbols[i]);
         }
         pshape = ov::PartialShape(resulting_pshape);
         shape_defined = true;
@@ -238,8 +307,8 @@ bool evaluate_as_partial_shape(const ov::Output<ov::Node>& output, ov::PartialSh
     return shape_defined;
 }
 
-bool default_label_evaluator(const ov::Node* node, TensorLabelVector& output_labels) {
-    return default_label_evaluator(node, {0}, output_labels);
+bool default_symbol_evaluator(const ov::Node* node, TensorSymbolVector& output_symbols) {
+    return default_symbol_evaluator(node, {0}, output_symbols);
 }
 
 void generate_transpose_default_order(std::vector<int64_t>& axes_order, const size_t length) {
@@ -252,8 +321,8 @@ bool is_valid_axes_order(const std::vector<int64_t>& axes_order, const size_t si
            std::all_of(axes_order.cbegin(), axes_order.cend(), ov::cmp::Between<int64_t, ov::cmp::LOWER>(0, size));
 }
 
-bool has_no_labels(const ov::TensorLabel& labels) {
-    return std::all_of(labels.cbegin(), labels.cend(), cmp::Equal<size_t>(no_label));
+bool has_no_symbols(const ov::TensorSymbol& symbols) {
+    return std::all_of(symbols.cbegin(), symbols.cend(), cmp::Equal<std::shared_ptr<ov::Symbol>>(nullptr));
 }
 
 std::vector<size_t> normalize_axes(const std::string& node_description,

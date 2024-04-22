@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ Output<Node> prepare_source(const NodeContext& context,
                             const Output<Node>& src,
                             const Output<Node>& index,
                             const Output<Node>& input) {
-    auto src_partial_shape = src.get_partial_shape();
+    const auto& src_partial_shape = src.get_partial_shape();
     auto index_shape_rank = get_shape_rank(context, index);
     auto index_shape = std::get<0>(index_shape_rank);
     auto index_rank = std::get<1>(index_shape_rank);
@@ -90,7 +90,7 @@ OutputVector translate_scatter(const NodeContext& context) {
 
     auto reduction = v12::ScatterElementsUpdate::Reduction::NONE;
     auto input_num = context.get_input_size();
-    // 5 argument can be reduction represened as string or out represented as Tensor
+    // 5 argument can be reduction represented as string or out represented as Tensor
     if (input_num > 4 && !context.input_is_none(4) && context.get_input_type(4).is<type::Str>()) {
         auto reduce_mode = context.const_input<std::string>(4);
         reduction = get_reduction_mode(reduce_mode);

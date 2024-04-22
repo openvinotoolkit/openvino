@@ -1,13 +1,12 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import sys
 import platform
+import sys
 
 import numpy as np
 import pytest
 from common.tf_layer_test_class import CommonTFLayerTest
-from common.utils.tf_utils import permute_nchw_to_nhwc
 
 
 class TestUnaryOps(CommonTFLayerTest):
@@ -56,10 +55,7 @@ class TestUnaryOps(CommonTFLayerTest):
         tf.compat.v1.reset_default_graph()
 
         with tf.compat.v1.Session() as sess:
-            tf_x_shape = shape.copy()
-            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_legacy_frontend)
-
-            input = tf.compat.v1.placeholder(tf.float32, tf_x_shape, 'Input')
+            input = tf.compat.v1.placeholder(tf.float32, shape, 'Input')
             tfa.activations.mish(input)
 
             tf.compat.v1.global_variables_initializer()
@@ -114,10 +110,7 @@ class TestUnaryOps(CommonTFLayerTest):
             type = tf.int32
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            tf_x_shape = shape.copy()
-            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_legacy_frontend)
-
-            input = tf.compat.v1.placeholder(type, tf_x_shape, 'Input')
+            input = tf.compat.v1.placeholder(type, shape, 'Input')
             if self.current_op_type == 'Mish':
                 # Mish has no attribute name
                 op_type_to_tf[self.current_op_type](input)
@@ -161,7 +154,7 @@ class TestUnaryOps(CommonTFLayerTest):
                                          'Erf',
                                          'BitwiseNot'
                                          ])
-    @pytest.mark.precommit
+    @pytest.mark.nightly
     def test_unary_op_precommit(self, params, ie_device, precision, ir_version, temp_dir, op_type,
                                 use_legacy_frontend):
         if not use_legacy_frontend and op_type in ['BitwiseNot']:
@@ -176,7 +169,7 @@ class TestUnaryOps(CommonTFLayerTest):
     @pytest.mark.xfail(sys.version_info > (3, 10),
                        reason="tensorflow_addons package is not available for Python 3.11 and higher")
     @pytest.mark.parametrize("params", test_data_precommit)
-    @pytest.mark.precommit
+    @pytest.mark.nightly
     def test_unary_op_mish_precommit(self, params, ie_device, precision, ir_version, temp_dir,
                                      use_legacy_frontend):
         """
@@ -189,7 +182,7 @@ class TestUnaryOps(CommonTFLayerTest):
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
 
-    test_data = [pytest.param(dict(shape=[10, 12]), marks=pytest.mark.precommit_tf_fe),
+    test_data = [pytest.param(dict(shape=[10, 12]), marks=pytest.mark.precommit),
                  dict(shape=[8, 10, 12]),
                  dict(shape=[6, 8, 10, 12]),
                  dict(shape=[4, 6, 8, 10, 12])]
@@ -242,7 +235,7 @@ class TestUnaryOps(CommonTFLayerTest):
                        reason="tensorflow_addons package is not available for Python 3.11 and higher")
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_unary_op_mish(self, params, ie_device, precision, ir_version, temp_dir, op_type,
+    def test_unary_op_mish(self, params, ie_device, precision, ir_version, temp_dir,
                            use_legacy_frontend):
         """
         TODO: Move to `test_unary_op()` once tensorflow_addons package is available for Python 3.11

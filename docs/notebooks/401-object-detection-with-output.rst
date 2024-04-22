@@ -51,7 +51,7 @@ Install requirements
 
 .. code:: ipython3
 
-    %pip install -q "openvino-dev>=2023.1.0"
+    %pip install -q "openvino-dev>=2024.0.0"
     %pip install -q tensorflow
     %pip install -q opencv-python requests tqdm
     
@@ -97,7 +97,7 @@ Install requirements
 
 .. parsed-literal::
 
-    ('notebook_utils.py', <http.client.HTTPMessage at 0x7fcca8595400>)
+    ('notebook_utils.py', <http.client.HTTPMessage at 0x7f6f2809c5e0>)
 
 
 
@@ -179,7 +179,7 @@ Convert the Model
 
 The pre-trained model is in TensorFlow format. To use it with OpenVINO,
 convert it to OpenVINO IR format, using `Model Conversion
-API <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
+API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__
 (``mo.convert_model`` function). If the model has been already
 converted, this step is skipped.
 

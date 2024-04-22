@@ -81,7 +81,7 @@ provides already pretrained model from ``cerspense``.
     import base64
     import tempfile
     import warnings
-
+    
     import diffusers
     import transformers
     import numpy as np
@@ -90,7 +90,7 @@ provides already pretrained model from ``cerspense``.
     import torch
     import PIL
     import gradio as gr
-
+    
     import openvino as ov
 
 
@@ -188,7 +188,7 @@ function to serialize the result of conversion.
 .. code:: ipython3
 
     from pathlib import Path
-
+    
     def convert(model: torch.nn.Module, xml_path: str, **convert_kwargs) -> Path:
         xml_path = Path(xml_path)
         if not xml_path.exists():
@@ -247,7 +247,7 @@ inference, we need only decoder part.
         def __init__(self, vae):
             super().__init__()
             self.vae = vae
-
+            
         def forward(self, z: torch.FloatTensor):
             return self.vae.decode(z)
 
@@ -311,9 +311,9 @@ Build a pipeline
         from diffusers.utils import randn_tensor
     except ImportError:
         from diffusers.utils.torch_utils import randn_tensor
-
-
-
+    
+    
+    
     class OVTextToVideoSDPipeline(diffusers.DiffusionPipeline):
         def __init__(
             self,
@@ -324,7 +324,7 @@ Build a pipeline
             scheduler: diffusers.schedulers.DDIMScheduler,
         ):
             super().__init__()
-
+    
             self.vae_decoder = vae_decoder
             self.text_encoder = text_encoder
             self.tokenizer = tokenizer
@@ -335,7 +335,7 @@ Build a pipeline
             self.width = WIDTH
             self.height = HEIGHT
             self.num_frames = NUM_FRAMES
-
+    
         def __call__(
             self,
             prompt: Union[str, List[str]] = None,
@@ -354,7 +354,7 @@ Build a pipeline
         ):
             r"""
             Function invoked when calling the pipeline for generation.
-
+    
             Args:
                 prompt (`str` or `List[str]`, *optional*):
                     The prompt or prompts to guide the video generation. If not defined, one has to pass `prompt_embeds`.
@@ -401,13 +401,13 @@ Build a pipeline
                 callback_steps (`int`, *optional*, defaults to 1):
                     The frequency at which the `callback` function will be called. If not specified, the callback will be
                     called at every step.
-
+    
             Returns:
                 `List[np.ndarray]`: generated video frames
             """
-
+    
             num_images_per_prompt = 1
-
+    
             # 1. Check inputs. Raise error if not correct
             self.check_inputs(
                 prompt,
@@ -416,7 +416,7 @@ Build a pipeline
                 prompt_embeds,
                 negative_prompt_embeds,
             )
-
+    
             # 2. Define call parameters
             if prompt is not None and isinstance(prompt, str):
                 batch_size = 1
@@ -424,12 +424,12 @@ Build a pipeline
                 batch_size = len(prompt)
             else:
                 batch_size = prompt_embeds.shape[0]
-
+    
             # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
             # of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`
             # corresponds to doing no classifier free guidance.
             do_classifier_free_guidance = guidance_scale > 1.0
-
+    
             # 3. Encode input prompt
             prompt_embeds = self._encode_prompt(
                 prompt,
@@ -439,11 +439,11 @@ Build a pipeline
                 prompt_embeds=prompt_embeds,
                 negative_prompt_embeds=negative_prompt_embeds,
             )
-
+    
             # 4. Prepare timesteps
             self.scheduler.set_timesteps(num_inference_steps)
             timesteps = self.scheduler.timesteps
-
+    
             # 5. Prepare latent variables
             num_channels_latents = self.unet_in_channels
             latents = self.prepare_latents(
@@ -453,10 +453,10 @@ Build a pipeline
                 generator,
                 latents,
             )
-
+    
             # 6. Prepare extra step kwargs. TODO: Logic should ideally just be moved out of the pipeline
             extra_step_kwargs = {"generator": generator, "eta": eta}
-
+    
             # 7. Denoising loop
             num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
             with self.progress_bar(total=num_inference_steps) as progress_bar:
@@ -466,7 +466,7 @@ Build a pipeline
                         torch.cat([latents] * 2) if do_classifier_free_guidance else latents
                     )
                     latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
-
+    
                     # predict the noise residual
                     noise_pred = self.unet(
                         {
@@ -476,14 +476,14 @@ Build a pipeline
                         }
                     )[0]
                     noise_pred = torch.tensor(noise_pred)
-
+    
                     # perform guidance
                     if do_classifier_free_guidance:
                         noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                         noise_pred = noise_pred_uncond + guidance_scale * (
                             noise_pred_text - noise_pred_uncond
                         )
-
+    
                     # reshape latents
                     bsz, channel, frames, width, height = latents.shape
                     latents = latents.permute(0, 2, 1, 3, 4).reshape(
@@ -492,19 +492,19 @@ Build a pipeline
                     noise_pred = noise_pred.permute(0, 2, 1, 3, 4).reshape(
                         bsz * frames, channel, width, height
                     )
-
+    
                     # compute the previous noisy sample x_t -> x_t-1
                     latents = self.scheduler.step(
                         noise_pred, t, latents, **extra_step_kwargs
                     ).prev_sample
-
+    
                     # reshape latents back
                     latents = (
                         latents[None, :]
                         .reshape(bsz, frames, channel, width, height)
                         .permute(0, 2, 1, 3, 4)
                     )
-
+    
                     # call the callback, if provided
                     if i == len(timesteps) - 1 or (
                         (i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0
@@ -512,19 +512,19 @@ Build a pipeline
                         progress_bar.update()
                         if callback is not None and i % callback_steps == 0:
                             callback(i, t, latents)
-
+    
             video_tensor = self.decode_latents(latents)
-
+    
             if output_type == "pt":
                 video = video_tensor
             else:
                 video = tensor2vid(video_tensor)
-
+    
             if not return_dict:
                 return (video,)
-
+    
             return {"frames": video}
-
+    
         # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline._encode_prompt
         def _encode_prompt(
             self,
@@ -537,7 +537,7 @@ Build a pipeline
         ):
             r"""
             Encodes the prompt into text encoder hidden states.
-
+    
             Args:
                  prompt (`str` or `List[str]`, *optional*):
                     prompt to be encoded
@@ -563,7 +563,7 @@ Build a pipeline
                 batch_size = len(prompt)
             else:
                 batch_size = prompt_embeds.shape[0]
-
+    
             if prompt_embeds is None:
                 text_inputs = self.tokenizer(
                     prompt,
@@ -576,7 +576,7 @@ Build a pipeline
                 untruncated_ids = self.tokenizer(
                     prompt, padding="longest", return_tensors="pt"
                 ).input_ids
-
+    
                 if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not torch.equal(
                     text_input_ids, untruncated_ids
                 ):
@@ -587,16 +587,16 @@ Build a pipeline
                         "The following part of your input was truncated because CLIP can only handle sequences up to"
                         f" {self.tokenizer.model_max_length} tokens: {removed_text}"
                     )
-
+    
                 prompt_embeds = self.text_encoder(text_input_ids)
                 prompt_embeds = prompt_embeds[0]
                 prompt_embeds = torch.tensor(prompt_embeds)
-
+    
             bs_embed, seq_len, _ = prompt_embeds.shape
             # duplicate text embeddings for each generation per prompt, using mps friendly method
             prompt_embeds = prompt_embeds.repeat(1, num_images_per_prompt, 1)
             prompt_embeds = prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
-
+    
             # get unconditional embeddings for classifier free guidance
             if do_classifier_free_guidance and negative_prompt_embeds is None:
                 uncond_tokens: List[str]
@@ -617,7 +617,7 @@ Build a pipeline
                     )
                 else:
                     uncond_tokens = negative_prompt
-
+    
                 max_length = prompt_embeds.shape[1]
                 uncond_input = self.tokenizer(
                     uncond_tokens,
@@ -626,27 +626,27 @@ Build a pipeline
                     truncation=True,
                     return_tensors="pt",
                 )
-
+    
                 negative_prompt_embeds = self.text_encoder(uncond_input.input_ids)
                 negative_prompt_embeds = negative_prompt_embeds[0]
                 negative_prompt_embeds = torch.tensor(negative_prompt_embeds)
-
+    
             if do_classifier_free_guidance:
                 # duplicate unconditional embeddings for each generation per prompt, using mps friendly method
                 seq_len = negative_prompt_embeds.shape[1]
-
+    
                 negative_prompt_embeds = negative_prompt_embeds.repeat(1, num_images_per_prompt, 1)
                 negative_prompt_embeds = negative_prompt_embeds.view(
                     batch_size * num_images_per_prompt, seq_len, -1
                 )
-
+    
                 # For classifier free guidance, we need to do two forward passes.
                 # Here we concatenate the unconditional and text embeddings into a single batch
                 # to avoid doing two forward passes
                 prompt_embeds = torch.cat([negative_prompt_embeds, prompt_embeds])
-
+    
             return prompt_embeds
-
+    
         def prepare_latents(
             self,
             batch_size,
@@ -667,14 +667,14 @@ Build a pipeline
                     f"You have passed a list of generators of length {len(generator)}, but requested an effective batch"
                     f" size of {batch_size}. Make sure the batch size matches the length of the generators."
                 )
-
+    
             if latents is None:
                 latents = randn_tensor(shape, generator=generator, dtype=dtype)
-
+    
             # scale the initial noise by the standard deviation required by the scheduler
             latents = latents * self.scheduler.init_noise_sigma
             return latents
-
+    
         def check_inputs(
             self,
             prompt,
@@ -687,7 +687,7 @@ Build a pipeline
                 raise ValueError(
                     f"`height` and `width` have to be divisible by 8 but are {self.height} and {self.width}."
                 )
-
+    
             if (callback_steps is None) or (
                 callback_steps is not None
                 and (not isinstance(callback_steps, int) or callback_steps <= 0)
@@ -696,7 +696,7 @@ Build a pipeline
                     f"`callback_steps` has to be a positive integer but is {callback_steps} of type"
                     f" {type(callback_steps)}."
                 )
-
+    
             if prompt is not None and prompt_embeds is not None:
                 raise ValueError(
                     f"Cannot forward both `prompt`: {prompt} and `prompt_embeds`: {prompt_embeds}. Please make sure to"
@@ -708,13 +708,13 @@ Build a pipeline
                 )
             elif prompt is not None and (not isinstance(prompt, str) and not isinstance(prompt, list)):
                 raise ValueError(f"`prompt` has to be of type `str` or `list` but is {type(prompt)}")
-
+    
             if negative_prompt is not None and negative_prompt_embeds is not None:
                 raise ValueError(
                     f"Cannot forward both `negative_prompt`: {negative_prompt} and `negative_prompt_embeds`:"
                     f" {negative_prompt_embeds}. Please make sure to only forward one of the two."
                 )
-
+    
             if prompt_embeds is not None and negative_prompt_embeds is not None:
                 if prompt_embeds.shape != negative_prompt_embeds.shape:
                     raise ValueError(
@@ -722,11 +722,11 @@ Build a pipeline
                         f" got: `prompt_embeds` {prompt_embeds.shape} != `negative_prompt_embeds`"
                         f" {negative_prompt_embeds.shape}."
                     )
-
+    
         def decode_latents(self, latents):
             scale_factor = 0.18215
             latents = 1 / scale_factor * latents
-
+    
             batch_size, channels, num_frames, height, width = latents.shape
             latents = latents.permute(0, 2, 1, 3, 4).reshape(
                 batch_size * num_frames, channels, height, width
@@ -773,7 +773,7 @@ select device from dropdown list for running inference using OpenVINO
         description='Device:',
         disabled=False,
     )
-
+    
     device
 
 
@@ -897,8 +897,8 @@ Interactive demo
             out_file, save_all=True, append_images=images[1:], duration=125, loop=0
         )
         return out_file.name
-
-
+    
+    
     demo = gr.Interface(
         generate,
         [
@@ -914,7 +914,7 @@ Interactive demo
         ],
         allow_flagging="never"
     )
-
+    
     try:
         demo.queue().launch(debug=False)
     except Exception:
@@ -927,12 +927,12 @@ Interactive demo
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-
+    
     To create a public link, set `share=True` in `launch()`.
 
 
 
-.. .. raw:: html
 
-..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

@@ -35,7 +35,7 @@ If you are a Python developer, follow the steps in the :ref:`Installing OpenVINO
 For C/C++ Developers
 #######################
 
-If you are a C/C++ developer, you must first install OpenVINO Runtime separately to set up the C/C++ libraries, sample code, and dependencies for building applications with OpenVINO. These files are not included with the PyPI distribution. See the :doc:`Selector Tool <openvino_docs_install_guides_overview>` page to install OpenVINO Runtime from an archive file for your operating system.
+If you are a C/C++ developer, you must first install OpenVINO Runtime separately to set up the C/C++ libraries, sample code, and dependencies for building applications with OpenVINO. These files are not included with the PyPI distribution. See the :doc:`Selector Tool <../../get-started/install-openvino>` page to install OpenVINO Runtime from an archive file for your operating system.
 
 Once OpenVINO Runtime is installed, you may install OpenVINO Development Tools for access to tools like ``mo``, Model Downloader, Benchmark Tool, and other utilities that will help you optimize your model and develop your application. Follow the steps in the :ref:`Installing OpenVINO Development Tools <install_dev_tools>` section on this page to install it.
 
@@ -161,7 +161,7 @@ To verify the package is properly installed, run the command below (this may tak
 
    mo -h
 
-You will see the help message for ``mo`` if installation finished successfully. If you get an error, refer to the :doc:`Troubleshooting Guide <openvino_docs_get_started_guide_troubleshooting>` for possible solutions.
+You will see the help message for ``mo`` if installation finished successfully. If you get an error, refer to the :doc:`Troubleshooting Guide <../../get-started/troubleshooting-install-config>` for possible solutions.
 
 Congratulations! You finished installing OpenVINO Development Tools with C/C++ capability. Now you can start exploring OpenVINO's functionality through example C/C++ applications. See the "What's Next?" section to learn more!
 
@@ -173,38 +173,38 @@ Learn more about OpenVINO and use it in your own application by trying out some 
 Get started with Python
 +++++++++++++++++++++++
 
-.. image:: _static/images/get_started_with_python.gif
+.. image:: ../../_static/images/get_started_with_python.gif
   :width: 400
 
-Try the `Python Quick Start Example <notebooks/201-vision-monodepth-with-output.html>`__ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
+Try the `Python Quick Start Example <../../notebooks/201-vision-monodepth-with-output.html>`__ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
 
-Visit the :doc:`Tutorials <tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
+Visit the :doc:`Tutorials <../../learn-openvino/interactive-tutorials-python>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
 
-* `OpenVINO Python API Tutorial <notebooks/002-openvino-api-with-output.html>`__
-* `Basic image classification program with Hello Image Classification <notebooks/001-hello-world-with-output.html>`__
-* `Convert a PyTorch model and use it for image background removal <notebooks/205-vision-background-removal-with-output.html>`__
+* `OpenVINO Python API Tutorial <../../notebooks/002-openvino-api-with-output.html>`__
+* `Basic image classification program with Hello Image Classification <../../notebooks/001-hello-world-with-output.html>`__
+* `Convert a PyTorch model and use it for image background removal <../../notebooks/205-vision-background-removal-with-output.html>`__
 
 Get started with C++
 ++++++++++++++++++++
 
-.. image:: _static/images/get_started_with_cpp.jpg
+.. image:: ../../_static/images/get_started_with_cpp.jpg
   :width: 400
 
 
-Try the :doc:`C++ Quick Start Example <openvino_docs_get_started_get_started_demos>` for step-by-step instructions on building and running a basic image classification C++ application.
+Try the :doc:`C++ Quick Start Example <../../learn-openvino/openvino-samples/get-started-demos>` for step-by-step instructions on building and running a basic image classification C++ application.
 
-Visit the :doc:`Samples <openvino_docs_OV_UG_Samples_Overview>` page for other C++ example applications to get you started with OpenVINO, such as:
+Visit the :doc:`Samples <../../learn-openvino/openvino-samples>` page for other C++ example applications to get you started with OpenVINO, such as:
 
-* :doc:`Basic object detection with the Hello Reshape SSD C++ sample <openvino_sample_hello_reshape_ssd>`
-* :doc:`Object classification sample <openvino_sample_hello_classification>`
+* :doc:`Basic object detection with the Hello Reshape SSD C++ sample <../../learn-openvino/openvino-samples/hello-reshape-ssd>`
+* :doc:`Object classification sample <../../learn-openvino/openvino-samples/hello-classification>`
 
 Learn OpenVINO Development Tools
 ++++++++++++++++++++++++++++++++
 
-* Explore a variety of pre-trained deep learning models in the :doc:`Open Model Zoo <model_zoo>` and deploy them in demo applications to see how they work.
-* Want to import a model from another framework and optimize its performance with OpenVINO? Visit the :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` page.
-* Accelerate your model's speed even further with quantization and other compression techniques using :doc:`Neural Network Compression Framework (NNCF) <ptq_introduction>`.
-* Benchmark your model's inference speed with one simple command using the :doc:`Benchmark Tool <openvino_sample_benchmark_tool>`.
+* Explore a variety of pre-trained deep learning models in the :doc:`Open Model Zoo <model-zoo>` and deploy them in demo applications to see how they work.
+* Want to import a model from another framework and optimize its performance with OpenVINO? Visit the :doc:`Convert a Model <transition-legacy-conversion-api/legacy-conversion-api>` page.
+* Accelerate your model's speed even further with quantization and other compression techniques using :doc:`Neural Network Compression Framework (NNCF) <../../openvino-workflow/model-optimization-guide/quantizing-models-post-training>`.
+* Benchmark your model's inference speed with one simple command using the :doc:`Benchmark Tool <../../learn-openvino/openvino-samples/benchmark-tool>`.
 
 Additional Resources
 ####################

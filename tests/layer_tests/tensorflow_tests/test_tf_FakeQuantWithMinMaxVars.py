@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -18,10 +18,10 @@ OPS = {
 class TestFakeQuantWithMinMaxVars(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         # generate elements so that the input tensor may contain repeating elements
-        assert 'inputs' in inputs_info, "Test error: inputs_info must contain `input`"
-        inputs_shape = inputs_info['inputs']
+        assert 'inputs:0' in inputs_info, "Test error: inputs_info must contain `input`"
+        inputs_shape = inputs_info['inputs:0']
         inputs_data = {}
-        inputs_data['inputs'] = np.random.randint(-10, 10, inputs_shape).astype(np.float32)
+        inputs_data['inputs:0'] = np.random.randint(-10, 10, inputs_shape).astype(np.float32)
         return inputs_data
 
     def create_fake_quant_with_min_max_vars_net(self, inputs_shape, min_value, max_value, num_bits, narrow_range,
@@ -48,7 +48,7 @@ class TestFakeQuantWithMinMaxVars(CommonTFLayerTest):
     @pytest.mark.parametrize("fake_quant_op", [
         'tf.raw_ops.FakeQuantWithMinMaxVars', 'tf.raw_ops.FakeQuantWithMinMaxArgs'
     ])
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122716')
@@ -63,7 +63,7 @@ class TestFakeQuantWithMinMaxVars(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("inputs_shape, min_value, max_value, num_bits, narrow_range, fake_quant_op", test_per_channel_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.xfail("104822")
     def test_fake_quant_with_min_max_vars_per_channel_basic(self, inputs_shape, min_value, max_value, num_bits, narrow_range, fake_quant_op, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):

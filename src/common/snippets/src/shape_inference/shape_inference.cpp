@@ -42,27 +42,29 @@ const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry
         SHAPE_INFER_PREDEFINED(op::IntermediateMemoryBuffer, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(op::Fill, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(ov::op::v0::Parameter, PassThroughShapeInfer),
-        // Note: We should remove Softmax shape infers after the decomposition activity,
-        //       since there won't be any Softmax ops on LIR. Ticket: 112847
-        SHAPE_INFER_PREDEFINED(ov::op::v1::Softmax, PassThroughShapeInfer),
-        SHAPE_INFER_PREDEFINED(ov::op::v8::Softmax, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(ov::op::v1::LogicalNot, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(ov::op::v0::PRelu, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(op::HorizonMax, HorizonOpShapeInfer),
         SHAPE_INFER_PREDEFINED(op::HorizonSum, HorizonOpShapeInfer),
         //
-        SHAPE_INFER_PREDEFINED(op::LoopBegin, SingleElementShapeInfer),
+        SHAPE_INFER_PREDEFINED(op::LoopBeginStatic, SingleElementShapeInfer),
+        SHAPE_INFER_PREDEFINED(op::LoopBeginDynamic, SingleElementShapeInfer),
         SHAPE_INFER_PREDEFINED(op::Scalar, SingleElementShapeInfer),
         SHAPE_INFER_PREDEFINED(op::VectorBuffer, SingleElementShapeInfer),
-        SHAPE_INFER_PREDEFINED(op::LoopEnd, EmptyShapeInfer),
+        SHAPE_INFER_PREDEFINED(op::LoopEndStatic, EmptyShapeInfer),
+        SHAPE_INFER_PREDEFINED(op::LoopEndDynamic, EmptyShapeInfer),
 #ifdef SNIPPETS_DEBUG_CAPS
         SHAPE_INFER_PREDEFINED(op::PerfCountBegin, EmptyShapeInfer),
         SHAPE_INFER_PREDEFINED(op::PerfCountEnd, EmptyShapeInfer),
 #endif
-        SHAPE_INFER_PREDEFINED(op::Kernel, EmptyShapeInfer),
+        SHAPE_INFER_PREDEFINED(op::KernelStatic, EmptyShapeInfer),
+        SHAPE_INFER_PREDEFINED(op::KernelDynamic, EmptyShapeInfer),
         SHAPE_INFER_PREDEFINED(op::Nop, EmptyShapeInfer),
+        SHAPE_INFER_OP_SPECIFIC_EXTERNAL(op::Reshape, ReshapeShapeInfer),
         SHAPE_INFER_OP_SPECIFIC_EXTERNAL(opset1::Select, SelectShapeInfer),
         SHAPE_INFER_OP_SPECIFIC_EXTERNAL(op::Brgemm, BrgemmShapeInfer),
+        SHAPE_INFER_OP_SPECIFIC_EXTERNAL(op::ReduceMax, ReduceShapeInfer),
+        SHAPE_INFER_OP_SPECIFIC_EXTERNAL(op::ReduceSum, ReduceShapeInfer),
         // Note that Result has no output PortConnectors, so the shape must be empty
         SHAPE_INFER_PREDEFINED(ov::op::v0::Result, EmptyShapeInfer),
         //

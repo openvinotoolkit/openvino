@@ -19,7 +19,7 @@ class Test_throughput_benchmark_cpp(SamplesCommonTestClass):
     sample_name = 'throughput_benchmark'
 
     def test(self, cache):
-        self._test({'m': os.path.join('ssd512', 'FP16', 'ssd512.xml')}, cache, use_preffix=False)
+        self._test({'m': 'bvlcalexnet-12.onnx'}, cache, use_preffix=False)
 
 
 class Test_throughput_benchmark_py(SamplesCommonTestClass):
@@ -28,4 +28,4 @@ class Test_throughput_benchmark_py(SamplesCommonTestClass):
 
     def test(self, monkeypatch, cache):
         monkeypatch.setenv('PYTHONCOERCECLOCALE', 'warn')
-        self._test({'m': os.path.join('ssd512', 'FP16', 'ssd512.xml')}, cache, use_preffix=False)
+        self._test({'m': 'bvlcalexnet-12.onnx'}, cache, use_preffix=False)

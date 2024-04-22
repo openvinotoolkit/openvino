@@ -52,10 +52,10 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
     using parent = multi_stage_primitive<kv_cache>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::concatenation_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::concatenation_params, kernel_selector::concatenation_optional_params>;
+    using kernel_params_t = kernel_selector::concatenation_params;
 
     using bt_kernel_selector_t = kernel_selector::beam_table_update_kernel_selector;
-    using bt_kernel_params_t = std::pair<kernel_selector::beam_table_update_params, kernel_selector::beam_table_update_optional_params>;
+    using bt_kernel_params_t = kernel_selector::beam_table_update_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::kv_cache_impl)
 
@@ -177,7 +177,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
             beam_table_state->set_memory(beam_table_new, instance.get_impl_params()->output_layouts[1]);
 
             auto bt_kernel_params = get_bt_update_kernel_params(impl_param, beam_table_state->is_set());
-            (_kernels_data[beam_table_stage].update_dispatch_data_func)(bt_kernel_params.first, _kernels_data[beam_table_stage]);
+            (_kernels_data[beam_table_stage].update_dispatch_data_func)(bt_kernel_params, _kernels_data[beam_table_stage]);
 
             execute_stage(events, instance, res_events, beam_table_stage);
             beam_table_state->set();
@@ -216,7 +216,6 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
     static kernel_params_t get_concat_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<kv_cache>();
         auto params = get_default_params<kernel_selector::concatenation_params>(impl_param, is_shape_agnostic);
-        auto optional_params = get_default_optional_params<kernel_selector::concatenation_optional_params>(impl_param.get_program());
         auto axis = primitive->concat_axis;
 
         const auto inputs_count = 2;
@@ -226,7 +225,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         }
 
         params.axis = convert_axis(axis, impl_param.get_output_layout().get_rank());
-        optional_params.kernelPerInput = true;
+        params.kernelPerInput = true;
 
         const auto& in_offsets_map = impl_param.in_port_to_shape_info_offset; // [kv_past, kv_new_token, [beam_idx, beam_table_past]
         const auto& out_offsets_map = impl_param.out_port_to_shape_info_offset; // [kv_present, beam_table_present]
@@ -240,12 +239,11 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
 
         params.set_dynamic_shape_offsets(in_tensor_to_offset_map, out_tensor_to_offset_map);
 
-        return {params, optional_params};
+        return params;
     }
 
     static bt_kernel_params_t get_bt_update_kernel_params(const kernel_impl_params& impl_param, bool is_state_set = false) {
         auto params = get_default_params<kernel_selector::beam_table_update_params>(impl_param, true);
-        auto optional_params = get_default_optional_params<kernel_selector::beam_table_update_optional_params>(impl_param.get_program());
 
         auto inputs_count = 2;
         auto bt_present_layout = impl_param.output_layouts[1];
@@ -275,26 +273,26 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
 
         params.set_dynamic_shape_offsets(in_tensor_to_offset_map, out_tensor_to_offset_map);
 
-        return {params, optional_params};
+        return params;
     }
 
     static std::unique_ptr<primitive_impl> create(const typed_program_node<kv_cache>& arg, const kernel_impl_params& impl_param) {
         std::vector<kernel_selector::kernel_data> kernels_data;
         auto concat_kernel_params = get_concat_kernel_params(impl_param, impl_param.is_dynamic());
         auto& concat_kernel_selector = kernel_selector_t::Instance();
-        kernels_data.push_back(concat_kernel_selector.get_best_kernel(concat_kernel_params.first, concat_kernel_params.second));
+        kernels_data.push_back(concat_kernel_selector.get_best_kernel(concat_kernel_params));
         const bool indirect = impl_param.typed_desc<kv_cache>()->indirect;
         if (indirect) {
             auto bt_update_kernel_params = get_bt_update_kernel_params(impl_param, false);
             auto& bt_update_kernel_selector = bt_kernel_selector_t::Instance();
-            kernels_data.push_back(bt_update_kernel_selector.get_best_kernel(bt_update_kernel_params.first, bt_update_kernel_params.second));
+            kernels_data.push_back(bt_update_kernel_selector.get_best_kernel(bt_update_kernel_params));
         }
         return cldnn::make_unique<kv_cache_impl>(kernels_data);
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kv_cache_kernel_params = get_concat_kernel_params(impl_param, impl_param.is_dynamic());
-        (_kernels_data[concat_stage].update_dispatch_data_func)(kv_cache_kernel_params.first, _kernels_data[concat_stage]);
+        (_kernels_data[concat_stage].update_dispatch_data_func)(kv_cache_kernel_params, _kernels_data[concat_stage]);
         _kernels_data[concat_stage].kernels[0].skip_execution = impl_param._can_be_optimized || impl_param.get_input_layout(0).count() == 0;
     }
 };

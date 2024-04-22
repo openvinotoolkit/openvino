@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,12 +74,18 @@ OutputVector translate_cat(const NodeContext& context) {
 
 OutputVector translate_cat_fx(const NodeContext& context) {
     // This translator is only needed to get axis as constant from external scope
-    num_inputs_check(context, 2, context.get_input_size());
+    num_inputs_check(context, 1, context.get_input_size());
     std::deque<Output<Node>> list_elems;
     for (size_t i = 0; i < context.get_input_size() - 1; i++) {
         list_elems.push_back(context.get_input(static_cast<int>(i)));
     }
-    auto axis = context.const_input<int64_t>(context.get_input_size() - 1);
+    int64_t axis = 0;
+    if (!context.get_input_type(context.get_input_size() - 1).is<type::List>()) {
+        // axis can be not present and that means that last input will have List type
+        axis = context.const_input<int64_t>(context.get_input_size() - 1);
+    } else {
+        list_elems.push_back(context.get_input(static_cast<int>(context.get_input_size() - 1)));
+    }
     return translate_cat_common(context, list_elems, axis, true);
 };
 
@@ -96,20 +102,24 @@ OutputVector translate_quantized_cat(const NodeContext& context) {
 };
 
 OutputVector translate_stack_fx(const NodeContext& context) {
-    num_inputs_check(context, 2, context.get_input_size());
+    num_inputs_check(context, 1, context.get_input_size());
     auto dim = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+    int64_t axis = 0;
+
     std::deque<Output<Node>> list_elems;
     auto num_elements = context.get_input_size();
-    if (num_elements > 2)
-        num_elements = num_elements - 1;
+
+    if (!context.get_input_type(num_elements - 1).is<type::List>()) {
+        axis = context.const_input<int64_t>(num_elements - 1);
+        dim = context.mark_node(v0::Constant::create(element::i32, Shape{}, {axis}));
+        num_elements -= 1;
+    }
+
     for (size_t i = 0; i < num_elements; i++) {
         auto stack_input =
             context.mark_node(std::make_shared<v0::Unsqueeze>(context.get_input(static_cast<int>(i)), dim));
         list_elems.push_back(stack_input);
     }
-    int64_t axis = 0;
-    if (context.get_input_size() > 2)
-        axis = context.const_input<int64_t>(context.get_input_size() - 1);
     return translate_cat_common(context, list_elems, axis, true);
 }
 

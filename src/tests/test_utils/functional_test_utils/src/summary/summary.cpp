@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,8 @@
 namespace ov {
 namespace test {
 namespace utils {
+
+bool is_print_rel_influence_coef = false;
 
 PassRate::PassRate(unsigned long p,
                    unsigned long f,

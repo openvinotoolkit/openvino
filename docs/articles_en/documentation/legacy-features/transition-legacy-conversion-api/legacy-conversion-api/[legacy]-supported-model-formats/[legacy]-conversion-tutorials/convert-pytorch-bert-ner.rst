@@ -12,7 +12,7 @@ Converting a PyTorch BERT-NER Model
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <tutorials>`.
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <../../../../../../learn-openvino/interactive-tutorials-python>`.
 
 The goal of this article is to present a step-by-step guide on how to convert PyTorch BERT-NER model to OpenVINO IR. First, you need to download the model and convert it to ONNX.
 

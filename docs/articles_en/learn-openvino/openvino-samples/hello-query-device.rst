@@ -11,7 +11,7 @@ Hello Query Device Sample
 
 
 This sample demonstrates how to show OpenVINO™ Runtime devices and prints their
-metrics and default configuration values using :doc:`Query Device API feature <openvino_docs_OV_UG_query_api>`.
+metrics and default configuration values using :doc:`Query Device API feature <../../openvino-workflow/running-inference/inference-devices-and-modes/query-device-properties>`.
 To build the sample, use instructions available at :ref:`Build the Sample Applications <build-samples>`
 section in "Get Started with Samples" guide.
 
@@ -132,8 +132,8 @@ For example:
 Additional Resources
 ####################
 
-- :doc:`Integrate the OpenVINO™ Runtime with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`
-- :doc:`Get Started with Samples <openvino_docs_get_started_get_started_demos>`
-- :doc:`Using OpenVINO™ Toolkit Samples <openvino_docs_OV_UG_Samples_Overview>`
+- :doc:`Integrate the OpenVINO™ Runtime with Your Application <../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
+- :doc:`Get Started with Samples <get-started-demos>`
+- :doc:`Using OpenVINO™ Toolkit Samples <../openvino-samples>`
 - `Hello Query Device Python Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/python/hello_query_device/README.md>`__
 - `Hello Query Device C++ Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/cpp/hello_query_device/README.md>`__

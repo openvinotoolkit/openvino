@@ -23,13 +23,12 @@ ParamsKey ExperimentalDetectronGenerateProposalsSingleImageRef::GetSupportedKey(
     return k;
 }
 
-KernelsPriority ExperimentalDetectronGenerateProposalsSingleImageRef::GetKernelsPriority(const Params&, const optional_params&) const {
+KernelsPriority ExperimentalDetectronGenerateProposalsSingleImageRef::GetKernelsPriority(const Params&) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
-bool ExperimentalDetectronGenerateProposalsSingleImageRef::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::EXPERIMENTAL_DETECTRON_GENERATE_PROPOSALS_SINGLE_IMAGE ||
-        o.GetType() != KernelType::EXPERIMENTAL_DETECTRON_GENERATE_PROPOSALS_SINGLE_IMAGE) {
+bool ExperimentalDetectronGenerateProposalsSingleImageRef::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::EXPERIMENTAL_DETECTRON_GENERATE_PROPOSALS_SINGLE_IMAGE) {
         return false;
     }
     return true;
@@ -97,8 +96,8 @@ void ExperimentalDetectronGenerateProposalsSingleImageRef::SetKernelArguments(
     }
 }
 
-KernelsData ExperimentalDetectronGenerateProposalsSingleImageRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData ExperimentalDetectronGenerateProposalsSingleImageRef::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -126,7 +125,7 @@ KernelsData ExperimentalDetectronGenerateProposalsSingleImageRef::GetKernelsData
 
     for (size_t i = 0; i < kKernelsNum; ++i) {
         const auto dispatchData = SetDefault(new_params, i);
-        const auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params, options, i);
+        const auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params, i);
         auto cldnn_jit = MakeBaseParamsJitConstants(new_params);
 
 

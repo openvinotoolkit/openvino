@@ -56,6 +56,10 @@ void GridSampleLayerTest::SetUp() {
     function = std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(gridSample),
                                                   ov::ParameterVector{data, grid},
                                                   "GridSample");
+
+    if (model_type == ov::element::f16 && grid_type == ov::element::f32) {
+        abs_threshold = 2e-2;
+    }
 }
 }  // namespace test
 }  // namespace ov

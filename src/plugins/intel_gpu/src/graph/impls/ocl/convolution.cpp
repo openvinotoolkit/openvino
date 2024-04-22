@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ struct convolution_impl : typed_primitive_impl_ocl<convolution> {
     using parent = typed_primitive_impl_ocl<convolution>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::convolution_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::convolution_params, kernel_selector::convolution_optional_params>;
+    using kernel_params_t = kernel_selector::convolution_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::convolution_impl)
 
@@ -61,8 +61,6 @@ public:
         auto conv_params = get_weight_bias_zero_point_default_params<kernel_selector::convolution_params>(impl_param,
                                                                                                           primitive->grouped_weights_shape,
                                                                                                           is_shape_agnostic);
-        auto conv_optional_params =
-            get_default_weights_bias_optional_params<kernel_selector::convolution_optional_params>(impl_param.get_program());
 
         if (primitive->deformable_mode) {
             conv_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
@@ -96,7 +94,7 @@ public:
             const auto spatial_rank = input_layout.get_spatial_rank();
 
             ov::PartialShape kernel;
-            for (size_t i = 0; i < spatial_rank; i++) {
+            for (int32_t i = static_cast<int32_t>(spatial_rank) - 1; i >= 0; i--) {
                 kernel.emplace_back(weights_layout.spatial(i));
             }
 
@@ -205,11 +203,11 @@ public:
             format == format::bs_fs_zyx_bsv16_fsv16 ||
             format == format::bs_fs_yx_bsv16_fsv16 ||
             format == format::b_fs_zyx_fsv32)
-            conv_optional_params.allowInputReordering = true;
+            conv_params.allowInputReordering = true;
 
         conv_params.set_dynamic_shape_offsets();
 
-        return {conv_params, conv_optional_params};
+        return conv_params;
     }
 
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
@@ -246,7 +244,7 @@ public:
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
        auto kernel_params = get_kernel_params(impl_param, true);
-       (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+       (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
     }
 };
 

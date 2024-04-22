@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,29 +23,20 @@ namespace pytorch {
 
 using namespace ov::op;
 
-Output<Node> quantize(const NodeContext& context,
-                      const Output<Node>& input,
-                      const Output<Node>& scale,
-                      const Output<Node>& zero_point,
-                      const Output<Node>& axis,
-                      element::Type dtype,
-                      QuantizedPtNodeType quantization_type) {
+Output<Node> quantize_common(const NodeContext& context,
+                             const Output<Node>& input,
+                             const Output<Node>& scale,
+                             const Output<Node>& zero_point,
+                             const Output<Node>& axis,
+                             int64_t out_low_i64,
+                             int64_t out_high_i64,
+                             element::Type dtype,
+                             QuantizedPtNodeType quantization_type) {
     if (quantization_type == QuantizedPtNodeType::QUANTIZE_PER_TENSOR) {
         const auto input_convert = context.mark_node(std::make_shared<v0::Convert>(input, element::f32));
         const auto scale_convert = context.mark_node(std::make_shared<v0::Convert>(scale, element::f32));
         const auto zero_point_convert = context.mark_node(std::make_shared<v0::Convert>(zero_point, element::f32));
 
-        int64_t out_low_i64, out_high_i64;
-        if (dtype == element::u8) {
-            out_low_i64 = (int64_t)std::numeric_limits<unsigned char>::lowest();
-            out_high_i64 = (int64_t)std::numeric_limits<unsigned char>::max();
-        } else if (dtype == element::i8) {
-            out_low_i64 = (int64_t)std::numeric_limits<char>::lowest();
-            out_high_i64 = (int64_t)std::numeric_limits<char>::max();
-        } else {  // i32
-            out_low_i64 = (int64_t)std::numeric_limits<int>::lowest();
-            out_high_i64 = (int64_t)std::numeric_limits<int>::max();
-        }
         int64_t levels = out_high_i64 - out_low_i64 + 1;
         const auto out_low = context.mark_node(v0::Constant::create(element::f32, Shape{}, {out_low_i64}));
         const auto out_high = context.mark_node(v0::Constant::create(element::f32, Shape{}, {out_high_i64}));
@@ -75,17 +66,6 @@ Output<Node> quantize(const NodeContext& context,
         const auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
         const auto one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
 
-        int64_t out_low_i64, out_high_i64;
-        if (dtype == element::u8) {
-            out_low_i64 = (int64_t)std::numeric_limits<unsigned char>::lowest();
-            out_high_i64 = (int64_t)std::numeric_limits<unsigned char>::max();
-        } else if (dtype == element::i8) {
-            out_low_i64 = (int64_t)std::numeric_limits<char>::lowest();
-            out_high_i64 = (int64_t)std::numeric_limits<char>::max();
-        } else {  // i32
-            out_low_i64 = (int64_t)std::numeric_limits<int>::lowest();
-            out_high_i64 = (int64_t)std::numeric_limits<int>::max();
-        }
         int64_t levels = out_high_i64 - out_low_i64 + 1;
         const auto out_low = context.mark_node(v0::Constant::create(element::f32, Shape{}, {out_low_i64}));
         const auto out_high = context.mark_node(v0::Constant::create(element::f32, Shape{}, {out_high_i64}));
@@ -118,6 +98,35 @@ Output<Node> quantize(const NodeContext& context,
                                                                    dtype));
     }
     FRONT_END_OP_CONVERSION_CHECK(false, "Got unknown quantization method in quantize.");
+}
+
+Output<Node> quantize(const NodeContext& context,
+                      const Output<Node>& input,
+                      const Output<Node>& scale,
+                      const Output<Node>& zero_point,
+                      const Output<Node>& axis,
+                      element::Type dtype,
+                      QuantizedPtNodeType quantization_type) {
+    int64_t out_low_i64, out_high_i64;
+    if (dtype == element::u8) {
+        out_low_i64 = (int64_t)std::numeric_limits<unsigned char>::lowest();
+        out_high_i64 = (int64_t)std::numeric_limits<unsigned char>::max();
+    } else if (dtype == element::i8) {
+        out_low_i64 = (int64_t)std::numeric_limits<char>::lowest();
+        out_high_i64 = (int64_t)std::numeric_limits<char>::max();
+    } else {  // i32
+        out_low_i64 = (int64_t)std::numeric_limits<int>::lowest();
+        out_high_i64 = (int64_t)std::numeric_limits<int>::max();
+    }
+    return quantize_common(context,
+                           input,
+                           scale,
+                           zero_point,
+                           axis,
+                           out_low_i64,
+                           out_high_i64,
+                           dtype,
+                           quantization_type);
 }
 
 Output<Node> quantize(const NodeContext& context,
@@ -157,6 +166,45 @@ Output<Node> quantize(const NodeContext& context,
                         quantized_pt_node->get_type());
     }
     FRONT_END_OP_CONVERSION_CHECK(false, "Failed to convert a node to QuantizedPtNode");
+}
+
+Output<Node> quantize_fx(const NodeContext& context,
+                         const Output<Node>& input,
+                         const Output<Node>& scale,
+                         const Output<Node>& zero_point,
+                         const Output<Node>& axis,
+                         int64_t out_low_i64,
+                         int64_t out_high_i64,
+                         element::Type dtype,
+                         QuantizedPtNodeType quantization_type) {
+    return quantize_common(context,
+                           input,
+                           scale,
+                           zero_point,
+                           axis,
+                           out_low_i64,
+                           out_high_i64,
+                           dtype,
+                           quantization_type);
+}
+
+Output<Node> quantize_fx(const NodeContext& context,
+                         const Output<Node>& input,
+                         const Output<Node>& scale,
+                         const Output<Node>& zero_point,
+                         int64_t out_low_i64,
+                         int64_t out_high_i64,
+                         element::Type dtype,
+                         QuantizedPtNodeType quantization_type) {
+    return quantize_fx(context,
+                       input,
+                       scale,
+                       zero_point,
+                       Output<Node>(),
+                       out_low_i64,
+                       out_high_i64,
+                       dtype,
+                       quantization_type);
 }
 
 std::shared_ptr<QuantizedPtNode> cast_quantized_fw_node(std::shared_ptr<Node> node) {

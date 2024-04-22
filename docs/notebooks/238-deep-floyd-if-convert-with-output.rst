@@ -843,8 +843,12 @@ release!
 
 .. code:: ipython3
 
-    # Temporary requirement
-    %pip install -q matplotlib
+    import platform
+    
+    if platform.system() != "Windows":
+        %pip install -q "matplotlib>=3.4"
+    else:
+        %pip install -q "matplotlib>=3.4,<3.7"
 
 
 .. parsed-literal::

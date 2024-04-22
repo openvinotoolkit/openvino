@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -73,8 +73,8 @@ public:
                               const std::shared_ptr<const ov::IPlugin>& plugin,
                               const ov::AnyMap& config,
                               const DeviceInformation& device_info,
-                              const std::set<std::string>& batched_inputs,
-                              const std::set<std::string>& batched_outputs,
+                              const std::set<std::size_t>& batched_inputs,
+                              const std::set<std::size_t>& batched_outputs,
                               const ov::SoPtr<ov::ICompiledModel>& compiled_model_with_batch,
                               const ov::SoPtr<ov::ICompiledModel>& compiled_model_without_batch,
                               const ov::SoPtr<ov::IRemoteContext>& context)

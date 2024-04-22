@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 abs_path () {
@@ -32,8 +32,6 @@ shift
 done
 
 if [ -e "$INSTALLDIR/runtime" ]; then
-    export InferenceEngine_DIR=$INSTALLDIR/runtime/cmake
-    export ngraph_DIR=$INSTALLDIR/runtime/cmake
     export OpenVINO_DIR=$INSTALLDIR/runtime/cmake
 
     system_type=$(/bin/ls "$INSTALLDIR/runtime/lib/")

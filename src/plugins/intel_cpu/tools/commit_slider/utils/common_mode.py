@@ -3,7 +3,7 @@
 
 from abc import ABC
 import utils.helpers as util
-import utils.map_builder as mapBuilder
+from utils.subscription import SubscriptionManager
 from utils.break_validator import validateBMOutput
 from utils.break_validator import BmValidationError
 import json
@@ -87,7 +87,7 @@ class Mode(ABC):
     def getPseudoMetric(self, commit, cfg):
         raise NotImplementedError("getPseudoMetric() is not implemented")
 
-    def compareCommits(self, c1, c2, list, cfg):
+    def compareCommits(self, c1: str, c2: str, cfg: map):
         raise NotImplementedError("compareCommits() is not implemented")
 
     def checkCfg(self, cfg):
@@ -119,18 +119,30 @@ class Mode(ABC):
                         c1=newList[0], c2=newList[-1])
                 )
                 list = newList
+            elif self.traversal.isComparative():
+                raise util.PreliminaryAnalysisError(
+                    "No degradation for reduced interval: \
+                    {i1} and {i2} don't differ".format(
+                        i1=list[0], i2=list[-1]),
+                    util.PreliminaryAnalysisError.\
+                        PreliminaryErrType.NO_DEGRADATION
+                    )
         else:
             self.preliminaryCheck(list, cfg)
         return list
 
     def normalizeCfg(self, cfg):
+        # fetch paths for dlb job
+        if cfg["dlbConfig"]["launchedAsJob"]:
+            cfg["appPath"] = cfg["dlbConfig"]["appPath"]
+            if cfg["dlbConfig"]["appCmd"] != "" :
+                cfg["appCmd"] = cfg["dlbConfig"]["appCmd"]
+        # switch off illegal check
         if not self.traversal.isComparative():
             cfg["checkIfBordersDiffer"] = False
-        cashCfg = cfg["cachedPathConfig"]
-        if (cashCfg["enabled"] and cashCfg["generateMap"]):
-            cfg["cachedPathConfig"]["cashMap"] = mapBuilder(
-                cashCfg["commonPath"], cashCfg["subPath"]
-            )
+        # apply necessary subscriptions for cfg
+        subManager = SubscriptionManager(cfg)
+        subManager.apply()
         if "modeName" in cfg["skipMode"]:
             errorHandlingMode = cfg["skipMode"]["modeName"]
             if errorHandlingMode == "skip":
@@ -183,7 +195,12 @@ class Mode(ABC):
             breakCommit = [item.cHash for item in self.commitPath.getList()\
                            if item.state == self.CommitPath.CommitState.BREAK][0]
             try:
-                validateBMOutput(commitList, breakCommit, self.cfg["runConfig"]["perfAppropriateDeviation"])
+                validateBMOutput(
+                    commitList,
+                    breakCommit,
+                    self.cfg["runConfig"]["perfAppropriateDeviation"],
+                    self.traversal.numericComparator()[0]
+                )
             except BmValidationError as e:
                 self.commitPath.metaInfo["postValidationPassed"] = False
                 self.commitPath.metaInfo["reason"] = e.message
@@ -225,7 +242,7 @@ class Mode(ABC):
             c=commit.cHash, s=commit.state)
 
     def checkIfListBordersDiffer(self, list, cfg):
-        return self.compareCommits(list[0], list[-1], list, cfg)
+        return self.compareCommits(list[0], list[-1], cfg)
 
     class CommitPath:
 
@@ -279,6 +296,10 @@ class Mode(ABC):
 
     class Traversal(ABC):
         def bypass(self, curList, list, cfg) -> int:
+            raise NotImplementedError()
+
+        def numericComparator(self, leftVal: float=1, rightVal: float=-1, threshold: float=0) -> bool:
+            # default numericComparator() represents traversal type for performance-based mode
             raise NotImplementedError()
 
         def wrappedBypass(self, curList, list, cfg) -> int:
@@ -369,6 +390,11 @@ class Mode(ABC):
         def __init__(self, mode) -> None:
             super().__init__(mode)
 
+        def numericComparator(self, leftVal: float=1, rightVal: float=-1, threshold: float=0) -> bool:
+            # default numericComparator() returns True, for current Traversal
+            curRelation = rightVal / leftVal
+            return (1 - curRelation) >= threshold, curRelation
+
         def bypass(self, curList, list, cfg) -> int:
             curList = self.prepBypass(curList, list, cfg)
             sampleCommit = curList[0]
@@ -377,7 +403,7 @@ class Mode(ABC):
                 sampleCommit = cfg["serviceConfig"]["sampleCommit"]
             if curLen <= 2:
                 isBad = self.mode.compareCommits(
-                    sampleCommit, curList[0], list, cfg)
+                    sampleCommit, curList[0], cfg)
                 breakCommit = curList[0] if isBad else curList[-1]
                 self.mode.commitPath.changeState(
                     breakCommit,
@@ -386,7 +412,7 @@ class Mode(ABC):
                 return
             mid = (int)((curLen - 1) / 2)
             isBad = self.mode.compareCommits(
-                    sampleCommit, curList[mid], list, cfg)
+                    sampleCommit, curList[mid], cfg)
             if isBad:
                 self.wrappedBypass(
                     curList[0 : mid + 1], list, cfg
@@ -400,6 +426,11 @@ class Mode(ABC):
         def __init__(self, mode) -> None:
             super().__init__(mode)
 
+        def numericComparator(self, leftVal: float=1, rightVal: float=-1, threshold: float=0) -> bool:
+            # default numericComparator() returns False, for current Traversal
+            curRelation = rightVal / leftVal
+            return (curRelation - 1) >= threshold, curRelation
+
         def bypass(self, curList, list, cfg) -> int:
             curList = self.prepBypass(curList, list, cfg)
             sampleCommit = curList[0]
@@ -408,7 +439,7 @@ class Mode(ABC):
                 sampleCommit = cfg["serviceConfig"]["sampleCommit"]
             if curLen <= 2:
                 isBad = not self.mode.compareCommits(
-                    sampleCommit, curList[0], list, cfg)
+                    sampleCommit, curList[0], cfg)
                 breakCommit = curList[-1] if isBad else curList[0]
                 self.mode.commitPath.changeState(
                     breakCommit,
@@ -417,7 +448,7 @@ class Mode(ABC):
                 return
             mid = (int)((curLen - 1) / 2)
             isBad = not self.mode.compareCommits(
-                    sampleCommit, curList[mid], list, cfg)
+                    sampleCommit, curList[mid], cfg)
             if isBad:
                 self.wrappedBypass(
                     curList[mid :], list, cfg
@@ -439,7 +470,7 @@ class Mode(ABC):
                 sampleCommit = cfg["serviceConfig"]["sampleCommit"]
             if curLen <= 2:
                 isBad = self.mode.compareCommits(
-                    sampleCommit, curList[0], list, cfg)
+                    sampleCommit, curList[0], cfg)
                 breakCommit = curList[0] if isBad else curList[-1]
                 self.mode.commitPath.changeState(
                     breakCommit,
@@ -447,7 +478,7 @@ class Mode(ABC):
                 )
                 lastCommit = list[-1]
                 isTailDiffer = self.mode.compareCommits(
-                    breakCommit, lastCommit, list, cfg)
+                    breakCommit, lastCommit, cfg)
                 if isTailDiffer:
                     cfg["serviceConfig"]["sampleCommit"] = breakCommit
                     # to-do make copy without skip-commits
@@ -459,7 +490,7 @@ class Mode(ABC):
                 return
             mid = (int)((curLen - 1) / 2)
             isBad = self.mode.compareCommits(
-                    sampleCommit, curList[mid], list, cfg)
+                    sampleCommit, curList[mid], cfg)
             if isBad:
                 self.wrappedBypass(
                     curList[0 : mid + 1], list, cfg

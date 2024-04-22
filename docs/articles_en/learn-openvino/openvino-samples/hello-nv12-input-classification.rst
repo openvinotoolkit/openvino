@@ -15,8 +15,6 @@ with images in NV12 color format using Synchronous Inference Request API. Before
 using the sample, refer to the following requirements:
 
 - The sample accepts any file format supported by ``ov::Core::read_model``.
-- The sample has been validated with: `alexnet <https://docs.openvino.ai/nightly/omz_models_model_alexnet.html>`__ model and
-  uncompressed images in the NV12 color format - \*.yuv
 - To build the sample, use instructions available at :ref:`Build the Sample Applications <build-samples>`
   section in "Get Started with Samples" guide.
 
@@ -49,7 +47,7 @@ You can place labels in ``.labels`` file near the model to get pretty output.
 
 
 You can see the explicit description of each sample step at
-:doc:`Integration Steps <openvino_docs_OV_UG_Integrate_OV_with_your_application>`
+:doc:`Integration Steps <../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
 section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
 Running
@@ -100,10 +98,10 @@ the following command, you can convert an ordinary image to an uncompressed NV12
      you trained your model to work with RGB order, you need to reconvert your
      model using model conversion API with ``reverse_input_channels`` argument
      specified. For more information about the argument, refer to **When to Reverse
-     Input Channels** section of :doc:`Embedding Preprocessing Computation <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>`.
+     Input Channels** section of :doc:`Embedding Preprocessing Computation <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/[legacy]-setting-input-shapes>`.
    - Before running the sample with a trained model, make sure the model is
      converted to the intermediate representation (IR) format (\*.xml + \*.bin)
-     using the :doc:`model conversion API <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
+     using the :doc:`model conversion API <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`.
    - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
 Example
@@ -209,10 +207,10 @@ Sample Output
 Additional Resources
 ####################
 
-- :doc:`Integrate the OpenVINO™ Runtime with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`
-- :doc:`Get Started with Samples <openvino_docs_get_started_get_started_demos>`
-- :doc:`Using OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>`
-- :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
+- :doc:`Integrate the OpenVINO™ Runtime with Your Application <../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
+- :doc:`Get Started with Samples <get-started-demos>`
+- :doc:`Using OpenVINO Samples <../openvino-samples>`
+- :doc:`Convert a Model <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`
 - `API Reference <https://docs.openvino.ai/2023.2/api/api_reference.html>`__
 - `Hello NV12 Input Classification C++ Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/cpp/hello_nv12_input_classification/README.md>`__
 - `Hello NV12 Input Classification C Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/c/hello_nv12_input_classification/README.md>`__

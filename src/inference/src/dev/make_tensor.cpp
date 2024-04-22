@@ -1,13 +1,16 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/runtime/make_tensor.hpp"
 
 #include <memory>
+#include <mutex>
 
+#include "openvino/core/type/element_iterator.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/tensor.hpp"
 #ifdef PROXY_PLUGIN_ENABLED
 #    include "openvino/proxy/plugin.hpp"
 #endif
@@ -198,10 +201,10 @@ public:
     AllocatedTensor(const element::Type element_type, const Shape& shape, const Allocator& allocator)
         : ViewTensor{element_type,
                      shape,
-                     [&] {
+                     [&shape, &element_type, &allocator] {
                          OPENVINO_ASSERT(allocator, "Allocator was not initialized");
-                         auto num_elements = shape_size(shape);
-                         auto data = const_cast<Allocator&>(allocator).allocate(element_type.size() * num_elements);
+                         const auto byte_size = element::get_memory_size(element_type, shape_size(shape));
+                         auto data = const_cast<Allocator&>(allocator).allocate(byte_size);
                          initialize_elements(data, element_type, shape);
                          return data;
                      }()},
@@ -261,7 +264,7 @@ private:
     }
 
     size_t get_bytes_capacity() const {
-        return (get_capacity() * get_element_type().bitwidth() + 8 - 1) / 8;
+        return element::get_memory_size(get_element_type(), get_capacity());
     }
 
     Allocator m_allocator;

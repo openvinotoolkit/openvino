@@ -47,8 +47,15 @@ Prerequisites
 
 .. code:: ipython3
 
+    import platform
+    
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu torch torchvision
-    %pip install -q matplotlib
+    
+    if platform.system() != "Windows":
+        %pip install -q "matplotlib>=3.4"
+    else:
+        %pip install -q "matplotlib>=3.4,<3.7"
+    
     %pip install -q "openvino>=2023.2.0"
 
 
@@ -194,7 +201,7 @@ Convert the original model to OpenVINO IR Format
 To convert the original model to OpenVINO IR with ``FP16`` precision,
 use model conversion API. The models are saved inside the current
 directory. For more information on how to convert models, see this
-`page <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__.
 
 .. code:: ipython3
 

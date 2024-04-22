@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -73,13 +73,6 @@ def np_data_type_to_destination_type(np_data_type):
         if np_t == np_data_type:
             return destination_type
     raise Error('Data type "{}" is not supported'.format(np_data_type))
-
-
-def destination_type_to_np_data_type(dst_type):
-    for np_t, _, destination_type in SUPPORTED_DATA_TYPES.values():
-        if destination_type == dst_type:
-            return np_t
-    raise Error('Destination type "{}" is not supported'.format(dst_type))
 
 
 def precision_to_destination_type(data_type_str):

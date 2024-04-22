@@ -20,7 +20,7 @@ public:
 
     ResampleKernelPilRef() : ResampleKernelBase(std::string{"resample_pil_ref"}) {}
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,8 +38,7 @@ namespace intel_cpu {
  * @param[in]  input_current_socket_id is the socket ID in cpu mapping table of the currently running thread
  *               - input "-1" indicates that the function get_streams_info_table will query this id internally.
  * @param[in]  input_perf_hint is performance hint set by user via ov::hint::performance_mode or the default value.
- * @param[in]  latencyThreadingMode is the scope of candidate processors per stream for latency hint
- *               - user can select all processors per numa node, per socket, or per platform.
+ * @param[in]  hint_llm_distribution_policy is the distribution policy for Large language models
  * @param[in]  proc_type_table is currently available candidate processors.
  *               - candidate processors have benn updated based on user input hints like ov::hint::scheduling_core_type
  * in previous function.
@@ -52,7 +51,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                                                      const int model_prefer_threads,
                                                      const int input_current_socket_id,
                                                      const std::string input_perf_hint,
-                                                     const Config::LatencyThreadingMode latencyThreadingMode,
+                                                     const std::set<ov::hint::ModelDistributionPolicy> hint_llm_distribution_policy,
                                                      const std::vector<std::vector<int>>& proc_type_table);
 /**
  * @brief      Get model_prefer_threads
@@ -83,7 +82,7 @@ int get_model_prefer_threads(const int num_streams,
  * ov::hint::enable_hyper_threading
  */
 std::vector<std::vector<int>> generate_stream_info(const int streams,
-                                                    const int input_current_socket_id,
+                                                   const int input_current_socket_id,
                                                    const std::shared_ptr<ov::Model>& model,
                                                    Config& config,
                                                    std::vector<std::vector<int>>& proc_type_table,
@@ -98,13 +97,6 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
 void get_num_streams(const int streams,
                      const std::shared_ptr<ov::Model>& model,
                      Config& config);
-
-/**
- * @brief      Get default number of streams in certain latency threading mode
- * @param[in]  latency_threading_mode is the scope of candidate processors per stream for latency hint
- * @return     number of streams
- */
-int get_default_latency_streams(Config::LatencyThreadingMode latency_threading_mode);
 
 }  // namespace intel_cpu
 }  // namespace ov

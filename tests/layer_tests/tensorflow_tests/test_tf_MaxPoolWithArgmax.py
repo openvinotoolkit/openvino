@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -11,10 +11,10 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestMaxPoolWithArgmax(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'input' in inputs_info
-        input_shape = inputs_info['input']
+        assert 'input:0' in inputs_info
+        input_shape = inputs_info['input:0']
         inputs_data = {}
-        inputs_data['input'] = np.random.randint(-5, 5, input_shape).astype(self.input_type)
+        inputs_data['input:0'] = np.random.randint(-5, 5, input_shape).astype(self.input_type)
         return inputs_data
 
     def create_max_pool_with_argmax_net(self, input_shape, ksize, strides, input_type, padding, targmax,
@@ -59,7 +59,7 @@ class TestMaxPoolWithArgmax(CommonTFLayerTest):
     @pytest.mark.parametrize("with_second_output", [
         True, False
     ])
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.xfail(condition=platform.system() in ('Linux', 'Darwin') and platform.machine() in ('arm', 'armv7l',
                                                                                                      'aarch64',

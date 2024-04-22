@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,10 +52,10 @@ bool ACLConvertExecutor::init(const ConvertParams& convertParams,
 
     if (isCopyOp) {
         acl_copy = std::make_unique<NECopy>();
-        acl_copy->configure(&srcTensor, &dstTensor);
+        configureThreadSafe([&] { acl_copy->configure(&srcTensor, &dstTensor); });
     } else {
         acl_cast = std::make_unique<NECast>();
-        acl_cast->configure(&srcTensor, &dstTensor, ConvertPolicy::SATURATE);
+        configureThreadSafe([&] { acl_cast->configure(&srcTensor, &dstTensor, ConvertPolicy::SATURATE); });
     }
     return true;
 }

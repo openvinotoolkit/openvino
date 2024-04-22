@@ -1,12 +1,10 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
 
 import pytest
-
 from common.tf_layer_test_class import CommonTFLayerTest
-from common.utils.tf_utils import permute_nchw_to_nhwc
 
 
 class TestTFScatterND(CommonTFLayerTest):
@@ -22,11 +20,7 @@ class TestTFScatterND(CommonTFLayerTest):
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            tf_x_shape = x_shape.copy()
-
-            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_legacy_frontend)
-
-            x = tf.compat.v1.placeholder(tf.float32, tf_x_shape, 'Input')
+            x = tf.compat.v1.placeholder(tf.float32, x_shape, 'Input')
             tf_indices = tf.constant(indices)
             tf_updates = tf.constant(updates)
 
@@ -64,7 +58,7 @@ class TestTFScatterND(CommonTFLayerTest):
              [8.0, 8.0, 8.0, 8.0]]]),
         dict(x_shape=[2, 2, 2], indices=[[1, 1, 1], [0, 1, 0]], updates=[9.0, 6.3]),
         pytest.param(dict(x_shape=[2, 2, 2], indices=[[0, 0], [0, 1]], updates=[[6.7, 9.0], [45.0, 8.3]]),
-                     marks=pytest.mark.precommit_tf_fe),
+                     marks=pytest.mark.precommit),
         dict(x_shape=[2, 2, 2], indices=[[1]], updates=[[[6.7, 9.0], [45.0, 8.3]]]),
 
     ]

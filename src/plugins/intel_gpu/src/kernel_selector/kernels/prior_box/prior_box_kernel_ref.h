@@ -40,13 +40,6 @@ struct prior_box_params : public base_params {
 };
 
 /**
- * Specific optional params is not defined for Prior Box v8 operation.
- */
-struct prior_box_optional_params : optional_params {
-    prior_box_optional_params() : optional_params{KernelType::PRIOR_BOX} {}
-};
-
-/**
  * Reference GPU kernel for the PriorBox-8 operation.
  */
 class PriorBoxKernelRef : public KernelBaseOpenCL {
@@ -54,13 +47,13 @@ public:
     PriorBoxKernelRef() : KernelBaseOpenCL{"prior_box_ref"} {}
 
 private:
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
 
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
 
     ParamsKey GetSupportedKey() const override;
 
-    bool Validate(const Params& params, const optional_params& optionalParams) const override;
+    bool Validate(const Params& params) const override;
 
     JitConstants GetJitConstants(const prior_box_params& params) const;
 };

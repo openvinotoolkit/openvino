@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include "utils/cpu_test_utils.hpp"
 #include "utils/fusing_test_utils.hpp"
 #include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
+#include "openvino/pass/manager.hpp"
 
 using namespace CPUTestUtils;
 

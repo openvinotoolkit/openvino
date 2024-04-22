@@ -18,10 +18,10 @@ namespace pass {
  *        - moves all ptr arithmetic to finalization offsets
  * @ingroup snippets
  */
-class OptimizeLoopSingleEvaluation : public Pass {
+class OptimizeLoopSingleEvaluation : public RangedPass {
 public:
-    OPENVINO_RTTI("OptimizeLoopSingleEvaluation", "Pass")
-    bool run(LinearIR& linear_ir) override;
+    OPENVINO_RTTI("OptimizeLoopSingleEvaluation", "RangedPass")
+    bool run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 };
 
 } // namespace pass

@@ -43,7 +43,7 @@ struct grid_sample_impl : public typed_primitive_impl_ocl<grid_sample> {
     using parent = typed_primitive_impl_ocl<grid_sample>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::grid_sample_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::grid_sample_params, kernel_selector::grid_sample_optional_params>;
+    using kernel_params_t = kernel_selector::grid_sample_params;
 
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::grid_sample_impl)
@@ -55,7 +55,6 @@ struct grid_sample_impl : public typed_primitive_impl_ocl<grid_sample> {
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<grid_sample>();
         auto params = get_default_params<kernel_selector::grid_sample_params>(impl_param);
-        auto optional_params = get_default_optional_params<kernel_selector::grid_sample_optional_params>(impl_param.get_program());
 
         const auto grid_layout = impl_param.get_input_layout(1);
         params.inputs.push_back(convert_data_tensor(grid_layout));
@@ -64,7 +63,7 @@ struct grid_sample_impl : public typed_primitive_impl_ocl<grid_sample> {
         params.interpolation_mode = from(primitive->attributes.mode);
         params.padding_mode = from(primitive->attributes.padding_mode);
 
-        return {params, optional_params};
+        return params;
     }
 };
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,10 +44,11 @@ INSTANTIATE_TEST_SUITE_P(
 
 const std::vector<ov::Shape> inputShapes3D = {
     {16, 64, 64},
+    {1, 256, 256},
 };
 
 const std::vector<int64_t> axis3D = {
-    -1
+    -1, 1
 };
 
 const auto params3D = testing::Combine(

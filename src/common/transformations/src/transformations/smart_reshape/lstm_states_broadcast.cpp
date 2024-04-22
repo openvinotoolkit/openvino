@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include <memory>
 
 #include "itt.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/dimension.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -42,9 +42,8 @@ shared_ptr<ov::Node> deduce_outer_source_of_batch_for_inner_lstm_cell(
     const auto& body = ti->get_body();  // body is not nullptr -- we checked earlier
 
     map<ov::op::v0::Parameter*, ov::PartialShape> original_shapes;
-    ov::label_t label = 1;
 
-    // mark all input dimensions with labels and making them dynamic, keeping original shapes
+    // mark all input dimensions with symbols and making them dynamic, keeping original shapes
     for (auto& parameter : body->get_parameters()) {
         auto pshape = parameter->get_partial_shape();
         original_shapes[parameter.get()] = pshape;
@@ -52,34 +51,34 @@ shared_ptr<ov::Node> deduce_outer_source_of_batch_for_inner_lstm_cell(
             continue;
         for (ov::Dimension& n : pshape) {
             n = ov::Dimension::dynamic();
-            ov::DimensionTracker::set_label(n, label++);
+            n.set_symbol(std::make_shared<ov::Symbol>());
         }
         parameter->set_partial_shape(pshape);
     }
 
-    // propagate labels through TI body
+    // propagate symbols through TI body
     body->validate_nodes_and_infer_types();
-    // if lstm first input has undefined rank or if tracked label is zero -- we failed to track batch dimension
+    // if lstm first input has undefined rank or if tracked symbol is zero -- we failed to track batch dimension
     // returning body to initial state
     if (lstm_cell->get_input_partial_shape(0).rank().is_dynamic() ||
-        ov::DimensionTracker::get_label(lstm_cell->get_input_partial_shape(0)[0]) == 0) {
+        !lstm_cell->get_input_partial_shape(0)[0].has_symbol()) {
         for (auto& item : original_shapes)
             item.first->set_partial_shape(item.second);
         body->validate_nodes_and_infer_types();
         return nullptr;
     }
 
-    // batch label was tracked -- finding parameter that delivered it
+    // batch symbol was tracked -- finding parameter that delivered it
     shared_ptr<ov::op::v0::Parameter> batch_delivering_parameter;
     size_t index_of_batch_dim = 0;
 
-    ov::label_t batch_label = ov::DimensionTracker::get_label(lstm_cell->get_input_partial_shape(0)[0]);
+    auto batch_symbol = lstm_cell->get_input_partial_shape(0)[0].get_symbol();
     for (auto& parameter : body->get_parameters()) {
         auto pshape = parameter->get_partial_shape();
         if (pshape.rank().is_dynamic())
             continue;
         for (size_t i = 0; i < pshape.size(); ++i) {
-            if (ov::DimensionTracker::get_label(pshape[i]) == batch_label) {
+            if (pshape[i].get_symbol() == batch_symbol) {
                 batch_delivering_parameter = parameter;
                 index_of_batch_dim = i;
                 break;
@@ -135,11 +134,11 @@ bool relax_batch_for_initial_states_of_lstm_in_ti(const shared_ptr<ov::op::v0::T
         return rewritten;
     if (auto init_hidden_state = dynamic_pointer_cast<ov::op::v0::Parameter>(lstm_cell->get_input_node_shared_ptr(1))) {
         auto outer_init_hidden_state_input = get_outer_input_of_ti_by_parameter(init_hidden_state, ti);
-        rewritten |= broadcast_state_by_batch(outer_init_hidden_state_input, batch_delivering_node);
+        rewritten = broadcast_state_by_batch(outer_init_hidden_state_input, batch_delivering_node) || rewritten;
     }
     if (auto init_cell_state = dynamic_pointer_cast<ov::op::v0::Parameter>(lstm_cell->get_input_node_shared_ptr(2))) {
         auto outer_init_cell_state_input = get_outer_input_of_ti_by_parameter(init_cell_state, ti);
-        rewritten |= broadcast_state_by_batch(outer_init_cell_state_input, batch_delivering_node);
+        rewritten = broadcast_state_by_batch(outer_init_cell_state_input, batch_delivering_node) || rewritten;
     }
     return rewritten;
 }
@@ -151,8 +150,8 @@ bool relax_batch_for_initial_states_of_lstm(const shared_ptr<ov::op::v4::LSTMCel
         make_shared<ov::op::v8::Gather>(batched_shape,
                                         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}),
                                         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
-    rewritten |= broadcast_state_by_batch(lstm_cell->input(1), batch_delivering_node);
-    rewritten |= broadcast_state_by_batch(lstm_cell->input(2), batch_delivering_node);
+    rewritten = broadcast_state_by_batch(lstm_cell->input(1), batch_delivering_node) || rewritten;
+    rewritten = broadcast_state_by_batch(lstm_cell->input(2), batch_delivering_node) || rewritten;
     return rewritten;
 }
 
@@ -163,13 +162,11 @@ bool ov::pass::LSTMStatesBroadcast::run_on_model(const shared_ptr<ov::Model>& f)
     bool rewritten = false;
     for (auto& node : f->get_ordered_ops()) {
         // Recursively apply transformation for sub-graph based operations
-        if (const auto& sub_graph_node = dynamic_pointer_cast<ov::op::util::SubGraphOp>(node))
-            if (const auto& sub_graph = sub_graph_node->get_function())
-                rewritten |= run_on_model(sub_graph);
+        rewritten = ov::op::util::process_subgraph(*this, node) || rewritten;
 
         // Case without TI (LSTMCell and Constant are in the same ov::Model)
         if (const auto& lstm_cell = dynamic_pointer_cast<ov::op::v4::LSTMCell>(node))
-            rewritten |= relax_batch_for_initial_states_of_lstm(lstm_cell);
+            rewritten = relax_batch_for_initial_states_of_lstm(lstm_cell) || rewritten;
 
         // Case with TI (LSTMCell and Constant are in different ov::Model objects)
         if (auto ti = dynamic_pointer_cast<ov::op::v0::TensorIterator>(node)) {
@@ -178,7 +175,7 @@ bool ov::pass::LSTMStatesBroadcast::run_on_model(const shared_ptr<ov::Model>& f)
                 continue;
             for (const auto& body_node : body->get_ordered_ops())
                 if (const auto& lstm_cell = dynamic_pointer_cast<ov::op::v4::LSTMCell>(body_node))
-                    rewritten |= relax_batch_for_initial_states_of_lstm_in_ti(ti, lstm_cell);
+                    rewritten = relax_batch_for_initial_states_of_lstm_in_ti(ti, lstm_cell) || rewritten;
         }
     }
     return rewritten;

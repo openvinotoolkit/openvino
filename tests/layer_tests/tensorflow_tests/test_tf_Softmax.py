@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -11,10 +11,10 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestSoftmax(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'logits' in inputs_info
-        logits_shape = inputs_info['logits']
+        assert 'logits:0' in inputs_info
+        logits_shape = inputs_info['logits:0']
         inputs_data = {}
-        inputs_data['logits'] = np.random.randint(-5, 5, logits_shape).astype(np.float32)
+        inputs_data['logits:0'] = np.random.randint(-5, 5, logits_shape).astype(np.float32)
 
         return inputs_data
 
@@ -34,7 +34,7 @@ class TestSoftmax(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122716')

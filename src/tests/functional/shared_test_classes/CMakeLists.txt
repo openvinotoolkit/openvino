@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -19,7 +19,6 @@ ov_add_target(
         LINK_LIBRARIES
             PRIVATE
                 func_test_utils
-                ov_models
 )
 
 ov_build_target_faster(${TARGET_NAME}

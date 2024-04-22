@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include "snippets/pass/propagate_precision.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/utils.hpp"
 
 namespace ov {
 namespace snippets {
@@ -29,7 +30,8 @@ bool pass::AlignElementTypes::run_on_model(const std::shared_ptr<ov::Model>& m) 
     for (size_t i = 0; i < m_output_precisions.size(); i++) {
         const auto needed_out_type = m_output_precisions[i];
         if (results[i]->get_input_element_type(0) != needed_out_type) {
-            std::shared_ptr<ov::Node> consumer = results[i];
+            const auto& shape_infer_leaf = utils::get_leaf_node_of_first_parent_shape_infer_seq(results[i]);
+            std::shared_ptr<ov::Node> consumer = shape_infer_leaf ? shape_infer_leaf : results[i];
             auto parent_output = consumer->get_input_source_output(0);
 
             // Snippets supports Transpose only after Parameter or before Result nodes
@@ -76,17 +78,12 @@ bool pass::AlignElementTypes::run_on_model(const std::shared_ptr<ov::Model>& m) 
             parameter->set_element_type(needed_in_type);
             parameter->validate_and_infer_types();
 
-            auto parent_output = parameter->output(0);
-            auto consumer_inputs = parent_output.get_target_inputs();
-
-            const auto& first_child = consumer_inputs.begin()->get_node()->shared_from_this();
-            // Note: RankNormalization of is designed for shape-inference purposes only.
+            // Note: shape infer ops are designed for shape-inference purposes only.
             // It does not process any data (nor does it emit any code), so it doesn't require Convert operations
-            if (is_type<op::RankNormalization>(first_child)) {
-                OPENVINO_ASSERT(consumer_inputs.size() == 1, "RankNormalization is supposed to be the only consumer");
-                parent_output = first_child->output(0);
-                consumer_inputs = parent_output.get_target_inputs();
-            }
+            const auto& shape_infer_leaf = utils::get_leaf_node_of_first_child_shape_infer_seq(parameter);
+            const auto& first_child = shape_infer_leaf ? shape_infer_leaf : parameter;
+            auto parent_output = first_child->output(0);
+            auto consumer_inputs = parent_output.get_target_inputs();
 
             // Snippets supports Transpose only after Parameter or before Result nodes
             // So we have to insert Convert after Transpose (if there is) on Subgraph inputs

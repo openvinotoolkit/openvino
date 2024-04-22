@@ -16,17 +16,17 @@ OpenVINO™ Samples
    :maxdepth: 1
    :hidden:
 
-   Get Started with C++ Samples <openvino_docs_get_started_get_started_demos>
-   openvino_sample_hello_classification
-   openvino_sample_hello_nv12_input_classification
-   openvino_sample_hello_query_device
-   openvino_sample_hello_reshape_ssd
-   openvino_sample_image_classification_async
-   openvino_sample_model_creation
-   openvino_sample_sync_benchmark
-   openvino_sample_throughput_benchmark
-   openvino_sample_bert_benchmark
-   openvino_sample_benchmark_tool
+   Get Started with C++ Samples <openvino-samples/get-started-demos>
+   openvino-samples/hello-classification
+   openvino-samples/hello-nv12-input-classification
+   openvino-samples/hello-query-device
+   openvino-samples/hello-reshape-ssd
+   openvino-samples/image-classification-async
+   openvino-samples/model-creation
+   openvino-samples/sync-benchmark
+   openvino-samples/throughput-benchmark
+   openvino-samples/bert-benchmark
+   openvino-samples/benchmark-tool
 
 
 The OpenVINO™ samples are simple console applications that show how to utilize
@@ -41,38 +41,38 @@ The applications include:
    All C++ samples support input paths containing only ASCII characters, except
    for the Hello Classification Sample, which supports Unicode.
 
-- :doc:`Hello Classification Sample <openvino_sample_hello_classification>` -
+- :doc:`Hello Classification Sample <openvino-samples/hello-classification>` -
   Inference of image classification networks like AlexNet and GoogLeNet using
   Synchronous Inference Request API. Input of any size and layout can be set to
   an infer request which will be pre-processed automatically during inference.
   The sample supports only images as input and supports input paths containing
   only Unicode characters.
 
-- :doc:`Hello NV12 Input Classification Sample <openvino_sample_hello_nv12_input_classification>` -
+- :doc:`Hello NV12 Input Classification Sample <openvino-samples/hello-nv12-input-classification>` -
   Input of any size and layout can be provided to an infer request. The sample
   transforms the input to the NV12 color format and pre-process it automatically
   during inference. The sample supports only images as input.
 
-- :doc:`Hello Query Device Sample <openvino_sample_hello_query_device>` -
+- :doc:`Hello Query Device Sample <openvino-samples/hello-query-device>` -
   Query of available OpenVINO devices and their metrics, configuration values.
 
-- :doc:`Hello Reshape SSD Sample <openvino_sample_hello_reshape_ssd>` -
+- :doc:`Hello Reshape SSD Sample <openvino-samples/hello-reshape-ssd>` -
   Inference of SSD networks resized by ShapeInfer API according to an input size.
 
-- :doc:`Image Classification Async Sample <openvino_sample_image_classification_async>` -
+- :doc:`Image Classification Async Sample <openvino-samples/image-classification-async>` -
   Inference of image classification networks like AlexNet and GoogLeNet using
   Asynchronous Inference Request API. The sample supports only images as inputs.
 
-- :doc:`OpenVINO Model Creation Sample <openvino_sample_model_creation>` -
+- :doc:`OpenVINO Model Creation Sample <openvino-samples/model-creation>` -
   Construction of the LeNet model using the OpenVINO model creation sample.
 
 - **Benchmark Samples** - Simple estimation of a model inference performance
 
-  - :doc:`Sync Samples <openvino_sample_sync_benchmark>`
-  - :doc:`Throughput Samples <openvino_sample_throughput_benchmark>`
-  - :doc:`Bert Python Sample <openvino_sample_bert_benchmark>`
+  - :doc:`Sync Samples <openvino-samples/sync-benchmark>`
+  - :doc:`Throughput Samples <openvino-samples/throughput-benchmark>`
+  - :doc:`Bert Python Sample <openvino-samples/bert-benchmark>`
 
-- :doc:`Benchmark Application <openvino_sample_benchmark_tool>` - Estimates deep
+- :doc:`Benchmark Application <openvino-samples/benchmark-tool>` - Estimates deep
   learning inference performance on supported devices for synchronous and
   asynchronous modes.
 
@@ -87,5 +87,5 @@ The applications include:
 Additional Resources
 ####################
 
-* :doc:`Get Started with Samples <openvino_docs_get_started_get_started_demos>`
-* :doc:`OpenVINO Runtime User Guide <openvino_docs_OV_UG_OV_Runtime_User_Guide>`
+* :doc:`Get Started with Samples <openvino-samples/get-started-demos>`
+* :doc:`OpenVINO Runtime User Guide <../openvino-workflow/running-inference>`

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -11,7 +11,7 @@ import pytest
 from openvino.runtime import PartialShape, Type, Dimension
 
 from common.mo_convert_test_class import CommonMOConvertTest
-from common.tf_layer_test_class import save_to_pb
+from common.utils.tf_utils import save_to_pb
 
 
 class TestComplexParams(CommonMOConvertTest):
@@ -76,35 +76,35 @@ class TestComplexParams(CommonMOConvertTest):
         {'params_test': {'output': ["Sigmoid_0:0"]},
          'params_ref': {'output': "Sigmoid_0"}},
         {'params_test': {'input': [PartialShape([2, 3, 4]), [2, 3, 4], [Dimension(2), Dimension(3), Dimension(4)]]},
-         'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1,Input2,Input3'}},
+         'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1:0,Input2:0,Input3:0'}},
         {'params_test': {'input': [PartialShape([1, 3, -1, -1]), [1, 3, -1, -1]]},
-         'params_ref': {'input_shape': "[1,3,?,?],[1,3,?,?]", 'input': 'Input1,Input2'}},
+         'params_ref': {'input_shape': "[1,3,?,?],[1,3,?,?]", 'input': 'Input1:0,Input2:0'}},
         {'params_test': {'input': [(2, 3, 4), [2, 3, 4], (Dimension(2), Dimension(3), Dimension(4))]},
-         'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1,Input2,Input3'}},
-        {'params_test': {'input': {"Input1": PartialShape([2, 3, 4]), "Input2": [2, 3, 4],
-                                   "Input3": [Dimension(2), Dimension(3), Dimension(4)]}},
-         'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1,Input2,Input3'}},
-        {'params_test': {'input': {"Input2": [1, -1, -1, -1],
-                                   "Input3": [Dimension(1), Dimension(-1), Dimension(-1), Dimension(-1)]}},
-         'params_ref': {'input_shape': "[1,?,?,?],[1,?,?,?]", 'input': 'Input2,Input3'}},
+         'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1:0,Input2:0,Input3:0'}},
+        {'params_test': {'input': {"Input1:0": PartialShape([2, 3, 4]), "Input2:0": [2, 3, 4],
+                                   "Input3:0": [Dimension(2), Dimension(3), Dimension(4)]}},
+         'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1:0,Input2:0,Input3:0'}},
+        {'params_test': {'input': {"Input2:0": [1, -1, -1, -1],
+                                   "Input3:0": [Dimension(1), Dimension(-1), Dimension(-1), Dimension(-1)]}},
+         'params_ref': {'input_shape': "[1,?,?,?],[1,?,?,?]", 'input': 'Input2:0,Input3:0'}},
         {'params_test': {'input': [np.int32, Type(np.int32), np.int32]},
-         'params_ref': {'input': 'Input1{i32},Input2{i32},Input3{i32}'}},
+         'params_ref': {'input': 'Input1:0{i32},Input2:0{i32},Input3:0{i32}'}},
         {'params_test': {'input': [ov.Type.f32, ov.Type.f32]},
-         'params_ref': {'input': 'Input1{f32},Input2{f32}'}},
+         'params_ref': {'input': 'Input1:0{f32},Input2:0{f32}'}},
         {'params_test': {'input': [([1, 3, -1, -1], ov.Type.i32), ov.Type.i32, ov.Type.i32]},
-         'params_ref': {'input': 'Input1[1,3,?,?]{i32},Input2{i32},Input3{i32}'}},
+         'params_ref': {'input': 'Input1:0[1,3,?,?]{i32},Input2:0{i32},Input3:0{i32}'}},
         {'params_test': {'input': (PartialShape([2, 3, 4]), [2, 3, 4], [Dimension(2), Dimension(3), Dimension(4)])},
-         'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1,Input2,Input3'}},
+         'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1:0,Input2:0,Input3:0'}},
         {'params_test': {'input': (PartialShape([1, 3, -1, -1]), [1, 3, -1, -1])},
-         'params_ref': {'input_shape': "[1,3,?,?],[1,3,?,?]", 'input': 'Input1,Input2'}},
+         'params_ref': {'input_shape': "[1,3,?,?],[1,3,?,?]", 'input': 'Input1:0,Input2:0'}},
         {'params_test': {'input': ((2, 3, 4), [2, 3, 4], (Dimension(2), Dimension(3), Dimension(4)))},
-         'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1,Input2,Input3'}},
+         'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1:0,Input2:0,Input3:0'}},
         {'params_test': {'input': (np.int32, Type(np.int32), np.int32)},
-         'params_ref': {'input': 'Input1{i32},Input2{i32},Input3{i32}'}},
+         'params_ref': {'input': 'Input1:0{i32},Input2:0{i32},Input3:0{i32}'}},
         {'params_test': {'input': (ov.Type.f32, ov.Type.f32)},
-         'params_ref': {'input': 'Input1{f32},Input2{f32}'}},
+         'params_ref': {'input': 'Input1:0{f32},Input2:0{f32}'}},
         {'params_test': {'input': (([1, 3, -1, -1], ov.Type.i32), ov.Type.i32, ov.Type.i32)},
-         'params_ref': {'input': 'Input1[1,3,?,?]{i32},Input2{i32},Input3{i32}'}}
+         'params_ref': {'input': 'Input1:0[1,3,?,?]{i32},Input2:0{i32},Input3:0{i32}'}}
     ]
 
     @pytest.mark.parametrize("params", test_data)
@@ -120,30 +120,30 @@ class TestComplexParams(CommonMOConvertTest):
         self._test(temp_dir, test_params, ref_params)
 
     test_data = [
-        {'params_test': {'input': {"Input": ([3, 2], ov.Type.i32)}},
-         'params_ref': {'input': "Input[3,2]{i32}"}},
-        {'params_test': {'input': {"Input": ov.Type.i32}},
-         'params_ref': {'input': "Input{i32}"}},
-        {'params_test': {'input': {"Input": [3, 2]}},
-         'params_ref': {'input': "Input[3,2]"}},
+        {'params_test': {'input': {"Input:0": ([3, 2], ov.Type.i32)}},
+         'params_ref': {'input': "Input:0[3,2]{i32}"}},
+        {'params_test': {'input': {"Input:0": ov.Type.i32}},
+         'params_ref': {'input': "Input:0{i32}"}},
+        {'params_test': {'input': {"Input:0": [3, 2]}},
+         'params_ref': {'input': "Input:0[3,2]"}},
         {'params_test': {'input': (3, 2)},
-         'params_ref': {'input': "Input[3,2]"}},
+         'params_ref': {'input': "Input:0[3,2]"}},
         {'params_test': {'input': (3, Dimension(2))},
-         'params_ref': {'input': "Input[3,2]"}},
+         'params_ref': {'input': "Input:0[3,2]"}},
         {'params_test': {'input': [3, 2]},
-         'params_ref': {'input': "Input[3 2]"}},
+         'params_ref': {'input': "Input:0[3 2]"}},
         {'params_test': {'input': [Dimension(3, 10), 2]},
-         'params_ref': {'input': "Input[3..10 2]"}},
+         'params_ref': {'input': "Input:0[3..10 2]"}},
         {'params_test': {'input': (-1, 10)},
-         'params_ref': {'input': "Input[?,10]"}},
+         'params_ref': {'input': "Input:0[?,10]"}},
         {'params_test': {'input': PartialShape([-1, 10])},
-         'params_ref': {'input': "Input[?,10]"}},
+         'params_ref': {'input': "Input:0[?,10]"}},
         {'params_test': {'input': np.int32},
-         'params_ref': {'input': "Input{i32}"}},
+         'params_ref': {'input': "Input:0{i32}"}},
         {'params_test': {'input': (np.int32, [1, 2, 3])},
-         'params_ref': {'input': "Input[1,2,3]{i32}"}},
+         'params_ref': {'input': "Input:0[1,2,3]{i32}"}},
         {'params_test': {'input': [Dimension(3, 10), 10, -1]},
-         'params_ref': {'input': 'Input[3..10,10,?]'}},
+         'params_ref': {'input': 'Input:0[3..10,10,?]'}},
     ]
 
     @pytest.mark.parametrize("params", test_data)
@@ -276,6 +276,27 @@ class TestComplexParams(CommonMOConvertTest):
 
         self._test(temp_dir, convert_model_params, cli_tool_params)
 
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_non_numpy_types(self, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+        import tensorflow as tf
+        def func(a, b):
+            return [a, b]
+        model = tf.function(func, input_signature=[tf.TensorSpec([2], tf.float32, "a"),
+                                                   tf.TensorSpec([2], tf.float32, "b")])
+        parameter1 = ov.opset8.parameter(ov.Shape([2]), ov.Type.bf16)
+        parameter2 = ov.opset8.parameter(ov.Shape([2]), ov.Type.bf16)
+        bf16_ref = ov.Model([parameter1, parameter2], [parameter1, parameter2])
+
+        parameter1 = ov.opset8.parameter(ov.Shape([2]), ov.Type.string)
+        parameter2 = ov.opset8.parameter(ov.Shape([2]), ov.Type.string)
+        string_ref = ov.Model([parameter1, parameter2], [parameter1, parameter2])
+
+        self._test_by_ref_graph(temp_dir, {'input_model': model, 'input': [ov.Type.bf16, tf.bfloat16]}, bf16_ref, compare_tensor_names=False)
+        self._test_by_ref_graph(temp_dir, {'input_model': model, 'input': {'a': ov.Type.bf16, 'b': tf.bfloat16}}, bf16_ref, compare_tensor_names=False)
+        self._test_by_ref_graph(temp_dir, {'input_model': model, 'input': [ov.Type.string, tf.string]}, string_ref, compare_tensor_names=False)
+        self._test_by_ref_graph(temp_dir, {'input_model': model, 'input': {'a': ov.Type.string, 'b': tf.string}}, string_ref, compare_tensor_names=False)
 
 class NegativeCases(unittest.TestCase):
     test_directory = os.path.dirname(os.path.realpath(__file__))

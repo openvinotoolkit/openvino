@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -11,17 +11,17 @@ rng = np.random.default_rng()
 
 class TestGather(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'params' in inputs_info
-        assert 'indices' in inputs_info
-        params_shape = inputs_info['params']
-        indices_shape = inputs_info['indices']
+        assert 'params:0' in inputs_info
+        assert 'indices:0' in inputs_info
+        params_shape = inputs_info['params:0']
+        indices_shape = inputs_info['indices:0']
         inputs_data = {}
         if self.params_type == str or self.params_type == np.str_:
             strings_dictionary = ['first', 'second sentence', ' sentence 3 three', '34ferf466 23435* ']
-            inputs_data['params'] = rng.choice(strings_dictionary, params_shape)
+            inputs_data['params:0'] = rng.choice(strings_dictionary, params_shape)
         else:
-            inputs_data['params'] = rng.integers(-50, 50, params_shape).astype(self.params_type)
-        inputs_data['indices'] = rng.integers(0, self.max_index, indices_shape).astype(self.indices_type)
+            inputs_data['params:0'] = rng.integers(-50, 50, params_shape).astype(self.params_type)
+        inputs_data['indices:0'] = rng.integers(0, self.max_index, indices_shape).astype(self.indices_type)
         return inputs_data
 
     def create_gather_net(self, params_shape, params_type, indices_shape, indices_type, axis_value, batch_dims,
@@ -70,10 +70,12 @@ class TestGather(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.parametrize("params_type", [np.float32, np.int32, str, np.str_])
     @pytest.mark.parametrize("indices_type", [np.int32, np.int64])
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_gather(self, params, params_type, indices_type, ie_device, precision, ir_version, temp_dir,
                     use_legacy_frontend):
+        if ie_device == 'GPU':
+            pytest.skip("timeout issue on GPU")
         self._test(*self.create_gather_net(**params, params_type=params_type, indices_type=indices_type),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)

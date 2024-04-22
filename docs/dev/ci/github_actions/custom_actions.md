@@ -1,23 +1,24 @@
-# Overview of the Custom GitHub Actions used in the OpenVINO GitHub Actions CI
+# Custom GitHub Actions
 
-Several actions are written specifically for the needs of the OpenVINO workflows.
+Custom actions, written specifically for OpenVINO workflows, are located
+in the [actions](../../../../.github/actions) folder along with their source code.
 
-You can find all the custom actions and their source code [here](../../../../.github/actions).
-
-Refer to the official [custom GitHub Action documentation](https://docs.github.com/en/actions/creating-actions/about-custom-actions) for more information.
+Refer to the official [custom GitHub Action documentation](https://docs.github.com/en/actions/creating-actions/about-custom-actions)
+for more information.
 
 ## Available Custom Actions
 
-* [Setup Python](#setup-python)
+* [Python Setup](#python-setup)
 * [System Info Print](#system-info-print)
 * Smart CI (see details: [feature documentation](./smart_ci.md))
 
-## Setup Python
+## Python Setup
 
-This custom action installs the required Python version and environment variables on the runner. 
-
-Under the hood it uses the GitHub-provided `actions/setup-python` and community-provided `deadsnakes-action` depending on the machine architecture. 
-`actions/setup-python` does not work on the Linux ARM64 machines so `deadsnakes-action` is used instead.
+This custom action installs the required Python version and environment variables on the runner.
+Under the hood it uses the GitHub-provided `actions/setup-python`, and community-provided
+`deadsnakes-action`, depending on the machine architecture.
+Since `actions/setup-python` does not work on the Linux ARM64 machines,
+`deadsnakes-action` is used instead.
 
 ### Usage
 ```yaml
@@ -32,19 +33,19 @@ Under the hood it uses the GitHub-provided `actions/setup-python` and community-
 ```
 where:
 * `version` - the Python version to install in the `MAJOR.MINOR` format
-* `pip-cache-path` - the path to the `pip` cache on the mounted share. Read more about shares and caches [here](./caches.md)
-* `should-setup-pip-paths` - whether the action should set up the `PIP_CACHE_DIR` and `PIP_INSTALL_PATH` environment variables for later usage
-* `self-hosted-runner` - whether the runner is self-hosted. Read more about available runners [here](./runners.md)
-* `show-cache-info` - whether the action should show the share space occupied by the `pip` cache
+* `pip-cache-path` - the path to the `pip` cache on the mounted share. Read more in the [shares and caches](./caches.md) documentation
+* `should-setup-pip-paths` - indicates whether the action should set up the `PIP_CACHE_DIR` and `PIP_INSTALL_PATH` environment variables for later usage
+* `self-hosted-runner` - indicates whether the runner is self-hosted. Learn more about [available runners](./runners.md)
+* `show-cache-info` - indicates whether the action should show the share space occupied by the `pip` cache
 
 ## System Info Print
 
 This custom action prints the system information in the standard output:
 * Operating system
 * Machine architecture
-* CPU, RAM and memory information
+* CPU, RAM, and memory information
 
-Works on Linux, macOS and Windows.
+Works on Linux, macOS, and Windows.
 
 ### Usage
 ```yaml

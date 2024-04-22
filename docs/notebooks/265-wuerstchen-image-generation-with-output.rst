@@ -58,7 +58,14 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q  "diffusers>=0.21.0" transformers accelerate matplotlib gradio "openvino>=2023.2.0" --extra-index-url https://download.pytorch.org/whl/cpu
+    import platform
+
+    if platform.system() != "Windows":
+        %pip install -q "matplotlib>=3.4"
+    else:
+        %pip install -q "matplotlib>=3.4,<3.7"
+
+    %pip install -q  "diffusers>=0.21.0" transformers accelerate gradio "openvino>=2023.2.0" "peft==0.6.2" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q datasets "nncf>=2.7.0"
 
 

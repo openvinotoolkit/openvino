@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -197,7 +197,7 @@ class TestMul(CommonTFLayerTest):
     test_data_broadcast_5D = [
         dict(x_shape=[1, 1, 1, 1, 1], y_shape=[1]),
         dict(x_shape=[1, 3, 1, 1, 1], y_shape=[1, 1]),
-        pytest.param(dict(x_shape=[1, 3, 1, 1, 1], y_shape=[3]), marks=pytest.mark.precommit_tf_fe),
+        pytest.param(dict(x_shape=[1, 3, 1, 1, 1], y_shape=[3]), marks=pytest.mark.precommit),
         dict(x_shape=[1, 1, 1, 1, 3], y_shape=[3]),
         dict(x_shape=[1, 3, 1, 1, 1], y_shape=[3, 1]),
         dict(x_shape=[1, 3, 1, 1, 2], y_shape=[1, 3, 2]),
@@ -218,19 +218,19 @@ class TestMul(CommonTFLayerTest):
 class TestComplexMul(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         rng = np.random.default_rng()
-        assert 'param_real_1' in inputs_info
-        assert 'param_imag_1' in inputs_info
-        assert 'param_real_2' in inputs_info
-        assert 'param_imag_2' in inputs_info
-        param_real_shape_1 = inputs_info['param_real_1']
-        param_imag_shape_1 = inputs_info['param_imag_1']
-        param_real_shape_2 = inputs_info['param_real_2']
-        param_imag_shape_2 = inputs_info['param_imag_2']
+        assert 'param_real_1:0' in inputs_info
+        assert 'param_imag_1:0' in inputs_info
+        assert 'param_real_2:0' in inputs_info
+        assert 'param_imag_2:0' in inputs_info
+        param_real_shape_1 = inputs_info['param_real_1:0']
+        param_imag_shape_1 = inputs_info['param_imag_1:0']
+        param_real_shape_2 = inputs_info['param_real_2:0']
+        param_imag_shape_2 = inputs_info['param_imag_2:0']
         inputs_data = {}
-        inputs_data['param_real_1'] = 4 * rng.random(param_real_shape_1).astype(np.float32) - 2
-        inputs_data['param_imag_1'] = 4 * rng.random(param_imag_shape_1).astype(np.float32) - 2
-        inputs_data['param_real_2'] = 4 * rng.random(param_real_shape_2).astype(np.float32) - 2
-        inputs_data['param_imag_2'] = 4 * rng.random(param_imag_shape_2).astype(np.float32) - 2
+        inputs_data['param_real_1:0'] = 4 * rng.random(param_real_shape_1).astype(np.float32) - 2
+        inputs_data['param_imag_1:0'] = 4 * rng.random(param_imag_shape_1).astype(np.float32) - 2
+        inputs_data['param_real_2:0'] = 4 * rng.random(param_real_shape_2).astype(np.float32) - 2
+        inputs_data['param_imag_2:0'] = 4 * rng.random(param_imag_shape_2).astype(np.float32) - 2
         return inputs_data
 
     def create_complex_mul_net(self, input_shape):
@@ -261,7 +261,7 @@ class TestComplexMul(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_complex_mul(self, params, ie_device, precision, ir_version, temp_dir,
                          use_legacy_frontend):

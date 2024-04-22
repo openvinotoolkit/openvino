@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 if [ $EUID -ne 0 ]; then
@@ -37,7 +37,7 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
         "${cmake_packages[@]}" \
         "${x86_64_specific_packages[@]}" \
         `# to find dependencies` \
-        pkg-config \
+        pkgconf \
         `# to deternime product version via git` \
         git \
         `# check bash scripts for correctness` \

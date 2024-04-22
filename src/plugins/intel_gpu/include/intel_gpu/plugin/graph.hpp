@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,10 +50,11 @@ public:
     cldnn::engine& get_engine() const { return m_context->get_engine(); }
     const ExecutionConfig& get_config() const { return m_config; }
 
-    const std::map<std::string, cldnn::layout>& get_input_layouts() const { return m_input_layouts; }
+    const std::map<size_t, cldnn::layout>& get_input_layouts() const { return m_input_layouts; }
     std::shared_ptr<cldnn::network> get_network() const;
 
-    std::string out_name_to_internal(std::string out_port_name) const;
+    std::vector<cldnn::primitive_id> input_port_index_to_internal(size_t input_port_index) const;
+    std::string out_port_index_to_internal(size_t out_port_index) const;
 
     void wait(Stage stage_mask) {
         std::unique_lock<std::mutex> lock(m_infer_mutex);
@@ -84,12 +85,13 @@ private:
 
     std::shared_ptr<cldnn::network> m_network;
     std::map<std::string, cldnn::primitive_id> primitiveIDs;
-    std::map<std::string, std::vector<cldnn::primitive_id>> prevPrimitiveIDs;
+    std::map<size_t, std::vector<cldnn::primitive_id>> inputPrimitiveIDs;
+    std::map<size_t, cldnn::primitive_id> prevPrimitiveIDs;
 
     std::map<cldnn::primitive_id, std::pair<std::string, PerfCounter>> perfMap;
     std::vector<cldnn::primitive_id> profilingIDs;
 
-    std::map<std::string, cldnn::layout> m_input_layouts;
+    std::map<size_t, cldnn::layout> m_input_layouts;
 
     void build(std::shared_ptr<cldnn::program> program);
     std::shared_ptr<ov::Model> get_runtime_model(std::vector<cldnn::primitive_info>& pi, bool filter_const_primitives = true);

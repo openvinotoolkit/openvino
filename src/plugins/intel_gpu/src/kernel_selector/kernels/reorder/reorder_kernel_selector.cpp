@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ reorder_kernel_selector::reorder_kernel_selector() {
     Attach<ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx>();
 }
 
-KernelsData reorder_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::REORDER);
+KernelsData reorder_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::REORDER);
 }
 }  // namespace kernel_selector

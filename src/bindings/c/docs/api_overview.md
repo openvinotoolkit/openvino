@@ -1,4 +1,4 @@
-# Overview of OpenVINO C* API 2.0
+# Overview of OpenVINO C* API
 
 This API provides a simplified interface for OpenVINO functionality that allows to:
 
@@ -16,8 +16,7 @@ Supported Python* versions:
   - Ubuntu 18.04 long-term support (LTS) with limitations, 64-bit (Kernel 5.4+)
   - Windows* 10
   - Windows* 11
-  - macOS* 10.15 and above, 64-bit
-  - macOS 11 and above, ARM64
+  - macOS* 12.6 and above, 64-bit and ARM64
   - Red Hat Enterprise Linux* 8, 64-bit
   - Debian 9 ARM64 and ARM
   - CentOS 7 64-bit

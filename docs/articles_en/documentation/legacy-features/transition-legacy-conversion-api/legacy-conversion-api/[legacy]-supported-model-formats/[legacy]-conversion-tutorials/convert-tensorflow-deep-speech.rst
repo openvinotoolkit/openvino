@@ -5,15 +5,15 @@ Converting a TensorFlow DeepSpeech Model
 
 
 .. meta::
-   :description: Learn how to convert a DeepSpeech model 
+   :description: Learn how to convert a DeepSpeech model
                  from TensorFlow to the OpenVINO Intermediate Representation.
 
 .. danger::
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <tutorials>`.
-   
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <../../../../../../learn-openvino/interactive-tutorials-python>`.
+
 `DeepSpeech project <https://github.com/mozilla/DeepSpeech>`__ provides an engine to train speech-to-text models.
 
 Downloading the Pretrained DeepSpeech Model
@@ -72,12 +72,12 @@ There are two specificities with the supported part of the model.
 
 The first is that the model contains an input with sequence length. So the model can be converted with
 a fixed input length shape, thus the model is not reshapable.
-Refer to the :doc:`Using Shape Inference <openvino_docs_OV_UG_ShapeInference>` guide.
+Refer to the :doc:`Using Shape Inference <../../../../../../openvino-workflow/running-inference/changing-input-shape>` guide.
 
 The second is that the frozen model still has two variables: ``previous_state_c`` and ``previous_state_h``, figure
 with the frozen *.pb model is below. It means that the model keeps training these variables at each inference.
 
-.. image:: ./_static/images/DeepSpeech-0.8.2.png
+.. image:: ./../../../../../../_static/images/DeepSpeech-0.8.2.png
 
 At the first inference, the variables are initialized with zero tensors. After execution, the results of the ``BlockLSTM``
 are assigned to cell state and hidden state, which are these two variables.

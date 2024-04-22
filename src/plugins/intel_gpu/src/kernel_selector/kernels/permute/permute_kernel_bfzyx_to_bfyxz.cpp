@@ -142,8 +142,8 @@ CommonDispatchData PermuteKernel_bfzyx_to_bfyxz::SetDefault(const permute_params
     return dispatchData;
 }
 
-bool PermuteKernel_bfzyx_to_bfyxz::Validate(const Params& p, const optional_params& o) const {
-    if (!Parent::Validate(p, o)) return false;
+bool PermuteKernel_bfzyx_to_bfyxz::Validate(const Params& p) const {
+    if (!Parent::Validate(p)) return false;
 
     std::function<bool(const std::vector<uint16_t>&)> is_rotating_coords = [](const std::vector<uint16_t>& order) {
         const std::vector<uint16_t> expected_order {0, 1, 4, 2, 3};
@@ -164,7 +164,7 @@ bool PermuteKernel_bfzyx_to_bfyxz::Validate(const Params& p, const optional_para
     return true;
 }
 
-KernelsPriority PermuteKernel_bfzyx_to_bfyxz::GetKernelsPriority(const Params& params, const optional_params&) const {
+KernelsPriority PermuteKernel_bfzyx_to_bfyxz::GetKernelsPriority(const Params& params) const {
     KernelData kd = KernelData::Default<permute_params>(params);
     permute_params& newParams = *static_cast<permute_params*>(kd.params.get());
 

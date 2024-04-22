@@ -1,7 +1,9 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/op/gemm.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "multi_stage_primitive.hpp"
 
@@ -22,7 +24,7 @@ struct gemm_impl : multi_stage_primitive<gemm> {
     using parent = multi_stage_primitive<gemm>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::gemm_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::gemm_params, kernel_selector::gemm_optional_params>;
+    using kernel_params_t = kernel_selector::gemm_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::gemm_impl)
 
@@ -31,6 +33,12 @@ struct gemm_impl : multi_stage_primitive<gemm> {
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<gemm_impl>(*this);
+    }
+
+    gemm_impl() = default;
+
+    gemm_impl(const std::vector<kernel_selector::kernel_data>& kd) : parent(kd) {
+        this->can_reuse_memory = true;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -156,7 +164,6 @@ public:
         const auto& primitive = impl_param.typed_desc<gemm>();
 
         auto params = get_default_params<kernel_selector::gemm_params>(impl_param, is_shape_agnostic);
-        auto optional_params = get_default_optional_params<kernel_selector::gemm_optional_params>(impl_param.get_program());
 
         for (size_t i = 1; i < primitive->input_size(); ++i) {
             params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i]));
@@ -168,9 +175,45 @@ public:
         params.beta = primitive->beta;
         params.transpose_input0 = primitive->transpose_input0;
         params.transpose_input1 = primitive->transpose_input1;
-        params.input0_order = primitive->input0_order;
-        params.input1_order = primitive->input1_order;
-        params.output_order = primitive->output_order;
+        params.input0_order = primitive->input0_transpose_order;
+        params.input1_order = primitive->input1_transpose_order;
+        params.output_order = primitive->output_transpose_order;
+
+        auto input0_pshape = impl_param.input_layouts[0].get_partial_shape();
+        auto input1_pshape = impl_param.input_layouts[1].get_partial_shape();
+        const auto is_broadcastable = input0_pshape.rank().is_static() &&
+                                      input1_pshape.rank().is_static() &&
+                                      input0_pshape.size() > 1 &&
+                                      input1_pshape.size() > 1 &&
+                                      (primitive->input_rank == primitive->weight_rank);
+        if (is_broadcastable) {
+            auto transpose_pshape = [](const ov::PartialShape pshape, const std::vector<int64_t>& order) {
+                auto transposed_pshape = ov::PartialShape::dynamic(pshape.rank());
+                for (size_t i = 0; i < order.size(); i++) {
+                    transposed_pshape[i] = pshape[order[i]];
+                }
+                return transposed_pshape;
+            };
+            size_t max_rank = input0_pshape.size();
+            auto default_order = ov::intel_gpu::op::Gemm::default_order(max_rank);
+            auto input0_trans_pshape = (primitive->input0_transpose_order != default_order) ?
+                                       transpose_pshape(input0_pshape, primitive->input0_transpose_order) :
+                                       input0_pshape;
+            auto input1_trans_pshape = (primitive->input1_transpose_order != default_order) ?
+                                       transpose_pshape(input1_pshape, primitive->input1_transpose_order) :
+                                       input1_pshape;
+            for (size_t i = 0; i < max_rank - 2; ++i) {
+                if (input0_trans_pshape[i].is_static() && input1_trans_pshape[i].is_static()) {
+                    if (input1_trans_pshape[i].get_length() > input0_trans_pshape[i].get_length()) {
+                        params.input0_reshape_axes = primitive->input0_transpose_order[i];
+                        params.input0_broadcast_val = input1_trans_pshape[i].get_length() / input0_trans_pshape[i].get_length();
+                    } else if (input0_trans_pshape[i].get_length() > input1_trans_pshape[i].get_length()) {
+                        params.input1_reshape_axes = primitive->input1_transpose_order[i];
+                        params.input1_broadcast_val = input0_trans_pshape[i].get_length() / input1_trans_pshape[i].get_length();
+                    }
+                }
+            }
+        }
 
         params.indirect_input0 = primitive->indirect_a && indirect;
         params.indirect_input1 = primitive->indirect_b && indirect;
@@ -207,7 +250,7 @@ public:
                 }
             }
         }
-        return {params, optional_params};
+        return params;
     }
 
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
@@ -237,24 +280,24 @@ public:
         auto params = static_canonicalize_shapes(impl_param);
 
         auto default_kernel_params = get_kernel_params(params, params.is_dynamic(), false);
-        default_kernel_params.first.is_shape_agnostic = params.is_dynamic();
-        kernels_data.push_back(kernel_selector.get_best_kernel(default_kernel_params.first, default_kernel_params.second));
+        default_kernel_params.is_shape_agnostic = params.is_dynamic();
+        kernels_data.push_back(kernel_selector.get_best_kernel(default_kernel_params));
         const auto desc = params.typed_desc<gemm>();
         if (desc->indirect_a || desc->indirect_b) {
             auto indirect_kernel_params = get_kernel_params(params, params.is_dynamic(), true);
-            indirect_kernel_params.first.is_shape_agnostic = params.is_dynamic();
-            kernels_data.push_back(kernel_selector.get_best_kernel(indirect_kernel_params.first, indirect_kernel_params.second));
+            indirect_kernel_params.is_shape_agnostic = params.is_dynamic();
+            kernels_data.push_back(kernel_selector.get_best_kernel(indirect_kernel_params));
         }
         return cldnn::make_unique<gemm_impl>(kernels_data);
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true, false);
-        (_kernels_data[default_gemm].update_dispatch_data_func)(kernel_params.first, _kernels_data[default_gemm]);
+        (_kernels_data[default_gemm].update_dispatch_data_func)(kernel_params, _kernels_data[default_gemm]);
 
         if (_kernels_data.size() == 2) {
             auto kernel_params = get_kernel_params(impl_param, true, true);
-            (_kernels_data[indirect_gemm].update_dispatch_data_func)(kernel_params.first, _kernels_data[indirect_gemm]);
+            (_kernels_data[indirect_gemm].update_dispatch_data_func)(kernel_params, _kernels_data[indirect_gemm]);
         }
     }
 };

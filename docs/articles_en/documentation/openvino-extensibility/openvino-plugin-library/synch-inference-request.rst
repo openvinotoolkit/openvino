@@ -11,7 +11,7 @@ Synchronous Inference Request
 ``InferRequest`` class functionality:
 
 * Allocate input and output tensors needed for a backend-dependent network inference.
-* Define functions for inference process stages (for example, ``preprocess``, ``upload``, ``infer``, ``download``, ``postprocess``). These functions can later be used to define an execution pipeline during :doc:`Asynchronous Inference Request <openvino_docs_ov_plugin_dg_async_infer_request>` implementation.
+* Define functions for inference process stages (for example, ``preprocess``, ``upload``, ``infer``, ``download``, ``postprocess``). These functions can later be used to define an execution pipeline during :doc:`Asynchronous Inference Request <asynch-inference-request>` implementation.
 * Call inference stages one by one synchronously.
 
 InferRequest Class
@@ -146,5 +146,5 @@ The plugin specific method allows to interrupt the synchronous execution from th
    :fragment: [infer_request:cancel]
 
 
-The next step in the plugin library implementation is the :doc:`Asynchronous Inference Request <openvino_docs_ov_plugin_dg_async_infer_request>` class.
+The next step in the plugin library implementation is the :doc:`Asynchronous Inference Request <asynch-inference-request>` class.
 

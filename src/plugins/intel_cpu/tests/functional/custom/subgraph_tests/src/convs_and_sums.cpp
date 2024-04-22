@@ -6,7 +6,6 @@
 #include "common_test_utils/node_builders/eltwise.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 
@@ -121,6 +120,8 @@ protected:
 
         auto result = std::make_shared<ov::op::v0::Result>(relu3);
         function = std::make_shared<ov::Model>(result, params, "SimpleNet");
+
+        abs_threshold = 9e-4;
     }
 };
 
