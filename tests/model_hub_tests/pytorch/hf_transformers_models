@@ -80,7 +80,6 @@ facebook/m2m100_418M,m2m_100
 facebook/mask2former-swin-base-coco-panoptic,mask2former
 facebook/maskformer-swin-base-coco,maskformer
 facebook/mbart-large-50-many-to-many-mmt,mbart
-facebook/mms-lid-126,wav2vec2
 facebook/mms-tts-eng,vits,xfail,Accuracy failed: results cannot be broadcasted
 facebook/musicgen-small,musicgen
 facebook/opt-125m,opt

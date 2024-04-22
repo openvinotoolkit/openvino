@@ -14,7 +14,7 @@ from transformers import AutoConfig, AutoModel, AutoProcessor, AutoTokenizer, Au
     SpeechT5Processor, SpeechT5ForTextToSpeech, LayoutLMv2Processor, Pix2StructForConditionalGeneration, RetriBertTokenizer, VivitImageProcessor, ViTHybridImageProcessor
 
 from torch_utils import TestTorchConvertModel, process_pytest_marks
-from models_hub_common.constants import hf_cache_dir, no_clean_cache_dir
+from models_hub_common.constants import hf_cache_dir, clean_cache_dir
 from models_hub_common.utils import cleanup_dir
 
 def is_gptq_model(config_dict):
@@ -117,7 +117,7 @@ class TestTransformersModel(TestTorchConvertModel):
             config = {}
         is_gptq = is_gptq_model(config)
         model_kwargs = {"torchscript": True}
-        if not no_clean_cache_dir:
+        if clean_cache_dir:
             model_kwargs["cache_dir"] = hf_cache_dir
         if is_gptq:
             self.cuda_available, self.gptq_postinit = patch_gptq()
@@ -374,7 +374,7 @@ class TestTransformersModel(TestTorchConvertModel):
             processor = AutoProcessor.from_pretrained(name)
             inputs = processor(torch.rand(1000), sampling_rate=16000, return_tensors="pt")
             example = dict(inputs)
-        elif "speech-encoder-decoder" in mi.tags:
+        elif "speech-encoder-decoder" in mi.tags or "wav2vec2" in mi.tags or "unispeech" in mi.tags:
             example = {"input_values": torch.rand(1, 1000)}
         elif "decision_transformer" in mi.tags:
             states = torch.randn(1, 1, config["state_dim"])

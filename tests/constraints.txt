@@ -25,7 +25,11 @@ pytest-html==4.1.1
 pytest-timeout==2.2.0
 jax<=0.4.14
 jaxlib<=0.4.14
-torch>=1.13,<2.3
-kornia==0.7.0
 networkx<=3.1.0
 keras>=2.0.0,<3.0.0
+# pytorch tests
+auto-gptq>=0.5.1
+torch>=1.13,<2.3
+kornia==0.7.0
+transformers>=4.40
+

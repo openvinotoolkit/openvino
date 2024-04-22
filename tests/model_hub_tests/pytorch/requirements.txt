@@ -1,10 +1,13 @@
 -c ../../constraints.txt
 --extra-index-url https://download.pytorch.org/whl/cpu
-auto-gptq>=0.5.1
+auto-gptq
 av
 basicsr
 datasets
 facexlib
+g2p-en
+kornia
+librosa
 numpy
 optimum
 packaging
@@ -13,6 +16,7 @@ protobuf
 pyctcdecode
 pytest
 pytest-html
+PyYAML
 sacremoses
 sentencepiece
 soundfile
@@ -23,7 +27,3 @@ torchaudio
 torchvision
 transformers
 wheel
-PyYAML
-kornia
-g2p-en
-librosa

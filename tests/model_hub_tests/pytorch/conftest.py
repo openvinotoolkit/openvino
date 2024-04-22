@@ -4,7 +4,7 @@
 import inspect
 
 from models_hub_common.utils import get_params
-from models_hub_common.constants import hf_cache_dir, no_clean_cache_dir
+from models_hub_common.constants import hf_cache_dir, clean_cache_dir
 from models_hub_common.utils import cleanup_dir
 
 
@@ -15,5 +15,5 @@ def pytest_generate_tests(metafunc):
 
 def pytest_sessionfinish(session, exitstatus):
     # remove all downloaded files from cache
-    if not no_clean_cache_dir:
+    if clean_cache_dir:
         cleanup_dir(hf_cache_dir)
