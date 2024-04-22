@@ -144,10 +144,10 @@ Napi::Value CoreWrap::compile_model_sync_dispatch(const Napi::CallbackInfo& info
     std::vector<std::string> errors_messages;
 
     // Allowed signatures list
-    auto path_and_device = NapiArg::Validator().add_string_arg().add_string_arg();
-    auto path_device_and_config = NapiArg::Validator().add_string_arg().add_string_arg().add_object_arg();
-    auto model_and_device = NapiArg::Validator().add_object_arg().add_string_arg();
-    auto model_device_and_config = NapiArg::Validator().add_object_arg().add_string_arg().add_object_arg();
+    static auto path_and_device = NapiArg::Validator().add_string_arg().add_string_arg();
+    static auto path_device_and_config = NapiArg::Validator().add_string_arg().add_string_arg().add_object_arg();
+    static auto model_and_device = NapiArg::Validator().add_object_arg().add_string_arg();
+    static auto model_device_and_config = NapiArg::Validator().add_object_arg().add_string_arg().add_object_arg();
 
     try {
         if (path_and_device.validate(info, errors_messages)) {

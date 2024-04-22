@@ -156,9 +156,9 @@ Napi::Value InferRequestWrap::infer_dispatch(const Napi::CallbackInfo& info) {
     std::vector<std::string> errors_messages;
 
     // Allowed signatures list
-    auto empty_attrs = NapiArg::Validator();
-    auto single_array = NapiArg::Validator().add_array_arg();
-    auto single_object = NapiArg::Validator().add_object_arg();
+    static auto empty_attrs = NapiArg::Validator();
+    static auto single_array = NapiArg::Validator().add_array_arg();
+    static auto single_object = NapiArg::Validator().add_object_arg();
 
     try {
         OPENVINO_ASSERT(!info[0].IsTypedArray(),
