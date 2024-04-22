@@ -247,46 +247,46 @@ TYPED_TEST_P(TypePropScatterNDUpdateTest, all_dynamic_type) {
     EXPECT_EQ(op->get_output_partial_shape(0), this->data_3d_dynamic);
 }
 
-TEST(type_prop, scatter_nd_update_v14_default_attribute) {
+TEST(type_prop, scatter_nd_update_v15_default_attribute) {
     const auto d = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{2, 3, 5, 1});
     const auto i = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1, 3});
     const auto u = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{1, 1});
 
-    const auto op = std::make_shared<op::v14::ScatterNDUpdate>();
+    const auto op = std::make_shared<op::v15::ScatterNDUpdate>();
     op->set_arguments(OutputVector{d, i, u});
     op->validate_and_infer_types();
 
     EXPECT_EQ(op->get_output_element_type(0), element::i64);
-    EXPECT_EQ(op->get_reduction(), op::v14::ScatterNDUpdate::Reduction::NONE);
+    EXPECT_EQ(op->get_reduction(), op::v15::ScatterNDUpdate::Reduction::NONE);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({2, 3, 5, 1}));
     EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
 }
 
-TEST(type_prop, scatter_nd_update_v14_attribute_setter_enum) {
+TEST(type_prop, scatter_nd_update_v15_attribute_setter_enum) {
     const auto d = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{2, 3, 5, 1});
     const auto i = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1, 3});
     const auto u = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{1, 1});
 
-    const auto op = std::make_shared<op::v14::ScatterNDUpdate>();
+    const auto op = std::make_shared<op::v15::ScatterNDUpdate>();
     op->set_arguments(OutputVector{d, i, u});
-    op->set_reduction(op::v14::ScatterNDUpdate::Reduction::PROD);
+    op->set_reduction(op::v15::ScatterNDUpdate::Reduction::PROD);
     op->validate_and_infer_types();
 
     EXPECT_EQ(op->get_output_element_type(0), element::i64);
-    EXPECT_EQ(op->get_reduction(), op::v14::ScatterNDUpdate::Reduction::PROD);
+    EXPECT_EQ(op->get_reduction(), op::v15::ScatterNDUpdate::Reduction::PROD);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({2, 3, 5, 1}));
     EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
 }
 
-TEST(type_prop, scatter_nd_update_v14_attribute_constructor) {
+TEST(type_prop, scatter_nd_update_v15_attribute_constructor) {
     const auto d = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{2, 3, 5, 1});
     const auto i = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1, 3});
     const auto u = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{1, 1});
 
-    const auto op = std::make_shared<op::v14::ScatterNDUpdate>(d, i, u, op::v14::ScatterNDUpdate::Reduction::MAX);
+    const auto op = std::make_shared<op::v15::ScatterNDUpdate>(d, i, u, op::v15::ScatterNDUpdate::Reduction::MAX);
 
     EXPECT_EQ(op->get_output_element_type(0), element::i64);
-    EXPECT_EQ(op->get_reduction(), op::v14::ScatterNDUpdate::Reduction::MAX);
+    EXPECT_EQ(op->get_reduction(), op::v15::ScatterNDUpdate::Reduction::MAX);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({2, 3, 5, 1}));
     EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
 }
@@ -307,5 +307,5 @@ REGISTER_TYPED_TEST_SUITE_P(TypePropScatterNDUpdateTest,
                             updates_input_is_dynamic,
                             updates_input_is_scalar,
                             all_dynamic_type);
-using OpVersions = ::testing::Types<op::v3::ScatterNDUpdate, op::v14::ScatterNDUpdate>;
+using OpVersions = ::testing::Types<op::v3::ScatterNDUpdate, op::v15::ScatterNDUpdate>;
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop, TypePropScatterNDUpdateTest, OpVersions);

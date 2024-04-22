@@ -11,7 +11,7 @@
 
 using namespace reference_tests;
 using namespace ov;
-using Reduction = ov::op::v14::ScatterNDUpdate::Reduction;
+using Reduction = ov::op::v15::ScatterNDUpdate::Reduction;
 
 namespace {
 struct ScatterNDUpdateParams {
@@ -92,7 +92,7 @@ private:
     }
 };
 
-class ReferenceScatterNDUpdateV14LayerTest : public testing::TestWithParam<ScatterNDUpdateParams>,
+class ReferenceScatterNDUpdateV15LayerTest : public testing::TestWithParam<ScatterNDUpdateParams>,
                                              public CommonReferenceTest {
 protected:
     void SetUp() override {
@@ -120,7 +120,7 @@ private:
         const auto updates = std::make_shared<op::v0::Constant>(params.updateTensor.type,
                                                                 params.updateTensor.shape,
                                                                 params.updateTensor.data.data());
-        const auto scatter = std::make_shared<op::v14::ScatterNDUpdate>(data, indices, updates, params.reduction);
+        const auto scatter = std::make_shared<op::v15::ScatterNDUpdate>(data, indices, updates, params.reduction);
         return std::make_shared<ov::Model>(NodeVector{scatter}, ParameterVector{data});
     }
 };
@@ -129,7 +129,7 @@ TEST_P(ReferenceScatterNDUpdateV3LayerTest, CompareWithRefs) {
     Exec();
 }
 
-TEST_P(ReferenceScatterNDUpdateV14LayerTest, CompareWithRefs) {
+TEST_P(ReferenceScatterNDUpdateV15LayerTest, CompareWithRefs) {
     Exec();
 }
 
@@ -244,7 +244,7 @@ std::vector<ScatterNDUpdateParams> generateScatterNDUpdateParams() {
 }
 
 template <element::Type_t IN_ET, element::Type_t IU_ET>
-std::vector<ScatterNDUpdateParams> generateScatterNDUpdateV14Params() {
+std::vector<ScatterNDUpdateParams> generateScatterNDUpdateV15Params() {
     using T = typename element_type_traits<IN_ET>::value_type;
     using U = typename element_type_traits<IU_ET>::value_type;
     std::vector<ScatterNDUpdateParams> scatterParams{
@@ -506,7 +506,7 @@ std::vector<ScatterNDUpdateParams> generateScatterNDUpdateV14Params() {
 }
 
 template <element::Type_t IU_ET>
-std::vector<ScatterNDUpdateParams> generateScatterNDUpdateV14ParamsReductionsBoolean() {
+std::vector<ScatterNDUpdateParams> generateScatterNDUpdateV15ParamsReductionsBoolean() {
     const auto IN_ET = element::Type_t::boolean;
     using T = typename element_type_traits<IN_ET>::value_type;
     using U = typename element_type_traits<IU_ET>::value_type;
@@ -596,22 +596,22 @@ std::vector<ScatterNDUpdateParams> generateScatterNDUpdateV3CombinedParams() {
     return combinedParams;
 }
 
-std::vector<ScatterNDUpdateParams> generateScatterNDUpdateV14CombinedParams() {
+std::vector<ScatterNDUpdateParams> generateScatterNDUpdateV15CombinedParams() {
     const std::vector<std::vector<ScatterNDUpdateParams>> scatterTypeParams{
-        generateScatterNDUpdateV14Params<element::Type_t::i32, element::Type_t::i32>(),
-        generateScatterNDUpdateV14Params<element::Type_t::i64, element::Type_t::i32>(),
-        generateScatterNDUpdateV14Params<element::Type_t::u32, element::Type_t::i32>(),
-        generateScatterNDUpdateV14Params<element::Type_t::u64, element::Type_t::i32>(),
-        generateScatterNDUpdateV14Params<element::Type_t::f16, element::Type_t::i32>(),
-        generateScatterNDUpdateV14Params<element::Type_t::f32, element::Type_t::i32>(),
-        generateScatterNDUpdateV14Params<element::Type_t::i32, element::Type_t::i64>(),
-        generateScatterNDUpdateV14Params<element::Type_t::i64, element::Type_t::i64>(),
-        generateScatterNDUpdateV14Params<element::Type_t::u32, element::Type_t::i64>(),
-        generateScatterNDUpdateV14Params<element::Type_t::u64, element::Type_t::i64>(),
-        generateScatterNDUpdateV14Params<element::Type_t::f16, element::Type_t::i64>(),
-        generateScatterNDUpdateV14Params<element::Type_t::f32, element::Type_t::i64>(),
-        generateScatterNDUpdateV14ParamsReductionsBoolean<element::Type_t::i32>(),
-        generateScatterNDUpdateV14ParamsReductionsBoolean<element::Type_t::i64>(),
+        generateScatterNDUpdateV15Params<element::Type_t::i32, element::Type_t::i32>(),
+        generateScatterNDUpdateV15Params<element::Type_t::i64, element::Type_t::i32>(),
+        generateScatterNDUpdateV15Params<element::Type_t::u32, element::Type_t::i32>(),
+        generateScatterNDUpdateV15Params<element::Type_t::u64, element::Type_t::i32>(),
+        generateScatterNDUpdateV15Params<element::Type_t::f16, element::Type_t::i32>(),
+        generateScatterNDUpdateV15Params<element::Type_t::f32, element::Type_t::i32>(),
+        generateScatterNDUpdateV15Params<element::Type_t::i32, element::Type_t::i64>(),
+        generateScatterNDUpdateV15Params<element::Type_t::i64, element::Type_t::i64>(),
+        generateScatterNDUpdateV15Params<element::Type_t::u32, element::Type_t::i64>(),
+        generateScatterNDUpdateV15Params<element::Type_t::u64, element::Type_t::i64>(),
+        generateScatterNDUpdateV15Params<element::Type_t::f16, element::Type_t::i64>(),
+        generateScatterNDUpdateV15Params<element::Type_t::f32, element::Type_t::i64>(),
+        generateScatterNDUpdateV15ParamsReductionsBoolean<element::Type_t::i32>(),
+        generateScatterNDUpdateV15ParamsReductionsBoolean<element::Type_t::i64>(),
     };
     std::vector<ScatterNDUpdateParams> combinedParams = generateScatterNDUpdateV3CombinedParams();
 
@@ -627,9 +627,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_ScatterNDUpdate_With_Hardcoded_Refs,
                          ReferenceScatterNDUpdateV3LayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ScatterNDUpdate_With_Hardcoded_Refs,
-                         ReferenceScatterNDUpdateV14LayerTest,
-                         testing::ValuesIn(generateScatterNDUpdateV14CombinedParams()),
-                         ReferenceScatterNDUpdateV14LayerTest::getTestCaseName);
+                         ReferenceScatterNDUpdateV15LayerTest,
+                         testing::ValuesIn(generateScatterNDUpdateV15CombinedParams()),
+                         ReferenceScatterNDUpdateV15LayerTest::getTestCaseName);
 
 class ReferenceScatterNDUpdateLayerNegativeTest : public ReferenceScatterNDUpdateV3LayerTest {};
 

@@ -23,7 +23,7 @@ struct Evaluate : public element::NoAction<bool> {
                              const Shape& data_shape,
                              const Shape& indices_shape,
                              const Shape& updates_shape,
-                             const v14::ScatterNDUpdate::Reduction reduction) {
+                             const v15::ScatterNDUpdate::Reduction reduction) {
         using namespace ov::element;
         return IF_TYPE_OF(sctter_nd_eval_idx_type,
                           OV_PP_ET_LIST(i32, i64),
@@ -51,7 +51,7 @@ private:
                                  const Shape& data_shape,
                                  const Shape& indices_shape,
                                  const Shape& updates_shape,
-                                 const v14::ScatterNDUpdate::Reduction reduction) {
+                                 const v15::ScatterNDUpdate::Reduction reduction) {
             reference::scatterNdUpdate(data,
                                        indices.data<IT>(),
                                        updates,
@@ -68,7 +68,7 @@ namespace {
 bool evaluate(const op::util::ScatterNDBase* node,
               TensorVector& outputs,
               const TensorVector& inputs,
-              const op::v14::ScatterNDUpdate::Reduction reduction) {
+              const op::v15::ScatterNDUpdate::Reduction reduction) {
     OPENVINO_ASSERT(inputs.size() == 3);
     OPENVINO_ASSERT(outputs.size() == 1);
 
@@ -131,7 +131,7 @@ std::shared_ptr<Node> ScatterNDUpdate::clone_with_new_inputs(const OutputVector&
 
 bool ScatterNDUpdate::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v3_ScatterNDUpdate_evaluate);
-    constexpr auto reduction = op::v14::ScatterNDUpdate::Reduction::NONE;
+    constexpr auto reduction = op::v15::ScatterNDUpdate::Reduction::NONE;
     return scatter_nd_update::evaluate(this, outputs, inputs, reduction);
 }
 
@@ -156,7 +156,7 @@ bool ScatterNDUpdate::evaluate_symbol(TensorSymbolVector& output_symbols) const 
 }
 }  // namespace v3
 
-namespace v14 {
+namespace v15 {
 ScatterNDUpdate::ScatterNDUpdate(const Output<Node>& inputs,
                                  const Output<Node>& indices,
                                  const Output<Node>& updates,
@@ -166,24 +166,24 @@ ScatterNDUpdate::ScatterNDUpdate(const Output<Node>& inputs,
     constructor_validate_and_infer_types();
 }
 std::shared_ptr<Node> ScatterNDUpdate::clone_with_new_inputs(const OutputVector& new_args) const {
-    OV_OP_SCOPE(v14_ScatterNDUpdate_clone_with_new_inputs);
+    OV_OP_SCOPE(v15_ScatterNDUpdate_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<ScatterNDUpdate>(new_args.at(0), new_args.at(1), new_args.at(2), m_reduction);
 }
 
 bool ScatterNDUpdate::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v14_ScatterNDUpdate_visit_attributes);
+    OV_OP_SCOPE(v15_ScatterNDUpdate_visit_attributes);
     visitor.on_attribute("reduction", m_reduction);
     return true;
 }
 
 bool ScatterNDUpdate::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
-    OV_OP_SCOPE(v14_ScatterNDUpdate_evaluate);
+    OV_OP_SCOPE(v15_ScatterNDUpdate_evaluate);
     return scatter_nd_update::evaluate(this, outputs, inputs, m_reduction);
 }
 
 bool ScatterNDUpdate::has_evaluate() const {
-    OV_OP_SCOPE(v14_ScatterNDUpdate_has_evaluate);
+    OV_OP_SCOPE(v15_ScatterNDUpdate_has_evaluate);
     return scatter_nd_update::has_evaluate(this);
 }
 
@@ -195,35 +195,35 @@ void ScatterNDUpdate::set_reduction(const ScatterNDUpdate::Reduction reduction) 
     m_reduction = reduction;
 }
 bool ScatterNDUpdate::evaluate_lower(TensorVector& output_values) const {
-    OV_OP_SCOPE(v14_ScatterNDUpdate_evaluate_lower);
+    OV_OP_SCOPE(v15_ScatterNDUpdate_evaluate_lower);
     return get_input_tensor(1).has_and_set_bound() && default_lower_bound_evaluator(this, output_values);
 }
 
 bool ScatterNDUpdate::evaluate_upper(TensorVector& output_values) const {
-    OV_OP_SCOPE(v14_ScatterNDUpdate_evaluate_upper);
+    OV_OP_SCOPE(v15_ScatterNDUpdate_evaluate_upper);
     return get_input_tensor(1).has_and_set_bound() && default_upper_bound_evaluator(this, output_values);
 }
 
 bool ScatterNDUpdate::evaluate_symbol(TensorSymbolVector& output_symbols) const {
-    OV_OP_SCOPE(v14_ScatterNDUpdate_evaluate_symbol);
+    OV_OP_SCOPE(v15_ScatterNDUpdate_evaluate_symbol);
     return default_symbol_evaluator(this, {0, 2}, output_symbols);
 }
 
-}  // namespace v14
+}  // namespace v15
 }  // namespace op
-std::ostream& operator<<(std::ostream& s, const op::v14::ScatterNDUpdate::Reduction& reduction) {
+std::ostream& operator<<(std::ostream& s, const op::v15::ScatterNDUpdate::Reduction& reduction) {
     return s << as_string(reduction);
 }
 template <>
-OPENVINO_API EnumNames<op::v14::ScatterNDUpdate::Reduction>& EnumNames<op::v14::ScatterNDUpdate::Reduction>::get() {
+OPENVINO_API EnumNames<op::v15::ScatterNDUpdate::Reduction>& EnumNames<op::v15::ScatterNDUpdate::Reduction>::get() {
     static auto enum_names =
-        EnumNames<op::v14::ScatterNDUpdate::Reduction>("op::v14::ScatterNDUpdate::Reduction",
-                                                       {{"none", op::v14::ScatterNDUpdate::Reduction::NONE},
-                                                        {"sum", op::v14::ScatterNDUpdate::Reduction::SUM},
-                                                        {"sub", op::v14::ScatterNDUpdate::Reduction::SUB},
-                                                        {"prod", op::v14::ScatterNDUpdate::Reduction::PROD},
-                                                        {"min", op::v14::ScatterNDUpdate::Reduction::MIN},
-                                                        {"max", op::v14::ScatterNDUpdate::Reduction::MAX}});
+        EnumNames<op::v15::ScatterNDUpdate::Reduction>("op::v15::ScatterNDUpdate::Reduction",
+                                                       {{"none", op::v15::ScatterNDUpdate::Reduction::NONE},
+                                                        {"sum", op::v15::ScatterNDUpdate::Reduction::SUM},
+                                                        {"sub", op::v15::ScatterNDUpdate::Reduction::SUB},
+                                                        {"prod", op::v15::ScatterNDUpdate::Reduction::PROD},
+                                                        {"min", op::v15::ScatterNDUpdate::Reduction::MIN},
+                                                        {"max", op::v15::ScatterNDUpdate::Reduction::MAX}});
     return enum_names;
 }
 }  // namespace ov
