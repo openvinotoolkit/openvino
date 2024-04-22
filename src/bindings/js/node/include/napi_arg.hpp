@@ -16,9 +16,7 @@ std::string create_error_message(const std::string& key, const std::string& expe
 
 std::string create_error_message(const std::string key, napi_valuetype expected_type, napi_valuetype real_type);
 
-std::string create_error_message(const std::string& key,
-                                       const std::string& expected,
-                                       const napi_valuetype& real_type);
+std::string create_error_message(const std::string& key, const std::string& expected, const napi_valuetype& real_type);
 
 void check_type(const napi_valuetype expected_type, const std::string key, const Napi::Value& value);
 
