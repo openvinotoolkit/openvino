@@ -963,7 +963,8 @@ struct MHASingleToken {
         }
 #endif
         if (!fastpath_valid) {
-            m_attn_w.resize<float>({B, H, q_len, kv_len});
+            // aligned to cache line (64bytes=16*sizeof(float)) to avoid false sharing
+            m_attn_w.resize<float>({B, H, q_len, (kv_len + 15) / 16 * 16});
         }
         mha_single_token(query, fastpath_valid ? PlainTensor() : present_key, present_value, alibi_mask, attention_mask, beams, max_context_len,
             context_lens, output_emb, m_attn_w, m_temp, has_out_transpose, auto_causal, d_scale, k_scale_zp, v_scale_zp, m_head_sum);
@@ -1034,7 +1035,10 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             B = k_input.size(0);
             L1 = k_input.size(1);
             auto Hk = present_key.size(1);
-            S = present_value.size(3);
+            // The layout for per token per head for u8 kv cache:
+            // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
+            // The actual size needs to deduct scale and zeropoint.
+            S = present_value.size(3) - (present_value.m_dt == ov::element::Type_t::u8 ? sizeof(float) * 2 : 0);
             auto H = q_input.size(2) / S;
             // L0 in each batch may be different
             L0 = 0;
@@ -1563,17 +1567,22 @@ void ScaledDotProductAttention::gatherConcatPastkvForPagedAttn(const std::vector
     auto B = k.size(0);
     auto L1 = k.size(1);
     auto H = k_cache.size(1);
-    auto S = v_cache.size(3);
+    auto S = v_cache.size(3) - (k_cache.m_dt == ov::element::Type_t::u8 ? 8 : 0);
 
     k.assert_dims({B, L1, H * S});
     v.assert_dims({B, L1, H * S});
-    k_cache.assert_dims({0, H, 0, S}, true);
-    v_cache.assert_dims({k_cache.m_dims[0], H, k_cache.m_dims[2], S});
     slot_mapping.assert_dims({B, 0}, true);
     k = k.reshape({B, L1, H, S}).permute({0, 2, 1, 3});
     v = v.reshape({B, L1, H, S}).permute({0, 2, 1, 3});
-    paged_attn_memcpy(k, v, k_cache, v_cache, slot_mapping);
-    // TODO: add u8 kvcache support
+    if (k_cache.m_dt == ov::element::Type_t::u8) {
+        k_cache.assert_dims({0, H, 0, S + 8}, true);
+        v_cache.assert_dims({k_cache.m_dims[0], H, k_cache.m_dims[2], S + 8});
+        paged_attn_quantkv(k, v, k_cache, v_cache, slot_mapping);
+    } else {
+        k_cache.assert_dims({0, H, 0, S}, true);
+        v_cache.assert_dims({k_cache.m_dims[0], H, k_cache.m_dims[2], S});
+        paged_attn_memcpy(k, v, k_cache, v_cache, slot_mapping);
+    }
 }
 
 void ScaledDotProductAttention::gatherConcatPastkv(const MemoryPtr& mem_cur_k, const MemoryPtr& mem_cur_v, const MemoryPtr& mem_beam_idx) {
