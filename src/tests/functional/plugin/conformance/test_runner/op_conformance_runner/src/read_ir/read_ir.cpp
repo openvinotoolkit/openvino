@@ -121,102 +121,21 @@ uint64_t clip(uint64_t n, uint64_t lower, uint64_t upper) {
     return std::max(lower, std::min(n, upper));
 }
 
-void generate_static_shape(std::shared_ptr<ov::Model> function, std::vector<InputShape> &inputShapes,
-        std::vector<std::shared_ptr<ov::op::v0::Parameter>> &parameter_to_remove) {
-    auto shapeMap = utils::getShapeMap();
-    //parameter_to_remove
-    for (auto node : function->get_ops()) {
-        std::cout << "node: " << node->get_name() << " description: " << node->description() << std::endl;
-    }
-    std::cout << "model debug: " << function->get_name() << " " << function->get_graph_size() << std::endl;
-    for (const auto& param : function -> get_parameters()) {
-        if (param->get_partial_shape().is_static()) {
-            inputShapes.push_back(InputShape{{}, {param->get_shape()}});
-            continue;
-        }
-        std::shared_ptr<ov::Node> inputNode = param;
-        for (size_t i = 0; i < param->get_output_size(); i++) {
-            for (const auto &node : param->get_output_target_inputs(i)) {
-                std::shared_ptr<ov::Node> nodePtr = node.get_node()->shared_from_this();
-                std::cout << "node type info: " << nodePtr->get_type_info() << std::endl;
-                auto it = shapeMap.find(nodePtr->get_type_info());
-                ASSERT_NE(it, shapeMap.end());
-                inputShapes.push_back(it->second(nodePtr, param));
-            }
-        }
-        // opset1::Parameter Convolution-1_0 () -> (f32[?,512,1..])
-        std::cout << "param: " << param << "partial_shape: " << param->get_partial_shape() <<
-            "min: " << param->get_partial_shape().get_min_shape() <<
-            "max" << param->get_partial_shape().get_max_shape() << std::endl;
-        // [?,512,1..]
-
-        //if (param->get_partial_shape().is_static()) {
-        //    inputShapes.push_back(InputShape{{}, {param->get_shape()}});
-        //} else {
-        //    // [0,512,1]
-        //    // [9223372036854775807,512,9223372036854775807]
-        //    std::vector<ov::Shape> staticShapes = { param->get_partial_shape().get_min_shape(),
-        //                                            param->get_partial_shape().get_min_shape(),
-        //                                            param->get_partial_shape().get_max_shape() };
-        //    ov::Shape midShape;
-        //    for (const auto s : param->get_partial_shape()) {
-        //        int dimValue = 1;
-        //        if (s.is_dynamic()) {
-        //            size_t range = s.get_max_length() - s.get_min_length();
-        //            if (range > std::numeric_limits<char>::max()) {
-        //                ov::test::utils::fill_data_random(&range, 1, std::numeric_limits<char>::max(), s.get_min_length(), 1);
-        //            }
-        //            ov::test::utils::fill_data_random(&dimValue, 1, range, s.get_min_length(), 1);
-        //        } else {
-        //            dimValue = s.get_length();
-        //        }
-        //        midShape.push_back(dimValue);
-        //    }
-        //    staticShapes[1] = midShape;
-
-        //    // Shape validation to avoid large values
-        //    uint64_t dimMin = 1;
-        //    uint64_t dimMax = std::numeric_limits<char>::max(); // 127
-        //    std::cout << "dim min: " << dimMin << " dim max: " << dimMax << std::endl;
-        //    for (int i = 0; i < staticShapes[0].size(); ++i) {
-        //        auto& dim0 = staticShapes[0][i];
-        //        auto& dim2 = staticShapes[2][i];
-        //        if (dim0 != dim2) {
-        //            dim0 = clip(dim0, dimMin, dimMax);
-        //            dim2 = clip(dim2, dimMin, dimMax);
-        //        }
-        //    }
-        //    inputShapes.push_back(InputShape{param->get_partial_shape(), staticShapes});
-        //}
-    }
-    if (inputShapes.empty()) {
-        GTEST_SKIP() << "The graph is constant. The case is not applicable for Operation conformance scenario";
-    }
-}
-
 void ReadIRTest::SetUp() {
-    std::cout << "set up..." << std::endl;
     std::pair<std::string, std::string> model_pair;
     targetDevice = ov::test::utils::target_device;
     configuration = ov::test::utils::global_plugin_config;
     std::tie(path_to_model, path_to_ref_tensor) = this->GetParam();
-    std::cout << "set up...2" << path_to_model << std::endl;
     function = core->read_model(path_to_model);
-    std::cout << "set up 3"<< std::endl;
     const auto metaFile = ov::util::replace_extension(path_to_model, "meta");
-    std::cout << "set up 4"<< std::endl;
-    std::vector<std::shared_ptr<ov::op::v0::Parameter>> parameter_to_remove;
     if (ov::util::file_exists(metaFile)) {
-        std::cout << "file exists: " << std::endl;
         auto meta_info = ov::conformance::MetaInfo::read_meta_from_file(metaFile, true);
         auto input_info = meta_info.get_input_info();
         rel_influence_coef = meta_info.get_graph_priority();
 
         auto inputMap = utils::getInputMap();
-        //std::vector<std::shared_ptr<ov::op::v0::Parameter>> parameter_to_remove;
+        std::vector<std::shared_ptr<ov::op::v0::Parameter>> parameter_to_remove;
         for (const auto& param : function->get_parameters()) {
-            std::cout << "before meta model: " << std::endl;
-            std::cout << "meta model: " << param << std::endl;
             auto in_info = input_info.find(param->get_friendly_name())->second;
             if (!in_info.is_const) {
                 continue;
@@ -227,7 +146,6 @@ void ReadIRTest::SetUp() {
             auto it = inputMap.find(next_node->get_type_info());
             auto tensor = it->second(next_node, function->get_parameter_index(param), param->get_element_type(), param->get_shape());
             auto const_node = std::make_shared<ov::op::v0::Constant>(tensor);
-            std::cout << "const_node shape" << const_node->get_shape() << std::endl;
             const_node->set_friendly_name(param->get_friendly_name());
             ov::replace_node(param, const_node);
             parameter_to_remove.push_back(param);
@@ -317,9 +235,26 @@ void ReadIRTest::SetUp() {
     }
 
     std::vector<InputShape> inputShapes;
+    auto shapeMap = utils::getShapeMap();
+    for (const auto& param : function -> get_parameters()) {
+        if (param->get_partial_shape().is_static()) {
+            inputShapes.push_back(InputShape{{}, {param->get_shape()}});
+            continue;
+        }
+        std::shared_ptr<ov::Node> inputNode = param;
+        for (size_t i = 0; i < param->get_output_size(); i++) {
+            for (const auto &node : param->get_output_target_inputs(i)) {
+                std::shared_ptr<ov::Node> nodePtr = node.get_node()->shared_from_this();
+                auto it = shapeMap.find(nodePtr->get_type_info());
+                ASSERT_NE(it, shapeMap.end());
+                inputShapes.push_back(it->second(nodePtr, param));
+            }
+        }
+    }
+    if (inputShapes.empty()) {
+        GTEST_SKIP() << "The graph is constant. The case is not applicable for Operation conformance scenario";
+    }
     std::cout << "[ CONFORMANCE ] Influence coefficient: " << rel_influence_coef << std::endl;
-    generate_static_shape(function, inputShapes, parameter_to_remove);
-    std::cout << "after1:-----" << inputShapes[0] << std::endl;
     init_input_shapes(inputShapes);
     is_report_stages = true;
 }
