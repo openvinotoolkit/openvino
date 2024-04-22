@@ -1182,6 +1182,54 @@ LinuxCpuReserveTestCase _1socket_32cores_hyper_1streams = {
     NOT_USED,
 };
 
+LinuxCpuReserveTestCase _1socket_22cores_MTL_1streams_6threads = {
+    22,
+    1,
+    {{22, 6, 10, 6, 0, 0}},
+    {
+        {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},       {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
+        {2, 0, 0, 1, EFFICIENT_CORE_PROC, 1, -1},        {3, 0, 0, 2, EFFICIENT_CORE_PROC, 1, -1},
+        {4, 0, 0, 3, EFFICIENT_CORE_PROC, 1, -1},        {5, 0, 0, 4, EFFICIENT_CORE_PROC, 1, -1},
+        {6, 0, 0, 5, EFFICIENT_CORE_PROC, 2, -1},        {7, 0, 0, 6, EFFICIENT_CORE_PROC, 2, -1},
+        {8, 0, 0, 7, EFFICIENT_CORE_PROC, 2, -1},        {9, 0, 0, 8, EFFICIENT_CORE_PROC, 2, -1},
+        {10, 0, 0, 9, HYPER_THREADING_PROC, 3, -1},      {11, 0, 0, 9, MAIN_CORE_PROC, 3, -1},
+        {12, 0, 0, 10, HYPER_THREADING_PROC, 4, -1},     {13, 0, 0, 10, MAIN_CORE_PROC, 4, -1},
+        {14, 0, 0, 11, HYPER_THREADING_PROC, 5, -1},     {15, 0, 0, 11, MAIN_CORE_PROC, 5, -1},
+        {16, 0, 0, 12, HYPER_THREADING_PROC, 6, -1},     {17, 0, 0, 12, MAIN_CORE_PROC, 6, -1},
+        {18, 0, 0, 13, HYPER_THREADING_PROC, 7, -1},     {19, 0, 0, 13, MAIN_CORE_PROC, 7, -1},
+        {20, 0, 0, 14, EFFICIENT_CORE_PROC, -100, -100}, {21, 0, 0, 15, EFFICIENT_CORE_PROC, -100, -100},
+    },
+    {{1, MAIN_CORE_PROC, 6, 0, 0}},
+    {
+        {1, 11, 13, 15, 17, 19},
+    },
+    NOT_USED,
+};
+
+LinuxCpuReserveTestCase _1socket_22cores_MTL_1streams_7threads = {
+    22,
+    1,
+    {{22, 6, 10, 6, 0, 0}},
+    {
+        {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},       {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
+        {2, 0, 0, 1, EFFICIENT_CORE_PROC, 1, -1},        {3, 0, 0, 2, EFFICIENT_CORE_PROC, 1, -1},
+        {4, 0, 0, 3, EFFICIENT_CORE_PROC, 1, -1},        {5, 0, 0, 4, EFFICIENT_CORE_PROC, 1, -1},
+        {6, 0, 0, 5, EFFICIENT_CORE_PROC, 2, -1},        {7, 0, 0, 6, EFFICIENT_CORE_PROC, 2, -1},
+        {8, 0, 0, 7, EFFICIENT_CORE_PROC, 2, -1},        {9, 0, 0, 8, EFFICIENT_CORE_PROC, 2, -1},
+        {10, 0, 0, 9, HYPER_THREADING_PROC, 3, -1},      {11, 0, 0, 9, MAIN_CORE_PROC, 3, -1},
+        {12, 0, 0, 10, HYPER_THREADING_PROC, 4, -1},     {13, 0, 0, 10, MAIN_CORE_PROC, 4, -1},
+        {14, 0, 0, 11, HYPER_THREADING_PROC, 5, -1},     {15, 0, 0, 11, MAIN_CORE_PROC, 5, -1},
+        {16, 0, 0, 12, HYPER_THREADING_PROC, 6, -1},     {17, 0, 0, 12, MAIN_CORE_PROC, 6, -1},
+        {18, 0, 0, 13, HYPER_THREADING_PROC, 7, -1},     {19, 0, 0, 13, MAIN_CORE_PROC, 7, -1},
+        {20, 0, 0, 14, EFFICIENT_CORE_PROC, -100, -100}, {21, 0, 0, 15, EFFICIENT_CORE_PROC, -100, -100},
+    },
+    {{1, ALL_PROC, 7, 0, 0}, {0, MAIN_CORE_PROC, 6, 0, 0}, {0, EFFICIENT_CORE_PROC, 1, 0, 0}},
+    {
+        {1, 2, 11, 13, 15, 17, 19},
+    },
+    NOT_USED,
+};
+
 TEST_P(LinuxCpuReserveTests, LinuxCpuReserve) {}
 
 INSTANTIATE_TEST_SUITE_P(CPUReserve,
@@ -1209,6 +1257,8 @@ INSTANTIATE_TEST_SUITE_P(CPUReserve,
                                          _1socket_18cores_hyper_1streams,
                                          _1socket_18cores_hyper_2streams,
                                          _1socket_18cores_hyper_plugin_reserve_2threads,
-                                         _1socket_32cores_hyper_1streams));
+                                         _1socket_32cores_hyper_1streams,
+                                         _1socket_22cores_MTL_1streams_6threads,
+                                         _1socket_22cores_MTL_1streams_7threads));
 #endif
 }  // namespace

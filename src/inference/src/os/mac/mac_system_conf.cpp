@@ -31,6 +31,8 @@ CPU::CPU() {
 
     parse_processor_info_macos(system_info_table, _processors, _numa_nodes, _sockets, _cores, _proc_type_table);
     _org_proc_type_table = _proc_type_table;
+
+    cpu_debug();
 }
 
 void parse_processor_info_macos(const std::vector<std::pair<std::string, uint64_t>>& system_info_table,
