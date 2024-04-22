@@ -60,7 +60,7 @@ CPU plugin supports the following data types as inference precision of internal 
 
   - ``f32`` (Intel® x86-64, Arm®)
   - ``bf16`` (Intel® x86-64)
-  - ``f16`` (Arm®)
+  - ``f16`` (Intel® x86-64, Arm®)
 - Integer data types:
 
   - ``i32`` (Intel® x86-64, Arm®)
@@ -93,18 +93,19 @@ CPU plugin supports the following floating-point data types as inference precisi
 
 - ``f32`` (Intel® x86-64, Arm®)
 - ``bf16`` (Intel® x86-64)
-- ``f16`` (Arm®)
+- ``f16`` (Intel® x86-64, Arm®)
 
 The default floating-point precision of a CPU primitive is ``f32``. On platforms that natively support half-precision calculations (``bfloat16`` or ``float16``),
 half-precision type (``bf16`` or ``f16``) is automatically used instead of ``f32`` to achieve better performance (see the `Execution Mode Hint <#execution-mode-hint>`__).
-Thus, no special steps are required to run a half-precision model.
+Thus, no special steps are required to run a model with ``bf16`` or ``f16`` inference precision.
 To support the ``f16`` OpenVINO IR on platforms that does not natively support ``float16`` the plugin internally converts
 all the ``f16`` values to ``f32`` and all the calculations are performed using the native precision of ``f32``.
 
 Using the half-precision provides the following performance benefits:
 
-- ``bfloat16`` data type allows using Intel® Advanced Matrix Extension (AMX), which provides dramatically faster computations on corresponding hardware in comparison with AVX512 or AVX2 instructions in many DL operation implementations.
-- Reduced memory consumption since half-precision data half the size of 32-bit float.
+- ``bfloat16`` and ``float16`` data types allow using Intel® Advanced Matrix Extension (AMX) on 4+ generation Intel® Xeon® Scalable Processors, which provides dramatically faster computations on corresponding hardware in comparison with AVX512 or AVX2 instructions in many DL operation implementations.
+- ``float16`` data type allows using ``armv8.2-a+fp16`` extension on ARM64 CPUs, which significantly improves performance due to doubled vector capacity.
+- Reduced memory footprint since most of weight and activation tensors are stored in half-precision.
 
 For more details about the ``bfloat16`` format, see
 the `BFLOAT16 – Hardware Numerics Definition white paper <https://software.intel.com/content/dam/develop/external/us/en/documents/bf16-hardware-numerics-definition-white-paper.pdf>`__.

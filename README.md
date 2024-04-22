@@ -74,7 +74,7 @@ The OpenVINO™ Runtime can infer models on different hardware devices. This sec
         <tr>
             <td> <a href="https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/cpu-device.html">ARM CPU</a></tb>
             <td><b><i><a href="./src/plugins/intel_cpu">openvino_arm_cpu_plugin</a></i></b></td>
-            <td>Raspberry Pi™ 4 Model B, Apple® Mac mini with Apple silicon
+            <td>ARM CPUs with armv7a and higher, ARM64 CPUs with arm64-v8a and higher, Apple® Mac mini with Apple silicon
         </tr>
         <tr>
             <td>GPU</td>
