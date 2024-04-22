@@ -27,16 +27,13 @@ UnsqueezeBroadcastReshapeMatmulFusion::UnsqueezeBroadcastReshapeMatmulFusion() {
     };
 
     auto unsqueeze_predicate = [](const ov::Output<ov::Node>& output) -> bool {
-        const auto unsqueeze = ov::as_type_ptr<const ov::op::v0::Unsqueeze>(output.get_node_shared_ptr());
-        if (!unsqueeze)
-            return false;
-        const auto kvcache = ov::as_type_ptr<const ov::intel_gpu::op::KVCache>(unsqueeze->get_input_node_shared_ptr(0));
-        if (!kvcache)
-            return false;
         return rank_equals(5)(output) && consumers_count(1);
     };
 
     auto broadcast_predicate = [](const ov::Output<ov::Node>& output) -> bool {
+        const auto broadcast = ov::as_type_ptr<ov::op::v3::Broadcast>(output.get_node_shared_ptr());
+        if (!broadcast || broadcast->get_broadcast_spec().m_type != ov::op::BroadcastType::BIDIRECTIONAL)
+            return false;
         return rank_equals(5)(output) && consumers_count(1);
     };
 
@@ -45,12 +42,11 @@ UnsqueezeBroadcastReshapeMatmulFusion::UnsqueezeBroadcastReshapeMatmulFusion() {
     };
 
     auto input_a_m = any_input(not_reshape);
-    auto input_b_m = any_input();
+    auto input_b_m = wrap_type<ov::intel_gpu::op::KVCache>({any_input(), any_input()});
     auto axes_const_m = wrap_type<ov::op::v0::Constant>();
     auto unsqueeze_m = wrap_type<ov::op::v0::Unsqueeze>({input_b_m, axes_const_m}, unsqueeze_predicate);
     auto broadcast_m = wrap_type<ov::op::v3::Broadcast>({unsqueeze_m, any_input()}, broadcast_predicate);
-    auto pattern_const_m = wrap_type<ov::op::v0::Constant>();
-    auto reshape_m = wrap_type<ov::op::v1::Reshape>({broadcast_m, pattern_const_m}, reshape_predicate);
+    auto reshape_m = wrap_type<ov::op::v1::Reshape>({broadcast_m, any_input()}, reshape_predicate);
     auto matmul_m = wrap_type<op::Gemm>({input_a_m, reshape_m});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
@@ -63,19 +59,12 @@ UnsqueezeBroadcastReshapeMatmulFusion::UnsqueezeBroadcastReshapeMatmulFusion() {
             return std::count_if(target_shape.begin(), target_shape.end(), [](int32_t s) { return s != 1; }) == 1;
         };
         auto broadcast = std::dynamic_pointer_cast<ov::op::v3::Broadcast>(pattern_map.at(broadcast_m).get_node_shared_ptr());
-        if (!broadcast || broadcast->get_broadcast_spec().m_type != ov::op::BroadcastType::BIDIRECTIONAL)
-            return false;
         auto target_shape_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(broadcast->get_input_node_shared_ptr(1));
         if (target_shape_constant) {
             auto target_shape_val = target_shape_constant->cast_vector<int32_t>();
             if (!valid_broadcast_target_shape(target_shape_val))
                 return false;
         }
-
-        auto pattern_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(pattern_const_m).get_node_shared_ptr());
-        auto pattern_value = pattern_constant->cast_vector<int64_t>();
-        if (pattern_value.size() != 4)
-            return false;
 
         auto input_a = pattern_map.at(input_a_m).get_node_shared_ptr();
         auto input_b = pattern_map.at(input_b_m).get_node_shared_ptr();
