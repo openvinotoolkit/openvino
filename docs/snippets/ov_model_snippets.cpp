@@ -109,24 +109,6 @@ auto outputs = model->outputs();
 //! [all_inputs_ouputs]
 }
 
-void model_inputs_index() {
-ov::Core core;
-std::shared_ptr<ov::Model> ov_model = core.read_model("model.xml");
-//! [all_inputs_ouputs_index]
-auto ov_model_input = ov_model->input(index);
-auto ov_model_output = ov_model->output(index);
-//! [all_inputs_ouputs_index]
-}
-
-void model_inputs_tensor_name() {
-ov::Core core;
-std::shared_ptr<ov::Model> ov_model = core.read_model("model.xml");
-//! [all_inputs_ouputs_tensor_name]
-auto ov_model_input = ov_model->input(original_fw_in_tensor_name);
-auto ov_model_output = ov_model->output(original_fw_out_tensor_name);
-//! [all_inputs_ouputs_tensor_name]
-}
-
 void pattern_matcher_examples(std::shared_ptr<ov::Node> node) {
 {
 // ! [pattern:simple_example]
@@ -344,11 +326,4 @@ ov::copy_runtime_info({conv, bias}, {conv_fused});
 // Any other transformation that replaces one sub-graph with another sub-graph (N:M)
 ov::copy_runtime_info({a, b, c}, {e, f});
 // ! [ov:copy_runtime_info]
-}
-
-void get_element_type_example() {
-auto ov_input = ov::pass::pattern::any_input();
- // ! [get_element_type]
- ov_input->get_element_type();
- // ! [get_element_type]
 }

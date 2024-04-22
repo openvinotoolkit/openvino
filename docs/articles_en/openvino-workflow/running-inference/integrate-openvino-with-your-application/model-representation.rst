@@ -52,16 +52,18 @@ OpenVINO™ Runtime enables you to use different approaches to work with model i
      .. tab-item:: Python
         :sync: py
 
-        .. doxygensnippet:: docs/snippets/ov_model_snippets.py
-           :language: cpp
-           :fragment: [all_inputs_ouputs_index]
+        .. code-block:: python
+
+            ov_model_input = model.input(index)
+            ov_model_output = model.output(index)
 
      .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
-           :language: cpp
-           :fragment: [all_inputs_ouputs_index]
+        .. code-block:: cpp
+
+           auto ov_model_input = ov_model->input(index);
+           auto ov_model_output = ov_model->output(index);
 
 * You can use the tensor name of input or output from the original framework model together with the
   ``ov::Model::input()`` or ``ov::Model::output()`` methods to get specific ports. It means that you do not need to have any
@@ -86,16 +88,18 @@ OpenVINO™ Runtime enables you to use different approaches to work with model i
      .. tab-item:: Python
         :sync: py
 
-        .. doxygensnippet:: docs/snippets/ov_model_snippets.py
-           :language: cpp
-           :fragment: [all_inputs_ouputs_tensor_name]
+        .. code-block:: python
+
+           ov_model_input = model.input(original_fw_in_tensor_name)
+           ov_model_output = model.output(original_fw_out_tensor_name)
 
      .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
-           :language: cpp
-           :fragment: [all_inputs_ouputs_tensor_name]
+        .. code-block:: cpp
+
+           auto ov_model_input = ov_model->input(original_fw_in_tensor_name);
+           auto ov_model_output = ov_model->output(original_fw_out_tensor_name);
 
 For details on how to build a model in OpenVINO™ Runtime, see the :ref:`Build a Model in OpenVINO Runtime <ov_ug_build_model>` section.
 
@@ -107,16 +111,16 @@ is used for data types.
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
-         :language: cpp
-         :fragment: [get_element_type]
+      .. code-block:: python
+
+         ov_input.get_element_type()
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
-         :language: cpp
-         :fragment: [get_element_type]
+      .. code-block:: cpp
+
+         ov_input->get_element_type();
 
 Representation of Shapes
 ###########################
