@@ -70,11 +70,11 @@ def main():
 
     if environment_affected:
         changeset = get_changeset(args.repo, args.pr, merge_queue_target_branch, args.commit)
-        dockerfiles_changed = [p for p in changeset if p.startswith(args.dockerfiles_root) and p.endswith('Dockerfile')]
-        action_changed = any(path.startswith(args.action_path) for path in changeset)  # TODO: Check workflow changes?
+        changed_dockerfiles = [p for p in changeset if p.startswith(args.dockerfiles_root) and p.endswith('Dockerfile')]
 
-        changed_images = requested_images if action_changed else \
-            set([name_from_dockerfile(d, args.dockerfiles_root) for d in dockerfiles_changed])
+        only_docker_env_changed = get_labels(args.repo, args.pr) == {'category: docker'} if args.pr else False
+        changed_images = requested_images if not only_docker_env_changed else \
+            set([name_from_dockerfile(d, args.dockerfiles_root) for d in changed_dockerfiles])
 
         unchanged_images = requested_images - changed_images
         unchanged_with_no_base = images.get_missing(unchanged_images, base=True)
@@ -82,8 +82,8 @@ def main():
         images_to_tag = unchanged_images.difference(unchanged_with_no_base)
         images_to_build = requested_images.intersection(changed_images).union(unchanged_with_no_base)
 
-        only_images_changed = len(changeset) == len(changed_images)
-        if only_images_changed and not images_to_build:
+        only_dockerfiles_changed = len(changeset) == len(changed_dockerfiles)
+        if only_dockerfiles_changed and not images_to_build:
             skip_workflow = True
     else:
         logger.info(f"Environment is not affected, will build only missing images, if any")
