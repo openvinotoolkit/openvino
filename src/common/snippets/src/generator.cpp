@@ -7,13 +7,6 @@
 #include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/expression.hpp"
-#include "snippets/lowered/pass/assign_registers.hpp"
-#include "snippets/lowered/pass/cleanup_loop_offsets.hpp"
-#include "snippets/lowered/pass/insert_specific_iterations.hpp"
-#include "snippets/lowered/pass/optimize_loop_single_evaluation.hpp"
-#include "snippets/lowered/pass/normalize_loop_ids.hpp"
-#include "snippets/lowered/pass/validate_expanded_loops.hpp"
-#include "snippets/lowered/pass/pass.hpp"
 #include "snippets/op/kernel.hpp"
 #include "snippets/op/memory_access.hpp"
 
@@ -22,28 +15,10 @@ namespace snippets {
 
 void Generator::generate(lowered::LinearIR& linear_ir, LoweringResult& result, const void* compile_params) const {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::Generator::generate")
-    OV_ITT_TASK_CHAIN(GENERATE, ov::pass::itt::domains::SnippetsTransform, "Snippets::Generator", "::Transformations")
+
+    OV_ITT_TASK_CHAIN(GENERATE, ov::pass::itt::domains::SnippetsTransform, "Snippets::Generator", "::InitEmitters")
+
     OPENVINO_ASSERT(target->is_supported(), "unsupported architecture for code generation");
-
-    std::function<RegType(const ov::Output<Node>& out)> reg_type_mapper = [&](const ov::Output<Node>& out) -> RegType {
-        return get_op_out_reg_type(out);
-    };
-
-    lowered::pass::PassPipeline lowered_pipeline;
-    // Note: the order of all passes in this pipeline must not be changed since they have hard dependencies
-    //    1. InsertTailLoop must be called after AssignRegisters since tail loop expressions must have the same
-    //       assigned registers as the corresponding ops in the main body.
-    //    2. CleanupLoopOffsets must be called after InsertTailLoop to avoid violating the proportionality of the pointer increments
-    //       (this might happen if tail loop and main loop have different increments)
-    //    3. OptimizeLoopSingleEvaluation must be called after CleanupLoopOffsets
-    //       since CleanupLoopOffsets can't handle loops with evaluate_once = true
-    lowered_pipeline.register_pass<lowered::pass::AssignRegisters>(reg_type_mapper);
-    lowered_pipeline.register_pass<lowered::pass::InsertSpecificIterations>();
-    lowered_pipeline.register_pass<lowered::pass::NormalizeLoopIDs>();
-    lowered_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
-    lowered_pipeline.register_pass<lowered::pass::OptimizeLoopSingleEvaluation>();
-    lowered_pipeline.register_pass<lowered::pass::ValidateExpandedLoops>();
-    lowered_pipeline.run(linear_ir);
     linear_ir.init_emitters(target);
 
     OV_ITT_TASK_NEXT(GENERATE, "::EmitCode")
