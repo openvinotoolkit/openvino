@@ -481,9 +481,12 @@ void ov::hetero::merge_submodels(std::vector<std::shared_ptr<ov::Model>>& submod
     auto& result_model = submodels[0];
     for (size_t i = 1; i < submodels.size(); i++) {
         if (submodels[i] != result_model) {
-            result_model->add_parameters(submodels[i]->get_parameters());
-            result_model->add_results(submodels[i]->get_results());
-            result_model->add_sinks(submodels[i]->get_sinks());
+            try {
+                result_model->add_parameters(submodels[i]->get_parameters());
+                result_model->add_results(submodels[i]->get_results());
+                result_model->add_sinks(submodels[i]->get_sinks());
+            } catch (...) {
+            }
         }
         submodels[i] = result_model;
     }
