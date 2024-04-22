@@ -1,4 +1,4 @@
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -27,8 +27,8 @@ class TestKerasEmbedding(CommonTF2LayerTest):
         return tf2_net, ref_net
 
     test_data_float32 = [
-        pytest.param(dict(input_names=["x"], input_shapes=[[5, 16]], input_type=tf.float32, input_dim=256,
-                          output_dim=8, mask_zero=True, input_length=4), marks=pytest.mark.precommit_tf_fe),
+        dict(input_names=["x"], input_shapes=[[5, 16]], input_type=tf.float32, input_dim=256,
+             output_dim=8, mask_zero=True, input_length=4),
         dict(input_names=["x"], input_shapes=[[5, 16]], input_type=tf.float32, input_dim=256,
              output_dim=324, mask_zero=True, input_length=16),
         dict(input_names=["x"], input_shapes=[[5, 16]], input_type=tf.float32, input_dim=256,

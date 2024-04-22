@@ -61,10 +61,10 @@ jobs:
       OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
       CONAN_USER_HOME: /mount/caches/ccache/ubuntu22_riscv64_master_release/.conan
-      CCACHE_REMOTE_DIR: /mount/caches/ccache/ubuntu22_riscv64
+      CCACHE_REMOTE_DIR: /mount/caches/ccache/ubuntu22_riscv64/${{ github.base_ref || github.ref_name }}
       CCACHE_DIR: /__w/openvino/openvino/ccache
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
-      CCACHE_MAXSIZE: 5G
+      CCACHE_MAXSIZE: 2G
 
     if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
     steps:
@@ -107,6 +107,7 @@ jobs:
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/json
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gtest
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gflags
+            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/telemetry
             git submodule update --init -- ${OPENVINO_REPO}/src/plugins/intel_cpu
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/open_model_zoo
           popd
