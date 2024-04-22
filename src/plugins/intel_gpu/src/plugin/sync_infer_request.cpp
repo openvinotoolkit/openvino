@@ -337,6 +337,18 @@ void SyncInferRequest::wait() {
                         "than required (", output_memory->size(), ")");
 
         bool need_output_update = output_layout.bytes_count() == 0 || (output_memory && output_tensor->get_byte_size() != output_memory->size());
+
+        // Check shape is changed when size between output_tensor and output_memory are same.
+        if (!need_output_update) {
+            auto output_layout_shape = output_layout.get_shape();
+            auto output_tensor_shape = output_tensor->get_shape();
+            if (!output_layout_shape.empty() && !output_tensor_shape.empty()) {
+                if (output_layout_shape != output_tensor_shape) {
+                    need_output_update = true;
+                }
+            }
+        }
+
         if (need_output_update) {
             OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::wait::update_output");
             auto mem_shape = output_layout.get_shape();
