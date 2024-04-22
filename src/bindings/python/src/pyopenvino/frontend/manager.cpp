@@ -99,6 +99,10 @@ void regclass_frontend_FrontEndManager(py::module m) {
     });
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
+// CVS-139194: migrate to new exception handling https://github.com/pybind/pybind11/pull/4772
+
 void regclass_frontend_GeneralFailureFrontEnd(py::module m) {
     static py::exception<ov::frontend::GeneralFailure> exc(std::move(m), "GeneralFailure");
     py::register_exception_translator([](std::exception_ptr p) {
@@ -158,3 +162,5 @@ void regclass_frontend_NotImplementedFailureFrontEnd(py::module m) {
         }
     });
 }
+
+OPENVINO_SUPPRESS_DEPRECATED_END
