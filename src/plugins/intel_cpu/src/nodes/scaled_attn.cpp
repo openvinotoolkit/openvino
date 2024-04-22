@@ -963,6 +963,7 @@ struct MHASingleToken {
         }
 #endif
         if (!fastpath_valid) {
+            // aligned to cache line (64bytes=16*sizeof(float)) to avoid false sharing
             m_attn_w.resize<float>({B, H, q_len, (kv_len + 15) / 16 * 16});
         }
         mha_single_token(query, fastpath_valid ? PlainTensor() : present_key, present_value, alibi_mask, attention_mask, beams, max_context_len,
@@ -1034,7 +1035,10 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             B = k_input.size(0);
             L1 = k_input.size(1);
             auto Hk = present_key.size(1);
-            S = present_value.size(3) - (present_value.m_dt == ov::element::Type_t::u8 ? 8 : 0);
+            // The layout for per token per head for u8 kv cache:
+            // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
+            // The actual size needs to deduct scale and zeropoint.
+            S = present_value.size(3) - (present_value.m_dt == ov::element::Type_t::u8 ? sizeof(float) * 2 : 0);
             auto H = q_input.size(2) / S;
             // L0 in each batch may be different
             L0 = 0;

@@ -189,6 +189,9 @@ static void attn_acc_value_block(float* out, float* weight, T* v, size_t S, size
 }
 
 static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S, size_t block_size) {
+    // The layout for per token per head:
+    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
+    // The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
 #if defined(HAVE_AVX512F)
     size_t j = 0;
     for (; j + 4 <= block_size; j += 4) {
@@ -903,6 +906,9 @@ static void dot_product_block(TA* a, TB* b, float* c, size_t n, size_t block_siz
 
 template<typename TA>
 static void dot_product_block(TA* a, uint8_t* b, float* c, size_t n, size_t block_size) {
+    // The layout for per token per head:
+    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
+    // The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
 #if defined(HAVE_AVX512F)
     size_t j = 0;
     for (; j + 4 <= block_size; j += 4) {

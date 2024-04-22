@@ -207,13 +207,15 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
 
         auto p_k = reinterpret_cast<float*>(k_dst.ptr<T2>(block_number, h, block_offset));
         auto p_v = reinterpret_cast<float*>(v_dst.ptr<T2>(block_number, h, block_offset));
+        // The layout for per token per head:
+        // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
         quant_u8(k_src.ptr<T>(b, h, m),
-                 k_dst.ptr<T2>(block_number, h, block_offset) + 8,
+                 k_dst.ptr<T2>(block_number, h, block_offset) + sizeof(float) + sizeof(float),
                  S,
                  p_k[0],
                  p_k[1]);
         quant_u8(v_src.ptr<T>(b, h, m),
-                 v_dst.ptr<T2>(block_number, h, block_offset) + 8,
+                 v_dst.ptr<T2>(block_number, h, block_offset) + sizeof(float) + sizeof(float),
                  S,
                  p_v[0],
                  p_v[1]);
