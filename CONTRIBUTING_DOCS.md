@@ -2,7 +2,7 @@
 
 ## Basic article structure
 
-OpenVINO documentation is built using Sphinx and the reStructuredText formatting.
+OpenVINO documentation is built using [Sphinx](https://www.sphinx-doc.org/) and the [reStructuredText](https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html) formatting.
 That means the basic formatting rules need to be used:
 
 ### White spaces
@@ -563,7 +563,6 @@ Example:
     | open-source     | open source    | never open-sourced (even with the meaning of 'released as open source')           |
     | pre-processing  | pre-processing | due to the popularity criterion                                                   |
     | pre-release     |                | the noun "prerelease" should be avoided.                                          |
-    | pre-trained     |                |  should be avoided in meanings other than the adjectival. click here for details. |
     | pre-trained     |                |  should be avoided in meanings other than the adjectival. click here for details. |
 
     </details>
