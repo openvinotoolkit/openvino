@@ -937,7 +937,7 @@ TEST(model_reshape, ReshapeBatchReLUWithOneInput) {
     EXPECT_EQ(model->get_results()[0]->get_shape(), ov::Shape({2, 3, 22, 22}));
 }
 
-TEST(model_reshape, IncoreectReshapeBatchWithMultipleInputs) {
+TEST(model_reshape, IncorrectReshapeBatchWithMultipleInputs) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 3, 3});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input1"});
@@ -984,6 +984,41 @@ TEST(model_reshape, ReshapeWithStaticVariableSingleInput) {
     {
         ov::PartialShape shape({1, 4, 3, 3});
         model->reshape(shape, {{"ID", shape}});
+    }
+
+    EXPECT_EQ(model->get_parameters()[0]->get_shape(), ov::Shape({1, 4, 3, 3}));
+    EXPECT_EQ(model->get_results()[0]->get_shape(), ov::Shape({1, 4, 3, 3}));
+    EXPECT_EQ(model->get_results()[1]->get_shape(), ov::Shape({4}));
+}
+
+TEST(model_reshape, ReshapeWithStaticVariablesSingleInput) {
+    auto arg0 = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{1, 3, 4, 5});
+
+    auto variable =
+        std::make_shared<Variable>(VariableInfo{arg0->get_output_partial_shape(0), ov::element::f32, "ID1"});
+    auto read_value = std::make_shared<ov::op::v6::ReadValue>(arg0, variable);
+    auto assign = std::make_shared<ov::op::v6::Assign>(read_value, variable);
+
+    auto add = std::make_shared<ov::op::v1::Add>(read_value, read_value);
+    auto var_add = std::make_shared<Variable>(VariableInfo{add->get_output_partial_shape(0), ov::element::f32, "ID2"});
+    auto read_value_add = std::make_shared<ov::op::v6::ReadValue>(add, var_add);
+    auto assign_add = std::make_shared<ov::op::v6::Assign>(read_value_add, var_add);
+
+    auto result1 = std::make_shared<Result>(assign);
+
+    auto shape_of = std::make_shared<ov::opset8::ShapeOf>(add);
+    auto result2 = std::make_shared<Result>(shape_of);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result1, result2}, ov::ParameterVector{arg0});
+
+    model->validate_nodes_and_infer_types();
+
+    EXPECT_EQ(model->get_parameters()[0]->get_shape(), ov::Shape({1, 3, 4, 5}));
+    EXPECT_EQ(model->get_results()[0]->get_shape(), ov::Shape({1, 3, 4, 5}));
+    EXPECT_EQ(model->get_results()[1]->get_shape(), ov::Shape({4}));
+
+    {
+        ov::PartialShape shape({1, 4, 3, 3});
+        model->reshape(shape, {{"ID2", shape}, {"ID1", shape}});
     }
 
     EXPECT_EQ(model->get_parameters()[0]->get_shape(), ov::Shape({1, 4, 3, 3}));
