@@ -6,6 +6,7 @@
 
 #include <onnx/onnx_pb.h>  // onnx types
 
+#include "core/tensor.hpp"
 #include "onnx_framework_node.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
