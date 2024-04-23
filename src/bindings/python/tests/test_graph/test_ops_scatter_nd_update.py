@@ -182,16 +182,18 @@ def test_scatter_nd_update_empty_indices_and_updates(opset):
 
 def _scatter_nd_update_15_py_ref(data: np.ndarray, indices: np.ndarray, updates: np.ndarray, reduction=None):
     func = lambda x, y: y
-    if reduction == "sum":
-        func = lambda x, y: x + y
-    elif reduction == "sub":
-        func = lambda x, y: x - y
-    elif reduction == "prod":
-        func = lambda x, y: x * y
-    elif reduction == "max":
-        func = max
-    elif reduction == "min":
-        func = min
+    if isinstance(reduction, str):
+        reduction = reduction.lower()
+        if reduction == "sum":
+            func = lambda x, y: x + y
+        elif reduction == "sub":
+            func = lambda x, y: x - y
+        elif reduction == "prod":
+            func = lambda x, y: x * y
+        elif reduction == "max":
+            func = max
+        elif reduction == "min":
+            func = min
     out = np.copy(data)
     for ndidx in np.ndindex(indices.shape[:-1]):
         out[indices[ndidx]] = func(out[indices[ndidx]], updates[ndidx])
@@ -201,16 +203,16 @@ def _scatter_nd_update_15_py_ref(data: np.ndarray, indices: np.ndarray, updates:
 @pytest.mark.parametrize(
     "reduction",
     [
+        None,
         "none",
-        "sum",
-        "sub",
-        "prod",
-        "min",
-        "max",
+        "sUm",
+        "SUB",
+        "pRod",
+        "miN",
+        "Max",
     ],
 )
 def test_scatter_nd_update_reduction(reduction):
-
     data = np.array([1, 2, 3, 4, 5])
     indices = np.array([[0], [2]])
     updates = np.array([9, 10])
@@ -219,6 +221,9 @@ def test_scatter_nd_update_reduction(reduction):
     expected = _scatter_nd_update_15_py_ref(data, indices, updates, reduction)
     np.testing.assert_array_equal(result, expected)
     assert result.get_type_name() == "ScatterNDUpdate"
+    if reduction is None:
+        reduction = "none"
+    assert result.get_attributes()["reduction"] == reduction.lower()
     assert result.get_output_size() == 1
     assert result.get_output_partial_shape(0).same_scheme(PartialShape(data.shape))
     assert result.get_output_element_type(0) == Type.i64
