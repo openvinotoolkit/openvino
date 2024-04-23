@@ -14,8 +14,8 @@ inputs:
     description: 'Push built images to registry'
     required: false
     default: 'true'
-  affected_components:
-    description: 'Components affected by a pull request'
+  changed_components:
+    description: 'Components changed by a pull request'
     required: true
   repo_token:
     description: "Token for access to GitHub repository"
@@ -63,8 +63,8 @@ runs:
         --images "$images" \
         --head_tag_file "${{ inputs.dockerfiles_root_dir }}/docker_tag" \
         --base_tag_file "base/${{ inputs.dockerfiles_root_dir }}/docker_tag" \
-        --docker_env_changed "${{ fromJSON(inputs.affected_components).docker_env.build }}" \
-        --dockerfiles_changed "${{ fromJSON(inputs.affected_components).dockerfiles.build }}" \
+        --docker_env_changed "${{ fromJSON(inputs.changed_components).docker_env }}" \
+        --dockerfiles_changed "${{ fromJSON(inputs.changed_components).dockerfiles }}" \
         --repo "${{ github.repository }}" \
         --ref_name "${{ github.ref_name }}" \
         $([[ -n $pr ]] && echo "--pr $pr" || echo '-s ${{ github.sha }}') \
