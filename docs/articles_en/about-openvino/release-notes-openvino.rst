@@ -78,7 +78,7 @@ CPU Device Plugin
 
 * 1st token performance of LLMs has been improved on the 4th and 5th generations of Intel® Xeon®
   processors with Intel® Advanced Matrix Extensions (Intel® AMX).
-* LLM compilation time and memory footprint has been improved through additional optimizations
+* LLM compilation time and memory footprint have been improved through additional optimizations
   with compressed embeddings.
 * Performance of MoE (e.g. Mixtral), Gemma, and GPT-J has been improved further.
 * Performance has been improved significantly for a wide set of models on ARM devices.
