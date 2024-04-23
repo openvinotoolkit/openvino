@@ -38,7 +38,7 @@ void validate_parameter(const ExpressionPtr& expr, const LinearIR& linear_ir) {
     std::set<std::vector<size_t>> layouts;
     for (const auto& consumer_input : consumer_inputs) {
         const auto& node = consumer_input.get_expr()->get_node();
-        if (const auto ma = ov::as_type_ptr<snippets::op::MemoryAccess>(node)) {
+        if (const auto ma = std::dynamic_pointer_cast<snippets::modifier::MemoryAccess>(node)) {
             OPENVINO_ASSERT(ma->is_memory_access_input_port(consumer_input.get_index()),
                             "Parameter expects MemoryAccess on output");
             layouts.insert(consumer_input.get_descriptor_ptr()->get_layout());
@@ -55,7 +55,7 @@ void validate_result(const ExpressionPtr& expr, const LinearIR& linear_ir) {
     const auto& shape_infer_seq = utils::get_first_parent_shape_infer_expr_seq(expr);
     const auto& expr_val = shape_infer_seq.empty() ? expr : shape_infer_seq.back();
     const auto source = expr_val->get_input_port_connector(0)->get_source();
-    const auto ma = ov::as_type_ptr<snippets::op::MemoryAccess>(source.get_expr()->get_node());
+    const auto ma = std::dynamic_pointer_cast<snippets::modifier::MemoryAccess>(source.get_expr()->get_node());
     OPENVINO_ASSERT(ma && ma->is_memory_access_output_port(source.get_index()),
                     "Result expects MemoryAccess parent");
 }
@@ -65,7 +65,7 @@ void validate_buffer(const ExpressionPtr& expr, const LinearIR& linear_ir) {
                     "Buffer validation expects Buffer op");
     const auto& in = expr->get_input_port_connector(0);
     const auto& source = in->get_source();
-    const auto ma = ov::as_type_ptr<snippets::op::MemoryAccess>(source.get_expr()->get_node());
+    const auto ma = std::dynamic_pointer_cast<snippets::modifier::MemoryAccess>(source.get_expr()->get_node());
     OPENVINO_ASSERT(ma && ma->is_memory_access_input_port(source.get_index()),
                     "Buffer expects MemoryAccess parent");
     const auto& shape_infer_seq = utils::get_first_child_shape_infer_expr_seq(expr);
@@ -74,7 +74,7 @@ void validate_buffer(const ExpressionPtr& expr, const LinearIR& linear_ir) {
     const auto consumers = out->get_consumers();
     for (const auto& consumer_input : consumers) {
         const auto& node = consumer_input.get_expr()->get_node();
-        if (const auto ma = ov::as_type_ptr<snippets::op::MemoryAccess>(node)) {
+        if (const auto ma = std::dynamic_pointer_cast<snippets::modifier::MemoryAccess>(node)) {
             OPENVINO_ASSERT(ma->is_memory_access_input_port(consumer_input.get_index()),
                             "Buffer expects MemoryAccess on output");
         } else {
