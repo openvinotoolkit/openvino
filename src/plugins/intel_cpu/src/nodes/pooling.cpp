@@ -248,8 +248,8 @@ void Pooling::initEffectiveAttributes(const Shape &inShape, const Shape &outShap
         int src = inDims[2 + i];
         int dst = outDims[2 + i];
 
-        int calc_dst = (src - (1 + (krn  - 1) * dil) + poolingAttrs.data_pad_begin[i]) / poolingAttrs.stride[i] + 1;
-        poolingAttrs.effective_pad_end[i] = (dst - calc_dst) * poolingAttrs.stride[i];
+        poolingAttrs.effective_pad_end[i] = (dst - 1) * poolingAttrs.stride[i] -
+                                            (src - (1 + (krn  - 1) * dil) + poolingAttrs.data_pad_begin[i]);
         poolingAttrs.effective_dilation[i] = dil - 1;
     }
 }
