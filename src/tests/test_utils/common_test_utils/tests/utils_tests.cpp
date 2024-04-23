@@ -26,7 +26,7 @@ TEST(UtilsTests, get_directory_return_file_dir) {
     ASSERT_EQ(get_directory("../test/path/my_file.txt"), "../test/path");
 }
 
-class FilterLinesByPrefixTests : public testing::WithParamInterface<std::tuple<std::string, std::string, std::string>> {
+class FilterLinesByPrefixTests : public ::testing::TestWithParam<std::tuple<std::string, std::string, std::string>> {
 protected:
     std::string str_origin;
     std::string prefix;
