@@ -50,6 +50,10 @@ if __name__ == '__main__':
         fh.write('PIPELINE_RETRIGGERED=true')
         fh.write(f'FOUND_ERROR_TICKET=123456')
 
+    with open(file=os.environ['GITHUB_ENV'],
+              mode='r') as fh:
+        print(fh.read())
+
     # if log_analyzer.found_matching_error:
     #     LOGGER.info(f'FOUND MATCHING ERROR, RETRIGGERING {run.html_url}')
     #     if is_dry_run:
