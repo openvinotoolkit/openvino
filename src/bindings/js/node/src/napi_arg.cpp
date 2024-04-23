@@ -90,11 +90,9 @@ const bool Validator::validate(const Napi::CallbackInfo& info) {
         index++;
     }
 
-    bool no_errors = validation_errors.empty();
+    OPENVINO_ASSERT(validation_errors.empty(), validation_errors);
 
-    OPENVINO_ASSERT(no_errors, validation_errors);
-
-    return no_errors;
+    return true;
 }
 
 const bool Validator::validate(const Napi::CallbackInfo& info, std::vector<std::string>& error_messages) {
