@@ -57,9 +57,9 @@ def ctc_greedy_decoder_seq_len(
     :return:                The new node which performs CTCGreedyDecoderSeqLen.
     """
     if blank_index is not None:
-        inputs = as_nodes(data, sequence_length, blank_index)
+        inputs = as_nodes(data, sequence_length, blank_index, name=name)
     else:
-        inputs = as_nodes(data, sequence_length)
+        inputs = as_nodes(data, sequence_length, name=name)
 
     attributes = {
         "merge_repeated": merge_repeated,
@@ -84,7 +84,7 @@ def gather_elements(
     :param axis:       axis along which elements are gathered
     :return:           The new node which performs GatherElements
     """
-    inputs = as_nodes(data, indices)
+    inputs = as_nodes(data, indices, name=name)
 
     attributes = {
         "axis": axis,
@@ -113,7 +113,7 @@ def mvn(
     :param name: Optional output node name.
     :return: The new node performing a MVN operation on input tensor.
     """
-    inputs = as_nodes(data, axes)
+    inputs = as_nodes(data, axes, name=name)
 
     attributes = {
         "normalize_variance": normalize_variance,
@@ -153,7 +153,7 @@ def read_value(init_value: NodeInput,
 
     return _get_node_factory_opset6().create(
         "ReadValue",
-        [as_node(init_value)],
+        [as_node(init_value, name=name)],
         attr_map,
     )
 

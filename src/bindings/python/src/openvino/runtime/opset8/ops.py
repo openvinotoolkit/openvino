@@ -66,9 +66,9 @@ def deformable_convolution(
     :return: New node performing deformable convolution operation.
     """
     if mask is None:
-        inputs = as_nodes(data, offsets, filters)
+        inputs = as_nodes(data, offsets, filters, name=name)
     else:
-        inputs = as_nodes(data, offsets, filters, mask)
+        inputs = as_nodes(data, offsets, filters, mask, name=name)
 
     return _get_node_factory_opset8().create(
         "DeformableConvolution",
@@ -90,14 +90,16 @@ def deformable_convolution(
 def adaptive_avg_pool(
     data: NodeInput,
     output_shape: NodeInput,
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs AdaptiveAvgPool operation.
 
     :param data: The list of input nodes
     :param output_shape: the shape of spatial dimentions after operation
+    :param name: Optional output node name.
     :return: The new node performing AdaptiveAvgPool operation on the data
     """
-    inputs = as_nodes(data, output_shape)
+    inputs = as_nodes(data, output_shape, name=name)
     return _get_node_factory_opset8().create("AdaptiveAvgPool", inputs)
 
 
@@ -106,15 +108,17 @@ def adaptive_max_pool(
     data: NodeInput,
     output_shape: NodeInput,
     index_element_type: str = "i64",
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs AdaptiveMaxPool operation.
 
     :param data: The list of input nodes
     :param output_shape: the shape of spatial dimentions after operation
     :param index_element_type: Type of indices output.
+    :param name: Optional output node name.
     :return: The new node performing AdaptiveMaxPool operation on the data
     """
-    inputs = as_nodes(data, output_shape)
+    inputs = as_nodes(data, output_shape, name=name)
 
     attributes = {
         "index_element_type": index_element_type,
@@ -137,6 +141,7 @@ def multiclass_nms(
     background_class: int = -1,
     nms_eta: float = 1.0,
     normalized: bool = True,
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs MulticlassNms.
 
@@ -159,9 +164,10 @@ def multiclass_nms(
     :param background_class: Specifies the background class id, -1 meaning to keep all classes
     :param nms_eta: Specifies eta parameter for adpative NMS, in close range [0, 1.0]
     :param normalized: Specifies whether boxes are normalized or not
+    :param name: Optional output node name.
     :return: The new node which performs MuticlassNms
     """
-    inputs = as_nodes(boxes, scores)
+    inputs = as_nodes(boxes, scores, name=name)
 
     attributes = {
         "sort_result_type": sort_result_type,
@@ -194,6 +200,7 @@ def matrix_nms(
     gaussian_sigma: float = 2.0,
     post_threshold: float = 0.0,
     normalized: bool = True,
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs MatrixNms.
 
@@ -219,9 +226,10 @@ def matrix_nms(
     :param post_threshold: Specifies threshold to filter out boxes with low confidence score
                            after decaying
     :param normalized: Specifies whether boxes are normalized or not
+    :param name: Optional output node name.
     :return: The new node which performs MatrixNms
     """
-    inputs = as_nodes(boxes, scores)
+    inputs = as_nodes(boxes, scores, name=name)
 
     attributes = {
         "sort_result_type": sort_result_type,
@@ -246,6 +254,7 @@ def gather(
     indices: NodeInput,
     axis: NodeInput,
     batch_dims: Optional[int] = 0,
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs Gather with support of negative indices.
 
@@ -254,9 +263,10 @@ def gather(
                          indicate reverse indexing from the end
     :param axis:         axis along which elements are gathered
     :param batch_dims:   number of batch dimensions
+    :param name:         Optional output node name.
     :return:             The new node which performs Gather
     """
-    inputs = as_nodes(data, indices, axis)
+    inputs = as_nodes(data, indices, axis, name=name)
     attributes = {
         "batch_dims": batch_dims,
     }
@@ -303,7 +313,7 @@ def max_pool(
         auto_pad = "explicit"
     return _get_node_factory_opset8().create(
         "MaxPool",
-        [as_node(data)],
+        [as_node(data, name=name)],
         {
             "strides": strides,
             "dilations": dilations,
@@ -326,6 +336,7 @@ def random_uniform(
     output_type: str,
     global_seed: int = 0,
     op_seed: int = 0,
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which generates sequence of random values from uniform distribution.
 
@@ -336,10 +347,11 @@ def random_uniform(
                                 'i64', 'i32', 'f64', 'f32', 'f16', 'bf16'.
     :param global_seed: Specifies global seed value. Required to be a positive integer or 0.
     :param op_seed: Specifies operational seed value. Required to be a positive integer or 0.
+    :param name: Optional output node name.
 
     :return: The new node which performs generation of random values from uniform distribution.
     """
-    inputs = as_nodes(output_shape, min_val, max_val)
+    inputs = as_nodes(output_shape, min_val, max_val, name=name)
 
     if global_seed < 0:
         raise RuntimeError(f"global_seed should be positive or 0. Got: {global_seed}")
@@ -375,9 +387,9 @@ def slice(
     :return: The new node performing Slice operation.
     """
     if axes is None:
-        inputs = as_nodes(data, start, stop, step)
+        inputs = as_nodes(data, start, stop, step, name=name)
     else:
-        inputs = as_nodes(data, start, stop, step, axes)
+        inputs = as_nodes(data, start, stop, step, axes, name=name)
 
     return _get_node_factory_opset8().create("Slice", inputs)
 
@@ -396,7 +408,7 @@ def gather_nd(
     :param batch_dims: Scalar value of batch dimensions
     :return: The new node which performs GatherND
     """
-    inputs = as_nodes(data, indices)
+    inputs = as_nodes(data, indices, name=name)
 
     attributes = {
         "batch_dims": batch_dims,
@@ -519,7 +531,7 @@ def prior_box(
 
     check_valid_attributes("PriorBox", attrs, requirements)
 
-    return _get_node_factory_opset8().create("PriorBox", [layer_shape, as_node(image_shape)], attrs)
+    return _get_node_factory_opset8().create("PriorBox", [layer_shape, as_node(image_shape, name=name)], attrs)
 
 
 @nameable_op
@@ -538,9 +550,9 @@ def i420_to_bgr(
     :return: The new node performing I420toBGR operation.
     """
     if arg_u is None and arg_v is None:
-        inputs = as_nodes(arg)
+        inputs = as_nodes(arg, name=name)
     elif arg_u is not None and arg_v is not None:
-        inputs = as_nodes(arg, arg_u, arg_v)
+        inputs = as_nodes(arg, arg_u, arg_v, name=name)
     else:
         raise UserInputError(
             "Operation I420toBGR must have one (single plane) or three (separate planes) inputs provided.",
@@ -565,9 +577,9 @@ def i420_to_rgb(
     :return: The new node performing I420toRGB operation.
     """
     if arg_u is None and arg_v is None:
-        inputs = as_nodes(arg)
+        inputs = as_nodes(arg, name=name)
     elif arg_u is not None and arg_v is not None:
-        inputs = as_nodes(arg, arg_u, arg_v)
+        inputs = as_nodes(arg, arg_u, arg_v, name=name)
     else:
         raise UserInputError(
             "Operation I420toRGB must have one (single plane) or three (separate planes) inputs provided.",
@@ -590,9 +602,9 @@ def nv12_to_bgr(
     :return: The new node performing NV12toBGR operation.
     """
     if arg_uv is None:
-        inputs = as_nodes(arg)
+        inputs = as_nodes(arg, name=name)
     else:
-        inputs = as_nodes(arg, arg_uv)
+        inputs = as_nodes(arg, arg_uv, name=name)
 
     return _get_node_factory_opset8().create("NV12toBGR", inputs)
 
@@ -611,9 +623,9 @@ def nv12_to_rgb(
     :return: The new node performing NV12toRGB operation.
     """
     if arg_uv is None:
-        inputs = as_nodes(arg)
+        inputs = as_nodes(arg, name=name)
     else:
-        inputs = as_nodes(arg, arg_uv)
+        inputs = as_nodes(arg, arg_uv, name=name)
 
     return _get_node_factory_opset8().create("NV12toRGB", inputs)
 
@@ -754,7 +766,7 @@ def detection_output(
         inputs.append(aux_class_preds)
     if aux_box_preds is not None:
         inputs.append(aux_box_preds)
-    inputs = as_nodes(*inputs)
+    inputs = as_nodes(*inputs, name=name)
 
     return _get_node_factory_opset8().create("DetectionOutput", inputs, attrs)
 
@@ -768,4 +780,4 @@ def softmax(data: NodeInput, axis: int, name: Optional[str] = None) -> Node:
     :param name: Optional name for the node.
     :return: The new node with softmax operation applied on each element.
     """
-    return _get_node_factory_opset8().create("Softmax", [as_node(data)], {"axis": axis})
+    return _get_node_factory_opset8().create("Softmax", [as_node(data, name=name)], {"axis": axis})
