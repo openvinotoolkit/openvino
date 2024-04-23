@@ -988,7 +988,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | ReverseV2                                               | YES                           |                               |
 | RewriteDataset                                          | NO                            |                               |
 | RightShift                                              | NO                            |                               |
-| Rint                                                    | NO                            |                               |
+| Rint                                                    | YES                           |                               |
 | RngReadAndSkip                                          | NO                            |                               |
 | RngSkip                                                 | NO                            |                               |
 | Roll                                                    | YES                           |                               |
