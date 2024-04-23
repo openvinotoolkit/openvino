@@ -22,13 +22,15 @@ bool SetLoadStoreScalar::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt
     for (auto expr_it = begin; expr_it != end; ++expr_it) {
         const auto& expr = *expr_it;
         if (const auto load = ov::as_type_ptr<op::Load>(expr->get_node())) {
-            const auto dim = utils::get_dim_idx(expr->get_input_port(0), 0);
+            const auto& desc = expr->get_input_port_descriptor(0);
+            const auto& dim = desc->get_shape()[utils::get_input_dim_idx(desc->get_layout(), 0)];
             if (!utils::is_dynamic_value(dim) && dim == 1) {
                 load->set_count(1);
                 modified = true;
             }
         } else if (const auto store = ov::as_type_ptr<op::Store>(expr->get_node())) {
-            const auto dim = utils::get_dim_idx(expr->get_output_port(0), 0);
+            const auto& desc = expr->get_output_port_descriptor(0);
+            const auto& dim = desc->get_shape()[utils::get_output_dim_idx(desc->get_layout(), 0)];
             if (!utils::is_dynamic_value(dim) && dim == 1) {
                 store->set_count(1);
                 modified = true;
