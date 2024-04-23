@@ -105,9 +105,9 @@ NPU Device Plugin
 OpenVINO Python API
 -----------------------------
 
-* GIL-free creation of RemoteTensors is now used - holding GIL means that process is not suited
+* GIL-free creation of RemoteTensors is now used - holding GIL means that the process is not suited
   for multithreading and removing the GIL lock will increase performance which is critical for
-  a concept of Remote Tensors.
+  the concept of Remote Tensors.
 * Packed data type BF16 on the Python API level has been added, opening a new way of supporting
   data types not handled by numpy.
 * 'pad' operator support for ov::preprocess::PrePostProcessorItem has been added.
