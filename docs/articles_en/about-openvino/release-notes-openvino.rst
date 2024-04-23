@@ -165,7 +165,7 @@ OpenVINO Model Server
   `demo on string input data with the universal-sentence-encoder model <https://docs.openvino.ai/2024/ovms_demo_universal-sentence-encoder.html>`__
   and the
   `String output model demo <https://github.com/openvinotoolkit/model_server/tree/main/demos/image_classification_with_string_output>`__.
-* MediaPipe python calculators have been updated to support relative paths for all related
+* MediaPipe Python calculators have been updated to support relative paths for all related
   configuration and python code files. Now, the complete graph configuration folder can be
   deployed in an arbitrary path without any code changes.
 * KServe REST API support has been extended to properly handle the string format in JSON body,
