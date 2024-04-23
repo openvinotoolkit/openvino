@@ -371,12 +371,6 @@ const std::vector<std::vector<size_t>> dilations3d = {{1, 1, 1}};
 
 /* INSTANCES */
 /* ============= GroupConvolution (Planar 2D) ============= */
-const std::vector<DeconvInputData> Planar_2D_inputs_smoke = {
-    DeconvInputData{InputShape{{}, {{2, 12, 7, 7}}}, ov::test::utils::InputLayerType::CONSTANT, {}},
-    DeconvInputData{InputShape{{-1, 12, -1, -1}, {{1, 12, 7, 7}, {2, 12, 5, 7}, {1, 12, 7, 7}}},
-                    ov::test::utils::InputLayerType::PARAMETER,
-                    {{15, 15}, {9, 10}, {15, 15}}}};
-
 const std::vector<DeconvInputData> Planar_2D_inputs_nightly = {
     DeconvInputData{InputShape{{-1, 12, -1, -1}, {{2, 12, 7, 7}, {2, 12, 5, 7}, {1, 12, 9, 4}}},
                     ov::test::utils::InputLayerType::CONSTANT,
@@ -386,7 +380,11 @@ const std::vector<DeconvInputData> Planar_2D_inputs_nightly = {
                     {{15, 15}}},
     DeconvInputData{InputShape{{{1, 10}, 12, 7, 7}, {{1, 12, 7, 7}, {3, 12, 7, 7}, {2, 12, 7, 7}}},
                     ov::test::utils::InputLayerType::CONSTANT,
-                    {{15, 15}}}};
+                    {{15, 15}}},
+    DeconvInputData{InputShape{{}, {{2, 12, 7, 7}}}, ov::test::utils::InputLayerType::CONSTANT, {}},
+    DeconvInputData{InputShape{{-1, 12, -1, -1}, {{1, 12, 7, 7}, {2, 12, 5, 7}, {1, 12, 7, 7}}},
+                    ov::test::utils::InputLayerType::PARAMETER,
+                    {{15, 15}, {9, 10}, {15, 15}}}};
 
 const auto groupConvParams_ExplicitPadding_Planar_2D = ::testing::Combine(::testing::ValuesIn(kernels2d),
                                                                           ::testing::ValuesIn(strides2d),
@@ -398,27 +396,7 @@ const auto groupConvParams_ExplicitPadding_Planar_2D = ::testing::Combine(::test
                                                                           ::testing::Values(ov::op::PadType::EXPLICIT),
                                                                           ::testing::ValuesIn(emptyOutputPadding));
 
-INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_2D_Planar_FP32_0,
-                         GroupDeconvolutionLayerCPUTest,
-                         ::testing::Combine(groupConvParams_ExplicitPadding_Planar_2D,
-                                            ::testing::ValuesIn(Planar_2D_inputs_smoke),
-                                            ::testing::Values(ElementType::f32),
-                                            ::testing::ValuesIn(fusingParamsSet),
-                                            ::testing::ValuesIn(filterCPUInfoForDevice({planar_2D})),
-                                            ::testing::Values(CPUTestUtils::empty_plugin_config)),
-                         GroupDeconvolutionLayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_2D_Planar_BF16_0,
-                         GroupDeconvolutionLayerCPUTest,
-                         ::testing::Combine(groupConvParams_ExplicitPadding_Planar_2D,
-                                            ::testing::ValuesIn(Planar_2D_inputs_smoke),
-                                            ::testing::Values(ElementType::f32),
-                                            ::testing::ValuesIn(fusingParamsSet),
-                                            ::testing::ValuesIn(filterCPUInfoForDevice({planar_2D})),
-                                            ::testing::Values(cpu_bf16_plugin_config)),
-                         GroupDeconvolutionLayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_2D_Planar_FP32_1,
+INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_2D_Planar_FP32,
                          GroupDeconvolutionLayerCPUTest,
                          ::testing::Combine(groupConvParams_ExplicitPadding_Planar_2D,
                                             ::testing::ValuesIn(Planar_2D_inputs_nightly),
@@ -428,7 +406,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_2D_Planar_FP32_1,
                                             ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          GroupDeconvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_2D_Planar_BF16_1,
+INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_2D_Planar_BF16,
                          GroupDeconvolutionLayerCPUTest,
                          ::testing::Combine(groupConvParams_ExplicitPadding_Planar_2D,
                                             ::testing::ValuesIn(Planar_2D_inputs_nightly),
@@ -437,13 +415,6 @@ INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_2D_Planar_BF16_1,
                                             ::testing::ValuesIn(filterCPUInfoForDevice({planar_2D})),
                                             ::testing::Values(cpu_bf16_plugin_config)),
                          GroupDeconvolutionLayerCPUTest::getTestCaseName);
-
-/* ============= GroupConvolution (Planar 3D) ============= */
-const std::vector<DeconvInputData> Planar_3D_inputs_smoke = {
-    DeconvInputData{InputShape{{}, {{2, 12, 7, 7, 7}}}, ov::test::utils::InputLayerType::CONSTANT, {}},
-    DeconvInputData{InputShape{{-1, 12, -1, -1, -1}, {{2, 12, 7, 7, 7}, {2, 12, 5, 7, 7}, {1, 12, 9, 4, 9}}},
-                    ov::test::utils::InputLayerType::PARAMETER,
-                    {{15, 15, 15}, {9, 10, 10}, {9, 9, 9}}}};
 
 const std::vector<DeconvInputData> Planar_3D_inputs_nightly = {
     DeconvInputData{
@@ -455,7 +426,11 @@ const std::vector<DeconvInputData> Planar_3D_inputs_nightly = {
                     {{15, 15, 15}}},
     DeconvInputData{InputShape{{{1, 10}, 12, 7, 7, 7}, {{3, 12, 7, 7, 7}, {2, 12, 7, 7, 7}, {1, 12, 7, 7, 7}}},
                     ov::test::utils::InputLayerType::CONSTANT,
-                    {{15, 15, 15}}}};
+                    {{15, 15, 15}}},
+    DeconvInputData{InputShape{{}, {{2, 12, 7, 7, 7}}}, ov::test::utils::InputLayerType::CONSTANT, {}},
+    DeconvInputData{InputShape{{-1, 12, -1, -1, -1}, {{2, 12, 7, 7, 7}, {2, 12, 5, 7, 7}, {1, 12, 9, 4, 9}}},
+                    ov::test::utils::InputLayerType::PARAMETER,
+                    {{15, 15, 15}, {9, 10, 10}, {9, 9, 9}}}};
 
 const auto groupConvParams_ExplicitPadding_Planar_3D = ::testing::Combine(::testing::ValuesIn(kernels3d),
                                                                           ::testing::ValuesIn({strides3d[0]}),
@@ -467,27 +442,7 @@ const auto groupConvParams_ExplicitPadding_Planar_3D = ::testing::Combine(::test
                                                                           ::testing::Values(ov::op::PadType::EXPLICIT),
                                                                           ::testing::ValuesIn(emptyOutputPadding));
 
-INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_3D_Planar_FP32_0,
-                         GroupDeconvolutionLayerCPUTest,
-                         ::testing::Combine(groupConvParams_ExplicitPadding_Planar_3D,
-                                            ::testing::ValuesIn(Planar_3D_inputs_smoke),
-                                            ::testing::Values(ElementType::f32),
-                                            ::testing::ValuesIn(fusingParamsSet),
-                                            ::testing::ValuesIn(filterCPUInfoForDevice({planar_3D})),
-                                            ::testing::Values(CPUTestUtils::empty_plugin_config)),
-                         GroupDeconvolutionLayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_3D_Planar_BF16_0,
-                         GroupDeconvolutionLayerCPUTest,
-                         ::testing::Combine(groupConvParams_ExplicitPadding_Planar_3D,
-                                            ::testing::ValuesIn(Planar_3D_inputs_smoke),
-                                            ::testing::Values(ElementType::f32),
-                                            ::testing::ValuesIn(fusingParamsSet),
-                                            ::testing::ValuesIn(filterCPUInfoForDevice({planar_3D})),
-                                            ::testing::Values(cpu_bf16_plugin_config)),
-                         GroupDeconvolutionLayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_3D_Planar_FP32_1,
+INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_3D_Planar_FP32,
                          GroupDeconvolutionLayerCPUTest,
                          ::testing::Combine(groupConvParams_ExplicitPadding_Planar_3D,
                                             ::testing::ValuesIn(Planar_3D_inputs_nightly),
@@ -497,7 +452,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_3D_Planar_FP32_1,
                                             ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          GroupDeconvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_3D_Planar_BF16_1,
+INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_3D_Planar_BF16,
                          GroupDeconvolutionLayerCPUTest,
                          ::testing::Combine(groupConvParams_ExplicitPadding_Planar_3D,
                                             ::testing::ValuesIn(Planar_3D_inputs_nightly),
@@ -506,13 +461,6 @@ INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_3D_Planar_BF16_1,
                                             ::testing::ValuesIn(filterCPUInfoForDevice({planar_3D})),
                                             ::testing::Values(cpu_bf16_plugin_config)),
                          GroupDeconvolutionLayerCPUTest::getTestCaseName);
-
-/* ============= GroupConvolution (Blocked 2D) ============= */
-const std::vector<DeconvInputData> Blocked_2D_inputs_smoke = {
-    DeconvInputData{InputShape{{}, {{2, 64, 7, 7}}}, ov::test::utils::InputLayerType::CONSTANT, {}},
-    DeconvInputData{InputShape{{-1, 64, -1, -1}, {{2, 64, 7, 7}, {2, 64, 5, 7}, {1, 64, 9, 5}}},
-                    ov::test::utils::InputLayerType::PARAMETER,
-                    {{15, 15}, {9, 10}, {19, 9}}}};
 
 const auto groupConvParams_ExplicitPadding_Blocked_2D_nightly =
     ::testing::Combine(::testing::ValuesIn(kernels2d),
@@ -534,7 +482,11 @@ const std::vector<DeconvInputData> Blocked_2D_inputs_nightly = {
                     {{15, 15}}},
     DeconvInputData{InputShape{{{1, 10}, 64, 7, 7}, {{2, 64, 7, 7}, {3, 64, 7, 7}, {1, 64, 7, 7}}},
                     ov::test::utils::InputLayerType::CONSTANT,
-                    {{15, 15}}}};
+                    {{15, 15}}},
+    DeconvInputData{InputShape{{}, {{2, 64, 7, 7}}}, ov::test::utils::InputLayerType::CONSTANT, {}},
+    DeconvInputData{InputShape{{-1, 64, -1, -1}, {{2, 64, 7, 7}, {2, 64, 5, 7}, {1, 64, 9, 5}}},
+                    ov::test::utils::InputLayerType::PARAMETER,
+                    {{15, 15}, {9, 10}, {19, 9}}}};
 
 const auto groupConvParams_ExplicitPadding_Blocked_2D = ::testing::Combine(::testing::ValuesIn(kernels2d),
                                                                            ::testing::ValuesIn(strides2d),
@@ -546,29 +498,9 @@ const auto groupConvParams_ExplicitPadding_Blocked_2D = ::testing::Combine(::tes
                                                                            ::testing::Values(ov::op::PadType::EXPLICIT),
                                                                            ::testing::ValuesIn(emptyOutputPadding));
 
-INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_2D_Blocked_FP32_0,
+INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_2D_Blocked_FP32,
                          GroupDeconvolutionLayerCPUTest,
                          ::testing::Combine(groupConvParams_ExplicitPadding_Blocked_2D,
-                                            ::testing::ValuesIn(Blocked_2D_inputs_smoke),
-                                            ::testing::Values(ElementType::f32),
-                                            ::testing::ValuesIn(fusingParamsSet),
-                                            ::testing::ValuesIn(filterCPUInfoForDevice({block16c_2D, block8c_2D})),
-                                            ::testing::Values(CPUTestUtils::empty_plugin_config)),
-                         GroupDeconvolutionLayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_2D_Blocked_BF16_0,
-                         GroupDeconvolutionLayerCPUTest,
-                         ::testing::Combine(groupConvParams_ExplicitPadding_Blocked_2D,
-                                            ::testing::ValuesIn(Blocked_2D_inputs_smoke),
-                                            ::testing::Values(ElementType::f32),
-                                            ::testing::ValuesIn(fusingParamsSet),
-                                            ::testing::ValuesIn(filterCPUInfoForDevice({block16c_2D})),
-                                            ::testing::Values(cpu_bf16_plugin_config)),
-                         GroupDeconvolutionLayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_2D_Blocked_FP32_1,
-                         GroupDeconvolutionLayerCPUTest,
-                         ::testing::Combine(groupConvParams_ExplicitPadding_Blocked_2D_nightly,
                                             ::testing::ValuesIn(Blocked_2D_inputs_nightly),
                                             ::testing::Values(ElementType::f32),
                                             ::testing::ValuesIn(fusingParamsSet),
@@ -576,9 +508,9 @@ INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_2D_Blocked_FP32_1,
                                             ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          GroupDeconvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_2D_Blocked_BF16_1,
+INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_2D_Blocked_BF16,
                          GroupDeconvolutionLayerCPUTest,
-                         ::testing::Combine(groupConvParams_ExplicitPadding_Blocked_2D_nightly,
+                         ::testing::Combine(groupConvParams_ExplicitPadding_Blocked_2D,
                                             ::testing::ValuesIn(Blocked_2D_inputs_nightly),
                                             ::testing::Values(ElementType::f32),
                                             ::testing::ValuesIn(fusingParamsSet),
@@ -614,12 +546,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_2D_AMX_BF16,
                          GroupDeconvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= GroupConvolution (Blocked 3D) ============= */
-const std::vector<DeconvInputData> Blocked_3D_inputs_smoke = {
-    DeconvInputData{InputShape{{}, {{2, 64, 7, 7, 7}}}, ov::test::utils::InputLayerType::CONSTANT, {}},
-    DeconvInputData{InputShape{{-1, 64, -1, -1, -1}, {{1, 64, 5, 5, 5}, {2, 64, 5, 7, 5}}},
-                    ov::test::utils::InputLayerType::PARAMETER,
-                    {{7, 7, 7}, {7, 9, 7}}}};
-
 const std::vector<DeconvInputData> Blocked_3D_inputs_nightly = {
     DeconvInputData{InputShape{{-1, 64, -1, -1, -1}, {{1, 64, 5, 5, 5}, {2, 64, 5, 7, 5}, {1, 64, 5, 5, 5}}},
                     ov::test::utils::InputLayerType::CONSTANT,
@@ -629,7 +555,11 @@ const std::vector<DeconvInputData> Blocked_3D_inputs_nightly = {
                     {{7, 7, 7}}},
     DeconvInputData{InputShape{{{1, 10}, 64, -1, -1, -1}, {{1, 64, 5, 5, 5}, {2, 64, 5, 5, 5}}},
                     ov::test::utils::InputLayerType::CONSTANT,
-                    {{7, 7, 7}}}};
+                    {{7, 7, 7}}},
+    DeconvInputData{InputShape{{}, {{2, 64, 7, 7, 7}}}, ov::test::utils::InputLayerType::CONSTANT, {}},
+    DeconvInputData{InputShape{{-1, 64, -1, -1, -1}, {{1, 64, 5, 5, 5}, {2, 64, 5, 7, 5}}},
+                    ov::test::utils::InputLayerType::PARAMETER,
+                    {{7, 7, 7}, {7, 9, 7}}}};
 
 const auto groupConvParams_ExplicitPadding_Blocked_3D = ::testing::Combine(::testing::ValuesIn(kernels3d),
                                                                            ::testing::ValuesIn(strides3d),
@@ -641,27 +571,7 @@ const auto groupConvParams_ExplicitPadding_Blocked_3D = ::testing::Combine(::tes
                                                                            ::testing::Values(ov::op::PadType::EXPLICIT),
                                                                            ::testing::ValuesIn(emptyOutputPadding));
 
-INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_3D_Blocked_FP32_0,
-                         GroupDeconvolutionLayerCPUTest,
-                         ::testing::Combine(groupConvParams_ExplicitPadding_Blocked_3D,
-                                            ::testing::ValuesIn(Blocked_3D_inputs_smoke),
-                                            ::testing::Values(ElementType::f32),
-                                            ::testing::ValuesIn(fusingParamsSet),
-                                            ::testing::ValuesIn(filterCPUInfoForDevice({block16c_3D})),
-                                            ::testing::Values(CPUTestUtils::empty_plugin_config)),
-                         GroupDeconvolutionLayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_3D_Blocked_BF16_0,
-                         GroupDeconvolutionLayerCPUTest,
-                         ::testing::Combine(groupConvParams_ExplicitPadding_Blocked_3D,
-                                            ::testing::ValuesIn(Blocked_3D_inputs_smoke),
-                                            ::testing::Values(ElementType::f32),
-                                            ::testing::ValuesIn(fusingParamsSet),
-                                            ::testing::ValuesIn(filterCPUInfoForDevice({block16c_3D})),
-                                            ::testing::Values(cpu_bf16_plugin_config)),
-                         GroupDeconvolutionLayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_3D_Blocked_FP32_1,
+INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_3D_Blocked_FP32,
                          GroupDeconvolutionLayerCPUTest,
                          ::testing::Combine(groupConvParams_ExplicitPadding_Blocked_3D,
                                             ::testing::ValuesIn(Blocked_3D_inputs_nightly),
@@ -671,7 +581,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_3D_Blocked_FP32_1,
                                             ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          GroupDeconvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_3D_Blocked_BF16_1,
+INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_3D_Blocked_BF16,
                          GroupDeconvolutionLayerCPUTest,
                          ::testing::Combine(groupConvParams_ExplicitPadding_Blocked_3D,
                                             ::testing::ValuesIn(Blocked_3D_inputs_nightly),
@@ -709,12 +619,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_3D_nspc_BF16,
                          GroupDeconvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= GroupConvolution (DW 2D) ============= */
-const std::vector<DeconvInputData> dw_2D_inputs_smoke = {
-    DeconvInputData{InputShape{{}, {{2, 32, 7, 7}}}, ov::test::utils::InputLayerType::CONSTANT, {}},
-    DeconvInputData{InputShape{{-1, 32, -1, -1}, {{1, 32, 5, 5}, {2, 32, 5, 7}}},
-                    ov::test::utils::InputLayerType::PARAMETER,
-                    {{7, 7}, {7, 9}}}};
-
 const std::vector<DeconvInputData> dw_2D_inputs_nightly = {
     DeconvInputData{InputShape{{-1, 32, -1, -1}, {{1, 32, 5, 5}, {2, 32, 5, 7}}},
                     ov::test::utils::InputLayerType::CONSTANT,
@@ -724,7 +628,11 @@ const std::vector<DeconvInputData> dw_2D_inputs_nightly = {
                     {{7, 7}}},
     DeconvInputData{InputShape{{{1, 10}, 32, 5, 5}, {{2, 32, 5, 5}, {1, 32, 5, 5}}},
                     ov::test::utils::InputLayerType::CONSTANT,
-                    {{7, 7}}}};
+                    {{7, 7}}},
+    DeconvInputData{InputShape{{}, {{2, 32, 7, 7}}}, ov::test::utils::InputLayerType::CONSTANT, {}},
+    DeconvInputData{InputShape{{-1, 32, -1, -1}, {{1, 32, 5, 5}, {2, 32, 5, 7}}},
+                    ov::test::utils::InputLayerType::PARAMETER,
+                    {{7, 7}, {7, 9}}}};
 
 const auto groupConvParams_ExplicitPadding_DW_2D = ::testing::Combine(::testing::ValuesIn(kernels2d),
                                                                       ::testing::ValuesIn(strides2d),
@@ -736,28 +644,7 @@ const auto groupConvParams_ExplicitPadding_DW_2D = ::testing::Combine(::testing:
                                                                       ::testing::Values(ov::op::PadType::EXPLICIT),
                                                                       ::testing::ValuesIn(emptyOutputPadding));
 
-INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_2D_DW_FP32_0,
-                         GroupDeconvolutionLayerCPUTest,
-                         ::testing::Combine(groupConvParams_ExplicitPadding_DW_2D,
-                                            ::testing::ValuesIn(dw_2D_inputs_smoke),
-                                            ::testing::Values(ElementType::f32),
-                                            ::testing::ValuesIn(fusingParamsSet),
-                                            ::testing::ValuesIn(filterCPUInfoForDevice({block16c_2D,
-                                                                                        block8c_2D})),
-                                            ::testing::Values(CPUTestUtils::empty_plugin_config)),
-                         GroupDeconvolutionLayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_2D_DW_BF16_0,
-                         GroupDeconvolutionLayerCPUTest,
-                         ::testing::Combine(groupConvParams_ExplicitPadding_DW_2D,
-                                            ::testing::ValuesIn(dw_2D_inputs_smoke),
-                                            ::testing::Values(ElementType::f32),
-                                            ::testing::ValuesIn(fusingParamsSet),
-                                            ::testing::ValuesIn(filterCPUInfoForDevice({block16c_2D})),
-                                            ::testing::Values(cpu_bf16_plugin_config)),
-                         GroupDeconvolutionLayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_2D_DW_FP32_1,
+INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_2D_DW_FP32,
                          GroupDeconvolutionLayerCPUTest,
                          ::testing::Combine(groupConvParams_ExplicitPadding_DW_2D,
                                             ::testing::ValuesIn(dw_2D_inputs_nightly),
@@ -768,7 +655,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_2D_DW_FP32_1,
                                             ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          GroupDeconvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_2D_DW_BF16_1,
+INSTANTIATE_TEST_SUITE_P(nightly_GroupDeconv_2D_DW_BF16,
                          GroupDeconvolutionLayerCPUTest,
                          ::testing::Combine(groupConvParams_ExplicitPadding_DW_2D,
                                             ::testing::ValuesIn(dw_2D_inputs_nightly),

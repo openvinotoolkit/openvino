@@ -198,8 +198,8 @@ const auto params2DConv = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D1x1, ConvConcatSubgraphTest, params2DConv, ConvConcatSubgraphTest::getTestCaseName);
 
 const std::vector<CPUSpecificParams> CPUParams2DDeconv = {
-    conv_avx2_2D_1x1,
-    conv_avx512_2D_1x1
+    block8c_2D,
+    block16c_2D
 };
 
 const auto params2DDeconv = ::testing::Combine(
