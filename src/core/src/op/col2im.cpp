@@ -4,22 +4,22 @@
 
 #include "openvino/op/col2im.hpp"
 
+#include "col2im_shape_inference.hpp"
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/op.hpp"
-#include "col2im_shape_inference.hpp"
 
 namespace ov {
 namespace op {
 namespace v15 {
 
 Col2Im::Col2Im(const Output<Node>& data,
-           const Output<Node>& output_size,
-           const Output<Node>& kernel_size,
-           const Strides& strides,
-           const Strides& dilations,
-           const Shape& pads_begin,
-           const Shape& pads_end)
+               const Output<Node>& output_size,
+               const Output<Node>& kernel_size,
+               const Strides& strides,
+               const Strides& dilations,
+               const Shape& pads_begin,
+               const Shape& pads_end)
     : Op({data, output_size, kernel_size}),
       m_strides(strides),
       m_dilations(dilations),
@@ -27,7 +27,6 @@ Col2Im::Col2Im(const Output<Node>& data,
       m_pads_end(pads_end) {
     constructor_validate_and_infer_types();
 }
-
 
 bool Col2Im::visit_attributes(ov::AttributeVisitor& visitor) {
     OV_OP_SCOPE(v15_Col2Im_visit_attributes);
@@ -42,8 +41,7 @@ void Col2Im::validate_and_infer_types() {
     OV_OP_SCOPE(v15_Col2Im_validate_and_infer_types);
 
     const auto& data_element_type = get_input_element_type(0);
-    const bool is_integer = 
-        data_element_type == element::i32 || data_element_type == element::i64;
+    const bool is_integer = data_element_type == element::i32 || data_element_type == element::i64;
     NODE_VALIDATION_CHECK(this,
                           is_integer,
                           "The element type of the data tensor must be i32 or i64 type. Got: ",
@@ -72,7 +70,13 @@ void Col2Im::validate_and_infer_types() {
 std::shared_ptr<Node> Col2Im::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     OV_OP_SCOPE(v15_Col2Im_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return std::make_shared<Col2Im>(new_args.at(0), new_args.at(1), new_args.at(2), m_strides, m_dilations, m_pads_begin, m_pads_end);
+    return std::make_shared<Col2Im>(new_args.at(0),
+                                    new_args.at(1),
+                                    new_args.at(2),
+                                    m_strides,
+                                    m_dilations,
+                                    m_pads_begin,
+                                    m_pads_end);
 }
 
 Strides Col2Im::get_strides() const {
