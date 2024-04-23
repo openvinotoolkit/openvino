@@ -847,7 +847,7 @@ public:
         }
     }
 
-    void test_broadcast_transpose_matmul(bool is_caching_test) {
+    void test_unsqueeze_broadcast_reshape_transpose_matmul(bool is_caching_test) {
         tests::random_generator rg;
         rg.set_seed(GET_SUITE_NAME);
 
@@ -876,21 +876,19 @@ public:
         auto& engine = get_test_engine();
         ov::Shape input0_shape;
         ov::Shape input1_shape;
-        std::vector<int32_t> input1_target_shape;
         std::vector<int64_t> input0_order;
         std::vector<int64_t> input1_order;
         ov::Shape beam_table_shape;
         cldnn::layout input0_layout;
         cldnn::layout input1_layout;
 
-        input0_shape = { BATCH_SIZE, 16, M_SIZE, K_SIZE };
-        input1_shape = { N_SIZE, BATCH_SIZE, 1, K_SIZE };
-        input1_target_shape = { 1, 1, 16, 1 };
+        input0_shape = { BATCH_SIZE, 32, M_SIZE, K_SIZE };
+        input1_shape = { N_SIZE, BATCH_SIZE, 2, K_SIZE };
         input0_order = { 0, 1, 2, 3 };
         input1_order = { 1, 2, 3, 0 };
 
-        input0_layout = layout{ov::PartialShape::dynamic(input0_shape.size()), data_types::f32, format::bfyx};
-        input1_layout = layout{ov::PartialShape::dynamic(input1_shape.size()), data_types::f32, format::bfyx};
+        input0_layout = layout{ov::PartialShape{ov::Dimension::dynamic(), 32, ov::Dimension::dynamic(), K_SIZE}, data_types::f32, format::bfyx};
+        input1_layout = layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), 2, K_SIZE}, data_types::f32, format::bfyx};
 
         auto input0_mem = engine.allocate_memory(layout{ov::PartialShape(input0_shape), data_types::f32, format::bfyx});
         auto input1_mem = engine.allocate_memory(layout{ov::PartialShape(input1_shape), data_types::f32, format::bfyx});
@@ -904,7 +902,7 @@ public:
         topology topology;
         topology.add(input_layout("input0", input0_layout),
                      input_layout("input1", input1_layout),
-                     gemm("gemm", { input_info("input0"), input_info("input1") }, data_types::f32, {}, input1_target_shape, {}, {}, input0_order, input1_order)
+                     gemm("gemm", { input_info("input0"), input_info("input1") }, data_types::f32, input0_order, input1_order)
         );
 
         ExecutionConfig config = get_test_default_config(engine);
@@ -924,147 +922,14 @@ public:
         cldnn::mem_lock<float> output_ptr(output_mem, get_test_stream());
 
         ov::Shape ref_input0_shape;
-        ov::Shape ref_input1_broadcasted_shape;
-        ov::Shape ref_input1_shape;
-        ov::Shape ref_output_shape;
-
-        ref_input0_shape = { BATCH_SIZE, 16, M_SIZE, K_SIZE };
-        ref_input1_broadcasted_shape = { N_SIZE, BATCH_SIZE, 16, K_SIZE };
-        ref_input1_shape = { BATCH_SIZE, 16, K_SIZE, N_SIZE };
-        ref_output_shape = { BATCH_SIZE, 16, M_SIZE, N_SIZE };
-
-        std::vector<float> ref_out_data;
-        ref_out_data.resize(ov::shape_size(ref_output_shape));
-
-        std::vector<float> ref_input_0_data(input_0_data.size());
-        std::vector<float> ref_input_1_broadcasted_data(ov::shape_size(ref_input1_broadcasted_shape));
-        std::vector<float> ref_input_1_data(ref_input_1_broadcasted_data.size());
-
-        ov::reference::transpose((const char *)(input_0_data.data()),
-                                 (char *)(ref_input_0_data.data()),
-                                 input0_shape,
-                                 sizeof(float),
-                                 input0_order,
-                                 ref_input0_shape);
-
-        ov::reference::broadcast(reinterpret_cast<const char*>(input_1_data.data()),
-                                 reinterpret_cast<char*>(ref_input_1_broadcasted_data.data()),
-                                 input1_shape,
-                                 ref_input1_broadcasted_shape,
-                                 ov::AxisSet({}),
-                                 sizeof(float));
-
-        ov::reference::transpose((const char *)(ref_input_1_broadcasted_data.data()),
-                                 (char *)(ref_input_1_data.data()),
-                                 ref_input1_broadcasted_shape,
-                                 sizeof(float),
-                                 input1_order,
-                                 ref_input1_shape);
-
-        ov::reference::matmul<float>(ref_input_0_data.data(),
-                                     ref_input_1_data.data(),
-                                     ref_out_data.data(),
-                                     ref_input0_shape,
-                                     ref_input1_shape,
-                                     ref_output_shape,
-                                     false,
-                                     false);
-
-        ASSERT_EQ(output_ptr.size(), ref_out_data.size());
-
-        const auto abs_error = 0.0001;
-        for (uint32_t i = 0; i < ref_out_data.size(); ++i) {
-            ASSERT_NEAR(output_ptr[i], ref_out_data[i], abs_error) << "at " << i;
-        }
-    }
-
-    void test_broadcast_reshape_transpose_matmul(bool is_caching_test) {
-        tests::random_generator rg;
-        rg.set_seed(GET_SUITE_NAME);
-
-        const unsigned long BATCH_SIZE = 1;
-        const unsigned long M_SIZE = 1;
-        const unsigned long K_SIZE = 32;
-        const unsigned long N_SIZE = 21;
-
-        auto fill_mem = [&](cldnn::memory_ptr mem, std::vector<float>& data) {
-            cldnn::mem_lock<float> mem_ptr(mem, get_test_stream());
-            auto&& l = mem->get_layout();
-            auto data_idx = 0;
-            for (cldnn::tensor::value_type b = 0; b < l.batch(); ++b) {
-                for (cldnn::tensor::value_type f = 0; f < l.feature(); ++f) {
-                    for (cldnn::tensor::value_type z = 0; z < l.spatial(2); ++z) {
-                        for (cldnn::tensor::value_type y = 0; y < l.spatial(1); ++y) {
-                            for (cldnn::tensor::value_type x = 0; x < l.spatial(0); ++x) {
-                                auto tensor_coord = cldnn::tensor{{b, f, x, y, z}, 0};
-                                auto buffer_idx = l.get_linear_offset(tensor_coord);
-                                mem_ptr[buffer_idx] = data[data_idx++];
-                            }
-                        }
-                    }
-                }
-            }
-        };
-
-        auto& engine = get_test_engine();
-        ov::Shape input0_shape;
-        ov::Shape input1_shape;
-        std::vector<int32_t> input1_target_shape;
-        std::vector<int64_t> input1_output_pattern;
-        std::vector<int64_t> input0_order;
-        std::vector<int64_t> input1_order;
-        ov::Shape beam_table_shape;
-        cldnn::layout input0_layout;
-        cldnn::layout input1_layout;
-
-        input0_shape = { BATCH_SIZE, 32, M_SIZE, K_SIZE };
-        input1_shape = { N_SIZE, BATCH_SIZE, 2, 1, K_SIZE };
-        input1_target_shape = { 1, 1, 1, 16, 1 };
-        input1_output_pattern = { 0, 0, 32, K_SIZE };
-        input0_order = { 0, 1, 2, 3 };
-        input1_order = { 1, 2, 3, 0 };
-
-        input0_layout = layout{ov::PartialShape::dynamic(input0_shape.size()), data_types::f32, format::bfyx};
-        input1_layout = layout{ov::PartialShape::dynamic(input1_shape.size()), data_types::f32, format::bfzyx};
-
-        auto input0_mem = engine.allocate_memory(layout{ov::PartialShape(input0_shape), data_types::f32, format::bfyx});
-        auto input1_mem = engine.allocate_memory(layout{ov::PartialShape(input1_shape), data_types::f32, format::bfzyx});
-
-        auto input_0_data = rg.generate_random_1d<float>(ov::shape_size(input0_shape), -2, 2);
-        auto input_1_data = rg.generate_random_1d<float>(ov::shape_size(input1_shape), -2, 2);
-
-        fill_mem(input0_mem, input_0_data);
-        fill_mem(input1_mem, input_1_data);
-
-        topology topology;
-        topology.add(input_layout("input0", input0_layout),
-                     input_layout("input1", input1_layout),
-                     gemm("gemm", { input_info("input0"), input_info("input1") }, data_types::f32, {}, input1_target_shape, {}, input1_output_pattern, input0_order, input1_order)
-        );
-
-        ExecutionConfig config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-        network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
-        network->set_input_data("input0", input0_mem);
-        network->set_input_data("input1", input1_mem);
-
-        auto inst = network->get_primitive("gemm");
-        auto impl = inst->get_impl();
-        ASSERT_TRUE(impl != nullptr);
-
-        auto outputs = network->execute();
-
-        auto output_mem = outputs.at("gemm").get_memory();
-        cldnn::mem_lock<float> output_ptr(output_mem, get_test_stream());
-
-        ov::Shape ref_input0_shape;
+        ov::Shape ref_input1_unsqueezed_shape;
         ov::Shape ref_input1_broadcasted_shape;
         ov::Shape ref_input1_reshaped_shape;
         ov::Shape ref_input1_shape;
         ov::Shape ref_output_shape;
 
         ref_input0_shape = { BATCH_SIZE, 32, M_SIZE, K_SIZE };
+        ref_input1_unsqueezed_shape = { N_SIZE, BATCH_SIZE, 2, 1, K_SIZE };
         ref_input1_broadcasted_shape = { N_SIZE, BATCH_SIZE, 2, 16, K_SIZE };
         ref_input1_reshaped_shape = { N_SIZE, BATCH_SIZE, 32, K_SIZE };
         ref_input1_shape = { BATCH_SIZE, 32, K_SIZE, N_SIZE };
@@ -1087,7 +952,7 @@ public:
 
         ov::reference::broadcast(reinterpret_cast<const char*>(input_1_data.data()),
                                  reinterpret_cast<char*>(ref_input_1_broadcasted_data.data()),
-                                 input1_shape,
+                                 ref_input1_unsqueezed_shape,
                                  ref_input1_broadcasted_shape,
                                  ov::AxisSet({}),
                                  sizeof(float));
@@ -1206,7 +1071,7 @@ public:
         topology topology;
         topology.add(input_layout("input0", input0_layout),
                      input_layout("input1", input1_layout),
-                     gemm("gemm", { input_info("input0"), input_info("input1") }, data_types::f16, {}, {}, {}, {}, input0_order, input1_order, output_order)
+                     gemm("gemm", { input_info("input0"), input_info("input1") }, data_types::f16, input0_order, input1_order, output_order)
         );
 
         ExecutionConfig config = get_test_default_config(engine);
@@ -1379,7 +1244,7 @@ public:
         topology topology;
         topology.add(input_layout("input0", input0_layout),
                      input_layout("input1", input1_layout),
-                     gemm("gemm", { input_info("input0"), input_info("input1") }, data_types::f32, {}, {}, {}, {}, input0_order, input1_order, output_order)
+                     gemm("gemm", { input_info("input0"), input_info("input1") }, data_types::f32, input0_order, input1_order, output_order)
         );
 
         ExecutionConfig config = get_test_default_config(engine);
@@ -1493,7 +1358,7 @@ public:
         topology topology;
         topology.add(input_layout("input0", input0_layout),
                      input_layout("input1", input1_layout),
-                     gemm("gemm", { input_info("input0"), input_info("input1") }, data_types::f16, {}, {}, {}, {}, input0_order, input1_order)
+                     gemm("gemm", { input_info("input0"), input_info("input1") }, data_types::f16, input0_order, input1_order)
         );
 
         ExecutionConfig config = get_test_default_config(engine);
@@ -1668,12 +1533,8 @@ TEST_F(gemm_gpu_tests, transpose_matmul_in1_indirect) {
     this->test_transpose_indirect(false, false, true);
 }
 
-TEST_F(gemm_gpu_tests, broadcast_transpose_matmul) {
-    this->test_broadcast_transpose_matmul(false);
-}
-
-TEST_F(gemm_gpu_tests, broadcast_reshape_transpose_matmul) {
-    this->test_broadcast_reshape_transpose_matmul(false);
+TEST_F(gemm_gpu_tests, unsqueeze_broadcast_reshape_transpose_matmul) {
+    this->test_unsqueeze_broadcast_reshape_transpose_matmul(false);
 }
 
 TEST_F(gemm_gpu_tests, transpose_matmul_transpose_dynamic_1d) {

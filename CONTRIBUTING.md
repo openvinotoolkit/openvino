@@ -127,6 +127,7 @@ Choose the component your Good First Issue is related to. You can run tests to m
 - [Auto plugin](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/auto)
 - [CPU plugin](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu)
 - [GPU plugin](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu)
+- [NPU plugin](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_npu)
 - [Hetero plugin](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/hetero)
 - [Template plugin](https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/template)
 
