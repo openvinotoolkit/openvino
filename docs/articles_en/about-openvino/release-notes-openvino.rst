@@ -135,7 +135,7 @@ TensorFlow Framework Support
   is now supported.
 * Conversion of models with Variable and HashTable (dictionary) resources has been improved.
 * 8 NEW operations have been added
-  (`see the list here, marked as NEW <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/frontends/tensorflow/docs/supported_ops.md>`__`).
+  (`see the list here, marked as NEW <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/frontends/tensorflow/docs/supported_ops.md>`__).
 * 10 operations have received complex tensor support.
 * Input tensor names for TF1 models have been adjusted to have a single name per input.
 * Hugging Face model support coverage  has increased by 210 models:
