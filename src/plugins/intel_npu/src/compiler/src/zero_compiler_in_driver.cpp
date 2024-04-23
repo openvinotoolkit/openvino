@@ -921,50 +921,6 @@ void LevelZeroCompilerInDriver<TableExtension>::getLayoutOrStateDescriptor(IONod
     }
 }
 
-template <typename TableExtension>
-template <typename T, std::enable_if_t<std::is_same<T, ze_graph_dditable_ext_t>::value, bool>>
-void LevelZeroCompilerInDriver<TableExtension>::getNodeOrStateDescriptorLegacy(
-    IONodeDescriptorMap& parameters,
-    IONodeDescriptorMap& results,
-    IONodeDescriptorMap& states,
-    std::vector<std::string>& inputNames,
-    std::vector<std::string>& outputNames,
-    std::vector<std::string>& stateNames,
-    const ze_graph_argument_properties_t& arg) const {
-    std::string legacyName = arg.name;
-    const ov::element::Type_t precision = toOVElementType(arg.devicePrecision);
-
-    // The layout shall differ from the default one only when using significantly older drivers. In order to accommodate
-    // this case, an extra attribute needs to be stored which holds the transposed shape.
-    const std::vector<size_t> originalDimensions(arg.dims, arg.dims + zeLayoutToRank(arg.deviceLayout));
-    const std::vector<size_t> reshapedDimensions = reshapeByLayout(originalDimensions, arg.deviceLayout);
-    const ov::Shape originalShape = ov::Shape(originalDimensions);
-    const ov::Shape transposedShape = ov::Shape(reshapedDimensions);
-
-    if (!isStateInputName(legacyName) && !isStateOutputName(legacyName)) {
-        if (arg.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT) {
-            _logger.info("getNodeOrStateDescriptorLegacy Found input \"%s\"", legacyName.c_str());
-
-            inputNames.push_back(legacyName);
-            parameters[legacyName] = {legacyName, legacyName, {legacyName}, precision, originalShape, transposedShape};
-        }
-        if (arg.type == ZE_GRAPH_ARGUMENT_TYPE_OUTPUT) {
-            _logger.info("getNodeOrStateDescriptorLegacy Found output \"%s\"", legacyName.c_str());
-
-            outputNames.push_back(legacyName);
-            results[legacyName] = {legacyName, legacyName, {legacyName}, precision, originalShape, transposedShape};
-        }
-    } else if (isStateInputName(legacyName)) {
-        // The inputs and outputs of the state nodes share the same metadata, thus we'll consider only the the inputs
-        // here
-        legacyName = legacyName.substr(READVALUE_PREFIX.length());
-        _logger.info("getNodeOrStateDescriptorLegacy Found state variable \"%s\"", legacyName.c_str());
-
-        stateNames.push_back(legacyName);
-        states[legacyName] = {legacyName, "", {}, precision, originalShape, originalShape};
-    }
-}
-
 /**
  * @brief Extracts the parameter/result (i.e. input/output) descriptors from Level Zero specific structures into
  * OpenVINO specific ones.
@@ -974,22 +930,24 @@ void LevelZeroCompilerInDriver<TableExtension>::getNodeOrStateDescriptorLegacy(
  */
 static void getNodeDescriptor(IONodeDescriptorMap& nodeDescriptors,
                               std::vector<std::string>& names,
-                              ze_graph_argument_metadata_t& metadata) {
-    const ov::element::Type_t precision = toOVElementType(metadata.data_type);
+                              ze_graph_argument_properties_3_t& arg) {
+    ov::element::Type_t precision = toOVElementType(arg.devicePrecision);
     ov::Shape shape;
     std::unordered_set<std::string> outputTensorNames;
 
-    for (uint32_t id = 0; id < metadata.tensor_names_count; id++) {
-        outputTensorNames.insert(metadata.tensor_names[id]);
+    for (uint32_t id = 0; id < arg.associated_tensor_names_count; id++) {
+        outputTensorNames.insert(arg.associated_tensor_names[id]);
     }
-    for (uint32_t id = 0; id < metadata.shape_size; id++) {
-        shape.push_back(metadata.shape[id]);
-    }
-    const std::string& legacyName = metadata.input_name;
 
-    names.push_back(legacyName);
-    nodeDescriptors[legacyName] =
-        {legacyName, metadata.friendly_name, std::move(outputTensorNames), precision, shape, shape};
+    for (uint32_t id = 0; id < arg.dims_count; id++) {
+        shape.push_back(arg.dims[id]);
+    }
+
+    const std::string& legacyName = arg.name;
+
+    names.push_back(arg.debug_friendly_name);
+    nodeDescriptors[arg.debug_friendly_name] =
+        {legacyName, arg.debug_friendly_name, std::move(outputTensorNames), precision, shape, shape};
 }
 
 static void getNodeDescriptor(IONodeDescriptorMap& nodeDescriptors,
@@ -1019,20 +977,21 @@ static void getNodeDescriptor(IONodeDescriptorMap& nodeDescriptors,
         {legacyName, arg.debug_friendly_name, std::move(outputTensorNames), precision, originalShape, transposedShape};
 }
 
-template <>
-void LevelZeroCompilerInDriver<ze_graph_dditable_ext_t>::getMetadata(ze_graph_dditable_ext_t* graphDdiTableExt,
-                                                                     ze_graph_handle_t graphHandle,
-                                                                     uint32_t index,
-                                                                     std::vector<std::string>& inputNames,
-                                                                     std::vector<std::string>& outputNames,
-                                                                     std::vector<std::string>& stateNames,
-                                                                     IONodeDescriptorMap& parameters,
-                                                                     IONodeDescriptorMap& results,
-                                                                     IONodeDescriptorMap& states) const {
-    ze_graph_argument_properties_t arg;
-    auto result = graphDdiTableExt->pfnGetArgumentProperties(graphHandle, index, &arg);
+template <typename TableExtension>
+template <typename T, std::enable_if_t<NotSupportOriginalShape(T), bool>>
+void LevelZeroCompilerInDriver<TableExtension>::getMetadata(TableExtension* graphDdiTableExt,
+                                                            ze_graph_handle_t graphHandle,
+                                                            uint32_t index,
+                                                            std::vector<std::string>& inputNames,
+                                                            std::vector<std::string>& outputNames,
+                                                            std::vector<std::string>& stateNames,
+                                                            IONodeDescriptorMap& parameters,
+                                                            IONodeDescriptorMap& results,
+                                                            IONodeDescriptorMap& states) const {
+    ze_graph_argument_properties_3_t arg;
+    auto result = graphDdiTableExt->pfnGetArgumentProperties3(graphHandle, index, &arg);
     if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("L0 pfnGetArgumentProperties",
+        OPENVINO_THROW("L0 pfnGetArgumentProperties3",
                        " result: ",
                        ze_result_to_string(result),
                        ", code 0x",
@@ -1040,49 +999,13 @@ void LevelZeroCompilerInDriver<ze_graph_dditable_ext_t>::getMetadata(ze_graph_dd
                        uint64_t(result));
     }
 
-    getNodeOrStateDescriptorLegacy(parameters, results, states, inputNames, outputNames, stateNames, arg);
-}
-
-template <>
-void LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_1_t>::getMetadata(ze_graph_dditable_ext_1_1_t* graphDdiTableExt,
-                                                                         ze_graph_handle_t graphHandle,
-                                                                         uint32_t index,
-                                                                         std::vector<std::string>& inputNames,
-                                                                         std::vector<std::string>& outputNames,
-                                                                         std::vector<std::string>& stateNames,
-                                                                         IONodeDescriptorMap& parameters,
-                                                                         IONodeDescriptorMap& results,
-                                                                         IONodeDescriptorMap& states) const {
-    ze_graph_argument_properties_2_t arg;
-    auto result = graphDdiTableExt->pfnGetArgumentProperties2(graphHandle, index, &arg);
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("L0 pfnGetArgumentProperties2",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result));
-    }
-
-    // The I/O data corresponding to the states of the model is not found within the OpenVINO 2.0 attributes contained
-    // by the compiled model, thus we should not query them
     if (!isStateInputName(arg.name) && !isStateOutputName(arg.name)) {
-        ze_graph_argument_metadata_t metadata;
-        result = graphDdiTableExt->pfnGraphGetArgumentMetadata(graphHandle, index, &metadata);
-        if (ZE_RESULT_SUCCESS != result) {
-            OPENVINO_THROW("L0 pfnGraphGetArgumentMetadata",
-                           " result: ",
-                           ze_result_to_string(result),
-                           ", code 0x",
-                           std::hex,
-                           uint64_t(result));
+        if (ZE_GRAPH_ARGUMENT_TYPE_INPUT == arg.type) {
+            getNodeDescriptor(parameters, inputNames, arg);
         }
 
-        if (ZE_GRAPH_ARGUMENT_TYPE_INPUT == arg.type) {
-            getNodeDescriptor(parameters, inputNames, metadata);
-        }
         if (ZE_GRAPH_ARGUMENT_TYPE_OUTPUT == arg.type) {
-            getNodeDescriptor(results, outputNames, metadata);
+            getNodeDescriptor(results, outputNames, arg);
         }
     }
 
@@ -1090,6 +1013,7 @@ void LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_1_t>::getMetadata(ze_grap
 }
 
 template <typename TableExtension>
+template <typename T, std::enable_if_t<!NotSupportOriginalShape(T), bool>>
 void LevelZeroCompilerInDriver<TableExtension>::getMetadata(TableExtension* graphDdiTableExt,
                                                             ze_graph_handle_t graphHandle,
                                                             uint32_t index,
@@ -1202,8 +1126,6 @@ std::string LevelZeroCompilerInDriver<TableExtension>::getLatestBuildError() con
     return logContent;
 }
 
-template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_t>;
-template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_1_t>;
 template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_2_t>;
 template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_3_t>;
 template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_4_t>;
