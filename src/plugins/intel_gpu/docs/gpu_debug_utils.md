@@ -10,11 +10,12 @@ are available by default, but some others might require plugin recompilation.
 ### How to use it
 
 First, this feature should be enabled from cmake configuration `ENABLE_DEBUG_CAPS`. When OpenVINO is released, it is turned off by default.
-The parameters should be set from an environment variable when calling inference engine API.
+
+The parameters can be set from an environment variable when calling inference engine API.
 
 ```
 $ OV_GPU_Verbose=1 ./benchmark_app ...      # Run benchmark_app with OV_GPU_Verbose option
-$ OV_GPU_DumpLayersPath="cldnn/" ./benchmark_app ...   # Run benchmark_app and store intermediate buffers into cldnn/ directory.
+$ OV_GPU_DumpLayersPath="dump/" ./benchmark_app ...   # Run benchmark_app and store intermediate buffers into dump/ directory.
 ```
 
 For Windows OS, use the following syntax:
@@ -47,10 +48,10 @@ This is a part of the full list. To get all parameters, see OV_GPU_Help result.
 * `OV_GPU_Verbose`: Verbose execution. Currently, `Verbose=1` and `2` are supported.
 * `OV_GPU_PrintMultiKernelPerf`: Prints kernel latency for multi-kernel primitives. This is turned on by setting `1`. Execution time is printed.
 * `OV_GPU_DisableUsm`: Disables the usage of usm (unified shared memory). This is turned on by setting `1`.
-* `OV_GPU_DisableOnednn`: Disables oneDNN for discrete GPU (no effect for integrated GPU).
-* `OV_GPU_DumpGraphs`: Dumps an optimized graph into the path that this variable points. This is turned on by setting the destination path into this variable.
+* `OV_GPU_DisableOnednn`: Disables oneDNN for the hardware with XMX (If GPU does not have XMX, it does not have any effect)
+* `OV_GPU_DumpGraphs`: Dumps optimized graphs into the path that this variable points. This is turned on by setting the destination path into this variable.
 * `OV_GPU_DumpSources`: Dumps openCL sources
-* `OV_GPU_DumpLayersPath`: Enables intermediate buffer dump and store the tensors. This is turned on by setting the destination path into this variable. You can check the exact layer name from `OV_GPU_Verbose=1`.
+* `OV_GPU_DumpLayersPath`: Enables intermediate buffer dump and store the tensors. This is turned on by setting the destination path into this variable. You can check the exact layer name from `OV_GPU_ListLayers=1`.
 * `OV_GPU_DumpLayers`: Dumps intermediate buffers only for the layers that this variable specifies. Multiple layers can be specified with a space delimiter. Dump feature should be enabled through `OV_GPU_DumpLayersPath`.
 * `OV_GPU_DumpLayersResult`: Dumps output buffers of result layers only.
 * `OV_GPU_DumpLayersDstOnly`: When dumping intermediate buffer, dumps destination buffer only. This is turned on by setting `1`.
@@ -61,6 +62,53 @@ This is a part of the full list. To get all parameters, see OV_GPU_Help result.
 * `OV_GPU_SerialCompile`:               Serializes creating primitives and compiling kernels.
 * `OV_GPU_ForceImplType`:               Forces implementation type of a target primitive or a layer. [primitive or layout_name]:[impl_type] For primitives, `fc:onednn`, `fc:ocl`, `do:cpu`, `do:ocl`, `reduce:ocl` and `reduce:oneDNN` are supported
 * `OV_GPU_MaxKernelsPerBatch`:          Maximum number of kernels in a batch during compiling kernels.
+
+### How to check debug-config works
+If you are uncertain whether debug-config is working or not, you can confirm that with OV_GPU_Help. OV_GPU_Help will just show the help message and terminate the current application. If the help message is properly printed, you can basically believe that this debug config is working correctly. Please note that it requires full execution of inference because the help message is printed from GPU plugin. If you just run `benchmark_app` without any option, it will not show the benchmark_app help message, not the debug-config help message.
+
+```
+$ OV_GPU_Help=1 ./benchmark_app -m resnet_v1.5_50.xml -d GPU
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2024.2.0
+[ INFO ]
+[ INFO ] Device info:
+GPU_Debug: Config Help = 1
+GPU_Debug: Supported environment variables for debugging
+GPU_Debug:  - OV_GPU_Help                                          Print help messages
+GPU_Debug:  - OV_GPU_Verbose                                       Verbose execution
+GPU_Debug:  - OV_GPU_VerboseColor                                  Print verbose color
+GPU_Debug:  - OV_GPU_ListLayers                                    Print layers names
+GPU_Debug:  - OV_GPU_PrintMultiKernelPerf                          Print execution time of each kernel in multi-kernel primitimive
+GPU_Debug:  - OV_GPU_PrintInputDataShapes                          Print data_shapes of input layers for benchmark_app.
+GPU_Debug:  - OV_GPU_DisableUsm                                    Disable usm usage
+GPU_Debug:  - OV_GPU_DisableOnednn                                 Disable onednn for discrete GPU (no effect for integrated GPU)
+GPU_Debug:  - OV_GPU_DisableOnednnOptPostOps                       Disable onednn optimize post operators
+...
+<application is terminated right after the help message>
+```
+
+You can also check the message from the debug-config parser. As shown below, if env variable is detected, it will print the variable name and configuration.
+```
+$ OV_GPU_Verbose=1 OV_GPU_DumpGraphs=graph/ ./benchmark_app -m resnet.xml -d GPU
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2024.2.0
+[ INFO ]
+[ INFO ] Device info:
+GPU_Debug: Config Verbose = 1               # OV_GPU_Verbose is recognized
+GPU_Debug: Config DumpGraphs = graph/       # OV_GPU_DumpGraphs is recognized
+[ INFO ] GPU
+[ INFO ] Build ................................. 2024.2.0
+[ INFO ]
+[Step 3/11] Setting device configuration
+...
+```
+
 
 ## Dump execution graph
 
