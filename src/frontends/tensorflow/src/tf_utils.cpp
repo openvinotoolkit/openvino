@@ -567,7 +567,6 @@ ov::OutputVector create_loop_for_tf_while(const std::string& while_node_name,
         }
         loop->set_merged_input(body_params[input_ind], ov_inputs[input_ind], body_results[input_ind]->input_value(0));
     }
-
     loop->set_special_body_ports({-1, static_cast<int64_t>(body_condition_output_idx)});
     // set invariant inputs for the loop
     for (size_t input_ind = body_condition_output_idx; input_ind < input_size; ++input_ind) {
