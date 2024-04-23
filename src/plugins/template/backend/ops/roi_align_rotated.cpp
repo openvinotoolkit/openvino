@@ -37,8 +37,6 @@ bool evaluate_node<ov::op::v14::ROIAlignRotated>(std::shared_ptr<ov::Node> node,
                                                  ov::TensorVector& outputs,
                                                  const ov::TensorVector& inputs) {
     const auto& element_type = node->get_output_element_type(0);
-    if (ov::is_type<ov::op::v1::Select>(node) || ov::is_type<ov::op::util::BinaryElementwiseComparison>(node))
-        element_type = node->get_input_element_type(1);
 
 #define CASE(type)          \
     case ov::element::type: \
@@ -50,7 +48,7 @@ bool evaluate_node<ov::op::v14::ROIAlignRotated>(std::shared_ptr<ov::Node> node,
         CASE(f32);
         CASE(f64);
     default:
-        OPENVINO_THROW("Unhandled data type ", node->get_element_type().get_type_name(), " in evaluate_node()");
+        OPENVINO_THROW("Unhandled data type ", element_type, " in evaluate_node()");
     }
 #undef CASE
 }
