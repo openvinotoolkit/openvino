@@ -23,7 +23,7 @@ Consider an ``input`` tensor containing batches of image blocks of shape ``(N, C
 
 .. math::
 
-    L = \prod_{d=1}^{2} \left\lfloor \frac{({\text{{output\_size}}[d] + \text{{pads\_begin}}[d] + \text{{pads\_end}}[d] - \text{{dilation}}[d] \times (\text{{kernel\_size}}[d] - 1) - 1}}{{\text{{stride}}[d]}}) + 1\rfloor
+    L = \prod_{d=1}^{2} \lfloor \frac{({\text{{output\_size}}[d] + \text{{pads\_begin}}[d] + \text{{pads\_end}}[d] - \text{{dilation}}[d] \times (\text{{kernel\_size}}[d] - 1) - 1}}{{\text{{stride}}[d]}}) + 1\rfloor
 
 
 where ``d`` is over all spatial dimensions.
@@ -127,13 +127,13 @@ All examples assume ``C = 3``.
     </layer>
 
 
-*Example 2: non-default dilation, padding and stride*
+*Example 2: non-default dilations, padding and strides*
 
 .. code-block:: xml
    :force:
 
     <layer ... type="Col2Im" ... >
-        <data output_size="16,16" kernel_size="3,3" dilation="2,2" pads_begin="1,1" pads_end="1,1" stride="2,2"/>
+        <data output_size="16,16" kernel_size="3,3" dilations="2,2" pads_begin="1,1" pads_end="1,1" strides="2,2"/>
         <input>
             <port id="0" precision="I32">
                 <dim>1</dim>     <!-- batch_axis -->
@@ -151,13 +151,13 @@ All examples assume ``C = 3``.
         </output>
     </layer>
 
-*Example 3: non-default dilation and padding*
+*Example 3: non-default dilations and padding*
 
 .. code-block:: xml
    :force:
 
     <layer ... type="Col2Im" ... >
-        <data output_size="32,32" kernel_size="2,2" dilation="2,2" pads_begin="3,3" pads_end="3,3"/>
+        <data output_size="32,32" kernel_size="2,2" dilations="2,2" pads_begin="3,3" pads_end="3,3"/>
         <input>
             <port id="0" precision="I32">
                 <dim>12</dim>    <!-- batch_axis -->
