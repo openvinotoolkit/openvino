@@ -87,7 +87,7 @@ interface CompiledModel {
 }
 
 interface Tensor {
-  data: number[];
+  data: SupportedTypedArray;
   getElementType(): element;
   getShape(): number[];
   getData(): number[];
