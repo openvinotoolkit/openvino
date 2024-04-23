@@ -345,6 +345,19 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
 
     steps:
+
+      #
+      # Print system info
+      #
+      - name: Fetch system_info action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/system_info
+
+      - name: System info
+        uses: ./.github/actions/system_info
+
       - name: Create Directories
         run: |
           mkdir -p ${CONFORMANCE_ARTIFACTS_DIR}
