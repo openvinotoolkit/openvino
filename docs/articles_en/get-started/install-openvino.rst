@@ -1,6 +1,6 @@
 .. {#openvino_docs_install_guides_overview}
 
-Install OpenVINO™ 2024.0
+Install OpenVINO™ 2024.1
 ==========================
 
 
@@ -36,17 +36,17 @@ Install OpenVINO™ 2024.0
 
 .. tip::
 
-   OpenVINO 2024.0, described here, is not a Long-Term-Support version!
+   OpenVINO 2024.1, described here, is not a Long-Term-Support version!
    All currently supported versions are:
 
-   * 2024.0 (development)
+   * 2024.1 (development)
    * 2023.3 (LTS)
    * 2022.3 (LTS)
 
    Moreover, different OpenVINO distributions may support slightly different sets of features.
    Read installation guides for particular distributions for more details.
 
-   .. dropdown:: Distribution Comparison for OpenVINO 2024.0
+   .. dropdown:: Distribution Comparison for OpenVINO 2024.1
 
       ===============  ==========  ======  =========  ========  ============ ========== ========== ==========
        Device           Archives    PyPI    APT/YUM    Conda     Homebrew     vcpkg      Conan       npm
