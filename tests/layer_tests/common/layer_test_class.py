@@ -169,7 +169,7 @@ class CommonLayerTest:
         for framework_out_name in framework_res:
             ie_out_name = framework_out_name
             if ie_out_name not in infer_res and len(infer_res) == 1:
-                    ie_res = list(infer_res.values())[0]
+                ie_res = list(infer_res.values())[0]
             else:
                 ie_res = infer_res[ie_out_name]
 
