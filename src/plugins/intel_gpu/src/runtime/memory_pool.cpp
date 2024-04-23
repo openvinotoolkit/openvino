@@ -321,19 +321,22 @@ inline float get_percentage(size_t size, size_t total_size) {
     return (static_cast<float>(size) * 100.0f / total_size);
 }
 
-size_t memory_pool::get_total_mem_pool_size() {
+size_t memory_pool::get_total_mem_pool_size(allocation_type type) {
     size_t total_mem_pool_size = 0;
     for (auto mem : _non_padded_pool) {
-        total_mem_pool_size += mem.first;
+        if (mem.second._type == type)
+            total_mem_pool_size += mem.first;
     }
 
     for (auto mem : _padded_pool) {
         for (auto record : mem.second) {
-            total_mem_pool_size += record._memory->size();
+            if (record._type == type)
+                total_mem_pool_size += record._memory->size();
         }
     }
     for (auto mem : _no_reusable_pool) {
-        total_mem_pool_size += mem.first;
+        if (mem.second._type == type)
+            total_mem_pool_size += mem.first;
     }
     return total_mem_pool_size;
 }
@@ -346,7 +349,7 @@ void memory_pool::dump(uint32_t net_id, uint32_t iter, std::string dump_dir_path
 
 void memory_pool::dump_to_file(uint32_t net_id, uint32_t iter, std::string dump_dir_path) {
     const std::string dump_file_name = "dump_runtime_memory_pool_net_" + std::to_string(net_id) + "_iter_" + std::to_string(iter) + ".csv";
-    const std::string desc = "pool_type,layout,mem_ptr,mem_type,mem_pool_szie,prim_id,unique_id,mem_size";
+    const std::string desc = "pool_type,layout,mem_ptr,mem_type,mem_pool_size,prim_id,unique_id,mem_size";
     const std::string dump_path = dump_dir_path + dump_file_name;
     std::ofstream of(dump_path);
     if (of.is_open()) {
@@ -360,10 +363,10 @@ void memory_pool::dump_to_file(uint32_t net_id, uint32_t iter, std::string dump_
 
         for (auto mem : _padded_pool) {
             for (auto record : mem.second) {
-                const size_t mem_pool_szie = record._memory->size();
+                const size_t mem_pool_size = record._memory->size();
                 for (auto user : record._users) {
                     of << "padded_pool," << mem.first.to_short_string() << "," << record._memory->buffer_ptr() << "," << record._type << ","
-                        << mem_pool_szie << "," << user._prim_id << "," << user._unique_id << "," << user._mem_size << std::endl;
+                        << mem_pool_size << "," << user._prim_id << "," << user._unique_id << "," << user._mem_size << std::endl;
                 }
             }
         }
@@ -403,7 +406,7 @@ void memory_pool::dump_to_screen(uint32_t net_id, uint32_t iter) {
         GPU_DEBUG_COUT << "========== non-padded pool efficiency: "
             << std::to_string(static_cast<float>(total_mem_request / total_mem_pool_size))
             << " (Total memory request : " << get_mb_size(total_mem_request) << "MB"
-            << " / Total meomry pool size : " << get_mb_size(total_mem_pool_size) << "MB) ==========" << std::endl;
+            << " / Total memory pool size : " << get_mb_size(total_mem_pool_size) << "MB) ==========" << std::endl;
     }
     float total_non_padded_pool_size = total_mem_pool_size;
     GPU_DEBUG_COUT << "========== padded pool (" << _padded_pool.size() << " records) ==========" << std::endl;
@@ -434,7 +437,7 @@ void memory_pool::dump_to_screen(uint32_t net_id, uint32_t iter) {
         GPU_DEBUG_COUT << "========== padded pool efficiency: "
             << std::to_string(static_cast<float>(total_mem_request / total_mem_pool_size))
             << " (Total memory request : " << get_mb_size(total_mem_request) << "MB"
-            << " / Total meomry pool size : " << get_mb_size(total_mem_pool_size) << "MB) ==========" << std::endl;
+            << " / Total memory pool size : " << get_mb_size(total_mem_pool_size) << "MB) ==========" << std::endl;
     }
     float total_padded_pool_size = total_mem_pool_size;
     GPU_DEBUG_COUT << "========== no reused memory (" << _no_reusable_pool.size() << " records) ==========" << std::endl;

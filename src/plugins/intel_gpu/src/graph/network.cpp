@@ -929,8 +929,8 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
 
     // Wait for previous execution completion
     reset_execution(false);
-    GPU_DEBUG_IF(debug_config->dump_runtime_memory_pool > 0) {
-        auto& iters = debug_config->dump_runtime_memory_pool_iters;
+    GPU_DEBUG_IF(debug_config->dump_memory_pool > 0) {
+        auto& iters = debug_config->dump_memory_pool_iters;
         if (iters.empty() || iters.find(curr_iter) != iters.end()) {
             GPU_DEBUG_COUT << "============================================================================" << std::endl;
             GPU_DEBUG_COUT << "Start network execution (net_id : " << get_id() << ", iter :" << curr_iter << ")" << std::endl;
@@ -1243,46 +1243,57 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     // Deallocate events from the previos iteration
     _old_events.clear();
 
-    GPU_DEBUG_IF(debug_config->dump_runtime_memory_pool > 0) {
-        auto& iters = debug_config->dump_runtime_memory_pool_iters;
-        if (iters.empty() || iters.find(curr_iter) != iters.end()) {
-            get_memory_pool().dump(get_id(), curr_iter, debug_config->dump_runtime_memory_pool_path);
-            auto get_constants_mem_size = [&]() -> size_t {
-                size_t mem_size = 0;
-                for (auto& prim : _primitives) {
-                    if (prim.second->get_node().is_constant()) {
-                        for (size_t i = 0; i < prim.second->outputs_memory_count(); i++) {
-                            mem_size += prim.second->output_memory_ptr(i)->size();
-                        }
-                    }
-                }
-                return mem_size;
-            };
-            auto get_variables_mem_size = [&]() -> size_t {
-                size_t mem_size = 0;
-                for (auto& var : get_variables()) {
-                    mem_size += var.second->get_actual_mem_size();
-                }
-                return mem_size;
-            };
-            auto get_mb_size = [&](int64_t size) -> float {
-                return (static_cast<float>(size) / (1024 * 1024));
-            };
-            int64_t const_mem_size  = get_constants_mem_size();
-            int64_t var_mem_size    = get_variables_mem_size();
-            int64_t host_mem_size   = get_engine().get_used_device_memory(allocation_type::usm_host);
-            int64_t device_mem_size = get_engine().get_used_device_memory(allocation_type::usm_device);
-            int64_t mem_pool_size   = get_memory_pool().get_total_mem_pool_size();
-            int64_t etc_size        = device_mem_size - mem_pool_size - const_mem_size - var_mem_size;
-            GPU_DEBUG_COUT << "Memory statistics for (net_id:" << get_id() << ", iter:" << curr_iter << ") host_mem_size: " << get_mb_size(host_mem_size)
-                    << "MB, device_mem_size: " << get_mb_size(device_mem_size) << "MB (mem_pool_size: " << get_mb_size(mem_pool_size)
-                    << "MB, const_mem_size: " << get_mb_size(const_mem_size) << "MB, var_mem_size: " << get_mb_size(var_mem_size)
-                    << "MB, etc: " << std::fixed << get_mb_size(etc_size) << "MB)" << std::endl;
-            GPU_DEBUG_COUT << "============================================================================" << std::endl;
-        }
+    GPU_DEBUG_IF(debug_config->dump_memory_pool > 0) {
+        dump_memory_pool(curr_iter);
     }
+
 #ifdef GPU_DEBUG_CONFIG
     iteration++;
+#endif
+}
+
+void network::dump_memory_pool(int64_t curr_iter) {
+#ifdef GPU_DEBUG_CONFIG
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    auto& iters = debug_config->dump_memory_pool_iters;
+    if (iters.empty() || iters.find(curr_iter) != iters.end()) {
+        get_memory_pool().dump(get_id(), curr_iter, debug_config->dump_memory_pool_path);
+        auto get_constants_mem_size = [&]() -> size_t {
+            size_t mem_size = 0;
+            for (auto& prim : _primitives) {
+                if (prim.second->get_node().is_constant()) {
+                    for (size_t i = 0; i < prim.second->outputs_memory_count(); i++) {
+                        mem_size += prim.second->output_memory_ptr(i)->size();
+                    }
+                }
+            }
+            return mem_size;
+        };
+        auto get_variables_mem_size = [&]() -> size_t {
+            size_t mem_size = 0;
+            for (auto& var : get_variables()) {
+                mem_size += var.second->get_actual_mem_size();
+            }
+            return mem_size;
+        };
+        auto get_mb_size = [&](int64_t size) -> float {
+            return (static_cast<float>(size) / (1024 * 1024));
+        };
+        int64_t const_mem_size  = get_constants_mem_size();
+        int64_t var_mem_size    = get_variables_mem_size();
+        int64_t host_mem_size   = get_engine().get_used_device_memory(allocation_type::usm_host);
+        int64_t device_mem_size = get_engine().get_used_device_memory(allocation_type::usm_device);
+        int64_t usm_host_mem_pool_size   = get_memory_pool().get_total_mem_pool_size(allocation_type::usm_host);
+        int64_t usm_host_etc_size = host_mem_size - usm_host_mem_pool_size;
+        int64_t usm_device_mem_pool_size   = get_memory_pool().get_total_mem_pool_size(allocation_type::usm_device);
+        int64_t usm_device_etc_size        = device_mem_size - usm_device_mem_pool_size - const_mem_size - var_mem_size;
+        GPU_DEBUG_COUT << "Memory statistics for (net_id:" << get_id() << ", iter:" << curr_iter << ") host_mem_size: " << get_mb_size(host_mem_size)
+                << "MB (mem_pool_size: " << get_mb_size(usm_host_mem_pool_size) << "MB, etc: " << std::fixed << get_mb_size(usm_host_etc_size) << "MB), "
+                << "device_mem_size: " << get_mb_size(device_mem_size) << "MB (mem_pool_size: " << get_mb_size(usm_device_mem_pool_size)
+                << "MB, const_mem_size: " << get_mb_size(const_mem_size) << "MB, var_mem_size: " << get_mb_size(var_mem_size)
+                << "MB, etc: " << std::fixed << get_mb_size(usm_device_etc_size) << "MB)" << std::endl;
+        GPU_DEBUG_COUT << "============================================================================" << std::endl;
+    }
 #endif
 }
 

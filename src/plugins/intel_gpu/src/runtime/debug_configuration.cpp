@@ -66,6 +66,32 @@ std::string convert_to(const std::string &str) {
     return str;
 }
 
+static std::set<int64_t> parse_int_set(std::string& str) {
+    std::set<int64_t> int_array;
+    // eliminate '"' from string to avoid parsing error
+    str.erase(
+        std::remove_if (str.begin (), str.end (), [](char c)
+                {
+                return c == '\"';
+                }),
+                str.end ());
+    if (str.size() > 0) {
+        str = " " + str + " ";
+        std::istringstream ss(str);
+        std::string token;
+        while (ss >> token) {
+            try {
+                int_array.insert(static_cast<int64_t>(std::stol(token)));
+            } catch(const std::exception& ex) {
+                int_array.clear();
+                GPU_DEBUG_COUT << "OV_GPU_DumpMemoryPoolIters was ignored. It cannot be parsed to integer array." << std::endl;
+                break;
+            }
+        }
+    }
+    return int_array;
+}
+
 template<typename T>
 void get_debug_env_var(const std::string &var, T &val, std::vector<std::string> allowed_option_prefixes) {
     bool found = false;
@@ -148,9 +174,9 @@ static void print_help_messages() {
     message_list.emplace_back("OV_GPU_DisableDynamicImpl", "Disable dynamic implementation");
     message_list.emplace_back("OV_GPU_DisableRuntimeBufferFusing", "Disable runtime buffer fusing");
     message_list.emplace_back("OV_GPU_DisableMemoryReuse", "Disable memory reuse");
-    message_list.emplace_back("OV_GPU_DumpRuntimeMemoryPool", "Dump memory pool contents of each iteration");
-    message_list.emplace_back("OV_GPU_DumpRuntimeMemoryPoolIters", "List of iteration's memory pool status");
-    message_list.emplace_back("OV_GPU_DumpRuntimeMemoryPoolPath", "Enable dumping memory pool status to csv file and set the dest path");
+    message_list.emplace_back("OV_GPU_DumpMemoryPool", "Dump memory pool contents of each iteration");
+    message_list.emplace_back("OV_GPU_DumpMemoryPoolIters", "List of iterations to dump memory pool status, separated by space.");
+    message_list.emplace_back("OV_GPU_DumpMemoryPoolPath", "Enable dumping memory pool status to csv file and set the dest path");
     message_list.emplace_back("OV_GPU_DisableBuildTimeWeightReorderForDynamicNodes", "Disable build time weight reorder for dynmaic nodes.");
     message_list.emplace_back("OV_GPU_DisableRuntimeSkipReorder", "Disable runtime skip reorder.");
     message_list.emplace_back("OV_GPU_DisablePrimitiveFusing", "Disable primitive fusing");
@@ -201,8 +227,8 @@ debug_configuration::debug_configuration()
         , dump_layers_limit_batch(std::numeric_limits<int>::max())
         , dump_layers_raw(0)
         , dump_layers_binary(0)
-        , dump_runtime_memory_pool(0)
-        , dump_runtime_memory_pool_path(std::string())
+        , dump_memory_pool(0)
+        , dump_memory_pool_path(std::string())
         , base_batch_for_memory_estimation(-1)
         , serialize_compile(0)
         , max_kernels_per_batch(0)
@@ -239,10 +265,10 @@ debug_configuration::debug_configuration()
     std::string dump_prof_data_iter_str;
     get_gpu_debug_env_var("DumpProfilingDataIteration", dump_prof_data_iter_str);
     get_gpu_debug_env_var("DryRunPath", dry_run_path);
-    get_gpu_debug_env_var("DumpRuntimeMemoryPool", dump_runtime_memory_pool);
+    get_gpu_debug_env_var("DumpMemoryPool", dump_memory_pool);
     std::string dump_runtime_memory_pool_iters_str;
-    get_gpu_debug_env_var("DumpRuntimeMemoryPoolIters", dump_runtime_memory_pool_iters_str);
-    get_gpu_debug_env_var("DumpRuntimeMemoryPoolPath", dump_runtime_memory_pool_path);
+    get_gpu_debug_env_var("DumpMemoryPoolIters", dump_runtime_memory_pool_iters_str);
+    get_gpu_debug_env_var("DumpMemoryPoolPath", dump_memory_pool_path);
     get_gpu_debug_env_var("BaseBatchForMemEstimation", base_batch_for_memory_estimation);
     std::string dump_layers_str;
     get_gpu_debug_env_var("DumpLayers", dump_layers_str);
@@ -325,42 +351,11 @@ debug_configuration::debug_configuration()
     }
 
     if (dump_iteration_str.size() > 0) {
-        dump_iteration_str = " " + dump_iteration_str + " ";
-        std::istringstream ss(dump_iteration_str);
-        std::string token;
-        while (ss >> token) {
-            try {
-                dump_iteration.insert(static_cast<int64_t>(std::stol(token)));
-            } catch(const std::exception &) {
-                dump_iteration.clear();
-                GPU_DEBUG_COUT << "OV_GPU_DumpIteration was ignored. It cannot be parsed to integer array." << std::endl;
-                break;
-            }
-        }
+        dump_iteration = parse_int_set(dump_iteration_str);
     }
 
     if (dump_runtime_memory_pool_iters_str.size() > 0) {
-        // eliminate '"' from string to avoid parasing error
-        dump_runtime_memory_pool_iters_str.erase(
-            std::remove_if (dump_runtime_memory_pool_iters_str.begin (), dump_runtime_memory_pool_iters_str.end (), [](char c)
-                 {
-                    return c == '\"';
-                 }),
-                 dump_runtime_memory_pool_iters_str.end ());
-        if (dump_runtime_memory_pool_iters_str.size() > 0) {
-            dump_runtime_memory_pool_iters_str = " " + dump_runtime_memory_pool_iters_str + " ";
-            std::istringstream ss(dump_runtime_memory_pool_iters_str);
-            std::string token;
-            while (ss >> token) {
-                try {
-                    dump_runtime_memory_pool_iters.insert(static_cast<int64_t>(std::stol(token)));
-                } catch(const std::exception& ex) {
-                    dump_runtime_memory_pool_iters.clear();
-                    GPU_DEBUG_COUT << "OV_GPU_DumpRuntimeMemoryPoolIters was ignored. It cannot be parsed to integer array." << std::endl;
-                    break;
-                }
-            }
-        }
+        dump_memory_pool_iters = parse_int_set(dump_runtime_memory_pool_iters_str);
     }
 
     if (mem_preallocation_params_str.size() > 0) {
