@@ -162,7 +162,7 @@ All examples assume ``C = 3``.
             <port id="0" precision="I32">
                 <dim>12</dim>    <!-- batch_axis -->
                 <dim>12/dim>     <!-- C * Product(kernel_size) -->
-                <dim>1296</dim>  <!-- L -->
+                <dim>324</dim>  <!-- L -->
             </port>
         </input>
         <output>
