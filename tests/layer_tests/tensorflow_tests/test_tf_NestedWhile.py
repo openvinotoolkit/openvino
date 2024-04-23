@@ -12,8 +12,8 @@ class TestNestedWhile(CommonTFLayerTest):
 
         g = tf.Graph()
         with g.as_default():
-            x = tf.compat.v1.placeholder(tf.float32, shape=(3, 2))
-            v = tf.constant([1, 2, 3], dtype=tf.int32, shape=[3])
+            x = tf.compat.v1.placeholder(tf.float32, shape=(3, 2)) # emutex FIXME!
+            v = tf.constant([1, 2, 3], dtype=tf.int32, shape=[3]) # emutex FIXME!
             i = tf.constant([0], dtype=tf.int32, shape=[1])
             a_combined = tf.zeros([1, 2], dtype=tf.float32)
             b_combined = tf.zeros([1, 2], dtype=tf.float32)
@@ -26,9 +26,14 @@ class TestNestedWhile(CommonTFLayerTest):
 
             while_condition = lambda x, v, i, a_combined, b_combined: i < v.shape[0]
 
-            tf.while_loop(while_condition, body, [x, v, i, a_combined, b_combined],
+            loop = tf.while_loop(while_condition, body, [x, v, i, a_combined, b_combined],
                           name="while_node")
 
+            tf.math.add(loop[0], 2, name='x_output0')
+            tf.math.add(loop[1], 2, name='x_output1')
+            tf.math.add(loop[2], 2, name='x_output2')
+            tf.math.add(loop[3], 2, name='x_output3')
+            tf.math.add(loop[4], 2, name='x_output4')
         return g, None
 
     def create_nested_while(self):
@@ -64,9 +69,14 @@ class TestNestedWhile(CommonTFLayerTest):
 
             while_condition = lambda x, v, i, a_combined, b_combined: i < v.shape[0]
 
-            tf.while_loop(while_condition, body, [x, v, i, a_combined, b_combined],
+            loop = tf.while_loop(while_condition, body, [x, v, i, a_combined, b_combined],
                           name="while_node")
 
+            tf.math.add(loop[0], 2, name='x_output0')
+            tf.math.add(loop[1], 2, name='x_output1')
+            tf.math.add(loop[2], 2, name='x_output2')
+            tf.math.add(loop[3], 2, name='x_output3')
+            tf.math.add(loop[4], 2, name='x_output4')
         return g, None
 
     @pytest.mark.nightly

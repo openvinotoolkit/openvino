@@ -14,15 +14,6 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 
-namespace {
-void set_node_name(const string& node_name, const shared_ptr<Node>& node, const OutputVector& outputs) {
-    node->set_friendly_name(node_name);
-    for (size_t idx = 0; idx < outputs.size(); ++idx) {
-        set_out_name({node_name + ":" + to_string(idx)}, outputs[idx]);
-    }
-}
-}  // namespace
-
 OutputVector translate_while_op(const NodeContext& node) {
     default_op_checks(node, 1, {"While", "StatelessWhile"});
     auto node_name = node.get_name();
@@ -52,10 +43,7 @@ OutputVector translate_while_op(const NodeContext& node) {
         body_model,
         "[TensorFlow Frontend] Internal error or incorrect input model. Cannot find body graph with name " + body_type);
 
-    auto while_loop = create_loop_for_tf_while(node.get_name(), body_model, cond_model, ov_inputs);
-    set_node_name(node.get_name(), while_loop.second, while_loop.first);
-
-    return while_loop.first;
+    return create_loop_for_tf_while(node.get_name(), body_model, cond_model, ov_inputs);
 }
 
 }  // namespace op

@@ -569,7 +569,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<pass::BlockLSTMReplacer>();
     manager.register_pass<pass::GRUBlockCellReplacer>();
     manager.register_pass<pass::TensorArrayV3Replacer>();
-    manager.register_pass<pass::ConstToResultRemover>();
+    manager.register_pass<pass::UnsupportedConstToResultRemover>();
     manager.register_pass<pass::SwitchMergeResolver>();
     manager.register_pass<ov::pass::UnrollIf>();
     manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();

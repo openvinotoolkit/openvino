@@ -357,8 +357,7 @@ void fuse_loop_cond(std::shared_ptr<LoopCond>& loop_cond,
         merge->output(0).replace(aux_cond_results[0]->input_value(0));
     }
 
-    auto while_loop = create_loop_for_tf_while(node_name, body_model, cond_model, ov_inputs, prior_cond_model);
-    auto loop_outputs = while_loop.first;
+    auto loop_outputs = create_loop_for_tf_while(node_name, body_model, cond_model, ov_inputs, prior_cond_model);
     auto loop_model = std::make_shared<ov::Model>(loop_outputs);
 
     size_t loop_node_output_size = loop_outputs.size();

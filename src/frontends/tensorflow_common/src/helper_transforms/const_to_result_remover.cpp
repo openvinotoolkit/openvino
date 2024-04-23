@@ -15,7 +15,7 @@ namespace frontend {
 namespace tensorflow {
 namespace pass {
 
-bool ConstToResultRemover::run_on_model(const std::shared_ptr<ov::Model>& m) {
+bool UnsupportedConstToResultRemover::run_on_model(const std::shared_ptr<ov::Model>& m) {
     // Note: need to perform this transformation only on the main ov::Model graph
     // no need to apply it for sub-graphs!
     ResultVector results_to_remove;
@@ -23,8 +23,7 @@ bool ConstToResultRemover::run_on_model(const std::shared_ptr<ov::Model>& m) {
     // also, find isolated Constant->Result sub-graphs to remove
     for (const auto& result : m->get_results()) {
         auto unsupported_const = as_type_ptr<UnsupportedConstant>(result->get_input_node_shared_ptr(0));
-        auto const_node = as_type_ptr<v0::Constant>(result->get_input_node_shared_ptr(0));
-        if (unsupported_const || const_node) {
+        if (unsupported_const) {
             results_to_remove.push_back(result);
         }
     }

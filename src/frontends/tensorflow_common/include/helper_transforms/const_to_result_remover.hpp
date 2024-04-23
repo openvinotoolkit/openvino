@@ -15,10 +15,10 @@ namespace pass {
 // It can be case that TensorFlow can remain training artifacts in the form
 // of multiple Constant nodes storing training parameter values
 // We need to remove them because separate sub-graphs can solidly affect performance
-class ConstToResultRemover : public ov::pass::ModelPass {
+class UnsupportedConstToResultRemover : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("ov::frontend::tensorflow::pass::UnsupportedConstToResultRemover");
-    ConstToResultRemover() {}
+    UnsupportedConstToResultRemover() = default;
 
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
