@@ -117,7 +117,7 @@ OpenVINO Python API
 OpenVINO C API
 -----------------------------
 
-* Two new pre-processing APIs for scale and mean have been added
+* Two new pre-processing APIs for scale and mean have been added.
 
 OpenVINO Node.js API
 -----------------------------
