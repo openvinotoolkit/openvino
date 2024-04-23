@@ -15,7 +15,6 @@ _get_node_factory_opset15 = partial(_get_node_factory, "opset15")
 
 # -------------------------------------------- ops ------------------------------------------------
 
-
 @nameable_op
 def scatter_nd_update(
     data: NodeInput,
