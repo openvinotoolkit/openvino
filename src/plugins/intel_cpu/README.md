@@ -24,7 +24,6 @@ CPU Plugin contains the following components:
 * [FakeQuantize insights and optimizations](./docs/fake_quantize.md)
 * [Selective build (Conditional Compilation)](./docs/selective_build.md)
 * [Workaround for python stack size on AMX hosts](./docs/wa_amx_python_sigaltstack.md)
-* [Performance Hint and Threads Scheduling](./docs/performance_hint_and_threads_scheduling.md)
 
 ## See also
 
