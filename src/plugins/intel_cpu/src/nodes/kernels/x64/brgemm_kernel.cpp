@@ -24,7 +24,8 @@ BrgemmKernel::BrgemmKernel(size_t M,
                            size_t ldb,
                            size_t ldc,
                            bool b_transposed,
-                           ov::element::Type inType)
+                           ov::element::Type inType,
+                           bool b_accumulate)
     : M(M),
       K(K),
       N(N),
@@ -32,7 +33,8 @@ BrgemmKernel::BrgemmKernel(size_t M,
       ldb(ldb),
       ldc(ldc),
       b_transposed(b_transposed),
-      inType(inType) {
+      inType(inType),
+      b_accumulate(b_accumulate) {
     // blocking M
     M_blk = matmulOptimalM;
     M_tail = M % M_blk;
@@ -67,7 +69,7 @@ BrgemmKernel::BrgemmKernel(size_t M,
                 auto M_ = m ? M_tail : M < M_blk ? 0 : M_blk;
                 auto N_ = n ? N_tail : N - N_tail;
                 auto K_ = k ? K_tail : K - K % K_blk;
-                auto beta = k && brgCtxs[getBrgIdx(m, 0, n)].K != 0 ? 1.0f : 0.0f;
+                auto beta = (b_accumulate || (k && brgCtxs[getBrgIdx(m, 0, n)].K != 0)) ? 1.0f : 0.0f;
 
                 brgemmCtx.M = M_;
                 brgemmCtx.N = N_;
@@ -156,6 +158,19 @@ void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
                                    nullptr);
     if (status != dnnl_success) {
         THROW_ERROR("cannot be executed due to invalid brgconv params");
+    }
+
+    if (use_amx && b_accumulate) {
+        brgemm_attr_t brgattr;
+        brgattr.max_bs = 1;
+        brgattr.wary_tail_read = false;
+        brgattr.hint_innermost_loop = brgemm_innermost_undef;
+        brgattr.use_uker = true;
+        brgattr.use_interleave_stores = true;
+        brgattr.hint_prefetching = brgemm_kernel_prefetching_t::brgemm_prf1;
+        if (brgemm_desc_set_attr(&brgDesc, brgattr) != dnnl_success) {
+            THROW_ERROR("cannot be executed due to brgemm_desc_set_attr failed");
+        }
     }
 
     ctx.is_with_amx = use_amx;

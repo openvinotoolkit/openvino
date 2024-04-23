@@ -36,22 +36,17 @@ public:
     void createPrimitive() override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    enum KernelTypes { KT_REF, KT_ONEDNN, KT_MLAS};
-
 private:
     void gatherConcatPastkvForPagedAttn(const std::vector<MemoryPtr>& inputs);
     ov::element::Type getRuntimePrecision() const override;
 
     struct Executor {
-        virtual void execute(dnnl::stream strm, const std::vector<MemoryPtr>& inputs, const MemoryPtr output) = 0;
+        virtual void execute(const std::vector<MemoryPtr>& inputs, const MemoryPtr output) = 0;
     };
 
     std::shared_ptr<Executor> m_executor;
-    template <KernelTypes KType, typename T> struct AttentionExecutor;
+    template <typename T> struct AttentionExecutor;
     friend struct PagedAttentionKey;
-
-    std::shared_ptr<VariableStateKVcache> m_k_state;
-    std::shared_ptr<VariableStateKVcache> m_v_state;
 
     // PagedAttention input index
     static const size_t ID_Q = 0;
