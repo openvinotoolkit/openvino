@@ -47,8 +47,8 @@ if __name__ == '__main__':
     # Needed to run a step after for statistics
     with open(file=os.environ['GITHUB_ENV'],
               mode='a') as fh:
-        fh.write('PIPELINE_RETRIGGERED=true')
-        fh.write(f'FOUND_ERROR_TICKET=123456')
+        fh.write('PIPELINE_RETRIGGERED=true\n')
+        fh.write(f'FOUND_ERROR_TICKET=123456\n')
 
     with open(file=os.environ['GITHUB_ENV'],
               mode='r') as fh:
