@@ -283,29 +283,72 @@ void Snippet::initSupportedPrimitiveDescriptors() {
 }
 
 void Snippet::selectOptimalPrimitiveDescriptor() {
-    auto fun = [](const ov::intel_cpu::MemoryDescPtr& curDesc,
-                  const ov::intel_cpu::MemoryDescPtr& parentDesc,
-                  const size_t& descInConfSize) {
-        if (curDesc->getPrecision() == parentDesc->getPrecision() && descInConfSize >= 3u) {
-            auto& curShape = curDesc->getShape();
-            auto& parentShape = parentDesc->getShape();
-            if (curShape.isStatic() && (parentShape == curShape) && parentShape.isStatic()) {
-                auto& curDims = curShape.getDims();
-                size_t num1count = 0;
-                for (size_t i = 0; i < curDims.size(); i++) {
-                    if (curDims[i] == 1u) {
-                        num1count++;
+    // Check if memory desc is in SupportedPrimitiveDescriptors.
+    auto memDescInSupportedPD = [&](const ov::intel_cpu::MemoryDescPtr& parentMemDesc, const size_t& idx) {
+        for (auto& type : getImplPriority()) {
+            for (size_t i = 0; i < getSupportedPrimitiveDescriptors().size(); i++) {
+                const auto& supportedPrimitiveDesc = getSupportedPrimitiveDescriptors()[i];
+                const impl_desc_type supportedType = supportedPrimitiveDesc.getImplementationType();
+                if (supportedType == type) {
+                    const auto& supportedMemDesc = supportedPrimitiveDesc.getConfig().inConfs[idx].getMemDesc();
+                    if (parentMemDesc->getShape().isStatic() &&
+                        parentMemDesc->getShape() == supportedMemDesc->getShape() &&
+                        parentMemDesc->getPrecision() == supportedMemDesc->getPrecision()) {
+                        //
+                        if ((parentMemDesc->hasLayoutType(LayoutType::ncsp) &&
+                             supportedMemDesc->hasLayoutType(LayoutType::ncsp)) ||
+                            (parentMemDesc->hasLayoutType(LayoutType::nspc) &&
+                             supportedMemDesc->hasLayoutType(LayoutType::nspc))) {
+                            return true;
+                        }
                     }
-                }
-                // Check if curDims contains exactly one non-1 element or all 1 elements.
-                if (curDims.size() > 2 && ((num1count == curDims.size() - 1u) || num1count == curDims.size())) {
-                    return true;
                 }
             }
         }
         return false;
     };
-    selectPreferPrimitiveDescriptor(getImplPriority(), true, fun);
+
+    if (getParentEdges().size() == 3u) {
+        auto check_special_shape = [](const ov::intel_cpu::Shape& shape) {
+            // SShape=[1,?,1,1]
+            if (shape.isStatic()) {
+                const auto& dims = shape.getDims();
+                if (dims.size() == 4u) {
+                    return dims[0] == 1u && dims[1] > 1u && dims[2] == 1u && dims[3] == 1u;
+                }
+            }
+            return false;
+        };
+
+        bool foundOptimalPD = true;
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
+            auto parentEdge = getParentEdgeAt(i);
+            auto parentPtr = parentEdge->getParent();
+            auto parent_spd = parentPtr->getSelectedPrimitiveDescriptor();
+            auto parentDesc = parent_spd->getConfig().outConfs[0].getMemDesc();
+            if (i == 0u || i == 2u) {
+                if (!(check_special_shape(parentDesc->getShape()) && parentDesc->hasLayoutType(LayoutType::ncsp) &&
+                      memDescInSupportedPD(parentDesc, i))) {
+                    foundOptimalPD = false;
+                    break;
+                }
+            }
+            if (i == 1u) {
+                if (!((!check_special_shape(parentDesc->getShape())) && parentDesc->hasLayoutType(LayoutType::nspc) &&
+                      memDescInSupportedPD(parentDesc, i))) {
+                    foundOptimalPD = false;
+                    break;
+                }
+            }
+        }
+        if (foundOptimalPD) {
+            selectPrimitiveDescriptorByIndex(1);
+            return;
+        }
+    }
+
+    // fallback
+    selectPreferPrimitiveDescriptor(getImplPriority(), true);
 }
 
 void Snippet::initOptimalPrimitiveDescriptor() {

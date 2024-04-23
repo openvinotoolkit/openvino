@@ -271,7 +271,7 @@ void Node::selectOptimalPrimitiveDescriptor() {
     selectPreferPrimitiveDescriptor(getImplPriority(), false);
 }
 
-void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs, select_pd_callback cb) {
+void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs) {
     for (auto& type : priority) {
         int selectedPrimitive = -1;
         int equalsFormatCount = -1;
@@ -323,10 +323,6 @@ void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& pr
 
                     if (isCompatible) {
                         equalsLocalFormatCount++;
-                    } else if (cb) {
-                        if (cb(curDesc, parentDesc, descInConfSize)) {
-                            equalsLocalFormatCount++;
-                        }
                     }
 
                     DEBUG_LOG(getName(), " pd[", i, "].inConfs[", j, "]"
