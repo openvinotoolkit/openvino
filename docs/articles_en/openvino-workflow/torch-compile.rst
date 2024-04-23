@@ -22,52 +22,24 @@ By default, Torch code runs in eager-mode, but with the use of ``torch.compile``
 How to Use
 ####################
 
-To use ``torch.compile``, you need to add an import statement and define one of the two available backends:
-
-| ``openvino``
-|   With this backend, Torch FX subgraphs are directly converted to OpenVINO representation without any additional PyTorch based tracing/scripting.
-
-| ``openvino_ts``
-|   With this backend, Torch FX subgraphs are first traced/scripted with PyTorch Torchscript, and then converted to OpenVINO representation.
+To use ``torch.compile``, you need to add an import statement and define the ``openvino`` backend.
+This way Torch FX subgraphs will be directly converted to OpenVINO representation without
+any additional PyTorch-based tracing/scripting.
 
 
-.. tab-set::
+.. code-block:: sh
 
-   .. tab-item:: openvino
-      :sync: backend-openvino
+   import openvino.torch
+   ...
+   model = torch.compile(model, backend='openvino')
 
-      .. code-block:: console
+Execution diagram:
 
-         import openvino.torch
-         ...
-         model = torch.compile(model, backend='openvino')
-
-      Execution diagram:
-
-      .. image:: ../_static/images/torch_compile_backend_openvino.svg
-         :width: 992px
-         :height: 720px
-         :scale: 60%
-         :align: center
-
-   .. tab-item:: openvino_ts
-      :sync: backend-openvino-ts
-
-      .. code-block:: console
-
-         import openvino.torch
-         ...
-         model = torch.compile(model, backend='openvino_ts')
-
-      Execution diagram:
-
-      .. image:: ../_static/images/torch_compile_backend_openvino_ts.svg
-         :width: 1088px
-         :height: 720px
-         :scale: 60%
-         :align: center
-
-
+.. image:: ../_static/images/torch_compile_backend_openvino.svg
+   :width: 992px
+   :height: 720px
+   :scale: 60%
+   :align: center
 
 Options
 ++++++++++++++++++++
