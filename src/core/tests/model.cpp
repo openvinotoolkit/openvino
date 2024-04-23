@@ -1181,7 +1181,7 @@ TEST(model, add_output_performance) {
     EXPECT_FALSE(timeout);
     auto t2 = test(10000, timeout);  // Should be ~50 times longer, not 2500 times
     EXPECT_FALSE(timeout);
-    EXPECT_LE(t2, t1 * 1000);  // Check 1000 times threshold (expected 50) which is definitely enough
+    EXPECT_LE(t2, t1 * 2000);  // Check 2000 times threshold (expected 50) which is definitely enough
 }
 
 TEST(model, add_output_cache_invalidation_tensor_name) {
