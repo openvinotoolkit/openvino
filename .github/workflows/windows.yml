@@ -322,7 +322,7 @@ jobs:
           python3 -m pip install --ignore-installed PyYAML -r ${{ env.INSTALL_TEST_DIR }}/smoke_tests/requirements.txt "$ovCoreWheelPath"
           . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           $Env:PYTHONCOERCECLOCALE="warn"
-          python3 -bb -W error -X dev -X warn_default_encoding -m pytest ${{ env.INSTALL_TEST_DIR }}/smoke_tests --numprocesses logical --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-SamplesSmokeTests.xml
+          python3 -bb -W error -X dev -X warn_default_encoding -m pytest ${{ env.INSTALL_TEST_DIR }}/smoke_tests --numprocesses auto
         env:
           IE_APP_PATH: ${{ env.INSTALL_DIR }}/samples_bin
           IE_APP_PYTHON_PATH: ${{ env.INSTALL_DIR }}/samples/python
@@ -339,14 +339,6 @@ jobs:
       - name: Build c samples (bat)
         run: |
           & ${{ env.SAMPLES_INSTALL_DIR }}/c/build_samples_msvc.bat -i ${{ env.INSTALL_DIR }}/samples_bat -b ${{ env.BUILD_DIR }}/c_samples_bat
-
-      - name: Upload Test Results
-        uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
-        with:
-          name: test-results-samples
-          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
-          if-no-files-found: 'error'
 
   JS_API:
     name: JS API
@@ -395,88 +387,16 @@ jobs:
   Openvino_tokenizers:
     name: OpenVINO tokenizers extension
     needs: [ Build, Smart_CI ]
-    timeout-minutes: 25
-    defaults:
-      run:
-        shell: pwsh
-    runs-on: aks-win-4-cores-8gb
-    env:
-      INSTALL_DIR: "${{ github.workspace }}\\install"
-      OPENVINO_TOKENIZERS_REPO: "${{ github.workspace }}\\openvino_tokenizers"
-      EXTENSION_BUILD_DIR: "${{ github.workspace }}\\build\\openvino_tokenizers"
+    uses: ./.github/workflows/job_tokenizers.yml
+    with:
+      runner: 'aks-win-4-cores-8gb'
+      shell: pwsh
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
     if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
-
-    steps:
-      - name: checkout action
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            .github/actions/setup_python
-
-      - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: ./.github/actions/setup_python
-        with:
-          version: ${{ env.PYTHON_VERSION }}
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
-          self-hosted-runner: 'true'
-          show-cache-info: 'false'
-
-      - name: Clone OpenVINO Tokenizers
-        uses: actions/checkout@v4
-        with:
-          repository: 'openvinotoolkit/openvino_tokenizers'
-          path: ${{ env.OPENVINO_TOKENIZERS_REPO }}
-          ref: 'master'
-
-      - name: Download OpenVINO package
-        uses: actions/download-artifact@v4
-        with:
-          name: openvino_package
-          path: ${{ env.INSTALL_DIR }}
-
-      - name: Extract OpenVINO packages
-        run: |
-          pushd ${{ env.INSTALL_DIR }}
-            Expand-Archive openvino_package.zip -DestinationPath "${{ env.INSTALL_DIR }}"
-          popd
-
-      #
-      # Dependencies
-      #
-
-      - name: Install python dependencies
-        run: |
-          # wheel packaging
-          python3 -m pip install -r ${env:OPENVINO_TOKENIZERS_REPO}/requirements-build.txt
-
-      #
-      # Build
-      #
-
-      - name: Build tokenizers wheel
-        run: |
-          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
-          python3 -m build --wheel --outdir ${env:EXTENSION_BUILD_DIR} ${env:OPENVINO_TOKENIZERS_REPO}
-        env:
-          CMAKE_ARGS: '-DBUILD_FAST_TOKENIZERS=OFF'
-          CMAKE_BUILD_PARALLEL_LEVEL: '4'
-
-      #
-      # Upload build artifacts
-      #
-
-      - name: Upload openvino tokenizers wheel
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: openvino_tokenizers_wheel
-          path: ${{ env.EXTENSION_BUILD_DIR }}/*.whl
-          if-no-files-found: 'error'
 
   Python_Unit_Tests:
     name: Python unit tests
-    needs: [ Build, Smart_CI, Openvino_tokenizers ]
+    needs: [ Build, Smart_CI ]
     timeout-minutes: 75
     defaults:
       run:
@@ -484,7 +404,6 @@ jobs:
     runs-on: aks-win-8-cores-16gb
     env:
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
-      OPENVINO_CONTRIB_REPO: "${{ github.workspace }}\\openvino_contrib"
       INSTALL_DIR: "${{ github.workspace }}\\install"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
       LAYER_TESTS_INSTALL_DIR: "${{ github.workspace }}\\install\\tests\\layer_tests"
@@ -495,12 +414,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: openvino_package
-          path: ${{ env.INSTALL_DIR }}
-
-      - name: Download OpenVINO tokenizers extension
-        uses: actions/download-artifact@v4
-        with:
-          name: openvino_tokenizers_wheel
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
@@ -538,10 +451,6 @@ jobs:
         run: |
           # Find and install the core OV wheel
           $ovCoreWheelPath=Get-ChildItem -Path "${{ env.INSTALL_DIR }}\tools" -Filter openvino-*.whl | % { $_.FullName }
-          python3 -m pip install "$ovCoreWheelPath"
-
-          # Find and install the core OV Tokenizers wheel
-          $ovCoreWheelPath=Get-ChildItem -Path "${{ env.INSTALL_DIR }}" -Filter openvino_tokenizers-*.whl | % { $_.FullName }
           python3 -m pip install "$ovCoreWheelPath"
 
           # Find and install the dev OV wheel
@@ -599,42 +508,6 @@ jobs:
           :: requires 'unit_tests' from 'tools/mo'
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\mo;%PYTHONPATH%
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/onnx_tests -n logical -m "not launch_only_if_manually_specified and precommit" --junitxml=${INSTALL_TEST_DIR}/TEST-onnx.xml
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP16
-
-      - name: TensorFlow 1 Layer Tests - TF FE
-        if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
-        shell: cmd
-        run: |
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/ -n logical -m precommit  --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_fe.xml
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP16
-
-      - name: TensorFlow 2 Layer Tests - TF FE
-        if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
-        shell: cmd
-        run: |
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/ -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_fe.xml
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP16
-
-      - name: TensorFlow 1 Layer Tests - Legacy FE
-        if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
-        shell: cmd
-        run: |
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/test_tf_Roll.py --use_legacy_frontend --ir_version=10  --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_Roll.xml
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP16
-
-      - name: TensorFlow 2 Layer Tests - Legacy FE
-        if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
-        shell: cmd
-        run: |
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/test_tf2_keras_activation.py --use_legacy_frontend --ir_version=11 --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_Activation.xml -k "sigmoid"
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -702,6 +575,15 @@ jobs:
           name: test-results-python
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
           if-no-files-found: 'error'
+
+  TensorFlow_Layer_Tests:
+    name: TensorFlow Layer Tests
+    needs: [ Build, Smart_CI, Openvino_tokenizers ]
+    uses: ./.github/workflows/job_tensorflow_layer_tests.yml
+    with:
+      runner: 'aks-win-8-cores-16gb'
+      shell: pwsh
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
 
   CXX_Unit_Tests:
     name: C++ unit tests
@@ -994,7 +876,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_windows
-    needs: [ Smart_CI, Build, Samples, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests, Openvino_tokenizers ]
+    needs: [ Smart_CI, Build, Samples, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests, Openvino_tokenizers, TensorFlow_Layer_Tests ]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

@@ -25,6 +25,7 @@ def convert_promote_types(
     promote_unsafe: bool = False,
     pytorch_scalar_promotion: bool = False,
     u64_integer_promotion_target: Union[str, Type] = "f32",
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node performing conversion to common type based on promotion rules.
 
@@ -33,10 +34,11 @@ def convert_promote_types(
     :param promote_unsafe: Bool attribute whether to allow promotions that might result in bit-widening, precision loss and undefined behaviors.
     :param pytorch_scalar_promotion: Bool attribute whether to promote scalar input to type provided by non-scalar input when number format is matching.
     :param u64_integer_promotion_target: Element type attribute to select promotion result when inputs are u64 and signed integer.
+    :param name: Optional name for the new output node.
 
     :return: The new node performing ConvertPromoteTypes operation.
     """
-    inputs = as_nodes(left_node, right_node)
+    inputs = as_nodes(left_node, right_node, name=name)
 
     attributes = {
         "promote_unsafe": promote_unsafe,
@@ -50,15 +52,17 @@ def convert_promote_types(
 def inverse(
     data: NodeInput,
     adjoint: bool = False,
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node with inverse matrices of the input.
 
     :param data: Tensor with matrices to invert. Last two dimensions must be of the same size.
     :param adjoint: Whether to return adjoint instead of inverse matrices. Defaults to false.
+    :param name: Optional name for the new output node.
 
     :return: The new node performing Inverse operation.
     """
-    inputs = as_nodes(data)
+    inputs = as_nodes(data, name=name)
 
     attributes = {
         "adjoint": adjoint,
@@ -107,7 +111,7 @@ def max_pool(
         auto_pad = "explicit"
     return _get_node_factory_opset14().create(
         "MaxPool",
-        [as_node(data)],
+        [as_node(data, name=name)],
         {
             "strides": strides,
             "dilations": dilations,
@@ -154,7 +158,7 @@ def avg_pool(
         auto_pad = "explicit"
     return _get_node_factory_opset14().create(
         "AvgPool",
-        [as_node(data_batch)],
+        [as_node(data_batch, name=name)],
         {
             "strides": strides,
             "pads_begin": pads_begin,
