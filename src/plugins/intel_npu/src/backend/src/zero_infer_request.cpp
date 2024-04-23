@@ -15,6 +15,8 @@ using namespace intel_npu;
 
 namespace {
 
+constexpr std::size_t BATCH_AXIS = 0;
+
 /**
  * @brief Checks that the metadata of the provided descriptor corresponds to the values registered in the Level Zero
  * structure.
@@ -22,9 +24,9 @@ namespace {
  * @param zeDescriptor The Level Zero specific structure used for comparison.
  * @param name Tensor identifier used for error logging.
  */
-void check_level_zero_attributes_match(const IONodeDescriptor& nodeDescriptor,
-                                       const ZeroExecutor::ArgumentDescriptor& zeDescriptor,
-                                       const std::string& name) {
+void checkLevelZeroAttributesMatch(const IONodeDescriptor& nodeDescriptor,
+                                   const ZeroExecutor::ArgumentDescriptor& zeDescriptor,
+                                   const std::string& name) {
     const ov::element::Type_t ovPrecision = nodeDescriptor.precision;
     const ze_graph_argument_precision_t zePrecision = zeDescriptor.info.devicePrecision;
 
@@ -32,7 +34,7 @@ void check_level_zero_attributes_match(const IONodeDescriptor& nodeDescriptor,
         OPENVINO_THROW("Precision mismatch for parameter " + name);
     }
 
-    const std::vector<size_t>& ovDimensions = nodeDescriptor.originalShape.get_max_shape();
+    const std::vector<size_t>& ovDimensions = nodeDescriptor.transposedShape.get_max_shape();
 
     if (ovDimensions.size() > ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE) {
         OPENVINO_THROW(
@@ -45,10 +47,18 @@ void check_level_zero_attributes_match(const IONodeDescriptor& nodeDescriptor,
             OPENVINO_THROW("Shape mismatch for parameter " + name);
         }
     }
+
+    for (size_t index = 1; index < ovDimensions.size(); ++index) {
+        if (ovDimensions[index] != zeDescriptor.info.dims[index] && !nodeDescriptor.transposedShape.is_dynamic()) {
+            OPENVINO_THROW("Shape mismatch for parameter " + name);
+        }
+    }
 }
 
-size_t get_batch_size_for_node(const IONodeDescriptor& nodeDescriptor,
-                               const ZeroExecutor::ArgumentDescriptor& zeDescriptor) {
+std::optional<size_t> getBatchSizeForNode(const IONodeDescriptor& nodeDescriptor,
+                                          const ZeroExecutor::ArgumentDescriptor& zeDescriptor) {
+    Logger logger("GetBatchSizeForNode", Logger::global().level());
+
     const std::vector<size_t>& ovDimensions = nodeDescriptor.originalShape.get_shape();
     switch (zeDescriptor.info.deviceLayout) {
     case ZE_GRAPH_ARGUMENT_LAYOUT_NCHW:
@@ -56,43 +66,67 @@ size_t get_batch_size_for_node(const IONodeDescriptor& nodeDescriptor,
     case ZE_GRAPH_ARGUMENT_LAYOUT_NCDHW:
     case ZE_GRAPH_ARGUMENT_LAYOUT_NDHWC:
     case ZE_GRAPH_ARGUMENT_LAYOUT_NC:
-        if ((ovDimensions[0] == zeDescriptor.info.dims[0]) && (ovDimensions[0] != 1)) {
-            OPENVINO_THROW("Batching on the plugin is not used, batching is handled by the compiler");
+        if ((ovDimensions[BATCH_AXIS] == zeDescriptor.info.dims[BATCH_AXIS]) &&
+            (ovDimensions[BATCH_AXIS] != DEFAULT_BATCH_SIZE)) {
+            logger.info("Batching on the plugin is not used, batching is handled by the compiler");
+            return std::nullopt;
         } else {
-            return ovDimensions[0];
+            return ovDimensions[BATCH_AXIS];
         }
         break;
     default:
-        OPENVINO_THROW("Batching on the plugin is working only when batching is found on 0th dimension");
+        logger.info("Batching on the plugin is working only when batching is found on 0th dimension");
+        return std::nullopt;
     }
 
-    return 1;
+    return DEFAULT_BATCH_SIZE;
 }
 
-std::optional<size_t> get_batch_size(
+/**
+ * @brief Get the batch size to be handled on the plugin.
+ * @details Analyze the shape from the compiled model with the shape from the originalShape and get the originalShape if
+ * it is different.
+ * @param metadata A map to represent descriptions for inputs and outputs of a network.
+ * @param executorInputDescriptors A map to represent Level zero inputs descriptors.
+ * @param executorOutputDescriptors A map to represent Level zero outputs descriptors.
+ */
+
+std::optional<size_t> getBatchSize(
     const NetworkMetadata& metadata,
     const std::unordered_map<std::string, ZeroExecutor::ArgumentDescriptor>& executorInputDescriptors,
     const std::unordered_map<std::string, ZeroExecutor::ArgumentDescriptor>& executorOutputDescriptors) {
     std::set<size_t> batch_size;
 
+    Logger logger("getBatchSize", Logger::global().level());
+
     for (const std::string& inputName : metadata.inputNames) {
-        if (!executorInputDescriptors.count(inputName)) {
-            OPENVINO_THROW("Invalid graph input descriptor key: " + inputName);
+        auto batchSizeForNode =
+            getBatchSizeForNode(metadata.parameters.at(inputName), executorInputDescriptors.at(inputName));
+
+        if (batchSizeForNode.has_value()) {
+            batch_size.insert(*batchSizeForNode);
+        } else {
+            return std::nullopt;
         }
-        batch_size.insert(
-            get_batch_size_for_node(metadata.parameters.at(inputName), executorInputDescriptors.at(inputName)));
     }
 
     for (const std::string& outputName : metadata.outputNames) {
         if (!executorOutputDescriptors.count(outputName)) {
             OPENVINO_THROW("Invalid graph output descriptor key: " + outputName);
         }
-        batch_size.insert(
-            get_batch_size_for_node(metadata.results.at(outputName), executorOutputDescriptors.at(outputName)));
+        auto batchSizeForNode =
+            getBatchSizeForNode(metadata.results.at(outputName), executorOutputDescriptors.at(outputName));
+
+        if (batchSizeForNode.has_value()) {
+            batch_size.insert(*batchSizeForNode);
+        } else {
+            return std::nullopt;
+        }
     }
 
     if (batch_size.size() != 1) {
-        OPENVINO_THROW("Batching on the plugin is working only when have same value for all tensors!");
+        logger.info("Batching works only when we have the same batch size for all tensors!");
+        return std::nullopt;
     }
 
     auto it = batch_size.begin();
@@ -142,25 +176,29 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
     auto allocator = zeroMemory::HostMemAllocator(backendPtr);
 
-    if (config.get<BATCH_MODE>() != ov::intel_npu::BatchMode::COMPILER) {
-        try {
-            auto batchSize = get_batch_size(_metadata, executorInputDescriptors, executorOutputDescriptors);
-
-            if (batchSize.has_value()) {
-                _batchSize = *batchSize;
-            }
-        } catch (const std::exception& ex) {
-            _logger.info("Got an error when checking the batch size: \n%s", ex.what());
-        }
-    }
-
     for (const std::string& inputName : _metadata.inputNames) {
         if (!executorInputDescriptors.count(inputName)) {
             OPENVINO_THROW("Invalid graph input descriptor key: " + inputName);
         }
+    }
 
+    for (const std::string& outputName : _metadata.outputNames) {
+        if (!executorOutputDescriptors.count(outputName)) {
+            OPENVINO_THROW("Invalid graph output descriptor key: " + outputName);
+        }
+    }
+
+    if (config.get<BATCH_MODE>() != ov::intel_npu::BatchMode::COMPILER) {
+        auto batchSize = getBatchSize(_metadata, executorInputDescriptors, executorOutputDescriptors);
+
+        if (batchSize.has_value()) {
+            _batchSize = *batchSize;
+        }
+    }
+
+    for (const std::string& inputName : _metadata.inputNames) {
         IONodeDescriptor& parameterDescriptor = _metadata.parameters.at(inputName);
-        check_level_zero_attributes_match(parameterDescriptor, executorInputDescriptors.at(inputName), inputName);
+        checkLevelZeroAttributesMatch(parameterDescriptor, executorInputDescriptors.at(inputName), inputName);
 
         ov::Allocator inputAllocator;
         if (properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED) {
@@ -171,8 +209,8 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
         // When batching is handled by the plugin we need to modify transposed shape with the original batch size since
         // it will be forced to 1 at the compilation time
-        if (_batchSize > 1) {
-            parameterDescriptor.transposedShape[0] = _batchSize;
+        if (_batchSize > DEFAULT_BATCH_SIZE) {
+            parameterDescriptor.transposedShape[BATCH_AXIS] = _batchSize;
         }
 
         // The I/O buffers already allocated using the Level Zero API are being reused here
@@ -182,26 +220,22 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
             const std::string shapeBufferName = SHAPE_TENSOR_PREFIX + inputName;
             const IONodeDescriptor& shapeDescriptor = _metadata.shapes.at(inputName);
 
-            check_level_zero_attributes_match(shapeDescriptor,
-                                              executorInputDescriptors.at(shapeBufferName),
-                                              shapeBufferName);
+            checkLevelZeroAttributesMatch(shapeDescriptor,
+                                          executorInputDescriptors.at(shapeBufferName),
+                                          shapeBufferName);
 
             allocate_tensor(inputName, shapeDescriptor, TensorType::Shape, inputAllocator);
         }
     }
 
     for (const std::string& outputName : _metadata.outputNames) {
-        if (!executorOutputDescriptors.count(outputName)) {
-            OPENVINO_THROW("Invalid graph output descriptor key: " + outputName);
-        }
-
         IONodeDescriptor& resultDescriptor = _metadata.results.at(outputName);
-        check_level_zero_attributes_match(resultDescriptor, executorOutputDescriptors.at(outputName), outputName);
+        checkLevelZeroAttributesMatch(resultDescriptor, executorOutputDescriptors.at(outputName), outputName);
 
         // When batching is handled by the plugin we need to modify transposed shape with the original batch size since
         // it will be forced to 1 at the compilation time
-        if (_batchSize > 1) {
-            resultDescriptor.transposedShape[0] = _batchSize;
+        if (_batchSize > DEFAULT_BATCH_SIZE) {
+            resultDescriptor.transposedShape[BATCH_AXIS] = _batchSize;
         }
 
         allocate_tensor(outputName, resultDescriptor, TensorType::InputOrOutput, allocator);
@@ -212,9 +246,9 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
                 const std::string shapeBufferName = SHAPE_TENSOR_PREFIX + shapeNameMatch->second;
                 const IONodeDescriptor& shapeDescriptor = _metadata.shapes.at(shapeNameMatch->second);
 
-                check_level_zero_attributes_match(shapeDescriptor,
-                                                  executorOutputDescriptors.at(shapeBufferName),
-                                                  shapeBufferName);
+                checkLevelZeroAttributesMatch(shapeDescriptor,
+                                              executorOutputDescriptors.at(shapeBufferName),
+                                              shapeBufferName);
 
                 allocate_tensor(shapeNameMatch->second, shapeDescriptor, TensorType::Shape, allocator);
             }
@@ -233,12 +267,12 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
         }
 
         const IONodeDescriptor& stateDescriptor = _metadata.states.at(stateName);
-        check_level_zero_attributes_match(stateDescriptor,
-                                          executorInputDescriptors.at(stateInputBufferName),
-                                          stateInputBufferName);
-        check_level_zero_attributes_match(stateDescriptor,
-                                          executorOutputDescriptors.at(stateOutputBufferName),
-                                          stateOutputBufferName);
+        checkLevelZeroAttributesMatch(stateDescriptor,
+                                      executorInputDescriptors.at(stateInputBufferName),
+                                      stateInputBufferName);
+        checkLevelZeroAttributesMatch(stateDescriptor,
+                                      executorOutputDescriptors.at(stateOutputBufferName),
+                                      stateOutputBufferName);
 
         // Only one buffer per state variable is required, we'll use the "output" one since this one captures the latest
         // tensor value

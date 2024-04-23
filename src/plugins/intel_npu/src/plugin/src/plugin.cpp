@@ -37,7 +37,7 @@ const char* NPU_PLUGIN_LIB_NAME = "openvino_intel_npu_plugin";
  * @param resultDescriptors Describes the output nodes.
  * @param inputNames The names of the inputs registered in the order given by the model.
  * @param outputNames The names of the outputs registered in the order given by the model.
- * @param config
+ * @param isBatchingSupported Newer driver versions support batching mode on the plugin.
  */
 std::shared_ptr<ov::Model> create_dummy_model(const IONodeDescriptorMap& parameterDescriptors,
                                               const IONodeDescriptorMap& resultDescriptors,
@@ -95,10 +95,19 @@ std::shared_ptr<ov::Model> create_dummy_model(const IONodeDescriptorMap& paramet
     return std::make_shared<ov::Model>(results, parameters);
 }
 
+/**
+ * @brief Setting batching mode
+ * @details  In the case of older drivers or discrete platforms, we force batching to compiler mode since it is not
+ * supported. Othwersie set it tu AUTO if this wasn't set by the user
+ * @param isBatchingSupported  Newer driver versions support batching mode on the plugin.
+ * @param config A configuration map.
+ */
 void set_batch_config(bool isBatchingSupported, Config& config) {
     if (!isBatchingSupported || config.get<PLATFORM>() == ov::intel_npu::Platform::NPU3700) {
-        if (config.has<BATCH_MODE>() && config.get<BATCH_MODE>() == ov::intel_npu::BatchMode::PLUGIN) {
-            OPENVINO_THROW("Batching on plugin is not supported with this driver version");
+        if (config.has<BATCH_MODE>()) {
+            if (config.get<BATCH_MODE>() == ov::intel_npu::BatchMode::PLUGIN) {
+                OPENVINO_THROW("Batching on plugin is not supported with this driver version");
+            }
         }
 
         std::stringstream strStream;
@@ -525,13 +534,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto device = _backends->getDevice(localConfig.get<DEVICE_ID>());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
 
-    auto isBatchingSupported = _backends->isBatchingSupported();
-    set_batch_config(isBatchingSupported, localConfig);
+    set_batch_config(_backends->isBatchingSupported(), localConfig);
 
-    if (model->get_variables().size()) {
+    if (!model->get_variables().empty()) {
         if (localConfig.get<BATCH_MODE>() == ov::intel_npu::BatchMode::PLUGIN) {
-            OPENVINO_THROW("This model does not support handling batching on the plugin");
+            OPENVINO_THROW("This model contains states, thus it is not supported when handling batching on the plugin");
         }
+
+        _logger.info("The batching will be handled by the compiler due to states found inside the IR");
 
         std::stringstream strStream;
         strStream << ov::intel_npu::BatchMode::COMPILER;
@@ -619,8 +629,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
     auto device = _backends->getDevice(localConfig.get<DEVICE_ID>());
 
-    auto isBatchingSupported = _backends->isBatchingSupported();
-    set_batch_config(isBatchingSupported, localConfig);
+    set_batch_config(_backends->isBatchingSupported(), localConfig);
 
     Logger logger("NPUPlugin", localConfig.get<LOG_LEVEL>());
 
@@ -646,8 +655,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         auto meta = compiler->parse(blob, localConfig);
         meta.name = "net" + std::to_string(_compiledModelLoadCounter++);
 
-        const std::shared_ptr<ov::Model> modelDummy =
-            create_dummy_model(meta.parameters, meta.results, meta.inputNames, meta.outputNames, isBatchingSupported);
+        const std::shared_ptr<ov::Model> modelDummy = create_dummy_model(meta.parameters,
+                                                                         meta.results,
+                                                                         meta.inputNames,
+                                                                         meta.outputNames,
+                                                                         _backends->isBatchingSupported());
 
         bool profiling = localConfig.get<PERF_COUNT>();
 

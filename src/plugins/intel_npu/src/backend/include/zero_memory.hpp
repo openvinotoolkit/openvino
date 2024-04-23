@@ -88,7 +88,7 @@ private:
     static const std::size_t _alignment = STANDARD_PAGE_SIZE;
 };
 
-// Graph arguments (inputs and output) need to be allocated in the host memory.
+// Graph arguments (inputs and outputs) need to be allocated in the host memory.
 // For discrete platforms, graph arguments need to be copied into the device memory.
 // MemoryMangementUnit is used to allocate memory in the device memory.
 // Usage: we should append graph arguments with corresponding names with `appendArgument` call to prepare size

@@ -68,7 +68,7 @@ ov::intel_npu::BatchMode intel_npu::BATCH_MODE::parse(std::string_view val) {
         return ov::intel_npu::BatchMode::PLUGIN;
     }
 
-    OPENVINO_THROW("Value '{0}' is not a valid BATCH_TYPE option", val);
+    OPENVINO_THROW("Value '", val, "'is not a valid BATCH_MODE option");
 }
 
 std::string intel_npu::BATCH_MODE::toString(const ov::intel_npu::BatchMode& val) {

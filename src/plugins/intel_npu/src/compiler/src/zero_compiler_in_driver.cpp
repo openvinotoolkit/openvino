@@ -56,49 +56,6 @@ void checkedMemcpy(void* destination, size_t destinationSize, void const* source
     memcpy(destination, source, numberOfBytes);
 }
 
-ov::element::Type_t toOVElementType(const ze_graph_metadata_type zeElementType) {
-    switch (zeElementType) {
-    case ZE_GRAPH_METADATA_TYPE_UNDEFINED:
-        return ov::element::Type_t::undefined;
-    case ZE_GRAPH_METADATA_TYPE_DYNAMIC:
-        return ov::element::Type_t::dynamic;
-    case ZE_GRAPH_METADATA_TYPE_BOOLEAN:
-        return ov::element::Type_t::boolean;
-    case ZE_GRAPH_METADATA_TYPE_BF16:
-        return ov::element::Type_t::bf16;
-    case ZE_GRAPH_METADATA_TYPE_F16:
-        return ov::element::Type_t::f16;
-    case ZE_GRAPH_METADATA_TYPE_F32:
-        return ov::element::Type_t::f32;
-    case ZE_GRAPH_METADATA_TYPE_F64:
-        return ov::element::Type_t::f64;
-    case ZE_GRAPH_METADATA_TYPE_I4:
-        return ov::element::Type_t::i4;
-    case ZE_GRAPH_METADATA_TYPE_I8:
-        return ov::element::Type_t::i8;
-    case ZE_GRAPH_METADATA_TYPE_I16:
-        return ov::element::Type_t::i16;
-    case ZE_GRAPH_METADATA_TYPE_I32:
-        return ov::element::Type_t::i32;
-    case ZE_GRAPH_METADATA_TYPE_I64:
-        return ov::element::Type_t::i64;
-    case ZE_GRAPH_METADATA_TYPE_U1:
-        return ov::element::Type_t::u1;
-    case ZE_GRAPH_METADATA_TYPE_U4:
-        return ov::element::Type_t::u4;
-    case ZE_GRAPH_METADATA_TYPE_U8:
-        return ov::element::Type_t::u8;
-    case ZE_GRAPH_METADATA_TYPE_U16:
-        return ov::element::Type_t::u16;
-    case ZE_GRAPH_METADATA_TYPE_U32:
-        return ov::element::Type_t::u32;
-    case ZE_GRAPH_METADATA_TYPE_U64:
-        return ov::element::Type_t::u64;
-    default:
-        return ov::element::Type_t::undefined;
-    }
-}
-
 ov::element::Type_t toOVElementType(const ze_graph_argument_precision_t zeElementType) {
     switch (zeElementType) {
     case ZE_GRAPH_ARGUMENT_PRECISION_UNKNOWN:
