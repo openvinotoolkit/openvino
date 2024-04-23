@@ -405,7 +405,7 @@ void Subgraph::init_start_offsets() {
 }
 
 void Subgraph::init_snippets_blocked_shapes(snippets::op::Subgraph::BlockedShapeVector& in_blocked_shapes) const {
-    const auto config = getSelectedPrimitiveDescriptor()->getConfig();
+    const auto& config = getSelectedPrimitiveDescriptor()->getConfig();
 
     in_blocked_shapes.reserve(input_num);
     for (size_t i = 0; i < input_num; i++) {
@@ -515,6 +515,13 @@ uint8_t Subgraph::get_broadcasting_mask(const std::vector<VectorDims>& input_sha
     return mask;
 }
 
+bool Subgraph::need_blocked_shape_infer() const {
+    const auto& inConfs = getSelectedPrimitiveDescriptor()->getConfig().inConfs;
+    return std::any_of(inConfs.cbegin(), inConfs.cend(), [](const PortConfig& conf) {
+        return !conf.getMemDesc()->as<BlockedMemoryDesc>()->hasLayoutType(LayoutType::ncsp);
+    });
+}
+
 void Subgraph::lower() {
     snippets::op::Subgraph::BlockedShapeVector in_blocked_shapes;
     std::vector<ov::element::Type> input_precisions, output_precisions;
@@ -524,6 +531,15 @@ void Subgraph::lower() {
     const auto& subgraph = snippetAttrs->snippet;
 
     subgraph->data_flow_transformations(in_blocked_shapes, input_precisions, output_precisions, get_data_flow_passes());
+
+    // TODO: Snippets don't support backend-provided blocking, so we need to reshape body
+    //       using blocked shapes first. This can be removed after [121670]
+    if (need_blocked_shape_infer()) {
+        std::vector<snippets::VectorDimsRef> in_shapes;
+        for (const auto& s : in_blocked_shapes)
+            in_shapes.emplace_back(s.first);
+        subgraph->shape_infer(in_shapes);
+    }
 
     // Note: minimal JIT work amount is a predefined value that describes the number of kernel iterations (work amount)
     // needed to cover kernel call overhead. It is used for balancing between parallel and JIT work amounts in domain optimization.
