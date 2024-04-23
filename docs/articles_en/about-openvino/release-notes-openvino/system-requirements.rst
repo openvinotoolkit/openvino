@@ -26,7 +26,7 @@ CPU
       * 6th - 14th generation Intel® Core™ processors
       * Intel® Core™ Ultra (codename Meteor Lake)
       * 1st - 5th generation Intel® Xeon® Scalable Processors
-      * ARM and ARM64 CPUs; Apple M1, M2, and Raspberry Pi
+      * ARM CPUs with armv7a and higher, ARM64 CPUs with arm64-v8a and higher, Apple® Mac with Apple silicon
 
    .. tab-item:: Supported Operating Systems
 
@@ -92,10 +92,10 @@ Intel® Neural Processing Unit
 
    .. tab-item:: Additional considerations
 
-      * These Accelerators require :doc:`drivers <../get-started/configurations/configurations-intel-npu>`
+      * These Accelerators require :doc:`drivers <../../get-started/configurations/configurations-intel-npu>`
         that are not included in the Intel® Distribution of OpenVINO™ toolkit package.
       * Users can access the NPU plugin through the OpenVINO archives on
-        the :doc:`download page <../get-started/install-openvino>`.
+        the :doc:`download page <../../get-started/install-openvino>`.
 
 
 Operating systems and developer environment
@@ -206,10 +206,4 @@ For more complete information about compiler optimizations, see our Optimization
 
 Performance varies by use, configuration and other factors. Learn more at
 `www.Intel.com/PerformanceIndex <www.Intel.com/PerformanceIndex>`__.
-
-
-
-
-
-
 
