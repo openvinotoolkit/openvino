@@ -166,7 +166,7 @@ OpenVINO Model Server
   and the
   `String output model demo <https://github.com/openvinotoolkit/model_server/tree/main/demos/image_classification_with_string_output>`__.
 * MediaPipe Python calculators have been updated to support relative paths for all related
-  configuration and python code files. Now, the complete graph configuration folder can be
+  configuration and Python code files. Now, the complete graph configuration folder can be
   deployed in an arbitrary path without any code changes.
 * KServe REST API support has been extended to properly handle the string format in JSON body,
   just like the binary format compatible with NVIDIA Triton™.
