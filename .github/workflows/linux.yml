@@ -114,6 +114,11 @@ jobs:
       # Dependencies
       #
 
+      - name: Step with an error
+        run: |
+          echo "This is a problem related to network connectivity"
+          exit 1
+
       - name: Install build dependencies
         run: |
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
