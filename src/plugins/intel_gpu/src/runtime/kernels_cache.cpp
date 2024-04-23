@@ -89,7 +89,9 @@ size_t kernels_cache::get_max_kernels_per_batch() const {
     GPU_DEBUG_IF(debug_config->max_kernels_per_batch >= 1) {
         return static_cast<size_t>(debug_config->max_kernels_per_batch);
     }
-    return 8;
+    // [TODO] We found a performance issue when multiple kernels are built as a single program.
+    // The below WA code needs to be restored after it is fixed.
+    return _config.get_property(ov::intel_gpu::allow_new_shape_infer) ? 4 : 8;
 }
 
 
