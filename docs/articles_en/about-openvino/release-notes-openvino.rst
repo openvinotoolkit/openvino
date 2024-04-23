@@ -30,7 +30,7 @@ What's new
     on Intel® Core™ Ultra processors with integrated GPU.
   * Support for Falcon-7B-Instruct, a GenAI Large Language Model (LLM) ready-to-use chat/instruct
     model with superior performance metrics.
-  * New Jupyter Notebooks added: Yolo V9, Yolo V8 Oriented Bounding Boxes Detection (OOB), Stable
+  * New Jupyter Notebooks added: YOLO V9, YOLO V8 Oriented Bounding Boxes Detection (OOB), Stable
     Diffusion in Keras, MobileCLIP, RMBG-v1.4 Background Removal, Magika, TripoSR, AnimateAnyone,
     LLaVA-Next, and RAG system with OpenVINO and LangChain.
 
@@ -138,7 +138,7 @@ TensorFlow Framework Support
   (`see the list here, marked as NEW <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/frontends/tensorflow/docs/supported_ops.md>`__).
 * 10 operations have received complex tensor support.
 * Input tensor names for TF1 models have been adjusted to have a single name per input.
-* Hugging Face model support coverage  has increased by 210 models:
+* Hugging Face model support coverage has increased significantly, due to:
 
   * extraction of input signature of a model in memory has been fixed,
   * reading of variable values for a model in memory has been fixed.
@@ -228,7 +228,7 @@ The following notebooks have been updated or newly added:
 
 * `Grounded Segment Anything <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/grounded-segment-anything/grounded-segment-anything.ipynb>`__
 * `Visual Content Search with MobileCLIP <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/mobileclip-video-search/mobileclip-video-search.ipynb>`__
-* `Yolo V8 Oriented Bounding Box Detection Optimization <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/yolov8-optimization/yolov8-obb.ipynb>`__
+* `YOLO V8 Oriented Bounding Box Detection Optimization <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/yolov8-optimization/yolov8-obb.ipynb>`__
 * `Magika: AI-powered fast and efficient file type identification <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/magika-content-type-recognition/magika-content-type-recognition.ipynb>`__
 * `Keras Stable Diffusion <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/stable-diffusion-keras-cv/stable-diffusion-keras-cv.ipynb>`__
 * `RMBG background removal <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/rmbg-background-removal/rmbg-background-removal.ipynb>`__
