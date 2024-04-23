@@ -15,6 +15,7 @@
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "transformations/transformation_pipeline.h"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/util/codec_xor.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "transformations/utils/utils.hpp"
@@ -305,7 +306,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
 }
 
 void CompiledModel::export_model(std::ostream& modelStream) const {
-    ModelSerializer serializer(modelStream);
+    ModelSerializer serializer(modelStream, ov::util::codec_xor);
     serializer << m_model;
 }
 
