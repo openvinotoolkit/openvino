@@ -16,7 +16,6 @@ concurrency:
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
   PYTHON_VERSION: '3.11'
-  OPENVINO_REPO: ${{ github.workspace }}/openvino
 
 jobs:
   Smart_CI:
@@ -108,28 +107,6 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow"
 
     steps:
-      - name: Setup Variables
-        run: |
-          echo "OPENVINO_REPO=$GITHUB_WORKSPACE/openvino" >> "$GITHUB_ENV"
-
-      - name: Clone API snippets
-        if: runner.os != 'macOS'
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: docs/snippets
-          path: ${{ env.OPENVINO_REPO }}
-          submodules: 'false'
-
-      - name: Show cloned
-        run: |
-          ls -la ${{ env.OPENVINO_REPO }}
-
-      - name: Docs Python snippets
-        if: runner.os != 'macOS'
-        run: |
-          python3 ${{ env.OPENVINO_REPO }}/docs/snippets/main.py
-          exit 1
-
       - name: Clone OpenVINO
         uses: actions/checkout@v4
         with:
