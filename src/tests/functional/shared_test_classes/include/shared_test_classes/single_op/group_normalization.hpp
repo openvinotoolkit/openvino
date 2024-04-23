@@ -27,8 +27,8 @@ public:
         std::int64_t num_groups;
         double epsilon;
         TargetDevice targetDevice;
-        Config config;
-        std::tie(netType, inType, outType, shapes, num_groups, epsilon, targetDevice, config) = obj.param;
+        ov::AnyMap additional_config;
+        std::tie(netType, inType, outType, shapes, num_groups, epsilon, targetDevice, additional_config) = obj.param;
 
         std::ostringstream result;
         result << "NetType=" << netType << "_";
@@ -42,6 +42,10 @@ public:
         result << "NumGroups=" << num_groups << "_";
         result << "Epsilon=" << epsilon << "_";
         result << "Device=" << targetDevice;
+        for (auto const& config_item : additional_config) {
+            result << "_config_item=" << config_item.first << "=";
+            config_item.second.print(result);
+        }
 
         return result.str();
     }
@@ -52,8 +56,9 @@ protected:
         ElementType ngPrc;
         std::int64_t num_groups;
         double epsilon;
+        ov::AnyMap additional_config;
 
-        std::tie(ngPrc, inType, outType, shapes, num_groups, epsilon, targetDevice, configuration) = this->GetParam();
+        std::tie(ngPrc, inType, outType, shapes, num_groups, epsilon, targetDevice, additional_config) = this->GetParam();
         InputShape biasInputShape = ExtractBiasShape(shapes);
         init_input_shapes({shapes, biasInputShape, biasInputShape});
         ov::ParameterVector params;
@@ -68,10 +73,13 @@ protected:
             epsilon);
         const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(groupNormalization)};
 
+        abs_threshold = 1e-5;
         // TODO: This workaround is needed as there is no full support for f16 type in the reference implementation
         if (ngPrc == element::Type_t::f16) {
             abs_threshold = 0.007;
         }
+
+        configuration.insert(additional_config.begin(), additional_config.end());
 
         function = std::make_shared<ov::Model>(results, params, "GroupNormalization");
     }

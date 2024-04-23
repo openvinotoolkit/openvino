@@ -56,9 +56,11 @@ ov::Tensor get_compensation(ov::Tensor* w_tensor, ov::Tensor* azp_tensor, ov::Te
                                         + ic * total_spatial_size
                                         + k;
 
-                    c += w[w_offset] * azp[azp_offset];
-                    if (wzp) {
-                        c -= azp[azp_offset] * wzp[wzp_offset];
+                    if (azp) {
+                        c += w[w_offset] * azp[azp_offset];
+                        if (wzp) {
+                            c -= azp[azp_offset] * wzp[wzp_offset];
+                        }
                     }
                 }
             }

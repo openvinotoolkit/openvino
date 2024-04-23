@@ -6,7 +6,6 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -161,7 +160,7 @@ TYPED_TEST_P(BinaryElementwiseCmpTest, argument_shapes_are_inconsistent) {
 
 TYPED_TEST_P(BinaryElementwiseCmpTest, propagate_static_partial_shape_no_broadcast) {
     auto shape = ov::PartialShape{2, 4, 5};
-    set_shape_labels(shape, 3);
+    auto symbols = set_shape_symbols(shape);
     const auto a = make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
     const auto b = make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape({2, 4, 5}));
 
@@ -171,9 +170,9 @@ TYPED_TEST_P(BinaryElementwiseCmpTest, propagate_static_partial_shape_no_broadca
     EXPECT_EQ(op->get_element_type(), ov::element::boolean);
     EXPECT_EQ(op->get_output_partial_shape(0), shape);
     EXPECT_EQ(op->get_shape(), shape.get_shape());
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(3, 4, 5));
-    EXPECT_THAT(get_shape_labels(a->get_output_partial_shape(0)), ElementsAre(3, 4, 5));
-    EXPECT_THAT(get_shape_labels(b->get_output_partial_shape(0)), Each(0));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), ElementsAre(symbols[0], symbols[1], symbols[2]));
+    EXPECT_THAT(get_shape_symbols(a->get_output_partial_shape(0)), ElementsAre(symbols[0], symbols[1], symbols[2]));
+    EXPECT_THAT(get_shape_symbols(b->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TYPED_TEST_P(BinaryElementwiseCmpTest, propagate_static_partial_shape_numpy_broadcast) {
@@ -264,64 +263,74 @@ TYPED_TEST_P(BinaryElementwiseCmpTest, not_allowed_mixed_input_types) {
     ASSERT_ANY_THROW({ this->make_op_with_types(ov::element::boolean, ov::element::i32); });
 }
 
-TYPED_TEST_P(BinaryElementwiseCmpTest, propagate_labels_from_one_input_only_no_broadcast) {
+TYPED_TEST_P(BinaryElementwiseCmpTest, propagate_symbols_from_one_input_only_no_broadcast) {
     constexpr auto et = ov::element::f64;
 
-    auto labeled_shape = ov::PartialShape{2, 4, 5};
-    set_shape_labels(labeled_shape, 3);
-    const auto exp_labels = get_shape_labels(labeled_shape);
+    auto symboled_shape = ov::PartialShape{2, 4, 5};
+    const auto exp_symbols = set_shape_symbols(symboled_shape);
 
-    const auto a = make_shared<ov::op::v0::Parameter>(et, labeled_shape);
+    const auto a = make_shared<ov::op::v0::Parameter>(et, symboled_shape);
     const auto b = make_shared<ov::op::v0::Parameter>(et, ov::PartialShape({2, 4, 5}));
 
-    EXPECT_EQ(get_shape_labels(this->make_op(a, b, ov::op::AutoBroadcastType::NONE)->get_output_partial_shape(0)),
-              exp_labels);
-    EXPECT_EQ(get_shape_labels(this->make_op(b, a, ov::op::AutoBroadcastType::NONE)->get_output_partial_shape(0)),
-              exp_labels);
+    EXPECT_EQ(get_shape_symbols(this->make_op(a, b, ov::op::AutoBroadcastType::NONE)->get_output_partial_shape(0)),
+              exp_symbols);
+    EXPECT_EQ(get_shape_symbols(this->make_op(b, a, ov::op::AutoBroadcastType::NONE)->get_output_partial_shape(0)),
+              exp_symbols);
 }
 
-TYPED_TEST_P(BinaryElementwiseCmpTest, propagate_labels_from_both_inputs_no_broadcast) {
+TYPED_TEST_P(BinaryElementwiseCmpTest, propagate_symbols_from_both_inputs_no_broadcast) {
     constexpr auto et = ov::element::f64;
 
-    const auto labels_a = ov::TensorLabel{10, ov::no_label, 12, 13, 14, 15};
+    auto A = std::make_shared<ov::Symbol>(), B = std::make_shared<ov::Symbol>();
+    auto C = std::make_shared<ov::Symbol>(), D = std::make_shared<ov::Symbol>();
+    auto E = std::make_shared<ov::Symbol>(), F = std::make_shared<ov::Symbol>();
+    auto G = std::make_shared<ov::Symbol>(), H = std::make_shared<ov::Symbol>();
+    auto I = std::make_shared<ov::Symbol>(), J = std::make_shared<ov::Symbol>();
+
+    const auto symbols_a = ov::TensorSymbol{A, nullptr, B, C, D, E};
     auto shape_a = ov::PartialShape{2, 4, 5, -1, {4, 5}, {-1, 6}};
-    set_shape_labels(shape_a, labels_a);
+    set_shape_symbols(shape_a, symbols_a);
     const auto a = make_shared<ov::op::v0::Parameter>(et, shape_a);
 
-    const auto labels_b = ov::TensorLabel{20, 21, ov::no_label, 23, 24, 25};
+    const auto symbols_b = ov::TensorSymbol{F, G, nullptr, H, I, J};
     auto shape_b = ov::PartialShape{2, 4, 5, 5, -1, {4, -1}};
-    set_shape_labels(shape_b, labels_b);
+    set_shape_symbols(shape_b, symbols_b);
     const auto b = make_shared<ov::op::v0::Parameter>(et, shape_b);
 
     EXPECT_THAT(this->make_op(a, b, ov::op::AutoBroadcastType::NONE)->get_output_partial_shape(0),
                 AllOf(Eq(ov::PartialShape({2, 4, 5, 5, {4, 5}, {4, 6}})),
-                      ResultOf(get_shape_labels, ElementsAre(20, 21, 12, 23, 24, 25))));
+                      ResultOf(get_shape_symbols, ElementsAre(A, G, B, C, D, E))));
 
     EXPECT_THAT(this->make_op(b, a, ov::op::AutoBroadcastType::NONE)->get_output_partial_shape(0),
                 AllOf(Eq(ov::PartialShape({2, 4, 5, 5, {4, 5}, {4, 6}})),
-                      ResultOf(get_shape_labels, ElementsAre(10, 21, 12, 13, 14, 15))));
+                      ResultOf(get_shape_symbols, ElementsAre(F, G, B, H, I, J))));
 }
 
-TYPED_TEST_P(BinaryElementwiseCmpTest, propagate_labels_from_both_inputs_numpy_broadcast) {
+TYPED_TEST_P(BinaryElementwiseCmpTest, propagate_symbols_from_both_inputs_numpy_broadcast) {
     constexpr auto et = ov::element::f64;
 
-    const auto labels_a = ov::TensorLabel{10, ov::no_label, 12, 13, ov::no_label, 15};
+    auto A = std::make_shared<ov::Symbol>(), B = std::make_shared<ov::Symbol>();
+    auto C = std::make_shared<ov::Symbol>(), D = std::make_shared<ov::Symbol>();
+    auto E = std::make_shared<ov::Symbol>(), F = std::make_shared<ov::Symbol>();
+    auto G = std::make_shared<ov::Symbol>(), H = std::make_shared<ov::Symbol>();
+
+    const auto symbols_a = ov::TensorSymbol{A, nullptr, B, C, nullptr, D};
     auto shape_a = ov::PartialShape{2, {2, 4}, -1, {4, 5}, {-1, 6}, 1};
-    set_shape_labels(shape_a, labels_a);
+    set_shape_symbols(shape_a, symbols_a);
     const auto a = make_shared<ov::op::v0::Parameter>(et, shape_a);
 
-    const auto labels_b = ov::TensorLabel{20, 21, ov::no_label, 23};
+    const auto symbols_b = ov::TensorSymbol{E, F, nullptr, G};
     auto shape_b = ov::PartialShape{2, {4, -1}, 5, {4, -1}};
-    set_shape_labels(shape_b, labels_b);
+    set_shape_symbols(shape_b, symbols_b);
     const auto b = make_shared<ov::op::v0::Parameter>(et, shape_b);
 
     EXPECT_THAT(this->make_op(a, b, ov::op::AutoBroadcastType::NUMPY)->get_output_partial_shape(0),
                 AllOf(Eq(ov::PartialShape({2, {2, 4}, 2, {4, 5}, 5, {4, -1}})),
-                      ResultOf(get_shape_labels, ElementsAre(10, ov::no_label, 20, 21, ov::no_label, 23))));
+                      ResultOf(get_shape_symbols, ElementsAre(A, nullptr, E, C, nullptr, G))));
 
     EXPECT_THAT(this->make_op(b, a, ov::op::AutoBroadcastType::NUMPY)->get_output_partial_shape(0),
                 AllOf(Eq(ov::PartialShape({2, {2, 4}, 2, {4, 5}, 5, {4, -1}})),
-                      ResultOf(get_shape_labels, ElementsAre(10, ov::no_label, 20, 13, ov::no_label, 23))));
+                      ResultOf(get_shape_symbols, ElementsAre(A, nullptr, E, F, nullptr, G))));
 }
 
 TYPED_TEST_P(BinaryElementwiseCmpTest, use_default_ctor) {
@@ -353,9 +362,9 @@ REGISTER_TYPED_TEST_SUITE_P(BinaryElementwiseCmpTest,
                             propagate_one_input_is_dynamic_rank_shape,
                             allowed_mixed_input_types,
                             not_allowed_mixed_input_types,
-                            propagate_labels_from_one_input_only_no_broadcast,
-                            propagate_labels_from_both_inputs_no_broadcast,
-                            propagate_labels_from_both_inputs_numpy_broadcast,
+                            propagate_symbols_from_one_input_only_no_broadcast,
+                            propagate_symbols_from_both_inputs_no_broadcast,
+                            propagate_symbols_from_both_inputs_numpy_broadcast,
                             use_default_ctor);
 
 using BinaryOpTypes = Types<ov::op::v1::Equal,
@@ -367,13 +376,22 @@ using BinaryOpTypes = Types<ov::op::v1::Equal,
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop, BinaryElementwiseCmpTest, BinaryOpTypes);
 }  // namespace BEC
 
-TEST(type_prop, binary_arithmetic_bad_argument_element_types) {
-    auto tv0_2_4_param_0 = make_shared<ov::op::v0::Parameter>(ov::element::boolean, ov::Shape{2, 4});
-    auto tv0_2_4_param_1 = make_shared<ov::op::v0::Parameter>(ov::element::boolean, ov::Shape{2, 4});
+TEST(type_prop, binary_arithmetic_bool_argument_element_types) {
+    auto param_0 = make_shared<ov::op::v0::Parameter>(ov::element::boolean, ov::Shape{2, 4});
+    auto param_1 = make_shared<ov::op::v0::Parameter>(ov::element::boolean, ov::Shape{2, 4});
 
-    OV_EXPECT_THROW(auto bc = make_shared<ov::op::v1::Add>(tv0_2_4_param_0, tv0_2_4_param_1),
+    OV_EXPECT_THROW(std::ignore = make_shared<ov::op::v1::Add>(param_0, param_1),
                     ov::NodeValidationFailure,
-                    HasSubstr("Arguments cannot have boolean element type"));
+                    HasSubstr("This operation does not support inputs with element type: boolean"));
+}
+
+TEST(type_prop, binary_arithmetic_str_argument_element_types) {
+    auto param_0 = make_shared<ov::op::v0::Parameter>(ov::element::string, ov::Shape{2, 4});
+    auto param_1 = make_shared<ov::op::v0::Parameter>(ov::element::string, ov::Shape{2, 4});
+
+    OV_EXPECT_THROW(std::ignore = make_shared<ov::op::v1::Add>(param_0, param_1),
+                    ov::NodeValidationFailure,
+                    HasSubstr("This operation does not support inputs with element type: string"));
 }
 
 TEST(type_prop, binary_arithmetic_bad_argument_shape_with_none_autobroadcast_attribute) {

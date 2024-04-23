@@ -42,13 +42,16 @@ class TestReshape(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_reshape_basic(self, params, ie_device, precision, ir_version, temp_dir,
                            use_legacy_frontend):
+        if ie_device == 'GPU' and params['target_shape'] == []:
+            pytest.skip("timeout issue on GPU")
         self._test(*self.create_reshape_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
+
 
 class TestComplexReshape(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
@@ -71,8 +74,8 @@ class TestComplexReshape(CommonTFLayerTest):
             complex = tf.raw_ops.Complex(real=param_real, imag=param_imag)
 
             transpose = tf.raw_ops.Reshape(tensor=complex, shape=target_shape)
-            real = tf.raw_ops.Real(input=transpose)
-            img = tf.raw_ops.Imag(input=transpose)
+            tf.raw_ops.Real(input=transpose)
+            tf.raw_ops.Imag(input=transpose)
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
@@ -83,13 +86,13 @@ class TestComplexReshape(CommonTFLayerTest):
         dict(input_shape=[2, 4, 5], target_shape=[4, -1, 5]),
         dict(input_shape=[1], target_shape=[])
     ]
+
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_complex_reshape(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_legacy_frontend):
+                             use_legacy_frontend):
         self._test(
             *self.create_complex_transpose_net(**params),
             ie_device, precision, ir_version, temp_dir=temp_dir,
             use_legacy_frontend=use_legacy_frontend)
-

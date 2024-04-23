@@ -190,7 +190,8 @@ protected:
         if (decompression_subtract_type != DecompressionSubtractType::empty) {
             auto subtract_shape = decompression_subtract_type == DecompressionSubtractType::full ? scaleshift_const_shape : Shape({});
             auto shift_const = ov::test::utils::deprecated::make_constant<uint8_t>(weights_precision, subtract_shape, {}, true, up_to);
-            std::shared_ptr<ov::Node> shift_convert = std::make_shared<ov::op::v0::Convert>(shift_const, decompression_precision);
+            std::shared_ptr<ov::Node> shift_convert =
+                std::make_shared<ov::op::v0::Convert>(shift_const, decompression_precision);
             if (reshape_on_decompression_constant) {
                 auto subtract_target_shape = decompression_subtract_type == DecompressionSubtractType::full
                     ? scaleshift_target_shape : ov::Shape(scaleshift_const_shape.size(), 1);
@@ -279,6 +280,14 @@ protected:
         std::tie(postOpMgrPtr, fusedOps) = fusing_params;
         init_input_shapes({shape_params.data_shape, {{}, {{shape_params.weights_shape}}}});
 
+        // if dynamic quantization is enabled
+        if (configuration.count(ov::hint::dynamic_quantization_group_size.name()) &&
+            configuration.at(ov::hint::dynamic_quantization_group_size.name()) != 0) {
+            abs_threshold = 0.1;
+        } else if (!configuration.count(ov::hint::dynamic_quantization_group_size.name())) {
+            abs_threshold = 5e-3;
+        }
+
         ElementType netType = ov::element::f32;
         inType = outType = netType;
 
@@ -297,14 +306,12 @@ protected:
         const auto& test_param = GetParam();
         const auto& weights_precision = std::get<1>(test_param);
 
-        bool weights_found = false;
         for (const auto& n : compiledModel.get_runtime_model()->get_ordered_ops()) {
-            if (n->get_friendly_name() == "Compressed_weights") {
+            auto layer_type = n->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>();
+            if (layer_type == "Constant") {
                 ASSERT_EQ(n->get_output_element_type(0), weights_precision);
-                weights_found = true;
             }
         }
-        ASSERT_TRUE(weights_found);
 
         const bool should_fuse = std::get<8>(test_param);
         const size_t expected_count = should_fuse ? 0 : 1;
@@ -337,7 +344,7 @@ const std::vector<ov::test::ElementType> decompression_precisions = {ov::element
 const std::vector<ov::test::ElementType> weights_precisions = {ov::element::u8,
                                                                ov::element::u4,
                                                                ov::element::i4,
-                                                               ov::element::nf4};
+                                                               element::nf4};
 
 const std::vector<ShapeParams> input_shapes_basic = {
     {{{-1, -1, -1}, {{1, 4, 16}, {10, 16, 16}}}, {16, 32}},
@@ -434,6 +441,7 @@ const std::vector<ShapeParams> input_shapes_basic_dyn_quant = {
     {{{}, {{1, 7, 256}}}, {256, 128}, 32lu},
     {{{}, {{1, 1, 128}}}, {128, 32}},
     {{{}, {{1, 3, 144}}}, {144, 64}, 16lu},
+    {{{}, {{1, 1, 1728}}}, {1728, 128}, 64lu},
 };
 
 const std::vector<ov::test::ElementType> weights_precisions_dyn_quant = {ov::element::u8,

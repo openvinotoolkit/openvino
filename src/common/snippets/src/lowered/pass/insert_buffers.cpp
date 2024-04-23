@@ -34,12 +34,14 @@ std::vector<size_t> get_buffer_loop_ids(const std::vector<size_t>& lhs, const st
 // TODO: This logic covers only several specific cases so it should be generalized.
 ov::Shape compute_allocation_shape(const LinearIR::LoopManagerPtr& loop_manager,
                                    const std::vector<size_t>& buffer_loop_ids,
-                                   const std::vector<size_t>& parent_loop_ids,
-                                   const ExpressionPort& expr_port,
+                                   const ExpressionPort& parent_expr_output,
                                    const int allocation_rank) {
-    const auto planar_shape = utils::get_preordered_vdims(expr_port);
+    const auto& parent_expr = parent_expr_output.get_expr();
+    const auto& parent_loop_ids = parent_expr->get_loop_ids();
+    const auto planar_shape = utils::get_preordered_vdims(parent_expr_output);
 
-    const size_t rank = allocation_rank >= 0 ? std::min(static_cast<size_t>(allocation_rank), planar_shape.size()) : planar_shape.size();
+    const size_t rank = allocation_rank >= 0 ? std::min(static_cast<size_t>(allocation_rank), planar_shape.size())
+                                             : planar_shape.size();
     ov::Shape allocation_shape(rank);
     for (size_t i = 0; i < rank; ++i) {
         *(allocation_shape.rbegin() + i) = *(planar_shape.rbegin() + i);
@@ -62,7 +64,7 @@ ov::Shape compute_allocation_shape(const LinearIR::LoopManagerPtr& loop_manager,
     // 2. Buffer is inside M_loop_idx loop => allocation shape is not changed
     // 3. Buffer is outside N_loop_idx loop => the corresponding allocation shape value is replaced with N loop work amount
     // So the result allocation shape is [M_blk, N_loop_work_amount]
-    const auto& subtensor =  expr_port.get_descriptor_ptr()->get_subtensor();
+    const auto& subtensor =  parent_expr_output.get_descriptor_ptr()->get_subtensor();
     if (!subtensor.empty()) {
         for (size_t i = 0; i < std::min(rank, subtensor.size()); ++i) {
             auto& cur_val = *(allocation_shape.rbegin() + i);
@@ -75,8 +77,8 @@ ov::Shape compute_allocation_shape(const LinearIR::LoopManagerPtr& loop_manager,
                 const auto& exit_points = loop_info->get_exit_points();
                 auto it = std::find_if(exit_points.begin(),
                                        exit_points.end(),
-                                       [&expr_port](const LinearIR::LoopManager::LoopPort& port) {
-                                           return *port.expr_port == expr_port;
+                                       [&parent_expr_output](const LinearIR::LoopManager::LoopPort& port) {
+                                           return *port.expr_port == parent_expr_output;
                                        });
                 OPENVINO_ASSERT(it != exit_points.end(), "compute_allocation_shape: exit point of parent loop can not be found");
                 const auto& loop_port = *it;
@@ -133,6 +135,10 @@ LinearIR::constExprIt InsertBuffers::insertion_position(const LinearIR& linear_i
         const auto down_loop_id = down_loops[loop_idx];
         return loop_manager->get_loop_bounds(linear_ir, down_loop_id).first;
     }
+    // If upper and lower expressions are in the same loop, we should insert Buffer between them
+    if (loop_idx == up_loop_count && loop_idx == down_loop_count) {
+        return linear_ir.find(down_expr);
+    }
     OPENVINO_THROW("Incorrect configuration for Buffer insertion!");
 }
 
@@ -141,25 +147,36 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
                               const LinearIR::constExprIt& end_it,
                               const LinearIR::LoopManagerPtr& loop_manager,
                               const std::vector<LinearIR::LoopManager::LoopPort>& loop_entries,
-                              const std::vector<LinearIR::LoopManager::LoopPort>& loop_exits) {
+                              const std::vector<LinearIR::LoopManager::LoopPort>& loop_exits) const {
     for (const auto& entry_point : loop_entries) {
         const auto& entry_port = entry_point.expr_port;
         const auto& expr = entry_port->get_expr();
         const auto port_idx = entry_port->get_index();
         const auto node = expr->get_node();
-        const auto& parent_expr_output = expr->get_input_port_connector(port_idx)->get_source();
-        const auto& parent_expr = parent_expr_output.get_expr();
-        const auto parent_port = parent_expr_output.get_index();
-        const auto parent = parent_expr->get_node();
+        auto parent_expr_output = expr->get_input_port_connector(port_idx)->get_source();
+        auto parent_expr = parent_expr_output.get_expr();
+        bool has_shape_infer_parent = false;
+        auto top_shape_infer_expr = expr;
+        // parent before shape infer ops is used to determine if buffer needed according loopInfo
+        const auto& shape_infer_parents = utils::get_first_parent_shape_infer_expr_seq(parent_expr);
+        if (!shape_infer_parents.empty()) {
+            parent_expr_output = shape_infer_parents.back()->get_input_port_connector(0)->get_source();
+            has_shape_infer_parent = true;
+            top_shape_infer_expr = shape_infer_parents.back();
+            parent_expr = parent_expr_output.get_expr();
+        }
+        const auto& parent_port = parent_expr_output.get_index();
+        const auto& parent = parent_expr->get_node();
         if (ov::is_type<op::Buffer>(parent) ||
             ov::is_type<op::VectorBuffer>(parent) ||
             ov::is_type<ov::op::v0::Parameter>(parent) ||
-            ov::is_type<ov::op::v0::Constant>(parent))
+            ov::is_type<ov::op::v0::Constant>(parent) ||
+            is_type<op::RankNormalization>(parent))
             continue;
 
         // Each MemoryAccess op needs Buffer
-        const auto parent_ma = ov::as_type_ptr<op::MemoryAccess>(parent);
-        const auto node_ma = ov::as_type_ptr<op::MemoryAccess>(node);
+        const auto parent_ma = std::dynamic_pointer_cast<modifier::MemoryAccess>(parent);
+        const auto node_ma = std::dynamic_pointer_cast<modifier::MemoryAccess>(node);
         bool is_buffer_needed = (parent_ma && parent_ma->is_memory_access_output_port(parent_port)) ||
                                 (node_ma && node_ma->is_memory_access_input_port(port_idx));
         const auto& current_loops = expr->get_loop_ids();
@@ -174,11 +191,11 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
             const auto pos = insertion_position(linear_ir, loop_manager, parent_expr, expr);
             const auto allocation_shape = compute_allocation_shape(loop_manager,
                                                                    buffer_loop_ids,
-                                                                   parent_loops,
                                                                    parent_expr_output,
                                                                    m_buffer_allocation_rank);
             const auto buffer = std::make_shared<op::IntermediateMemoryBuffer>(parent->output(parent_port), allocation_shape);
-            linear_ir.insert_node(buffer, std::vector<ExpressionPort>{ parent_expr_output }, buffer_loop_ids, false, pos, { *entry_port });
+            const auto buffer_consumer = has_shape_infer_parent ? top_shape_infer_expr->get_input_port(0)  : *entry_port;
+            linear_ir.insert_node(buffer, std::vector<ExpressionPort>{ parent_expr_output }, buffer_loop_ids, false, pos, { buffer_consumer  });
         }
     }
 
@@ -212,8 +229,8 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
                 continue;
             }
             // Each MemoryAccess op needs Buffer
-            const auto child_ma = ov::as_type_ptr<op::MemoryAccess>(child);
-            const auto node_ma = ov::as_type_ptr<op::MemoryAccess>(node);
+            const auto child_ma = std::dynamic_pointer_cast<modifier::MemoryAccess>(child);
+            const auto node_ma = std::dynamic_pointer_cast<modifier::MemoryAccess>(node);
             bool is_buffer_needed = (child_ma && child_ma->is_memory_access_input_port(child_port)) ||
                                     (node_ma && node_ma->is_memory_access_output_port(port_idx));
             const auto local_buffer_loop_ids = get_buffer_loop_ids(current_loops, child_expr->get_loop_ids(), is_buffer_needed);
@@ -261,7 +278,6 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
 
             const auto allocation_shape = compute_allocation_shape(loop_manager,
                                                                    buffer_loop_ids,
-                                                                   current_loops,
                                                                    *exit_port,
                                                                    m_buffer_allocation_rank);
             auto buffer = std::make_shared<op::IntermediateMemoryBuffer>(node->output(port_idx), allocation_shape);
@@ -293,7 +309,7 @@ bool InsertBuffers::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begi
     for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto expr = *expr_it;
         const auto node = (*expr_it)->get_node();
-        const auto ma = ov::as_type_ptr<op::MemoryAccess>(node);
+        const auto ma = std::dynamic_pointer_cast<modifier::MemoryAccess>(node);
         if (!ma)
             continue;
 

@@ -5,7 +5,6 @@
 #include "openvino/op/select.hpp"
 
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
 
 using namespace std;
 using namespace ov;
@@ -40,12 +39,12 @@ TEST(type_prop, select_default_constructor) {
     EXPECT_EQ(op->get_output_shape(0), (Shape{2, 4}));
 }
 
-TEST(type_prop, select_labels_cond_numpy) {
-    auto labeled_shape = PartialShape{{2, 8}, {3, 7}, {1, 10}, {1, 6}, {1, 10}};
-    set_shape_labels(labeled_shape, 10);
-    ov::TensorLabel expected_labels{10, 11, 12, ov::no_label, 14};
+TEST(type_prop, select_symbols_cond_numpy) {
+    auto symboled_shape = PartialShape{{2, 8}, {3, 7}, {1, 10}, {1, 6}, {1, 10}};
+    auto symbols = set_shape_symbols(symboled_shape);
+    ov::TensorSymbol expected_symbols{symbols[0], symbols[1], symbols[2], nullptr, symbols[4]};
 
-    auto cond_param = make_shared<ov::op::v0::Parameter>(element::boolean, labeled_shape);
+    auto cond_param = make_shared<ov::op::v0::Parameter>(element::boolean, symboled_shape);
     auto then_param = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(5));
     auto else_param = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape({{1, 5}, {1, 11}, 5, {1, 8}}));
     auto op = make_shared<op::v1::Select>(cond_param, then_param, else_param);
@@ -54,17 +53,17 @@ TEST(type_prop, select_labels_cond_numpy) {
 
     EXPECT_EQ(op->get_element_type(), element::f32);
     EXPECT_EQ(out_shape, PartialShape({{2, 8}, {3, 7}, -1, 5, -1}));
-    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+    EXPECT_EQ(get_shape_symbols(out_shape), expected_symbols);
 }
 
-TEST(type_prop, select_labels_then_numpy) {
-    auto labeled_shape = PartialShape::dynamic(5);
-    set_shape_labels(labeled_shape, 10);
-    ov::TensorLabel expected_labels{ov::no_label, ov::no_label, 12, ov::no_label, 14};
+TEST(type_prop, select_symbols_then_numpy) {
+    auto symboled_shape = PartialShape::dynamic(5);
+    auto symbols = set_shape_symbols(symboled_shape);
+    ov::TensorSymbol expected_symbols{nullptr, nullptr, symbols[2], nullptr, symbols[4]};
 
     auto cond_param =
         make_shared<ov::op::v0::Parameter>(element::boolean, PartialShape{{2, 8}, {3, 7}, {1, 10}, {1, 6}, {1, 10}});
-    auto then_param = make_shared<ov::op::v0::Parameter>(element::f32, labeled_shape);
+    auto then_param = make_shared<ov::op::v0::Parameter>(element::f32, symboled_shape);
     auto else_param = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape({{1, 5}, {1, 11}, 5, {1, 8}}));
     auto op = make_shared<op::v1::Select>(cond_param, then_param, else_param);
 
@@ -72,88 +71,104 @@ TEST(type_prop, select_labels_then_numpy) {
 
     EXPECT_EQ(op->get_element_type(), element::f32);
     EXPECT_EQ(out_shape, PartialShape({{2, 8}, {3, 7}, -1, 5, -1}));
-    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+    EXPECT_EQ(get_shape_symbols(out_shape), expected_symbols);
 }
 
-TEST(type_prop, select_labels_else_numpy) {
-    auto labeled_shape = PartialShape{{1, 5}, {1, 11}, 5, {1, 8}};
-    set_shape_labels(labeled_shape, 10);
+TEST(type_prop, select_symbols_else_numpy) {
+    auto symboled_shape = PartialShape{{1, 5}, {1, 11}, 5, {1, 8}};
+    auto symbols = set_shape_symbols(symboled_shape);
 
-    ov::TensorLabel expected_labels{ov::no_label, ov::no_label, 11, 12, 13};
+    ov::TensorSymbol expected_symbols{nullptr, nullptr, symbols[1], symbols[2], symbols[3]};
 
     auto cond_param =
         make_shared<ov::op::v0::Parameter>(element::boolean, PartialShape{{2, 8}, {3, 7}, {1, 10}, {1, 6}, {1, 10}});
     auto then_param = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(5));
-    auto else_param = make_shared<ov::op::v0::Parameter>(element::f32, labeled_shape);
+    auto else_param = make_shared<ov::op::v0::Parameter>(element::f32, symboled_shape);
     auto op = make_shared<op::v1::Select>(cond_param, then_param, else_param);
 
     const auto& out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(op->get_element_type(), element::f32);
     EXPECT_EQ(out_shape, PartialShape({{2, 8}, {3, 7}, -1, 5, -1}));
-    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+    EXPECT_EQ(get_shape_symbols(out_shape), expected_symbols);
 }
 
-TEST(type_prop, select_labels_all_params_numpy) {
-    auto labeled_shape_cond = PartialShape{-1, 2, 1, 3, 1, {2, 5}, {1, 8}, {5, -1}, {-1, 5}};
-    auto labeled_shape_then = PartialShape{-1, 2, 4, 1, 1, {1, 5}, {2, 8}, {5, -1}, {-1, 5}};
-    auto labeled_shape_else = PartialShape{-1, 2, 1, 3, 5, {1, 7}, {1, 8}, {5, -1}, {-1, 5}};
+TEST(type_prop, select_symbols_all_params_numpy) {
+    auto symboled_shape_cond = PartialShape{-1, 2, 1, 3, 1, {2, 5}, {1, 8}, {5, -1}, {-1, 5}};
+    auto symboled_shape_then = PartialShape{-1, 2, 4, 1, 1, {1, 5}, {2, 8}, {5, -1}, {-1, 5}};
+    auto symboled_shape_else = PartialShape{-1, 2, 1, 3, 5, {1, 7}, {1, 8}, {5, -1}, {-1, 5}};
 
-    set_shape_labels(labeled_shape_cond, 10);
-    set_shape_labels(labeled_shape_then, 20);
-    set_shape_labels(labeled_shape_else, 30);
+    auto cond_symbols = set_shape_symbols(symboled_shape_cond);
+    auto then_symbols = set_shape_symbols(symboled_shape_then);
+    auto else_symbols = set_shape_symbols(symboled_shape_else);
 
-    ov::TensorLabel expected_labels{10, 11, 22, 13, 34, 15, 26, 17, 18};
+    ov::TensorSymbol expected_symbols{cond_symbols[0],
+                                      else_symbols[1],
+                                      then_symbols[2],
+                                      else_symbols[3],
+                                      else_symbols[4],
+                                      cond_symbols[5],
+                                      then_symbols[6],
+                                      else_symbols[7],
+                                      cond_symbols[8]};
 
-    auto cond_param = make_shared<ov::op::v0::Parameter>(element::boolean, labeled_shape_cond);
-    auto then_param = make_shared<ov::op::v0::Parameter>(element::f32, labeled_shape_then);
-    auto else_param = make_shared<ov::op::v0::Parameter>(element::f32, labeled_shape_else);
+    auto cond_param = make_shared<ov::op::v0::Parameter>(element::boolean, symboled_shape_cond);
+    auto then_param = make_shared<ov::op::v0::Parameter>(element::f32, symboled_shape_then);
+    auto else_param = make_shared<ov::op::v0::Parameter>(element::f32, symboled_shape_else);
     auto op = make_shared<op::v1::Select>(cond_param, then_param, else_param);
 
     const auto& out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(op->get_element_type(), element::f32);
     EXPECT_EQ(out_shape, (PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}, {5, -1}, {-1, 5}}));
-    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+    EXPECT_EQ(get_shape_symbols(out_shape), expected_symbols);
 }
 
-TEST(type_prop, select_labels_all_params_none) {
-    auto labeled_shape_cond = PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}, {5, -1}, {-1, 5}};
-    auto labeled_shape_then = PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}, {5, -1}, {-1, 5}};
-    auto labeled_shape_else = PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}, {5, -1}, {-1, 5}};
+TEST(type_prop, select_symbols_all_params_none) {
+    auto symboled_shape_cond = PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}, {5, -1}, {-1, 5}};
+    auto symboled_shape_then = PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}, {5, -1}, {-1, 5}};
+    auto symboled_shape_else = PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}, {5, -1}, {-1, 5}};
 
-    set_shape_labels(labeled_shape_cond, 10);
-    set_shape_labels(labeled_shape_then, 20);
-    set_shape_labels(labeled_shape_else, 30);
+    auto cond_symbols = set_shape_symbols(symboled_shape_cond);
+    auto then_symbols = set_shape_symbols(symboled_shape_then);
+    auto else_symbols = set_shape_symbols(symboled_shape_else);
 
-    ov::TensorLabel expected_labels{10, 11, 12, 13, 14, 15, 16, 17, 18};
+    ov::TensorSymbol expected_symbols{else_symbols};
 
-    auto cond_param = make_shared<ov::op::v0::Parameter>(element::boolean, labeled_shape_cond);
-    auto then_param = make_shared<ov::op::v0::Parameter>(element::f32, labeled_shape_then);
-    auto else_param = make_shared<ov::op::v0::Parameter>(element::f32, labeled_shape_else);
+    auto cond_param = make_shared<ov::op::v0::Parameter>(element::boolean, symboled_shape_cond);
+    auto then_param = make_shared<ov::op::v0::Parameter>(element::f32, symboled_shape_then);
+    auto else_param = make_shared<ov::op::v0::Parameter>(element::f32, symboled_shape_else);
     auto op = make_shared<op::v1::Select>(cond_param, then_param, else_param, op::AutoBroadcastType::NONE);
 
     const auto& out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(op->get_element_type(), element::f32);
     EXPECT_EQ(out_shape, (PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}, {5, -1}, {-1, 5}}));
-    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+    EXPECT_THAT(get_shape_symbols(out_shape), expected_symbols);
 }
 
-TEST(type_prop, select_labels_all_params_pdpd) {
-    auto labeled_shape_cond = PartialShape{-1, 2, 1, 1, 1, {1, 5}, {1, 8}, {5, -1}, {-1, 5}};
-    auto labeled_shape_then = PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}, {5, -1}, {-1, 5}};
-    auto labeled_shape_else = PartialShape{-1, 2, 1, 3, 1, {1, 5}, {1, 8}, {5, -1}, {-1, 5}};
+TEST(type_prop, select_symbols_all_params_pdpd) {
+    auto symboled_shape_cond = PartialShape{-1, 2, 1, 1, 1, {1, 5}, {1, 8}, {5, -1}, {-1, 5}};
+    auto symboled_shape_then = PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}, {5, -1}, {-1, 5}};
+    auto symboled_shape_else = PartialShape{-1, 2, 1, 3, 1, {1, 5}, {1, 8}, {5, -1}, {-1, 5}};
 
-    set_shape_labels(labeled_shape_cond, 10);
-    set_shape_labels(labeled_shape_then, 20);
-    set_shape_labels(labeled_shape_else, 30);
+    auto cond_symbols = set_shape_symbols(symboled_shape_cond);
+    auto then_symbols = set_shape_symbols(symboled_shape_then);
+    auto else_symbols = set_shape_symbols(symboled_shape_else);
 
-    ov::TensorLabel expected_labels{10, 11, 22, 33, 24, 25, 26, 17, 18};
+    ov::TensorSymbol expected_symbols{cond_symbols[0],
+                                      then_symbols[1],
+                                      then_symbols[2],
+                                      then_symbols[3],
+                                      then_symbols[4],
+                                      then_symbols[5],
+                                      then_symbols[6],
+                                      then_symbols[7],
+                                      cond_symbols[8]};
 
-    auto cond_param = make_shared<ov::op::v0::Parameter>(element::boolean, labeled_shape_cond);
-    auto then_param = make_shared<ov::op::v0::Parameter>(element::f32, labeled_shape_then);
-    auto else_param = make_shared<ov::op::v0::Parameter>(element::f32, labeled_shape_else);
+    auto cond_param = make_shared<ov::op::v0::Parameter>(element::boolean, symboled_shape_cond);
+    auto then_param = make_shared<ov::op::v0::Parameter>(element::f32, symboled_shape_then);
+    auto else_param = make_shared<ov::op::v0::Parameter>(element::f32, symboled_shape_else);
     auto op = make_shared<op::v1::Select>(cond_param,
                                           then_param,
                                           else_param,
@@ -163,7 +178,7 @@ TEST(type_prop, select_labels_all_params_pdpd) {
 
     EXPECT_EQ(op->get_element_type(), element::f32);
     EXPECT_EQ(out_shape, (PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}, {5, -1}, {-1, 5}}));
-    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+    EXPECT_EQ(get_shape_symbols(out_shape), expected_symbols);
 }
 
 TEST(type_prop, select_dynamic) {

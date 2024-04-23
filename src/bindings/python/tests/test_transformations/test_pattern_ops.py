@@ -2,10 +2,11 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import numpy as np
+import pytest
 
 from openvino import PartialShape
 from openvino.runtime import opset13 as ops
-from openvino.runtime.passes import Matcher, WrapType, Or, AnyInput
+from openvino.runtime.passes import Matcher, WrapType, Or, AnyInput, Optional
 from openvino.runtime.passes import (
     consumers_count,
     has_static_dim,
@@ -21,7 +22,7 @@ from tests.test_transformations.utils.utils import expect_exception
 
 
 def test_wrap_type_pattern_type():
-    last_opset_number = 14
+    last_opset_number = 15
     for i in range(1, last_opset_number + 1):
         WrapType(f"opset{i}.Parameter")
         WrapType(f"opset{i}::Parameter")
@@ -83,6 +84,99 @@ def test_any_input_predicate():
     matcher = Matcher(AnyInput(lambda output: len(output.get_shape()) == 4), "FindActivation")
     assert matcher.match(param)
     assert not matcher.match(slope)
+
+
+def test_optional_full_match():
+    model_input = ops.parameter(PartialShape.dynamic())
+    model_abs = ops.abs(model_input)
+    model_relu = ops.relu(model_abs.output(0))
+
+    pattern_abs = Optional(["opset13.Abs"])
+    pattern_relu = ops.relu(pattern_abs.output(0))
+
+    matcher = Matcher(pattern_relu, "FindRelu")
+    assert matcher.match(model_relu)
+
+
+def test_optional_one_node():
+    model_input = ops.parameter(PartialShape.dynamic())
+    model_relu = ops.relu(model_input)
+    model_abs = ops.abs(model_input)
+
+    assert Matcher(Optional(["opset13.Relu"]), "OneNodeTest").match(model_relu)
+    assert not Matcher(Optional(["opset13.Abs"]), "OneNodeTest").match(model_relu)
+
+    assert not Matcher(Optional(["opset13.Relu"]), "OneNodeTest").match(model_abs)
+
+    assert Matcher(Optional(["opset13.Parameter"]), "OneNodeTest").match(ops.parameter(PartialShape.dynamic()))
+    assert not Matcher(Optional(["opset13.Relu"]), "OneNodeTest").match(ops.parameter(PartialShape.dynamic()))
+
+
+def test_optional_predicate():
+    model_input = ops.parameter(PartialShape.dynamic())
+    model_add = ops.add(model_input, model_input)
+    model_relu = ops.relu(model_add.output(0))
+    model_abs = ops.abs(model_add.output(0))
+
+    assert Matcher(Optional(["opset13.Relu"], lambda x: True), "TestInputPredicate").match(model_relu)
+    assert not Matcher(Optional(["opset13.Relu"], lambda x: False), "TestInputPredicate").match(model_relu)
+    assert Matcher(Optional(["opset13.Add"], consumers_count(2)), "FindPredicate").match(model_add)
+    assert not Matcher(Optional(["opset13.Add"], consumers_count(1)), "FindPredicate").match(model_add)
+    assert Matcher(Optional(["opset13.Abs", "opset13.Result"], consumers_count(0)), "FindPredicate").match(model_abs)
+
+
+def test_optional_with_input():
+    model_input = ops.parameter(PartialShape.dynamic())
+    model_add = ops.add(model_input, model_input)
+    model_relu = ops.relu(model_add.output(0))
+
+    assert Matcher(Optional(["opset13.Relu"], model_add.output(0)), "TestInput").match(model_relu)
+    assert not Matcher(Optional(["opset13.Cos"], model_add.output(0)), "TestInput").match(model_relu)
+
+
+def test_optional_with_input_and_predicate():
+    model_input = ops.parameter(PartialShape.dynamic())
+    model_add = ops.add(model_input, model_input)
+    model_relu = ops.relu(model_add.output(0))
+
+    pattern_add = ops.add(AnyInput(), AnyInput())
+
+    assert Matcher(Optional(["opset13.Relu"], pattern_add.output(0), lambda x: True), "TestInputPredicate").match(model_relu)
+    assert not Matcher(Optional(["opset13.Relu"], pattern_add.output(0), lambda x: False), "TestInputPredicate").match(model_relu)
+
+
+def test_optional_with_input_node():
+    model_input = ops.parameter(PartialShape.dynamic())
+    model_add = ops.add(model_input, model_input)
+    model_relu = ops.relu(model_add.output(0))
+
+    assert Matcher(Optional(["opset13.Relu"], model_add), "TestInputNode").match(model_relu)
+    assert not Matcher(Optional(["opset13.Cos"], model_add), "TestInputNode").match(model_relu)
+
+
+def test_optional_with_input_node_and_predicate():
+    model_input = ops.parameter(PartialShape.dynamic())
+    model_add = ops.add(model_input, model_input)
+    model_relu = ops.relu(model_add.output(0))
+
+    assert Matcher(Optional(["opset13.Relu"], model_add, lambda x: True), "TestInputNodePredicate").match(model_relu)
+    assert not Matcher(Optional(["opset13.Relu"], model_add, lambda x: False), "TestInputNodePredicate").match(model_relu)
+    assert not Matcher(Optional(["opset13.Cos"], model_add, lambda x: True), "TestInputNodePredicate").match(model_relu)
+
+
+def test_optional_with_multi_input_node():
+    model_input_0 = ops.parameter(PartialShape.dynamic())
+    model_relu = ops.relu(model_input_0.output(0))
+    model_input_1 = ops.parameter(PartialShape.dynamic())
+    model_add = ops.add(model_relu, model_input_1)
+
+    assert Matcher(Optional(["opset13.Add"], [model_relu, model_input_1]), "MultiInNode").match(model_add)
+    assert Matcher(Optional(["opset13.Add"], [model_relu, model_input_1]), "MultiInNode").match(model_relu)
+    assert not Matcher(Optional(["opset13.Add"], [model_relu, model_input_1]), "MultiInNode").match(model_input_1)
+    assert not Matcher(Optional(["opset13.Add"], [model_relu, model_input_1]), "MultiInNode").match(model_input_0)
+
+    assert not Matcher(Optional(["opset13.Add"], [model_relu, model_input_1], lambda x: False), "MultiInNodePredicate").match(model_add)
+    assert Matcher(Optional(["opset13.Add"], [model_relu, model_input_1], lambda x: True), "MultiInNodePredicate").match(model_add)
 
 
 def test_all_predicates():

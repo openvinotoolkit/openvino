@@ -50,7 +50,6 @@
 #include "plugin/transformations/binary_conv_to_conv.hpp"
 #include "plugin/transformations/clamp_fp16_output.hpp"
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
-#include "plugin/transformations/convert_gather_to_compressed.hpp"
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/fc_convert_fusion.hpp"
 #include "plugin/transformations/kv_cache_fusion.hpp"
@@ -61,6 +60,7 @@
 #include "plugin/transformations/transpose_matmul_fusion.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
 #include "plugin/transformations/convert_convolution.hpp"
+#include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
@@ -90,6 +90,7 @@
 #include "transformations/op_conversions/convert_gather_0d.hpp"
 #include "transformations/op_conversions/convert_gather_downgrade.hpp"
 #include "transformations/op_conversions/convert_gelu.hpp"
+#include "transformations/op_conversions/convert_gather_to_compressed.hpp"
 #include "transformations/op_conversions/convert_gp9_to_gp_ie_internal.hpp"
 #include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
 #include "transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp"
@@ -133,7 +134,6 @@
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
-#include "transformations/common_optimizations/nop_elimination.hpp"
 
 namespace {
 template<typename T>
@@ -276,8 +276,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return !is_type<ov::op::v0::MatMul>(next_node);
             });
 
-        manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8, ov::element::u4, ov::element::i4}, true);
-        // Need to check if transfomrations work correctly for mixed models with both compression and quantization at the same time.
+        // Disable subtract folding only for the dGPUs to meet the requirements of oneDNN:
+        // it expects to have the same data type for weights and zero points (apply it only for u8 data type, since other compression
+        // types are not supported by oneDNN)
+        manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8, ov::element::u4, ov::element::i4},
+                                                                    !device_info.supports_immad);
+
+        // Need to check if transformations work correctly for mixed models with both compression and quantization at the same time.
         if (!is_model_quantized)
             pass_config->set_callback<ov::pass::MarkDequantizationSubgraph>(is_non_supported_decompression_op);
 
@@ -527,7 +532,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         pass_config->enable<ov::pass::SoftmaxDecomposition>();
         pass_config->set_callback<ov::pass::SoftmaxDecomposition>(
-            [](const_node_ptr &node) -> bool {
+            [&](const_node_ptr &node) -> bool {
+                OPENVINO_ASSERT(node->input_value(0).get_partial_shape().rank().is_static(),
+                    node->get_friendly_name() + " has dynamic rank!");
                 return node->input_value(0).get_partial_shape().rank().get_length() <= 5;
             });
 
@@ -550,8 +557,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::ConvertGather8ToGather7>();
         pass_config->disable<ov::pass::ConvertGather7ToGather1>();
         pass_config->disable<ov::pass::ConvertTopK11ToTopK3>();
-        pass_config->disable<ov::pass::NopStridedSlice>();
-        pass_config->disable<ov::pass::NopStridedSliceByShape>();
 
         pass_config->enable<ov::pass::ConvertInterpolate1ToInterpolate4>();
 
@@ -703,19 +708,26 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::ClampFP16Output>();
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
-        manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
-        manager.register_pass<ov::intel_gpu::ConvertGatherToGatherCompressed>();
+        manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>(device_info.supports_immad);
+        if (device_info.supports_immad) {
+            // For OneDNN, ZP should not be folded for FC. But still, ZP should be folded for Gather.
+            // Therefore, run MarkDequantizationSubgraph again to fold ZP constant.
+            manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8, ov::element::u4, ov::element::i4}, true);
+            manager.register_pass<ov::pass::ConstantFolding>();
+        }
+        manager.register_pass<ov::pass::ConvertGatherToGatherCompressed>();
         manager.register_pass<ov::intel_gpu::RMSFusion>(device_info.max_work_group_size);
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
         manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
-        if (!device_info.supports_immad)
+        if (!device_info.supports_immad) {
             manager.register_pass<ov::intel_gpu::TransposeMatMulFusion>();
+            manager.register_pass<ov::intel_gpu::UnsqueezeBroadcastReshapeMatmulFusion>();
+        }
         manager.register_pass<ov::intel_gpu::SwiGLUFusion>();
-
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();
         manager.register_pass<ov::intel_gpu::ConvertConvolutionToInternal>();
 
-        const size_t zp_pad_size = 32;
+        const size_t zp_pad_size = device_info.supports_immad ? 16 : 32;
         manager.register_pass<ov::intel_gpu::BroadcastAndPadZeroPointBuffers>(zp_pad_size);
 
         // This is supposed to be the last pass to ensure that we don't have name collisions until

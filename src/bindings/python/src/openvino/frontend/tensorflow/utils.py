@@ -11,7 +11,7 @@ from packaging.version import parse, Version
 from typing import List, Dict, Union
 
 import numpy as np
-from openvino.runtime import PartialShape, Dimension
+from openvino.runtime import PartialShape, Dimension, Type
 
 
 # TODO: reuse this method in ovc and remove duplication
@@ -435,3 +435,26 @@ def model_is_graph_iterator(model):
     except:
         return False
     return isinstance(model, GraphIteratorTFGraph)
+
+
+def tf_type_to_ov_type(val):
+    import tensorflow as tf  # pylint: disable=import-error
+    if not isinstance(val, tf.dtypes.DType):
+        raise Exception("The provided type is not a TF type {}.".format(val))
+
+    tf_to_ov_type = {
+        tf.float32: Type.f32,
+        tf.float16: Type.f16,
+        tf.float64: Type.f64,
+        tf.bfloat16: Type.bf16,
+        tf.uint8: Type.u8,
+        tf.int8: Type.i8,
+        tf.int16: Type.i16,
+        tf.int32: Type.i32,
+        tf.int64: Type.i64,
+        tf.bool: Type.boolean,
+        tf.string: Type.string
+    }
+    if val not in tf_to_ov_type:
+        raise Exception("The provided data type is not supported by OpenVino {}.".format(val))
+    return tf_to_ov_type[val]

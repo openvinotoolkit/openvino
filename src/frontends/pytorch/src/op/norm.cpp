@@ -164,7 +164,7 @@ OutputVector translate_weight_norm(const NodeContext& context) {
     if (context.input_is_none(2)) {
         dim = context.mark_node(std::make_shared<v0::Range>(zero, rank, one));
     } else {
-        dim = context.get_input(2);
+        dim = get_input_as_i32(context, 2);
         auto dims_before = context.mark_node(std::make_shared<v0::Range>(zero, dim, one));
         auto dim_next = context.mark_node(std::make_shared<v1::Add>(dim, one));
         auto dims_after = context.mark_node(std::make_shared<v0::Range>(dim_next, rank, one));
