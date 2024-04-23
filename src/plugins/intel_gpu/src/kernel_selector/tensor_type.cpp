@@ -117,6 +117,7 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::os_is_yx_osv16_isv4,                         {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_is_yx_osv32_isv4_swizzled_by_2,           {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_is_yx_osv32_isv4,                         {  0,  1, -1,   2,   3, -1 } },
+    { WeightsLayout::os_is_yx_osv32_isv2,                         {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_is_zyx_osv32_isv4,                        {  0,  1,  2,   3,   4, -1 } },
     { WeightsLayout::oizyx,                                       {  0,  1,  2,   3,   4, -1 } },
     { WeightsLayout::iozyx,                                       {  0,  1,  2,   4,   3, -1 } },
