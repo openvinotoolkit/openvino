@@ -24,7 +24,7 @@ Install OpenVINO™ Runtime from Conan Package Manager
       :sync: system-requirements
 
       | Full requirement listing is available in:
-      | :doc:`System Requirements Page <../../../about-openvino/system-requirements>`
+      | :doc:`System Requirements Page <../../../about-openvino/release-notes-openvino/system-requirements>`
 
    .. tab-item:: Processor Notes
       :sync: processor-notes

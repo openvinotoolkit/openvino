@@ -132,8 +132,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*KSOFunction.*)",
         R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*NonMaxSuppression.*)",
         R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*Nms.*)",
-        // Issue: 105838
-        R"(smoke_NmsLayerTest.*)",
         // 94982. FP32->I32 conversion issue in the reference implementation. There can be some garbage in the rest of
         // float values like 0.333333745.
         // The kernel does not have such garbage. The diff 0.000000745 is taken into account in calculations and affects
@@ -181,8 +179,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ConvertCPULayerTest.*outFmts=(nhwc|nChw8c|nChw16c).*)",
         // Need to generate sequence exactly in the i64 data type. Enable in scope of i64 enabling.
         R"(.*RandomUniformLayerTestCPU.*OutPrc=i64.*)",
-        // Issue: 123321
-        R"(.*smoke_RNNSequenceCommonZeroClip/RNNSequenceTest.Inference.*hidden_size=10.*relu.*)",
         // Issue: 123815 (Tests are sensintive to available thread count on testing machines)
         R"(.*smoke_Snippets_MHA_.?D_SplitDimensionM.*)",
         // Issue: 122356
@@ -285,6 +281,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_RDFT_CPU_4D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\[\?.192.36.64\]_.*_axes=\(\((0|_2._1|_1|1)\)_.*isInverse=false.*)",
         R"(.*smoke_RDFT_CPU_4D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\[\]_TS0=\(\((1.120.64.64|1.120.96.96|\?.\?.\?.\?|1.192.\?.\?|1..2.\?.\?.1..100)\)\).*isInverse=false.*)",
         R"(.*smoke_RDFT_2d/RDFTLayerTest.Inference/IS=\(100.16\)_modelType=f32_Axes=\((0.1|_2._1|1.0)\)_SignalSize=\(\).*)",
+        // Issue: 134470
+        R"(.*smoke.*StatefulModelStateInLoopBody.*)",
     };
 
 #if defined(OPENVINO_ARCH_X86)
@@ -427,6 +425,29 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_Snippets_MHAWOTransposeEnforceBF16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHAEnforceBF16.*)");
     }
+#ifdef SNIPPETS_LIBXSMM_TPP
+    // TPP performs precision conversion implicitly, it makes all Convert tests irrelevant
+    retVector.emplace_back(R"(.*smoke_Snippets_Convert.*)");
+    // ABS and ROUND operations are needed for TPP support. Disable, since low precisions are not supported by TPP yet.
+    retVector.emplace_back(R"(.*smoke_Snippets_FQ.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_TransposeMatMulFQ.*)");
+    // TPP doesn't support op with 2 outs, when one of them is Result (ticket: 130642)
+    retVector.emplace_back(R"(.*smoke_Snippets_MaxNumParamsEltwise.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_Eltwise_TwoResults.*)");
+    // Accuracy problem with Exp + Reciprocal combination on TPP side (ticket: 130699)
+    retVector.emplace_back(R"(.*smoke_Snippets_ExpReciprocal.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_AddSoftmax.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_TransposeSoftmaxEltwise.*)");
+    // Low-precision Matmuls are not supported by TPP yet
+    retVector.emplace_back(R"(.*smoke_Snippets_MatMulFQ.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_MatMulBiasQuantized.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_MatMulQuantized.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_MatMulQuantizedSoftmax.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_MHAINT8MatMul.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_MHAQuantMatMul0.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_MHAFQ.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_PrecisionPropagation_Convertion.*)");
+#endif
 
     if (ov::with_cpu_x86_avx512_core_amx()) {
         // Issue: 130463

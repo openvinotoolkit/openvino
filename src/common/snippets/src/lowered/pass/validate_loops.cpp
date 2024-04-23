@@ -14,8 +14,6 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-using LoopPort = LinearIR::LoopManager::LoopPort;
-
 ValidateLoops::ValidateLoops() {}
 
 bool ValidateLoops::run(LinearIR& linear_ir) {
@@ -56,7 +54,7 @@ bool ValidateLoops::run(LinearIR& linear_ir) {
                 const auto id = loop_ids[i];
                 const auto dim_idx = loop_manager->get_loop_info(id)->get_dim_idx();
                 // if the loop has different dimension indexes, it don't have to meet the split loop related requirements
-                if (dim_idx == LinearIR::LoopManager::LoopInfo::UNDEFINED_DIM_IDX)
+                if (dim_idx == LoopInfo::UNDEFINED_DIM_IDX)
                     continue;
                 if (std::find(dim_indexes.cbegin(), dim_indexes.cend(), dim_idx) != dim_indexes.cend()) {
                     OPENVINO_ASSERT(*dim_indexes.rbegin() == dim_idx,
