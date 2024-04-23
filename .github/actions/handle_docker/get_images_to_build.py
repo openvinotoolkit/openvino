@@ -25,8 +25,6 @@ def parse_args():
                         help='Whether PR changes dockerfiles')
     parser.add_argument('--action_path', default='.github/actions/handle_docker', help='Path to this GitHub action')
     parser.add_argument('--push', action='store_true', required=False, help='Whether to push images to registry')
-    parser.add_argument('--pull', action='store_true', required=False,
-                        help='Whether to pull latest base image versions from registry')
     parser.add_argument('--dry_run', action='store_true', required=False, help='Dry run')
     args = parser.parse_args()
     return args
