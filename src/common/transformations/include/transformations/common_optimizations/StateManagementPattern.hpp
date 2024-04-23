@@ -7,6 +7,7 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "transformations_visibility.hpp"
 
+
 namespace ov {
 namespace pass {
 
@@ -18,5 +19,9 @@ class TRANSFORMATIONS_API StateManagementPattern;
 class ov::pass::StateManagementPattern : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("StateManagementPattern", "0");
-    StateManagementPattern();
+    StateManagementPattern(ParameterVector& kv_parameters,
+                           const ParameterVector& model_remaining_params,
+                           const std::shared_ptr<ov::op::v0::Constant>& sliding_window,
+                           ParameterVector& parameters_to_remove,
+                           std::vector<std::shared_ptr<Node>>& assignes_to_remove);
 };
