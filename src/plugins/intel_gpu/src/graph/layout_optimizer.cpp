@@ -1145,7 +1145,7 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
 
     // Use planar bfyx format for dynamic convolutions with explicit padding in clDNN
     if (node.is_dynamic() && output_layout.get_partial_shape().size() == 4 && node.use_explicit_padding() && !i8_u8_input &&
-        !(use_onednn_impls && onednn_valid_post_ops)) {
+        !(use_onednn_impls && onednn_valid_post_ops && !node.has_padded_dependency())) {
         return format::bfyx;
     }
 
