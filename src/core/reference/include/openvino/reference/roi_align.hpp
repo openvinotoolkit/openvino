@@ -170,7 +170,7 @@ public:
         }
     }
 
-    ROIAlignRotatedSamplingSpace get_sampling_space_for_index(unsigned int index) const {        
+    ROIAlignRotatedSamplingSpace get_sampling_space_for_index(unsigned int index) const {
         const T center_x = (rois[coordinate_index({index, 0}, shape)]) * spatial_scale - T{0.5f};
         const T center_y = (rois[coordinate_index({index, 1}, shape)]) * spatial_scale - T{0.5f};
         const T width = (rois[coordinate_index({index, 2}, shape)]) * spatial_scale;
