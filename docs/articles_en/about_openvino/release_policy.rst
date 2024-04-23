@@ -90,7 +90,7 @@ Instead, they may serve:
       2. Select a package you want to install.
       3. Download the archive for your platform.
       4. Unpack the archive in a convenient location.
-      5. Once unpacked, proceed as with a regular OpenVINO archive (see :doc:`installation guides <../../../get-started/install-openvino>`).
+      5. Once unpacked, proceed as with a regular OpenVINO archive (see :doc:`installation guides <openvino_docs_install_guides_overview>`).
 
    .. tab-item:: OV Wheels on S3
       :sync: wheels-s3
