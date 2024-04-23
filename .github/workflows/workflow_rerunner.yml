@@ -87,3 +87,7 @@ jobs:
           run_id=$(python3 -c "from github import Github, Auth; import os; github=Github(auth=Auth.Token(token=os.environ.get('GITHUB_TOKEN'))); repo = github.get_repo('${GITHUB_REPOSITORY}'); run_id = repo.get_workflow_runs(status='success')[0].id; print(run_id)")
           
           python3 rerunner.py --repository-name ${GITHUB_REPOSITORY} --run-id $run_id --dry-run
+
+      - name: Rerun Retriggered (Ticket ${{ env.FOUND_ERROR_TICKET }})
+        if: ${{ env.PIPELINE_RETRIGGERED == 'true' }}
+        run: echo "Rerun retriggered for ${{ github.event.workflow_run.html_url }} with ticket ${{ env.FOUND_ERROR_TICKET }}"
