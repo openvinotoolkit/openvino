@@ -49,6 +49,39 @@ describe('Tensor data', () => {
     assert.deepStrictEqual(tensor.getData(), data);
   });
 
+  it('Test tensor.data setter - different element type throws', () => {
+    const float64_data = Float64Array.from([1, 2, 3] );
+    const tensor = new ov.Tensor(ov.element.f32, [1, 3]);
+    assert.throws(() => {
+      tensor.data = float64_data;},
+    /Passed array must have the same size as the Tensor!/
+    );
+  });
+
+  it('Test tensor.data setter - different element length throws', () => {
+    const float64_data = Float64Array.from([1, 2, 3] );
+    const tensor = new ov.Tensor(ov.element.f64, [1, 2]);
+    assert.throws(() => {
+      tensor.data = float64_data;},
+    /Passed array must have the same size as the Tensor!/
+    );
+  });
+
+  it('Test tensor.data setter - not TypedArray arg throws', () => {
+    const testString = 'test';
+    const tensor = new ov.Tensor(ov.element.f64, [1, 2]);
+    assert.throws(() => {
+      tensor.data = testString;},
+    /Passed argument must be a TypedArray./
+    );
+  });
+
+  it('Test tensor.data setter', () => {
+    const tensor = new ov.Tensor(ov.element.f32, shape);
+    tensor.data = data;
+    assert.deepStrictEqual(tensor.getData(), data);
+  });
+
   it('Set tensor data with Float32Array created from ArrayBuffer', () => {
     const size = elemNum * 4;
     const buffer = new ArrayBuffer(size);
