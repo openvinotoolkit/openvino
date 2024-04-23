@@ -62,15 +62,12 @@ std::vector<CPUSpecificParams> filterCPUInfoForDeviceWithFP16(const std::vector<
     }
     std::copy_if(allParams.begin(), allParams.end(), std::back_inserter(specificParams), [](const CPUSpecificParams& item) {
         const auto &selected = std::get<3>(item);
-        if ((!ov::with_cpu_x86_avx512_core_amx_fp16()) && selected.find("amx") != std::string::npos) {
-            return false;
+        if ((ov::with_cpu_x86_avx512_core_amx_fp16()) && selected.find("amx") != std::string::npos) {
+            return true;
+        } else if ((ov::with_cpu_x86_avx512_core_fp16()) && selected.find("avx512") != std::string::npos) {
+            return true;
         }
-        if (selected.find("avx2") != std::string::npos
-                || (selected.find("avx") != std::string::npos && selected.find("avx512") == std::string::npos)
-                || selected.find("sse42") != std::string::npos) {
-            return false;
-        }
-        return true;
+        return false;
     });
     auto test_params = filterCPUInfoForDevice(specificParams);
     return test_params;

@@ -53,8 +53,6 @@ endif()
 
 if(NOT RISCV64)
     list(APPEND EXCLUDED_SOURCE_PATHS
-         ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/riscv
-         ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/riscv
          ${CMAKE_CURRENT_SOURCE_DIR}/utils/riscv)
 endif()
 
