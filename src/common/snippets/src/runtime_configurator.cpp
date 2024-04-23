@@ -18,6 +18,12 @@ RuntimeConfigurator::RuntimeConfigurator(std::shared_ptr<RuntimeConfig> c) : m_c
     m_state_updater.register_pass<lowered::pass::UpdateLoopInfo>();
 }
 
+const std::shared_ptr<RuntimeConfig>& RuntimeConfigurator::get_updated_config(const std::shared_ptr<lowered::LinearIR>& linear_ir) {
+    if (is_update_needed(linear_ir))
+        update(linear_ir);
+    return m_config;
+}
+
 void RuntimeConfigurator::update_linear_ir_state(const std::shared_ptr<lowered::LinearIR>& linear_ir) const {
     m_state_updater.run(*linear_ir);
 }

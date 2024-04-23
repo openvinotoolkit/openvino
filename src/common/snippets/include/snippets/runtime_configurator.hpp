@@ -29,9 +29,12 @@ public:
     RuntimeConfigurator(std::shared_ptr<RuntimeConfig> c);
     virtual ~RuntimeConfigurator() = default;
 
-    virtual const std::shared_ptr<RuntimeConfig>& update(const std::shared_ptr<lowered::LinearIR>& linear_ir) = 0;
+    const std::shared_ptr<RuntimeConfig>& get_updated_config(const std::shared_ptr<lowered::LinearIR>& linear_ir);
 
 protected:
+    virtual void update(const std::shared_ptr<lowered::LinearIR>& linear_ir) = 0;
+    virtual bool is_update_needed(const std::shared_ptr<lowered::LinearIR>& linear_ir) = 0;
+
     void update_linear_ir_state(const std::shared_ptr<lowered::LinearIR>& linear_ir) const;
 
     std::shared_ptr<RuntimeConfig> m_config = nullptr;

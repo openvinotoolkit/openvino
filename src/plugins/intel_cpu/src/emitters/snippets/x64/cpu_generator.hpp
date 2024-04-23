@@ -42,9 +42,10 @@ class CPURuntimeConfigurator : public ov::snippets::RuntimeConfigurator {
 public:
     CPURuntimeConfigurator();
 
-    const std::shared_ptr<ov::snippets::RuntimeConfig>& update(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) override;
-
 protected:
+    bool is_update_needed(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) override;
+    void update(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) override;
+
     void init_data_info(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir);
     void update_data_offsets(const std::shared_ptr<CPURuntimeConfig>& cpu_config) const;
     void update_loop_args(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir,

@@ -26,5 +26,5 @@ bool TargetMachine::has(const ov::DiscreteTypeInfo& type) const {
 
 const std::shared_ptr<RuntimeConfig>& TargetMachine::update_runtime_config(const std::shared_ptr<lowered::LinearIR>& linear_ir) const {
     OPENVINO_ASSERT(configurator, "RuntimeConfigurator has not been inited!");
-    return configurator->update(linear_ir);
+    return configurator->get_updated_config(linear_ir);
 }

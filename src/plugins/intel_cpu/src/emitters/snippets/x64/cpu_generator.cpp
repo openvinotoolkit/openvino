@@ -369,8 +369,16 @@ bool intel_cpu::CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snip
 
 intel_cpu::CPURuntimeConfigurator::CPURuntimeConfigurator() : ov::snippets::RuntimeConfigurator(std::make_shared<CPURuntimeConfig>()) {}
 
-const std::shared_ptr<ov::snippets::RuntimeConfig>& intel_cpu::CPURuntimeConfigurator::update(
-    const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) {
+bool intel_cpu::CPURuntimeConfigurator::is_update_needed(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) {
+    if (m_latest_input_shapes.empty())
+        return true;
+    for (size_t i = 0; i < m_latest_input_shapes.size(); ++i)
+        if (m_latest_input_shapes[i] != *m_io_shapes[i])
+            return true;
+    return false;
+}
+
+void intel_cpu::CPURuntimeConfigurator::update(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) {
     const auto& cpu_config = std::dynamic_pointer_cast<CPURuntimeConfig>(m_config);
     OPENVINO_ASSERT(cpu_config, "CPURuntimeConfigurator expects CPURuntimeConfig");
 
@@ -388,8 +396,6 @@ const std::shared_ptr<ov::snippets::RuntimeConfig>& intel_cpu::CPURuntimeConfigu
     update_parallel_domain(linear_ir, cpu_config);
 
     update_latest_shapes();
-
-    return m_config;
 }
 
 void intel_cpu::CPURuntimeConfigurator::init_data_info(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) {
@@ -410,7 +416,7 @@ void intel_cpu::CPURuntimeConfigurator::init_data_info(const std::shared_ptr<ov:
                 const auto& mem_desc_expr = shape_infer_seq.empty() ? expr : shape_infer_seq.back();
                 auto consumer_inputs = mem_desc_expr->get_output_port_connector(0)->get_consumers();
                 for (const auto& child_input : consumer_inputs) {
-                    const auto ma = ov::as_type_ptr<snippets::op::MemoryAccess>(child_input.get_expr()->get_node());
+                    const auto ma = std::dynamic_pointer_cast<snippets::modifier::MemoryAccess>(child_input.get_expr()->get_node());
                     if (ma && ma->is_memory_access_input_port(child_input.get_index())) {
                         m_io_shapes[idx] = child_input.get_descriptor_ptr()->get_shape_ptr();
                         m_io_layouts[idx] = child_input.get_descriptor_ptr()->get_layout();
