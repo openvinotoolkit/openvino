@@ -34,11 +34,11 @@ runs:
           echo 'APT::Archives::MaxAge "30";' >> /etc/apt/apt.conf
           echo 'APT::Archives::MaxSize "500";' >> /etc/apt/apt.conf
           # do not remove deb packages:
-          rm /etc/apt/apt.conf.d/docker-clean
+          rm -f /etc/apt/apt.conf.d/docker-clean
         else
           sudo sh -c "echo 'APT::Archives::MinAge "2";' >> /etc/apt/apt.conf"
           sudo sh -c "echo 'APT::Archives::MaxAge "30";' >> /etc/apt/apt.conf"
           sudo sh -c "echo 'APT::Archives::MaxSize "500";' >> /etc/apt/apt.conf"
           # do not remove deb packages:
-          sudo rm /etc/apt/apt.conf.d/docker-clean
+          sudo rm -f /etc/apt/apt.conf.d/docker-clean
         fi
