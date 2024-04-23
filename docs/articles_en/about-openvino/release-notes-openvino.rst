@@ -217,7 +217,7 @@ until September 30, 2024.
 The new branch, 'latest', offers a better user experience and simplifies maintenance due to
 significant refactoring and an improved directory naming structure.
 
-Use the locally
+Use the local
 `README.md <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/README.md>`__
 file and OpenVINO™ Notebooks at
 `GitHub Pages <https://openvinotoolkit.github.io/openvino_notebooks/>`__
