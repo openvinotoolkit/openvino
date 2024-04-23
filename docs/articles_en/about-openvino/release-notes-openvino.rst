@@ -149,7 +149,7 @@ PyTorch Framework Support
 
 * ModuleExtension, a new type of extension for PyTorch models is now supported
   (`PR #23536 <https://github.com/openvinotoolkit/openvino/pull/23536>`__).
-* 22 NEW operations have been added
+* 22 NEW operations have been added.
 * Experimental support for models produced by torch.export (FX graph) has been added
   (`PR #23815 <https://github.com/openvinotoolkit/openvino/pull/23815>`__).
 
