@@ -278,7 +278,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           sparse-checkout: openvino/docs/snippets
-          path: ${{ env.OPENVINO_REPO }}
+          path: 'ov_root'
           submodules: 'false'
 
       - name: Show cloned
@@ -290,10 +290,10 @@ jobs:
         if: runner.os != 'macOS'
         run: |
           # to find 'snippets' module in docs
-          export PYTHONPATH=${OPENVINO_REPO}/docs
+          export PYTHONPATH=ov_root/docs
           # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
-          python3 ${OPENVINO_REPO}/docs/snippets/main.py
+          python3 ov_root/docs/snippets/main.py
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
