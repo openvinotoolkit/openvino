@@ -7,6 +7,7 @@
 #include "snippets/lowered/pass/fuse_loops.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
+#include "snippets/lowered/pass/iter_handler.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/itt.hpp"
 
@@ -14,9 +15,6 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
-using LoopManager = LinearIR::LoopManager;
-using LoopInfo = LoopManager::LoopInfo;
-using LoopInfoPtr = LoopManager::LoopInfoPtr;
 
 SplitLoops::SplitLoops() : RangedPass() {}
 
@@ -57,8 +55,8 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
             const auto parent_loop = loop_manager->get_loop_info(parent_loop_id);
 
             const bool split_parent = parent_loop->get_increment() < loop->get_increment();
-            const auto upper_loop = std::make_shared<LoopManager::LoopInfo>(*parent_loop);
-            const auto lower_loop = std::make_shared<LoopManager::LoopInfo>(*loop);
+            const auto upper_loop = std::make_shared<LoopInfo>(*parent_loop);
+            const auto lower_loop = std::make_shared<LoopInfo>(*loop);
             if (split_parent)
                 upper_loop->set_increment(loop->get_increment());
             else
@@ -88,7 +86,7 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
                 const auto tail_size = work_amount % increment;
                 auto new_handlers = loop_to_split->get_handlers();
                 if (tail_size != 0) {
-                    new_handlers.register_handler<LoopInfo::SpecificIterationHandlers::HandlerType::LAST_ITER, TransformInnerSplitLoop>(tail_size);
+                    new_handlers.register_handler<SpecificIterationHandlers::HandlerType::LAST_ITER, TransformInnerSplitLoop>(tail_size);
                 }
                 new_loop_info->set_handlers(new_handlers);
                 break;

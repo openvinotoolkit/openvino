@@ -15,7 +15,6 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-using LoopPort = LinearIR::LoopManager::LoopPort;
 using MemoryAccess = ov::snippets::modifier::MemoryAccess;
 
 namespace {
@@ -114,7 +113,7 @@ inline void init_data_size(LoopPort& loop_port) {
     }
 }
 
-inline void init_work_amount(const LinearIR::LoopManager::LoopInfoPtr& loop_info) {
+inline void init_work_amount(const LoopInfoPtr& loop_info) {
     size_t work_amount = 1;
     for (const auto& loop_port : loop_info->get_entry_points()) {
         if (loop_port.is_incremented) {
@@ -136,7 +135,7 @@ inline void init_work_amount(const LinearIR::LoopManager::LoopInfoPtr& loop_info
 }
 }  // namespace
 
-void InitLoops::init_loop_info(const LinearIR::LoopManager::LoopInfoPtr& loop_info, const size_t loop_id, bool only_runtime_args) {
+void InitLoops::init_loop_info(const LoopInfoPtr& loop_info, const size_t loop_id, bool only_runtime_args) {
     if (utils::is_dynamic_value(loop_info->get_work_amount()))
         init_work_amount(loop_info);
 

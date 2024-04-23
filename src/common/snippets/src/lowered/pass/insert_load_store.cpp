@@ -15,9 +15,6 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-using LoopManager = LinearIR::LoopManager;
-using LoopInfoPtr = LoopManager::LoopInfoPtr;
-
 InsertLoadStore::InsertLoadStore(size_t vector_size) : m_vector_size(vector_size) {}
 
 size_t InsertLoadStore::get_count(const ExpressionPort& port) const {

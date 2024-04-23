@@ -105,7 +105,7 @@ void validate_loop_end_static(const ExpressionPtr& expr, const LinearIR& linear_
     const auto& ptr_increments = loop_end->get_ptr_increments();
     const auto& final_offsets = loop_end->get_finalization_offsets();
 
-    auto validate_loop_ports = [&](const std::vector<LinearIR::LoopManager::LoopPort>& loop_ports, size_t shift = 0) {
+    auto validate_loop_ports = [&](const std::vector<LoopPort>& loop_ports, size_t shift = 0) {
         for (size_t i = 0; i < loop_ports.size(); ++i) {
         OPENVINO_ASSERT(is_incremented[i + shift] == loop_ports[i].is_incremented &&
                         ptr_increments[i + shift] == loop_ports[i].ptr_increment &&
@@ -136,7 +136,7 @@ void validate_loop_end_dynamic(const ExpressionPtr& expr, const LinearIR& linear
 
     const auto& is_incremented = loop_end->get_is_incremented();
 
-    auto validate_loop_ports = [&](const std::vector<LinearIR::LoopManager::LoopPort>& loop_ports, size_t shift = 0) {
+    auto validate_loop_ports = [&](const std::vector<LoopPort>& loop_ports, size_t shift = 0) {
         for (size_t i = 0; i < loop_ports.size(); ++i) {
         OPENVINO_ASSERT(is_incremented[i + shift] == loop_ports[i].is_incremented,
                         "Incompatible data ptr shifts in LoopEndStatic and the corresponding LoopInfo");
