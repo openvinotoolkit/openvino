@@ -101,32 +101,6 @@ private:
     };
 };
 
-static bool evaluate_util(const ov::op::util::MaxPoolBase* op,
-                          TensorVector& outputs,
-                          const TensorVector& inputs,
-                          const Strides& dilations,
-                          const int64_t axis) {
-    using namespace ov::element;
-    return IF_TYPE_OF_CONVERT_TENSORS(MaxPool_evaluate_util,
-                                      op,
-                                      outputs,
-                                      inputs,
-                                      OV_PP_ET_LIST(f32, i8, i32, i64, u8, u32, u64),
-                                      Evaluate,
-                                      inputs[0].get_element_type(),
-                                      inputs[0],
-                                      outputs[0],
-                                      outputs[1],
-                                      inputs[0].get_shape(),
-                                      outputs[0].get_shape(),
-                                      op->get_kernel(),
-                                      op->get_strides(),
-                                      dilations,
-                                      op->get_pads_begin(),
-                                      op->get_pads_end(),
-                                      axis);
-}
-
 }  // namespace maxpool
 
 namespace v1 {
@@ -200,26 +174,7 @@ struct Evaluate : element::NoAction<bool> {
 }  // namespace maxpool
 
 bool MaxPool::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
-    OV_OP_SCOPE(v1_MaxPool_evaluate);
-    const auto input_shapes = std::vector<PartialShape>{inputs[0].get_shape()};
-    auto pads_begin = m_pads_begin;
-    auto pads_end = m_pads_end;
-    const auto output_shape = shape_infer(this, input_shapes, pads_begin, pads_end).front();
-
-    outputs[0].set_shape(output_shape.get_shape());
-    using namespace ov::element;
-    return IF_TYPE_OF(v1_MaxPool_evaluate,
-                      OV_PP_ET_LIST(f16, f32, i32, i64, u32, u64),
-                      maxpool::Evaluate,
-                      inputs[0].get_element_type(),
-                      inputs[0],
-                      outputs[0],
-                      inputs[0].get_shape(),
-                      outputs[0].get_shape(),
-                      get_kernel(),
-                      get_strides(),
-                      get_pads_begin(),
-                      get_pads_end());
+    return false;
 }
 
 bool MaxPool::has_evaluate() const {
@@ -312,9 +267,6 @@ bool MaxPool::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
     const auto output_shape = shape_infer(this, input_shapes, pads_begin, pads_end).front();
 
     outputs[0].set_shape(output_shape.get_shape());
-<<<<<<< HEAD
-    return ov::op::maxpool::evaluate_util(this, outputs, inputs, get_dilations(), get_axis());
-=======
     using namespace ov::element;
     return IF_TYPE_OF(v8_MaxPool_evaluate,
                       OV_PP_ET_LIST(f16, f32, i8, i32, i64, u8, u32, u64),
@@ -331,7 +283,6 @@ bool MaxPool::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
                       get_pads_begin(),
                       get_pads_end(),
                       get_axis());
->>>>>>> parent of a4dcf65482 (Remove f16, bf16 from node's evaluate methods v2 (#22674))
 }
 
 bool MaxPool::has_evaluate() const {
@@ -433,15 +384,7 @@ std::shared_ptr<Node> MaxPool::clone_with_new_inputs(const OutputVector& new_arg
 }
 
 bool MaxPool::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
-    OV_OP_SCOPE(v14_MaxPool_evaluate);
-    const auto input_shapes = std::vector<PartialShape>{inputs[0].get_shape()};
-    auto pads_begin = m_pads_begin;
-    auto pads_end = m_pads_end;
-    const auto output_shape = shape_infer(this, input_shapes, pads_begin, pads_end).front();
-
-    outputs[0].set_shape(output_shape.get_shape());
-
-    return ov::op::maxpool::evaluate_util(this, outputs, inputs, get_dilations(), get_axis());
+    return false;
 }
 
 bool MaxPool::has_evaluate() const {

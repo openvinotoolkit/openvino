@@ -9,12 +9,6 @@
 
 #include "bound_evaluate.hpp"
 #include "compare.hpp"
-<<<<<<< HEAD
-#include "openvino/core/constant_fold_utils.hpp"
-#include "openvino/core/dimension.hpp"
-=======
-#include "openvino/core/dimension_tracker.hpp"
->>>>>>> parent of a4dcf65482 (Remove f16, bf16 from node's evaluate methods v2 (#22674))
 #include "openvino/op/concat.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/negative.hpp"

@@ -69,47 +69,7 @@ bool evaluate(const op::util::ScatterNDBase* node,
               TensorVector& outputs,
               const TensorVector& inputs,
               const op::v15::ScatterNDUpdate::Reduction reduction) {
-    OPENVINO_ASSERT(inputs.size() == 3);
-    OPENVINO_ASSERT(outputs.size() == 1);
-
-    const auto& data = inputs[0];
-    const auto& indices = inputs[1];
-    const auto& updates = inputs[2];
-    auto& output = outputs[0];
-    const auto& data_shape = data.get_shape();
-    const auto& indices_shape = indices.get_shape();
-    const auto& updates_shape = updates.get_shape();
-    output.set_shape(data_shape);
-    using namespace ov::element;
-<<<<<<< HEAD
-    return IF_TYPE_OF_CONVERT_TENSORS(scatter_evaluate,
-                                      node,
-                                      outputs,
-                                      inputs,
-                                      OV_PP_ET_LIST(boolean, f32, i32, i64, u32, u64),
-                                      scatter_nd_update::Evaluate,
-                                      data.get_element_type(),
-                                      data,
-                                      indices,
-                                      updates,
-                                      output,
-                                      data_shape,
-                                      indices_shape,
-                                      updates_shape,
-                                      reduction);
-=======
-    return IF_TYPE_OF(v3_ScatterNDUpdate_evaluate,
-                      OV_PP_ET_LIST(boolean, f16, f32, i32, i64, u32, u64),
-                      scatter_nd_update::Evaluate,
-                      data.get_element_type(),
-                      data,
-                      indices,
-                      updates,
-                      output,
-                      data_shape,
-                      indices_shape,
-                      updates_shape);
->>>>>>> parent of a4dcf65482 (Remove f16, bf16 from node's evaluate methods v2 (#22674))
+  return false;
 }
 bool has_evaluate(const op::util::ScatterNDBase* node) {
     switch (node->get_output_element_type(0)) {
