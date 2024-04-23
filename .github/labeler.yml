@@ -181,5 +181,5 @@
 - '.dockerignore'
 - '.github/dockerfiles/**/*'
 - 'install_build_dependencies.sh'
-- - '**/install_openvino_dependencies.sh'
+- '**/install_openvino_dependencies.sh'
 - '.github/actions/handle_docker/**/*'
