@@ -816,24 +816,29 @@ void Transformations::MainSnippets(void) {
 #if defined(OPENVINO_ARCH_ARM64)
     // ARM has 32 gprs. After excluding 2 registers for work amounts, 1 register for runtime parameters, 1 platform register,
     // 3 registers for temporary use, and 2 stack related registers, it has 23 remaining registers.
-    size_t data_ptr_grp_count = 23;
+    size_t data_ptr_gpr_count = 23;
 #else
     // X64 has 16 gprs. After excluding 2 registers for work amounts, 1 register for runtime parameters,
     // and 2 stack related registers, it has 11 remaining registers.
-    size_t data_ptr_grp_count = 11;
+    size_t data_ptr_gpr_count = 11;
 #endif
     // The optimization "SplitDimensionM" depends on target machine (thread count).
     // To avoid uncontrolled behavior in tests, we disabled the optimization when there is Config::SnippetsMode::IgnoreCallback
     bool split_m_dimension = !ignoreCallback;
     // [122706] Some 3D MHA Patterns have perf regressions when Transpose op is tokenized
     std::set<size_t> mha_supported_transpose_ranks = { 4 };
-    ov::snippets::pass::SnippetsTokenization::Config tokenization_config(concurrency, data_ptr_grp_count, split_m_dimension,
+    ov::snippets::pass::SnippetsTokenization::Config tokenization_config(concurrency, data_ptr_gpr_count, split_m_dimension,
                                                      mha_token_enable_transpose_on_output, mha_supported_transpose_ranks);
 
     ov::pass::Manager snippetsManager;
     snippetsManager.set_per_pass_validation(false);
-    if (!ignoreCallback)
-        CPU_REGISTER_PASS_COMMON(snippetsManager, SnippetsMarkSkipped, inferencePrecision != ov::element::f32);
+    if (!ignoreCallback) {
+#if defined(OPENVINO_ARCH_ARM64)
+        CPU_REGISTER_PASS_ARM(snippetsManager, SnippetsMarkSkipped);
+#else
+        CPU_REGISTER_PASS_X64(snippetsManager, SnippetsMarkSkipped, inferencePrecision != ov::element::f32);
+#endif
+    }
     CPU_REGISTER_PASS_X64(snippetsManager, snippets::pass::SnippetsTokenization, tokenization_config);
     // [126738] Remove precision constraint when Convert emitters are implemented on arm platform
     // The redundant "if defined", used to WA error of "empty controlled statement found" should also be removed then.

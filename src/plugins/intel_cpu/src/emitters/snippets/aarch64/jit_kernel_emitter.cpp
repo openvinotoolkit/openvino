@@ -53,7 +53,7 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov
         mem_access_exprs.push_back(expr);
     }
     std::set<size_t> unique_buffers;
-    for (const auto& expr : *body.get()) {
+    for (const auto& expr : *body) {
         if (const auto buffer = ov::as_type_ptr<snippets::op::Buffer>(expr->get_node())) {
             const auto buffer_id = buffer->get_id();
             if (unique_buffers.count(buffer_id) == 0) {
@@ -166,7 +166,7 @@ void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
     auto data_ptr_regs = transform_idxs_to_regs(data_ptr_regs_idx);
 
     init_data_pointers(data_ptr_regs);
-    for (const auto& expression : *body.get()) {
+    for (const auto& expression : *body) {
         const auto reg_info = expression->get_reg_info();
         auto in_regs = transform_snippets_regs_to_idxs(reg_info.first);
         auto out_regs = transform_snippets_regs_to_idxs(reg_info.second);

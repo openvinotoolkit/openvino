@@ -66,11 +66,11 @@ public:
      * @ingroup snippets
      */
     struct Config {
-        Config(size_t concurrency, size_t data_ptr_grp_count, bool split_m_dimension, bool enable_transpose_on_output, std::set<size_t> mha_transpose_ranks)
-            : concurrency(concurrency), data_ptr_grp_count(data_ptr_grp_count), split_m_dimension(split_m_dimension),
+        Config(size_t concurrency, size_t data_ptr_gpr_count, bool split_m_dimension, bool enable_transpose_on_output, std::set<size_t> mha_transpose_ranks)
+            : concurrency(concurrency), data_ptr_gpr_count(data_ptr_gpr_count), split_m_dimension(split_m_dimension),
               mha_token_enable_transpose_on_output(enable_transpose_on_output), mha_supported_transpose_ranks(std::move(mha_transpose_ranks)) {
             OPENVINO_ASSERT(concurrency > 0, "Concurrency should be greater than 0");
-            OPENVINO_ASSERT(data_ptr_grp_count > 0, "data_ptr_grp_count should be greater than 0");
+            OPENVINO_ASSERT(data_ptr_gpr_count > 0, "data_ptr_gpr_count should be greater than 0");
         }
 
         void set_concurrency(size_t concur) {
@@ -81,8 +81,8 @@ public:
             return concurrency;
         }
 
-        size_t get_data_ptr_grp_count() const {
-            return data_ptr_grp_count;
+        size_t get_data_ptr_gpr_count() const {
+            return data_ptr_gpr_count;
         }
 
         bool get_split_m_dimension() const {
@@ -99,9 +99,9 @@ public:
 
     private:
         size_t concurrency = 0;
-        // The number of grp that can be used as data pointers for data nodes (Parameter (and non-Scalar Constants),
+        // The number of gpr that can be used as data pointers for data nodes (Parameter (and non-Scalar Constants),
         // Result, Buffers with the same ID)
-        size_t data_ptr_grp_count = 0;
+        size_t data_ptr_gpr_count = 0;
         // True if "SplitDimensionM" optimization is enabled. Otherwise, it's disabled.
         bool split_m_dimension = true;
         // False if Transpose on output isn't tokenized in MHA Tokenization.
@@ -113,6 +113,8 @@ public:
         // But at the moment Transpose is used only in MHA pattern where 3D and 4D tensors are supported.
         std::set<size_t> mha_supported_transpose_ranks = { 3, 4 };
     };
+
+    static Config get_default_config() { return { 1, std::numeric_limits<size_t>::max(), true, true, { 3, 4 } }; }
 
     OPENVINO_RTTI("SnippetsTokenization", "0");
     SnippetsTokenization(const Config& config) : m_config(config) {}

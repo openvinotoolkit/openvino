@@ -17,16 +17,14 @@ namespace intel_cpu {
 class SnippetsMarkSkipped : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("SnippetsMarkSkipped", "0");
-    SnippetsMarkSkipped(bool enableBF16 = false) : ModelPass(), enableBF16(enableBF16) {}
+    SnippetsMarkSkipped() : ModelPass() {}
     bool run_on_model(const std::shared_ptr<ov::Model> &) override;
-private:
-    bool enableBF16 = false;
 };
 
 /*
 NotSet - not part of a fusing chain
 FusedTerminator - the node is fused, but the chain can't be continued
-FusedWithConvolution, FusedWithConvolutionSumActivation, FusedWithMisc - fusing chains with different continuation rules
+FusedWithConvolution, FusedWithMisc - fusing chains with different continuation rules
 IgnoredAfterInputs - node must be skipped, since can't be handled properly at this time. Also a continuable fusing chain.
 Order of SnippetsNodeType is important!:
 * SnippetsNodeType >= FusedTerminator is a Fused chain
@@ -38,8 +36,8 @@ Order of SnippetsNodeType is important!:
 enum class NodeFusingType : int64_t {
     NotSet,
     FusedTerminator,
-    FusedWithConvolution,  FusedWithBinaryConvolution, FusedWithConvolutionSumActivation,
-    FusedWithMatMul, FusedWithFC, FusedWithMatMulI8, FusedWithFCI8, FusedWithReduce, FusedWithMisc};
+    FusedWithConvolution,  FusedWithBinaryConvolution,
+    FusedWithMatMul, FusedWithFC, FusedWithMisc};
 
 }   // namespace intel_cpu
 }   // namespace ov
