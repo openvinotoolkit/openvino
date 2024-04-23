@@ -14,10 +14,9 @@ inputs:
     description: 'Push built images to registry'
     required: false
     default: 'true'
-  pr_changes_environment:
-    description: 'Whether there are changes in environment - "true" or "false"'
-    required: false
-    default: 'false'
+  affected_components:
+    description: 'Components affected by a pull request'
+    required: true
   repo_token:
     description: "Token for access to GitHub repository"
     required: true
@@ -64,7 +63,8 @@ runs:
         --images "$images" \
         --head_tag_file "${{ inputs.dockerfiles_root_dir }}/docker_tag" \
         --base_tag_file "base/${{ inputs.dockerfiles_root_dir }}/docker_tag" \
-        --pr_changes_environment "${{ inputs.pr_changes_environment }}" \
+        --docker_env_changed "${{ fromJSON(inputs.affected_components).docker_env.build }}" \
+        --dockerfiles_changed "${{ fromJSON(inputs.affected_components).dockerfiles.build }}" \
         --repo "${{ github.repository }}" \
         --ref_name "${{ github.ref_name }}" \
         $([[ -n $pr ]] && echo "--pr $pr" || echo '-s ${{ github.sha }}') \

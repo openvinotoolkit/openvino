@@ -69,7 +69,7 @@ jobs:
             ov_test/ubuntu_20_04_arm64
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
-          pr_changes_environment: ${{ fromJSON(needs.Smart_CI.outputs.affected_components).docker.build }}
+          affected_components: ${{ needs.Smart_CI.outputs.affected_components }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
 
   Build:

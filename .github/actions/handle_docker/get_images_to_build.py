@@ -3,6 +3,7 @@ import json
 import re
 import sys
 
+from distutils.util import strtobool
 from helpers import *
 from images_api import *
 
@@ -18,7 +19,10 @@ def parse_args():
     parser.add_argument('--base_tag_file', default=None, required=False, help='Base docker tag file path')
     parser.add_argument('--ref_name', required=False, default='', help='GitHub ref name')
     parser.add_argument('--repo', default='openvinotoolkit/openvino', help='GitHub repository')
-    parser.add_argument('--pr_changes_environment', type=bool, default=True, help='Whether PR changes env')
+    parser.add_argument('--docker_env_changed', type=lambda x: bool(strtobool(x)), default=True,
+                        help='Whether PR changes docker env')
+    parser.add_argument('--dockerfiles_changed', type=lambda x: bool(strtobool(x)), default=True,
+                        help='Whether PR changes dockerfiles')
     parser.add_argument('--action_path', default='.github/actions/handle_docker', help='Path to this GitHub action')
     parser.add_argument('--push', action='store_true', required=False, help='Whether to push images to registry')
     parser.add_argument('--pull', action='store_true', required=False,
@@ -53,7 +57,7 @@ def main():
     merge_queue_target_branch = next(iter(re.findall(f'^gh-readonly-queue/(.*)/', args.ref_name)), None)
 
     if args.pr:
-        environment_affected = args.pr_changes_environment
+        environment_affected = args.docker_env_changed or args.dockerfiles_changed
         if environment_affected:
             expected_tag = f'pr-{args.pr}'
 
@@ -72,8 +76,7 @@ def main():
         changeset = get_changeset(args.repo, args.pr, merge_queue_target_branch, args.commit)
         changed_dockerfiles = [p for p in changeset if p.startswith(args.dockerfiles_root) and p.endswith('Dockerfile')]
 
-        only_docker_env_changed = get_labels(args.repo, args.pr) == {'category: docker'} if args.pr else False
-        changed_images = requested_images if not only_docker_env_changed else \
+        changed_images = requested_images if args.docker_env_changed else \
             set([name_from_dockerfile(d, args.dockerfiles_root) for d in changed_dockerfiles])
 
         unchanged_images = requested_images - changed_images
