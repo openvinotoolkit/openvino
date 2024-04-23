@@ -4,7 +4,7 @@
 #include "common_test_utils/test_common.hpp"
 #include "conversion_with_reference.hpp"
 #include "gtest/gtest.h"
-#include "openvino//op/less_eq.hpp"
+#include "openvino/op/less_eq.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/extension.hpp"
 #include "openvino/frontend/manager.hpp"
