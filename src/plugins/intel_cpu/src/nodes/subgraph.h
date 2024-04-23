@@ -69,9 +69,6 @@ private:
     DataFlowPasses get_data_flow_passes() const;
     std::pair<ControlFlowConfig, ControlFlowPasses> get_control_flow_passes() const;
 
-    size_t inputNum = 0;
-    size_t outputNum = 0;
-
     // Holds ISA version used is codeGeneration target
     dnnl::impl::cpu::x64::cpu_isa_t host_isa;
     std::shared_ptr<SubgraphAttrs> snippetAttrs;

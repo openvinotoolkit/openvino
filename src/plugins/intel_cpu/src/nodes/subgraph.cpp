@@ -548,7 +548,7 @@ void Subgraph::prepareParams() {
 
     auto builder = [this, cache](const SubgraphSpecializedKey& key) -> std::shared_ptr<SubgraphExecutor> {
         if (is_dynamic) {
-            auto shape_agnostic_builder = [this](const SubgraphShapeAgnosticKey& key) -> std::shared_ptr<SubgraphExecutor> {
+            auto shape_agnostic_builder = [](const SubgraphShapeAgnosticKey& key) -> std::shared_ptr<SubgraphExecutor> {
                 return std::make_shared<SubgraphJitShapeAgnosticExecutor>(key.attrs);
             };
 
