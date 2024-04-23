@@ -139,3 +139,34 @@ def get_output_signature(graph: tf_v1.Graph):
             if op.type not in unlikely_output_types:
                 outputs.append(op.name + ':0')
     return outputs
+
+
+def retrieve_inputs_info_for_signature(input_signature):
+    inputs_info = []
+    for input_name, input_info in (input_signature.items() if isinstance(input_signature, dict) else input_signature):
+        input_shape = []
+        try:
+            if input_info.shape.as_list() == [None, None, None, 3] and input_info.dtype == tf.float32:
+                # image classification case, let us imitate an image
+                # that helps to avoid compute output size issue
+                input_shape = [1, 200, 200, 3]
+            elif input_info.shape.as_list() == [None, None, None, None, 3] and input_info.dtype == tf.float32:
+                input_shape = [1, 2, 100, 100, 3]
+            else:
+                for dim in input_info.shape.as_list():
+                    if dim is None:
+                        input_shape.append(1)
+                    else:
+                        input_shape.append(dim)
+        except ValueError:
+            # unknown rank case
+            # assume only one dimension
+            input_shape = [3]
+            pass
+        if input_info.dtype == tf.resource:
+            # skip inputs corresponding to variables
+            continue
+        assert input_info.dtype in type_map, "Unsupported input type: {}".format(input_info.dtype)
+        inputs_info.append((input_name, input_shape, type_map[input_info.dtype]))
+
+    return inputs_info
