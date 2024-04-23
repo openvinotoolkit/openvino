@@ -41,7 +41,7 @@ public:
 
         OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::DiscretePipeline::DiscretePipeline");
         for (const auto& desc : executor->inputs_desc_map()) {
-            _deviceInputs.appendArgument(desc.first, desc.second.info);
+            _deviceInputs.appendArgument(desc.first, zeroUtils::getSizeIOBytes(desc.second.info));
         }
         _deviceInputs.allocate(device_handle, context);
 
@@ -61,7 +61,7 @@ public:
         _event[stage::UPLOAD].AppendSignalEvent(_command_list[stage::UPLOAD]);
 
         for (const auto& desc : executor->outputs_desc_map()) {
-            _deviceOutputs.appendArgument(desc.first, desc.second.info);
+            _deviceOutputs.appendArgument(desc.first, zeroUtils::getSizeIOBytes(desc.second.info));
         }
         _deviceOutputs.allocate(device_handle, context);
 

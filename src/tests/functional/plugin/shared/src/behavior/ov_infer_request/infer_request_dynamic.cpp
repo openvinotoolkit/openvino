@@ -130,6 +130,20 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkSetUnexpectedOutputTensorB
     OV_ASSERT_NO_THROW(req.infer());
     ASSERT_EQ(otensor.get_shape(), refOutShape);
     ASSERT_TRUE(checkOutput(req.get_tensor("input_tensor"), req.get_tensor(outputname)));
+    std::vector<ov::Shape> vectorDynamicShapes{ov::Shape{0},
+                                               ov::Shape{0, 2},
+                                               ov::Shape{0, 4, 20},
+                                               ov::Shape{0, 4, 20, 20},
+                                               ov::Shape{1, 0, 20, 20},
+                                               ov::Shape{1, 0, 0, 20},
+                                               ov::Shape{1, 4, 20, 0}};
+    for (auto& shape : vectorDynamicShapes) {
+        ov::Tensor outputTensor = ov::Tensor{element::f32, shape};
+        OV_ASSERT_NO_THROW(req.set_tensor(outputname, outputTensor));
+        OV_ASSERT_NO_THROW(req.infer());
+        ASSERT_EQ(otensor.get_shape(), refOutShape);
+        ASSERT_TRUE(checkOutput(req.get_tensor("input_tensor"), req.get_tensor(outputname)));
+    }
 }
 
 TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkSetOutputTensorPreAllocatedMemoryBeforeInfer) {

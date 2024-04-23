@@ -24,7 +24,7 @@ Install Intel® Distribution of OpenVINO™ Toolkit from PyPI Repository
       :sync: system-requirements
 
       | Full requirement listing is available in:
-      | :doc:`System Requirements Page <../../../about-openvino/system-requirements>`
+      | :doc:`System Requirements Page <../../../about-openvino/release-notes-openvino/system-requirements>`
       | `PyPI OpenVINO page <https://pypi.org/project/openvino/>`__
 
 
