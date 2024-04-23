@@ -284,21 +284,24 @@ void Snippet::initSupportedPrimitiveDescriptors() {
 
 void Snippet::selectOptimalPrimitiveDescriptor() {
     // Check if memory desc is in SupportedPrimitiveDescriptors.
-    auto memDescInSupportedPD = [&](const ov::intel_cpu::MemoryDescPtr& parentMemDesc, const size_t& idx) {
+    auto memDescInSupportedPD = [&](const ov::intel_cpu::MemoryDescPtr& parentMemDesc,
+                                    const size_t& idx,
+                                    size_t& supportedPDIdx) {
         for (auto& type : getImplPriority()) {
             for (size_t i = 0; i < getSupportedPrimitiveDescriptors().size(); i++) {
                 const auto& supportedPrimitiveDesc = getSupportedPrimitiveDescriptors()[i];
                 const impl_desc_type supportedType = supportedPrimitiveDesc.getImplementationType();
                 if (supportedType == type) {
                     const auto& supportedMemDesc = supportedPrimitiveDesc.getConfig().inConfs[idx].getMemDesc();
-                    if (parentMemDesc->getShape().isStatic() &&
+                    // Static shape + same shape + same precision + same layout
+                    if (parentMemDesc->getShape().isStatic() && supportedMemDesc->getShape().isStatic() &&
                         parentMemDesc->getShape() == supportedMemDesc->getShape() &&
                         parentMemDesc->getPrecision() == supportedMemDesc->getPrecision()) {
-                        //
                         if ((parentMemDesc->hasLayoutType(LayoutType::ncsp) &&
                              supportedMemDesc->hasLayoutType(LayoutType::ncsp)) ||
                             (parentMemDesc->hasLayoutType(LayoutType::nspc) &&
                              supportedMemDesc->hasLayoutType(LayoutType::nspc))) {
+                            supportedPDIdx = i;
                             return true;
                         }
                     }
@@ -320,29 +323,30 @@ void Snippet::selectOptimalPrimitiveDescriptor() {
             return false;
         };
 
-        bool foundOptimalPD = true;
+        int num_sshape_ncsp = 0;
+        int num_nonsshape_nspc = 0;
+        size_t selectedPDIdx = 0;
         for (size_t i = 0; i < getParentEdges().size(); i++) {
             auto parentEdge = getParentEdgeAt(i);
             auto parentPtr = parentEdge->getParent();
             auto parent_spd = parentPtr->getSelectedPrimitiveDescriptor();
             auto parentDesc = parent_spd->getConfig().outConfs[0].getMemDesc();
-            if (i == 0u || i == 2u) {
-                if (!(check_special_shape(parentDesc->getShape()) && parentDesc->hasLayoutType(LayoutType::ncsp) &&
-                      memDescInSupportedPD(parentDesc, i))) {
-                    foundOptimalPD = false;
-                    break;
-                }
+            size_t supportedPDIdx = 0;
+            if (check_special_shape(parentDesc->getShape()) && parentDesc->hasLayoutType(LayoutType::ncsp) &&
+                memDescInSupportedPD(parentDesc, i, supportedPDIdx)) {
+                num_sshape_ncsp++;
             }
-            if (i == 1u) {
-                if (!((!check_special_shape(parentDesc->getShape())) && parentDesc->hasLayoutType(LayoutType::nspc) &&
-                      memDescInSupportedPD(parentDesc, i))) {
-                    foundOptimalPD = false;
-                    break;
-                }
+
+            if ((!check_special_shape(parentDesc->getShape())) && parentDesc->hasLayoutType(LayoutType::nspc) &&
+                memDescInSupportedPD(parentDesc, i, supportedPDIdx)) {
+                num_nonsshape_nspc++;
+                selectedPDIdx = supportedPDIdx;
             }
         }
+
+        bool foundOptimalPD = num_sshape_ncsp == 2 && num_nonsshape_nspc == 1;
         if (foundOptimalPD) {
-            selectPrimitiveDescriptorByIndex(1);
+            selectPrimitiveDescriptorByIndex(selectedPDIdx);
             return;
         }
     }
