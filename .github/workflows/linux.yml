@@ -319,11 +319,15 @@ jobs:
 
   Conformance:
     needs: [ Build, Smart_CI ]
-    timeout-minutes: ${{ matrix.TEST_TYPE == 'API' && 5 || 20 }}
+    timeout-minutes: ${{ matrix.TEST_TYPE == 'API' && 5 || 30 }}
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-20.04-8-cores
+    runs-on: aks-linux-8-cores-64gb
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      volumes:
+        - /mount:/mount
     strategy:
       max-parallel: 2
       fail-fast: false
@@ -382,13 +386,12 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
-          should-setup-pip-paths: 'false'
-          self-hosted-runner: 'false'
+          should-setup-pip-paths: 'true'
+          self-hosted-runner: 'true'
 
       - name: Install Dependencies
         run: |
-          sudo -E ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
-
+          ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
           python3 -m pip install -r ${CONFORMANCE_TOOLS_DIR}/requirements.txt
 
       #
