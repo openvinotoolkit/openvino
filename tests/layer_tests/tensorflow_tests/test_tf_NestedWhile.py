@@ -12,8 +12,8 @@ class TestNestedWhile(CommonTFLayerTest):
 
         g = tf.Graph()
         with g.as_default():
-            x = tf.compat.v1.placeholder(tf.float32, shape=(3, 2)) # emutex FIXME!
-            v = tf.constant([1, 2, 3], dtype=tf.int32, shape=[3]) # emutex FIXME!
+            x = tf.compat.v1.placeholder(tf.float32, shape=(3, 2))
+            v = tf.constant([1, 2, 3], dtype=tf.int32, shape=[3])
             i = tf.constant([0], dtype=tf.int32, shape=[1])
             a_combined = tf.zeros([1, 2], dtype=tf.float32)
             b_combined = tf.zeros([1, 2], dtype=tf.float32)
