@@ -303,23 +303,23 @@ TEST_P(GroupDeconvolutionLayerCPUTest, CompareWithRefs) {
 
 namespace {
 
-std::vector<CPUSpecificParams> filterCPUInfoForDevice_AMX_BF16(std::vector<CPUSpecificParams> allParams) {
-    std::vector<CPUSpecificParams> specificParams;
-    bool with_amx_bf16 = ov::with_cpu_x86_avx512_core_amx_bf16();
-    std::copy_if(allParams.begin(),
-                 allParams.end(),
-                 std::back_inserter(specificParams),
-                 [with_amx_bf16](const CPUSpecificParams& item) {
-                     const auto& selected = std::get<3>(item);
-                     // when no bf16 hardware amx will not work
-                     if (!with_amx_bf16 && selected.find("amx") != std::string::npos) {
-                         return false;
-                     }
-                     return true;
-                 });
+// std::vector<CPUSpecificParams> filterCPUInfoForDevice_AMX_BF16(std::vector<CPUSpecificParams> allParams) {
+//     std::vector<CPUSpecificParams> specificParams;
+//     bool with_amx_bf16 = ov::with_cpu_x86_avx512_core_amx_bf16();
+//     std::copy_if(allParams.begin(),
+//                  allParams.end(),
+//                  std::back_inserter(specificParams),
+//                  [with_amx_bf16](const CPUSpecificParams& item) {
+//                      const auto& selected = std::get<3>(item);
+//                      // when no bf16 hardware amx will not work
+//                      if (!with_amx_bf16 && selected.find("amx") != std::string::npos) {
+//                          return false;
+//                      }
+//                      return true;
+//                  });
 
-    return filterCPUInfoForDevice(specificParams);
-}
+//     return filterCPUInfoForDevice(specificParams);
+// }
 
 /* COMMON PARAMS */
 std::vector<fusingSpecificParams> fusingParamsSet{
@@ -328,7 +328,7 @@ std::vector<fusingSpecificParams> fusingParamsSet{
     fusingAddPerChannel,
 };
 
-std::vector<fusingSpecificParams> fusingParamsSetBrgAmx{
+std::vector<fusingSpecificParams> fusingParamsSetBrg{
     emptyFusingSpec,
     // Bias fusing
     fusingAddPerChannel,
@@ -535,14 +535,25 @@ const auto groupConvParams_ExplicitPadding_nspc_2D = ::testing::Combine(::testin
                                                                         ::testing::Values(ov::op::PadType::EXPLICIT),
                                                                         ::testing::ValuesIn(emptyOutputPadding));
 
-INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_2D_AMX_BF16,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_2D_AMX_nspc_BF16,
                          GroupDeconvolutionLayerCPUTest,
                          ::testing::Combine(groupConvParams_ExplicitPadding_nspc_2D,
                                             ::testing::ValuesIn(nspc_2D_inputs_smoke),
                                             ::testing::Values(ElementType::f32),
-                                            ::testing::ValuesIn(fusingParamsSetBrgAmx),
-                                            ::testing::ValuesIn(filterCPUInfoForDevice_AMX_BF16({conv_avx512_2D_nspc_brgconv_amx})),
+                                            ::testing::ValuesIn(fusingParamsSetBrg),
+                                            ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D_nspc_brgconv_amx})),
                                             ::testing::Values(cpu_bf16_plugin_config)),
+                         GroupDeconvolutionLayerCPUTest::getTestCaseName);
+
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_2D_nspc_brg,
+                         GroupDeconvolutionLayerCPUTest,
+                         ::testing::Combine(groupConvParams_ExplicitPadding_nspc_2D,
+                                            ::testing::ValuesIn(nspc_2D_inputs_smoke),
+                                            ::testing::Values(ElementType::f32),
+                                            ::testing::ValuesIn(fusingParamsSetBrg),
+                                            ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D_nspc_brgconv, conv_avx2_2D_nspc_brgconv})),
+                                            ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          GroupDeconvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= GroupConvolution (Blocked 3D) ============= */
@@ -613,11 +624,20 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_3D_nspc_BF16,
                          ::testing::Combine(groupConvParams_ExplicitPadding_nspc_3D,
                                             ::testing::ValuesIn(nspc_3D_inputs_smoke),
                                             ::testing::Values(ElementType::f32),
-                                            ::testing::ValuesIn(fusingParamsSetBrgAmx),
-                                            ::testing::ValuesIn(filterCPUInfoForDevice_AMX_BF16({conv_avx512_3D_nspc_brgconv_amx})),
+                                            ::testing::ValuesIn(fusingParamsSetBrg),
+                                            ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_3D_nspc_brgconv_amx})),
                                             ::testing::Values(cpu_bf16_plugin_config)),
                          GroupDeconvolutionLayerCPUTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_3D_nspc_brg,
+                         GroupDeconvolutionLayerCPUTest,
+                         ::testing::Combine(groupConvParams_ExplicitPadding_nspc_3D,
+                                            ::testing::ValuesIn(nspc_3D_inputs_smoke),
+                                            ::testing::Values(ElementType::f32),
+                                            ::testing::ValuesIn(fusingParamsSetBrg),
+                                            ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_3D_nspc_brgconv, conv_avx2_3D_nspc_brgconv})),
+                                            ::testing::Values(CPUTestUtils::empty_plugin_config)),
+                         GroupDeconvolutionLayerCPUTest::getTestCaseName);
 /* ============= GroupConvolution (DW 2D) ============= */
 const std::vector<DeconvInputData> dw_2D_inputs_nightly = {
     DeconvInputData{InputShape{{-1, 32, -1, -1}, {{1, 32, 5, 5}, {2, 32, 5, 7}}},

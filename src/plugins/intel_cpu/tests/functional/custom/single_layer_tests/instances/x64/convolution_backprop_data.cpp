@@ -118,7 +118,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_Deconv_3D_Planar_BF16,
 /* ============= Deconvolution (Blocked 2D) ============= */
 const std::vector<DeconvInputData> Blocked_2D_inputs_smoke = {
         DeconvInputData{InputShape{{}, {{2, 67, 7, 7}}}, ov::test::utils::InputLayerType::CONSTANT, {}},
-        DeconvInputData{InputShape{{-1, 67, -1, -1}, {{2, 67, 7, 7}, {2, 67, 5, 7}, {1, 67, 9, 4}}},
+        DeconvInputData{InputShape{{-1, 67, -1, -1}, {{2, 67, 7, 7}, {2, 67, 10, 10}, {1, 67, 9, 9}}},
                         ov::test::utils::InputLayerType::PARAMETER,
                         {{15, 15}, {9, 10}, {9, 9}}}};
 
@@ -158,8 +158,8 @@ const auto convParams_ExplicitPadding_Blocked_2D = ::testing::Combine(::testing:
                                                                       ::testing::Values(ov::op::PadType::EXPLICIT),
                                                                       ::testing::ValuesIn(emptyOutputPadding));
 
-const auto convParams_ExplicitPadding_AMX_2D = ::testing::Combine(::testing::ValuesIn(deconvAmxKernels2d),
-                                                                  ::testing::ValuesIn(deconvAmxStrides2d),
+const auto convParams_ExplicitPadding_NSPC_2D = ::testing::Combine(::testing::ValuesIn(deconvBrgKernels2d),
+                                                                  ::testing::ValuesIn(deconvBrgStrides2d),
                                                                   ::testing::ValuesIn(padBegins2d),
                                                                   ::testing::ValuesIn(padEnds2d),
                                                                   ::testing::ValuesIn(dilations2d),
@@ -187,9 +187,9 @@ INSTANTIATE_TEST_SUITE_P(nightly_Deconv_2D_Blocked_BF16,
                            ::testing::Values(cpu_bf16_plugin_config)),
         DeconvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_NSPC_BF16_AMX_NO_FUSING,
+INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_NSPC_BF16_AMX,
         DeconvolutionLayerCPUTest,
-        ::testing::Combine(convParams_ExplicitPadding_AMX_2D,
+        ::testing::Combine(convParams_ExplicitPadding_NSPC_2D,
                            ::testing::ValuesIn(Blocked_2D_inputs_smoke),
                            ::testing::Values(ElementType::f32),
                            ::testing::ValuesIn(brgDeconvFusingParamsSet),
@@ -197,9 +197,20 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_NSPC_BF16_AMX_NO_FUSING,
                            ::testing::Values(cpu_bf16_plugin_config)),
         DeconvolutionLayerCPUTest::getTestCaseName);
 
+
+INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_NSPC_BRG,
+        DeconvolutionLayerCPUTest,
+        ::testing::Combine(convParams_ExplicitPadding_NSPC_2D,
+                           ::testing::ValuesIn(Blocked_2D_inputs_smoke),
+                           ::testing::Values(ElementType::f32),
+                           ::testing::ValuesIn(brgDeconvFusingParamsSet),
+                           ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D_nspc_brgconv, conv_avx2_2D_nspc_brgconv})),
+                           ::testing::Values(CPUTestUtils::empty_plugin_config)),
+        DeconvolutionLayerCPUTest::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_NSPC_INT8_AMX,
         DeconvolutionLayerCPUTest,
-        ::testing::Combine(convParams_ExplicitPadding_AMX_2D,
+        ::testing::Combine(convParams_ExplicitPadding_NSPC_2D,
                            ::testing::ValuesIn(Blocked_2D_inputs_smoke),
                            ::testing::Values(ElementType::i8),
                            ::testing::ValuesIn({emptyFusingSpec, fusingClampRoundAddRelu}),
@@ -249,8 +260,8 @@ const auto convParams_ExplicitPadding_Blocked_3D = ::testing::Combine(::testing:
                                                                       ::testing::Values(ov::op::PadType::EXPLICIT),
                                                                       ::testing::ValuesIn(emptyOutputPadding));
 
-const auto convParams_ExplicitPadding_AMX_3D = ::testing::Combine(::testing::ValuesIn(deconvAmxKernels3d),
-                                                                  ::testing::ValuesIn(deconvAmxStrides3d),
+const auto convParams_ExplicitPadding_NSPC_3D = ::testing::Combine(::testing::ValuesIn(deconvBrgKernels3d),
+                                                                  ::testing::ValuesIn(deconvBrgStrides3d),
                                                                   ::testing::ValuesIn(padBegins3d),
                                                                   ::testing::ValuesIn(padEnds3d),
                                                                   ::testing::ValuesIn(dilations3d),
@@ -278,9 +289,9 @@ INSTANTIATE_TEST_SUITE_P(nightly_Deconv_3D_Blocked_BF16,
                            ::testing::Values(cpu_bf16_plugin_config)),
         DeconvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_NSPC_BF16_AMX_NO_FUSING,
+INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_NSPC_BF16_AMX,
         DeconvolutionLayerCPUTest,
-        ::testing::Combine(convParams_ExplicitPadding_AMX_3D,
+        ::testing::Combine(convParams_ExplicitPadding_NSPC_3D,
                            ::testing::ValuesIn(Blocked_3D_inputs_smoke),
                            ::testing::Values(ElementType::f32),
                            ::testing::ValuesIn(brgDeconvFusingParamsSet),
@@ -288,9 +299,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_NSPC_BF16_AMX_NO_FUSING,
                            ::testing::Values(cpu_bf16_plugin_config)),
         DeconvolutionLayerCPUTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_NSPC_BRG,
+        DeconvolutionLayerCPUTest,
+        ::testing::Combine(convParams_ExplicitPadding_NSPC_3D,
+                           ::testing::ValuesIn(Blocked_3D_inputs_smoke),
+                           ::testing::Values(ElementType::f32),
+                           ::testing::ValuesIn(brgDeconvFusingParamsSet),
+                           ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_3D_nspc_brgconv, conv_avx2_3D_nspc_brgconv})),
+                           ::testing::Values(CPUTestUtils::empty_plugin_config)),
+        DeconvolutionLayerCPUTest::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_NSPC_INT8_AMX,
         DeconvolutionLayerCPUTest,
-        ::testing::Combine(convParams_ExplicitPadding_AMX_3D,
+        ::testing::Combine(convParams_ExplicitPadding_NSPC_3D,
                            ::testing::ValuesIn(Blocked_3D_inputs_smoke),
                            ::testing::Values(ElementType::i8),
                            ::testing::ValuesIn({emptyFusingSpec, fusingClampRoundAddRelu}),
@@ -421,8 +442,8 @@ INSTANTIATE_TEST_SUITE_P(nightly_Deconv_3D_AutoPadding_FP32,
         DeconvolutionLayerCPUTest::getTestCaseName);
 
 const auto deconvParams_AutoPadding_2D_AMX =
-        ::testing::Combine(::testing::ValuesIn(deconvAmxKernels2d),
-                           ::testing::ValuesIn(deconvAmxStrides2d),
+        ::testing::Combine(::testing::ValuesIn(deconvBrgKernels2d),
+                           ::testing::ValuesIn(deconvBrgStrides2d),
                            ::testing::ValuesIn(padBegins2d),
                            ::testing::ValuesIn(padEnds2d),
                            ::testing::ValuesIn(dilations2d),
