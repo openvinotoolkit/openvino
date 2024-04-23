@@ -10,10 +10,6 @@ inputs:
   dockerfiles_root_dir:
     description: 'Path to dockerfiles root dir relative to repository root'
     required: true
-  pull:
-    description: 'Always pull newest versions of referenced images'
-    required: false
-    default: 'true'
   push:
     description: 'Push built images to registry'
     required: false
@@ -72,7 +68,6 @@ runs:
         --repo "${{ github.repository }}" \
         --ref_name "${{ github.ref_name }}" \
         $([[ -n $pr ]] && echo "--pr $pr" || echo '-s ${{ github.sha }}') \
-        $([[ -n "${{ inputs.pull }}" ]] && echo "--pull" || echo '') \
         $([[ -n "${{ inputs.push }}" ]] && echo "--push" || echo '')
       env:
         GITHUB_TOKEN: ${{ inputs.repo_token }} # ${{ github.token }}
