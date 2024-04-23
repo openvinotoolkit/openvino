@@ -166,7 +166,7 @@ public:
         clockwise = clockwise_;
 
         if (aligned_mode != AlignedMode::ASYMMETRIC) {
-            OPENVINO_THROW(std::string("ROIAlignRotated: Not supported aligned_mode"));
+            OPENVINO_THROW("ROIAlignRotated: Not supported aligned_mode");
         }
     }
 
