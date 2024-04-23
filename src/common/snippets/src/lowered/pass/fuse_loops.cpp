@@ -20,16 +20,13 @@ bool is_loop_id_found(const std::vector<size_t>& ids, size_t id) {
 }
 } // namespace
 
-using LoopManager = LinearIR::LoopManager;
-using LoopInfoPtr = LoopManager::LoopInfoPtr;
-
 FuseLoops::FuseLoops() : RangedPass() {}
 
-bool FuseLoops::loop_ports_are_compatible(const LinearIR::LoopManager::LoopInfoPtr& loop_upper,
-                                          const LinearIR::LoopManager::LoopInfoPtr& loop_lower) {
-    auto found_port = [](const std::vector<LoopManager::LoopPort>& loop_ports, const ExpressionPort& target_port) {
+bool FuseLoops::loop_ports_are_compatible(const LoopInfoPtr& loop_upper,
+                                          const LoopInfoPtr& loop_lower) {
+    auto found_port = [](const std::vector<LoopPort>& loop_ports, const ExpressionPort& target_port) {
         return std::find_if(loop_ports.cbegin(), loop_ports.cend(),
-                            [&target_port](const LoopManager::LoopPort& loop_port) {return *(loop_port.expr_port.get()) == target_port; });
+                            [&target_port](const LoopPort& loop_port) {return *(loop_port.expr_port.get()) == target_port; });
     };
     const auto& upper_exit_ports = loop_upper->get_exit_points();
     const auto& lower_entry_ports = loop_lower->get_entry_points();
@@ -47,7 +44,7 @@ bool FuseLoops::loop_ports_are_compatible(const LinearIR::LoopManager::LoopInfoP
     return true;
 }
 
-bool FuseLoops::can_be_fused(const LinearIR::LoopManager::LoopInfoPtr& loop_upper, const LinearIR::LoopManager::LoopInfoPtr& loop_lower) {
+bool FuseLoops::can_be_fused(const LoopInfoPtr& loop_upper, const LoopInfoPtr& loop_lower) {
     if (!loop_ports_are_compatible(loop_upper, loop_lower))
         return false;
     // Loop fusion is supported only if Loops have equal/broadcastable increments and work amounts.
@@ -75,13 +72,13 @@ bool FuseLoops::can_be_fused(const LinearIR::LoopManager::LoopInfoPtr& loop_uppe
     return first_iter_handlers_match && (is_dynamic_case || equal_parameters || bcastable_upper || bcastable_lower);
 }
 
-void FuseLoops::move(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager, size_t loop_id,
+void FuseLoops::move(LinearIR& linear_ir, const LoopManagerPtr& loop_manager, size_t loop_id,
                      LinearIR::constExprIt loop_begin_pos, LinearIR::constExprIt loop_end_pos, LinearIR::constExprIt pos) {
     // Inner Loops can contain ports which are ports of outer Loops as well.
     // When we move these inner loops, we can corrupt the sort of LoopPorts of outer Loops.
     // Firstly, we should find correct target loop bounds before their movings.
     std::map<size_t, std::pair<LinearIR::constExprIt, LinearIR::constExprIt>> outer_loops;  // The map: LoopID -> [ LoopBegin, LoopEnd ]
-    const auto outer_loop_ids = LinearIR::LoopManager::get_outer_expr_loops(*loop_begin_pos, loop_id);
+    const auto outer_loop_ids = LoopManager::get_outer_expr_loops(*loop_begin_pos, loop_id);
     for (const auto& loop_id : outer_loop_ids) {
         const auto loop_bounds = loop_manager->get_loop_bounds(linear_ir, loop_id);
         // save previos iterator since the current iterator can be moved
@@ -105,7 +102,7 @@ void FuseLoops::move(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_m
     }
 }
 
-bool FuseLoops::fuse_upper_into_current(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager,
+bool FuseLoops::fuse_upper_into_current(LinearIR& linear_ir, const LoopManagerPtr& loop_manager,
                                         const std::shared_ptr<ExpressionPort>& current_entry_point,
                                         size_t current_loop_id, size_t target_loop_id,
                                         LinearIR::constExprIt& current_loop_begin_pos, LinearIR::constExprIt& current_loop_end_pos) {
@@ -149,7 +146,7 @@ bool FuseLoops::fuse_upper_into_current(LinearIR& linear_ir, const LinearIR::Loo
     return true;
 }
 
-bool FuseLoops::fuse_lower_into_current(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager,
+bool FuseLoops::fuse_lower_into_current(LinearIR& linear_ir, const LoopManagerPtr& loop_manager,
                                         const std::shared_ptr<ExpressionPort>& current_exit_point,
                                         size_t current_loop_id, size_t target_loop_id,
                                         LinearIR::constExprIt& current_loop_begin_pos, LinearIR::constExprIt& current_loop_end_pos) {
