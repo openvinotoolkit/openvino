@@ -381,25 +381,13 @@ endif()
 
 if(ENABLE_OV_TF_LITE_FRONTEND)
     if(ENABLE_SYSTEM_FLATBUFFERS)
-        if(CMAKE_HOST_LINUX)
-            set(_old_flat_CMAKE_LIBRARY_ARCHITECTURE ${CMAKE_LIBRARY_ARCHITECTURE})
-            # without this WA cmake does not search in <triplet> subfolder
-            # see https://cmake.org/cmake/help/latest/command/find_package.html#config-mode-search-procedure
-            if(HOST_X86_64)
-                set(CMAKE_LIBRARY_ARCHITECTURE "x86_64-linux-gnu")
-            elseif(HOST_AARCH64)
-                set(CMAKE_LIBRARY_ARCHITECTURE "aarch64-linux-gnu")
-            endif()
-        endif()
+        ov_cross_compile_define_debian_arch()
 
         # on new Ubuntu versions like 23.04 we have config called FlatBuffersConfig.cmake
         # so, we need to provide alternative names
         find_host_package(Flatbuffers QUIET NAMES Flatbuffers FlatBuffers NO_CMAKE_FIND_ROOT_PATH)
 
-        if(DEFINED _old_flat_CMAKE_LIBRARY_ARCHITECTURE)
-            set(CMAKE_LIBRARY_ARCHITECTURE ${_old_flat_CMAKE_LIBRARY_ARCHITECTURE})
-            unset(_old_flat_CMAKE_LIBRARY_ARCHITECTURE)
-        endif()
+        ov_cross_compile_define_debian_arch_reset()
     endif()
 
     if(Flatbuffers_FOUND)
