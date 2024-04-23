@@ -7,7 +7,7 @@ from helpers import *
 from images_api import *
 
 
-def parse_args():
+def parse_args(args):
     parser = argparse.ArgumentParser(description='Returns list of Docker images to build for a given workflow')
     parser.add_argument('-i', '--images', required=True, help='Comma-separated docker images')
     parser.add_argument('-d', '--dockerfiles_root', required=True, help='Path to dockerfiles')
@@ -21,17 +21,14 @@ def parse_args():
     parser.add_argument('--pr_changes_environment', type=bool, default=True, help='Whether PR changes env')
     parser.add_argument('--action_path', default='.github/actions/handle_docker', help='Path to this GitHub action')
     parser.add_argument('--push', action='store_true', required=False, help='Whether to push images to registry')
-    parser.add_argument('--pull', action='store_true', required=False,
-                        help='Whether to pull latest base image versions from registry')
     parser.add_argument('--dry_run', action='store_true', required=False, help='Dry run')
-    args = parser.parse_args()
-    return args
+    return parser.parse_args(args)
 
 
 def main():
     init_logger()
     logger = logging.getLogger(__name__)
-    args = parse_args()
+    args = parse_args(sys.argv[1:])
     for arg, value in sorted(vars(args).items()):
         logger.info(f"Argument {arg}: {value}")
 
@@ -72,8 +69,8 @@ def main():
         changeset = get_changeset(args.repo, args.pr, merge_queue_target_branch, args.commit)
         changed_dockerfiles = [p for p in changeset if p.startswith(args.dockerfiles_root) and p.endswith('Dockerfile')]
 
-        only_docker_env_changed = get_labels(args.repo, args.pr) == {'category: docker'} if args.pr else False
-        changed_images = requested_images if not only_docker_env_changed else \
+        only_dockerfiles_changed = len(changeset) == len(changed_dockerfiles)
+        changed_images = requested_images if not only_dockerfiles_changed else \
             set([name_from_dockerfile(d, args.dockerfiles_root) for d in changed_dockerfiles])
 
         unchanged_images = requested_images - changed_images
@@ -82,7 +79,6 @@ def main():
         images_to_tag = unchanged_images.difference(unchanged_with_no_base)
         images_to_build = requested_images.intersection(changed_images).union(unchanged_with_no_base)
 
-        only_dockerfiles_changed = len(changeset) == len(changed_dockerfiles)
         if only_dockerfiles_changed and not images_to_build:
             skip_workflow = True
     else:

@@ -46,13 +46,6 @@ def get_changeset(repo: str, pr: str, target_branch: str, commit_sha: str):
     return set([f.filename for f in changed_files])
 
 
-def get_labels(repo: str, pr: str):
-    owner, repository = repo.split('/')
-    gh_api = GhApi(owner=owner, repo=repository, token=os.getenv("GITHUB_TOKEN"))
-    pr = gh_api.pulls.get(pr)
-    return set([l.name for l in pr.labels])
-
-
 def run(cmd: str, dry_run: bool = False, fail_on_error: bool = True):
     logger = logging.getLogger('run')
     logger.info(cmd)
