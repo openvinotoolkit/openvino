@@ -22,8 +22,6 @@ RUN apt-get update && \
         ca-certificates \
         gpg-agent \
         tzdata \
-        # For Java API
-        default-jdk \
         # Pythons
         python3.8-dev \
         python3.8-venv \
@@ -31,6 +29,8 @@ RUN apt-get update && \
         python3.11-dev \
         python3.11-venv \
         python3.11-distutils \
+        # For Java API
+        default-jdk \
         # For building the latest h5py
         libhdf5-dev \
         # Compiler
