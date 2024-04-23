@@ -89,7 +89,7 @@ std::shared_ptr<ov::Model> create_exclude_pad_workaround_model() {
         std::make_shared<Pad>(input, pads_begin_v1, pads_end_v1, zero_node, ov::op::PadMode::CONSTANT);
     const auto pads_begin_zeros = ov::Shape{0, 0};
     const auto pads_end_zeros = ov::Shape{0, 0};
-    const auto avg_pool_v1 = std::make_shared<ov::op::v1::AvgPool>(input,
+    const auto avg_pool_v1 = std::make_shared<ov::op::v1::AvgPool>(pad_node,
                                                                    strides,
                                                                    pads_begin_zeros,
                                                                    pads_end_zeros,

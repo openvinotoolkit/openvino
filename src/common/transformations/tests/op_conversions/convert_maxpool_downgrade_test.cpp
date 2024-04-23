@@ -140,8 +140,6 @@ std::shared_ptr<ov::Model> create_ceil_torch_workaround_model(const ov::op::Roun
                                                                    ov::op::PadType::EXPLICIT,
                                                                    ov::element::i64,
                                                                    2);
-    std::cout << "Workaround shape: " << max_pool_v8->get_output_partial_shape(0) << std::endl;
-
     max_pool_v8->set_friendly_name("max_pool_v8_ceil_torch_workaround");
 
     return std::make_shared<ov::Model>(max_pool_v8->outputs(), ov::ParameterVector{input});
