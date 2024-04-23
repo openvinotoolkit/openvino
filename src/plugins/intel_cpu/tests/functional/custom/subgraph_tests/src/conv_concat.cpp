@@ -220,8 +220,8 @@ namespace GroupConvolutionBackpropDataDWConcat {
 commonConvParams dwDeconvParams2D = commonConvParams{kernelSize2D, strides2D, padBegin2D, padEnd2D, dilation2D, numOutChannels, paddingType, numOutChannels};
 const ov::Shape inputShapesDW2D{1, 32, 16, 16};
 const std::vector<CPUSpecificParams> CPUParams2D = {
-    conv_avx2_dw_2D,
-    conv_avx512_dw_2D
+    block8c_2D,
+    block16c_2D
 };
 
 const auto params2D = ::testing::Combine(
@@ -282,8 +282,8 @@ namespace ConvolutionBackpropDataConcat {
 
 /* ============= ConvolutionBackpropData (2D) ============= */
 const std::vector<CPUSpecificParams> CPUParams2D = {
-    // conv_gemm_2D,
-    conv_avx512_2D
+    planar_2D,
+    block16c_2D
 };
 
 const auto params2D = ::testing::Combine(
@@ -298,8 +298,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D, ConvConcatSubgraphTest
 
 /* ============= ConvolutionBackpropData (3D) ============= */
 const std::vector<CPUSpecificParams> CPUParams3D = {
-    // conv_gemm_3D,
-    conv_avx512_3D
+    planar_3D,
+    block16c_3D
 };
 
 const auto params3D = ::testing::Combine(
@@ -400,9 +400,9 @@ namespace GroupConvolutionBackpropDataConcat {
 
 /* ============= GroupConvolutionBackpropData (2D) ============= */
 const std::vector<CPUSpecificParams> CPUParams2D = {
-    // conv_gemm_2D,
-    conv_avx2_2D,
-    conv_avx512_2D
+    planar_2D,
+    block8c_2D,
+    block16c_2D
 };
 
 const auto params2D = ::testing::Combine(
@@ -420,8 +420,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolutionBackpropData2D, ConvConcatSubgrap
 
 /* ============= GroupConvolutionBackpropData (3D) ============= */
 const std::vector<CPUSpecificParams> CPUParams3D = {
-    // conv_gemm_3D,
-    conv_avx512_3D
+    planar_3D,
+    block8c_3D,
+    block16c_3D
 };
 
 const auto params3D = ::testing::Combine(
