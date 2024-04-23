@@ -20,7 +20,7 @@ std::vector<std::vector<ov::test::InputShape>> inputShapes_dyn = {
 };
 
 std::vector<std::vector<ov::test::InputShape>> inputShapes_3D_fuse_dyn = {
-    {{{{1, 5}, 19, {1, 10}}, {{1, 19, 2}, {1, 19, 9}}}},
+    {{{{1, 5}, 19, {1, 10}}, {{1, 19, 2}, {1, 19, 9}, {1, 19, 2}}}},
 };
 
 std::vector<std::vector<ov::test::InputShape>> inputShapes_5D_dyn = {

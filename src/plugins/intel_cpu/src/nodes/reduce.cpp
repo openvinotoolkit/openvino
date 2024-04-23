@@ -3065,7 +3065,7 @@ inline void Reduce::set_reduce_dim_flags() {
     }
 
     // Depthwise fusion can be computed like eltwise fusion without broadcast, if is_depthwise_compatible is true.
-    bool is_depthwise_compatible = dims_size > 1 && process_dst_dims[1] == OB * OC * OD * OH * OW;
+    bool is_depthwise_compatible = dims_size > 1 && process_dst_dims[1] == OC * OD * OH * OW;
     jcp.fuse_broadcast = jcp.layout == ReduceLayoutType::reduce_ncsp && !is_depthwise_compatible;
 
     // must be done before the following dimension change
