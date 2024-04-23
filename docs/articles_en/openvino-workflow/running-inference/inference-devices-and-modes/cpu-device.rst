@@ -229,7 +229,7 @@ property is set for CPU plugin, then multiple streams are created for the model.
 host thread, which means that incoming infer requests can be processed simultaneously. Each stream is pinned to its own group of
 physical cores with respect to NUMA nodes physical memory usage to minimize overhead on data transfer between NUMA nodes.
 
-For more details, see the :doc:`optimization guide <../optimize-inference>` and :doc:`threads scheduling Introduction <cpu-device/performance-hint-and-threads-scheduling>`.
+For more details, see the :doc:`optimization guide <../optimize-inference>` and :doc:`threads scheduling introduction <cpu-device/performance-hint-and-threads-scheduling>`.
 
 .. note::
 
