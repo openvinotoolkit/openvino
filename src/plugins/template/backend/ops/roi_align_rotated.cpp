@@ -36,7 +36,7 @@ template <>
 bool evaluate_node<ov::op::v14::ROIAlignRotated>(std::shared_ptr<ov::Node> node,
                                                  ov::TensorVector& outputs,
                                                  const ov::TensorVector& inputs) {
-    auto element_type = node->get_output_element_type(0);
+    const auto& element_type = node->get_output_element_type(0);
     if (ov::is_type<ov::op::v1::Select>(node) || ov::is_type<ov::op::util::BinaryElementwiseComparison>(node))
         element_type = node->get_input_element_type(1);
 
