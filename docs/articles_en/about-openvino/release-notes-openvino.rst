@@ -144,7 +144,7 @@ TensorFlow Framework Support
   * reading of variable values for a model in memory has been fixed.
 
 
-TensorFlow Framework Support
+PyTorch Framework Support
 -----------------------------
 
 * ModuleExtension, a new type of extension for PyTorch models is now supported
