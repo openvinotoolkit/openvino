@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+import pytest
 
 import openvino.runtime.opset8 as ov
 from openvino import Type, Shape
@@ -36,13 +37,15 @@ def test_select():
     assert node.get_output_element_type(0) == Type.i32
 
 
-def test_gather_v8_nd():
+@pytest.mark.parametrize("op_name", ["Gather", "gatherv8", "gatherOpset8"])
+def test_gather_v8_nd(op_name):
     data = ov.parameter([2, 10, 80, 30, 50], dtype=np.float32, name="data")
     indices = ov.parameter([2, 10, 30, 40, 2], dtype=np.int32, name="indices")
     batch_dims = 2
 
-    node = ov.gather_nd(data, indices, batch_dims)
+    node = ov.gather_nd(data, indices, batch_dims, name=op_name)
     assert node.get_type_name() == "GatherND"
+    assert node.get_friendly_name() == op_name
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == [2, 10, 30, 40, 50]
     assert node.get_output_element_type(0) == Type.f32
