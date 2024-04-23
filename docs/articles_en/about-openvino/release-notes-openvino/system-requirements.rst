@@ -1,4 +1,6 @@
-.. {#system_requirements}
+.. meta::
+   :description: See OpenVINO system requirements, to ensure proper operation on various
+                 hardware and software setups.
 
 System Requirements
 ===================
@@ -54,7 +56,7 @@ GPU
       * Intel® Iris® Xe Max Graphics
       * Intel® Arc™ GPU Series
       * Intel® Data Center GPU Flex Series
-      * Intel® Data Center GPU Max Series
+      * Intel® Data Center GPU Max Series (limited support)
 
    .. tab-item::  Supported Operating Systems
 
@@ -88,7 +90,7 @@ Intel® Neural Processing Unit
    .. tab-item:: Operating Systems for NPU
 
       * Ubuntu 22.04 long-term support (LTS), 64-bit
-      * Windows 11, 64-bit (22H2, 23H2)
+      * Windows 11, 64-bit (22H2 or later)
 
    .. tab-item:: Additional considerations
 
