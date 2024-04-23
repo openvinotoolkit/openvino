@@ -29,7 +29,7 @@ bool UpdateMemoryAccessCounts::run(LinearIR& linear_ir, LinearIR::constExprIt be
         }
 
         const auto& node = expr_it->get()->get_node();
-        if (const auto memory_access = ov::as_type_ptr<ov::snippets::op::MemoryAccess>(node)) {
+        if (const auto memory_access = std::dynamic_pointer_cast<ov::snippets::modifier::MemoryAccess>(node)) {
             for (const auto p : memory_access->get_memory_access_input_ports()) {
                 const auto port = p.first;
                 if (memory_access->get_input_count(port) > 1) {
