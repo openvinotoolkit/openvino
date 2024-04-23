@@ -363,7 +363,8 @@ Read-only properties
 - ``ov::device::capabilities``
 
 .. note::
-   ``ov::affinity`` is replaced by ``ov::hint::enable_cpu_pinning``. As such, it is deprecated in the 2024.0 release and will be removed in the 2025 release.
+   ``ov::affinity`` has been replaced with ``ov::hint::enable_cpu_pinning``. As such, it is
+   deprecated in the current release and will be removed in 2025.
 
 External Dependencies
 ###########################################################
@@ -415,7 +416,7 @@ User can use the following properties to limit available CPU resource for model 
 In some use cases, OpenVINO Runtime will enable CPU threads pinning by default for better performance. User can also turn it on or off using property ``ov::hint::enable_cpu_pinning``. Disable threads pinning might be beneficial in complex applications with several workloads executed in parallel. The following table describes the default setting for ``ov::hint::enable_cpu_pinning`` in different use cases.
 
 ==================================================== ================================
- Use Case                                             Default Setting of CPU Pinning 
+ Use Case                                             Default Setting of CPU Pinning
 ==================================================== ================================
  All use cases with Windows OS                        False
  Stream contains both Pcore and Ecore with Linux OS   False
