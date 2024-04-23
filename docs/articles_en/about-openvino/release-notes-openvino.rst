@@ -244,8 +244,8 @@ Known Issues
 | **Component - CPU Plugin**
 | *ID* - N/A
 | *Description:*
-|   Default CPU pinning policy on Windows has been changed to follow Window' policy
-    instead of controlling the CPU pinning in OpenVINO plugin. This brings certain dynamic or
+|   Default CPU pinning policy on Windows has been changed to follow Windows' policy
+    instead of controlling the CPU pinning in the OpenVINO plugin. This brings certain dynamic or
     performance variance on Windows. Developers can use ov::hint::enable_cpu_pinning to enable
     or disable CPU pinning explicitly.
 
