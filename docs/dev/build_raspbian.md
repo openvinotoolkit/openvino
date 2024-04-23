@@ -3,7 +3,7 @@
 > **NOTE**: Since 2023.0 release, you can compile [OpenVINO Intel CPU plugin](https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_cpu) on ARM platforms.
 
 ## Hardware Requirements
-* Raspberry Pi 2 or 3 with Raspbian Stretch OS (32 or 64-bit).
+* Raspberry Pi with Raspbian Stretch OS or Raspberry Pi OS (32 or 64-bit).
 
   > **NOTE**: Despite the Raspberry Pi CPU is ARMv8, 32-bit OS detects ARMv7 CPU instruction set. The default `gcc` compiler applies ARMv6 architecture flag for compatibility with lower versions of boards. For more information, run the `gcc -Q --help=target` command and refer to the description of the `-march=` option.
 

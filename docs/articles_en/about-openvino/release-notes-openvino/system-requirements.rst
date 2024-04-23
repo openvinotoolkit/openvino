@@ -26,7 +26,7 @@ CPU
       * 6th - 14th generation Intel® Core™ processors
       * Intel® Core™ Ultra (codename Meteor Lake)
       * 1st - 5th generation Intel® Xeon® Scalable Processors
-      * ARM and ARM64 CPUs; Apple M1, M2, and Raspberry Pi
+      * ARM CPUs with armv7a and higher, ARM64 CPUs with arm64-v8a and higher, Apple® Mac with Apple silicon
 
    .. tab-item:: Supported Operating Systems
 
