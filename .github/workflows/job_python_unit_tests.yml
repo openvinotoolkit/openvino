@@ -277,10 +277,9 @@ jobs:
         if: runner.os != 'macOS'
         uses: actions/checkout@v4
         with:
-          sparse-checkout: openvino/docs/snippets
+          sparse-checkout: docs/snippets
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'false'
-          sparse-checkout-cone-mode: false
 
       - name: Docs Python snippets
         if: runner.os != 'macOS'
