@@ -39,9 +39,10 @@ private:
     PluginCache();
     ~PluginCache() = default;
 
-    std::mutex g_mtx;
     bool disable_plugin_cache;
     std::shared_ptr<ov::Core> ov_core;
+
+    static std::mutex g_mtx;
 };
 
 }  // namespace utils
