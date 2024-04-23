@@ -37,6 +37,7 @@ std::unordered_set<std::string> get_removed_nodes(const std::shared_ptr<const ov
 bool is_graph_input_node(const std::shared_ptr<ov::Node>& node) {
     return ov::op::util::is_parameter(node) || ov::op::util::is_constant(node);
 }
+
 }  // namespace
 
 ov::IPlugin::IPlugin() : m_executor_manager(ov::threading::executor_manager()) {}
@@ -117,8 +118,8 @@ std::unordered_set<std::string> ov::get_supported_nodes(
         return names;
     };
 
-    std::map<std::string, std::shared_ptr<ov::Node>> transformed_model_op_map;
     // Collect all operation names even there are no such names in original model
+    std::map<std::string, std::shared_ptr<ov::Node>> transformed_model_op_map;
     for (auto&& op : ops) {
         auto names = get_names_set(op);
         transformed_model_op_map[op->get_friendly_name()] = op;
@@ -181,11 +182,15 @@ std::unordered_set<std::string> ov::get_supported_nodes(
         return false;
     };
 
-    auto has_unsupported_source =
-        [&get_input_node](const NameSet& supported, const NodePtr& op, bool const_only = false) -> bool {
+    auto has_unsupported_source = [&get_input_node](const NameSet& supported,
+                                                    const NodePtr& op,
+                                                    bool const_only = false,
+                                                    bool ignore_input = false) -> bool {
         for (auto& input : op->inputs()) {
             const auto& node = get_input_node(input);
             if (const_only && !ov::op::util::is_constant(node))
+                continue;
+            if (ignore_input && is_graph_input_node(node))
                 continue;
             if (!supported.count(node->get_friendly_name())) {
                 return true;
@@ -209,16 +214,6 @@ std::unordered_set<std::string> ov::get_supported_nodes(
             }
         }
     };
-    auto has_unsupported_source1 =
-        [&get_input_node](const NameSet& supported, const NodePtr& op, bool const_only = false) -> bool {
-        for (auto& input : op->inputs()) {
-            const auto& node = get_input_node(input);
-            if (!supported.count(node->get_friendly_name()) && !is_graph_input_node(node)) {
-                return true;
-            }
-        }
-        return false;
-    };
 
     auto check_pairs = [](std::map<std::string, int> pair_checker) {
         return std::all_of(pair_checker.begin(), pair_checker.end(), [](const std::pair<std::string, int>& val) {
@@ -226,7 +221,7 @@ std::unordered_set<std::string> ov::get_supported_nodes(
         });
     };
 
-    auto new_check_pairs = [&](std::map<std::string, int>& pair_checker, const NameSet& supported) {
+    auto check_variables = [&](std::map<std::string, int>& pair_checker, const NameSet& supported) {
         for (auto&& op : ops) {
             if (supported.count(op->get_friendly_name())) {
                 if (const auto& assign = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(op)) {
@@ -243,7 +238,7 @@ std::unordered_set<std::string> ov::get_supported_nodes(
 
     // Check the ops to make sure Assign and ReadValue operations in pairs on the network
     std::map<std::string, int> pair_checker;
-    if (!new_check_pairs(pair_checker, supported)) {
+    if (!check_variables(pair_checker, supported)) {
         for (auto& op : ops) {
             if (const auto& assign = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(op)) {
                 if (pair_checker[assign->get_variable_id()] == 1) {
@@ -279,18 +274,37 @@ std::unordered_set<std::string> ov::get_supported_nodes(
         return op_size;
     };
 
-    size_t total_ops_size = 0;
+    bool model_has_matmul = false;
     for (auto&& op : ops) {
         if (ov::is_type<ov::op::v0::MatMul>(op)) {
-            auto op_size = get_matmul_size(op);
-            total_ops_size += op_size;
+            model_has_matmul = true;
+        }
+    }
+
+    auto node_can_start_split = [&](const NodePtr& op) {
+        if (model_has_matmul) {
+            return ov::is_type<ov::op::v0::MatMul>(op);
+        } else {
+            return ov::op::util::is_constant(op);
+        }
+    };
+
+    size_t total_ops_size = 0;
+    for (auto&& op : ops) {
+        if (node_can_start_split(op)) {
+            if (model_has_matmul) {
+                total_ops_size += get_matmul_size(op);
+            } else {
+                total_ops_size += op->get_element_type().size() * shape_size(op->get_shape());
+            }
         }
     }
     // If there is no constant or supported nodes in the model, mark query_by_memory_control as false
     if (total_ops_size == 0 || supported.size() == 0) {
         query_by_memory_control = false;
     }
-
+    // mark all removed nodes as supported
+    supported.insert(removed_nodes.begin(), removed_nodes.end());
     if (query_by_memory_control) {
         NameSet temp_supported;
         NameSet temp_unsupported;
@@ -325,8 +339,12 @@ std::unordered_set<std::string> ov::get_supported_nodes(
                             temp_pair_checker[assign->get_variable_id()]++;
                         }
                     }
-                    if (ov::is_type<ov::op::v0::MatMul>(op) && !ready_split) {
-                        total_size += get_matmul_size(op);
+                    if (node_can_start_split(op) && !ready_split) {
+                        if (model_has_matmul) {
+                            total_size += get_matmul_size(op);
+                        } else {
+                            total_size += op->get_element_type().size() * shape_size(op->get_shape());
+                        }
                         // If the total size is 1.05 times larger than the user's requirement:
                         // - If has_min_graph = false, it means there is no nodes meets requirement, so need cancel
                         //   split and break
@@ -387,8 +405,6 @@ std::unordered_set<std::string> ov::get_supported_nodes(
             // Add the ops to supported that removed by transformations and it has supported users
             // For example:
             //
-            // constant_compressed(to be marked as supported)
-            //         |
             //      convert(to be marked as supported)
             //         |
             //       divide(already in supported)
@@ -408,7 +424,7 @@ std::unordered_set<std::string> ov::get_supported_nodes(
 
             for (auto& op : model->get_ordered_ops()) {
                 const auto& name = op->get_friendly_name();
-                if ((has_unsupported_source1(supported, op) ||
+                if ((has_unsupported_source(supported, op, false, true) ||
                      (ov::op::util::is_constant(op) && !has_users_supported(supported, op))) &&
                     supported.count(name)) {
                     remove_op_from_supported(op);
@@ -416,10 +432,9 @@ std::unordered_set<std::string> ov::get_supported_nodes(
             }
 
             std::map<std::string, int> temp_pair_checker_2;
-            if (!new_check_pairs(temp_pair_checker_2, supported)) {
+            if (!check_variables(temp_pair_checker_2, supported)) {
                 continue;
             }
-
             // Calculate the data size that needs to be transmitted after the current model is split
             int64_t total_len = 0;
             for (auto& op : model->get_ordered_ops()) {
@@ -452,12 +467,7 @@ std::unordered_set<std::string> ov::get_supported_nodes(
         } while (!cancel_split);
         copy_set(temp_supported_1, supported);
         copy_set(temp_unsupported_1, unsupported);
-    } else {
-        // If memory control is off
-        // mark all removed nodes as supported
-        supported.insert(removed_nodes.begin(), removed_nodes.end());
     }
-
     // Finally get intersection of all supported operation names
     // and operation names from original model
     for (auto&& name : supported) {
