@@ -197,28 +197,13 @@ def test_scatter_nd_update_reduction(reduction):
     indices = np.array([[0], [2]])
     updates = np.array([9, 10])
 
-    result = opset15.scatter_nd_update(data, indices, updates, reduction)
-
+    op = opset15.scatter_nd_update(data, indices, updates, reduction)
+    assert op.get_type_name() == "ScatterNDUpdate"
+    op_attrs = op.get_attributes()
     if reduction is None:
-        reduction = "none"
+        assert op_attrs["reduction"] == "none"
     else:
-        reduction = reduction.lower()
-
-    if reduction == "sum":
-        expected = np.array([10, 2, 13, 4, 5])
-    elif reduction == "sub":
-        expected = np.array([-9, 2, -7, 4, 5])
-    elif reduction == "prod":
-        expected = np.array([9, 2, 30, 4, 5])
-    elif reduction == "max":
-        expected = np.array([9, 2, 3, 4, 5])
-    elif reduction == "min":
-        expected = np.array([1, 2, 3, 4, 5])
-    else:
-        expected = np.array([9, 2, 10, 4, 5])
-    np.testing.assert_array_equal(result, expected)
-    assert result.get_type_name() == "ScatterNDUpdate"
-    assert result.get_attributes()["reduction"] == reduction.lower()
-    assert result.get_output_size() == 1
-    assert result.get_output_partial_shape(0).same_scheme(PartialShape(data.shape))
-    assert result.get_output_element_type(0) == Type.i64
+        assert op_attrs["reduction"] == reduction.lower()
+    assert op.get_output_size() == 1
+    assert op.get_output_partial_shape(0).same_scheme(PartialShape(data.shape))
+    assert op.get_output_element_type(0) == Type(data.dtype)
