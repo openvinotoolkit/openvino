@@ -81,6 +81,7 @@ bool evaluate(const op::util::ScatterNDBase* node,
     const auto& updates_shape = updates.get_shape();
     output.set_shape(data_shape);
     using namespace ov::element;
+<<<<<<< HEAD
     return IF_TYPE_OF_CONVERT_TENSORS(scatter_evaluate,
                                       node,
                                       outputs,
@@ -96,6 +97,19 @@ bool evaluate(const op::util::ScatterNDBase* node,
                                       indices_shape,
                                       updates_shape,
                                       reduction);
+=======
+    return IF_TYPE_OF(v3_ScatterNDUpdate_evaluate,
+                      OV_PP_ET_LIST(boolean, f16, f32, i32, i64, u32, u64),
+                      scatter_nd_update::Evaluate,
+                      data.get_element_type(),
+                      data,
+                      indices,
+                      updates,
+                      output,
+                      data_shape,
+                      indices_shape,
+                      updates_shape);
+>>>>>>> parent of a4dcf65482 (Remove f16, bf16 from node's evaluate methods v2 (#22674))
 }
 bool has_evaluate(const op::util::ScatterNDBase* node) {
     switch (node->get_output_element_type(0)) {

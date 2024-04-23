@@ -208,21 +208,18 @@ bool MaxPool::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
 
     outputs[0].set_shape(output_shape.get_shape());
     using namespace ov::element;
-    return IF_TYPE_OF_CONVERT_TENSORS(v1_MaxPool_evaluate,
-                                      this,
-                                      outputs,
-                                      inputs,
-                                      OV_PP_ET_LIST(f32, i32, i64, u32, u64),
-                                      maxpool::Evaluate,
-                                      inputs[0].get_element_type(),
-                                      inputs[0],
-                                      outputs[0],
-                                      inputs[0].get_shape(),
-                                      outputs[0].get_shape(),
-                                      get_kernel(),
-                                      get_strides(),
-                                      get_pads_begin(),
-                                      get_pads_end());
+    return IF_TYPE_OF(v1_MaxPool_evaluate,
+                      OV_PP_ET_LIST(f16, f32, i32, i64, u32, u64),
+                      maxpool::Evaluate,
+                      inputs[0].get_element_type(),
+                      inputs[0],
+                      outputs[0],
+                      inputs[0].get_shape(),
+                      outputs[0].get_shape(),
+                      get_kernel(),
+                      get_strides(),
+                      get_pads_begin(),
+                      get_pads_end());
 }
 
 bool MaxPool::has_evaluate() const {
@@ -315,7 +312,26 @@ bool MaxPool::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
     const auto output_shape = shape_infer(this, input_shapes, pads_begin, pads_end).front();
 
     outputs[0].set_shape(output_shape.get_shape());
+<<<<<<< HEAD
     return ov::op::maxpool::evaluate_util(this, outputs, inputs, get_dilations(), get_axis());
+=======
+    using namespace ov::element;
+    return IF_TYPE_OF(v8_MaxPool_evaluate,
+                      OV_PP_ET_LIST(f16, f32, i8, i32, i64, u8, u32, u64),
+                      maxpool::Evaluate,
+                      inputs[0].get_element_type(),
+                      inputs[0],
+                      outputs[0],
+                      outputs[1],
+                      inputs[0].get_shape(),
+                      outputs[0].get_shape(),
+                      get_kernel(),
+                      get_strides(),
+                      get_dilations(),
+                      get_pads_begin(),
+                      get_pads_end(),
+                      get_axis());
+>>>>>>> parent of a4dcf65482 (Remove f16, bf16 from node's evaluate methods v2 (#22674))
 }
 
 bool MaxPool::has_evaluate() const {

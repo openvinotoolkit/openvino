@@ -28,7 +28,6 @@ public:
     virtual int64_t get_axis() const;
 
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
-    bool has_evaluate() const override;
     bool evaluate_lower(TensorVector& outputs) const override;
     bool evaluate_upper(TensorVector& outputs) const override;
     bool evaluate_symbol(TensorSymbolVector& output_symbols) const override;
