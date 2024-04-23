@@ -268,7 +268,10 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
         std::lock_guard<std::mutex> lock(m_context->m_mutex);
         // user does not set the compiling threads
         // limit the threads num for compiling
-        if (cur_dev_is_gpu && m_compile_context[CPU].m_is_enabled) {
+        bool is_already_set_gpu =
+            (device_config.find(ov::intel_gpu::hint::host_task_priority.name()) != device_config.end() ||
+             device_config.find(ov::compilation_num_threads.name()) != device_config.end());
+        if (cur_dev_is_gpu && m_compile_context[CPU].m_is_enabled && !is_already_set_gpu) {
             device_config.insert(ov::intel_gpu::hint::host_task_priority(ov::hint::Priority::HIGH));
             auto proc_type_table = get_org_proc_type_table();
             int compilation_num_threads = proc_type_table[0][MAIN_CORE_PROC] != 0
