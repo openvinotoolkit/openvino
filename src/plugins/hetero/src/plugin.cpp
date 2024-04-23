@@ -119,6 +119,28 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
             hetero_query_model_by_device = true;
         }
     }
+    std::set<std::string> device_types;
+    for (const auto& device_name : device_names) {
+        if (device_name.find("CPU") != std::string::npos) {
+            device_types.insert("CPU");
+        } else if (device_name.find("GPU") != std::string::npos) {
+            std::string device_type;
+            try {
+                device_type = get_core()->get_property(device_name, ov::device::type.name(), {}).as<std::string>();
+            } catch (const ov::Exception&) {
+            }
+            if (device_type == "integrated") {
+                device_types.insert("iGPU");
+            } else if (device_type == "discrete") {
+                device_types.insert("dGPU");
+            } else {
+                device_types.insert("otherGPU");
+            }
+        } else {
+            device_types.insert("others");
+        }
+    }
+    bool devices_with_same_type = device_types.size() == 1 ? true : false;
 
     auto update_supported_ops = [](ov::SupportedOpsMap& final_results, const ov::SupportedOpsMap& device_results) {
         for (const auto& layer_query_result : device_results)
@@ -137,7 +159,8 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
     auto update_config = [&](ov::AnyMap& device_config,
                              const std::shared_ptr<const ov::Model>& model,
                              std::string device_name,
-                             bool fallback_device) {
+                             bool fallback_device,
+                             bool devices_with_same_type) {
         auto internal_supported_properties = get_core()->get_property(device_name, ov::internal::supported_properties);
         if (ov::util::contains(internal_supported_properties, ov::internal::query_model_ratio)) {
             if (fallback_device) {
@@ -145,6 +168,7 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
             } else if (available_device_mem_map.count(device_name)) {
                 size_t total_ops_size = 0;
                 size_t available_discrete_device_memory = 0;
+                float model_ratio = 1.0f;
                 for (auto&& op : model->get_ordered_ops()) {
                     if (ov::op::util::is_constant(op)) {
                         total_ops_size += op->get_element_type().size() * shape_size(op->get_shape());
@@ -155,27 +179,33 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
                         available_discrete_device_memory += device_mem_info.second;
                 }
                 // Estimate the memory size required for the model is 1.2 * total_ops_size
-                // 1. Check if current device that can take the entire model
-                // 2. Check if all left devices can take the entire model
-                if (available_device_mem_map[device_name] >= 1.2 * total_ops_size || device_name.find("CPU") == 0) {
-                    device_config[ov::internal::query_model_ratio.name()] = 1.0f;
+                // 1. Check if the devices with same type
+                // 2. Check if current device that can take the entire model
+                // 3. Check if all left devices can take the entire model
+                if (devices_with_same_type) {
+                    model_ratio = available_discrete_device_memory > 0
+                                      ? static_cast<float>(available_device_mem_map[device_name] * 1.0 /
+                                                           available_discrete_device_memory)
+                                      : 1.0f;
+                } else if (available_device_mem_map[device_name] >= 1.2 * total_ops_size ||
+                           device_name.find("CPU") == 0) {
+                    model_ratio = 1.0f;
                 } else if (available_discrete_device_memory >= 1.2 * total_ops_size ||
                            available_device_mem_map.count("CPU")) {
-                    float model_ratio =
+                    model_ratio =
                         total_ops_size > 0
                             ? static_cast<float>(available_device_mem_map[device_name] * 1.0 / (1.2 * total_ops_size))
                             : 1.0f;
                     if (total_ops_size < available_device_mem_map[device_name]) {
                         model_ratio = 1.0f;
                     }
-                    device_config[ov::internal::query_model_ratio.name()] = model_ratio;
                 } else {
-                    float model_ratio = available_discrete_device_memory > 0
-                                            ? static_cast<float>(available_device_mem_map[device_name] * 1.0 /
-                                                                 available_discrete_device_memory)
-                                            : 1.0f;
-                    device_config[ov::internal::query_model_ratio.name()] = model_ratio;
+                    model_ratio = available_discrete_device_memory > 0
+                                      ? static_cast<float>(available_device_mem_map[device_name] * 1.0 /
+                                                           available_discrete_device_memory)
+                                      : 1.0f;
                 }
+                device_config[ov::internal::query_model_ratio.name()] = model_ratio;
                 // Remove the current device
                 available_device_mem_map.erase(device_name);
             }
@@ -204,7 +234,7 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
         auto& device_config = properties_per_device.at(device_name);
         if (!has_subgraph_ops(model)) {
             if (hetero_query_model_by_device)
-                update_config(device_config, model, device_name, fallback_device);
+                update_config(device_config, model, device_name, fallback_device, devices_with_same_type);
             query_results[device_name] = get_core()->query_model(model, device_name, device_config);
             update_supported_ops(supported_ops_temp, query_results[device_name]);
             update_supported_ops(supported_ops_final, query_results[device_name]);
@@ -226,7 +256,11 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
                 if (const auto& subgraph = ov::as_type_ptr<ov::hetero::op::DeviceSubgraph>(op)) {
                     if (subgraph->get_affinity() == "HETERO-TEMP") {
                         if (hetero_query_model_by_device)
-                            update_config(device_config, subgraph->get_function(), device_name, fallback_device);
+                            update_config(device_config,
+                                          subgraph->get_function(),
+                                          device_name,
+                                          fallback_device,
+                                          devices_with_same_type);
                         query_results[device_name] =
                             get_core()->query_model(subgraph->get_function(), device_name, device_config);
                         update_supported_ops(supported_ops_temp, query_results[device_name]);
