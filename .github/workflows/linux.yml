@@ -376,6 +376,7 @@ jobs:
         with:
           sparse-checkout: |
             .github/actions/setup_apt
+            .github/actions/setup_python/
 
       - name: Setup apt
         uses: ./.github/actions/setup_apt
@@ -388,6 +389,12 @@ jobs:
           key: ${{ runner.os }}-${{ runner.arch }}-apt-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-apt
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v4
@@ -409,21 +416,6 @@ jobs:
           pushd ${INSTALL_TEST_DIR}
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
-
-      - name: Fetch setup_python action
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            .github/actions/setup_python/action.yml
-          sparse-checkout-cone-mode: false
-          path: 'openvino'
-
-      - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: ./openvino/.github/actions/setup_python
-        with:
-          version: ${{ env.PYTHON_VERSION }}
-          should-setup-pip-paths: 'true'
-          self-hosted-runner: 'true'
 
       - name: Install Dependencies
         run: |
