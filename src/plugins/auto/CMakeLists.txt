@@ -35,8 +35,9 @@ elseif(ENABLE_MULTI)
                   VERSION_DEFINES_FOR src/plugin.cpp)
 endif()
 
+target_include_directories(${TARGET_NAME} PRIVATE "${OpenVINO_SOURCE_DIR}/src/inference/src")
 find_package(Threads REQUIRED)
-target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads)
+target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads openvino_runtime_s)
 
 ov_set_threading_interface_for(${TARGET_NAME})
 

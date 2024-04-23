@@ -3,6 +3,7 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+#include "compilation_context.hpp"
 #include "auto_schedule.hpp"
 #include "async_infer_request.hpp"
 #include "plugin.hpp"
@@ -284,6 +285,9 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
         }
     }
     try {
+        auto blobId =
+            ov::ModelCache::compute_hash(model, m_context->m_ov_core->create_compile_config(device, device_config));
+        LOG_DEBUG_TAG("\n=============\ndevice:%s, hashID:%s\n===============\n", device.c_str(), blobId.c_str());
         if (!(m_context->m_model_path.empty())) {
             context.m_compiled_model = m_context->m_ov_core->compile_model(m_context->m_model_path, device, device_config);
         } else {
