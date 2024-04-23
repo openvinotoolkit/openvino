@@ -345,11 +345,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-8-cores-64gb
-    container:
-      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
-      volumes:
-        - /mount:/mount
+    runs-on: ubuntu-20.04-8-cores
     strategy:
       max-parallel: 2
       fail-fast: false
@@ -380,17 +376,14 @@ jobs:
         with:
           sparse-checkout: |
             .github/actions/setup_apt
-            .github/actions/cache
 
       - name: Setup apt
         uses: ./.github/actions/setup_apt
 
       - name: Setup apt cache
-        uses: ./.github/actions/cache
+        uses: actions/cache@v4
         with:
           save-always: true # TODO: for the 1st run only
-          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cache-path: ${{ env.APT_CACHE_PATH }}
           path: '/var/cache/apt/archives'
           key: ${{ runner.os }}-${{ runner.arch }}-apt-${{ github.sha }}
           restore-keys: |
