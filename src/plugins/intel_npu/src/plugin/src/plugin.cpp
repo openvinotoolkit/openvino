@@ -340,6 +340,12 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.get<MODEL_PRIORITY>();
           }}},
+        {ov::device::pci_info.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [&](const Config& config) {
+              return _metrics->GetPciInfo(get_specified_device_name(config));
+          }}},
         // OV Internals
         // =========
         {ov::internal::caching_properties.name(),
@@ -379,12 +385,6 @@ Plugin::Plugin()
           ov::PropertyMutability::RO,
           [&](const Config& config) {
               return _metrics->GetDriverVersion();
-          }}},
-        {ov::intel_npu::pci_info.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [&](const Config& config) {
-              return _metrics->GetPciInfo(get_specified_device_name(config));
           }}},
         // NPU Private
         // =========

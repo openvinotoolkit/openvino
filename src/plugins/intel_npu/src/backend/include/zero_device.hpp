@@ -29,7 +29,7 @@ public:
     uint32_t getMaxNumSlices() const override;
     uint64_t getAllocMemSize() const override;
     uint64_t getTotalMemSize() const override;
-    ov::intel_npu::PCIInfo getPciInfo() const override;
+    ov::device::PCIInfo getPciInfo() const override;
 
     std::shared_ptr<SyncInferRequest> createInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel,
                                                          const std::shared_ptr<IExecutor>& executor,
