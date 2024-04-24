@@ -127,17 +127,19 @@ Check out more examples of model conversion with non-tensor data types in the fo
 * `Video Subtitle Generation using Whisper and OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/227-whisper-subtitles-generation>`__
 * `Visual Question Answering and Image Captioning using BLIP and OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/233-blip-visual-language-processing>`__
 
-Input, output names of the model
-################################
+Input and output names of the model
+###################################
 
-PyTorch doesn't produce relevant names for model inputs and outputs in TorchScript representation. OpenVINO will assign input names based on signature of models's ``forward`` method or ``dict`` keys provided in the ``example_input``. Output names will be assigned if there is a ``dict`` at the output or when there is some internal name available in TorchScript model representation. In general, output name is not assigned and will be empty. It is recommended to address outputs of the model by index rather then name.
+PyTorch doesn't produce relevant names for model inputs and outputs in the TorchScript representation. OpenVINO will assign input names based on the signature of models's ``forward`` method or ``dict`` keys provided in the ``example_input``. Output names will be assigned if there is a ``dict`` at the output or when there is some internal name available in the TorchScript model representation. In general, the output name is not assigned and stays empty. It is recommended to address model outputs by the index rather then the name.
 
 Support for torch.export
 ########################
 
-Since version 2.1 of PyTorch the new way to get a graph representation of the model is introduced: `torch.export <https://pytorch.org/docs/2.2/export.html>`. ``torch.export`` produce ``ExportedProgram`` which includes graph representation in FX format. The FX graph has benefits compared to TorchScript representation, please refer to PyTorch documentation for more details.
+`torch.export <https://pytorch.org/docs/2.2/export.html>` is the current way to get a graph representation of a model (since PyTorch 2.1). It produces ``ExportedProgram`` which includes the graph representation in the FX format. Refer to 
+`PyTorch documentation <https://pytorch.org/docs/stable/fx.html>`__ 
+to see why it has advantage over the TorchScript representation.
 
-Here is an example to convert the model obtained with ``torch.export``:
+Here is an example of how to convert a model obtained with ``torch.export``:
 
 .. code-block:: py
    :force:
@@ -153,7 +155,7 @@ Here is an example to convert the model obtained with ``torch.export``:
 
 .. note::
 
-   This is experimental feature. Please use only if you know that you need it. PyTorch version 2.2 is recommended to be used. Dynamic shapes are not supported yet.
+   This is an experimental feature. Use it only if you know that you need to. PyTorch version 2.2 is recommended. Dynamic shapes are not supported yet.
 
 Exporting a PyTorch Model to ONNX Format
 ########################################
