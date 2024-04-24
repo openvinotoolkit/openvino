@@ -123,7 +123,7 @@ Places to Begin
 
       Cloud-ready deployments for microservice applications.
 
-      .. button-link:: openvino-workflow/running-inference.html
+      .. button-link:: ovms_what_is_openvino_model_server.html
          :color: primary
          :outline:
 
