@@ -4,17 +4,23 @@
 
 #include "plugin.hpp"
 
-#include <fstream>
-
 #include "compiled_model.hpp"
 #include "compiler.hpp"
 #include "device_helpers.hpp"
 #include "intel_npu/al/config/common.hpp"
 #include "intel_npu/al/config/compiler.hpp"
+#include "intel_npu/al/config/config.hpp"
 #include "intel_npu/al/config/runtime.hpp"
 #include "intel_npu/al/itt.hpp"
+#include "npu_private_properties.hpp"
+#include "openvino/core/any.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/opsets/opset8.hpp"
+#include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/runtime/iinfer_request.hpp"
+#include "openvino/runtime/infer_request.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 
 using namespace intel_npu;
@@ -77,6 +83,19 @@ std::shared_ptr<ov::Model> create_dummy_model(const IONodeDescriptorMap& paramet
     }
 
     return std::make_shared<ov::Model>(results, parameters);
+}
+
+inline std::shared_ptr<ov::Model> get_validation_model(ov::element::Type type) {
+    ov::ResultVector results;
+    ov::ParameterVector params;
+    auto op = std::make_shared<ov::op::v1::Add>(ov::opset8::Constant::create(type, {1}, {1}),
+                                                ov::opset8::Constant::create(type, {1}, {1}));
+    op->set_friendly_name("Add");
+    auto res = std::make_shared<ov::op::v0::Result>(op);
+    res->set_friendly_name("Result");
+    res->get_output_tensor(0).set_names({"tensor_output"});
+    results.push_back(res);
+    return std::make_shared<ov::Model>(results, params);
 }
 
 std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
@@ -423,6 +442,32 @@ Plugin::Plugin()
         if (std::get<0>(property.second)) {
             _supportedProperties.emplace_back(ov::PropertyName(property.first, std::get<1>(property.second)));
         }
+    }
+
+    // Compile and infer a test model to check MLIR compiler compatibility with the driver
+    try {
+        const auto model = get_validation_model(ov::element::f32);
+        ov::AnyMap config{{ov::intel_npu::compiler_type.name(), ov::intel_npu::CompilerType::MLIR}};
+        const auto compiledModel = compile_model(model, config);
+        const auto inferRequest = compiledModel->create_infer_request();
+        inferRequest->infer();
+        Config::ConfigMap options;
+        options[ov::intel_npu::compiler_type.name()] = stringifyEnum(ov::intel_npu::CompilerType::MLIR);
+        _globalConfig.update(options);
+
+    } catch (const std::exception& ex) {
+        _logger.warning("Current MLIR compiler version is incompatible with the current driver version due to: ",
+                        ex.what(),
+                        " Driver compiler will be used as default compiler type.");
+        Config::ConfigMap options;
+        options[ov::intel_npu::compiler_type.name()] = stringifyEnum(ov::intel_npu::CompilerType::DRIVER);
+        _globalConfig.update(options);
+    } catch (...) {
+        _logger.warning("Current MLIR compiler version is incompatible with the current driver version. "
+                        " Driver compiler will be used as default compiler type.");
+        Config::ConfigMap options;
+        options[ov::intel_npu::compiler_type.name()] = stringifyEnum(ov::intel_npu::CompilerType::DRIVER);
+        _globalConfig.update(options);
     }
 }
 
