@@ -25,6 +25,7 @@ public:
     size_t hash() const;
     bool operator==(const BrgemmKernelConfig& rhs) const;
     bool operator!=(const BrgemmKernelConfig& rhs) const;
+    std::string print() const;
 private:
     dnnl_data_type_t dt_in0 {dnnl_f32}, dt_in1 {dnnl_f32};
     char palette[64] = {};
@@ -48,6 +49,8 @@ public:
     BrgemmKernelExecutor(ov::intel_cpu::MultiCachePtr kernel_cache, const std::shared_ptr<BrgemmKernelConfig>& config);
     static void execute(const BrgemmKernelExecutor* desc, call_args* args);
     void update_kernel_config(size_t M, size_t N, size_t K,  size_t LDA, size_t LDB, size_t LDC);
+    // print current kernel config for debug purposes
+    std::string print_config() const;
 protected:
     std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> compile_kernel(const std::shared_ptr<BrgemmKernelConfig>& c) const override;
 };

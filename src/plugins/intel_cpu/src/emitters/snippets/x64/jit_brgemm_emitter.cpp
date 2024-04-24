@@ -68,6 +68,18 @@ bool BrgemmKernelConfig::operator!=(const BrgemmKernelConfig& rhs) const {
     return !(*this == rhs);
 }
 
+std::string BrgemmKernelConfig::print() const {
+    std::stringstream ss;
+#define PRINT(X) ss << #X  << " = " << X << "\n"
+    PRINT(dt_in0); PRINT(dt_in1);
+    PRINT(is_with_amx); PRINT(is_with_comp);
+    PRINT(beta); PRINT(isa);
+    PRINT(M); PRINT(N); PRINT(K);
+    PRINT(LDA); PRINT(LDB); PRINT(LDC);
+#undef PRINT
+    return ss.str();
+}
+
 BrgemmKernelExecutor::BrgemmKernelExecutor(ov::intel_cpu::MultiCachePtr kernel_cache, const std::shared_ptr<BrgemmKernelConfig>& config) :
         CPUKernelExecutor<BrgemmKernelConfig, brgemm_kernel_t>(kernel_cache, config) {
     if (config->is_complete())
@@ -133,6 +145,9 @@ void BrgemmKernelExecutor::update_kernel_config(size_t M, size_t N, size_t K, si
     CAST(LDA); CAST(LDB); CAST(LDC);
 #undef CAST
     update_kernel();
+}
+std::string BrgemmKernelExecutor::print_config() const {
+    return m_config ? m_config->print() : "";
 }
 
 size_t jit_brgemm_emitter::get_in_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout) {
