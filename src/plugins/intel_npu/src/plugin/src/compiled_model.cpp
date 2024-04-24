@@ -235,7 +235,7 @@ void CompiledModel::initialize_properties() {
               if (config.get<PLATFORM>() == ov::intel_npu::Platform::AUTO_DETECT) {
                   return std::string("NPU");
               }
-              return std::string("NPU.") + config.get<PLATFORM>();
+              return std::string("NPU.") + ov::intel_npu::Platform::standardize(config.get<PLATFORM>());
           }}},
         {ov::loaded_from_cache.name(),
          {true,
