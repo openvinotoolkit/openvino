@@ -128,10 +128,18 @@ TEST_F(TransformationTestsF, ConvertAvgPool14ToAvgPool1_floor_to_floor) {
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
-TEST_F(TransformationTestsF, ConvertAvgPool14ToAvgPool1_ceil_to_ceil_exclude_pad) {
+TEST_F(TransformationTestsF, ConvertAvgPool14ToAvgPool1_ceil_torch_to_ceil_no_exclude_pad) {
     manager.register_pass<ov::pass::ConvertAvgPool14ToAvgPool1>();
-    model = create_v14_model(ov::op::RoundingType::CEIL, false);
+    model = create_v14_model(ov::op::RoundingType::CEIL_TORCH, false);
     model_ref = create_exclude_pad_workaround_model();
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, ConvertAvgPool14ToAvgPool1_ceil_torch_to_ceil_exclude_pad) {
+    manager.register_pass<ov::pass::ConvertAvgPool14ToAvgPool1>();
+    model = create_v14_model(ov::op::RoundingType::CEIL_TORCH, true);
+    model_ref = create_v1_model(ov::op::RoundingType::CEIL);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
