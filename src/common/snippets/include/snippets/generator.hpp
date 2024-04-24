@@ -79,10 +79,6 @@ public:
      */
     virtual ~Generator() = default;
     /**
-    * @interface GeneratorConfig
-    * @brief Allows to tweak the lowering process.
-    */
-    /**
      * @brief generates executable code
      * @param linear_ir lowered IR for code generation
      * @param result variable to hande the result, only compiled_snippet and m_saved_emitters field will be modified

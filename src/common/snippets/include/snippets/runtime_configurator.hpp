@@ -29,12 +29,29 @@ public:
     RuntimeConfigurator(std::shared_ptr<RuntimeConfig> c);
     virtual ~RuntimeConfigurator() = default;
 
+    /**
+     * @brief Update RuntimeConfig based on new state of LinearIR and return its
+     * @param linear_ir LinearIR
+     * @return updated config
+     */
     const std::shared_ptr<RuntimeConfig>& get_updated_config(const std::shared_ptr<lowered::LinearIR>& linear_ir);
 
 protected:
-    virtual void update(const std::shared_ptr<lowered::LinearIR>& linear_ir) = 0;
+    /**
+     * @brief Return `True` if config should be updated. Otherwise returns `False`
+     * @param linear_ir LinearIR
+     * @return boolean
+     */
     virtual bool is_update_needed(const std::shared_ptr<lowered::LinearIR>& linear_ir) = 0;
-
+    /**
+     * @brief Update RuntimeConfig based on LinearIR
+     * @param linear_ir LinearIR
+     */
+    virtual void update(const std::shared_ptr<lowered::LinearIR>& linear_ir) = 0;
+    /**
+     * @brief Update LinearIR parameters that depends on shape: LoopInfo in LoopManager
+     * @param linear_ir LinearIR
+     */
     void update_linear_ir_state(const std::shared_ptr<lowered::LinearIR>& linear_ir) const;
 
     std::shared_ptr<RuntimeConfig> m_config = nullptr;
