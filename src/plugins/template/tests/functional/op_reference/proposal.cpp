@@ -38,7 +38,7 @@ struct ProposalV1Params {
           outType(iType),
           clsScoreData(CreateTensor(iType, clsScoreValues)),
           bboxPredData(CreateTensor(iType, bboxPredValues)),
-          refProposalData(CreateTensor(iType, proposalValues)),
+          refProposalData(CreateTensor(Shape{batch_size * post_nms_topn, 5}, iType, proposalValues)),
           testcaseName(test_name) {
         clsScoreShape = Shape{batch_size, anchor_num * 2, feat_map_height, feat_map_width};
         bboxPredShape = Shape{batch_size, anchor_num * 4, feat_map_height, feat_map_width};
@@ -108,8 +108,8 @@ struct ProposalV4Params {
           outType(iType),
           clsScoreData(CreateTensor(iType, clsScoreValues)),
           bboxPredData(CreateTensor(iType, bboxPredValues)),
-          refProposalData(CreateTensor(iType, proposalValues)),
-          refProbsData(CreateTensor(iType, probsValues)),
+          refProposalData(CreateTensor(Shape{batch_size * post_nms_topn, 5}, iType, proposalValues)),
+          refProbsData(CreateTensor(Shape{batch_size * post_nms_topn}, iType, probsValues)),
           testcaseName(test_name) {
         clsScoreShape = Shape{batch_size, anchor_num * 2, feat_map_height, feat_map_width};
         bboxPredShape = Shape{batch_size, anchor_num * 4, feat_map_height, feat_map_width};
@@ -156,25 +156,21 @@ struct ProposalV4Params {
 class ReferenceProposalV1LayerTest : public testing::TestWithParam<ProposalV1Params>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        legacy_compare = true;
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params);
         inputData = {params.clsScoreData, params.bboxPredData, params.imageShapeData};
         refOutData = {params.refProposalData};
     }
     static std::string getTestCaseName(const testing::TestParamInfo<ProposalV1Params>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
         result << "clsScoreShape=" << param.clsScoreShape << "_";
         result << "bboxPredShape=" << param.bboxPredShape << "_";
         result << "imageShapeShape=" << param.imageShapeShape << "_";
         result << "iType=" << param.inType << "_";
-        if (param.testcaseName != "") {
-            result << "oType=" << param.outType << "_";
-            result << param.testcaseName;
-        } else {
-            result << "oType=" << param.outType << "_";
-        }
+        result << "oType=" << param.outType;
+        if (!param.testcaseName.empty())
+            result << "_" << param.testcaseName;
 
         return result.str();
     }
@@ -194,25 +190,21 @@ private:
 class ReferenceProposalV4LayerTest : public testing::TestWithParam<ProposalV4Params>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        legacy_compare = true;
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params);
         inputData = {params.clsScoreData, params.bboxPredData, params.imageShapeData};
         refOutData = {params.refProposalData, params.refProbsData};
     }
     static std::string getTestCaseName(const testing::TestParamInfo<ProposalV4Params>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
         result << "clsScoreShape=" << param.clsScoreShape << "_";
         result << "bboxPredShape=" << param.bboxPredShape << "_";
         result << "imageShapeShape=" << param.imageShapeShape << "_";
         result << "iType=" << param.inType << "_";
-        if (param.testcaseName != "") {
-            result << "oType=" << param.outType << "_";
-            result << param.testcaseName;
-        } else {
-            result << "oType=" << param.outType << "_";
-        }
+        result << "oType=" << param.outType;
+        if (!param.testcaseName.empty())
+            result << "_" << param.testcaseName;
 
         return result.str();
     }
