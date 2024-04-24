@@ -132,8 +132,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*KSOFunction.*)",
         R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*NonMaxSuppression.*)",
         R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*Nms.*)",
-        // Issue: 105838
-        R"(smoke_NmsLayerTest.*)",
         // 94982. FP32->I32 conversion issue in the reference implementation. There can be some garbage in the rest of
         // float values like 0.333333745.
         // The kernel does not have such garbage. The diff 0.000000745 is taken into account in calculations and affects
@@ -427,6 +425,29 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_Snippets_MHAWOTransposeEnforceBF16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHAEnforceBF16.*)");
     }
+#ifdef SNIPPETS_LIBXSMM_TPP
+    // TPP performs precision conversion implicitly, it makes all Convert tests irrelevant
+    retVector.emplace_back(R"(.*smoke_Snippets_Convert.*)");
+    // ABS and ROUND operations are needed for TPP support. Disable, since low precisions are not supported by TPP yet.
+    retVector.emplace_back(R"(.*smoke_Snippets_FQ.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_TransposeMatMulFQ.*)");
+    // TPP doesn't support op with 2 outs, when one of them is Result (ticket: 130642)
+    retVector.emplace_back(R"(.*smoke_Snippets_MaxNumParamsEltwise.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_Eltwise_TwoResults.*)");
+    // Accuracy problem with Exp + Reciprocal combination on TPP side (ticket: 130699)
+    retVector.emplace_back(R"(.*smoke_Snippets_ExpReciprocal.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_AddSoftmax.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_TransposeSoftmaxEltwise.*)");
+    // Low-precision Matmuls are not supported by TPP yet
+    retVector.emplace_back(R"(.*smoke_Snippets_MatMulFQ.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_MatMulBiasQuantized.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_MatMulQuantized.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_MatMulQuantizedSoftmax.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_MHAINT8MatMul.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_MHAQuantMatMul0.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_MHAFQ.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_PrecisionPropagation_Convertion.*)");
+#endif
 
     if (ov::with_cpu_x86_avx512_core_amx()) {
         // Issue: 130463

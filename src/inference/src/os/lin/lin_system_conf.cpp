@@ -14,7 +14,6 @@
 #include "dev/threading/parallel_custom_arena.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/system_conf.hpp"
-#include "openvino/util/log.hpp"
 #include "os/cpu_map_info.hpp"
 
 namespace ov {
@@ -279,20 +278,7 @@ CPU::CPU() {
 
     _org_proc_type_table = _proc_type_table;
 
-    OPENVINO_DEBUG << "[ threading ] cpu_mapping_table:";
-    for (size_t i = 0; i < _cpu_mapping_table.size(); i++) {
-        OPENVINO_DEBUG << _cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID] << " "
-                       << _cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID] << " " << _cpu_mapping_table[i][CPU_MAP_SOCKET_ID]
-                       << " " << _cpu_mapping_table[i][CPU_MAP_CORE_ID] << " "
-                       << _cpu_mapping_table[i][CPU_MAP_CORE_TYPE] << " " << _cpu_mapping_table[i][CPU_MAP_GROUP_ID]
-                       << " " << _cpu_mapping_table[i][CPU_MAP_USED_FLAG];
-    }
-    OPENVINO_DEBUG << "[ threading ] org_proc_type_table:";
-    for (size_t i = 0; i < _proc_type_table.size(); i++) {
-        OPENVINO_DEBUG << _proc_type_table[i][ALL_PROC] << " " << _proc_type_table[i][MAIN_CORE_PROC] << " "
-                       << _proc_type_table[i][EFFICIENT_CORE_PROC] << " " << _proc_type_table[i][HYPER_THREADING_PROC]
-                       << " " << _proc_type_table[i][PROC_NUMA_NODE_ID] << " " << _proc_type_table[i][PROC_SOCKET_ID];
-    }
+    cpu_debug();
 }
 
 void parse_node_info_linux(const std::vector<std::string> node_info_table,

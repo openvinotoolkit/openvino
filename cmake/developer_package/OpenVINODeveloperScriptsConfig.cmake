@@ -92,6 +92,7 @@ endfunction()
 #
 
 include(cross_compile/find_commands)
+include(cross_compile/python_helpers)
 include(cross_compile/native_compile)
 
 #
