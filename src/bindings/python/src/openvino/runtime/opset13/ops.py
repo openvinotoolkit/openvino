@@ -147,7 +147,7 @@ def fake_convert(
         nodes.append(shift)
     return _get_node_factory_opset13().create(
         "FakeConvert",
-        as_nodes(*nodes),
+        as_nodes(*nodes, name=name),
         {"destination_type": destination_type},
     )
 
@@ -161,6 +161,7 @@ def multinomial(
     log_probs: bool,
     global_seed: int = 0,
     op_seed: int = 0,
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which generates a sequence of class indices sampled from the multinomial distribution.
 
@@ -172,10 +173,11 @@ def multinomial(
     :param log_probs: Flag that specifies whether *probs* should be treated as unnormalized log probabilities.
     :param global_seed: Specifies global seed value. Required to be a positive integer or 0.
     :param op_seed: Specifies operational seed value. Required to be a positive integer or 0.
+    :param name: The optional new name for output node.
 
     :return: The new node performing Multinomial operation.
     """
-    inputs = as_nodes(probs, num_samples)
+    inputs = as_nodes(probs, num_samples, name=name)
 
     if global_seed < 0:
         raise RuntimeError(
@@ -222,7 +224,7 @@ def nms_rotated(
     :return: The new node which performs NMSRotated
     """
     inputs = as_nodes(boxes, scores, max_output_boxes_per_class,
-                      iou_threshold, score_threshold)
+                      iou_threshold, score_threshold, name=name)
 
     attributes = {
         "sort_result_descending": sort_result_descending,
@@ -257,13 +259,13 @@ def scaled_dot_product_attention(
 
     :return: The new node performing Scaled Dot Product Attention operation.
     """
-    inputs = as_nodes(query, key, value)
+    inputs = as_nodes(query, key, value, name=name)
     if attention_mask is not None:
-        inputs.append(as_node(attention_mask))
+        inputs.append(as_node(attention_mask, name=name))
     elif scale is not None:
-        inputs.append(as_node(convert_like(constant(np.array(0, np.int32)), inputs[0])))
+        inputs.append(as_node(convert_like(constant(np.array(0, np.int32)), inputs[0]), name=name))
     if scale is not None:
-        inputs.append(as_node(scale))
+        inputs.append(as_node(scale, name=name))
 
     attributes = {
         "causal": causal,

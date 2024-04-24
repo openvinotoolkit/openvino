@@ -16,7 +16,7 @@ namespace intel_cpu {
 intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x, const element::Type src_type, const Type type,
                                     const size_t offset_in, const size_t offset_out0, const size_t offset_out1,
                                     std::vector<size_t> layout_input, const size_t blk_size_k, const size_t blk_size_n)
-    : snippets::op::MemoryAccess({x}, 1, type == Type::WithCompensations ? 2 : 1),
+    : snippets::modifier::MemoryAccess(1, type == Type::WithCompensations ? 2 : 1), op::Op({x}),
       m_type(type), m_src_type(src_type) {
     m_brgemmVNNIFactor = 4 / m_src_type.size();
     set_output_size(type == Type::WithCompensations ? 2 : 1);
@@ -32,7 +32,7 @@ intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x, const element::Type s
 intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x, const element::Type src_type, const Type type,
                                     const PortDescriptor& desc_in0, const PortDescriptor& desc_out0, const PortDescriptor& desc_out1,
                                     std::vector<size_t> layout_input, const size_t blk_size_k, const size_t blk_size_n)
-    : snippets::op::MemoryAccess({x}, 1, type == Type::WithCompensations ? 2 : 1),
+    : snippets::modifier::MemoryAccess(1, type == Type::WithCompensations ? 2 : 1), op::Op({x}),
       m_type(type), m_src_type(src_type) {
     m_brgemmVNNIFactor = 4 / m_src_type.size();
     set_output_size(type == Type::WithCompensations ? 2 : 1);
