@@ -1,4 +1,6 @@
-.. {#system_requirements}
+.. meta::
+   :description: See OpenVINO system requirements, to ensure proper operation on various
+                 hardware and software setups.
 
 System Requirements
 ===================
@@ -26,7 +28,7 @@ CPU
       * 6th - 14th generation Intel® Core™ processors
       * Intel® Core™ Ultra (codename Meteor Lake)
       * 1st - 5th generation Intel® Xeon® Scalable Processors
-      * ARM and ARM64 CPUs; Apple M1, M2, and Raspberry Pi
+      * ARM CPUs with armv7a and higher, ARM64 CPUs with arm64-v8a and higher, Apple® Mac with Apple silicon
 
    .. tab-item:: Supported Operating Systems
 
@@ -54,7 +56,7 @@ GPU
       * Intel® Iris® Xe Max Graphics
       * Intel® Arc™ GPU Series
       * Intel® Data Center GPU Flex Series
-      * Intel® Data Center GPU Max Series
+      * Intel® Data Center GPU Max Series (limited support)
 
    .. tab-item::  Supported Operating Systems
 
@@ -88,7 +90,7 @@ Intel® Neural Processing Unit
    .. tab-item:: Operating Systems for NPU
 
       * Ubuntu 22.04 long-term support (LTS), 64-bit
-      * Windows 11, 64-bit (22H2, 23H2)
+      * Windows 11, 64-bit (22H2 or later)
 
    .. tab-item:: Additional considerations
 

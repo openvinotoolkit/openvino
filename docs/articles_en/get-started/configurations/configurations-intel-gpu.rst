@@ -130,7 +130,7 @@ Additional Resources
 
 .. The following Intel® Graphics Driver versions were used during OpenVINO's internal validation:
 
-.. <The table below is out of date and we do not have an updated list of drivers used for validation as of 2024.0 release date.>
+.. <The table below is out of date and we do not have an updated list of drivers used for validation as of 2024.1 release date.>
 .. <The table will be updated when an updated list of drivers is available>
 
 .. +------------------+-------------------------------------------------------------------------------------------+
