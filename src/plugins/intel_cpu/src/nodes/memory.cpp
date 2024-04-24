@@ -762,7 +762,7 @@ MemStatePtr MemoryInputSDPA::makeState() const {
     // retrieve the internal precision and axis order from the SDPA node
     OPENVINO_ASSERT(node);
     auto kv_precision = node->getKVCachePrecision();
-    VectorDims order = {0, 1, 2, 3};
+    VectorDims order = {2, 0, 1, 3};
     if (!node->getKVCacheOrder().empty())
         order = node->getKVCacheOrder();
 
