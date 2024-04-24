@@ -417,6 +417,12 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.get<PROFILING_TYPE>();
           }}},
+        {ov::intel_npu::backend_compilation_params.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.getString<BACKEND_COMPILATION_PARAMS>();
+          }}},
     };
 
     for (auto& property : _properties) {
