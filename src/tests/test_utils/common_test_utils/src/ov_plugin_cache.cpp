@@ -90,12 +90,13 @@ public:
 }  // namespace
 
 PluginCache& PluginCache::get() {
+    static std::mutex mutex;
+    std::lock_guard<std::mutex> lock(mutex);
     static PluginCache instance;
     return instance;
 }
 
 std::shared_ptr<ov::Core> PluginCache::core(const std::string& target_device) {
-    std::lock_guard<std::mutex> lock(g_mtx);
     if (disable_plugin_cache) {
         return std::make_shared<ov::Core>(create_core(target_device));
     }
@@ -107,7 +108,6 @@ std::shared_ptr<ov::Core> PluginCache::core(const std::string& target_device) {
 }
 
 void PluginCache::reset() {
-    std::lock_guard<std::mutex> lock(g_mtx);
     ov_core.reset();
 }
 

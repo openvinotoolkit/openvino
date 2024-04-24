@@ -41,8 +41,6 @@ private:
 
     bool disable_plugin_cache;
     std::shared_ptr<ov::Core> ov_core;
-
-    static std::mutex g_mtx;
 };
 
 }  // namespace utils
