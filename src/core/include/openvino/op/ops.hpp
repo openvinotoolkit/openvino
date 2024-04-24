@@ -157,6 +157,7 @@
 #include "openvino/op/rnn_cell.hpp"
 #include "openvino/op/rnn_sequence.hpp"
 #include "openvino/op/roi_align.hpp"
+#include "openvino/op/roi_align_rotated.hpp"
 #include "openvino/op/roi_pooling.hpp"
 #include "openvino/op/roll.hpp"
 #include "openvino/op/round.hpp"
