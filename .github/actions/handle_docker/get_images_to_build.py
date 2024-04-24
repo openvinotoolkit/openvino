@@ -74,11 +74,19 @@ def main():
         changeset = get_changeset(args.repo, args.pr, merge_queue_target_branch, args.commit)
         changed_dockerfiles = [p for p in changeset if p.startswith(args.dockerfiles_root) and p.endswith('Dockerfile')]
 
-        changed_images = requested_images if args.docker_env_changed else \
-            set([name_from_dockerfile(d, args.dockerfiles_root) for d in changed_dockerfiles])
+        if args.docker_env_changed:
+            logger.info(f"Common docker environment is modified, will build all requested images")
+            changed_images = requested_images
+        else:
+            logger.info(f"Common docker environment is not modified, will build only changed and missing images")
+            changed_images = set([name_from_dockerfile(d, args.dockerfiles_root) for d in changed_dockerfiles])
 
         unchanged_images = requested_images - changed_images
         unchanged_with_no_base = images.get_missing(unchanged_images, base=True)
+
+        if unchanged_with_no_base:
+            logger.info("The following images were unchanged, but will be built anyway since the base for them "
+                        f"is missing in registry: {unchanged_with_no_base}")
 
         images_to_tag = unchanged_images.difference(unchanged_with_no_base)
         images_to_build = requested_images.intersection(changed_images).union(unchanged_with_no_base)
@@ -93,7 +101,7 @@ def main():
         missing_only = True
 
     if not images_to_build:
-        logger.info(f"No images to build, will return the list of pre-built images")
+        logger.info(f"No images to build, will return the list of pre-built images with a new tag")
 
     images.build(images_to_build, missing_only, args.push)
     if args.push and not os.getenv("BUILDER_NAME"):
