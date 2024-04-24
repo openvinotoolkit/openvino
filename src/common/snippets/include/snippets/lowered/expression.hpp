@@ -10,6 +10,7 @@
 #include "snippets/emitter.hpp"
 #include "snippets/lowered/port_connector.hpp"
 #include "snippets/lowered/expression_port.hpp"
+#include "snippets/op/loop.hpp"
 
 #include "snippets/shape_inference/shape_inference.hpp"
 
@@ -102,6 +103,17 @@ private:
 
     int64_t m_index = -1;
     io_type m_type = io_type::UNDEFINED;
+};
+
+class LoopExpression : public Expression {
+    friend class LinearIR;
+public:
+    ExpressionPtr clone_with_new_inputs(const std::vector<PortConnectorPtr>& new_inputs,
+                                        const std::shared_ptr<Node>& new_node) const override;
+    // Loops don't need to do shape inference since they don't contain shapes
+    bool needShapeInfer() const override { return false; }
+private:
+    explicit LoopExpression(const std::shared_ptr<op::LoopBase>& loop, const std::shared_ptr<IShapeInferSnippetsFactory>& factory);
 };
 
 } // namespace lowered
