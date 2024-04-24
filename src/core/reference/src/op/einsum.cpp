@@ -313,7 +313,7 @@ void reduce_input(ov::TensorVector& inputs,
 
     const auto& input_ptr = inputs[input_ind];
     const auto& input_subscript = input_subscripts[input_ind];
-    const auto input_shape = input_ptr.get_shape();
+    const auto& input_shape = input_ptr.get_shape();
 
     // compute output shape and axes to reduce
     ov::Shape output_shape;
@@ -389,8 +389,8 @@ void transpose_input(ov::TensorVector& inputs,
         permutation.insert(permutation.end(), label_dims.begin(), label_dims.end());
     }
 
-    const auto input_shape = input_ptr.get_shape();
-    const auto element_type = input_ptr.get_element_type();
+    const auto& input_shape = input_ptr.get_shape();
+    const auto& element_type = input_ptr.get_element_type();
 
     Shape output_shape(input_shape.size());
     std::transform(permutation.begin(), permutation.end(), output_shape.begin(), [&](const int64_t& v) {
@@ -509,7 +509,7 @@ ov::Tensor build_multi_identity(const ov::Tensor& input,
 
     // initially set multi-identity with identity for the first repeated label
     OPENVINO_ASSERT(repeated_labels.size() > 0);
-    auto first_repeated_label = repeated_labels[0];
+    const auto& first_repeated_label = repeated_labels[0];
     OPENVINO_ASSERT(label_dim_map.find(first_repeated_label) != label_dim_map.end());
     auto repeated_label_dims = label_dim_map[first_repeated_label];
     ov::Tensor multi_identity = build_identity<T>(input, repeated_label_dims);

@@ -34,7 +34,7 @@ void if_reference(const std::vector<std::shared_ptr<Model>>& bodies,
         OPENVINO_ASSERT(output_size > out_descr->m_output_index,
                         "Incorrect associating! If has not output with id ",
                         out_descr->m_output_index);
-        auto res = outs_from_body[out_descr->m_body_value_index];
+        const auto& res = outs_from_body[out_descr->m_body_value_index];
         res.copy_to(out[out_descr->m_output_index]);
     }
 }
