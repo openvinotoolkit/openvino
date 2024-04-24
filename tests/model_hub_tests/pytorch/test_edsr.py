@@ -52,7 +52,7 @@ class TestEdsrConvertModel(TestTorchConvertModel):
 
     def teardown_method(self):
         # remove all downloaded files from cache
-        cleanup_dir(hf_hub_cache_dir)
+        cleanup_dir(hf_cache_dir)
         super().teardown_method()
 
     @pytest.mark.parametrize("name,scale", [("edsr", 2)])
