@@ -11,7 +11,7 @@
 #include "common_test_utils/postgres_link.hpp"
 
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
-#include "shared_test_classes/base/utils/generate_static_shapes.hpp"
+
 
 #include "op_conformance_utils/utils/dynamism.hpp"
 #include "op_conformance_utils/meta_info/meta_info.hpp"
@@ -19,6 +19,7 @@
 
 #include "utils/models.hpp"
 #include "utils/types.hpp"
+#include "utils/generate_static_shapes.hpp"
 
 #include "read_ir_test/read_ir.hpp"
 
@@ -241,13 +242,17 @@ void ReadIRTest::SetUp() {
             inputShapes.push_back(InputShape{{}, {param->get_shape()}});
             continue;
         }
-        std::shared_ptr<ov::Node> inputNode = param;
         for (size_t i = 0; i < param->get_output_size(); i++) {
             for (const auto &node : param->get_output_target_inputs(i)) {
                 std::shared_ptr<ov::Node> nodePtr = node.get_node()->shared_from_this();
                 auto it = shapeMap.find(nodePtr->get_type_info());
                 ASSERT_NE(it, shapeMap.end());
-                inputShapes.push_back(it->second(nodePtr, param));
+                for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
+                    if (nodePtr->get_input_node_ptr(port)->shared_from_this() == param) {
+                        inputShapes.push_back(it->second(nodePtr, port));
+                        break;
+                    }
+                }
             }
         }
     }

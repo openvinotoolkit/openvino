@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <math.h>
 #include <algorithm>
 #include <functional>
 
-#include "shared_test_classes/base/utils/generate_static_shapes.hpp"
+#include "utils/generate_static_shapes.hpp"
 
 #include "openvino/op/ops.hpp"
 #include "ov_ops/augru_cell.hpp"
@@ -33,9 +33,11 @@ void clip_restrict_dims(InputShape& input_shape, const std::map<size_t, size_t>&
         uint64_t dimMax = std::numeric_limits<char>::max();
         uint64_t dimMin = pair.second;
         auto& dim0 = staticShapes[0][pair.first];
+        auto& dim1 = staticShapes[1][pair.first];
         auto& dim2 = staticShapes[2][pair.first];
         if (dim0 != dim2) {
             dim0 = clip(dim0, dimMin, dimMax);
+            dim1 = clip(dim1, dimMin, dimMax);
             dim2 = clip(dim2, dimMin, dimMax);
         }
     }
@@ -44,7 +46,8 @@ void clip_restrict_dims(InputShape& input_shape, const std::map<size_t, size_t>&
 namespace {
 
 InputShape generate(const std::shared_ptr<ov::Node>& node,
-                    const std::shared_ptr<ov::op::v0::Parameter>& param) {
+                    size_t in_port_id) {
+    const auto& param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(node->get_input_node_shared_ptr(in_port_id));
     std::vector<ov::Shape> staticShapes = { param->get_partial_shape().get_min_shape(),
                                             param->get_partial_shape().get_min_shape(),
                                             param->get_partial_shape().get_max_shape() };
@@ -55,8 +58,9 @@ InputShape generate(const std::shared_ptr<ov::Node>& node,
             size_t range = s.get_max_length() - s.get_min_length();
             if (range > std::numeric_limits<char>::max()) {
                 ov::test::utils::fill_data_random(&range, 1, std::numeric_limits<char>::max(), s.get_min_length(), 1);
+            } else {
+                ov::test::utils::fill_data_random(&dimValue, 1, range, s.get_min_length(), 1);
             }
-            ov::test::utils::fill_data_random(&dimValue, 1, range, s.get_min_length(), 1);
         } else {
             dimValue = s.get_length();
         }
@@ -79,47 +83,29 @@ InputShape generate(const std::shared_ptr<ov::Node>& node,
 }
 
 InputShape generate(const std::shared_ptr<ov::op::v1::Convolution>& node,
-                    const std::shared_ptr<ov::op::v0::Parameter>& param) {
+                    size_t in_port_id) {
     std::map<size_t, size_t> restrict_dims;
-    for (size_t i = 0; i < param->get_output_size(); i++) {
-        for (const auto &node : param->get_output_target_inputs(i)) {
-            std::shared_ptr<ov::Node> nodePtr = node.get_node()->shared_from_this();
-            for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
-                if (nodePtr->get_input_node_ptr(port)->shared_from_this() != param) {
-                    auto constant_ptr = std::dynamic_pointer_cast<ov::op::v0::Constant>(nodePtr->get_input_node_shared_ptr(port));
-                    if (constant_ptr == nullptr) {
-                        OPENVINO_THROW("Expected non-null Constant node but got nullptr!");
-                    }
-                    restrict_dims.insert({2, constant_ptr->get_shape()[2]});
-                    break;
-                }
+    for (size_t port = 0; port < node->get_input_size(); ++port) {
+        if (port != in_port_id) {
+            auto constant_ptr = std::dynamic_pointer_cast<ov::op::v0::Constant>(node->get_input_node_shared_ptr(port));
+            if (constant_ptr == nullptr) {
+                OPENVINO_THROW("Expected non-null Constant node but got nullptr!");
             }
+            restrict_dims.insert({2, constant_ptr->get_shape()[2]});
+            break;
         }
     }
 
-    InputShape input_shape = generate(std::dynamic_pointer_cast<ov::Node>(node), param);
-    clip_restrict_dims(input_shape, restrict_dims);
-    return input_shape;
-}
-
-InputShape generate(const std::shared_ptr<ov::op::v8::MaxPool>& node,
-                    const std::shared_ptr<ov::op::v0::Parameter>& param) {
-    std::map<size_t, size_t> restrict_dims;
-    auto kernel = node->get_kernel();
-    size_t ndim = node->get_input_partial_shape(0).size();
-    for (size_t i = 0; i < kernel.size(); i++) {
-        restrict_dims.insert({ndim - (kernel.size() - i), kernel[i]});
-    }
-
-    InputShape input_shape = generate(std::dynamic_pointer_cast<ov::Node>(node), param);
+    InputShape input_shape = generate(std::dynamic_pointer_cast<ov::Node>(node), in_port_id);
+    std::vector<ov::Shape>& staticShapes2 = input_shape.second;
     clip_restrict_dims(input_shape, restrict_dims);
     return input_shape;
 }
 
 template<typename T>
 InputShape generateShape(const std::shared_ptr<ov::Node>& node,
-                         const std::shared_ptr<ov::op::v0::Parameter> &param) {
-    return generate(ov::as_type_ptr<T>(node), param);
+                         size_t in_port_id) {
+    return generate(ov::as_type_ptr<T>(node), in_port_id);
 }
 } // namespace
 
@@ -141,7 +127,6 @@ ShapesMap getShapeMap() {
 #include "openvino/opsets/opset12_tbl.hpp"
 #include "openvino/opsets/opset13_tbl.hpp"
 
-//#include "ov_ops/opset_private_tbl.hpp"
 #undef _OPENVINO_OP_REG
     };
     return shapesMap;
