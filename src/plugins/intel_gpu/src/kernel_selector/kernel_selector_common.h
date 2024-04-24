@@ -73,7 +73,7 @@ struct clKernelData {
 struct WeightsReorderParams {
     WeightsTensor src;
     WeightsTensor dest;
-    bool rotate;
+    bool rotate = false;
     bool is_initialized = false;
 };
 

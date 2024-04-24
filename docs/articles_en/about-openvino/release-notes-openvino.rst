@@ -3,11 +3,18 @@
 OpenVINO Release Notes
 =============================
 
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   release-notes-openvino/system-requirements
+   release-notes-openvino/release-policy
+
 
 2024.0 - 06 March 2024
 #############################
 
-:doc:`System Requirements <./system-requirements>`  |  :doc:`Installation Guides <./../get-started/install-openvino>`
+:doc:`System Requirements <./release-notes-openvino/system-requirements>`  |  :doc:`Installation Guides <./../get-started/install-openvino>`
 
 
 What's new
@@ -351,7 +358,7 @@ OpenCL and the OpenCL logo are trademarks of Apple Inc. used by permission by Kh
 
 Other names and brands may be claimed as the property of others.
 
-Copyright © 2023, Intel Corporation. All rights reserved.
+Copyright © 2024, Intel Corporation. All rights reserved.
 
 For more complete information about compiler optimizations, see our Optimization Notice.
 

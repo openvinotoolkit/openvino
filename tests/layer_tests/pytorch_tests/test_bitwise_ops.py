@@ -55,6 +55,7 @@ class TestBitwiseOp(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("op_type", ["and", "or", "not", "xor"])
     @pytest.mark.parametrize("lhs_dtype", ["bool", "int32", "uint8", "int64"])
     @pytest.mark.parametrize("rhs_dtype", ["bool", "int32", "uint8", "int64"])
@@ -107,6 +108,7 @@ class TestBitwiseOperators(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("lhs_dtype", ["bool", "int32"])
     @pytest.mark.parametrize("rhs_dtype", ["bool", "int32"])
     @pytest.mark.parametrize(

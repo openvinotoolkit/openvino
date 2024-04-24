@@ -272,7 +272,7 @@ accuracy for the model.
 
 .. raw:: html
 
-   <link rel="stylesheet" type="text/css" href="../_static/css/benchmark-banner.css">
+   <link rel="stylesheet" type="text/css" href="../../_static/css/benchmark-banner.css">
 
 .. container:: benchmark-banner
 

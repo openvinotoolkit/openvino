@@ -34,7 +34,7 @@ class TestReciprocal(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_reciprocal_basic(self, params, ie_device, precision, ir_version, temp_dir,
                               use_legacy_frontend):
@@ -77,7 +77,7 @@ class TestComplexReciprocal(CommonTFLayerTest):
     ]    
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_complex_reciprocal(self, params, ie_device, precision, ir_version, temp_dir,
                                 use_legacy_frontend):

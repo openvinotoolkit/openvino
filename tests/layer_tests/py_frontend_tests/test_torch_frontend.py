@@ -260,6 +260,7 @@ def test_so_extension():
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
         "Parameter", "CustomElu", "Result"]
 
+
 def test_framework_map_macros():
     from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 
@@ -291,16 +292,17 @@ def test_framework_map_macros():
         "Parameter", "ReluCustom", "Result"]
 
 
+class CosModel(torch.nn.Module):
+    def __init__(self):
+        super(CosModel, self).__init__()
+
+    def forward(self, x):
+        return torch.cos(x.to(torch.float32))
+
+
 def test_op_extension():
     from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.frontend.pytorch import OpExtension
-
-    class CosModel(torch.nn.Module):
-        def __init__(self):
-            super(CosModel, self).__init__()
-
-        def forward(self, x):
-            return torch.cos(x.to(torch.float32))
 
     model = CosModel()
     decoder = TorchScriptPythonDecoder(get_scripted_model(model))
@@ -327,13 +329,6 @@ def test_op_extension_generic():
     from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.frontend import OpExtension
 
-    class CosModel(torch.nn.Module):
-        def __init__(self):
-            super(CosModel, self).__init__()
-
-        def forward(self, x):
-            return torch.cos(x.to(torch.float32))
-
     model = CosModel()
     decoder = TorchScriptPythonDecoder(get_scripted_model(model))
 
@@ -353,6 +348,97 @@ def test_op_extension_generic():
     assert converted_model
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
         "Parameter", "Convert", "Sin", "Result"]
+
+
+def test_module_extension():
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch import ModuleExtension, ConversionExtension
+    from openvino import convert_model
+
+    class ModelWithModule(torch.nn.Module):
+        def __init__(self):
+            super(ModelWithModule, self).__init__()
+            self.cos_module = CosModel()
+
+        def forward(self, x):
+            return self.cos_module(x)
+
+    model = ModelWithModule()
+    decoder = TorchScriptPythonDecoder(model)
+
+    fem = FrontEndManager()
+    fe = fem.load_by_framework(framework="pytorch")
+    assert fe
+
+    input_model = fe.load(decoder)
+    assert input_model
+    converted_model = fe.convert(input_model)
+    assert converted_model
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Convert", "Cos", "Result"]
+
+    converted_model = convert_model(model, example_input=(
+        torch.randn(100),), extension=[ModuleExtension(CosModel, "aten::sin")])
+    assert converted_model
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Sin", "Result"]
+
+    converted_model = convert_model(model, example_input=(torch.randn(
+        100),), extension=[ModuleExtension(model.cos_module, "aten::sin")])
+    assert converted_model
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Sin", "Result"]
+
+    converted_model = convert_model(model, example_input=(torch.randn(
+        100),), extension=[ModuleExtension("cos_module", "aten::sin")])
+    assert converted_model
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Sin", "Result"]
+
+    def sin_op(context):
+        return ops.sin(context.get_input(0)).outputs()
+
+    converted_model = convert_model(model, example_input=(torch.randn(100),), extension=[
+                                    ModuleExtension("cos_module", "MyOp"), ConversionExtension("MyOp", sin_op)])
+    assert converted_model
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Sin", "Result"]
+
+
+def test_multiple_module_extension():
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch import ModuleExtension
+    from openvino import convert_model
+
+    class ModelWithModule(torch.nn.Module):
+        def __init__(self):
+            super(ModelWithModule, self).__init__()
+            self.cos_module = CosModel()
+            self.relu_module = torch.nn.ReLU()
+
+        def forward(self, x):
+            x = x.to(torch.float32)
+            return self.cos_module(x) + self.relu_module(x)
+
+    model = ModelWithModule()
+    decoder = TorchScriptPythonDecoder(model)
+
+    fem = FrontEndManager()
+    fe = fem.load_by_framework(framework="pytorch")
+    assert fe
+
+    input_model = fe.load(decoder)
+    assert input_model
+    converted_model = fe.convert(input_model)
+    assert converted_model
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Convert", "Convert", "Cos", "Constant", "Relu", "Multiply", "Add", "Result"]
+
+    converted_model = convert_model(model, example_input=(
+        torch.randn(100),), extension=[ModuleExtension(CosModel, "aten::sin"), ModuleExtension(model.relu_module, "aten::tan")])
+    assert converted_model
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Sin", "Tan", "Add", "Result"]
 
 
 def test_pytorch_telemetry():
@@ -462,63 +548,69 @@ def test_pytorch_types_promotion(l_type, r_type, l_scalar, r_scalar):
 
     class aten_add_t_t(torch.nn.Module):
         def forward(self, x: torch.Tensor, y: torch.Tensor):
-            return torch.add(x, y)
+            return x + y
 
     class aten_add_int_int(torch.nn.Module):
         def forward(self, x: int, y: int):
-            return torch.add(x, y)
+            return x + y
 
     class aten_add_float_float(torch.nn.Module):
         def forward(self, x: float, y: float):
-            return torch.add(x, y)
+            return x + y
 
     class aten_add_int_float(torch.nn.Module):
         def forward(self, x: int, y: float):
-            return torch.add(x, y)
+            return x + y
 
     class aten_add_float_int(torch.nn.Module):
         def forward(self, x: float, y: int):
-            return torch.add(x, y)
+            return x + y
 
     class aten_add_t_int(torch.nn.Module):
         def forward(self, x: torch.Tensor, y: int):
-            return torch.add(x, y)
+            return x + y
 
     class aten_add_int_t(torch.nn.Module):
         def forward(self, x: int, y: torch.Tensor):
-            return torch.add(x, y)
+            return x + y
 
     class aten_add_t_float(torch.nn.Module):
         def forward(self, x: torch.Tensor, y: float):
-            return torch.add(x, y)
+            return x + y
 
     class aten_add_float_t(torch.nn.Module):
         def forward(self, x: float, y: torch.Tensor):
-            return torch.add(x, y)
+            return x + y
 
     l_t = "t"
     r_t = "t"
 
     if isinstance(l_type, type):
-        ov_lhs = ops.parameter(PartialShape([]), pt_to_ov_type_map.get(l_type.__name__))
+        ov_lhs = ops.parameter(PartialShape(
+            []), pt_to_ov_type_map.get(l_type.__name__))
         pt_lhs = l_type(5)
         l_t = l_type.__name__
     elif l_scalar:
-        ov_lhs = ops.parameter(PartialShape([]), pt_to_ov_type_map.get(str(l_type)))
+        ov_lhs = ops.parameter(PartialShape(
+            []), pt_to_ov_type_map.get(str(l_type)))
         pt_lhs = torch.tensor(1, dtype=l_type)
     else:
-        ov_lhs = ops.parameter(PartialShape([2, 2]), pt_to_ov_type_map.get(str(l_type)))
+        ov_lhs = ops.parameter(PartialShape(
+            [2, 2]), pt_to_ov_type_map.get(str(l_type)))
         pt_lhs = torch.rand([2, 2]).to(dtype=l_type)
 
     if isinstance(r_type, type):
-        ov_rhs = ops.parameter(PartialShape([]), pt_to_ov_type_map.get(r_type.__name__))
+        ov_rhs = ops.parameter(PartialShape(
+            []), pt_to_ov_type_map.get(r_type.__name__))
         pt_rhs = r_type(5)
         r_t = r_type.__name__
     elif r_scalar:
-        ov_rhs = ops.parameter(PartialShape([]), pt_to_ov_type_map.get(str(r_type)))
+        ov_rhs = ops.parameter(PartialShape(
+            []), pt_to_ov_type_map.get(str(r_type)))
         pt_rhs = torch.tensor(1, dtype=r_type)
     else:
-        ov_rhs = ops.parameter(PartialShape([2, 2]), pt_to_ov_type_map.get(str(r_type)))
+        ov_rhs = ops.parameter(PartialShape(
+            [2, 2]), pt_to_ov_type_map.get(str(r_type)))
         pt_rhs = torch.rand([2, 2]).to(dtype=r_type)
     model = get_scripted_model(locals().get(f"aten_add_{l_t}_{r_t}")())
     decoder = TorchScriptPythonDecoder(model)
@@ -541,13 +633,12 @@ def test_pytorch_types_promotion(l_type, r_type, l_scalar, r_scalar):
         pt_out_shape = pt_out.size()
     pt_out_type = pt_to_ov_type_map.get(str(pt_out_type))
     ov_out_type = om.get_output_element_type(0)
-    if pt_out_type == Type.i64 and ov_out_type == Type.i32 and "int" in [l_t, r_t]:
-        pytest.xfail("Pytorch int-like scalar in OV is converted to i32 instead of i64, mismatch is expected.")
     assert pt_out_type == ov_out_type
+    print(f"{pt_out_type} == {ov_out_type}")
     assert PartialShape(pt_out_shape) == om.get_output_partial_shape(0)
 
 
-class TestModel1(torch.nn.Module):
+class ModelTest1(torch.nn.Module):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.pool = torch.nn.AdaptiveAvgPool2d(1)
@@ -559,8 +650,7 @@ class TestModel1(torch.nn.Module):
 def test_output_dict_names():
     from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 
-    input = torch.ones((1, 3, 224, 224))
-    model = TestModel1()
+    model = ModelTest1()
     decoder = TorchScriptPythonDecoder(
         model, example_input=(torch.randn(1, 3, 224, 224),))
     fe_manager = FrontEndManager()
@@ -570,7 +660,7 @@ def test_output_dict_names():
     assert om.outputs[0].any_name == "x1" and om.outputs[1].any_name == "x2", "Output dict names are not expected"
 
 
-class TestModel2(torch.nn.Module):
+class ModelTest2(torch.nn.Module):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.pool = torch.nn.AdaptiveAvgPool2d(1)
@@ -582,8 +672,7 @@ class TestModel2(torch.nn.Module):
 def test_output_tuple_names():
     from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 
-    input = torch.ones((1, 3, 224, 224))
-    model = TestModel2()
+    model = ModelTest2()
     decoder = TorchScriptPythonDecoder(
         model, example_input=(torch.randn(1, 3, 224, 224),))
     fe_manager = FrontEndManager()

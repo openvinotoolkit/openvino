@@ -22,11 +22,11 @@ void ov::op::util::BinaryElementwiseArithmetic::validate_and_infer_elementwise_a
     element::Type& args_et = std::get<0>(args_et_pshape);
     PartialShape& args_pshape = std::get<1>(args_et_pshape);
 
+    const auto is_supported_et = (args_et != element::boolean && args_et != element::string);
     NODE_VALIDATION_CHECK(this,
-                          args_et.is_dynamic() || args_et != element::boolean,
-                          "Arguments cannot have boolean element type (argument element type: ",
-                          args_et,
-                          ").");
+                          args_et.is_dynamic() || is_supported_et,
+                          "This operation does not support inputs with element type: ",
+                          args_et);
 
     set_output_type(0, args_et, args_pshape);
 }

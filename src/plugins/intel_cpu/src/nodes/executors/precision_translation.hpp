@@ -6,7 +6,6 @@
 
 #include <cassert>
 #include <functional>
-#include <utility>
 #include <vector>
 
 #include "nodes/executors/memory_arguments.hpp"
@@ -82,9 +81,43 @@ private:
 //       pros: should be more efficient and safe
 //       cons: more template instances (binary size) of the translation utility functions
 using InOutTypes = std::vector<ov::element::Type>;
-using PortsConfigurationImpl = std::function<InOutTypes(const InOutTypes&)>;
+using TypeTranslationFunction = std::function<InOutTypes(const InOutTypes&)>;
 using InOutTypeMask = std::vector<TypeMask>;
-using TypeMapping = std::vector<std::pair<InOutTypeMask, PortsConfigurationImpl>>;
+
+class TypeMappingEntry {
+public:
+    using EnabledPredicate = std::function<bool(void)>;
+
+    TypeMappingEntry(InOutTypeMask mask,
+                     TypeTranslationFunction translation,
+                     EnabledPredicate enabled = {})
+        : m_mask(std::move(mask)),
+          m_translation(std::move(translation)),
+          m_enabled(std::move(enabled)) {}
+
+    const InOutTypeMask& mask() const {
+        return m_mask;
+    }
+
+    InOutTypes translate(const InOutTypes& types) const {
+        if (m_translation)
+            return m_translation(types);
+        return {};
+    }
+
+    bool enabled() const {
+        if (m_enabled)
+            return m_enabled();
+        return true;
+    }
+
+private:
+    InOutTypeMask m_mask;
+    TypeTranslationFunction m_translation;
+    EnabledPredicate m_enabled;
+};
+
+using TypeMapping = std::vector<TypeMappingEntry>;
 using MappingNotation = std::vector<int>;
 using pt = PortsTranslation;
 

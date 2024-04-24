@@ -16,8 +16,8 @@ using namespace testing;
 TEST(type_prop, bin_convolution_auto_padding_same) {
     ov::PartialShape data_batch_shape{1, 1, 5, 5};
     ov::PartialShape filters_shape{1, 1, 3, 3};
-    set_shape_labels(data_batch_shape, 10);
-    set_shape_labels(filters_shape, 20);
+    auto a_symbols = set_shape_symbols(data_batch_shape);
+    auto w_symbols = set_shape_symbols(filters_shape);
     ov::Strides strides{1, 1};
     ov::CoordinateDiff pads_begin{0, 0};
     ov::CoordinateDiff pads_end{0, 0};
@@ -39,7 +39,8 @@ TEST(type_prop, bin_convolution_auto_padding_same) {
                                                            pad_value,
                                                            auto_pad);
 
-    EXPECT_THAT(get_shape_labels(conv->get_output_partial_shape(0)), ElementsAre(10, 20, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(conv->get_output_partial_shape(0)),
+                ElementsAre(a_symbols[0], w_symbols[0], nullptr, nullptr));
     EXPECT_EQ(conv->get_output_partial_shape(0), (ov::PartialShape{1, 1, 5, 5}));
     EXPECT_EQ(conv->get_pads_begin(), (ov::CoordinateDiff{1, 1}));
     EXPECT_EQ(conv->get_pads_end(), (ov::CoordinateDiff{1, 1}));
@@ -48,8 +49,8 @@ TEST(type_prop, bin_convolution_auto_padding_same) {
 TEST(type_prop, bin_convolution_auto_padding_same_lower_spatial_dims_static) {
     ov::PartialShape data_batch_shape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), 5, 5};
     ov::PartialShape filters_shape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), 3, 3};
-    set_shape_labels(data_batch_shape, 10);
-    set_shape_labels(filters_shape, 20);
+    auto a_symbols = set_shape_symbols(data_batch_shape);
+    auto w_symbols = set_shape_symbols(filters_shape);
     ov::Strides strides{1, 1};
     ov::CoordinateDiff pads_begin{0, 0};
     ov::CoordinateDiff pads_end{0, 0};
@@ -71,7 +72,8 @@ TEST(type_prop, bin_convolution_auto_padding_same_lower_spatial_dims_static) {
                                                            pad_value,
                                                            auto_pad);
 
-    EXPECT_THAT(get_shape_labels(conv->get_output_partial_shape(0)), ElementsAre(10, 20, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(conv->get_output_partial_shape(0)),
+                ElementsAre(a_symbols[0], w_symbols[0], nullptr, nullptr));
     EXPECT_EQ(conv->get_output_partial_shape(0),
               (ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), 5, 5}));
     EXPECT_EQ(conv->get_pads_begin(), (ov::CoordinateDiff{1, 1}));
@@ -111,8 +113,8 @@ TEST(type_prop, bin_convolution_auto_padding_same_upper_spatial_dims_static) {
 TEST(type_prop, bin_convolution_auto_padding_same_data_batch_spatial_dims_dynamic) {
     ov::PartialShape data_batch_shape{1, 1, ov::Dimension::dynamic(), 5};
     ov::PartialShape filters_shape{ov::Dimension::dynamic(), 1, 3, 3};
-    set_shape_labels(data_batch_shape, 10);
-    set_shape_labels(filters_shape, 20);
+    auto a_symbols = set_shape_symbols(data_batch_shape);
+    auto w_symbols = set_shape_symbols(filters_shape);
     ov::Strides strides{1, 1};
     ov::CoordinateDiff pads_begin{0, 0};
     ov::CoordinateDiff pads_end{0, 0};
@@ -134,7 +136,8 @@ TEST(type_prop, bin_convolution_auto_padding_same_data_batch_spatial_dims_dynami
                                                            pad_value,
                                                            auto_pad);
 
-    EXPECT_THAT(get_shape_labels(conv->get_output_partial_shape(0)), ElementsAre(10, 20, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(conv->get_output_partial_shape(0)),
+                ElementsAre(a_symbols[0], w_symbols[0], nullptr, nullptr));
     EXPECT_EQ(conv->get_output_partial_shape(0),
               (ov::PartialShape{1, ov::Dimension::dynamic(), ov::Dimension::dynamic(), 5}));
     EXPECT_EQ(conv->get_pads_begin(), (ov::CoordinateDiff{0, 1}));
@@ -415,8 +418,8 @@ TEST_F(TypePropBinaryConvolutionV1Test, default_ctor) {
 TEST_F(TypePropBinaryConvolutionV1Test, interval_shapes) {
     ov::PartialShape data_batch_pshape{{1, 3}, 1, {1, 5}, {3, 10}};
     ov::PartialShape filters_pshape{2, {1, 3}, 3, 3};
-    set_shape_labels(data_batch_pshape, 10);
-    set_shape_labels(filters_pshape, 20);
+    auto a_symbols = set_shape_symbols(data_batch_pshape);
+    auto w_symbols = set_shape_symbols(filters_pshape);
 
     constexpr auto et = ov::element::f32;
     constexpr auto auto_pad = ov::op::PadType::EXPLICIT;
@@ -435,7 +438,8 @@ TEST_F(TypePropBinaryConvolutionV1Test, interval_shapes) {
                             pad_value,
                             auto_pad);
 
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 20, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(a_symbols[0], w_symbols[0], nullptr, nullptr));
     EXPECT_EQ(op->get_output_partial_shape(0), ov::PartialShape({{1, 3}, 2, {1, 3}, {1, 8}}));
     EXPECT_EQ(op->get_pads_begin(), (ov::CoordinateDiff{0, 0}));
     EXPECT_EQ(op->get_pads_end(), (ov::CoordinateDiff{0, 0}));

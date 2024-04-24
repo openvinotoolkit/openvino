@@ -344,40 +344,40 @@ std::vector<GridSampleParams> generateBilinearParamsEvenDimensions() {
         data_even_dims,
         grid_inner,
         op::v9::GridSample::Attributes{false, GS_BILINEAR, GS_ZEROS},
-        reference_tests::Tensor{{1, 1, 1, 7}, DATA_ET, std::vector<DT>{5, 17, 8, 20, 4.75, 1.5, 11, 14}},
+        reference_tests::Tensor{{1, 1, 1, 8}, DATA_ET, std::vector<DT>{5, 17, 8, 20, 4.75, 1.5, 11, 14}},
         "bilinear_zeros_noalign_even_dims_inner" + types_str);
 
     params.emplace_back(
         data_even_dims,
         grid_inner,
         op::v9::GridSample::Attributes{true, GS_BILINEAR, GS_ZEROS},
-        reference_tests::Tensor{{1, 1, 1, 7}, DATA_ET, std::vector<DT>{6.75, 15.75, 9.25, 18.25, 19, 6, 11.35, 13.65}},
+        reference_tests::Tensor{{1, 1, 1, 8}, DATA_ET, std::vector<DT>{6.75, 15.75, 9.25, 18.25, 19, 6, 11.35, 13.65}},
         "bilinear_zeros_align_even_dims_inner" + types_str);
 
     params.emplace_back(data_even_dims,
                         grid_inner,
                         op::v9::GridSample::Attributes{false, GS_BILINEAR, GS_BORDER},
-                        reference_tests::Tensor{{1, 1, 1, 7}, DATA_ET, std::vector<DT>{5, 17, 8, 20, 19, 6, 11, 14}},
+                        reference_tests::Tensor{{1, 1, 1, 8}, DATA_ET, std::vector<DT>{5, 17, 8, 20, 19, 6, 11, 14}},
                         "bilinear_border_noalign_even_dims_inner" + types_str);
 
     params.emplace_back(
         data_even_dims,
         grid_inner,
         op::v9::GridSample::Attributes{true, GS_BILINEAR, GS_BORDER},
-        reference_tests::Tensor{{1, 1, 1, 7}, DATA_ET, std::vector<DT>{6.75, 15.75, 9.25, 18.25, 19, 6, 11.35, 13.65}},
+        reference_tests::Tensor{{1, 1, 1, 8}, DATA_ET, std::vector<DT>{6.75, 15.75, 9.25, 18.25, 19, 6, 11.35, 13.65}},
         "bilinear_border_align_even_dims_inner" + types_str);
 
     params.emplace_back(data_even_dims,
                         grid_inner,
                         op::v9::GridSample::Attributes{false, GS_BILINEAR, GS_REFLECTION},
-                        reference_tests::Tensor{{1, 1, 1, 7}, DATA_ET, std::vector<DT>{5, 17, 8, 20, 19, 6, 11, 14}},
+                        reference_tests::Tensor{{1, 1, 1, 8}, DATA_ET, std::vector<DT>{5, 17, 8, 20, 19, 6, 11, 14}},
                         "bilinear_reflection_noalign_even_dims_inner" + types_str);
 
     params.emplace_back(
         data_even_dims,
         grid_inner,
         op::v9::GridSample::Attributes{true, GS_BILINEAR, GS_REFLECTION},
-        reference_tests::Tensor{{1, 1, 1, 7}, DATA_ET, std::vector<DT>{6.75, 15.75, 9.25, 18.25, 19, 6, 11.35, 13.65}},
+        reference_tests::Tensor{{1, 1, 1, 8}, DATA_ET, std::vector<DT>{6.75, 15.75, 9.25, 18.25, 19, 6, 11.35, 13.65}},
         "bilinear_reflection_align_even_dims_inner" + types_str);
 
     return params;

@@ -68,7 +68,7 @@ TEST(type_prop, extractimagepatches_rates_change) {
 
 TEST(type_prop, extractimagepatches_input_shape_change) {
     auto data_shape = PartialShape{64, 3, 9, 9};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
     auto data = make_shared<op::v0::Parameter>(element::i32, data_shape);
     auto sizes = Shape{3, 3};
     auto strides = Strides{5, 5};
@@ -78,12 +78,13 @@ TEST(type_prop, extractimagepatches_input_shape_change) {
 
     EXPECT_EQ(extractimagepatches->get_output_element_type(0), element::i32);
     EXPECT_EQ(extractimagepatches->get_output_shape(0), (Shape{64, 27, 1, 1}));
-    EXPECT_THAT(get_shape_labels(extractimagepatches->get_output_partial_shape(0)), ElementsAre(10, 0, 0, 0));
+    EXPECT_THAT(get_shape_symbols(extractimagepatches->get_output_partial_shape(0)),
+                ElementsAre(symbols[0], nullptr, nullptr, nullptr));
 }
 
 TEST(type_prop, extractimagepatches_dynamic_shape) {
     auto data_shape = PartialShape::dynamic(4);
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
 
     auto data = make_shared<op::v0::Parameter>(element::i32, data_shape);
     auto sizes = Shape{3, 3};
@@ -94,7 +95,8 @@ TEST(type_prop, extractimagepatches_dynamic_shape) {
 
     EXPECT_EQ(extractimagepatches->get_output_element_type(0), element::i32);
     EXPECT_EQ(extractimagepatches->get_output_partial_shape(0), PartialShape::dynamic(4));
-    EXPECT_THAT(get_shape_labels(extractimagepatches->get_output_partial_shape(0)), ElementsAre(10, 0, 0, 0));
+    EXPECT_THAT(get_shape_symbols(extractimagepatches->get_output_partial_shape(0)),
+                ElementsAre(symbols[0], nullptr, nullptr, nullptr));
 }
 
 TEST(type_prop, extractimagepatches_dynamic_batch_shape) {
@@ -111,7 +113,7 @@ TEST(type_prop, extractimagepatches_dynamic_batch_shape) {
 
 TEST(type_prop, extractimagepatches_interval_shape_and_labels) {
     auto data_shape = PartialShape{{1, 10}, {3, 4}, {10, 51}, {13, 71}};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
     auto data = make_shared<op::v0::Parameter>(element::i32, data_shape);
     auto sizes = Shape{3, 3};
     auto strides = Strides{5, 5};
@@ -121,7 +123,8 @@ TEST(type_prop, extractimagepatches_interval_shape_and_labels) {
 
     EXPECT_EQ(extractimagepatches->get_output_element_type(0), element::i32);
     EXPECT_EQ(extractimagepatches->get_output_partial_shape(0), PartialShape({{1, 10}, {27, 36}, {2, 10}, {3, 14}}));
-    EXPECT_THAT(get_shape_labels(extractimagepatches->get_output_partial_shape(0)), ElementsAre(10, 0, 0, 0));
+    EXPECT_THAT(get_shape_symbols(extractimagepatches->get_output_partial_shape(0)),
+                ElementsAre(symbols[0], nullptr, nullptr, nullptr));
 }
 
 TEST(type_prop, extractimagepatches_padding_same_lower1) {
@@ -221,7 +224,7 @@ TEST(type_prop, extractimagepatches_dyn) {
 
 TEST(type_prop, extractimagepatches_interval_shape_and_labels_padding_same_upper) {
     auto data_shape = PartialShape{{1, 10}, {3, 4}, {10, 51}, {13, 71}};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
     auto data = make_shared<op::v0::Parameter>(element::i32, data_shape);
     auto sizes = Shape{1, 1};
     auto strides = Strides{5, 5};
@@ -231,7 +234,8 @@ TEST(type_prop, extractimagepatches_interval_shape_and_labels_padding_same_upper
 
     EXPECT_EQ(extractimagepatches->get_output_element_type(0), element::i32);
     EXPECT_EQ(extractimagepatches->get_output_partial_shape(0), PartialShape({{1, 10}, {3, 4}, {2, 11}, {3, 15}}));
-    EXPECT_THAT(get_shape_labels(extractimagepatches->get_output_partial_shape(0)), ElementsAre(10, 11, 0, 0));
+    EXPECT_THAT(get_shape_symbols(extractimagepatches->get_output_partial_shape(0)),
+                ElementsAre(symbols[0], symbols[1], nullptr, nullptr));
 }
 
 TEST(type_prop, extractimagepatches_data_not_rank_4d) {

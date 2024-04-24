@@ -25,6 +25,10 @@ JitConstants BroadcastKernelBase::GetJitConstants(const broadcast_params& params
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     jit.AddConstants({MakeJitConstant("BROADCAST_ORDER", params.input_order)});
+    std::vector<uint16_t> default_order(params.input_order.size());
+    std::iota(default_order.begin(), default_order.end(), 0);
+    jit.AddConstants({MakeJitConstant("BROADCAST_ORDER_DEFAULT", default_order == params.input_order ? 1 : 0)});
+
     jit.AddConstants({MakeJitConstant("VEC_SIZE", VEC_SIZE)});
     jit.AddConstants({MakeJitConstant("Y_BLOCKS", Y_BLOCKS)});
     jit.AddConstants({MakeJitConstant("SAME_RANK_PLAIN_FORMAT", is_same_planar_format(in_layout, out_layout))});

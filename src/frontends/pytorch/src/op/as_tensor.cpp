@@ -26,7 +26,6 @@ OutputVector translate_as_tensor(const NodeContext& context) {
     auto dtype = element::f32;
     auto data = context.get_input(0);
     auto list_elems = get_list_as_outputs(data);
-    bool is_converted = false;
     if (!context.input_is_none(1)) {
         auto dtype_ext_node = context.get_input_from_visible_context(1).get_node_shared_ptr();
         auto dtype_fw_node = std::dynamic_pointer_cast<PtFrameworkNode>(dtype_ext_node);
@@ -35,17 +34,14 @@ OutputVector translate_as_tensor(const NodeContext& context) {
             std::for_each(list_elems.begin(), list_elems.end(), [&](Output<Node>& n) {
                 n = context.mark_node(std::make_shared<v1::ConvertLike>(n, type_input));
             });
-            is_converted = true;
         }
         if (auto dtype_const = std::dynamic_pointer_cast<v0::Constant>(dtype_ext_node)) {
             auto pt_type = dtype_const->cast_vector<int64_t>()[0];
             dtype = convert_dtype(pt_type);
+            std::for_each(list_elems.begin(), list_elems.end(), [&](Output<Node>& n) {
+                n = context.mark_node(std::make_shared<v0::Convert>(n, dtype));
+            });
         }
-    }
-    if (!is_converted) {
-        std::for_each(list_elems.begin(), list_elems.end(), [&](Output<Node>& n) {
-            n = context.mark_node(std::make_shared<v0::Convert>(n, dtype));
-        });
     }
     if (list_elems.size() > 1 || cast_fw_node(data.get_node_shared_ptr(), "prim::ListConstruct")) {
         auto zero = v0::Constant::create(element::i32, Shape{}, {0});

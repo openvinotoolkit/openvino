@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/partial_shape.hpp"
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -28,6 +29,22 @@ struct reshape_test_params {
     bool special_zero;
     layout expected_layout;
 };
+
+inline padding get_pad(format fmt, std::vector<int64_t> axes, bool is_dynamic) {
+    std::vector<int32_t> lower(fmt.dimension(), 0);
+    std::vector<int32_t> upper(fmt.dimension(), 0);
+    std::vector<int32_t> mask(fmt.dimension(), 0);
+
+    for (auto& axis : axes) {
+        lower[axis] = 13 + axis;
+        upper[axis] = 25 + axis;
+        if (is_dynamic) {
+            mask[axis] = 1;
+        }
+    }
+
+    return padding(tensor(fmt, lower, 0).sizes(), tensor(fmt, upper, 0).sizes(), 0.0f, tensor(fmt, mask, 0));
+}
 
 class reshape_test_two_inputs : public testing::TestWithParam<reshape_test_params> {};
 TEST_P(reshape_test_two_inputs, shape_infer) {
@@ -202,6 +219,16 @@ INSTANTIATE_TEST_SUITE_P(smoke, squeeze_test,
             layout{ov::PartialShape{1}, data_types::f32, format::bfyx},
             layout{ov::PartialShape{1}, data_types::i64, format::bfyx}, {0}, ov::PartialShape::dynamic(0),
             layout{ov::PartialShape{}, data_types::f32, format::bfyx}
+        },
+        {
+            layout{ov::PartialShape{1, 1, 10, 20, 30}, data_types::f32, format::bfzyx, get_pad(format::bfyx, {2, 3}, true)},
+            layout{ov::PartialShape{1}, data_types::i64, format::bfyx}, {1}, ov::PartialShape::dynamic(4),
+            layout{ov::PartialShape{1, 10, 20, 30}, data_types::f32, format::bfyx, get_pad(format::bfyx, {2, 3}, true)},
+        },
+        {
+            layout{ov::PartialShape{1, 1, 10, 1, 30}, data_types::f32, format::bfzyx, get_pad(format::bfyx, {2, 3}, true)},
+            layout{ov::PartialShape{1}, data_types::i64, format::bfyx}, {3}, ov::PartialShape::dynamic(4),
+            layout{ov::PartialShape{1, 1, 10, 30}, data_types::f32, format::bfyx}, // pad is removed
         }
     }));
 
@@ -252,7 +279,21 @@ INSTANTIATE_TEST_SUITE_P(smoke, unsqueeze_test,
             layout{ov::PartialShape{}, data_types::f32, format::bfyx},
             layout{ov::PartialShape{1}, data_types::i64, format::bfyx}, {0}, ov::PartialShape::dynamic(1),
             layout{ov::PartialShape{1}, data_types::f32, format::bfyx}
+        },
+        {
+            layout{ov::PartialShape{1, 10, 20, 30}, data_types::f32, format::bfyx, get_pad(format::bfyx, {2}, true)},
+            layout{ov::PartialShape{1}, data_types::i64, format::bfyx}, {1}, ov::PartialShape::dynamic(5),
+            layout{ov::PartialShape{1, 1, 10, 20, 30}, data_types::f32, format::bfzyx, get_pad(format::bfyx, {2}, true)}
+        },
+        {
+            layout{ov::PartialShape{1, 10, 20, 30}, data_types::f32, format::bfyx, get_pad(format::bfyx, {2, 3}, true)},
+            layout{ov::PartialShape{1}, data_types::i64, format::bfyx}, {1}, ov::PartialShape::dynamic(5),
+            layout{ov::PartialShape{1, 1, 10, 20, 30}, data_types::f32, format::bfzyx, get_pad(format::bfyx, {2, 3}, true)}
+        },
+        {
+            layout{ov::PartialShape{1, 10, 20, 30}, data_types::f32, format::bfyx, get_pad(format::bfyx, {2, 3}, true)},
+            layout{ov::PartialShape{2}, data_types::i64, format::bfyx}, {1, 4}, ov::PartialShape::dynamic(6),
+            layout{ov::PartialShape{1, 1, 10, 20, 1, 30}, data_types::f32, format::bfwzyx, get_pad(format::bfyx, {2, 3}, true)}
         }
     }));
-
 }  // shape_infer_tests

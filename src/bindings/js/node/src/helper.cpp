@@ -4,11 +4,27 @@
 #include "node/include/helper.hpp"
 
 #include "node/include/tensor.hpp"
+#include "node/include/type_validation.hpp"
 
 const std::vector<std::string>& get_supported_types() {
     static const std::vector<std::string> supported_element_types =
         {"i8", "u8", "i16", "u16", "i32", "u32", "f32", "f64", "i64", "u64"};
     return supported_element_types;
+}
+
+const ov::element::Type_t& get_ov_type(napi_typedarray_type type) {
+    static const std::unordered_map<napi_typedarray_type, ov::element::Type_t> typedarray_to_ov_type{
+        {napi_int8_array, ov::element::Type_t::i8},
+        {napi_uint8_array, ov::element::Type_t::u8},
+        {napi_int16_array, ov::element::Type_t::i16},
+        {napi_uint16_array, ov::element::Type_t::u16},
+        {napi_int32_array, ov::element::Type_t::i32},
+        {napi_uint32_array, ov::element::Type_t::u32},
+        {napi_float32_array, ov::element::Type_t::f32},
+        {napi_float64_array, ov::element::Type_t::f64},
+        {napi_bigint64_array, ov::element::Type_t::i64},
+        {napi_biguint64_array, ov::element::Type_t::u64}};
+    return typedarray_to_ov_type.at(type);
 }
 
 napi_types napiType(const Napi::Value& val) {
@@ -303,6 +319,14 @@ ov::Tensor cast_to_tensor(const Napi::Value& value) {
     }
 }
 
+ov::Tensor cast_to_tensor(const Napi::CallbackInfo& info, int index) {
+    if (!is_tensor(info.Env(), info[index])) {
+        OPENVINO_THROW(std::string("Argument #" + std::to_string(index) + " must be a Tensor."));
+    }
+    const auto tensor_wrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[index].ToObject());
+    return tensor_wrap->get_tensor();
+}
+
 ov::Tensor cast_to_tensor(const Napi::TypedArray& typed_array,
                           const ov::Shape& shape,
                           const ov::element::Type_t& type) {
@@ -317,4 +341,237 @@ ov::Tensor cast_to_tensor(const Napi::TypedArray& typed_array,
         OPENVINO_THROW("Memory allocated using shape and element::type mismatch passed data's size");
     }
     return tensor;
+}
+
+/**
+ * @brief  Template function to convert C++ map into Javascript Object. Map key must be std::string.
+ * @tparam MapElementType C++ data type of map elements.
+ * @param info Contains the environment in which to construct a JavaScript object.
+ * @return Napi::Object.
+ */
+template <typename MapElementType>
+Napi::Object cpp_map_to_js_object(const Napi::CallbackInfo& info, const std::map<std::string, MapElementType>& map) {
+    Napi::Object obj = Napi::Object::New(info.Env());
+
+    for (const auto& [k, v] : map) {
+        obj.Set(k, v);
+    }
+
+    return obj;
+}
+
+/**
+ * @brief  Template function to convert C++ vector type into Javascript Array
+ * @tparam SourceType C++ data type of vector elements.
+ * @param info Contains the environment in which to construct a JavaScript object.
+ * @return Napi::Array.
+ */
+template <typename SourceType>
+Napi::Array cpp_vector_to_js_array(const Napi::CallbackInfo& info, const std::vector<SourceType>& vec) {
+    auto array = Napi::Array::New(info.Env(), vec.size());
+
+    uint32_t i = 0;
+    for (auto& property : vec) {
+        auto any = ov::Any(property);
+        array[i++] = any_to_js(info, any);
+    }
+
+    return array;
+}
+
+Napi::Value any_to_js(const Napi::CallbackInfo& info, ov::Any value) {
+    // Check for std::string
+    if (value.is<std::string>()) {
+        return Napi::String::New(info.Env(), value.as<std::string>());
+    }
+    // Check for bool
+    else if (value.is<bool>()) {
+        return Napi::Boolean::New(info.Env(), value.as<bool>());
+    }
+    // Check for ov::PropertyName
+    else if (value.is<ov::PropertyName>()) {
+        return Napi::String::New(info.Env(), value.as<std::string>());
+    }
+    // Check for ov::device::Type
+    else if (value.is<ov::device::Type>()) {
+        return Napi::String::New(info.Env(), value.as<std::string>());
+    }
+    // Check for int
+    else if (value.is<int>()) {
+        return Napi::Number::New(info.Env(), value.as<int>());
+    }
+    // Check for ov::Affinity
+    else if (value.is<ov::Affinity>()) {
+        return Napi::String::New(info.Env(), value.as<std::string>());
+    }
+    // Check for ov::element::Type
+    else if (value.is<ov::element::Type>()) {
+        return Napi::String::New(info.Env(), value.as<std::string>());
+    }
+    // Check for ov::hint::PerformanceMode
+    else if (value.is<ov::hint::PerformanceMode>()) {
+        return Napi::String::New(info.Env(), value.as<std::string>());
+    }
+    // Check for ov::hint::ExecutionMode
+    else if (value.is<ov::hint::ExecutionMode>()) {
+        return Napi::String::New(info.Env(), value.as<std::string>());
+    }
+    // Check for ov::hint::SchedulingCoreType
+    else if (value.is<ov::hint::SchedulingCoreType>()) {
+        return Napi::String::New(info.Env(), value.as<std::string>());
+    }
+    // Check for ov::log::Level
+    else if (value.is<ov::log::Level>()) {
+        return Napi::String::New(info.Env(), value.as<std::string>());
+    }
+    // Check for uint32_t
+    else if (value.is<uint32_t>()) {
+        return Napi::Number::New(info.Env(), value.as<uint32_t>());
+    }
+    // Check for std::vector<ov::Any>
+    else if (value.is<const std::vector<ov::Any>>()) {
+        auto p = value.as<const std::vector<ov::Any>>();
+
+        return cpp_vector_to_js_array(info, p);
+    }
+    // Check for std::vector<ov::PropertyName>
+    else if (value.is<const std::vector<ov::PropertyName>>()) {
+        auto p = value.as<const std::vector<ov::PropertyName>>();
+
+        return cpp_vector_to_js_array(info, p);
+    }
+    // Check for std::vector<std::string>
+    else if (value.is<const std::vector<std::string>>()) {
+        auto p = value.as<const std::vector<std::string>>();
+
+        return cpp_vector_to_js_array(info, p);
+    }
+    // Check for std::vector<int>
+    else if (value.is<std::vector<int>>()) {
+        auto p = value.as<std::vector<int>>();
+
+        return cpp_vector_to_js_array(info, p);
+    }
+    // Check for std::vector<int64_t>
+    else if (value.is<std::vector<int64_t>>()) {
+        auto p = value.as<std::vector<int64_t>>();
+
+        return cpp_vector_to_js_array(info, p);
+    }
+    // Check for std::vector<unsigned int>
+    else if (value.is<std::vector<unsigned int>>()) {
+        auto p = value.as<std::vector<unsigned int>>();
+
+        return cpp_vector_to_js_array(info, p);
+    }
+    // Check for std::vector<float>
+    else if (value.is<std::vector<float>>()) {
+        auto p = value.as<std::vector<float>>();
+
+        return cpp_vector_to_js_array(info, p);
+    }
+    // Check for std::vector<double>
+    else if (value.is<std::vector<double>>()) {
+        auto p = value.as<std::vector<double>>();
+
+        return cpp_vector_to_js_array(info, p);
+    }
+    // Check for std::tuple<unsigned int, unsigned int>
+    else if (value.is<std::tuple<unsigned int, unsigned int>>()) {
+        auto p = value.as<std::tuple<unsigned int, unsigned int>>();
+        auto [first, second] = p;
+
+        Napi::Array array = Napi::Array::New(info.Env(), 2);
+        uint32_t indexes[] = {0, 1};
+
+        array[indexes[0]] = Napi::Number::New(info.Env(), first);
+        array[indexes[1]] = Napi::Number::New(info.Env(), second);
+
+        return array;
+    }
+    // Check for std::tuple<unsigned int, unsigned int, unsigned int>
+    else if (value.is<std::tuple<unsigned int, unsigned int, unsigned int>>()) {
+        auto p = value.as<std::tuple<unsigned int, unsigned int, unsigned int>>();
+        auto [first, second, third] = p;
+
+        Napi::Array array = Napi::Array::New(info.Env(), 2);
+        uint32_t indexes[] = {0, 1, 2};
+
+        array[indexes[0]] = Napi::Number::New(info.Env(), first);
+        array[indexes[1]] = Napi::Number::New(info.Env(), second);
+        array[indexes[2]] = Napi::Number::New(info.Env(), third);
+
+        return array;
+    }
+    // Check for std::map<std::string, std::string>
+    else if (value.is<std::map<std::string, std::string>>()) {
+        auto p = value.as<std::map<std::string, std::string>>();
+
+        return cpp_map_to_js_object(info, p);
+    }
+    // Check for std::map<std::string, int>
+    else if (value.is<std::map<std::string, int>>()) {
+        auto p = value.as<std::map<std::string, int>>();
+
+        return cpp_map_to_js_object(info, p);
+    }
+    // Check for std::map<std::string, uint64_t>
+    else if (value.is<std::map<std::string, uint64_t>>()) {
+        auto p = value.as<std::map<std::string, uint64_t>>();
+
+        return cpp_map_to_js_object(info, p);
+    }
+
+    return info.Env().Undefined();
+}
+
+ov::Any js_to_any(const Napi::Env& env, const Napi::Value& value) {
+    if (value.IsString()) {
+        return ov::Any(value.ToString().Utf8Value());
+    } else if (value.IsBigInt()) {
+        Napi::BigInt big_value = value.As<Napi::BigInt>();
+        bool is_lossless;
+        int64_t big_num = big_value.Int64Value(&is_lossless);
+
+        if (!is_lossless) {
+            OPENVINO_THROW("Result of BigInt conversion to int64_t results in a loss of precision");
+        }
+
+        return ov::Any(big_num);
+    } else if (value.IsNumber()) {
+        Napi::Number num = value.ToNumber();
+
+        if (is_napi_value_int(env, value)) {
+            return ov::Any(num.Int32Value());
+        } else {
+            return ov::Any(num.DoubleValue());
+        }
+    } else if (value.IsBoolean()) {
+        return ov::Any(value.ToBoolean());
+    } else {
+        OPENVINO_THROW("Cannot convert to ov::Any");
+    }
+}
+
+bool is_napi_value_int(const Napi::Env& env, const Napi::Value& num) {
+    return env.Global().Get("Number").ToObject().Get("isInteger").As<Napi::Function>().Call({num}).ToBoolean().Value();
+}
+
+ov::AnyMap to_anyMap(const Napi::Env& env, const Napi::Value& val) {
+    ov::AnyMap properties;
+    if (!val.IsObject()) {
+        OPENVINO_THROW("Passed Napi::Value must be an object.");
+    }
+    const auto& parameters = val.ToObject();
+    const auto& keys = parameters.GetPropertyNames();
+
+    for (uint32_t i = 0; i < keys.Length(); ++i) {
+        const auto& property_name = static_cast<Napi::Value>(keys[i]).ToString().Utf8Value();
+
+        ov::Any any_value = js_to_any(env, parameters.Get(property_name));
+
+        properties.insert(std::make_pair(property_name, any_value));
+    }
+
+    return properties;
 }

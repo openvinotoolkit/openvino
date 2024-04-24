@@ -141,6 +141,7 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
             executed_tests = executed_tests + 1
         return executed_tests
 
+
     def _add_model_import_test(self, model_test: ExtOnnxTestCase) -> None:
         # model is loaded at runtime, note sometimes it could even
         # never loaded if the test skipped
@@ -148,7 +149,7 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
 
         def run_import(test_self: Any, device: Text) -> None:
             model = ModelImportRunner._load_onnx_model(model_test.model_dir, model_test.model)
-            model_marker[0] = model
+            model_marker[0] = model_test.model_dir / model_test.model
             assert import_onnx_model(model)
 
         self._add_test("ModelImport", model_test.name, run_import, model_marker)
@@ -160,7 +161,7 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
 
         def run_execution(test_self: Any, device: Text) -> None:
             model = ModelImportRunner._load_onnx_model(model_test.model_dir, model_test.model)
-            model_marker[0] = model
+            model_marker[0] = model_test.model_dir / model_test.model
             prepared_model = self.backend.prepare(model, device)
             assert prepared_model is not None
             executed_tests = ModelImportRunner._execute_npz_data(
