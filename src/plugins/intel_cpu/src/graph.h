@@ -195,7 +195,7 @@ protected:
         outputNodesMap.clear();
         graphNodes.clear();
         graphEdges.clear();
-        syncNodesInds.clear();
+        m_executableSyncNodesInds.clear();
     }
     Status status { Status::NotReady };
 
@@ -223,9 +223,9 @@ protected:
     void ResolveComplexInplaceConflicts();
     bool ProcessDynNodes();
     void GroupParallelNodes();
-    void Allocate();
-    void AllocateWithReuse();
-    void ExtractExecutableNodes();
+    void Allocate(const std::vector<size_t>& syncNodesInds);
+    void AllocateWithReuse(const std::vector<size_t>& syncNodesInds);
+    std::vector<size_t> ExtractExecutableNodes(const std::vector<size_t>& syncNodesInds);
     void ExecuteNode(const NodePtr& node, const dnnl::stream& stream) const;
     void CreatePrimitivesAndExecConstants() const;
     void InferStatic(SyncInferRequest* request);
@@ -248,8 +248,7 @@ private:
     // constantness of nodes in Infer methods and calls of
     // non-executable (optimized out) nodes, such as Input, Reshape, etc.
     std::vector<NodePtr> executableGraphNodes;
-
-    std::unordered_map<Node*, size_t> syncNodesInds;
+    std::vector<size_t> m_executableSyncNodesInds;
 
     GraphContext::CPtr context;
 
