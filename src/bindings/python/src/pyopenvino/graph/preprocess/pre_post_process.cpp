@@ -185,8 +185,14 @@ static void regclass_graph_PreProcessSteps(py::module m) {
         py::arg("mode"),
         R"(
             Adds padding preprocessing operation.
-            :param operation: Destination type. If not specified, type will be taken from model input's element type
-            :type operation: openvino.runtime.Type
+            :param pads_begin: Number of elements matches the number of indices in data attribute. Specifies the number of padding elements at the ending of each axis.
+            :type pads_begins: 1D tensor of type T_INT.
+            :param pads_end: Number of elements matches the number of indices in data attribute. Specifies the number of padding elements at the ending of each axis.
+            :type pads_end: 1D tensor of type T_INT.
+            :param value: All new elements are populated with this value or with 0 if input not provided. Shouldn’t be set for other pad_mode values.
+            :type value: scalar tensor of type T. 
+            :param mode: ad_mode specifies the method used to generate new element values.
+            :type mode: string
             :return: Reference to itself, allows chaining of calls in client's code in a builder-like manner.
             :rtype: openvino.runtime.preprocess.PreProcessSteps
         )");
@@ -206,8 +212,14 @@ static void regclass_graph_PreProcessSteps(py::module m) {
         py::arg("mode"),
         R"(
             Adds padding preprocessing operation.
-            :param operation: Destination type. If not specified, type will be taken from model input's element type
-            :type operation: openvino.runtime.Type
+            :param pads_begin: Number of elements matches the number of indices in data attribute. Specifies the number of padding elements at the ending of each axis.
+            :type pads_begins: 1D tensor of type T_INT.
+            :param pads_end: Number of elements matches the number of indices in data attribute. Specifies the number of padding elements at the ending of each axis.
+            :type pads_end: 1D tensor of type T_INT.
+            :param value: All new elements are populated with this value or with 0 if input not provided. Shouldn’t be set for other pad_mode values.
+            :type value: scalar tensor of type T. 
+            :param mode: ad_mode specifies the method used to generate new element values.
+            :type mode: string
             :return: Reference to itself, allows chaining of calls in client's code in a builder-like manner.
             :rtype: openvino.runtime.preprocess.PreProcessSteps
         )");
