@@ -23,6 +23,7 @@
 #include "openvino/reference/convert.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/string_aligned_buffer.hpp"
+#include "openvino/util/codec_xor.hpp"
 #include "openvino/util/file_util.hpp"
 #include "pugixml.hpp"
 #include "transformations/hash.hpp"
@@ -1247,11 +1248,9 @@ pass::Serialize::Serialize(const std::string& xmlPath, const std::string& binPat
 
 pass::StreamSerialize::StreamSerialize(std::ostream& stream,
                                        const std::function<void(std::ostream&)>& custom_data_serializer,
-                                       std::function<std::string(const std::string&)> cache_encoder,
                                        Serialize::Version version)
     : m_stream(stream),
       m_custom_data_serializer(custom_data_serializer),
-      m_cache_encoder(cache_encoder),
       m_version(version) {
     if (version != Serialize::Version::UNSPECIFIED && version != Serialize::Version::IR_V10 &&
         version != Serialize::Version::IR_V11) {
@@ -1308,14 +1307,10 @@ bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ov::Model>& model
 
     // IR
     hdr.model_offset = m_stream.tellp();
-    if (m_cache_encoder) {
-        std::stringstream ss;
-        xml_doc.save(ss);
-        auto str_encode = m_cache_encoder(ss.str());
-        m_stream.write((char*)str_encode.c_str(), str_encode.length());
-    } else {
-        xml_doc.save(m_stream);
-    }
+    std::stringstream ss;
+    xml_doc.save(ss);
+    auto str_encode = ov::util::codec_xor(ss.str());
+    m_stream.write((char*)str_encode.c_str(), str_encode.length());
     m_stream.flush();
 
     const size_t file_size = m_stream.tellp();

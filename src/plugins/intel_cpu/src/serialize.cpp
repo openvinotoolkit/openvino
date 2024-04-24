@@ -6,6 +6,7 @@
 #include <pugixml.hpp>
 
 #include "openvino/pass/serialize.hpp"
+#include "openvino/util/codec_xor.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov {
@@ -24,9 +25,8 @@ static void setInfo(pugi::xml_node& root, std::shared_ptr<ov::Model>& model) {
     }
 }
 
-ModelSerializer::ModelSerializer(std::ostream& ostream, std::function<std::string(const std::string&)> encoder)
-    : _ostream(ostream),
-      _encoder(encoder) {}
+ModelSerializer::ModelSerializer(std::ostream& ostream)
+    : _ostream(ostream) {}
 
 void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
     auto serializeInfo = [&](std::ostream& stream) {
@@ -42,14 +42,13 @@ void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
         xml_doc.save(stream);
     };
 
-    ov::pass::StreamSerialize serializer(_ostream, serializeInfo, _encoder);
+    ov::pass::StreamSerialize serializer(_ostream, serializeInfo);
     serializer.run_on_model(std::const_pointer_cast<ov::Model>(model->clone()));
 }
 
-ModelDeserializer::ModelDeserializer(std::istream & istream, model_builder fn, model_decoder decoder)
+ModelDeserializer::ModelDeserializer(std::istream & istream, model_builder fn)
     : _istream(istream)
-    , _model_builder(fn)
-    , _decoder(decoder) {
+    , _model_builder(fn) {
 }
 
 void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
@@ -99,16 +98,9 @@ void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
 
     // read XML content
     _istream.seekg(hdr.model_offset);
-
-    if (_decoder) {
-        std::string encodeString;
-        encodeString.resize(hdr.model_size);
-        _istream.read(const_cast<char*>(encodeString.c_str()), hdr.model_size);
-        xmlString = _decoder(encodeString);
-    } else {
-        xmlString.resize(hdr.model_size);
-        _istream.read(const_cast<char*>(xmlString.c_str()), hdr.model_size);
-    }
+    xmlString.resize(hdr.model_size);
+    _istream.read(const_cast<char*>(xmlString.c_str()), hdr.model_size);
+    xmlString = ov::util::codec_xor(xmlString);
 
     model = _model_builder(xmlString, std::move(dataBlob));
 

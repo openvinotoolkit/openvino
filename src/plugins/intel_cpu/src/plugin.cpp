@@ -11,7 +11,6 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
-#include "openvino/util/codec_xor.hpp"
 #include "serialize.h"
 #include "transformations/transformation_pipeline.h"
 #include "transformations/utils/utils.hpp"
@@ -583,7 +582,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& networkMo
 
     ModelDeserializer deserializer(networkModel, [this](const std::string& model, const ov::Tensor& weights) {
         return get_core()->read_model(model, weights, true);
-    }, ov::util::codec_xor);
+    });
 
     std::shared_ptr<ov::Model> model;
     deserializer >> model;

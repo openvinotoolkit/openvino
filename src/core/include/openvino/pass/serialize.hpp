@@ -67,13 +67,11 @@ public:
 
     StreamSerialize(std::ostream& stream,
                     const std::function<void(std::ostream&)>& custom_data_serializer = {},
-                    std::function<std::string(const std::string&)> cache_encoder = nullptr,
                     Serialize::Version version = Serialize::Version::UNSPECIFIED);
 
 private:
     std::ostream& m_stream;
     std::function<void(std::ostream&)> m_custom_data_serializer;
-    std::function<std::string(const std::string&)> m_cache_encoder;
     const Serialize::Version m_version;
 };
 }  // namespace pass
