@@ -90,6 +90,10 @@ BroadcastAndPadZeroPointBuffers::BroadcastAndPadZeroPointBuffers(size_t pad_size
         auto out_shape = conv->get_output_partial_shape(0);
         const size_t channel_idx = 1;
 
+        if (in_shape[channel_idx].is_dynamic() || out_shape[channel_idx].is_dynamic()) {
+            return false;
+        }
+
         if (auto azp = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(azp_m).get_node_shared_ptr())) {
             auto target_shape = azp->get_shape();
             const size_t azp_c_idx = target_shape.size() == in_shape.size() ? 1 : 0;

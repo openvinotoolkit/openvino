@@ -13,6 +13,7 @@
 
 #include "intel_npu/al/config/common.hpp"
 #include "intel_npu/al/itt.hpp"
+#include "intel_npu/al/prefix.hpp"
 #include "zero_device.hpp"
 #include "zero_utils.hpp"
 
@@ -55,11 +56,9 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
                                      _config,
                                      _group_ordinal);
     Fence fence(graph_command_queue, _config);
-    ze_device_properties_t properties = {};
-    properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
-    zeroUtils::throwOnFail("zeDeviceGetProperties", zeDeviceGetProperties(_initStructs->getDevice(), &properties));
 
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_GRAPH, itt::domains::LevelZeroBackend, "Executor::ZeroExecutor", "graphCreate");
+
     ze_graph_desc_t desc{ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
                          nullptr,
                          ZE_GRAPH_FORMAT_NATIVE,
@@ -73,17 +72,37 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
     OV_ITT_TASK_NEXT(ZERO_EXECUTOR_GRAPH, "pfnGetProperties");
     zeroUtils::throwOnFail("pfnGetProperties", _graph_ddi_table_ext->pfnGetProperties(_graph, &_props));
 
-    OV_ITT_TASK_NEXT(ZERO_EXECUTOR_GRAPH, "pfnGetArgumentProperties");
+    auto targetDriverExtVersion = _initStructs->getDriverExtVersion();
+    if (targetDriverExtVersion <= ZE_GRAPH_EXT_VERSION_1_1) {
+        OPENVINO_THROW("Incompatibility between the NPU plugin and driver! The driver version is too old, please "
+                       "update the driver version");
+    }
+
+    OV_ITT_TASK_NEXT(ZERO_EXECUTOR_GRAPH, "pfnGetArgumentProperties3");
     for (uint32_t index = 0; index < _props.numGraphArgs; ++index) {
-        ze_graph_argument_properties_t arg;
-        zeroUtils::throwOnFail("pfnGetArgumentProperties",
-                               _graph_ddi_table_ext->pfnGetArgumentProperties(_graph, index, &arg));
-        if (ZE_GRAPH_ARGUMENT_TYPE_INPUT == arg.type) {
-            _inputs_desc_map.emplace(std::make_pair(std::string(arg.name), ArgumentDescriptor{arg, index}));
+        ze_graph_argument_properties_3_t arg3;
+        zeroUtils::throwOnFail("pfnGetArgumentProperties3",
+                               _graph_ddi_table_ext->pfnGetArgumentProperties3(_graph, index, &arg3));
+
+        if (ZE_GRAPH_ARGUMENT_TYPE_INPUT == arg3.type) {
+            if (isStateInputName(arg3.name) || isShapeTensorName(arg3.name)) {
+                _inputs_desc_map.emplace(std::make_pair(std::string(arg3.name), ArgumentDescriptor{arg3, index}));
+
+            } else {
+                _inputs_desc_map.emplace(
+                    std::make_pair(std::string(arg3.debug_friendly_name), ArgumentDescriptor{arg3, index}));
+            }
         } else {
-            _outputs_desc_map.emplace(std::make_pair(std::string(arg.name), ArgumentDescriptor{arg, index}));
+            if (isStateOutputName(arg3.name) || isShapeTensorName(arg3.name)) {
+                _outputs_desc_map.emplace(std::make_pair(std::string(arg3.name), ArgumentDescriptor{arg3, index}));
+
+            } else {
+                _outputs_desc_map.emplace(
+                    std::make_pair(std::string(arg3.debug_friendly_name), ArgumentDescriptor{arg3, index}));
+            }
         }
     }
+
     OV_ITT_TASK_NEXT(ZERO_EXECUTOR_GRAPH, "appendGraphInitialize");
     graph_command_list.appendGraphInitialize(_graph);
     graph_command_list.close();
