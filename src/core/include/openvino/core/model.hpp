@@ -414,7 +414,7 @@ public:
      */
     template <class T, class... Args>
     void set_rt_info(const T& argument, Args... args) {
-        ov::Any& arg = get_rt_arg<Args...>(m_rt_info, args...);
+        ov::Any& arg = get_rt_arg<Args...>(m_rt_info, std::move(args)...);
         arg = argument;
     }
 
