@@ -75,6 +75,10 @@ class Image:
 
     def is_missing(self, dry: bool = False, base: bool = False) -> bool:
         image = self.base_ref() if base else self.ref()
+        if base and not image:
+            self.logger.warning(f"Base ref for image {self.ref()} is missing")
+            return True
+
         cmd = f"docker manifest inspect {image}"
         is_missing = False
 
