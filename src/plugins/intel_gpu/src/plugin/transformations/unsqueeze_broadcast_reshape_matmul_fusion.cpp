@@ -5,6 +5,7 @@
 #include "unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 
 #include "intel_gpu/op/gemm.hpp"
+#include "intel_gpu/op/kv_cache.hpp"
 
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -25,118 +26,52 @@ UnsqueezeBroadcastReshapeMatmulFusion::UnsqueezeBroadcastReshapeMatmulFusion() {
         return std::dynamic_pointer_cast<ov::op::v1::Reshape>(output.get_node_shared_ptr()) == nullptr;
     };
 
-    auto broadcast_rank_equals_and_has_static_dims = [](const ov::Output<ov::Node>& output) -> bool {
-        return rank_equals(5)(output) && has_static_dims({2, 3}) && consumers_count(1);
+    auto unsqueeze_predicate = [](const ov::Output<ov::Node>& output) -> bool {
+        return rank_equals(5)(output) && consumers_count(1);
     };
 
-    auto reshape_rank_equals_and_has_static_dim = [](const ov::Output<ov::Node>& output) -> bool {
-        return rank_equals(4)(output) && has_static_dim(2) && consumers_count(1);
+    auto broadcast_predicate = [](const ov::Output<ov::Node>& output) -> bool {
+        const auto broadcast = ov::as_type_ptr<ov::op::v3::Broadcast>(output.get_node_shared_ptr());
+        if (!broadcast || broadcast->get_broadcast_spec().m_type != ov::op::BroadcastType::BIDIRECTIONAL)
+            return false;
+        return rank_equals(5)(output) && consumers_count(1);
+    };
+
+    auto reshape_predicate = [](const ov::Output<ov::Node>& output) -> bool {
+        return rank_equals(4)(output) && consumers_count(1);
     };
 
     auto input_a_m = any_input(not_reshape);
-    auto input_b_m = any_input(not_reshape);
-
-    auto unsqueeze_a_axes_m = wrap_type<ov::op::v0::Constant>();
-    auto unsqueeze_a_m = wrap_type<ov::op::v0::Unsqueeze>({input_a_m, unsqueeze_a_axes_m}, consumers_count(1));
-    auto unsqueeze_b_axes_m = wrap_type<ov::op::v0::Constant>();
-    auto unsqueeze_b_m = wrap_type<ov::op::v0::Unsqueeze>({input_b_m, unsqueeze_b_axes_m}, consumers_count(1));
-
-    auto broadcast_a_target_shape_m = wrap_type<ov::op::v0::Constant>();
-    auto broadcast_a_m = wrap_type<ov::op::v3::Broadcast>({unsqueeze_a_m, broadcast_a_target_shape_m}, broadcast_rank_equals_and_has_static_dims);
-    auto broadcast_b_target_shape_m = wrap_type<ov::op::v0::Constant>();
-    auto broadcast_b_m = wrap_type<ov::op::v3::Broadcast>({unsqueeze_b_m, broadcast_b_target_shape_m}, broadcast_rank_equals_and_has_static_dims);
-
-    auto reshape_a_pattern_m = wrap_type<ov::op::v0::Constant>();
-    auto reshape_a_m = wrap_type<ov::op::v1::Reshape>({broadcast_a_m, reshape_a_pattern_m}, reshape_rank_equals_and_has_static_dim);
-    auto reshape_b_pattern_m = wrap_type<ov::op::v0::Constant>();
-    auto reshape_b_m = wrap_type<ov::op::v1::Reshape>({broadcast_b_m, reshape_b_pattern_m}, reshape_rank_equals_and_has_static_dim);
-
-    auto matmul_in_a = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{input_a_m, reshape_a_m});
-    auto matmul_in_b = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{input_b_m, reshape_b_m});
-
-    auto matmul_m = wrap_type<op::Gemm>({matmul_in_a, matmul_in_b});
+    auto input_b_m = wrap_type<ov::intel_gpu::op::KVCache>({any_input(), any_input()});
+    auto axes_const_m = wrap_type<ov::op::v0::Constant>();
+    auto unsqueeze_m = wrap_type<ov::op::v0::Unsqueeze>({input_b_m, axes_const_m}, unsqueeze_predicate);
+    auto broadcast_m = wrap_type<ov::op::v3::Broadcast>({unsqueeze_m, any_input()}, broadcast_predicate);
+    auto reshape_m = wrap_type<ov::op::v1::Reshape>({broadcast_m, any_input()}, reshape_predicate);
+    auto matmul_m = wrap_type<op::Gemm>({input_a_m, reshape_m});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-        const auto& pattern_map = m.get_pattern_value_map();
-        auto matmul = std::dynamic_pointer_cast<op::Gemm>(pattern_map.at(matmul_m).get_node_shared_ptr());
-        if (!matmul || transformation_callback(m.get_match_root())) {
+        if (transformation_callback(m.get_match_root())) {
             return false;
         }
-
-        size_t input_a_output_idx = matmul->get_input_source_output(0).get_index();
-        size_t input_b_output_idx = matmul->get_input_source_output(1).get_index();
-        auto order_a = matmul->get_input0_transpose_order();
-        auto order_b = matmul->get_input1_transpose_order();
-
-        auto valid_transpose_order = [](const std::vector<int64_t>& order) {
-            return order.size() == 4 && order[1] == 2;
-        };
-
-        if (pattern_map.count(unsqueeze_a_m) > 0) {
-            if (!valid_transpose_order(order_a))
-                return false;
-            auto unsqueeze_a = std::dynamic_pointer_cast<ov::op::v0::Unsqueeze>(pattern_map.at(unsqueeze_a_m).get_node_shared_ptr());
-            if (!unsqueeze_a)
-                return false;
-            input_a_output_idx = unsqueeze_a->get_input_source_output(0).get_index();
-        }
-        if (pattern_map.count(unsqueeze_b_m) > 0) {
-            if (!valid_transpose_order(order_b))
-                return false;
-            auto unsqueeze_b = std::dynamic_pointer_cast<ov::op::v0::Unsqueeze>(pattern_map.at(unsqueeze_b_m).get_node_shared_ptr());
-            if (!unsqueeze_b)
-                return false;
-            input_b_output_idx = unsqueeze_b->get_input_source_output(0).get_index();
-        }
-
-        auto target_shape_a = std::vector<int32_t>();
-        auto target_shape_b = std::vector<int32_t>();
+        const auto& pattern_map = m.get_pattern_value_map();
 
         auto valid_broadcast_target_shape = [](const std::vector<int32_t>& target_shape) {
             return std::count_if(target_shape.begin(), target_shape.end(), [](int32_t s) { return s != 1; }) == 1;
         };
-
-        if (pattern_map.count(broadcast_a_m) > 0) {
-            auto broadcast_a = std::dynamic_pointer_cast<ov::op::v3::Broadcast>(pattern_map.at(broadcast_a_m).get_node_shared_ptr());
-            if (!broadcast_a || broadcast_a->get_broadcast_spec().m_type != ov::op::BroadcastType::BIDIRECTIONAL)
-                return false;
-            auto broadcast_a_target_shape = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(broadcast_a_target_shape_m).get_node_shared_ptr());
-            target_shape_a = broadcast_a_target_shape->cast_vector<int32_t>();
-            if (!valid_broadcast_target_shape(target_shape_a))
-                return false;
-        }
-        if (pattern_map.count(broadcast_b_m) > 0) {
-            auto broadcast_b = std::dynamic_pointer_cast<ov::op::v3::Broadcast>(pattern_map.at(broadcast_b_m).get_node_shared_ptr());
-            if (!broadcast_b || broadcast_b->get_broadcast_spec().m_type != ov::op::BroadcastType::BIDIRECTIONAL)
-                return false;
-            auto broadcast_b_target_shape = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(broadcast_b_target_shape_m).get_node_shared_ptr());
-            target_shape_b = broadcast_b_target_shape->cast_vector<int32_t>();
-            if (!valid_broadcast_target_shape(target_shape_b))
+        auto broadcast = std::dynamic_pointer_cast<ov::op::v3::Broadcast>(pattern_map.at(broadcast_m).get_node_shared_ptr());
+        auto target_shape_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(broadcast->get_input_node_shared_ptr(1));
+        if (target_shape_constant) {
+            auto target_shape_val = target_shape_constant->cast_vector<int32_t>();
+            if (!valid_broadcast_target_shape(target_shape_val))
                 return false;
         }
 
-        auto pattern_a = std::vector<int64_t>();
-        auto pattern_b = std::vector<int64_t>();
+        auto input_a = pattern_map.at(input_a_m).get_node_shared_ptr();
+        auto input_b = pattern_map.at(input_b_m).get_node_shared_ptr();
 
-        auto valid_reshape_pattern = [](const std::vector<int64_t>& pattern) {
-            return std::count_if(pattern.begin(), pattern.end(), [](int64_t p) { return p == -1; }) == 0;
-        };
-
-        if (pattern_map.count(reshape_a_m) > 0) {
-            auto reshape_a_pattern = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(reshape_a_pattern_m).get_node_shared_ptr());
-            pattern_a = reshape_a_pattern->cast_vector<int64_t>();
-            if (!valid_reshape_pattern(pattern_a))
-                return false;
-        }
-        if (pattern_map.count(reshape_b_m) > 0) {
-            auto reshape_b_pattern = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(reshape_b_pattern_m).get_node_shared_ptr());
-            pattern_b = reshape_b_pattern->cast_vector<int64_t>();
-            if (!valid_reshape_pattern(pattern_b))
-                return false;
-        }
-
-        auto input_a = ov::Output<Node>(pattern_map.at(input_a_m).get_node_shared_ptr(), input_a_output_idx);
-        auto input_b = ov::Output<Node>(pattern_map.at(input_b_m).get_node_shared_ptr(), input_b_output_idx);
+        auto matmul = std::dynamic_pointer_cast<op::Gemm>(m.get_match_root());
+        auto order_a = matmul->get_input0_transpose_order();
+        auto order_b = matmul->get_input1_transpose_order();
         auto order_c = matmul->get_output_transpose_order();
 
         auto gemm = std::make_shared<op::Gemm>(input_a,
