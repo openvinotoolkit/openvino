@@ -62,6 +62,9 @@ OutputVector translate_convnd(const NodeContext& context) {
         }
         conv = context.mark_node(std::make_shared<v1::Add>(conv, bias));
     }
+    auto add_const = context.mark_node(v0::Constant::create(element::i32, Shape{}, {10}));
+    add_const = context.mark_node(std::make_shared<v1::ConvertLike>(add_const, conv));
+    conv = context.mark_node(std::make_shared<v1::Add>(conv, add_const));
 
     return {conv};
 };

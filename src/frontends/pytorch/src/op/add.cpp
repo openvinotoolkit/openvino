@@ -63,6 +63,9 @@ OutputVector translate_add_common(const NodeContext& context, bool inplace) {
         rhs = context.mark_node(std::make_shared<v1::Multiply>(converted_alpha, rhs));
     }
     auto add = context.mark_node(std::make_shared<v1::Add>(lhs, rhs));
+    auto add_const = context.mark_node(v0::Constant::create(element::i32, Shape{}, {10}));
+    add_const = context.mark_node(std::make_shared<v1::ConvertLike>(add_const, add));
+    add = context.mark_node(std::make_shared<v1::Add>(add, add_const));
     if (inplace)
         context.mutate_input(0, add);
     return {add};
