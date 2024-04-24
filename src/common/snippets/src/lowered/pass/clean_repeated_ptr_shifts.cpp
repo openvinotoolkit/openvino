@@ -14,7 +14,7 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-bool CleanRepeatedDataPointerShifts::reuse_increments(const LinearIR::LoopManagerPtr& loop_manager, const ExpressionPtr& loop_end_expr) {
+bool CleanRepeatedDataPointerShifts::reuse_increments(const LoopManagerPtr& loop_manager, const ExpressionPtr& loop_end_expr) {
     const auto loop_end = ov::as_type_ptr<op::LoopEnd>(loop_end_expr->get_node());
     if (!loop_end)
         return false;
