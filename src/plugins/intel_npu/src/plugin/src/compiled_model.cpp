@@ -335,12 +335,7 @@ void CompiledModel::initialize_properties() {
 }
 
 void CompiledModel::create_executor() {
-    const bool configCreateExecutor = _config.get<CREATE_EXECUTOR>();
-    static const auto envVar = std::getenv("IE_NPU_CREATE_EXECUTOR");
-    const bool IE_NPU_CREATE_EXECUTOR =
-        envVar ? envVarStrToBool("IE_NPU_CREATE_EXECUTOR", envVar) : configCreateExecutor;
-
-    if (IE_NPU_CREATE_EXECUTOR) {
+    if (_config.get<CREATE_EXECUTOR>()) {
         _logger.info("Creating the executor inside the \"CompiledModel\" constructor");
 
         // If no device has been defined, the executor shall keep the default value of "nullptr". In this scenario,
