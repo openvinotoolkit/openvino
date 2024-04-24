@@ -66,12 +66,6 @@ TEST_F(TypePropCol2ImTest, incorrect_types) {
     const auto output_size = std::make_shared<Parameter>(element::i64, PartialShape{2});
     const auto kernel_size = std::make_shared<Parameter>(element::i64, PartialShape{2});
     {
-        const auto data_f32 = std::make_shared<Parameter>(element::f32, PartialShape{3, 12, 225});
-        OV_EXPECT_THROW(std::ignore = make_op(data_f32, output_size, kernel_size),
-                        ov::NodeValidationFailure,
-                        HasSubstr("The element type of the data tensor must be i32 or i64 type"));
-    }
-    {
         const auto output_size_i4 = std::make_shared<Parameter>(element::i4, PartialShape{16, 16});
         OV_EXPECT_THROW(std::ignore = make_op(data, output_size_i4, kernel_size),
                         ov::NodeValidationFailure,

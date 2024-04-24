@@ -41,12 +41,6 @@ void Col2Im::validate_and_infer_types() {
     OV_OP_SCOPE(v15_Col2Im_validate_and_infer_types);
 
     const auto& data_element_type = get_input_element_type(0);
-    const bool is_integer = data_element_type == element::i32 || data_element_type == element::i64;
-    NODE_VALIDATION_CHECK(this,
-                          is_integer,
-                          "The element type of the data tensor must be i32 or i64 type. Got: ",
-                          data_element_type);
-
     const auto& output_size_element_type = get_input_element_type(1);
     const bool is_valid_output_size_type =
         output_size_element_type == element::i32 || output_size_element_type == element::i64;
