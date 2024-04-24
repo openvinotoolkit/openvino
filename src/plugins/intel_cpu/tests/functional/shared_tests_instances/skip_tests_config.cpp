@@ -285,7 +285,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke.*StatefulModelStateInLoopBody.*)",
         // Issue: 123274 (Dynamic Softmax aren't supported)
         R"(smoke_Snippets_(Softmax|AddSoftmax|Reduce).*\[.*\?.*\].*)",
-        R"(smoke_Snippets_BroadcastSelect_Dynamic.*)",
+        R"(smoke_Snippets_BroadcastSelect_Dynamic.*)"
     };
 
 #if defined(OPENVINO_ARCH_X86)

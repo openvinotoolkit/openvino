@@ -380,16 +380,18 @@ ov::element::Type Subgraph::getRuntimePrecision() const {
 }
 
 void Subgraph::createPrimitive() {
-    const auto config = getSelectedPrimitiveDescriptor()->getConfig();
-    input_num = config.inConfs.size();
-    output_num = config.outConfs.size();
+    if (!hasEmptyInputTensors()) {
+        const auto config = getSelectedPrimitiveDescriptor()->getConfig();
+        input_num = config.inConfs.size();
+        output_num = config.outConfs.size();
 
-    in_shapes.resize(input_num);
+        in_shapes.resize(input_num);
 
-    init_memory_ptrs();
-    init_attrs();
-    init_start_offsets();
-    lower();
+        init_memory_ptrs();
+        init_attrs();
+        init_start_offsets();
+        lower();
+    }
 
     Node::createPrimitive();
 }
