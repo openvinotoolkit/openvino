@@ -20,7 +20,7 @@ if((CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG) AND CMAKE_CXX_STANDARD GRE
     set(CMAKE_CXX_FLAGS "-Wno-error=deprecated ${CMAKE_CXX_FLAGS}")
 endif()
 
-add_library(${TARGET_NAME}_obj OBJECT ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+add_library(${TARGET_NAME}_obj STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_OPENVINO_API)
 
 ov_build_target_faster(${TARGET_NAME}_obj

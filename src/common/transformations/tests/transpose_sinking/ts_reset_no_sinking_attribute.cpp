@@ -12,6 +12,9 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/transpose.hpp"
 
 using namespace testing;
 using namespace std;

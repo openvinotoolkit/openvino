@@ -9,6 +9,7 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 using namespace testing;
 using namespace ov;

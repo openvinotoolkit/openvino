@@ -6,6 +6,9 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "transformations/transpose_sinking/ts_fuse.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/shape_of.hpp"
 
 using namespace ov;
 
