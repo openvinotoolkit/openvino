@@ -189,14 +189,15 @@ std::vector<lowered::ExpressionPtr> get_first_child_shape_infer_expr_seq(const l
     };
     std::vector<lowered::ExpressionPtr> shape_infer_exprs;
     if (op::Subgraph::is_shape_infer_op(start_expr->get_node())) {
-        OPENVINO_ASSERT(start_expr->get_input_port_connector(0)->get_consumers().size() == 1, "Shape infer ops are supposed to be the only consumer.");
         shape_infer_exprs.push_back(start_expr);
     }
     if (start_expr->get_output_count() == 0)
         return shape_infer_exprs;
     auto output_consumers = start_expr->get_output_port_connector(0)->get_consumers();
     while (auto shape_infer_child = get_first_shape_infer_expr(output_consumers)) {
-        OPENVINO_ASSERT(output_consumers.size() == 1, "Shape infer ops are supposed to be the only consumer.");
+        if (!shape_infer_exprs.empty()) {
+            OPENVINO_ASSERT(output_consumers.size() == 1, "Shape infer ops are supposed to be the only consumer of another Shape Infer op.");
+        }
         shape_infer_exprs.push_back(shape_infer_child);
         if (shape_infer_child->get_output_count() == 0)
             break;
@@ -209,7 +210,6 @@ std::vector<lowered::ExpressionPtr> get_first_parent_shape_infer_expr_seq(const 
     std::vector<lowered::ExpressionPtr> shape_infer_exprs;
     auto current_exp = start_expr;
     if (op::Subgraph::is_shape_infer_op(current_exp->get_node())) {
-        OPENVINO_ASSERT(current_exp->get_input_port_connector(0)->get_consumers().size() == 1, "Shape infer ops are supposed to be the only consumer.");
         shape_infer_exprs.push_back(current_exp);
     }
     if (current_exp->get_input_count() == 0)
@@ -217,16 +217,15 @@ std::vector<lowered::ExpressionPtr> get_first_parent_shape_infer_expr_seq(const 
     auto input = current_exp->get_input_port_connector(0);
     auto first_parent = input->get_source().get_expr();
     while (op::Subgraph::is_shape_infer_op(first_parent->get_node())) {
+        if (!shape_infer_exprs.empty()) {
+            OPENVINO_ASSERT(input->get_consumers().size() == 1, "Shape infer op can have only one another ShapeInfer op");
+        }
         shape_infer_exprs.push_back(first_parent);
         current_exp = first_parent;
         if (current_exp->get_input_count() == 0)
             break;
         input = current_exp->get_input_port_connector(0);
         first_parent = input->get_source().get_expr();
-        if (!ov::is_type<snippets::op::Store>(first_parent->get_node())) {
-            // there are maybe some loopEnd consumers of store as well for loop code gen purpose
-            OPENVINO_ASSERT(input->get_consumers().size() == 1, "Shape infer ops are supposed to be the only consumer if it doesn't consume a store ops.");
-        }
     }
     return shape_infer_exprs;
 }
@@ -243,14 +242,15 @@ std::shared_ptr<ov::Node> get_leaf_node_of_first_child_shape_infer_seq(const std
     };
     std::shared_ptr<ov::Node> leaf_node = nullptr;
     if (op::Subgraph::is_shape_infer_op(start_node)) {
-        OPENVINO_ASSERT(start_node->input(0).get_source_output().get_target_inputs().size() == 1, "Shape infer ops are supposed to be the only consumer.");
         leaf_node = start_node;
     }
     if (start_node->get_output_size() == 0)
         return leaf_node;
     auto output_consumers = start_node->get_output_target_inputs(0);
     while (auto first_child = get_first_shape_infer_node(output_consumers)) {
-        OPENVINO_ASSERT(output_consumers.size() == 1, "Shape infer ops are supposed to be the only consumer.");
+        if (leaf_node) {
+            OPENVINO_ASSERT(output_consumers.size() == 1, "Shape infer ops are supposed to be the only consumer of another Shape Infer op.");
+        }
         leaf_node = first_child;
         if (leaf_node->get_output_size() == 0)
             break;
@@ -262,18 +262,21 @@ std::shared_ptr<ov::Node> get_leaf_node_of_first_child_shape_infer_seq(const std
 std::shared_ptr<ov::Node> get_leaf_node_of_first_parent_shape_infer_seq(const std::shared_ptr<ov::Node>& start_node) {
     std::shared_ptr<ov::Node> leaf_node = nullptr;
     if (op::Subgraph::is_shape_infer_op(start_node)) {
-        OPENVINO_ASSERT(start_node->input(0).get_source_output().get_target_inputs().size() == 1, "Shape infer ops are supposed to be the only consumer.");
         leaf_node = start_node;
     }
     if (start_node->get_input_size() == 0)
         return leaf_node;
-    auto first_parent = start_node->get_input_node_shared_ptr(0);
+    auto first_parent_out = start_node->get_input_source_output(0);
+    auto first_parent = first_parent_out.get_node_shared_ptr();
     while (op::Subgraph::is_shape_infer_op(first_parent)) {
-        OPENVINO_ASSERT(first_parent->input(0).get_source_output().get_target_inputs().size() == 1, "Shape infer ops are supposed to be the only consumer.");
+        if (leaf_node) {
+            OPENVINO_ASSERT(first_parent_out.get_target_inputs().size() == 1, "Shape infer op can have only one another ShapeInfer op");
+        }
         leaf_node = first_parent;
         if (leaf_node->get_input_size() == 0)
             break;
-        first_parent = leaf_node->get_input_node_shared_ptr(0);
+        first_parent_out = leaf_node->get_input_source_output(0);
+        first_parent = first_parent_out.get_node_shared_ptr();
     }
     return leaf_node;
 }
