@@ -1244,7 +1244,11 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     _old_events.clear();
 
     GPU_DEBUG_IF(debug_config->dump_memory_pool > 0) {
-        dump_memory_pool(curr_iter);
+        auto& iters = debug_config->dump_memory_pool_iters;
+        if (iters.empty() || iters.find(curr_iter) != iters.end()) {
+            dump_memory_pool(debug_config->dump_memory_pool_path, curr_iter);
+            GPU_DEBUG_COUT << "============================================================================" << std::endl;
+        }
     }
 
 #ifdef GPU_DEBUG_CONFIG
@@ -1252,48 +1256,58 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
 #endif
 }
 
-void network::dump_memory_pool(int64_t curr_iter) {
+void network::dump_memory_pool(std::string dump_path, int64_t curr_iter) {
 #ifdef GPU_DEBUG_CONFIG
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    auto& iters = debug_config->dump_memory_pool_iters;
-    if (iters.empty() || iters.find(curr_iter) != iters.end()) {
-        get_memory_pool().dump(get_id(), curr_iter, debug_config->dump_memory_pool_path);
-        auto get_constants_mem_size = [&]() -> size_t {
-            size_t mem_size = 0;
-            for (auto& prim : _primitives) {
-                if (prim.second->get_node().is_constant()) {
-                    for (size_t i = 0; i < prim.second->outputs_memory_count(); i++) {
+    get_memory_pool().dump(get_id(), curr_iter, dump_path);
+    auto get_constants_mem_size = [&](allocation_type type) -> size_t {
+        size_t mem_size = 0;
+        for (auto& prim : _primitives) {
+            if (prim.second->get_node().is_constant()) {
+                for (size_t i = 0; i < prim.second->outputs_memory_count(); i++) {
+                    if (prim.second->output_memory_ptr(i)->get_allocation_type() == type)
                         mem_size += prim.second->output_memory_ptr(i)->size();
-                    }
                 }
             }
-            return mem_size;
-        };
-        auto get_variables_mem_size = [&]() -> size_t {
-            size_t mem_size = 0;
-            for (auto& var : get_variables()) {
+        }
+        return mem_size;
+    };
+    auto get_variables_mem_size = [&](allocation_type type) -> size_t {
+        size_t mem_size = 0;
+        for (auto& var : get_variables()) {
+            if (var.second->get_memory()->get_allocation_type() == type)
                 mem_size += var.second->get_actual_mem_size();
-            }
-            return mem_size;
-        };
-        auto get_mb_size = [&](int64_t size) -> float {
-            return (static_cast<float>(size) / (1024 * 1024));
-        };
-        int64_t const_mem_size  = get_constants_mem_size();
-        int64_t var_mem_size    = get_variables_mem_size();
-        int64_t host_mem_size   = get_engine().get_used_device_memory(allocation_type::usm_host);
-        int64_t device_mem_size = get_engine().get_used_device_memory(allocation_type::usm_device);
-        int64_t usm_host_mem_pool_size   = get_memory_pool().get_total_mem_pool_size(allocation_type::usm_host);
-        int64_t usm_host_etc_size = host_mem_size - usm_host_mem_pool_size;
-        int64_t usm_device_mem_pool_size   = get_memory_pool().get_total_mem_pool_size(allocation_type::usm_device);
-        int64_t usm_device_etc_size        = device_mem_size - usm_device_mem_pool_size - const_mem_size - var_mem_size;
-        GPU_DEBUG_COUT << "Memory statistics for (net_id:" << get_id() << ", iter:" << curr_iter << ") host_mem_size: " << get_mb_size(host_mem_size)
-                << "MB (mem_pool_size: " << get_mb_size(usm_host_mem_pool_size) << "MB, etc: " << std::fixed << get_mb_size(usm_host_etc_size) << "MB), "
-                << "device_mem_size: " << get_mb_size(device_mem_size) << "MB (mem_pool_size: " << get_mb_size(usm_device_mem_pool_size)
-                << "MB, const_mem_size: " << get_mb_size(const_mem_size) << "MB, var_mem_size: " << get_mb_size(var_mem_size)
-                << "MB, etc: " << std::fixed << get_mb_size(usm_device_etc_size) << "MB)" << std::endl;
-        GPU_DEBUG_COUT << "============================================================================" << std::endl;
-    }
+        }
+        return mem_size;
+    };
+    auto get_mb_size = [&](int64_t size) -> std::string {
+        if (size == 0) return "0 MB";
+        return std::to_string(static_cast<float>(size) / (1024 * 1024)) + " MB";
+    };
+    int64_t usm_host_const_mem_size     = get_constants_mem_size(allocation_type::usm_host);
+    int64_t usm_device_const_mem_size   = get_constants_mem_size(allocation_type::usm_device);
+    int64_t usm_host_var_mem_size       = get_variables_mem_size(allocation_type::usm_host);
+    int64_t usm_device_var_mem_size     = get_variables_mem_size(allocation_type::usm_device);
+    int64_t host_mem_size               = get_engine().get_used_device_memory(allocation_type::usm_host);
+    int64_t device_mem_size             = get_engine().get_used_device_memory(allocation_type::usm_device);
+    int64_t usm_host_mem_pool_size      = get_memory_pool().get_total_mem_pool_size(allocation_type::usm_host);
+    int64_t usm_host_etc_size           = host_mem_size - usm_host_mem_pool_size
+                                            - usm_host_const_mem_size - usm_host_var_mem_size;
+    int64_t usm_device_mem_pool_size    = get_memory_pool().get_total_mem_pool_size(allocation_type::usm_device);
+    int64_t usm_device_etc_size         = device_mem_size - usm_device_mem_pool_size
+                                            - usm_device_const_mem_size - usm_device_var_mem_size;
+    GPU_DEBUG_COUT << "------------------------------------------------------------------------" << std::endl;
+    GPU_DEBUG_COUT << "Memory statistics for (net_id:" << get_id() << ", iter:" << curr_iter << ")" << std::endl;
+    GPU_DEBUG_COUT << " Total host mem size     : " << get_mb_size(host_mem_size)               << std::endl;
+    GPU_DEBUG_COUT << " * Memory pool           : " << get_mb_size(usm_host_mem_pool_size)      << std::endl;
+    GPU_DEBUG_COUT << " * Constant              : " << get_mb_size(usm_host_const_mem_size)     << std::endl;
+    GPU_DEBUG_COUT << " * Variable              : " << get_mb_size(usm_host_var_mem_size)       << std::endl;
+    GPU_DEBUG_COUT << " * ETC                   : " << get_mb_size(usm_host_etc_size)           << std::endl;
+    GPU_DEBUG_COUT << " Total device mem size   : " << get_mb_size(device_mem_size)             << std::endl;
+    GPU_DEBUG_COUT << " * Memory pool           : " << get_mb_size(usm_device_mem_pool_size)    << std::endl;
+    GPU_DEBUG_COUT << " * Constant              : " << get_mb_size(usm_device_const_mem_size)   << std::endl;
+    GPU_DEBUG_COUT << " * Variable              : " << get_mb_size(usm_device_var_mem_size)     << std::endl;
+    GPU_DEBUG_COUT << " * ETC                   : " << get_mb_size(usm_device_etc_size)         << std::endl;
+    GPU_DEBUG_COUT << "------------------------------------------------------------------------" << std::endl;
 #endif
 }
 

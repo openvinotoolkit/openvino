@@ -69,12 +69,8 @@ std::string convert_to(const std::string &str) {
 static std::set<int64_t> parse_int_set(std::string& str) {
     std::set<int64_t> int_array;
     // eliminate '"' from string to avoid parsing error
-    str.erase(
-        std::remove_if (str.begin (), str.end (), [](char c)
-                {
-                return c == '\"';
-                }),
-                str.end ());
+    str.erase(std::remove_if(str.begin(), str.end(), [](char c) {
+                return c == '\"'; }), str.end());
     if (str.size() > 0) {
         str = " " + str + " ";
         std::istringstream ss(str);

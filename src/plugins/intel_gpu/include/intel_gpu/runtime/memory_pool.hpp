@@ -157,6 +157,13 @@ public:
 private:
     void dump_to_screen(uint32_t id, uint32_t iter);
     void dump_to_file(uint32_t id, uint32_t iter, std::string dump_dir_path);
+
+    float total_mem_size_non_padded_pool        = 0.f;
+    float total_mem_size_padded_pool            = 0.f;
+    float total_mem_size_no_reused              = 0.f;
+    float mem_size_non_padded_pool_host         = 0.f;
+    float mem_size_padded_pool_host             = 0.f;
+    float mem_size_no_reused_host               = 0.f;
 };
 
 }  // namespace cldnn

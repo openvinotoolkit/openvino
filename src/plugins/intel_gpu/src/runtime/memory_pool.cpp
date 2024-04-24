@@ -41,10 +41,11 @@ bool memory_pool::has_conflict(const memory_set& mem_cand,
 }
 
 void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive_id prim_id, uint32_t network_id) {
-    // check nonpadded pool first
+    // check non padded pool first
     auto _layout = mem->get_layout();
     auto type = mem->get_allocation_type();
 
+    GPU_DEBUG_GET_INSTANCE(debug_config);
     {
         auto it = _non_padded_pool.lower_bound(_layout.bytes_count());
 
@@ -59,6 +60,12 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
                     user_it = it->second._users.erase(user_it);
                 }
                 if (it->second._users.empty()) {
+                    GPU_DEBUG_IF(debug_config->dump_memory_pool) {
+                        auto released_mem_size = it->first;
+                        total_mem_size_non_padded_pool -= released_mem_size;
+                        if (type == allocation_type::usm_host)
+                            mem_size_non_padded_pool_host -= released_mem_size;
+                    }
                     // if this was the only user of the memory, then free it up
                     it = _non_padded_pool.erase(it);
                 }
@@ -88,6 +95,12 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
                         user_it = list_itr->_users.erase(user_it);
                     }
                     if (list_itr->_users.empty()) {
+                        GPU_DEBUG_IF(debug_config->dump_memory_pool) {
+                            auto released_mem_size = mem->size();
+                            total_mem_size_padded_pool -= released_mem_size;
+                            if (type == allocation_type::usm_host)
+                                mem_size_padded_pool_host -= released_mem_size;
+                        }
                         // if this was the only user of the memory, then free it up
                         list.erase(list_itr);
                     }
@@ -101,6 +114,37 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
 
             if (list.empty()) {
                 _padded_pool.erase(itr);
+            }
+        }
+    }
+    {
+        auto it = _no_reusable_pool.lower_bound(_layout.bytes_count());
+
+        while (it != _no_reusable_pool.end()) {
+            if (it->second._network_id == network_id &&
+                it->second._type == type &&
+                it->second._memory->get_internal_params().mem == mem->get_internal_params().mem) {
+                auto user_it = it->second._users.find({ unique_id, network_id, prim_id, _layout.bytes_count()});
+
+                // normally there should be only one entry
+                if (user_it != it->second._users.end()) {
+                    user_it = it->second._users.erase(user_it);
+                }
+                if (it->second._users.empty()) {
+                    GPU_DEBUG_IF(debug_config->dump_memory_pool) {
+                        auto released_mem_size = it->first;
+                        total_mem_size_no_reused -= released_mem_size;
+                        if (type == allocation_type::usm_host)
+                            mem_size_no_reused_host -= released_mem_size;
+                    }
+                    // if this was the only user of the memory, then free it up
+                    it = _no_reusable_pool.erase(it);
+                }
+
+                //entry found and processed - so return
+                return;
+            } else {
+                ++it;
             }
         }
     }
@@ -138,6 +182,14 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
     {
         _non_padded_pool.emplace(layout.bytes_count(),
                                  memory_record({{unique_id, network_id, prim_id, layout.bytes_count()}}, mem, network_id, type));
+        {
+            GPU_DEBUG_GET_INSTANCE(debug_config);
+            GPU_DEBUG_IF(debug_config->dump_memory_pool) {
+                total_mem_size_non_padded_pool += layout.bytes_count();
+                if (type == allocation_type::usm_host)
+                    mem_size_non_padded_pool_host += layout.bytes_count();
+            }
+        }
     }
     return mem;
 }
@@ -176,6 +228,15 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
     auto mem = alloc_memory(layout, type);
     std::list<memory_record> list = {memory_record({{unique_id, network_id, prim_id, layout.bytes_count()}}, mem, network_id, type)};
     _padded_pool.emplace(layout, std::move(list));
+    {
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        GPU_DEBUG_IF(debug_config->dump_memory_pool) {
+            auto allocated_mem_size = layout.bytes_count();
+            total_mem_size_padded_pool += allocated_mem_size;
+            if (type == allocation_type::usm_host)
+                mem_size_padded_pool_host += allocated_mem_size;
+        }
+    }
     return mem;
 }
 
@@ -242,6 +303,12 @@ memory::ptr memory_pool::get_memory(const layout& layout,
             {
                 _no_reusable_pool.emplace(layout.bytes_count(),
                                         memory_record({{unique_id, network_id, prim_id, layout.bytes_count()}}, mem, network_id, type));
+                GPU_DEBUG_IF(debug_config->dump_memory_pool) {
+                    auto allocated_mem_size = layout.bytes_count();
+                    total_mem_size_no_reused += allocated_mem_size;
+                    if (type == allocation_type::usm_host)
+                        mem_size_no_reused_host += allocated_mem_size;
+                }
             }
             return mem;
         }
@@ -250,12 +317,19 @@ memory::ptr memory_pool::get_memory(const layout& layout,
         {
             _no_reusable_pool.emplace(layout.bytes_count(),
                                     memory_record({{unique_id, network_id, prim_id, layout.bytes_count()}}, mem, network_id, type));
+            GPU_DEBUG_IF(debug_config->dump_memory_pool) {
+                auto allocated_mem_size = layout.bytes_count();
+                total_mem_size_no_reused += allocated_mem_size;
+                if (type == allocation_type::usm_host)
+                    mem_size_no_reused_host += allocated_mem_size;
+            }
         }
         return mem;
     }
 }
 
 void memory_pool::clear_pool_for_network(uint32_t network_id) {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
     // free up _non_padded_pool for this network
     {
         auto itr = _non_padded_pool.begin();
@@ -264,6 +338,12 @@ void memory_pool::clear_pool_for_network(uint32_t network_id) {
             auto& record = itr->second;
 
             if (record._network_id == network_id) {
+                GPU_DEBUG_IF(debug_config->dump_memory_pool) {
+                    auto released_mem_size = itr->first;
+                    total_mem_size_non_padded_pool -= released_mem_size;
+                    if (record._type == allocation_type::usm_host)
+                        mem_size_non_padded_pool_host -= released_mem_size;
+                }
                 itr = _non_padded_pool.erase(itr);
             } else {
                 itr++;
@@ -278,6 +358,7 @@ void memory_pool::clear_pool_for_network(uint32_t network_id) {
         while (itr != _padded_pool.end()) {
             auto& list = itr->second;
             auto list_itr = list.begin();
+            auto type = list_itr->_type;
 
             while (list_itr != list.end()) {
                 if (list_itr->_network_id == network_id) {
@@ -288,6 +369,12 @@ void memory_pool::clear_pool_for_network(uint32_t network_id) {
             }
 
             if (list.empty()) {
+                GPU_DEBUG_IF(debug_config->dump_memory_pool) {
+                    auto released_mem_size = itr->first.bytes_count();
+                    total_mem_size_padded_pool -= released_mem_size;
+                    if (type == allocation_type::usm_host)
+                        mem_size_padded_pool_host -= released_mem_size;
+                }
                 itr = _padded_pool.erase(itr);
             } else {
                 itr++;
@@ -303,6 +390,12 @@ void memory_pool::clear_pool_for_network(uint32_t network_id) {
             auto& record = itr->second;
 
             if (record._network_id == network_id) {
+                GPU_DEBUG_IF(debug_config->dump_memory_pool) {
+                    auto released_mem_size = itr->first;
+                    total_mem_size_no_reused -= released_mem_size;
+                    if (record._type == allocation_type::usm_host)
+                        mem_size_no_reused_host -= released_mem_size;
+                }
                 itr = _no_reusable_pool.erase(itr);
             } else {
                 itr++;
@@ -313,32 +406,24 @@ void memory_pool::clear_pool_for_network(uint32_t network_id) {
 
 memory_pool::memory_pool(engine& engine) : _engine(&engine) { }
 
-inline float get_mb_size(size_t size) {
-    return (static_cast<float>(size) / (1024 * 1024));
+inline std::string get_mb_size(size_t size) {
+    if (size == 0)
+        return "0 MB";
+    return std::to_string(static_cast<float>(size) / (1024 * 1024)) + " MB";
 }
 
-inline float get_percentage(size_t size, size_t total_size) {
+inline float get_utilization(size_t size, size_t total_size) {
     return (static_cast<float>(size) * 100.0f / total_size);
 }
 
 size_t memory_pool::get_total_mem_pool_size(allocation_type type) {
-    size_t total_mem_pool_size = 0;
-    for (auto mem : _non_padded_pool) {
-        if (mem.second._type == type)
-            total_mem_pool_size += mem.first;
+    const auto host_mem_size = mem_size_no_reused_host + mem_size_non_padded_pool_host + mem_size_padded_pool_host;
+    const auto total_mem_size = total_mem_size_no_reused + total_mem_size_non_padded_pool + total_mem_size_padded_pool;
+    if (type == allocation_type::usm_host) {
+        return host_mem_size;
+    } else {
+        return (total_mem_size - host_mem_size);
     }
-
-    for (auto mem : _padded_pool) {
-        for (auto record : mem.second) {
-            if (record._type == type)
-                total_mem_pool_size += record._memory->size();
-        }
-    }
-    for (auto mem : _no_reusable_pool) {
-        if (mem.second._type == type)
-            total_mem_pool_size += mem.first;
-    }
-    return total_mem_pool_size;
 }
 
 void memory_pool::dump(uint32_t net_id, uint32_t iter, std::string dump_dir_path) {
@@ -382,77 +467,91 @@ void memory_pool::dump_to_file(uint32_t net_id, uint32_t iter, std::string dump_
 
 void memory_pool::dump_to_screen(uint32_t net_id, uint32_t iter) {
     GPU_DEBUG_COUT << "Dump memory pool of network (net_id : " << net_id << ", iter : " << iter << ")" << std::endl;
-    GPU_DEBUG_COUT << "========== non-padded pool ( " << _non_padded_pool.size() << " records) ==========" << std::endl;
-    float total_mem_request = 0.f;
-    float total_mem_pool_size = 0.f;
-    for (auto mem : _non_padded_pool) {
-        GPU_DEBUG_COUT << mem.second._memory->buffer_ptr() << " (size: " << get_mb_size(mem.first)
-            << "MB, type: " << mem.second._type << ")'s users: " << std::endl;
-        total_mem_pool_size += mem.first;
-        float min_percentage = 100.0f;
-        float max_percentage = 0.f;
-        for (auto user : mem.second._users) {
-            float percentage = get_percentage(user._mem_size, mem.first);
-            min_percentage = std::min(percentage, min_percentage);
-            max_percentage = std::max(percentage, max_percentage);
-            total_mem_request += static_cast<float>(user._mem_size);
-            GPU_DEBUG_COUT << "    --- " << user._prim_id << " (" << user._unique_id << "), "
-                << get_mb_size(user._mem_size) << "MB, " << percentage << "%" << std::endl;
-        }
-        GPU_DEBUG_COUT <<  "   - min of the memory pool entry: " << min_percentage << std::endl;
-        GPU_DEBUG_COUT <<  "   - max of the memory pool entry: " << max_percentage << std::endl;
-    }
-    if (total_mem_pool_size > 0.f) {
-        GPU_DEBUG_COUT << "========== non-padded pool efficiency: "
-            << std::to_string(static_cast<float>(total_mem_request / total_mem_pool_size))
-            << " (Total memory request : " << get_mb_size(total_mem_request) << "MB"
-            << " / Total memory pool size : " << get_mb_size(total_mem_pool_size) << "MB) ==========" << std::endl;
-    }
-    float total_non_padded_pool_size = total_mem_pool_size;
-    GPU_DEBUG_COUT << "========== padded pool (" << _padded_pool.size() << " records) ==========" << std::endl;
-    total_mem_request = 0.f;
-    total_mem_pool_size = 0.f;
-    for (auto mem : _padded_pool) {
-        GPU_DEBUG_COUT << " layout: " << mem.first.to_short_string() << ", records(" << mem.second.size() << ")" << std::endl;
-        for (auto record : mem.second) {
-            size_t mem_size = record._memory->size();
-            GPU_DEBUG_COUT << "  " << record._memory->buffer_ptr() << " (size:" << get_mb_size(mem_size)
-                            << "MB, type: " << record._type << ")'s usrs : " << std::endl;
-            float min_percentage = 100.0f;
-            float max_percentage = 0.f;
-            total_mem_pool_size += mem_size;
-            for (auto user : record._users) {
-                float percentage = get_percentage(user._mem_size, mem_size);
-                min_percentage = std::min(percentage, min_percentage);
-                max_percentage = std::max(percentage, max_percentage);
-                total_mem_request += static_cast<float>(user._mem_size);
+    float total_requested_mem_non_padded_pool    = 0.f;
+    float total_requested_mem_padded_pool        = 0.f;
+
+    {
+        GPU_DEBUG_COUT << "========== non-padded pool ( " << _non_padded_pool.size() << " records) ==========" << std::endl;
+        for (auto mem : _non_padded_pool) {
+            GPU_DEBUG_COUT << mem.second._memory->buffer_ptr() << " (size: " << get_mb_size(mem.first)
+                << ", type: " << mem.second._type << ")'s users: " << std::endl;
+            float min_utilization = 100.0f;
+            float max_utilization = 0.f;
+            for (auto user : mem.second._users) {
+                float utilization = get_utilization(user._mem_size, mem.first);
+                min_utilization = std::min(utilization, min_utilization);
+                max_utilization = std::max(utilization, max_utilization);
+                total_requested_mem_non_padded_pool += static_cast<float>(user._mem_size);
                 GPU_DEBUG_COUT << "    --- " << user._prim_id << " (" << user._unique_id << "), "
-                    << get_mb_size(user._mem_size) << "MB, " << percentage << "%" << std::endl;
+                    << get_mb_size(user._mem_size) << ", " << utilization << "%" << std::endl;
             }
-            GPU_DEBUG_COUT << "   - min of the memory pool entry: " << min_percentage << std::endl;
-            GPU_DEBUG_COUT << "   - max of the memory pool entry: " << max_percentage << std::endl;
+            GPU_DEBUG_COUT <<  "   - min utilization of the memory pool entry: " << min_utilization << " %" << std::endl;
+            GPU_DEBUG_COUT <<  "   - max utilization of the memory pool entry: " << max_utilization << " %" << std::endl;
         }
     }
-    if (total_mem_pool_size > 0.f) {
-        GPU_DEBUG_COUT << "========== padded pool efficiency: "
-            << std::to_string(static_cast<float>(total_mem_request / total_mem_pool_size))
-            << " (Total memory request : " << get_mb_size(total_mem_request) << "MB"
-            << " / Total memory pool size : " << get_mb_size(total_mem_pool_size) << "MB) ==========" << std::endl;
-    }
-    float total_padded_pool_size = total_mem_pool_size;
-    GPU_DEBUG_COUT << "========== no reused memory (" << _no_reusable_pool.size() << " records) ==========" << std::endl;
-    float total_no_used_mem_size = 0.f;
-    for (auto mem : _no_reusable_pool) {
-        GPU_DEBUG_COUT << mem.second._memory->buffer_ptr() << std::fixed << " (size: " << get_mb_size(mem.first)
-            << "MB, type: " << mem.second._type << ")'s users: " << std::endl;
-        total_no_used_mem_size += mem.first;
-        for (auto user : mem.second._users) {
-            GPU_DEBUG_COUT << "    --- " << user._prim_id << " (" << user._unique_id << "), "
-                << std::fixed << get_mb_size(user._mem_size) << "MB" << std::endl;
+
+    {
+        GPU_DEBUG_COUT << "========== padded pool (" << _padded_pool.size() << " records) ==========" << std::endl;
+        for (auto mem : _padded_pool) {
+            GPU_DEBUG_COUT << " layout: " << mem.first.to_short_string() << ", records(" << mem.second.size() << ")" << std::endl;
+            for (auto record : mem.second) {
+                size_t mem_size = record._memory->size();
+                GPU_DEBUG_COUT << "  " << record._memory->buffer_ptr() << " (size:" << get_mb_size(mem_size)
+                                << "MB, type: " << record._type << ")'s users : " << std::endl;
+                float min_utilization = 100.0f;
+                float max_utilization = 0.f;
+                for (auto user : record._users) {
+                    float utilization = get_utilization(user._mem_size, mem_size);
+                    min_utilization = std::min(utilization, min_utilization);
+                    max_utilization = std::max(utilization, max_utilization);
+                    total_requested_mem_padded_pool += static_cast<float>(user._mem_size);
+                    GPU_DEBUG_COUT << "    --- " << user._prim_id << " (" << user._unique_id << "), "
+                        << get_mb_size(user._mem_size) << ", " << utilization << "%" << std::endl;
+                }
+                GPU_DEBUG_COUT << "   - min of the memory pool entry: " << min_utilization << std::endl;
+                GPU_DEBUG_COUT << "   - max of the memory pool entry: " << max_utilization << std::endl;
+            }
         }
     }
-    GPU_DEBUG_COUT << "========== non_padded_pool memory: " << get_mb_size(total_non_padded_pool_size) << "MB" << std::endl;
-    GPU_DEBUG_COUT << "========== padded_pool memory    : " << get_mb_size(total_padded_pool_size) << "MB" << std::endl;
-    GPU_DEBUG_COUT << "========== no reused memory      : " << get_mb_size(total_no_used_mem_size) << "MB" << std::endl;
+
+    {
+        GPU_DEBUG_COUT << "========== no reused memory (" << _no_reusable_pool.size() << " records) ==========" << std::endl;
+        for (auto mem : _no_reusable_pool) {
+            GPU_DEBUG_COUT << mem.second._memory->buffer_ptr() << " (size: " << get_mb_size(mem.first)
+                << ", type: " << mem.second._type << ")'s users: " << std::endl;
+            for (auto user : mem.second._users) {
+                GPU_DEBUG_COUT << "    --- " << user._prim_id << " (" << user._unique_id << "), "
+                    << get_mb_size(user._mem_size) << std::endl;
+            }
+        }
+    }
+
+    GPU_DEBUG_COUT << "************************************************************************" << std::endl;
+    GPU_DEBUG_COUT << "Memory pool footprint of the network (net_id : " << net_id << ", iter : " << iter << ")" << std::endl;
+    GPU_DEBUG_COUT << "Total memory size of non_padded_pool     : " << get_mb_size(total_mem_size_non_padded_pool) << std::endl;
+    if (total_mem_size_non_padded_pool > 0.f) {
+        GPU_DEBUG_COUT << " * Efficiency        : "
+            << std::to_string(static_cast<float>(total_requested_mem_non_padded_pool / total_mem_size_non_padded_pool))
+            << " (total mem requested : " << get_mb_size(total_requested_mem_non_padded_pool)
+            << " / total mem pool size : " << get_mb_size(total_mem_size_non_padded_pool) << ")" << std::endl;
+        GPU_DEBUG_COUT << " * host mem size     : " << get_mb_size(mem_size_non_padded_pool_host) << std::endl;
+        GPU_DEBUG_COUT << " * device mem size   : "
+                            << get_mb_size(total_mem_size_non_padded_pool - mem_size_non_padded_pool_host) << std::endl;
+    }
+    GPU_DEBUG_COUT << "Total memory size of padded_pool memory  : " << get_mb_size(total_mem_size_padded_pool) << std::endl;
+    if (total_mem_size_padded_pool > 0.f) {
+        GPU_DEBUG_COUT << " * Efficiency        : "
+            << std::to_string(static_cast<float>(total_requested_mem_padded_pool / total_mem_size_padded_pool))
+            << " (total mem requested : " << get_mb_size(total_requested_mem_padded_pool)
+            << " / total mem pool size : " << get_mb_size(total_mem_size_padded_pool) << ")" << std::endl;
+        GPU_DEBUG_COUT << " * host mem size     : " << get_mb_size(mem_size_padded_pool_host) << std::endl;
+        GPU_DEBUG_COUT << " * device mem size   : " << get_mb_size((total_mem_size_padded_pool - mem_size_padded_pool_host)) << std::endl;
+    }
+    GPU_DEBUG_COUT << "Total memory size of no reused memory    : " << get_mb_size(total_mem_size_no_reused) << std::endl;
+    if (total_mem_size_no_reused > 0.f) {
+        GPU_DEBUG_COUT << " * host mem size     : " << get_mb_size(mem_size_no_reused_host) << std::endl;
+        GPU_DEBUG_COUT << " * device mem size   : " << get_mb_size((total_mem_size_no_reused - mem_size_no_reused_host)) << std::endl;
+    }
+    GPU_DEBUG_COUT << "************************************************************************" << std::endl;
 }
 }  // namespace cldnn
