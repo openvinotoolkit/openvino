@@ -24,7 +24,7 @@ class TestTorchbenchmarkConvertModel(TestTorchConvertModel):
         os.environ['HUGGING_FACE_HUB_TOKEN'] = 'x'
         torch.set_grad_enabled(False)
 
-        self.infer_timeout = 3000
+        self.infer_timeout = 800
 
         self.repo_dir = tempfile.TemporaryDirectory()
         os.system(
