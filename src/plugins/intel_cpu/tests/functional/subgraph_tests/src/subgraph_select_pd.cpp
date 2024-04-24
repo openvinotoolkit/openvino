@@ -44,10 +44,10 @@ protected:
         abs_threshold = 1e-2;
 
         auto type = element::f32;
-        constexpr int const1 = 128;
-        auto input1 = std::make_shared<ov::opset8::Parameter>(type, Shape{1, const1 / 2, 32, 32});
+        constexpr int const1 = 32;
+        auto input1 = std::make_shared<ov::opset8::Parameter>(type, Shape{1, const1 / 2, 8, 8});
         input1->set_friendly_name("input1");
-        auto input2 = std::make_shared<ov::opset8::Parameter>(ov::element::f16, Shape{1, const1, 1, 1});
+        auto input2 = std::make_shared<ov::opset8::Parameter>(type, Shape{1, const1, 1, 1});
         input2->set_friendly_name("input2");
 
         auto variadicSplit = std::make_shared<ov::op::v1::VariadicSplit>(
@@ -57,11 +57,9 @@ protected:
         variadicSplit->set_friendly_name("variadicSplit");
 
         auto add1 = std::make_shared<ov::opset8::Add>(variadicSplit->output(0),
-                                                      ov::opset8::Constant::create(element::f16, Shape{1}, {1}));
+                                                      ov::opset8::Constant::create(type, Shape{1}, {0}));
         add1->set_friendly_name("add1");
-        auto convert_input1 = std::make_shared<ov::opset8::Convert>(input1, ov::element::f16);
-        convert_input1->set_friendly_name("convert_input1");
-        auto shapeof = std::make_shared<ov::opset8::ShapeOf>(convert_input1);
+        auto shapeof = std::make_shared<ov::opset8::ShapeOf>(input1);
         auto rankof = std::make_shared<ov::opset8::ShapeOf>(shapeof);
         auto squeeze =
             std::make_shared<ov::opset8::Squeeze>(rankof, ov::opset8::Constant::create(element::i64, Shape{1}, {0}));
@@ -71,31 +69,32 @@ protected:
                                                          ov::opset8::Constant::create(element::i64, Shape{}, {1}),
                                                          ov::element::i64);
         auto create_conv = [&](const std::shared_ptr<ov::Node>& input_node) {
-            auto conv =
-                std::make_shared<ov::opset8::Convolution>(input_node,
-                                                          ngraph::builder::makeConstant(ov::element::f16,
-                                                                                        Shape{1, const1 / 2u, 3, 3},
-                                                                                        std::vector<float>{},
-                                                                                        true,
-                                                                                        0.1f,
-                                                                                        0.9f),
-                                                          Strides{1, 1},
-                                                          CoordinateDiff{0, 0},
-                                                          CoordinateDiff{0, 0},
-                                                          Strides{1, 1});
+            auto conv = std::make_shared<ov::opset8::Convolution>(
+                input_node,
+                ngraph::builder::makeConstant(type,
+                                              Shape{const1 / 2u, const1 / 2u, 3, 3},
+                                              std::vector<float>{},
+                                              true,
+                                              0.1f,
+                                              0.9f),
+                Strides{1, 1},
+                CoordinateDiff{1, 1},
+                CoordinateDiff{1, 1},
+                Strides{1, 1});
             conv->get_rt_info() =
                 CPUTestUtils::CPUTestsBase::makeCPUInfo({CPUTestUtils::nhwc}, {CPUTestUtils::nhwc}, {});
             return conv;
         };
-        auto conv1 = create_conv(convert_input1);
-        auto mvn = std::make_shared<ov::opset8::MVN>(conv1, range, false, 0.1, op::MVNEpsMode::INSIDE_SQRT);
-        auto mul = std::make_shared<ov::opset8::Multiply>(add1, mvn);
+        auto create_relu = [&](const std::shared_ptr<ov::Node>& input_node) {
+            return std::make_shared<ov::opset8::PRelu>(input_node,
+                                                       ov::opset8::Constant::create(element::f32, Shape{1}, {1}));
+        };
+        auto conv1 = create_conv(input1);
+        auto mvn =
+            std::make_shared<ov::opset8::MVN>(create_relu(conv1), range, false, 0.1, op::MVNEpsMode::INSIDE_SQRT);
+        auto mul = std::make_shared<ov::opset8::Multiply>(create_relu(add1), mvn);
         auto add2 = std::make_shared<ov::opset8::Add>(variadicSplit->output(1), mul);
-        auto LeakyRelu =
-            std::make_shared<ov::opset8::PRelu>(add2, ov::opset8::Constant::create(element::f32, Shape{1}, {1}));
-        LeakyRelu->set_friendly_name("LeakyRelu");
-
-        auto conv2 = create_conv(LeakyRelu);
+        auto conv2 = create_conv(create_relu(add2));
         conv2->set_friendly_name("conv2");
 
         function = std::make_shared<ov::Model>(conv2, ParameterVector{input1, input2});
