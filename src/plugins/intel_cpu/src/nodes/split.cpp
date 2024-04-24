@@ -166,7 +166,8 @@ void Split::initSupportedPrimitiveDescriptors() {
     const auto& parentdDims = inputShapes[0].getDims();
     if (parentdDims[axis] != Shape::UNDEFINED_DIM &&
         std::all_of(parentdDims.begin(), parentdDims.begin() + axis, [](size_t dim) { return  dim == 1; }) &&
-        std::all_of(outputShapes.begin(), outputShapes.end(), [=](const Shape& shape){ return shape.getDims()[axis] != Shape::UNDEFINED_DIM; })) {
+        std::all_of(outputShapes.begin(), outputShapes.end(),
+            [OV_CAPTURE_CPY_AND_THIS](const Shape& shape){ return shape.getDims()[axis] != Shape::UNDEFINED_DIM; })) {
         for (auto refPdIndex : pdIndexesToReuse) {
             auto config = supportedPrimitiveDescriptors[refPdIndex].getConfig();
 

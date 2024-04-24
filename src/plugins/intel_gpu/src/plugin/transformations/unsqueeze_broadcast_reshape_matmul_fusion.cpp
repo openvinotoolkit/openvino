@@ -56,7 +56,7 @@ UnsqueezeBroadcastReshapeMatmulFusion::UnsqueezeBroadcastReshapeMatmulFusion() {
 
     auto matmul_m = wrap_type<op::Gemm>({matmul_in_a, matmul_in_b});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto matmul = std::dynamic_pointer_cast<op::Gemm>(pattern_map.at(matmul_m).get_node_shared_ptr());
         if (!matmul || transformation_callback(m.get_match_root())) {

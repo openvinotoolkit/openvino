@@ -63,6 +63,7 @@ private:
         virtual void execute(dnnl::stream strm, const Config& config, const std::vector<MemoryPtr>& inputs, const MemoryPtr output,
                              const MemoryPtr presentk_input, const MemoryPtr presentv_input, const MemoryPtr beam_input,
                              const PlainTensor& k_scale_zp, const PlainTensor& v_scale_zp) = 0;
+        virtual ~Executor() = default;
     };
 
     bool m_is_pageattn;
