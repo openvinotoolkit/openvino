@@ -7,7 +7,6 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "transformations_visibility.hpp"
 
-
 namespace ov {
 namespace pass {
 
@@ -23,5 +22,5 @@ public:
                            const ParameterVector& model_remaining_params,
                            const std::shared_ptr<ov::op::v0::Constant>& sliding_window,
                            ParameterVector& parameters_to_remove,
-                           std::vector<std::shared_ptr<Node>>& assignes_to_remove);
+                           NodeVector& assignes_to_remove);
 };

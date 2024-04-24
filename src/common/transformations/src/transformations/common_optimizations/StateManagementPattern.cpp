@@ -3,6 +3,7 @@
 //
 
 #include "transformations/common_optimizations/StateManagementPattern.hpp"
+
 #include "transformations/utils/utils.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -11,14 +12,14 @@
 
 using namespace ov::op;
 
-//TODO: think how to do it
-// ov::OutputVector arguments_as_outputs(std::shared_ptr<ov::Node> arguments) {
+// TODO: discuss if we need this function in C++
+// ov::OutputVector arguments_as_outputs(ov::NodeVector& arguments) {
 //     ov::OutputVector outputs;
 //     for (auto& argument : arguments) {
 //         if () {
 //             outputs.push_back(argument);
 //         } else {
-//             outputs.push_back(argument.)
+//             outputs.insert(outputs.end(), argument->outputs().begin(), argument->outputs().end());
 //         }
 //     }
 
@@ -29,7 +30,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                                                          const ParameterVector& model_remaining_params,
                                                          const std::shared_ptr<ov::op::v0::Constant>& sliding_window,
                                                          ParameterVector& parameters_to_remove,
-                                                         std::vector<std::shared_ptr<Node>>& assignes_to_remove) {
+                                                         NodeVector& assignes_to_remove) {
     MATCHER_SCOPE(StateManagementPattern);
 
     auto k_past_var = pattern::wrap_type<v3::ReadValue>({pattern::any_input()});
@@ -120,7 +121,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         auto v_parameter = std::make_shared<v0::Parameter>(kv_cache_type, PartialShape{-1, -1, -1, -1});
         kv_parameters.push_back(k_parameter);
         kv_parameters.push_back(v_parameter);
-        auto kv_transpose_order = v0::Constant::create(element::i32, Shape{} ,{0, 2, 1, 3}); //correct Constant creation? What Shape to use?
+        auto kv_transpose_order = v0::Constant::create(element::i32, Shape{1} ,{0, 2, 1, 3}); //correct Constant creation? What Shape to use?
         auto q_transpose = std::make_shared<v1::Transpose>(real_q, kv_transpose_order);
         auto q_reshape = std::make_shared<v1::Reshape>(q_transpose, v0::Constant::create(element::i32, Shape{1}, {0, 0, -1}), true); //correct Constant creation? What Shape to use?
 

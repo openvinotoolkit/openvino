@@ -7,8 +7,13 @@
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
-#include "transformations/utils/utils.hpp"
 #include "openvino/pass/manager.hpp"
+#include "transformations/utils/utils.hpp"
+
+#include "transformations/common_optimizations/StateManagementPattern.hpp"
+#include "transformations/common_optimizations/PrevSequenceLengthPattern.hpp"
+#include "transformations/common_optimizations/TotalSequenceLengthPattern.hpp"
+#include "transformations/common_optimizations/PositionIDsReplacer.hpp"
 
 using namespace ov::op;
 
@@ -67,16 +72,15 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         std::cout << "CREATED A NEW position_ids PARAMETER" << std::endl;
     }
 
-    auto position_ids_input = model->input("position_id"); // Why is it needed?
-
+    auto position_ids = std::make_shared<Output<Node>>(model->input("position_id")); // Why is it needed?
 
     ov::pass::Manager manager;
     manager.set_per_pass_validation(false);
-    // manager.register_pass();
-    // manager.register_pass();
-    // manager.register_pass();
+    manager.register_pass<StateManagementPattern>(kv_parameters, model_remaining_param, sliding_window, parameters_to_remove, assignes_to_remove);
+    manager.register_pass<PrevSequenceLengthPattern>(prev_max_seq_len);
+    manager.register_pass<TotalSequenceLengthPattern>(max_context_len);
 
-    // manager.register_pass();
+    manager.register_pass<ov::pass::PositionIDsReplacer>(position_ids);
 
     manager.run_passes(model);
 
@@ -112,6 +116,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     
     model->add_parameters(kv_parameters);
     model->add_parameters(model_remaining_param);
+    std::cout << "PARAMETERS ARE REORGANIZED, THE STATE (IF EXISTS) IS REMOVED" << std::endl;
 
     return true;
 }
