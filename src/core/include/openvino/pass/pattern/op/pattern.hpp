@@ -36,8 +36,8 @@ std::function<bool(std::shared_ptr<Node>)> has_class() {
     return pred;
 }
 template <typename T>
-std::function<bool(std::shared_ptr<Node>)> class_other_than() {
-    auto pred = [](std::shared_ptr<Node> node) -> bool {
+std::function<bool(const std::shared_ptr<Node>&)> class_other_than() {
+    auto pred = [](const std::shared_ptr<Node>& node) -> bool {
         return !ov::is_type<T>(node);
     };
 
@@ -85,7 +85,7 @@ class OPENVINO_API Pattern : public Node {
 public:
     /// \brief \p a base class for \sa Skip and \sa Label
     ///
-    Pattern(const OutputVector& patterns, ValuePredicate pred) : Node(patterns), m_predicate(pred) {
+    Pattern(const OutputVector& patterns, const ValuePredicate& pred) : Node(patterns), m_predicate(pred) {
         if (!m_predicate) {
             m_predicate = [](const Output<Node>&) {
                 return true;
