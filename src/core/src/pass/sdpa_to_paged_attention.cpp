@@ -17,35 +17,33 @@
 
 using namespace ov::op;
 
+static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> node, const char* name) {
+    // Set name for both node and output tensor (should be only one tensor, and any other names will be overriden by a given single name)
+    node->set_friendly_name(name);
+    OPENVINO_ASSERT(node->get_output_size() == 1); // Should I use assert here?
+    node->get_output_tensor(0).set_names({name});
+    return node;
+}
+
 bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(SDPAToPagedAttention);
 
-    // писать сюда
-    // yes sir
     std::cout << "[ STUB ] ov::pass::SDPAToPagedAttention::run_on_model\n";
 
-    //Should I use PartialShape or Shape??
-    //Do I need to specify name because in Python it looks like the name argument is ignored completely
-    // Maybe I should specify it explicitly
-    auto max_context_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{}); // max_context_len
+    auto max_context_len = setName(std::make_shared<v0::Parameter>(element::i64, PartialShape{}), "max_context_len"); // max_context_len
     ParameterVector model_remaining_param = {
-        std::make_shared<v0::Parameter>(element::boolean, PartialShape{}), // is_prompt
-        std::make_shared<v0::Parameter>(element::i64, PartialShape{-1, -1}),
+        setName(std::make_shared<v0::Parameter>(element::boolean, PartialShape{}), "is_prompt"), // is_prompt
+        setName(std::make_shared<v0::Parameter>(element::i64, PartialShape{-1, -1}), "slot_mapping"),
         max_context_len,
-        std::make_shared<v0::Parameter>(element::i64, PartialShape{-1}), // context_lens
-        std::make_shared<v0::Parameter>(element::i64, PartialShape{-1, -1}), // block_tables
+        setName(std::make_shared<v0::Parameter>(element::i64, PartialShape{-1}), "context_lens"), // context_lens
+        setName(std::make_shared<v0::Parameter>(element::i64, PartialShape{-1, -1}), "block_tables"), // block_tables
     };
 
-    for (auto& parameter : model_remaining_param) {
-        parameter->get_output_tensor(0).set_names({parameter->get_friendly_name()});
-    }
-    // Is it a right way to create a sliding window?
     auto sliding_window = v0::Constant::create(element::i32, Shape{}, {0}); // sliding_window
 
     auto cur_seq_len = std::make_shared<v1::Gather>(v3::ShapeOf(model->input("input_ids")).output(0),
                                                     v0::Constant::create(element::i32, Shape{}, {1}),
                                                     v0::Constant::create(element::i32, Shape{}, {0}));
-    cur_seq_len->set_friendly_name("my_curr_seq_len");
 
     auto prev_max_seq_len = std::make_shared<v1::Subtract>(max_context_len, cur_seq_len);
 
@@ -66,13 +64,12 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     ResultVector results_to_remove;
 
     if (!has_parameter(model, "position_id")) {
-        auto position_ids = std::make_shared<v0::Parameter>(element::i64, PartialShape{-1, -1}); // position_ids SHOULD I SET NAME?
-        position_ids->get_output_tensor(0).set_names({position_ids->get_friendly_name()});
+        auto position_ids = setName(std::make_shared<v0::Parameter>(element::i64, PartialShape{-1, -1}), "position_ids"); // position_ids
         model->add_parameters({position_ids});
         std::cout << "CREATED A NEW position_ids PARAMETER" << std::endl;
     }
 
-    auto position_ids = std::make_shared<Output<Node>>(model->input("position_id")); // Why is it needed?
+    auto position_ids = std::make_shared<Output<Node>>(model->input("position_id"));
 
     ov::pass::Manager manager;
     manager.set_per_pass_validation(false);
