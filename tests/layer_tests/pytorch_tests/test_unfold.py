@@ -42,5 +42,8 @@ class TestUnfold(PytorchLayerTest):
     @pytest.mark.precommit_fx_backend
     def test_unfold(self, ie_device, precision, ir_version, dimension, size, step, input_shape):
         self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
+        dyn_shape = True
+        if ie_device == "GPU" and size == 1 and step == 1:
+            dyn_shape = False
         self._test(*self.create_model(dimension, size, step),
-                   ie_device, precision, ir_version)
+                   ie_device, precision, ir_version, dynamic_shapes=dyn_shape)

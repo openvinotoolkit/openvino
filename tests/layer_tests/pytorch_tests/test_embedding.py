@@ -31,4 +31,4 @@ class TestEmbedding(PytorchLayerTest):
     @pytest.mark.parametrize("indicies_dtype", ["int", "int32"])
     def test_embedding(self, ie_device, precision, ir_version, indicies_size, indicies_dtype):
         self._test(*self.create_model(), ie_device, precision, ir_version,
-         kwargs_to_prepare_input={"indicies_size": indicies_size, "indicies_dtype": indicies_dtype})
+                   kwargs_to_prepare_input={"indicies_size": indicies_size, "indicies_dtype": indicies_dtype})

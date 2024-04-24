@@ -40,4 +40,5 @@ class TestRoll(PytorchLayerTest):
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_roll(self, shifts, dim, ie_device, precision, ir_version):
-        self._test(*self.create_model(shifts, dim), ie_device, precision, ir_version)
+        self._test(*self.create_model(shifts, dim), ie_device, precision, ir_version,
+                   dynamic_shapes=ie_device != "GPU")

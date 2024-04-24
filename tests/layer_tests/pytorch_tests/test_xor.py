@@ -66,12 +66,16 @@ class TestXor(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_xor_int(self, ie_device, precision, ir_version):
+        if ie_device == "GPU":
+            pytest.xfail(reason="bitwise ops are not supported on GPU")
         self.input_data = (np.array(3, dtype=np.int32), np.array(4, dtype=np.int32))
         self._test(*self.create_model_int_input(), ie_device, precision, ir_version)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_xor_tensor(self, ie_device, precision, ir_version):
+    def test_xor_int_tensor(self, ie_device, precision, ir_version):
+        if ie_device == "GPU":
+            pytest.xfail(reason="bitwise ops are not supported on GPU")
         self.input_data = (np.array([3, 5, 8], dtype=np.int32), np.array([7, 11, 2], dtype=np.int32))
         self._test(
             *self.create_model_tensor_input(), ie_device, precision, ir_version, freeze_model=False, trace_model=True
