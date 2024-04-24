@@ -224,8 +224,22 @@ const std::vector<poolSpecificParams>& paramsMax3D() {
                                 ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT, false },
             poolSpecificParams{ utils::PoolingTypes::MAX, {2}, {1}, {0}, {0},
                                 ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT, false },
+            poolSpecificParams{ utils::PoolingTypes::MAX, {7}, {2}, {2}, {2},
+                                ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT, false },
     };
     return paramsMax3D;
+}
+
+const std::vector<maxPoolV8SpecificParams>& paramsMaxV83D() {
+    static const std::vector<maxPoolV8SpecificParams> paramsMaxV83D = {
+            maxPoolV8SpecificParams{ {2}, {2}, {1}, {0}, {0},
+                                                            ov::element::Type_t::i32, 0,
+                                                            ov::op::RoundingType::CEIL, ov::op::PadType::SAME_LOWER },
+            maxPoolV8SpecificParams{ {7}, {2}, {1}, {2}, {2},
+                                                            ov::element::Type_t::i32, 0,
+                                                            ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT},
+    };
+    return paramsMaxV83D;
 }
 
 const std::vector<poolSpecificParams>& paramsAvg3D() {
@@ -255,6 +269,8 @@ const std::vector<poolSpecificParams>& paramsMax4D() {
                                 ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT, false },
             poolSpecificParams{ utils::PoolingTypes::MAX, {4, 2}, {2, 1}, {0, 0}, {0, 0},
                                 ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT, false },
+            poolSpecificParams{ utils::PoolingTypes::MAX, {11, 7}, {2, 2}, {2, 2}, {2, 2},
+                                ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT, false },
     };
     return paramsMax4D;
 }
@@ -264,6 +280,9 @@ const std::vector<maxPoolV8SpecificParams>& paramsMaxV84D() {
             maxPoolV8SpecificParams{ {2, 2}, {2, 2}, {1, 1}, {0, 0}, {0, 0},
                                                             ov::element::Type_t::i32, 0,
                                                             ov::op::RoundingType::CEIL, ov::op::PadType::SAME_LOWER },
+            maxPoolV8SpecificParams{ {11, 7}, {2, 2}, {1, 1}, {2, 2}, {2, 2},
+                                                            ov::element::Type_t::i32, 0,
+                                                            ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT},
     };
     return paramsMaxV84D;
 }
@@ -376,6 +395,9 @@ const std::vector<maxPoolV8SpecificParams>& paramsMaxV85D() {
             maxPoolV8SpecificParams{ {2, 2, 2}, {1, 1, 1}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0},
                                                             ov::element::Type_t::i32, 0,
                                                             ov::op::RoundingType::CEIL, ov::op::PadType::SAME_LOWER },
+            maxPoolV8SpecificParams{ {7, 11, 6}, {2, 2, 2}, {1, 1, 1}, {2, 2, 2}, {2, 2, 2},
+                                                            ov::element::Type_t::i32, 0,
+                                                            ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT },
     };
     return paramsMaxV85D;
 }

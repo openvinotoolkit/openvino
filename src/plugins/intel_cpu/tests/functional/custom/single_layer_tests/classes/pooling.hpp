@@ -16,8 +16,8 @@ namespace test {
 
 using poolLayerCpuTestParamsSet = std::tuple<poolSpecificParams,
                                              InputShape,
-                                             ElementType,
-                                             bool,
+                                             ElementType, //inPrc
+                                             bool, // isInt8
                                              CPUSpecificParams,
                                              fusingSpecificParams>;
 
@@ -52,6 +52,7 @@ const std::vector<poolSpecificParams>& paramsMax3D();
 const std::vector<poolSpecificParams>& paramsAvg3D();
 const std::vector<poolSpecificParams>& paramsMax4D();
 
+const std::vector<maxPoolV8SpecificParams>& paramsMaxV83D();
 const std::vector<maxPoolV8SpecificParams>& paramsMaxV84D();
 const std::vector<maxPoolV8SpecificParams>& paramsMaxV85D();
 
