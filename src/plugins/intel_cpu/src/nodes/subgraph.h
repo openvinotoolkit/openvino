@@ -50,6 +50,9 @@ public:
         std::vector<ov::element::Type> outMemPrecs;
     };
 
+protected:
+    IShapeInfer::Result shapeInfer() const override;
+
 private:
     void init_memory_ptrs();
     void init_attrs();
@@ -85,8 +88,8 @@ private:
     std::vector<ptrdiff_t> start_offset_out = {};
 
     bool is_dynamic = false;
-    // Input shapes that are used in PrepareParams to avoid frequent memory allocation
-    std::vector<VectorDims> in_shapes;
+    // Input shapes that are used in PrepareParams and ShapeInfer to avoid frequent memory allocation
+    mutable std::vector<VectorDims> in_shapes;
 
     std::shared_ptr<SubgraphExecutor> execPtr = nullptr;
 };

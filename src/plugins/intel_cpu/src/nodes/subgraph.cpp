@@ -88,6 +88,17 @@ struct SubgraphShapeAgnosticKey : public SubgraphKey {
     uint8_t mask = 0;
 };
 
+struct SubgraphShapeInferResultKey {
+    SubgraphShapeInferResultKey(std::vector<VectorDims> in_shapes_, uint64_t body_hash_)
+        : in_shapes(std::move(in_shapes_)), body_hash(body_hash_) {}
+
+    size_t hash() const;
+    bool operator==(const SubgraphShapeInferResultKey& rhs) const;
+
+    std::vector<VectorDims> in_shapes = {};
+    uint64_t body_hash = 0;
+};
+
 size_t SubgraphKey::hash() const {
     using namespace dnnl::impl;
     using namespace dnnl::impl::primitive_hashing;
@@ -125,6 +136,17 @@ size_t SubgraphShapeAgnosticKey::hash() const {
 
     size_t seed = SubgraphKey::hash();
     seed = hash_combine(seed, mask);
+
+    return seed;
+}
+
+size_t SubgraphShapeInferResultKey::hash() const {
+    using namespace dnnl::impl;
+    using namespace dnnl::impl::primitive_hashing;
+
+    size_t seed = hash_combine(0, body_hash);
+    for (const auto& shape : in_shapes)
+        seed = get_vector_hash(seed, shape);
 
     return seed;
 }
@@ -168,6 +190,16 @@ bool SubgraphShapeAgnosticKey::operator==(const SubgraphShapeAgnosticKey& rhs) c
         return false;
     return true;
 }
+
+bool SubgraphShapeInferResultKey::operator==(const SubgraphShapeInferResultKey& rhs) const {
+    return body_hash == rhs.body_hash && in_shapes == rhs.in_shapes;
+}
+
+struct SubgraphShapeInferResult {
+    SubgraphShapeInferResult(IShapeInfer::Result res) : result(std::move(res)) {}
+
+    IShapeInfer::Result result;
+};
 
 } // namespace
 
@@ -559,9 +591,6 @@ void Subgraph::lower() {
 void Subgraph::prepareParams() {
     const auto cache = context->getParamsCache();
 
-    for (size_t i = 0; i < srcMemPtrs.size(); i++)
-        in_shapes[i] = srcMemPtrs[i]->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
-
     auto builder = [this, cache](const SubgraphSpecializedKey& key) -> std::shared_ptr<SubgraphExecutor> {
         if (is_dynamic) {
             auto shape_agnostic_builder = [](const SubgraphShapeAgnosticKey& key) -> std::shared_ptr<SubgraphExecutor> {
@@ -582,6 +611,19 @@ void Subgraph::prepareParams() {
     const auto result = cache->getOrCreate(SubgraphSpecializedKey(snippetAttrs, in_shapes), builder);
     execPtr = result.first;
     OPENVINO_ASSERT(execPtr != nullptr, "Executor is not created for node ", getName(), ".");
+}
+
+IShapeInfer::Result Subgraph::shapeInfer() const {
+    for (size_t i = 0; i < srcMemPtrs.size(); i++)
+        in_shapes[i] = srcMemPtrs[i]->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
+
+    auto builder = [this](const SubgraphShapeInferResultKey& key) -> std::shared_ptr<SubgraphShapeInferResult> {
+        return std::make_shared<SubgraphShapeInferResult>(Node::shapeInfer());
+    };
+
+    const auto cache = context->getParamsCache();
+    const auto result = cache->getOrCreate(SubgraphShapeInferResultKey(in_shapes, snippetAttrs->bodyHash), builder);
+    return result.first->result;
 }
 
 bool Subgraph::canBeInPlace() const {
