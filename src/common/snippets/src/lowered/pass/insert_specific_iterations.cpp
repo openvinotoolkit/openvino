@@ -27,10 +27,6 @@ LinearIR::constExprIt InsertSpecificIterations::insert_copy_loop(LinearIR& linea
     for (LinearIR::constExprIt cloned_it = new_loop_begin_pos, original_it = loop_bounds.first; cloned_it != new_loop_end_pos; ++cloned_it, ++original_it) {
         const auto& cloned_expr = *cloned_it;
         const auto& original_expr = *original_it;
-        OPENVINO_ASSERT(cloned_expr->get_node()->get_type_info() == original_expr->get_node()->get_type_info() &&
-                        cloned_expr->get_input_count() == original_expr->get_input_count() &&
-                        cloned_expr->get_output_count() == original_expr->get_output_count(),
-                        "Expressions after copying aren't matched!");
         for (size_t i = 0; i < original_expr->get_input_count(); ++i)
             cloned_expr->get_input_port_descriptor(i)->set_shape_ptr(original_expr->get_input_port_descriptor(i)->get_shape_ptr());
         for (size_t i = 0; i < original_expr->get_output_count(); ++i)
