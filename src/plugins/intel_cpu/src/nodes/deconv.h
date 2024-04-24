@@ -20,7 +20,6 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
-    // void createPrimitive() override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
@@ -69,9 +68,6 @@ private:
                                const dnnl::engine& engine,
                                bool constWeight);
     };
-    // have to hold reference (shared_ptr) to forward convolution primitive_desc
-    // since backward one uses the reference to it as a hint
-    std::vector<dnnl::convolution_forward::primitive_desc> fwdConvPD;
 
     bool withGroups = false;
     bool isDW = false;
@@ -82,7 +78,7 @@ private:
     size_t IC = 0;
     size_t OC = 0;
     std::vector<int32_t> lastOutputSpatialDims;
-    VectorDims weiDimsDNNLDeconv {};
+    VectorDims dnnlCompatibleWeiDims {};
     VectorDims expectedBiasDims {};
 
     bool useACL = false;
@@ -93,7 +89,7 @@ private:
     AttrPtr pAttr;
 
     dnnl::memory::data_type outputDataType = dnnl::memory::data_type::undef;
-    MemoryPtr weightAsIOMemPtr = nullptr;
+    MemoryPtr dnnlCompatibleWeights = nullptr;
 
     std::shared_ptr<dnnl::primitive_attr> attr;
     void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims);
@@ -106,8 +102,7 @@ private:
 
     std::string errorPrefix;
 
-    //MemoryPtr createWeiBlobAsIO(const VectorDims& dims);
-    void createWeiBlobAsIO();
+    void createDnnlCompatibleWeights();
     bool weightIsConst = false;
 };
 

@@ -233,31 +233,30 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op,
     attr = std::make_shared<dnnl::primitive_attr>();
 }
 
-void Deconvolution::createWeiBlobAsIO() {
-    auto weightNode = getParentEdgeAt(1)->getParent();
+void Deconvolution::createDnnlCompatibleWeights() {
     MemoryPtr blob = getSrcMemoryAtPort(1);
+
     if (!blob)
         OPENVINO_THROW("Cannot get const weights blob for node ", getName(), ".");
 
-    auto weiDims = getWeightDims();
-    // WA: In int8 case, we are processing weights using internal blob.
-    VectorDims dimsForBlockedDesc{weiDims};
-    VectorDims orderForBlockedDesc;
+    weightIsConst = getParentEdgeAt(1)->getParent()->isConstant();
+    auto blockedDims = getWeightDims();
+    VectorDims order;
     if (withGroups) {
-        orderForBlockedDesc = {0, 2, 1};
+        order = {0, 2, 1};
     } else {
-        orderForBlockedDesc = {1, 0};
+        order = {1, 0};
     }
-    for (size_t i = 2 + withGroups; i < dimsForBlockedDesc.size(); i++)
-        orderForBlockedDesc.push_back(i);
+    for (size_t i = 2 + withGroups; i < blockedDims.size(); i++)
+        order.push_back(i);
 
     auto desc = CpuBlockedMemoryDesc(DnnlExtensionUtils::DataTypeToElementType(blob->getDataType()),
-                                     Shape(weiDimsDNNLDeconv),
-                                     dimsForBlockedDesc,
-                                     orderForBlockedDesc);
+                                     Shape(dnnlCompatibleWeiDims),
+                                     blockedDims,
+                                     order);
     // Create the memory with the edge memory mgr. In the case of the weight memory changes when inference,
-    // weightAsIOMemPtr memory would be updated automatically via update inform mechanism.
-    weightAsIOMemPtr = std::make_shared<Memory>(getEngine(), desc, blob->getMemoryMngr());
+    // dnnlCompatibleWeights memory would be updated automatically via update inform mechanism.
+    dnnlCompatibleWeights = std::make_shared<Memory>(getEngine(), desc, blob->getMemoryMngr());
 }
 
 bool Deconvolution::canBeExecutedInInt8() const {
@@ -502,12 +501,12 @@ void Deconvolution::getSupportedDescriptors() {
     useACL = checkDesc(LayoutType::nspc) || checkDesc(LayoutType::ncsp);
     if (useACL) return;
 #endif
-    weiDimsDNNLDeconv = getWeightDims();
+    dnnlCompatibleWeiDims = getWeightDims();
     // Construct the ONEDNN deconv OP weight shape.
     // OV ConvBackWardData defines weight shape as [Conv_OC, Conv_IC, ....].
     // ONEDNN Deconv define weight shape as [Deconv_OC, Deconv_IC,...],
     // Deconv_OC = Conv_IC , Deconv_IC = Conv_OC
-    std::swap(weiDimsDNNLDeconv[withGroups + 0], weiDimsDNNLDeconv[withGroups + 1]);
+    std::swap(dnnlCompatibleWeiDims[withGroups + 0], dnnlCompatibleWeiDims[withGroups + 1]);
     setPostOps(*attr, outShape.getStaticDims());
 
     if (isInt8) {
@@ -544,9 +543,6 @@ void Deconvolution::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dim
 
     // ONEDNN define the convolution forward as :
     //  [N, OC, OH, OW] = [N, IC, IH, IW]* [OC, IC, KH, KW]
-    // ONEDNN define the convolution data backward as:
-    //  [N, IC, OH, OW] = [N, OC, IH, IW]* [OC, IC, KH, KW]
-    // So for the backward and forward convolutions, the weights dimensions definition in ONEDNN is the same.
     // OC is the conv forward output channel, IC is conv forward input channel.
 
     // But for the deconvolution, Deconv_OC and Deconv_IC are the deconv output and input channels respectively
@@ -701,21 +697,6 @@ dnnl::primitive_desc createDescriptorInternal(const dnnl::memory::desc& in_candi
             attr);
     }
 }
-
-dnnl::primitive_desc createMkldnnDeconvDesc(const dnnl::memory::desc& srcDesc,
-                                                const dnnl::memory::desc& wghDesc,
-                                                const dnnl::memory::desc& biasDesc,
-                                                const dnnl::memory::desc& dstDesc,
-                                                const bool withBias,
-                                                const std::vector<ptrdiff_t>& stride,
-                                                const std::vector<ptrdiff_t>& dilation,
-                                                const ov::CoordinateDiff& paddingL,
-                                                const ov::CoordinateDiff& paddingR,
-                                                const dnnl::primitive_attr& attr,
-                                                const dnnl::engine& engine) {
-    return createDescriptorInternal(
-        srcDesc, wghDesc, biasDesc, dstDesc, withBias, stride, dilation, paddingL, paddingR, attr, engine);
-}
 } // namespace
 
 Node::AttrPtr Deconvolution::makePrimitiveAttr(const VectorDims &dims) {
@@ -812,7 +793,6 @@ void Deconvolution::prepareParams() {
         selected_pd->setImplementationType(execPtrDeconvACL->getImplType());
         return;
     }
-    weightIsConst = getParentEdgeAt(1)->getParent()->isConstant();
     auto inMemoryDesc = getParentEdgeAt(0)->getMemory().getDescWithType<DnnlMemoryDesc>();
     auto outMemoryDesc = getChildEdgeAt(0)->getMemory().getDescWithType<DnnlMemoryDesc>();
 
@@ -835,9 +815,9 @@ void Deconvolution::prepareParams() {
     MemoryPtr biasMemPtr = nullptr;
     DnnlMemoryDescCPtr biasDesc;
 
-    if (!weightAsIOMemPtr)
-        createWeiBlobAsIO();
-    DnnlMemoryDescPtr wghDesc = weightAsIOMemPtr->getDescWithType<DnnlMemoryDesc>();
+    if (!dnnlCompatibleWeights)
+        createDnnlCompatibleWeights();
+    DnnlMemoryDescPtr wghDesc = dnnlCompatibleWeights->getDescWithType<DnnlMemoryDesc>();
 
     if (withBiases) {
         biasMemPtr = getSrcMemoryAtPort(biasPort);
@@ -859,24 +839,22 @@ void Deconvolution::prepareParams() {
                      selected_pd->getImplementationType()};
 
     auto engine = getEngine();
-    VectorDims weiDims = weiDimsDNNLDeconv;
-    auto builder = [&engine, &weiDims](const DeconvKey& key) -> executorPtr {
+    auto builder = [&engine](const DeconvKey& key) -> executorPtr {
         dnnl::primitive_desc desc;
         convolution_forward::primitive_desc fwd_conv_pd;
         dnnl::memory::desc dnnlBiasDesc;
-        auto deriveWeightDataType = [] (memory::data_type src_dt) -> memory::data_type {
-            if (one_of(src_dt, memory::data_type::s8, memory::data_type::u8))
-                return  memory::data_type::s8;
-            return src_dt;
-        };
+        const auto weiDims = key.inp1->getShape().getStaticDims();
+        const auto srcDataType = key.inp0->getDataType();
+        const auto weiDataType = (one_of(srcDataType, memory::data_type::s8, memory::data_type::u8)) ?
+                                    memory::data_type::s8 : srcDataType;
         auto wghDescAny =
             dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(weiDims),
-                               deriveWeightDataType(key.inp0->getDataType()),
+                               weiDataType,
                                memory::format_tag::any);
         if (key.bias)
             dnnlBiasDesc = key.bias->getDnnlDesc();
 
-        desc = createMkldnnDeconvDesc(key.inp0->getDnnlDesc(), wghDescAny, dnnlBiasDesc, key.out->getDnnlDesc(),
+        desc = createDescriptorInternal(key.inp0->getDnnlDesc(), wghDescAny, dnnlBiasDesc, key.out->getDnnlDesc(),
                                             key.bias != nullptr, key.stride, key.dilation, key.paddingL, key.paddingR, key.attr, engine);
 
         primitive_desc_iterator itpd = desc;
@@ -910,7 +888,7 @@ void Deconvolution::prepareParams() {
                                                                                         memory::format_tag::any);
 
             dnnl::primitive_desc anyDeconvDesc;
-            anyDeconvDesc = createMkldnnDeconvDesc(inDesc, wghDescAny, dnnlBiasDesc, outDesc, key.bias != nullptr,
+            anyDeconvDesc = createDescriptorInternal(inDesc, wghDescAny, dnnlBiasDesc, outDesc, key.bias != nullptr,
                                                         key.stride, key.dilation, key.paddingL, key.paddingR, key.attr, engine);
             if (anyDeconvDesc) {
                 auto prim_desc = deconvolution_forward::primitive_desc(anyDeconvDesc.get());
@@ -950,7 +928,7 @@ void Deconvolution::prepareParams() {
     } else {
         // non-const weight will be reordered by executor on every exec
         // maybe only set this when execute?
-        primArgs[DNNL_ARG_WEIGHTS] = weightAsIOMemPtr->getPrimitive();
+        primArgs[DNNL_ARG_WEIGHTS] = dnnlCompatibleWeights->getPrimitive();
     }
 
     if (withBiases)
@@ -992,7 +970,7 @@ void Deconvolution::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc
         memory::data_type bdt = memory::data_type::f32;
         bias_candidate = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(expectedBiasDims), bdt, memory::format_tag::any);
     }
-    dnnl::memory::desc wgh_candidate(DnnlExtensionUtils::convertToDnnlDims(weiDimsDNNLDeconv), isInt8 ? memory::data_type::s8 : dnnlInDesc.getDataType(),
+    dnnl::memory::desc wgh_candidate(DnnlExtensionUtils::convertToDnnlDims(dnnlCompatibleWeiDims), isInt8 ? memory::data_type::s8 : dnnlInDesc.getDataType(),
                                     memory::format_tag::any);
     descs.emplace_back(createDescriptorInternal(in_candidate, wgh_candidate, bias_candidate,
                                                     out_candidate, withBiases, deconvAttrs.stride, deconvAttrs.dilation,
@@ -1004,7 +982,7 @@ std::shared_ptr<MemoryDesc> Deconvolution::getSrcMemDesc(const dnnl::primitive_d
         //Expected dest shape;
         return std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32, Shape(getInputShapeAtPort(2).getStaticDims()));
     } else if (idx > 0) {
-        // weight and bias would exposed as planar layout.
+        // weight and bias are exposed with the planar layout.
         // we need to store 'weight' input as edge,
         // because at this moment we can't simple replace internal blob with input, since we need to save weight data as is, but with different order
         return std::make_shared<CpuBlockedMemoryDesc>(getOriginalInputPrecisionAtPort(idx), Shape(getInputShapeAtPort(idx).getStaticDims()));
@@ -1076,13 +1054,13 @@ std::vector<int32_t> Deconvolution::readOutputSpatialDims() const {
 }
 
 bool Deconvolution::canFuseBias() const {
-    //ONEDNN deconvolution_fwd_t primitive can support bias fusing. but has different implement.
-    //For the brgdeconv implement in the deconv list, bias would be implemented via JIT kernel.
-    //For the fall back ref implement entry(previous conv_backward_data), bias would be implemented via reference post-ops.
-    //It is hard to know whehter the deconv would run with brg or fall back to backwards data implment when fusing graph.
-    //For long term, all the deconv should run with brg implement in long term.
+    //ONEDNN deconvolution_fwd_t primitive can support bias fusing. but has different implementations.
+    //For the brgdeconv implementation in the deconv list, bias is implemented via JIT kernel.
+    //For the fall back ref implementation entry(previous conv_backward_data), bias is implemented via reference post-ops.
+    //It is difficult to recognize  whether the deconv will run with brg or fall back to backwards data implementation on the fusing
+    //transformation stage. In the end, all the deconv should run with brg implement.
     //And in model zoo only limited deconv has bias or other post-ops in IR.
-    //Based on above, enable the bias fusing for deconv.
+    //Based on above, enable the bias fusing for all deconv implementations.
     return  (externOutShape ? getParentEdges().size() == 3 : getParentEdges().size() == 2);
 }
 

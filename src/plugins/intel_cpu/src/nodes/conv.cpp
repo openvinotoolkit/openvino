@@ -299,10 +299,10 @@ Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext
         autoPadding = one_of(groupConvolutionOp->get_auto_pad(), ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER);
     }
     // Only apply this heuristic logic on FP32 IR. IC=1 ,OC=1 would disable brgconv on avx2.
-    const bool isAvx2FP32 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
-                                    !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
+    const bool isAvx2FP32 = !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
+                                dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
                                     !context->isGraphQuantized();
-    avx2DisableBrgconvHeuristic = ((IC == 1 && groupOC * groupNum == 1) && isAvx2FP32);
+    useJitPlanar = ((IC == 1 && groupOC * groupNum == 1) && isAvx2FP32);
 }
 
 bool Convolution::canBeExecutedInInt8() const {
@@ -337,7 +337,7 @@ ov::element::Type Convolution::fusedEltwisePrecision(const NodePtr& fusingNode) 
 }
 
 const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
-    priorities = {
+    static const std::vector<impl_desc_type> priorities = {
             impl_desc_type::unknown,
             impl_desc_type::dw_acl,
             impl_desc_type::winograd_acl,
@@ -377,19 +377,21 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
             impl_desc_type::ref_any,
             impl_desc_type::ref,
         };
-        priorities.erase(std::remove_if(priorities.begin(),
-                                priorities.end(),
-                                [&](impl_desc_type type) {
-                                    return !isBrgConvAvailable() && (type & impl_desc_type::brgconv);
-                                }),
-                    priorities.end());
-        return priorities;
+        if (isBrgConvAvailable())
+            return priorities;
+
+        static const std::vector<impl_desc_type> priorities_wo_brgemm = [&] {
+            std::vector<impl_desc_type>result;
+            std::copy_if(priorities.begin(), priorities.end(), std::back_inserter(result),
+                [](impl_desc_type type) { return !(type & impl_desc_type::brgconv); });
+            return result;}();
+        return priorities_wo_brgemm;
 }
 
 const bool Convolution::isBrgConvAvailable() {
     //When avx2 brgconv heuristic case,  disable brgconv to WA the regression.
     const bool isBrgConvAvailable = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
-                                           !avx2DisableBrgconvHeuristic;
+                                           !useJitPlanar;
     return isBrgConvAvailable;
 }
 
@@ -1151,7 +1153,7 @@ bool Convolution::isNspcAvailable() const {
         }
     }
     // AVX2 heuristic
-    if (avx2DisableBrgconvHeuristic)
+    if (useJitPlanar)
         return false;
     // A bunch of heuristics are designed to cut off not optimal nspc convolution applications
     auto inpDims = getInputShapeAtPort(0).getDims();

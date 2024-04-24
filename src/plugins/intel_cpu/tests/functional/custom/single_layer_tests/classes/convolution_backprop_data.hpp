@@ -74,7 +74,7 @@ const std::vector<size_t> numOutChannels_Planar = {6};
 const std::vector<size_t> numOutChannels_Blocked = {64};
 
 /* ============= Deconvolution params (2D) ============= */
-const std::vector<std::vector<size_t>> kernels2d = {{3, 3}, {2, 2}};
+const std::vector<std::vector<size_t>> kernels2d = {{3, 3}, {1, 1}};
 const std::vector<std::vector<size_t>> strides2d = {{1, 1}, {2, 2}};
 const std::vector<std::vector<ptrdiff_t>> padBegins2d = {{0, 0}};
 const std::vector<std::vector<ptrdiff_t>> padEnds2d = {{0, 0}};
@@ -84,7 +84,7 @@ const std::vector<std::vector<size_t>> deconvBrgKernels2d = {{3, 3}, {2, 2}};
 const std::vector<std::vector<size_t>> deconvBrgStrides2d = {{1, 1}};
 
 /* ============= Deconvolution params (3D) ============= */
-const std::vector<std::vector<size_t>> kernels3d = {{3, 3, 3}, {2, 2, 2}};
+const std::vector<std::vector<size_t>> kernels3d = {{3, 3, 3}, {1, 1, 1}};
 const std::vector<std::vector<size_t>> strides3d = {{1, 1, 1}, {2, 2, 2}};
 const std::vector<std::vector<ptrdiff_t>> padBegins3d = {{0, 0, 0}};
 const std::vector<std::vector<ptrdiff_t>> padEnds3d = {{0, 0, 0}};

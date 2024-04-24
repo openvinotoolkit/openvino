@@ -104,7 +104,6 @@ const auto conv2DParams_AutoPadValid_output_padding = ::testing::Combine(
         ::testing::ValuesIn(outputPadding2D)
 );
 
-//comment failure of MAC ARM.
 INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_ExplicitPadding_OutputPaddingDefined, ConvolutionBackpropDataLayerTest,
                         ::testing::Combine(
                                 conv2DParams_AutoPadValid_output_padding,
