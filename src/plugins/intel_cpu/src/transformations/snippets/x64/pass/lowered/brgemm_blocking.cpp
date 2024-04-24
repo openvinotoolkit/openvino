@@ -41,12 +41,15 @@ LinearIR::constExprIt BrgemmBlocking::move_new_memory_buffer(LinearIR& linear_ir
 LinearIR::constExprIt BrgemmBlocking::get_loop_begin_pos(LinearIR& linear_ir, const LinearIR::constExprIt& brgemm_it) {
     auto loop_begin_it = brgemm_it;
     const auto& brgemm_expr = *brgemm_it;
-    const auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node());
-    if (brgemm->is_amx()) {
+    const auto node = brgemm_expr->get_node();
+    const auto brgemm = ov::as_type_ptr<snippets::op::Brgemm>(node);
+    const auto brgemm_cpu = ov::as_type_ptr<intel_cpu::BrgemmCPU>(node);
+    OPENVINO_ASSERT(brgemm, "get_loop_begin_pos must be called only for Brgemm expression");
+    if (brgemm_cpu && brgemm_cpu->is_amx()) {
         loop_begin_it = move_new_memory_buffer(linear_ir, brgemm_it);
     }
-    if (brgemm->is_with_data_repacking()) {
-        const auto& copy_b = brgemm->get_brgemm_copy();
+    if (brgemm_cpu && brgemm_cpu->is_with_data_repacking()) {
+        const auto& copy_b = brgemm_cpu->get_brgemm_copy();
         const auto& copy_b_expr = linear_ir.get_expr_by_node(copy_b);
         loop_begin_it = linear_ir.find(copy_b_expr);
     }
