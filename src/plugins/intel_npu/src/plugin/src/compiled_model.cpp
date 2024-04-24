@@ -235,8 +235,7 @@ void CompiledModel::initialize_properties() {
               if (config.get<PLATFORM>() == ov::intel_npu::Platform::AUTO_DETECT) {
                   return std::string("NPU");
               }
-              OPENVINO_ASSERT(_device != nullptr, "GetMetric: the device is not initialized");
-              return std::string("NPU.") + _device->getName();
+              return std::string("NPU.") + config.get<PLATFORM>();
           }}},
         {ov::loaded_from_cache.name(),
          {true,
