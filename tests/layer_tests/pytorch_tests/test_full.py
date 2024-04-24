@@ -195,6 +195,8 @@ class TestFillDiagonal(PytorchLayerTest):
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_fill_diagonal(self, shape, value, input_dtype, value_dtype, wrap, ie_device, precision, ir_version):
+        if ie_device == "GPU":
+            pytest.xfail(reason="fill_diagonal is not supported on GPU")
         self._test(*self.create_model(shape, wrap), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={
                        'value': value, 
