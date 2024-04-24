@@ -34,7 +34,7 @@ def scatter_nd_update(
     :param name: Optional name for the output node.
     :return: New node performing the ScatterNDUpdate.
     """
-    inputs = as_nodes(data, indices, updates)
+    inputs = as_nodes(data, indices, updates, name=name)
     attributes = {}
     if reduction:
         attributes["reduction"] = reduction
