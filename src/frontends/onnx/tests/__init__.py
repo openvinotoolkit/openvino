@@ -61,8 +61,8 @@ xfail_issue_99955 = xfail_test(reason="GroupNorm is not supported")
 xfail_issue_99957 = xfail_test(reason="LayerNorm - RuntimeError: While validating node '<Node(Reshape): Mean>'")
 xfail_issue_99960 = xfail_test(reason="MVN - Results mismatch")
 xfail_issue_99961 = xfail_test(reason="Optional has/get element operators are not supported)'")
-xfail_issue_99962 = pytest.mark.skip(reason="ReduceL1/L2 - Unrecognized attribute: axes for operator ReduceL1/L2")
-xfail_issue_99968 = xfail_test(reason="ReduceL1/L2 - Results mismatch or unsupported ReduceSum with "
+xfail_issue_99962 = pytest.mark.skip(reason="ReduceL1 - Unrecognized attribute: axes for operator ReduceL1")
+xfail_issue_99968 = xfail_test(reason="ReduceL1 - Results mismatch or unsupported ReduceSum with "
                                       "dynamic rank by CPU plugin")
 xfail_issue_99969 = xfail_test(reason="Resize - Results mismatch / "
                                       "RuntimeError: While validating ONNX node '<Node(Resize): Y>' / "
