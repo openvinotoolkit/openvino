@@ -71,7 +71,7 @@ Step 1: Set Up the Repository
 
    .. code-block:: sh
 
-   zypper se openvino-devel openvino-sample
+   zypper se openvino
 
 Step 2: Install OpenVINO Runtime Using the YUM Package Manager
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -88,7 +88,7 @@ Install OpenVINO Runtime
 
       .. code-block:: sh
 
-         sudo zypper install openvino
+         sudo zypper install openvino-devel openvino-sample
 
 Check for Installed Packages and Version
 -----------------------------------------
