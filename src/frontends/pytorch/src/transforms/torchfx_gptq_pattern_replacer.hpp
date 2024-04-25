@@ -12,12 +12,16 @@ namespace frontend {
 namespace pytorch {
 namespace pass {
 
+// This transformation replaces the GPTQ pattern with a Constant node
 class GPTQDecompressionReplacer : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ov::frontend::pytorch::pass::GPTQDecompressionReplacer");
     GPTQDecompressionReplacer();
 };
 
+// This transformation replaces TorchFX based GPTQ Multiplication pattern
+// into a simpler pattern which could be detected by device plugins for
+// additional optimizations
 class GPTQMultPatternReplacer : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ov::frontend::pytorch::pass::GPTQMultPatternReplacer");
