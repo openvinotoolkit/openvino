@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+cmake_policy(SET CMP0149 NEW)
 
 macro(ov_search_api_validator)
     if(NOT ENABLE_API_VALIDATOR)
