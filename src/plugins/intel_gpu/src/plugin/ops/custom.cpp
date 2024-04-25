@@ -101,6 +101,19 @@ protected:
     std::map<std::string, std::string> m_values;
 };
 
+template <typename T>
+T convert_to(const std::string &str) {
+    std::istringstream ss(str);
+    T res;
+    ss >> res;
+    return res;
+}
+
+template <>
+std::string convert_to(const std::string &str) {
+    return str;
+}
+
 void CreatePagedAttention(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op) {
     validate_inputs_count(op, {13});
     auto inputs = p.GetInputInfo(op);
@@ -125,6 +138,26 @@ void CreatePagedAttention(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op
     prim.kv_heads_num = 32;
     prim.block_size = 16;
     prim.x_block_size = 8;
+
+    if (const auto env_var = std::getenv("PA_HEAD_SIZE")) {
+        prim.head_size = convert_to<size_t>(env_var);
+    }
+
+    if (const auto env_var = std::getenv("PA_HEADS_NUM")) {
+        prim.heads_num = convert_to<size_t>(env_var);
+    }
+
+    if (const auto env_var = std::getenv("PA_KV_HEADS_NUM")) {
+        prim.kv_heads_num = convert_to<size_t>(env_var);
+    }
+
+    if (const auto env_var = std::getenv("PA_BLOCK_SIZE")) {
+        prim.block_size = convert_to<size_t>(env_var);
+    }
+
+    if (const auto env_var = std::getenv("PA_X_BLOCK_SIZE")) {
+        prim.x_block_size = convert_to<size_t>(env_var);
+    }
 
     prim.num_outputs = op->get_output_size();
     prim.output_data_types = get_output_data_types(op);

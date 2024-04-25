@@ -163,6 +163,33 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         config.x_block_size = desc->x_block_size;
         config.max_context_len = 1;
 
+        if (!impl_param.is_dynamic()) {
+            auto query_shape = impl_param.get_input_layout(0).get_shape();
+            auto key_cache_shape = impl_param.get_input_layout(3).get_shape();
+            auto value_cache_shape = impl_param.get_input_layout(4).get_shape();
+
+            auto actual_head_size = value_cache_shape[2];
+            auto actual_heads_num = query_shape[2] / actual_head_size;
+            auto actual_kv_heads_num = value_cache_shape[1];
+            auto actual_block_size = value_cache_shape[3];
+            auto actual_x_block_size = key_cache_shape[4];
+
+            bool valid_params = config.head_size == actual_head_size &&
+                                config.heads_num == actual_heads_num &&
+                                config.kv_heads_num == actual_kv_heads_num &&
+                                config.block_size == actual_block_size &&
+                                config.x_block_size == actual_x_block_size;
+
+            OPENVINO_ASSERT(valid_params, "[GPU] Got unexpected parameters for PA operation. ",
+                            "Currently they need to be specified explicitly (this should be fixed soon by PA model conversion improvement). ",
+                            "Please use the following environment variables for proper PA configuration: ",
+                            "PA_HEAD_SIZE=", actual_head_size, " ",
+                            "PA_HEADS_NUM=", actual_heads_num, " ",
+                            "PA_KV_HEADS_NUM=", actual_kv_heads_num, " ",
+                            "PA_BLOCK_SIZE=", actual_block_size, " ",
+                            "PA_X_BLOCK_SIZE=", actual_x_block_size);
+        }
+
         const size_t simd_size = 16;
         OPENVINO_ASSERT(config.head_size % simd_size == 0, "[GPU] Head size is expected to be divisible by 16");
 
