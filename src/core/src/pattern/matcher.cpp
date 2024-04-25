@@ -8,7 +8,6 @@
 #include <regex>
 
 #include "openvino/op/util/op_types.hpp"
-#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/util/env_util.hpp"
 #include "openvino/util/log.hpp"
 
