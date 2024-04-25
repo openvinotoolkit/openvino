@@ -15,14 +15,12 @@
 #elif defined(__GNUC__)
     #pragma GCC diagnostic push
     #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-// #elif defined(__clang__)
 #endif
 #include "openvino/core/any.hpp"
 #ifdef _MSC_VER
     #pragma warning( pop )
 #elif defined(__GNUC__)
     #pragma GCC diagnostic pop
-// #elif defined(__clang__)
 #endif
 
 #include "openvino/core/type/element_type.hpp"
