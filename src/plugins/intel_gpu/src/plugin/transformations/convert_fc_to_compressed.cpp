@@ -11,6 +11,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/reshape.hpp"

@@ -42,7 +42,7 @@ template <class T>
 static std::shared_ptr<ov::Model> createTransformedGraph(ov::Shape param_shape, ov::Shape weights_shape) {
         auto getUnsqueeze = [&](const ov::Output<ov::Node>& node) {
             auto rank = node.get_partial_shape().rank().get_length();
-            return std::make_shared<ov::opset8::Unsqueeze>(node,
+            return std::make_shared<ov::op::v0::Unsqueeze>(node,
                                                            ov::opset1::Constant::create(ov::element::i64, ov::Shape{1}, {rank}));
         };
         auto type = ov::element::f32;

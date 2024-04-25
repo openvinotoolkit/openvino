@@ -15,7 +15,7 @@ bool model_has_suitable_do(const std::shared_ptr<const ov::Model>& model) {
     for (auto& result_node : model->get_results()) {
         auto do_node = result_node->input_value(0).get_node_shared_ptr();
         std::shared_ptr<ov::Node> convert_node;
-        if (ov::is_type<ov::opset1::Convert>(do_node)) {  // cases with do->convert->result
+        if (ov::is_type<ov::op::v0::Convert>(do_node)) {  // cases with do->convert->result
             convert_node = do_node;
             do_node = convert_node->get_input_node_shared_ptr(0);
         }
@@ -77,7 +77,7 @@ std::shared_ptr<const ov::Model> apply_batch_affinity(const std::shared_ptr<cons
     for (auto& result_node : model->get_results()) {
         auto do_node = result_node->input_value(0).get_node_shared_ptr();
         std::shared_ptr<ov::Node> convert_node;
-        if (ov::is_type<ov::opset1::Convert>(do_node)) {  // cases with do->convert->result
+        if (ov::is_type<ov::op::v0::Convert>(do_node)) {  // cases with do->convert->result
             convert_node = do_node;
             do_node = convert_node->get_input_node_shared_ptr(0);
         }

@@ -17,6 +17,8 @@
 #include "intel_gpu/op/read_value.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/sink.hpp"

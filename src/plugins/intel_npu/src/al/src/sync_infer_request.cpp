@@ -5,6 +5,7 @@
 #include "sync_infer_request.hpp"
 
 #include "intel_npu/al/prefix.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/plugin_itt.hpp"
 #include "transformations/utils/utils.hpp"

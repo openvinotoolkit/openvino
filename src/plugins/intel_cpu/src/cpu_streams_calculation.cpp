@@ -6,6 +6,7 @@
 
 #include "cpu_map_scheduling.hpp"
 #include "graph.h"
+#include "openvino/op/fake_quantize.hpp"
 #include "openvino/runtime/performance_heuristics.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"

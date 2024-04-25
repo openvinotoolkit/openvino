@@ -5,6 +5,13 @@
 #include "transformations/op_conversions/convert_reduce_to_reshape.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/reduce_logical_and.hpp"
+#include "openvino/op/reduce_logical_or.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reduce_sum.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 bool CvtReduceBase::is_redundant(ov::Shape input, ov::Shape output) {
