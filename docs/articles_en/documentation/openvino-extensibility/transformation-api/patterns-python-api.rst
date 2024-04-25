@@ -1,6 +1,6 @@
 .. {#openvino_docs_Extensibility_UG_patterns-python-api}
 
-Overview of creating pattern using Python API
+Overview of creating Transformation patterns using OpenVINO™ API
 =============================================
 
 .. meta::
@@ -9,7 +9,7 @@ Overview of creating pattern using Python API
 
 Pattern matching is an essential component of OpenVINO™ transformations. Before performing any transformation on a subgraph of a graph, we need to find the subgraph in the graph.
 Here come patterns which serve as a searching utility to identify nodes we are going to work with in our transformation. In this article we are going to review the basics of pattern
-creation using Python API and helping utilities we may use to facilitate working with them. Some examples will be intentionally simplified for ease of understanding. 
+creation using OpenVINO™ API and helping utilities we may use to facilitate working with them. Some examples will be intentionally simplified for ease of understanding. 
 
 Though, before proceeding any further, we need to add some imports. That would import the operations we're going to use and additional utility that we are going to talk later in this guide.
 Add the following lines to your file:
@@ -84,7 +84,7 @@ You may also create ``AnyInput()`` with a predicate, if you want some additional
 ++++++++++++++++++++++++++++++++++++++++
 ``Or`` is somewhat similar to ``WrapType``, however if ``WrapType`` can only match one of types provided in the list, ``Or`` is used to match different _branches_ of nodes.
 It would be much easier to understand with a visualization. Let's say, we want to try to match the model against two different sequences of nodes. The ``Or`` type
-facilitates this by creating 2 different branches. It would look as following:
+facilitates this by creating 2 different branches (``Or`` supports more than 2 branches). It would look as following:
 
 .. image:: ./../../../_static/images/or-branches.png
 
@@ -99,7 +99,7 @@ Note that matching will succeed for the first matching branch and the remaining 
 
 4. Optional
 ++++++++++++++++++++++++++++++++++++++++
-``Optional`` is a bit tricky one. It allows to speicfy what node might be or might not present in the model. Under the hood
+``Optional`` is a bit tricky one. It allows to specify what node might be or might not present in the model. Under the hood
 the pattern will create 2 branches using ``Or``: one with the optional node present, another one without it. That's what it would look like visually with the ``Optional``
 unfolding into 2 branches:
 
@@ -114,11 +114,13 @@ The code would look as following for our model:
 The ``Optional`` doesn't necessarily have to be in the middle of the pattern. It can be a top node and a root node.
 
 Top node:
+
 .. doxygensnippet:: docs/snippets/ov_patterns.py
    :language: cpp
    :fragment: [ov:optional_top]
 
 Root node:
+
 .. doxygensnippet:: docs/snippets/ov_patterns.py
    :language: cpp
    :fragment: [ov:optional_root]
