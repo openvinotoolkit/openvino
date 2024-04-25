@@ -90,6 +90,15 @@ const std::vector<ov::test::InputShape> inputShapes2D = {
     }
 };
 
+const std::vector<int64_t> axis3D = {-1};
+
+const std::vector<ov::test::InputShape> inputShapes3D = {
+    {
+        {-1, -1, -1},
+        {{16, 64, 64}, {4, 6, 27200}}
+    },
+};
+
 const std::vector<int64_t> axis4D = {1, 2, 3};
 
 const std::vector<ov::test::InputShape> inputShapes4D = {
@@ -104,15 +113,6 @@ const std::vector<ov::test::InputShape> inputShapes4D = {
     { // Excessive upper bound case
         {3, 8, {128, 16384}, {128, 16384}},
         {{3, 8, 128, 128}}
-    },
-};
-
-const std::vector<int64_t> axis3D = {-1};
-
-const std::vector<ov::test::InputShape> inputShapes3D = {
-    {
-        {-1, -1, -1},
-        {{16, 64, 64}, {4, 6, 27200}}
     },
 };
 
@@ -136,13 +136,6 @@ INSTANTIATE_TEST_SUITE_P(softMaxGPUDynamicTest2D,
                                             testing::ValuesIn(axis2D)),
                          SoftMaxLayerGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(softMaxGPUDynamicTest4D,
-        SoftMaxLayerGPUTest,
-                         ::testing::Combine(testing::ValuesIn(netPrecisions),
-                                            testing::ValuesIn(inputShapes4D),
-                                            testing::ValuesIn(axis4D)),
-                         SoftMaxLayerGPUTest::getTestCaseName);
-
 INSTANTIATE_TEST_SUITE_P(softMaxGPUDynamicTest3D,
         SoftMaxLayerGPUTest,
                          ::testing::Combine(testing::ValuesIn(netPrecisions),
@@ -150,11 +143,11 @@ INSTANTIATE_TEST_SUITE_P(softMaxGPUDynamicTest3D,
                                             testing::ValuesIn(axis3D)),
                          SoftMaxLayerGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(softMaxGPUDynamicTest3D_small,
+INSTANTIATE_TEST_SUITE_P(softMaxGPUDynamicTest4D,
         SoftMaxLayerGPUTest,
                          ::testing::Combine(testing::ValuesIn(netPrecisions),
-                                            testing::ValuesIn(inputShapes3Dsmall),
-                                            testing::ValuesIn(axis3D)),
+                                            testing::ValuesIn(inputShapes4D),
+                                            testing::ValuesIn(axis4D)),
                          SoftMaxLayerGPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(softMaxGPUDynamicTest5D,
