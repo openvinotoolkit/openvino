@@ -16,6 +16,8 @@
 #include "transformations/utils/utils.hpp"
 #include "utils/denormals.hpp"
 #include "utils/precision_support.h"
+#include "utils/serialize_mmap.hpp"
+#include "utils/serialize_stream.hpp"
 #include "weights_cache.hpp"
 
 #if defined(__linux__)
@@ -590,7 +592,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return res;
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::handle_imported_model(ModelDeserializer& deserializer,
+std::shared_ptr<ov::ICompiledModel> Plugin::handle_imported_model(ModelDeserializerBase& deserializer,
                                                                   const ov::AnyMap& properties) const {
     std::shared_ptr<ov::Model> model;
     deserializer >> model;
@@ -619,7 +621,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
                                                          const ov::AnyMap& properties) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
 
-    ModelDeserializer deserializer(model_stream,
+    ModelStreamDeserializer deserializer(model_stream,
         [this](const std::string& model, const ov::Tensor& weights) {
             return get_core()->read_model(model, weights, true);
         });
@@ -641,7 +643,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Any& model_va
             OPENVINO_THROW("Invalid Mapped Memory object.");
         }
 
-        ModelDeserializer deserializer(mapped_model,
+        ModelMmapDeserializer deserializer(mapped_model,
             [this](const std::string& model, const ov::Tensor& weights) {
                 return get_core()->read_model(model, weights, true);
             });
