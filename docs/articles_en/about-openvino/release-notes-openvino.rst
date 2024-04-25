@@ -250,6 +250,19 @@ Known Issues
     performance variance on Windows. Developers can use ov::hint::enable_cpu_pinning to enable
     or disable CPU pinning explicitly.
 
+| **Component - Hardware Configuration**
+| *ID* - N/A
+| *Description:*
+|   Reduced performance observed on newer CPU processors. Modify default settings in BIOS to
+|   change system into 2 NUMA node system:
+|    1. Enter the BIOS configuration menu.
+|    2. Select EDKII Menu -> Socket Configuration -> Uncore Configuration -> Uncore General Configuration ->  SNC.
+|    3. The SNC setting is set to *AUTO* by default. Change the SNC setting to *disabled* to configure one NUMA node per processor socket upon boot.
+|    4. After system reboot, confirm the NUMA node setting using: `numatcl -H`. Expect to see only nodes 0 and 1 on a
+|    2-socket system with the following mapping:
+|     Node - 0  -  1
+|      0  - 10  -  21
+|      1 -  21  -  10
 
 
 Previous 2024 releases
