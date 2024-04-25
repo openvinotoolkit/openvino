@@ -101,8 +101,11 @@ if(DEFINED SANITIZER_COMPILER_FLAGS)
 
             # clang does not provide rpath if -shared-libasan is used
             # https://stackoverflow.com/questions/68571138/asan-dynamic-runtime-is-missing-on-ubuntu-18, https://bugs.llvm.org/show_bug.cgi?id=51271
+            execute_process(COMMAND ${CMAKE_CXX_COMPILER} --print-file-name libclang_rt.asan-x86_64.so
+                            OUTPUT_VARIABLE LIBASAN_DIRNAME)
+            get_filename_component(LIBASAN_DIRNAME ${LIBASAN_DIRNAME} PATH)
             if(BUILD_SHARED_LIBS AND ENABLE_SANITIZER AND OV_COMPILER_IS_CLANG)
-                set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS},-rpath=$(dirname $($CXX --print-file-name libclang_rt.asan-x86_64.so))")
+                set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS},-rpath=${LIBASAN_DIRNAME}")
             endif()
 
             if(OV_COMPILER_IS_CLANG AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 8.0)
