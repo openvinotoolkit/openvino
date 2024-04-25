@@ -166,16 +166,22 @@ KERNEL (softmax_gpu_continuous_bfyx)(
     INPUT0_TYPE my_maximum = -UNIT_VAL_MAX;
     {
         const uint num_iters = input_idx;
-        for (uint j=0; j<num_iters; ++j)
-        {
-            my_maximum = max(my_maximum, my_chunk[j]);
-        }
+
         if (use_output_buffer) {
+            for (uint j=0; j<num_iters; ++j)
+            {
+                my_maximum = max(my_maximum, output[aligned_data_offset + get_sub_group_local_id() + j * get_sub_group_size()]);
+            }
             if (in_data_set_idx < aligned_offset) {
                 my_maximum = max(my_maximum, output[data_set_offset + in_data_set_idx]);
             }
             if (in_data_set_idx < actual_leftovers) {
                 my_maximum = max(my_maximum, output[leftover_idx]);
+            }
+        } else {
+            for (uint j=0; j<num_iters; ++j)
+            {
+                my_maximum = max(my_maximum, my_chunk[j]);
             }
         }
     }
