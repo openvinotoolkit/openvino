@@ -23,30 +23,54 @@ PortDescriptor::PortDescriptor(const ov::Output<ov::Node>& out, VectorDims subte
 PortDescriptor::PortDescriptor(const ov::Output<const ov::Node>& out, std::vector<size_t> subtensor_shape, std::vector<size_t> layout)
         : PortDescriptor(utils::pshape_to_vdims(out.get_partial_shape()), std::move(subtensor_shape), std::move(layout)) {}
 
-PortDescriptor::PortDescriptor(VectorDims shape, VectorDims subtensor_shape, std::vector<size_t> layout)
-    : m_tensor_shape(std::move(shape)), m_layout(std::move(layout)), m_subtensor_shape(std::move(subtensor_shape)) {
+PortDescriptor::PortDescriptor(VectorDims shape, VectorDims subtensor_shape, std::vector<size_t> layout, Reg reg)
+    : PortDescriptor(std::make_shared<VectorDims>(std::move(shape)), std::move(subtensor_shape), std::move(layout), std::move(reg)) {}
+
+PortDescriptor::PortDescriptor(VectorDimsPtr shape, VectorDims subtensor_shape, std::vector<size_t> layout, Reg reg)
+    : m_tensor_shape(std::move(shape)), m_layout(std::move(layout)), m_subtensor_shape(std::move(subtensor_shape)), m_reg(std::move(reg)) {
     validate_arguments();
 }
 
+PortDescriptor::PortDescriptor() : PortDescriptor(VectorDims(), {}, {}) {} // to avoid tensor_shape = nullptr
+
 void PortDescriptor::validate_arguments() {
-    if (!m_tensor_shape.empty() && m_layout.empty()) {
-        m_layout.resize(m_tensor_shape.size());
+    OPENVINO_ASSERT(m_tensor_shape, "Tensor Shape is nullptr");
+    if (!m_tensor_shape->empty() && m_layout.empty()) {
+        m_layout.resize(m_tensor_shape->size());
         // NCHW layout by default
         std::iota(m_layout.begin(), m_layout.end(), 0);
     }
-    OPENVINO_ASSERT(m_layout.size() == m_tensor_shape.size(), "Snippets tensor descriptor: Layout size must be equal to the shape size");
+    OPENVINO_ASSERT(m_layout.size() == m_tensor_shape->size(), "Snippets tensor descriptor: Layout size must be equal to the shape size");
+}
+
+const VectorDims& PortDescriptor::get_shape() const {
+    return *get_shape_ptr();
+}
+const VectorDimsPtr& PortDescriptor::get_shape_ptr() const {
+    OPENVINO_ASSERT(m_tensor_shape, "Failed to get_shape: Tensor Shape is nullptr");
+    return m_tensor_shape;
+}
+
+void PortDescriptor::set_shape(const VectorDims& tensor) {
+    OPENVINO_ASSERT(m_tensor_shape, "Failed to set_shape: Tensor Shape is nullptr");
+    *m_tensor_shape = tensor;
+}
+void PortDescriptor::set_shape_ptr(const VectorDimsPtr& tensor) {
+    OPENVINO_ASSERT(tensor, "Failed to set_shape: Tensor Shape is nullptr");
+    m_tensor_shape = tensor;
 }
 
 PortDescriptorPtr PortDescriptor::clone() const {
-    auto desc = std::make_shared<PortDescriptor>(m_tensor_shape, m_subtensor_shape, m_layout);
+    auto desc = std::make_shared<PortDescriptor>(*m_tensor_shape, m_subtensor_shape, m_layout);
     desc->set_reg(m_reg);
     return desc;
 }
 
 std::string PortDescriptor::serialize() const {
     std::stringstream ss;
-    ss << m_tensor_shape.size() << " ";
-    for (auto val : m_tensor_shape)
+    OPENVINO_ASSERT(m_tensor_shape, "TensorShape is nullptr!");
+    ss << m_tensor_shape->size() << " ";
+    for (auto val : *m_tensor_shape)
         ss << val << " ";
     ss << m_subtensor_shape.size() << " ";
     for (auto val : m_subtensor_shape)

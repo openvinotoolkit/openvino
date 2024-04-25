@@ -22,6 +22,7 @@ enum class RegType { gpr, vec, undefined };
  * @brief Register representation: type of register and index
  */
 struct Reg {
+    Reg() = default;
     Reg(RegType type_, size_t idx_) : type(type_), idx(idx_) {}
 
     RegType type = RegType::gpr;
