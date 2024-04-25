@@ -3,6 +3,7 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/matmul.hpp"
 #include "utils.hpp"
 
@@ -17,6 +18,9 @@ OutputVector translate_linear(const NodeContext& context) {
     auto x = context.get_input(0);
     auto y = context.get_input(1);
     auto matmul = context.mark_node(std::make_shared<ov::op::v0::MatMul>(x, y, false, true));
+    auto add_const = context.mark_node(ov::op::v0::Constant::create(element::i32, Shape{}, {10}));
+    add_const = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(add_const, matmul));
+    matmul = context.mark_node(std::make_shared<ov::op::v1::Add>(matmul, add_const));
     return {context.mark_output(make_optional_bias(matmul, context, 2))};
 };
 
