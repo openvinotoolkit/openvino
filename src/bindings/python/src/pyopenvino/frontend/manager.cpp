@@ -99,68 +99,65 @@ void regclass_frontend_FrontEndManager(py::module m) {
     });
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 
 // CVS-139194: migrate to new exception handling https://github.com/pybind/pybind11/pull/4772
 
 void regclass_frontend_GeneralFailureFrontEnd(py::module m) {
-    static py::exception<ov::frontend::GeneralFailure> exc(std::move(m), "GeneralFailure");
+    static py::handle ex = py::exception<ov::frontend::GeneralFailure>(std::move(m), "GeneralFailure").release();
     py::register_exception_translator([](std::exception_ptr p) {
         try {
             if (p)
                 std::rethrow_exception(p);
         } catch (const ov::frontend::GeneralFailure& e) {
-            exc(e.what());
+            py::set_error(ex, e.what());
         }
     });
 }
 
 void regclass_frontend_OpValidationFailureFrontEnd(py::module m) {
-    static py::exception<ov::frontend::OpValidationFailure> exc(std::move(m), "OpValidationFailure");
+    static py::handle ex = py::exception<ov::frontend::OpValidationFailure>(std::move(m), "OpValidationFailure").release();
     py::register_exception_translator([](std::exception_ptr p) {
         try {
             if (p)
                 std::rethrow_exception(p);
         } catch (const ov::frontend::OpValidationFailure& e) {
-            exc(e.what());
+            py::set_error(ex, e.what());
         }
     });
 }
 
 void regclass_frontend_OpConversionFailureFrontEnd(py::module m) {
-    static py::exception<ov::frontend::OpConversionFailure> exc(std::move(m), "OpConversionFailure");
+    static py::handle ex = py::exception<ov::frontend::OpConversionFailure>(std::move(m), "OpConversionFailure").release();
     py::register_exception_translator([](std::exception_ptr p) {
         try {
             if (p)
                 std::rethrow_exception(p);
         } catch (const ov::frontend::OpConversionFailure& e) {
-            exc(e.what());
+           py::set_error(ex, e.what());
         }
     });
 }
 
 void regclass_frontend_InitializationFailureFrontEnd(py::module m) {
-    static py::exception<ov::frontend::InitializationFailure> exc(std::move(m), "InitializationFailure");
+    static py::handle ex = py::exception<ov::frontend::InitializationFailure>(std::move(m), "InitializationFailure").release();
     py::register_exception_translator([](std::exception_ptr p) {
         try {
             if (p)
                 std::rethrow_exception(p);
         } catch (const ov::frontend::InitializationFailure& e) {
-            exc(e.what());
+            py::set_error(ex, e.what());
         }
     });
 }
 
 void regclass_frontend_NotImplementedFailureFrontEnd(py::module m) {
-    static py::exception<ov::frontend::NotImplementedFailure> exc(std::move(m), "NotImplementedFailure");
+    static py::handle ex = py::exception<ov::frontend::NotImplementedFailure>(std::move(m), "NotImplementedFailure").release();
     py::register_exception_translator([](std::exception_ptr p) {
         try {
             if (p)
                 std::rethrow_exception(p);
         } catch (const ov::frontend::NotImplementedFailure& e) {
-            exc(e.what());
+            py::set_error(ex, e.what());
         }
     });
 }
-
-OPENVINO_SUPPRESS_DEPRECATED_END
