@@ -6534,6 +6534,16 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gelu_float) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gelu_float_none) {
+    auto model = convert_model("gelu_float_none.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{2}, {-16.13f, 24.33f});
+    test_case.add_expected_output<float>(Shape{2}, {0.0f, 24.33f});
+
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gelu_float_tanh) {
     auto model = convert_model("gelu_float_tanh.onnx");
 
