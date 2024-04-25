@@ -12,7 +12,7 @@
 
 Welcome to OpenVINO™, an open-source software toolkit for optimizing and deploying deep learning models.
 
-- **Inference Optimization**: Boost deep learning performance in computer vision, automatic speech recognition, natural language processing, and many other common tasks.
+- **Inference Optimization**: Boost deep learning performance in computer vision, automatic speech recognition, generative AI, natural language processing with large and small language models, and many other common tasks.
 - **Flexible Model Support**: Use models trained with popular frameworks such as TensorFlow, PyTorch, ONNX, Keras, and PaddlePaddle.
 - **Broad Platform Compatibility**: Reduce resource demands and efficiently deploy on a range of platforms from edge to cloud.
 - **Community and Ecosystem**: Join an active community contributing to the enhancement of deep learning performance across various domains.
@@ -38,29 +38,7 @@ Learn how to optimize and deploy popular models with the [OpenVINO Notebooks](ht
 - [YOLOv8 Optimization](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/quantizing-model-with-accuracy-control/yolov8-quantization-with-accuracy-control.ipynb)
 - [Text-to-Image Generation](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/controlnet-stable-diffusion/controlnet-stable-diffusion.ipynb)
 
-Here are easy-to-follow code examples demonstrating how to run TensorFlow and PyTorch model inference using OpenVINO:
-
-**TensorFlow Model**
-
-```python
-import numpy as np
-import openvino as ov
-import tensorflow as tf
-
-# load TensorFlow model into memory
-model = tf.keras.applications.MobileNetV2(weights='imagenet')
-
-# convert the model into OpenVINO model
-ov_model = ov.convert_model(model)
-
-# compile the model for CPU device
-core = ov.Core()
-compiled_model = core.compile_model(ov_model, 'CPU')
-
-# infer the model on random data
-data = np.random.rand(1, 224, 224, 3)
-output = compiled_model.infer_new_request({0: data})
-```
+Here are easy-to-follow code examples demonstrating how to run PyTorch and TensorFlow model inference using OpenVINO:
 
 **PyTorch Model**
 
@@ -82,6 +60,28 @@ compiled_model = core.compile_model(ov_model, 'CPU')
 
 # infer the model on random data
 output = compiled_model.infer_new_request({0: example.numpy()})
+```
+
+**TensorFlow Model**
+
+```python
+import numpy as np
+import openvino as ov
+import tensorflow as tf
+
+# load TensorFlow model into memory
+model = tf.keras.applications.MobileNetV2(weights='imagenet')
+
+# convert the model into OpenVINO model
+ov_model = ov.convert_model(model)
+
+# compile the model for CPU device
+core = ov.Core()
+compiled_model = core.compile_model(ov_model, 'CPU')
+
+# infer the model on random data
+data = np.random.rand(1, 224, 224, 3)
+output = compiled_model.infer_new_request({0: data})
 ```
 
 OpenVINO also supports CPU, GPU, and NPU devices and works with models in TensorFlow, PyTorch, ONNX, TensorFlow Lite, PaddlePaddle model formats.

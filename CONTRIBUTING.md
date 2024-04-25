@@ -133,7 +133,7 @@ Choose the component your Good First Issue is related to. You can run tests to m
 
 ##### Tools
 - [Benchmark Tool](https://github.com/openvinotoolkit/openvino/tree/master/tools/benchmark_tool)
-- [Model Optimizer](https://github.com/openvinotoolkit/openvino/tree/master/tools/mo)
+- [OpenVINO Model Converter](https://github.com/openvinotoolkit/openvino/tree/master/tools/ovc)
 
 ##### Others
 - [Documentation](https://github.com/openvinotoolkit/openvino/blob/master/CONTRIBUTING_DOCS.md)

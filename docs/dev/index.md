@@ -55,6 +55,7 @@ flowchart LR
 
     openvino--infer--->cpu
     openvino--infer--->gpu
+    openvino--infer--->npu
     openvino--infer--->auto
     classDef blue1 fill:#76CEFF, stroke: #00A3F6, color: #000022
     class openvino blue1
