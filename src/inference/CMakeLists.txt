@@ -117,7 +117,7 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_obj
 
 # Static library used for unit tests which are always built
 
-add_library(${TARGET_NAME}_s STATIC EXCLUDE_FROM_ALL
+add_library(${TARGET_NAME}_s STATIC
             $<$<TARGET_EXISTS:openvino_proxy_plugin_obj>:$<TARGET_OBJECTS:openvino_proxy_plugin_obj>>
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
