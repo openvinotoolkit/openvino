@@ -18,13 +18,13 @@ Overview of Transformations API
    transformation-api/graph-rewrite-pass
    transformation-api/patterns-python-api
 
-OpenVINO Transformation mechanism allows to develop transformation passes to modify ``ov::Model``. You can use this mechanism to apply additional optimizations to the original Model or transform unsupported subgraphs and operations to new operations which are supported by the plugin.
+OpenVINO Transformation mechanism allows to develop transformation passes to modify ``ov::Model``. You can use this mechanism to apply additional optimizations to the original Model or transform unsupported subgraphs and operations to new operations supported by the plugin.
 This guide contains all the necessary information that you need to start implementing OpenVINO™ transformations.
 
 Working with Model
 ##################
 
-Before the moving to transformation part, we need to say a few words about functions which allow to modify ``ov::Model``.
+Before moving to the transformation part, we need to say a few words about functions which allow modifying ``ov::Model``.
 This chapter extends the :doc:`model representation guide <../../openvino-workflow/running-inference/integrate-openvino-with-your-application/model-representation>` and shows an API that allows us to manipulate with ``ov::Model``.
 
 Working with node input and output ports
