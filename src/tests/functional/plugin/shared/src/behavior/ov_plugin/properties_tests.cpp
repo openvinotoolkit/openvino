@@ -87,7 +87,6 @@ void OVPropertiesTestsWithCompileModelProps::SetUp() {
         compileModelProperties = {ov::device::priorities(target_device)};
     } else {
         target_device = temp_device;
-        compileModelProperties = {ov::device::priorities(hw_device)};
     }
 
     model = ov::test::utils::make_split_concat();
