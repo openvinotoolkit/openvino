@@ -84,9 +84,8 @@ void OVPropertiesTestsWithCompileModelProps::SetUp() {
     std::string hw_device = "";
     if (pos != std::string::npos) {
         if (!target_device.empty()) {
+            target_device = temp_device.substr(0, pos);
             compileModelProperties = {ov::device::priorities(target_device)};
-        } else {
-            compileModelProperties = {ov::device::priorities(hw_device)};
         }
     } else {
         target_device = temp_device;
