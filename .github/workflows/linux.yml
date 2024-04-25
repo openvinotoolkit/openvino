@@ -378,18 +378,6 @@ jobs:
             .github/actions/setup_apt
             .github/actions/setup_python/
 
-      - name: Setup apt
-        uses: ./.github/actions/setup_apt
-
-      - name: Setup apt cache
-        uses: actions/cache@v4
-        with:
-          save-always: true # TODO: for the 1st run only
-          path: '/var/cache/apt/archives'
-          key: ${{ runner.os }}-${{ runner.arch }}-apt-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-apt
-
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@v5
         with:
