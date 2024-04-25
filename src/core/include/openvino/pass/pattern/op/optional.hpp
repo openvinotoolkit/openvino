@@ -45,6 +45,7 @@ namespace op {
 //    Arguments matching will be failed due to different number of pattern and graph input args.
 //    Issue: 139835
 // 2. The optional nodes with cumulative inputs will be matched by 1st input.
+//    Issue: 139839
 class OPENVINO_API Optional : public Pattern {
 public:
     OPENVINO_RTTI("patternOptional");
