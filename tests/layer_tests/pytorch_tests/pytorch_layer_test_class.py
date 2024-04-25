@@ -14,7 +14,6 @@ from openvino.frontend import FrontEndManager
 from openvino.runtime import Core, Type, PartialShape
 import torch
 from packaging import version
-import openvino.torch
 import pytest
 
 def skip_if_export(param, reason="Unsupported on torch.export"):
