@@ -31,10 +31,10 @@
 #include "openvino/op/reverse_sequence.hpp"
 #include "openvino/op/rnn_cell.hpp"
 #include "openvino/op/rnn_sequence.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/scatter_update.hpp"
 #include "openvino/op/scatter_nd_update.hpp"
+#include "openvino/op/scatter_update.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -565,7 +565,7 @@ ov::pass::ConvertLoopToLSTMSequence::ConvertLoopToLSTMSequence() {
         std::make_shared<pattern::op::Or>(OutputVector{sequence_index_label, sequence_index_reshaped_label});
     auto gather_body_label =
         pattern::wrap_type<ov::op::v8::Gather>({X_body_label, sequence_index_or_label, gather_axis_label},
-                                           pattern::rank_equals(2));
+                                               pattern::rank_equals(2));
     auto W_label = pattern::any_input();
     auto R_label = pattern::any_input();
     auto B_label = pattern::wrap_type<op::v0::Constant>();

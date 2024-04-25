@@ -13,18 +13,18 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/relu.hpp"
-#include "openvino/op/sigmoid.hpp"
-#include "openvino/op/tanh.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/multiply.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/sigmoid.hpp"
 #include "openvino/op/subtract.hpp"
-#include "openvino/op/util/shape_of_base.hpp"
+#include "openvino/op/tanh.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
+#include "openvino/op/util/shape_of_base.hpp"
 
 namespace ov {
 namespace op {
@@ -292,7 +292,8 @@ void visit_shape_path(Node* node, std::unordered_set<ov::Node*>& visited, std::f
 
 void visit_constant_path(ov::Node* node, std::unordered_set<ov::Node*>& visited, std::function<void(ov::Node*)> func) {
     auto check_parameter = [](ov::Node* node) {
-        OPENVINO_ASSERT(!ov::is_type<ov::op::v0::Parameter>(node), "visit_constant_path is called for non-constant path.");
+        OPENVINO_ASSERT(!ov::is_type<ov::op::v0::Parameter>(node),
+                        "visit_constant_path is called for non-constant path.");
         return false;
     };
     visit_path_impl(node, visited, func, check_parameter);
@@ -334,8 +335,8 @@ bool is_dequantization_subgraph(const Output<Node>& node) {
 bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise,
                                 const Output<Node>& constant,
                                 const Output<Node>& non_constant_input) {
-    if (!is_type<ov::op::v1::Add>(eltwise) && !is_type<ov::op::v1::Subtract>(eltwise) && !is_type<ov::op::v1::Multiply>(eltwise) &&
-        !is_type<ov::op::v1::Divide>(eltwise)) {
+    if (!is_type<ov::op::v1::Add>(eltwise) && !is_type<ov::op::v1::Subtract>(eltwise) &&
+        !is_type<ov::op::v1::Multiply>(eltwise) && !is_type<ov::op::v1::Divide>(eltwise)) {
         return false;
     }
 

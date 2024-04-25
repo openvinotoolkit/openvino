@@ -4,9 +4,9 @@
 
 #pragma once
 
+#include "openvino/op/multiclass_nms.hpp"
 #include "openvino/op/util/multiclass_nms_base.hpp"
 #include "transformations_visibility.hpp"
-#include "openvino/op/multiclass_nms.hpp"
 
 namespace ov {
 namespace op {

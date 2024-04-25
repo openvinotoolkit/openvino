@@ -9,19 +9,18 @@
 #include <vector>
 
 #include "openvino/core/rt_info.hpp"
-#include "openvino/pass/graph_rewrite.hpp"
-#include "transformations_visibility.hpp"
-
-#include "openvino/op/convert.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/reduce_min.hpp"
-#include "openvino/op/reduce_max.hpp"
-#include "openvino/op/reduce_mean.hpp"
-#include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/avg_pool.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
 namespace pass {

@@ -13,12 +13,11 @@
 
 #include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "transformations/rt_info/attributes.hpp"
 #include "transformations_visibility.hpp"
-
-#include "openvino/op/convert.hpp"
-#include "openvino/op/constant.hpp"
 
 /* This macro is intended to fix C++20 [=] lambda
 warning. Although C++20 identifier is 202002L,

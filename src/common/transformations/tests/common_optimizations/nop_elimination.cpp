@@ -1224,7 +1224,7 @@ TEST_P(SplitConcatElimination, eliminate_split_concat_subgraph) {
         data = make_shared<ov::op::v0::Squeeze>(sequence->output(0), axis_const);
         params = {H, seq_lengths, W, R, B};
     } else if (p.rnn_type == RNNType::LSTM) {
-        sequence = make_shared<ov::op::v0::LSTMSequence>(data, H, C, seq_lengths, W, R, B, hidden_size, direction);
+        sequence = make_shared<ov::op::v5::LSTMSequence>(data, H, C, seq_lengths, W, R, B, hidden_size, direction);
         data = make_shared<ov::op::v0::Squeeze>(sequence->output(0), axis_const);
         params = {H, C, seq_lengths, W, R, B};
     }
