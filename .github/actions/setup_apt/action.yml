@@ -4,10 +4,10 @@ description: 'Setups apt manager with common options'
 runs:
   using: 'composite'
   steps:
-    # - name: Set Retry options
-    #   shell: bash
-    #   run: |
-    #     echo 'Acquire::Retries "10";' > /etc/apt/apt.conf
+    - name: Set Retry options
+      shell: bash
+      run: |
+        echo 'Acquire::Retries "10";' > /etc/apt/apt.conf
 
     - name: Set Install options
       shell: bash
@@ -24,9 +24,3 @@ runs:
         echo 'APT::Archives::MaxSize "500";' >> /etc/apt/apt.conf
         # do not remove deb packages:
         rm -f /etc/apt/apt.conf.d/docker-clean
-
-    - name: Simulate network errors
-      shell: bash
-      run: |
-        echo 'Acquire::http::Proxy "http://proxy.com:911";' >> /etc/apt/apt.conf
-        echo 'Acquire::https::Proxy "http://proxy.com:911";' >> /etc/apt/apt.conf
