@@ -181,7 +181,7 @@ jobs:
 
       - name: CMake configure
         env:
-          WindowsSDKVersion: 10.0.22621.0
+           CMAKE_WINDOWS_KITS_10_DIR: "C:\Program Files (x86)\Windows Kits\10\Include"
         run: |
           cmake -G "${{ env.CMAKE_GENERATOR }}" `
             -DENABLE_CPPLINT=OFF `
