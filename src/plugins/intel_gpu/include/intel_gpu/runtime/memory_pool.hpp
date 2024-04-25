@@ -163,10 +163,10 @@ private:
 
     float total_mem_size_non_padded_pool        = 0.f;
     float total_mem_size_padded_pool            = 0.f;
-    float total_mem_size_no_reused              = 0.f;
+    float total_mem_size_no_reusable            = 0.f;
     float mem_size_non_padded_pool_host         = 0.f;
     float mem_size_padded_pool_host             = 0.f;
-    float mem_size_no_reused_host               = 0.f;
+    float mem_size_no_reusable_host             = 0.f;
 #endif
 };
 

@@ -139,9 +139,9 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
                 if (it->second._users.empty()) {
                     GPU_DEBUG_IF(debug_config->dump_memory_pool) {
                         auto released_mem_size = it->first;
-                        total_mem_size_no_reused -= released_mem_size;
+                        total_mem_size_no_reusable -= released_mem_size;
                         if (type == allocation_type::usm_host)
-                            mem_size_no_reused_host -= released_mem_size;
+                            mem_size_no_reusable_host -= released_mem_size;
                     }
                     // if this was the only user of the memory, then free it up
                     it = _no_reusable_pool.erase(it);
@@ -330,9 +330,9 @@ memory::ptr memory_pool::get_memory(const layout& layout,
                 _no_reusable_pool.emplace(allocated_mem_size,
                                         memory_record({{unique_id, network_id, prim_id, allocated_mem_size}}, mem, network_id, type));
                 GPU_DEBUG_IF(debug_config->dump_memory_pool) {
-                    total_mem_size_no_reused += allocated_mem_size;
+                    total_mem_size_no_reusable += allocated_mem_size;
                     if (type == allocation_type::usm_host)
-                        mem_size_no_reused_host += allocated_mem_size;
+                        mem_size_no_reusable_host += allocated_mem_size;
                 }
             }
 #endif
@@ -346,9 +346,9 @@ memory::ptr memory_pool::get_memory(const layout& layout,
             _no_reusable_pool.emplace(allocated_mem_size,
                                     memory_record({{unique_id, network_id, prim_id, allocated_mem_size}}, mem, network_id, type));
             GPU_DEBUG_IF(debug_config->dump_memory_pool) {
-                total_mem_size_no_reused += allocated_mem_size;
+                total_mem_size_no_reusable += allocated_mem_size;
                 if (type == allocation_type::usm_host)
-                    mem_size_no_reused_host += allocated_mem_size;
+                    mem_size_no_reusable_host += allocated_mem_size;
             }
         }
 #endif
@@ -426,9 +426,9 @@ void memory_pool::clear_pool_for_network(uint32_t network_id) {
             if (record._network_id == network_id) {
                 GPU_DEBUG_IF(debug_config->dump_memory_pool) {
                     auto released_mem_size = itr->first;
-                    total_mem_size_no_reused -= released_mem_size;
+                    total_mem_size_no_reusable -= released_mem_size;
                     if (record._type == allocation_type::usm_host)
-                        mem_size_no_reused_host -= released_mem_size;
+                        mem_size_no_reusable_host -= released_mem_size;
                 }
                 itr = _no_reusable_pool.erase(itr);
             } else {
@@ -470,8 +470,8 @@ inline float get_utilization(size_t size, size_t total_size) {
 
 size_t memory_pool::get_total_mem_pool_size(allocation_type type) {
 #ifdef GPU_DEBUG_CONFIG
-    const auto host_mem_size = mem_size_no_reused_host + mem_size_non_padded_pool_host + mem_size_padded_pool_host;
-    const auto total_mem_size = total_mem_size_no_reused + total_mem_size_non_padded_pool + total_mem_size_padded_pool;
+    const auto host_mem_size = mem_size_no_reusable_host + mem_size_non_padded_pool_host + mem_size_padded_pool_host;
+    const auto total_mem_size = total_mem_size_no_reusable + total_mem_size_non_padded_pool + total_mem_size_padded_pool;
     if (type == allocation_type::usm_host) {
         return host_mem_size;
     } else {
@@ -514,7 +514,7 @@ void memory_pool::dump_to_file(uint32_t net_id, uint32_t iter, std::string dump_
         }
         for (auto mem : _no_reusable_pool) {
             for (auto user : mem.second._users) {
-                of << "no_reused_pool,," << mem.second._memory->buffer_ptr() << "," << mem.second._type << ","
+                of << "no_reusable_pool,," << mem.second._memory->buffer_ptr() << "," << mem.second._type << ","
                     << mem.first << "," << user._prim_id << "," << user._unique_id << "," << user._mem_size << std::endl;
             }
         }
@@ -574,7 +574,7 @@ void memory_pool::dump_to_screen(uint32_t net_id, uint32_t iter) {
     }
 
     {
-        GPU_DEBUG_COUT << "========== no reused memory (" << _no_reusable_pool.size() << " records) ==========" << std::endl;
+        GPU_DEBUG_COUT << "========== no reusable memory (" << _no_reusable_pool.size() << " records) ==========" << std::endl;
         for (auto mem : _no_reusable_pool) {
             GPU_DEBUG_COUT << mem.second._memory->buffer_ptr() << " (size: " << get_mb_size(mem.first)
                 << ", type: " << mem.second._type << ")'s users: " << std::endl;
@@ -606,10 +606,10 @@ void memory_pool::dump_to_screen(uint32_t net_id, uint32_t iter) {
         GPU_DEBUG_COUT << " * host mem size     : " << get_mb_size(mem_size_padded_pool_host) << std::endl;
         GPU_DEBUG_COUT << " * device mem size   : " << get_mb_size((total_mem_size_padded_pool - mem_size_padded_pool_host)) << std::endl;
     }
-    GPU_DEBUG_COUT << "Total memory size of no reused memory    : " << get_mb_size(total_mem_size_no_reused) << std::endl;
-    if (total_mem_size_no_reused > 0.f) {
-        GPU_DEBUG_COUT << " * host mem size     : " << get_mb_size(mem_size_no_reused_host) << std::endl;
-        GPU_DEBUG_COUT << " * device mem size   : " << get_mb_size((total_mem_size_no_reused - mem_size_no_reused_host)) << std::endl;
+    GPU_DEBUG_COUT << "Total memory size of no reusable memory  : " << get_mb_size(total_mem_size_no_reusable) << std::endl;
+    if (total_mem_size_no_reusable > 0.f) {
+        GPU_DEBUG_COUT << " * host mem size     : " << get_mb_size(mem_size_no_reusable_host) << std::endl;
+        GPU_DEBUG_COUT << " * device mem size   : " << get_mb_size((total_mem_size_no_reusable - mem_size_no_reusable_host)) << std::endl;
     }
     GPU_DEBUG_COUT << "************************************************************************" << std::endl;
 #endif
