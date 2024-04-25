@@ -212,11 +212,6 @@ std::vector<std::string> Tensor::get_data() const {
     }
     if (m_tensor_proto->data_type() == TensorProto_DataType::TensorProto_DataType_STRING) {
         return std::vector<std::string>(m_tensor_proto->string_data().begin(), m_tensor_proto->string_data().end());
-        std::vector<std::string> data(m_tensor_proto->string_data_size());
-        for (const auto& str : m_tensor_proto->string_data()) {
-            data.push_back(str);
-        }
-        return data;
     }
     ONNX_INVALID_DATA_TYPE(m_tensor_proto->data_type(), "STRING");
 }
