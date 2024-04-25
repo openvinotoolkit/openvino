@@ -47,11 +47,10 @@ jobs:
         with:
           save-always: true # TODO: for the 1st run only
           cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cache-path: ${{ env.APT_CACHE_PATH }}
+          cache-path: ${{ env.APT_CACHE_PATH }}/${{ runner.arch }}
           path: '/var/cache/apt/archives'
-          key: ${{ runner.os }}-${{ runner.arch }}-apt-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-apt
+          key: build-deb-${{ github.sha }}
+          restore-keys: build
 
       - name: Download OpenVINO debian packages
         uses: actions/download-artifact@v4

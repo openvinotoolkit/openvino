@@ -15,7 +15,7 @@ concurrency:
 
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
-  APT_CACHE_PATH: /mount/caches/apt/ubuntu_20/${{ github.base_ref || github.ref_name }}
+  APT_CACHE_PATH: /mount/caches/apt/ubuntu_22/${{ github.base_ref || github.ref_name }}
   PYTHON_VERSION: '3.11'
 
 jobs:
@@ -91,11 +91,10 @@ jobs:
         with:
           save-always: true # TODO: for the 1st run only
           cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cache-path: ${{ env.APT_CACHE_PATH }}
+          cache-path: ${{ env.APT_CACHE_PATH }}/${{ runner.arch }}
           path: '/var/cache/apt/archives'
-          key: ${{ runner.os }}-${{ runner.arch }}-apt-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-apt
+          key: build-${{ github.sha }}
+          restore-keys: build
 
       - name: Install git
         run: |
@@ -312,11 +311,10 @@ jobs:
         with:
           save-always: true # TODO: for the 1st run only
           cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cache-path: ${{ env.APT_CACHE_PATH }}
+          cache-path: ${{ env.APT_CACHE_PATH }}/${{ runner.arch }}
           path: '/var/cache/apt/archives'
-          key: ${{ runner.os }}-${{ runner.arch }}-apt-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-apt
+          key: build-cc-${{ github.sha }}
+          restore-keys: build
 
       - name: Install git
         run: apt-get update && apt-get install git ca-certificates git-lfs

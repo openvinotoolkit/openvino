@@ -51,11 +51,10 @@ jobs:
         with:
           save-always: true # TODO: for the 1st run only
           cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cache-path: ${{ env.APT_CACHE_PATH }}
+          cache-path: ${{ env.APT_CACHE_PATH }}/${{ runner.arch }}
           path: '/var/cache/apt/archives'
-          key: ${{ runner.os }}-${{ runner.arch }}-apt-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-apt
+          key: build-cputests-${{ github.sha }}
+          restore-keys: build
 
       - name: Setup Python 3.11
         uses: ./.github/actions/setup_python
