@@ -7,38 +7,20 @@ runs:
     - name: Set Retry options
       shell: bash
       run: |
-        if [ "$(id -u)" -eq 0 ]; then
-          echo 'Acquire::Retries "10";' > /etc/apt/apt.conf
-        else
-          sudo sh -c "echo 'Acquire::Retries "10";' > /etc/apt/apt.confs"
-        fi
+        echo 'Acquire::Retries "10";' > /etc/apt/apt.conf
 
     - name: Set Install options
       shell: bash
       run: |
-        if [ "$(id -u)" -eq 0 ]; then
-          echo 'APT::Get::Assume-Yes "true";' >> /etc/apt/apt.conf
-          echo 'APT::Get::Fix-Broken "true";' >> /etc/apt/apt.conf
-          echo 'APT::Get::no-install-recommends "true";' >> /etc/apt/apt.conf
-        else
-          sudo sh -c "echo 'APT::Get::Assume-Yes "true";' >> /etc/apt/apt.conf"
-          sudo sh -c "echo 'APT::Get::Fix-Broken "true";' >> /etc/apt/apt.conf"
-          sudo sh -c "echo 'APT::Get::no-install-recommends "true";' >> /etc/apt/apt.conf"
-        fi
+        echo 'APT::Get::Assume-Yes "true";' >> /etc/apt/apt.conf
+        echo 'APT::Get::Fix-Broken "true";' >> /etc/apt/apt.conf
+        echo 'APT::Get::no-install-recommends "true";' >> /etc/apt/apt.conf
 
     - name: Set Cache options
       shell: bash
       run: |
-        if [ "$(id -u)" -eq 0 ]; then
-          echo 'APT::Archives::MinAge "2";' >> /etc/apt/apt.conf
-          echo 'APT::Archives::MaxAge "30";' >> /etc/apt/apt.conf
-          echo 'APT::Archives::MaxSize "500";' >> /etc/apt/apt.conf
-          # do not remove deb packages:
-          rm -f /etc/apt/apt.conf.d/docker-clean
-        else
-          sudo sh -c "echo 'APT::Archives::MinAge "2";' >> /etc/apt/apt.conf"
-          sudo sh -c "echo 'APT::Archives::MaxAge "30";' >> /etc/apt/apt.conf"
-          sudo sh -c "echo 'APT::Archives::MaxSize "500";' >> /etc/apt/apt.conf"
-          # do not remove deb packages:
-          sudo rm -f /etc/apt/apt.conf.d/docker-clean
-        fi
+        echo 'APT::Archives::MinAge "2";' >> /etc/apt/apt.conf
+        echo 'APT::Archives::MaxAge "30";' >> /etc/apt/apt.conf
+        echo 'APT::Archives::MaxSize "500";' >> /etc/apt/apt.conf
+        # do not remove deb packages:
+        rm -f /etc/apt/apt.conf.d/docker-clean
