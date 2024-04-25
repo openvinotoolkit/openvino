@@ -3,7 +3,6 @@
 #
 
 set(TARGET_NAME ov_hetero_func_tests)
-
 ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
@@ -11,6 +10,7 @@ ov_add_test_target(
             mock_engine
             openvino_hetero_plugin
         LINK_LIBRARIES
+            openvino::funcSharedTests
             openvino::runtime::dev
             gtest
             gtest_main
