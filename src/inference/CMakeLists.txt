@@ -139,7 +139,7 @@ target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS}
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
 
 set_target_properties(${TARGET_NAME}_s PROPERTIES
-    EXCLUDE_FROM_ALL ON
+    ON
     INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # LTO
