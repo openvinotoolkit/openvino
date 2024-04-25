@@ -6,7 +6,6 @@
 
 #include "cpu_shape.h"
 #include "cpu_types.h"
-#include "memory_desc/cpu_memory_desc_utils.h"
 #include "openvino/core/type/element_type.hpp"
 
 /**
@@ -35,8 +34,8 @@ enum MemoryDescType {
     Undef = 0,
     Blocked = 1,
     Dnnl = 1 << 1,
-
-    DnnlBlocked = Blocked | Dnnl
+    DnnlBlocked = Blocked | Dnnl,
+    Empty = 1 << 2,
 };
 
 enum class LayoutType : unsigned {
@@ -90,7 +89,7 @@ public:
             OPENVINO_THROW("ParameterMismatch: Can not clone with new dims. Descriptor's shape: ",
                            getShape().toString(),
                            " is incompatible with provided dimensions: ",
-                           MemoryDescUtils::dims2str(dims),
+                           dims2str(dims),
                            ".");
         }
 
@@ -130,6 +129,10 @@ public:
 
     bool hasDefinedMaxSize() const {
         return getMaxMemSize() != MemoryDesc::UNDEFINED_SIZE;
+    }
+
+    bool empty() const {
+        return type == Empty;
     }
 
     template <typename T,

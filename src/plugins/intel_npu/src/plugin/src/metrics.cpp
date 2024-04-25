@@ -103,6 +103,22 @@ std::string Metrics::GetBackendName() const {
     return _backends->getBackendName();
 }
 
+uint32_t Metrics::GetDriverVersion() const {
+    if (_backends == nullptr) {
+        OPENVINO_THROW("No available backends");
+    }
+
+    return _backends->getDriverVersion();
+}
+
+uint32_t Metrics::GetDriverExtVersion() const {
+    if (_backends == nullptr) {
+        OPENVINO_THROW("No available backends");
+    }
+
+    return _backends->getDriverExtVersion();
+}
+
 uint64_t Metrics::GetDeviceAllocMemSize(const std::string& specifiedDeviceName) const {
     const auto devName = getDeviceName(specifiedDeviceName);
     auto device = _backends->getDevice(devName);
@@ -117,15 +133,6 @@ uint64_t Metrics::GetDeviceTotalMemSize(const std::string& specifiedDeviceName) 
     auto device = _backends->getDevice(devName);
     if (device) {
         return device->getTotalMemSize();
-    }
-    OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");
-}
-
-uint32_t Metrics::GetDriverVersion(const std::string& specifiedDeviceName) const {
-    const auto devName = getDeviceName(specifiedDeviceName);
-    auto device = _backends->getDevice(devName);
-    if (device) {
-        return device->getDriverVersion();
     }
     OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");
 }

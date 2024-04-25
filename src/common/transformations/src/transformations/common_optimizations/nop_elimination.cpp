@@ -270,8 +270,8 @@ static bool eliminate_unsqueeze(const shared_ptr<Node>& node) {
     // eliminate redundant squeeze->unsqueeze
     if (squeeze) {
         const auto& data_shape = squeeze->input_value(0).get_partial_shape();
-        if (ov::compare_constants(squeeze->input_value(1).get_node_shared_ptr(),
-                                  unsqueeze->input_value(1).get_node_shared_ptr())) {
+        if (squeeze->inputs().size() > 1 && ov::compare_constants(squeeze->input_value(1).get_node_shared_ptr(),
+                                                                  unsqueeze->input_value(1).get_node_shared_ptr())) {
             return replace_output_update_name(unsqueeze->output(0), squeeze->input_value(0));
         }
         if (data_shape.rank().is_dynamic() || out_shape.rank().is_dynamic()) {
@@ -836,7 +836,7 @@ ov::pass::NopStridedSlice::NopStridedSlice() {
     auto input = pattern::any_input();
     auto begin_const = pattern::wrap_type<ov::op::v0::Constant>();
     auto end_const = pattern::wrap_type<ov::op::v0::Constant>();
-    auto optional_stride_const = pattern::optional<ov::op::v0::Constant>();
+    auto optional_stride_const = pattern::wrap_type<ov::op::v0::Constant>();
     auto pattern = pattern::wrap_type<ov::op::v1::StridedSlice>({input, begin_const, end_const, optional_stride_const});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
@@ -922,7 +922,7 @@ ov::pass::NopStridedSliceByShape::NopStridedSliceByShape() {
     auto input = pattern::any_input();
     auto begin_const = pattern::any_input();
     auto end_const = pattern::any_input();
-    auto optional_stride_const = pattern::optional<ov::op::v0::Constant>();
+    auto optional_stride_const = pattern::wrap_type<ov::op::v0::Constant>();
     auto pattern = pattern::wrap_type<ov::op::v1::StridedSlice>({input, begin_const, end_const, optional_stride_const});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {

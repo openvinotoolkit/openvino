@@ -23,7 +23,7 @@ asapp/sew-d-base-plus-400k-ft-ls100h,sew-d
 ashishpatel26/span-marker-bert-base-fewnerd-coarse-super,span-marker,skip,Load problem
 asi/albert-act-tiny,albert_act,skip,Load problem
 BAAI/AltCLIP,altclip
-BAAI/AquilaCode-py,aquila,skip,Load problem
+BAAI/AquilaCode-py,aquila
 bana513/opennmt-translator-en-hu,opennmt-translator,skip,Load problem
 benjamin/wtp-bert-mini,bert-char,skip,Load problem
 benjamin/wtp-canine-s-1l,la-canine,skip,Load problem
@@ -74,11 +74,12 @@ facebook/encodec_24khz,encodec
 facebook/esm2_t6_8M_UR50D,esm
 facebook/flava-full,flava,xfail,Tracing problem
 facebook/flava-image-codebook,flava_image_codebook,skip,Load problem
-facebook/levit-128S,levit,xfail,Tracing problem
+facebook/levit-128S,levit
 facebook/m2m100_418M,m2m_100
 facebook/mask2former-swin-base-coco-panoptic,mask2former
 facebook/maskformer-swin-base-coco,maskformer
 facebook/mbart-large-50-many-to-many-mmt,mbart
+facebook/mms-lid-126,wav2vec2
 facebook/mms-tts-eng,vits,xfail,Accuracy failed: results cannot be broadcasted
 facebook/musicgen-small,musicgen
 facebook/opt-125m,opt
@@ -90,7 +91,7 @@ facebook/wmt19-ru-en,fsmt,xfail,Tracing problem
 facebook/xglm-7.5B,xglm
 facebook/xlm-roberta-xl,xlm-roberta-xl
 facebook/xmod-base,xmod
-flax-community/ft5-cnn-dm,f_t5,skip,Load problem
+flax-community/ft5-cnn-dm,f_t5
 fnlp/elasticbert-base,elasticbert,skip,Load problem
 FranzStrauss/ponet-base-uncased,ponet,skip,Load problem
 funnel-transformer/small,funnel
@@ -117,7 +118,7 @@ google/reformer-crime-and-punishment,reformer,xfail,Tracing problem
 google/tapas-large-finetuned-wtq,tapas
 google/vit-hybrid-base-bit-384,vit-hybrid,skip,Load problem
 google/vivit-b-16x2-kinetics400,vivit
-Goutham-Vignesh/ContributionSentClassification-scibert,scibert,skip,Load problem
+Goutham-Vignesh/ContributionSentClassification-scibert,scibert
 gpt2,gpt2
 Graphcore/groupbert-base-uncased,groupbert,skip,Load problem
 haoranzhao419/saffu-100M-0.1,saffu-100M-0.1,skip,Load problem
@@ -166,7 +167,7 @@ HJHGJGHHG/GAU-Base-Full,gau,skip,Load problem
 huggingface/autoformer-tourism-monthly,autoformer,skip,Load problem
 huggingface/informer-tourism-monthly,informer,skip,Load problem
 huggingface/time-series-transformer-tourism-monthly,time_series_transformer,skip,Load problem
-HuggingFaceM4/tiny-random-idefics,idefics,xfail,tracing error: Please check correctness of provided example_input (eval was correct but trace failed with incommatible tuples and tensors)
+HuggingFaceM4/tiny-random-idefics,idefics,xfail,Unsupported op aten::any aten::einsum prim::TupleConstruct prim::TupleUnpack
 HuggingFaceM4/tiny-random-vllama-clip,vllama,skip,Load problem
 HuggingFaceM4/tiny-random-vopt-clip,vopt,skip,Load problem
 HuiHuang/gpt3-damo-base-zh,gpt3,skip,Load problem
@@ -184,7 +185,6 @@ jambran/depression-classification,DepressionDetection,skip,Load problem
 Jellywibble/dalio-reward-charlie-v1,reward-model,skip,Load problem
 JonasGeiping/crammed-bert-legacy,crammedBERT,skip,Load problem
 jonatasgrosman/wav2vec2-large-xlsr-53-english,wav2vec2,xfail,Unsupported op aten::index_put_ prim::TupleConstruct
-facebook/mms-lid-126,wav2vec2
 Joqsan/test-my-fnet,my_fnet,skip,Load problem
 jozhang97/deta-swin-large,deta,skip,Load problem
 jploski/retnet-mini-shakespeare,retnet,skip,Load problem
@@ -247,7 +247,7 @@ microsoft/markuplm-base,markuplm
 microsoft/prophetnet-large-uncased-squad-qg,prophetnet
 microsoft/resnet-50,resnet
 microsoft/speecht5_hifigan,hifigan,skip,Load problem
-microsoft/speecht5_tts,speecht5,xfail,Tracing error: hangs with no error (probably because of infinite while inside generate)
+microsoft/speecht5_tts,speecht5,xfail,Unsupported op aten::bernoulli
 microsoft/swinv2-tiny-patch4-window8-256,swinv2
 microsoft/table-transformer-detection,table-transformer
 microsoft/unispeech-1350-en-17h-ky-ft-1h,unispeech
@@ -303,7 +303,7 @@ paulhindemith/test-zeroshot,test-zeroshot,skip,Load problem
 PGT/orig-nystromformer-s-artificial-balanced-max500-490000-0,graph_nystromformer,skip,Load problem
 pie/example-ner-spanclf-conll03,TransformerSpanClassificationModel,skip,Load problem
 pie/example-re-textclf-tacred,TransformerTextClassificationModel,skip,Load problem
-pleisto/yuren-baichuan-7b,multimodal_llama,skip,Load problem
+pleisto/yuren-baichuan-7b,multimodal_llama
 predictia/europe_reanalysis_downscaler_convbaseline,convbilinear,skip,Load problem
 predictia/europe_reanalysis_downscaler_convswin2sr,conv_swin2sr,skip,Load problem
 pszemraj/led-large-book-summary,led
@@ -341,7 +341,7 @@ shikhartuli/flexibert-mini,flexibert,skip,Load problem
 shikras/shikra-7b-delta-v1-0708,shikra,skip,Load problem
 shi-labs/dinat-mini-in1k-224,dinat,xfail,Accuracy validation failed
 shi-labs/nat-mini-in1k-224,nat,xfail,Accuracy validation failed
-shi-labs/oneformer_ade20k_swin_large,oneformer,xfail,Tracing error: Please check correctness of provided example_input (but eval was correct)
+shi-labs/oneformer_ade20k_swin_large,oneformer,xfail,Different number of outputs between framework and OpenVINO
 shuqi/seed-encoder,seed_encoder,skip,Load problem
 sijunhe/nezha-cn-base,nezha
 sjiang1/codecse,roberta_for_cl,skip,Load problem
@@ -352,7 +352,7 @@ solotimes/lavibe_base,donut,skip,Load problem
 songlab/gpn-brassicales,ConvNet,skip,Load problem
 speechbrain/m-ctc-t-large,mctct
 Splend1dchan/wav2vec2-large-lv60_t5lephone-small_lna_bs64,speechmix,skip,Load problem
-stefan-it/bort-full,bort,skip,Load problem
+stefan-it/bort-full,bort
 SteveZhan/my-resnet50d,resnet_steve,skip,Load problem
 suno/bark,bark,skip,Load problem
 surajnair/r3m-50,r3m,skip,Load problem
@@ -367,7 +367,7 @@ thomwolf/vqgan_imagenet_f16_1024,vqgan_model,skip,Load problem
 thu-ml/zh-clip-vit-roberta-large-patch14,zhclip,skip,Load problem
 tifa-benchmark/promptcap-coco-vqa,ofa,skip,Load problem
 tli8hf/robertabase_snli,transformerfornli,skip,Load problem
-transfo-xl-wt103,transfo-xl,xfail,Unsupported op aten::index_copy_
+# transfo-xl/transfo-xl-wt103,transfo-xl - deprecated by transformers due to security vulnerability, not inferable in latest transformers
 transZ/BART_shared_clean,shared_bart,skip,Load problem
 transZ/BART_shared_v2,shared_bart_v2,skip,Load problem
 transZ/misecom,misecom,skip,Load problem

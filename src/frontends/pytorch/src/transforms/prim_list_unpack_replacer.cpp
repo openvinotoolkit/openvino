@@ -37,7 +37,7 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
             }
             std::shared_ptr<Node> split;
             if (rank.get_length() == 0) {
-                // Create split_lenghts tensor from split_size int,
+                // Create split_lengths tensor from split_size int,
                 // allow for last chunk to be smaller if data is not equally divisible.
                 auto split_size = torch_split->get_input_source_output(1);
                 // Using number of ListUnpack outputs.
@@ -147,8 +147,8 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
 
                 auto split_sizes = rg.make<opset10::Concat>(OutputVector{splits_max_size, splits_min_size}, 0);
                 // Reshape is used to make number of outputs static.
-                auto split_sizes_known_lenght = rg.make<opset10::Reshape>(split_sizes, list_num_outs, false);
-                auto splits = rg.make<opset10::VariadicSplit>(input, dim, split_sizes_known_lenght);
+                auto split_sizes_known_length = rg.make<opset10::Reshape>(split_sizes, list_num_outs, false);
+                auto splits = rg.make<opset10::VariadicSplit>(input, dim, split_sizes_known_length);
                 copy_runtime_info_and_name(list_unpack, rg.get(), {input_node});
                 replace_node(list_unpack, splits->outputs());
                 return true;
@@ -297,7 +297,7 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
                 auto out = rg.make<opset10::Broadcast>(reshape, cat, ov::op::BroadcastType::BIDIRECTIONAL);
                 outputs.push_back(out);
             }
-            if (indexing == "xy" && meshgrid_inputs.size() >= 2) {
+            if (indexing == "xy" && outputs.size() >= 2) {
                 std::swap(outputs[0], outputs[1]);
             }
             copy_runtime_info_and_name(list_unpack, rg.get(), {input_node, meshgrid_input_node});
