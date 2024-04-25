@@ -105,6 +105,9 @@ jobs:
           key: build-main-${{ github.sha }}
           restore-keys: build-main
 
+      - name: list apt cache
+        run: ls -la /var/cache/apt/archives
+
       - name: Install git
         run: |
           apt-get update
