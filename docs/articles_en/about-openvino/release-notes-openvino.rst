@@ -253,7 +253,7 @@ Known Issues
 | **Component - Hardware Configuration**
 | *ID* - N/A
 | *Description:*
-|   Reduced performance observed on newer CPU processors. Modify the default settings in BIOS to
+|   Reduced performance for LLMs observed on newer CPUs. To mitigate, modify the default settings in BIOS to
 |   change the system into 2 NUMA node system:
 |    1. Enter the BIOS configuration menu.
 |    2. Select EDKII Menu -> Socket Configuration -> Uncore Configuration -> Uncore General Configuration ->  SNC.
