@@ -15,7 +15,7 @@
 
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/parallel.hpp"
-#include "mha_single_token_sdpa.hpp"
+#include "mha_single_token.hpp"
 #include "common.hpp"
 #include "softmax_kernel.hpp"
 #include "utils/profiler.hpp"
@@ -830,21 +830,21 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
     });
 }
 
-void mha_single_token_sdpa(const ov::intel_cpu::PlainTensor& query,
-                           const ov::intel_cpu::PlainTensor& present_key,
-                           const ov::intel_cpu::PlainTensor& present_value,
-                           const ov::intel_cpu::PlainTensor& alibi_mask,
-                           const ov::intel_cpu::PlainTensor& attention_mask,
-                           const ov::intel_cpu::PlainTensor& beams,
-                           ov::intel_cpu::PlainTensor& output_emb,
-                           ov::intel_cpu::PlainTensor& buf_attn_w,
-                           ov::intel_cpu::PlainTensor& buf_attn_score,
-                           bool has_out_transpose,
-                           bool auto_causal,
-                           float d_scale,
-                           const ov::intel_cpu::PlainTensor& past_k_scale_zp,
-                           const ov::intel_cpu::PlainTensor& past_v_scale_zp,
-                           ov::intel_cpu::PlainTensor& head_sum) {
+void mha_single_token(const ov::intel_cpu::PlainTensor& query,
+                      const ov::intel_cpu::PlainTensor& present_key,
+                      const ov::intel_cpu::PlainTensor& present_value,
+                      const ov::intel_cpu::PlainTensor& alibi_mask,
+                      const ov::intel_cpu::PlainTensor& attention_mask,
+                      const ov::intel_cpu::PlainTensor& beams,
+                      ov::intel_cpu::PlainTensor& output_emb,
+                      ov::intel_cpu::PlainTensor& buf_attn_w,
+                      ov::intel_cpu::PlainTensor& buf_attn_score,
+                      bool has_out_transpose,
+                      bool auto_causal,
+                      float d_scale,
+                      const ov::intel_cpu::PlainTensor& past_k_scale_zp,
+                      const ov::intel_cpu::PlainTensor& past_v_scale_zp,
+                      ov::intel_cpu::PlainTensor& head_sum) {
     if (query.get_precision() == ov::element::bf16) {
         if (present_key.get_precision() == ov::element::u8) {
             mha_single_token_kernel<ov::bfloat16, uint8_t>(query,

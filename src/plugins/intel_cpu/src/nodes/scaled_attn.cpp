@@ -25,7 +25,7 @@
 
 #include "utils/plain_tensor.hpp"
 #include "kernels/scaled_attn/softmax.hpp"
-#include "kernels/scaled_attn/mha_single_token_sdpa.hpp"
+#include "kernels/scaled_attn/mha_single_token.hpp"
 #include "kernels/scaled_attn/attn_memcpy.hpp"
 #include "kernels/scaled_attn/attn_quant.hpp"
 #include "kernels/x64/brgemm_kernel.hpp"
@@ -704,7 +704,7 @@ struct MHASingleToken {
 
         // aligned to cache line (64bytes=16*sizeof(float)) to avoid false sharing
         m_attn_w.resize<float>({B, H, q_len, (kv_len + 15) / 16 * 16});
-        mha_single_token_sdpa(query, present_key, present_value, alibi_mask, attention_mask, beams,
+        mha_single_token(query, present_key, present_value, alibi_mask, attention_mask, beams,
             output_emb, m_attn_w, m_temp, has_out_transpose, auto_causal, d_scale, k_scale_zp, v_scale_zp, m_head_sum);
     }
 };

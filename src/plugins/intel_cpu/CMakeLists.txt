@@ -204,16 +204,16 @@ cross_compiled_file(${TARGET_NAME}
 )
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 ANY
-                    src/nodes/kernels/scaled_attn/mha_single_token_sdpa.cpp
-        API         src/nodes/kernels/scaled_attn/mha_single_token_sdpa.hpp
-        NAME        mha_single_token_sdpa
+                    src/nodes/kernels/scaled_attn/mha_single_token.cpp
+        API         src/nodes/kernels/scaled_attn/mha_single_token.hpp
+        NAME        mha_single_token
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F AVX2 ANY
-                    src/nodes/kernels/scaled_attn/mha_single_token_pa.cpp
-        API         src/nodes/kernels/scaled_attn/mha_single_token_pa.hpp
-        NAME        mha_single_token_pa
+        ARCH AVX512F AVX2
+                    src/nodes/kernels/scaled_attn/executor_pa.cpp
+        API         src/nodes/kernels/scaled_attn/executor_pa.hpp
+        NAME        make_pa_executor
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
