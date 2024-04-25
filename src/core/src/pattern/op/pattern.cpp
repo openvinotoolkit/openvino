@@ -15,7 +15,7 @@ namespace op {
 ValuePredicate Pattern::get_predicate() const {
     return m_predicate;
 }
-ValuePredicate as_value_predicate(NodePredicate pred) {
+ValuePredicate as_value_predicate(const NodePredicate& pred) {
     if (pred == nullptr) {
         return [](const Output<Node>&) {
             return true;
