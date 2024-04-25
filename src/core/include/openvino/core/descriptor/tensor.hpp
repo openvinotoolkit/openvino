@@ -111,7 +111,8 @@ protected:
     friend class pass::ReverseShapeAndTypeInfer;
 
 private:
-    mutable bool m_shape_changed = true;
+    mutable std::atomic<bool> m_shape_changing{false};
+    mutable bool m_shape_changed{true};
     mutable Shape m_shape;
 };
 

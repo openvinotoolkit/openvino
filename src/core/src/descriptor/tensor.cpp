@@ -4,6 +4,7 @@
 
 #include "openvino/core/descriptor/tensor.hpp"
 
+#include "atomic_guard.hpp"
 #include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
@@ -60,6 +61,7 @@ void ov::descriptor::Tensor::set_value_symbol(const TensorSymbol& value_symbol) 
 }
 
 const ov::Shape& ov::descriptor::Tensor::get_shape() const {
+    AtomicGuard lock(m_shape_changing);
     if (m_shape_changed) {
         m_shape = m_partial_shape.to_shape();
         m_shape_changed = false;
@@ -104,10 +106,13 @@ void ov::descriptor::Tensor::add_names(const std::unordered_set<std::string>& na
 }
 
 void ov::descriptor::Tensor::clone_from(const ov::descriptor::Tensor& old) {
+    {
+        AtomicGuard lock(m_shape_changing);
+        m_partial_shape = old.get_partial_shape();
+        m_shape_changed = true;
+    }
     set_names(old.get_names());
     m_element_type = old.get_element_type();
-    m_partial_shape = old.get_partial_shape();
-    m_shape_changed = true;
     m_lower_value = old.get_lower_value();
     m_upper_value = old.get_upper_value();
     m_value_symbol = old.get_value_symbol();
@@ -127,6 +132,7 @@ void ov::descriptor::set_tensor_type(ov::descriptor::Tensor& tensor,
                                      const element::Type& element_type,
                                      const PartialShape& pshape) {
     tensor.m_element_type = element_type;
+    AtomicGuard lock(tensor.m_shape_changing);
     tensor.m_partial_shape = pshape;
     tensor.m_shape_changed = true;
 }
