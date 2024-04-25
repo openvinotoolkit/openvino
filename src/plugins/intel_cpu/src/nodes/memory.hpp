@@ -62,15 +62,22 @@ public:
         return getType() == Type::MemoryOutput;
     }
 
+    void execute(dnnl::stream strm) final;
+    void executeDynamicImpl(dnnl::stream strm) final;
+    bool isExecutable() const final;
+
     void registerInputNode(MemoryInputBase* node);
     void deregisterSibling(MemoryInputBase* node);
 
     bool needShapeInfer() const override { return false; }
     bool needPrepareParams() const override { return false; }
 
-    virtual void assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc) = 0;
+    void assignState(MemStatePtr newState);
 
 protected:
+    virtual void runStatic(dnnl::stream strm) = 0;
+    virtual void runDynamic(dnnl::stream strm) = 0;
+    virtual void assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc) = 0;
     MemoryInputBase& getInputNode();
 
 private:
@@ -78,6 +85,7 @@ private:
      * @brief keeps reference to input sibling node
      */
     MemoryInputBase* inputNode = nullptr;
+    MemStatePtr state = nullptr; //keep reference to call commit()
 };
 
 class MemoryOutput : public MemoryOutputBase {
@@ -85,11 +93,11 @@ public:
     using MemoryOutputBase::MemoryOutputBase;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    void execute(dnnl::stream strm) override;
-    void executeDynamicImpl(dnnl::stream strm) override;
-
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
+protected:
+    void runStatic(dnnl::stream strm) override;
+    void runDynamic(dnnl::stream strm) override;
     void assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc) override;
 
 private:
@@ -103,13 +111,12 @@ public:
     using MemoryOutputBase::MemoryOutputBase;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    void execute(dnnl::stream strm) override;
-    void executeDynamicImpl(dnnl::stream strm) override;
-
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
+protected:
+    void runStatic(dnnl::stream strm) override;
+    void runDynamic(dnnl::stream strm) override;
     void assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc) override;
-    bool isExecutable() const override;
 };
 
 class MemoryInputBase : public Input, public MemoryStateNode {
@@ -133,16 +140,29 @@ public:
 
     void initSupportedPrimitiveDescriptors() override;
 
+    void execute(dnnl::stream strm) final;
+    void executeDynamicImpl(dnnl::stream strm) final;
+
     void registerOutputNode(MemoryOutputBase* node);
     void deregisterSibling(MemoryOutputBase* node);
 
     MemoryOutputBase& getOutputNode();
+    void assignState(MemStatePtr newState) final;
+
+protected:
+    virtual void runStatic(dnnl::stream strm) = 0;
+    virtual void runDynamic(dnnl::stream strm) = 0;
+    virtual void assignStateHook() = 0;
+    MemStatePtr getAssignedState() const {
+        return state;
+    }
 
 private:
     /**
      * @brief keeps reference to output sibling node
      */
     MemoryOutputBase* outputNode = nullptr;
+    MemStatePtr state = nullptr;
 };
 
 class MemoryInput : public MemoryInputBase {
@@ -153,18 +173,19 @@ public:
     bool needShapeInfer() const override;
     bool isExecutable() const override;
     void initOptimalPrimitiveDescriptor() override;
-    void execute(dnnl::stream strm) override;
-    void executeDynamicImpl(dnnl::stream strm) override;
 
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
-    void assignState(MemStatePtr newState) override;
     MemStatePtr makeState() const override;
 
 private:
-    bool isExecutableFlag = true;
+    void runStatic(dnnl::stream strm) override;
+    void runDynamic(dnnl::stream strm) override;
+    void assignStateHook() override {/*pass*/}
+    bool needInitGraphProcessing() const;
+
+private:
     ProxyMemoryMngrPtr memMngr = nullptr;
-    MemoryPtr assignedMem = nullptr;
 };
 
 class MemoryInputSDPA : public MemoryInputBase {
@@ -181,25 +202,22 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    bool needShapeInfer() const override;
-    bool isExecutable() const override;
-
     void createPrimitive() override;
     void initSupportedPrimitiveDescriptors() override;
     void initOptimalPrimitiveDescriptor() override;
 
-    void execute(dnnl::stream strm) override;
-    void executeDynamicImpl(dnnl::stream strm) override;
-
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
-    void assignState(MemStatePtr newState) override;
+    void assignStateHook() override;
     MemStatePtr makeState() const override;
+
+private:
+    void runStatic(dnnl::stream strm) override;
+    void runDynamic(dnnl::stream strm) override;
 
 private:
     std::weak_ptr<ScaledDotProductAttention> m_sdpaNode;
     int m_child_port_idx = -1;
-    bool m_needShapeInfer = false;
 };
 }   // namespace node
 }   // namespace intel_cpu

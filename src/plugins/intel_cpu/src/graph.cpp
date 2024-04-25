@@ -964,7 +964,11 @@ bool Graph::ProcessDynNodes() {
                 // may happen when the second term shape is broadcasted to the output tensor shape. To avoid the data loss, we have a special processing for
                 // such cases inside the convolution node, but it works properly only when dynamic shapes inference, preparation and execution a called
                 // for this node sequentially.
-                (node->getType() == Type::Convolution && node->isInPlace())) {
+                (node->getType() == Type::Convolution && node->isInPlace()) ||
+                // Due to the special handling of the internal states and initialization subgraphs, MemoryInput nodes must
+                // be processed as a internal dynamism node, allowing to hide the aforementioned complexity inside the
+                // MemoryInput::executeDynamic implementation
+                (node->getType() == Type::MemoryInput)) {
                 syncNodesInds.insert({node.get(), i});
             }
         }

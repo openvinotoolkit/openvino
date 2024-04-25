@@ -76,10 +76,6 @@ void SyncInferRequest::assign_states() {
     }
 }
 
-void SyncInferRequest::commit_states() {
-    std::for_each(m_memory_states.begin(), m_memory_states.end(), [](const MemStatePtr& state) { state->commit(); });
-}
-
 void SyncInferRequest::redefine_memory_for_input_nodes() {
     const auto cpuInputNodes = m_graph->GetInputNodesMap();
     for (const auto& input_port : m_input_ports_map) {
@@ -143,10 +139,6 @@ void SyncInferRequest::infer() {
     }
 
     m_graph->PullOutputData(m_outputs);
-
-    if (!m_memory_states.empty()) {
-        commit_states();
-    }
 }
 
 std::vector<ov::ProfilingInfo> SyncInferRequest::get_profiling_info() const {

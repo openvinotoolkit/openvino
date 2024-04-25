@@ -179,6 +179,25 @@ void MemoryOutputBase::initOptimalPrimitiveDescriptor() {
     selected_pd->setConfig(config);
 }
 
+void MemoryOutputBase::execute(dnnl::stream strm) {
+    runStatic(strm);
+    state->commit();
+}
+
+void MemoryOutputBase::executeDynamicImpl(dnnl::stream strm) {
+    runDynamic(strm);
+    state->commit();
+}
+
+void MemoryOutputBase::assignState(MemStatePtr newState) {
+    state = newState;
+    assignExtMemory(state->output_mem(), state->internal_desc());
+}
+
+bool MemoryOutputBase::isExecutable() const {
+    return true;
+}
+
 void MemoryOutputBase::registerInputNode(MemoryInputBase* node) {
     if (inputNode == node) { return; }
     if (inputNode) { inputNode->deregisterSibling(this); }
@@ -240,7 +259,7 @@ void MemoryOutput::assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& me
     }
 }
 
-void MemoryOutput::execute(dnnl::stream strm)  {
+void MemoryOutput::runStatic(dnnl::stream strm)  {
     auto inputMem = getSrcMemoryAtPort(0);
     OPENVINO_ASSERT(assignedMem,
         "MemoryOutput ",
@@ -252,7 +271,7 @@ void MemoryOutput::execute(dnnl::stream strm)  {
     }
 }
 
-void MemoryOutput::executeDynamicImpl(dnnl::stream strm) {
+void MemoryOutput::runDynamic(dnnl::stream strm) {
     //first we have to resize the output memory
     auto inputMem = getSrcMemoryAtPort(0);
     const auto& newDims = inputMem->getStaticDims();
@@ -269,18 +288,18 @@ void MemoryOutput::executeDynamicImpl(dnnl::stream strm) {
         " uninitialized assigned memory");
     assignedMem->redefineDesc(newExternDesc);
 
-    execute(strm);
+    runStatic(strm);
 }
 
 bool MemoryOutputStub::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     return MemoryOutputBase::isSupportedOperation(op, errorMessage);
 }
 
-void MemoryOutputStub::execute(dnnl::stream strm) {
+void MemoryOutputStub::runStatic(dnnl::stream strm) {
     //nothing to do
 }
 
-void MemoryOutputStub::executeDynamicImpl(dnnl::stream strm) {
+void MemoryOutputStub::runDynamic(dnnl::stream strm) {
     //nothing to do
 }
 
@@ -309,10 +328,6 @@ void MemoryOutputStub::resolveInPlaceEdges(Edge::LOOK look) {
 
 void MemoryOutputStub::assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc) {
     //nothing to do
-}
-
-bool MemoryOutputStub::isExecutable() const {
-    return false;
 }
 
 bool MemoryInputBase::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
@@ -461,12 +476,31 @@ MemoryOutputBase* MemoryStatesRegister::getMemoryOutputByName(const std::string&
     return static_cast<MemoryOutputBase*>(it->second);
 }
 
+void MemoryInputBase::assignState(MemStatePtr newState) {
+    state = newState;
+    assignStateHook();
+}
+
+void MemoryInputBase::execute(dnnl::stream strm) {
+    getOutputNode().assignState(getAssignedState());
+    runStatic(strm);
+}
+
+void MemoryInputBase::executeDynamicImpl(dnnl::stream strm) {
+    getOutputNode().assignState(getAssignedState());
+    runDynamic(strm);
+}
+
+bool MemoryInput::needInitGraphProcessing() const {
+    return !getParentEdges().empty() && getAssignedState()->is_reset_state();
+}
+
 bool MemoryInput::needShapeInfer() const {
-    return isExecutableFlag;
+    return false;
 }
 
 bool MemoryInput::isExecutable() const {
-    return isExecutableFlag && Node::isExecutable();
+    return true;
 }
 
 void MemoryInput::initOptimalPrimitiveDescriptor() {
@@ -525,16 +559,83 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
     selectedPd->setConfig(config);
 }
 
-void MemoryInput::executeDynamicImpl(dnnl::stream strm) {
-    execute(strm);
+void MemoryInput::runDynamic(dnnl::stream strm) {
+    auto assignedMem = getAssignedState()->input_mem();
+
+    OPENVINO_ASSERT(assignedMem,
+        "MemoryInput ",
+        getName(),
+        " assigned state has null memory ptr");
+
+    // check whether we can share memory manager
+    const auto& stateDims = assignedMem->getStaticDims();
+    const bool hasZeroDims = std::count(std::begin(stateDims), std::end(stateDims), 0) > 0;
+    auto internDesc = getBaseMemDescAtOutputPort(0)->cloneWithNewDims(stateDims, hasZeroDims);
+
+    OPENVINO_ASSERT(memMngr,
+        "MemoryInput ",
+        getName(),
+        " has uninitialized memory manager.");
+
+    if (internDesc->isCompatible(assignedMem->getDesc())) {
+        memMngr->setMemMngr(assignedMem->getMemoryMngr());
+    } else {
+        memMngr->reset();
+    }
+
+    const bool processInitGraph = needInitGraphProcessing();
+    //reshape output
+    const auto& newDims = processInitGraph ? getSrcMemoryAtPort(0)->getStaticDims() : stateDims;
+
+    redefineOutputMemory({newDims});
+
+    //copy data when necessary
+    auto src = processInitGraph ? getSrcMemoryAtPort(0) : assignedMem;
+    auto dst = getDstMemoryAtPort(0);
+    if (src->getData() != dst->getData()) {
+        dst->load(*src);
+    }
 }
 
-void MemoryInput::execute(dnnl::stream strm) {
-    if (!isExecutableFlag) return;
+void MemoryInput::runStatic(dnnl::stream strm) {
+    auto assignedMem = getAssignedState()->input_mem();
 
-    auto&& src = getParentEdgeAt(0)->getMemory();
-    auto&& dst = getDstMemoryAtPort(0);
-    dst->load(src);
+    OPENVINO_ASSERT(assignedMem,
+        "MemoryInput ",
+        getName(),
+        " assigned state has null memory ptr");
+
+    const auto& stateDims = assignedMem->getStaticDims();
+    const auto& expectedDims = getBaseMemDescAtOutputPort(0)->getShape().getStaticDims();
+    OPENVINO_ASSERT(expectedDims == stateDims,
+            "MemoryInput ",
+            getName(),
+            " unexpected state shape: ",
+            vec2str(stateDims),
+            ", while the expected shape: ",
+            vec2str(expectedDims));
+
+    auto internDesc = getBaseMemDescAtOutputPort(0);
+
+    OPENVINO_ASSERT(memMngr,
+        "MemoryInput ",
+        getName(),
+        " has uninitialized memory manager.");
+
+    if (internDesc->isCompatible(assignedMem->getDesc())) {
+        memMngr->setMemMngr(assignedMem->getMemoryMngr());
+    } else {
+        memMngr->reset();
+    }
+
+    const auto processInitGraph = needInitGraphProcessing();
+
+    //copy data when necessary
+    auto src = processInitGraph ? getSrcMemoryAtPort(0) : assignedMem;
+    auto dst = getDstMemoryAtPort(0);
+    if (src->getData() != dst->getData()) {
+        dst->load(*src);
+    }
 }
 
 void MemoryInput::resolveInPlaceEdges(Edge::LOOK look) {
@@ -583,64 +684,6 @@ MemStatePtr MemoryInput::makeState() const {
         original_desc);
 }
 
-void MemoryInput::assignState(MemStatePtr newState) {
-    assignedMem = newState->input_mem();
-
-    isExecutableFlag = !getParentEdges().empty() && newState->is_reset_state();
-
-    OPENVINO_ASSERT(assignedMem,
-        "MemoryInput ",
-        getName(),
-        " assigned state has null memory ptr");
-
-    const auto& newDims = assignedMem->getStaticDims();
-    MemoryDescPtr internDesc;
-    if (isDynamicNode()) {
-        const bool hasZeroDims = std::count(std::begin(newDims), std::end(newDims), 0) > 0;
-        internDesc = getBaseMemDescAtOutputPort(0)->cloneWithNewDims(newDims, hasZeroDims);
-    } else {
-        auto expectedDims = getBaseMemDescAtOutputPort(0)->getShape().getStaticDims();
-        OPENVINO_ASSERT(expectedDims == newDims,
-            "MemoryInput ",
-            getName(),
-            " unexpected state shape: ",
-            vec2str(newDims),
-            ", while the expected shape: ",
-            vec2str(expectedDims));
-
-        internDesc = getBaseMemDescAtOutputPort(0);
-    }
-
-    OPENVINO_ASSERT(memMngr,
-        "MemoryInput ",
-        getName(),
-        " has uninitialized memory manager.");
-
-    if (internDesc->isCompatible(assignedMem->getDesc())) {
-        memMngr->setMemMngr(assignedMem->getMemoryMngr());
-    } else {
-        memMngr->reset();
-    }
-
-    if (!isExecutableFlag) {
-        const auto& edges = getChildEdgesAtPort(0);
-        if (isDynamicNode()) {
-            for (auto&& edge : edges) {
-                edge->getMemoryPtr()->redefineDesc(internDesc);
-            }
-        }
-
-        auto outMem = edges.front()->getMemoryPtr();
-
-        if (outMem->getData() != assignedMem->getData()) {
-            outMem->load(*assignedMem);
-        }
-    }
-
-    getOutputNode().assignExtMemory(newState->output_mem(), newState->internal_desc());
-}
-
-
 bool MemoryInput::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     return MemoryInputBase::isSupportedOperation(op, errorMessage);
 }
@@ -655,14 +698,6 @@ MemoryInputSDPA::MemoryInputSDPA(const std::string id,
                                  const ov::optional<ov::element::Type>& input_prc,
                                  const std::shared_ptr<ScaledDotProductAttention>& sdpaNode) :
     MemoryInputBase(id, name, type, output_shape, output_prc, context, input_shape, input_prc), m_sdpaNode(sdpaNode) {}
-
-
-bool MemoryInputSDPA::needShapeInfer() const {
-    return m_needShapeInfer;
-}
-bool MemoryInputSDPA::isExecutable() const {
-    return false;
-}
 
 void MemoryInputSDPA::createPrimitive() {
     MemoryInputBase::createPrimitive();
@@ -708,30 +743,11 @@ void MemoryInputSDPA::initOptimalPrimitiveDescriptor() {
     Node::initOptimalPrimitiveDescriptor();
 }
 
-void MemoryInputSDPA::assignState(MemStatePtr newState) {
-    if (newState->is_reset_state()) {
-        if (getParentEdges().empty()) {
-            auto newShape = MemoryDescUtils::makeDummyShape(getBaseMemDescAtOutputPort(0)->getShape(), 0);
-            redefineOutputMemory({newShape.getStaticDims()});
-            m_needShapeInfer = false;
-        } else {
-            m_needShapeInfer = true;
-        }
-    } else {
-        auto stateMem = newState->input_mem();
-        OPENVINO_ASSERT(stateMem,
-            "Internal state mem id: ",
-            newState->get_name(),
-            " is empty, node name: ",
-            getName());
-
-        redefineOutputMemory({stateMem->getStaticDims()});
-        m_needShapeInfer = false;
-    }
-
+void MemoryInputSDPA::assignStateHook() {
+    auto currentState = getAssignedState();
     auto sdpaNode = m_sdpaNode.lock();
     OPENVINO_ASSERT(sdpaNode);
-    auto sdpaState = std::dynamic_pointer_cast<VariableStateKVcache>(newState);
+    auto sdpaState = std::dynamic_pointer_cast<VariableStateKVcache>(currentState);
     OPENVINO_ASSERT(sdpaState);
     sdpaNode->assignState(sdpaState, m_child_port_idx);
 }
@@ -764,12 +780,30 @@ MemStatePtr MemoryInputSDPA::makeState() const {
     return std::make_shared<VariableStateKVcache>(state_name, original_desc, internal_desc);
 }
 
-void MemoryInputSDPA::execute(dnnl::stream strm) {
+void MemoryInputSDPA::runStatic(dnnl::stream strm) {
     //nothing to do
 }
 
-void MemoryInputSDPA::executeDynamicImpl(dnnl::stream strm) {
-    //nothing to do
+void MemoryInputSDPA::runDynamic(dnnl::stream strm) {
+    auto currentState = getAssignedState();
+    if (currentState->is_reset_state()) {
+        if (getParentEdges().empty()) {
+            auto newShape = MemoryDescUtils::makeDummyShape(getBaseMemDescAtOutputPort(0)->getShape(), 0);
+            redefineOutputMemory({newShape.getStaticDims()});
+        } else {
+            auto inpMem = getSrcMemoryAtPort(0);
+            redefineOutputMemory({inpMem->getStaticDims()});
+        }
+    } else {
+        auto stateMem = currentState->input_mem();
+        OPENVINO_ASSERT(stateMem,
+            "Internal state mem id: ",
+            currentState->get_name(),
+            " is empty, node name: ",
+            getName());
+
+        redefineOutputMemory({stateMem->getStaticDims()});
+    }
 }
 
 void MemoryInputSDPA::resolveInPlaceEdges(Edge::LOOK look) {
