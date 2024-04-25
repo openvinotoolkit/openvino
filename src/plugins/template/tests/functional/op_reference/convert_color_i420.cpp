@@ -136,7 +136,7 @@ TEST_F(ReferenceConvertColorI420LayerTest, CompareWithHardcodedRefs_color4x4_f32
     auto exp_out = std::vector<float>{165, 37, 37,  255, 216, 217, 165, 37, 37, 255, 216, 217, 255, 0, 0, 255,
                                       0,   0,  255, 0,   0,   255, 0,   0,  0,  255, 0,   0,   255, 0, 0, 255,
                                       0,   0,  255, 0,   0,   0,   255, 0,  0,  255, 0,   0,   255, 0, 0, 255};
-    auto out_shape = Shape{1, 2, 2, 3};
+    auto out_shape = Shape{1, 8, 2, 3};
 
     reference_tests::Tensor inp_tensor_y(input_shape_y, element::f32, input_y);
     reference_tests::Tensor inp_tensor_u(input_shape_u, element::f32, input_u);

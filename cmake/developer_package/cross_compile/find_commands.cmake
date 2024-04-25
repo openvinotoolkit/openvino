@@ -2,6 +2,31 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+# The two functions below are used to allow cmake find search for host system
+# locations during find_package
+
+macro(ov_cross_compile_define_debian_arch)
+    if(CMAKE_HOST_LINUX AND CMAKE_CROSSCOMPILING)
+        set(_old_CMAKE_LIBRARY_ARCHITECTURE ${CMAKE_LIBRARY_ARCHITECTURE})
+        # without this WA cmake does not search in <triplet> subfolder
+        # see https://cmake.org/cmake/help/latest/command/find_package.html#config-mode-search-procedure
+        if(HOST_X86_64)
+            set(CMAKE_LIBRARY_ARCHITECTURE "x86_64-linux-gnu")
+        elseif(HOST_AARCH64)
+            set(CMAKE_LIBRARY_ARCHITECTURE "aarch64-linux-gnu")
+        elseif(HOST_RISCV64)
+            set(CMAKE_LIBRARY_ARCHITECTURE "riscv64-linux-gnu")
+        endif()
+    endif()
+endmacro()
+
+macro(ov_cross_compile_define_debian_arch_reset)
+    if(CMAKE_HOST_LINUX AND CMAKE_CROSSCOMPILING)
+        set(CMAKE_LIBRARY_ARCHITECTURE ${_old_CMAKE_LIBRARY_ARCHITECTURE})
+        unset(_old_CMAKE_LIBRARY_ARCHITECTURE)
+    endif()
+endmacro()
+
 # Search packages for the host system instead of packages for the target system
 # in case of cross compilation these macros should be defined by the toolchain file
 
