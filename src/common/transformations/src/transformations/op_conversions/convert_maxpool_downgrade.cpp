@@ -85,16 +85,19 @@ ov::pass::ConvertMaxPool14ToMaxPool8::ConvertMaxPool14ToMaxPool8() {
             auto input = max_pool_v14->input_value(0);
             const auto strides = max_pool_v14->get_strides();
             const auto padding_begin = max_pool_v14->get_pads_begin();
-            const auto padding_begin_node = node_registry.make<Constant>(element::i64, Shape{padding_begin.size()}, padding_begin);
+            const auto padding_begin_node =
+                node_registry.make<Constant>(element::i64, Shape{padding_begin.size()}, padding_begin);
             const auto padding_end = max_pool_v14->get_pads_end();
-            const auto padding_end_node = node_registry.make<Constant>(element::i64, Shape{padding_end.size()}, padding_end);
+            const auto padding_end_node =
+                node_registry.make<Constant>(element::i64, Shape{padding_end.size()}, padding_end);
             const auto zero = node_registry.make<Constant>(element::i64, Shape{}, 0);
             const auto one = node_registry.make<Constant>(element::i64, Shape{}, 1);
             const auto two = node_registry.make<Constant>(element::i64, Shape{}, 2);
 
             const auto pads_size = max_pool_v14->get_pads_begin().size();
             const auto pads_len = node_registry.make<Constant>(element::i64, Shape{}, pads_size);
-            const auto pads_remaining = node_registry.make<Constant>(element::i64, Shape{2}, std::vector<int64_t>{0, 0});
+            const auto pads_remaining =
+                node_registry.make<Constant>(element::i64, Shape{2}, std::vector<int64_t>{0, 0});
 
             // gather input spatial dims and prepare for compare as values (in_dim + pad)
             const auto end = node_registry.make<Constant>(element::i64, Shape{}, pads_size + 2);
