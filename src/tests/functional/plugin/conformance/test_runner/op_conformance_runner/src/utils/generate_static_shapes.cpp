@@ -7,7 +7,6 @@
 
 #include "utils/generate_static_shapes.hpp"
 
-#include "openvino/op/ops.hpp"
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
 
@@ -43,16 +42,9 @@ void clip_restrict_dims(InputShape& input_shape, const std::map<size_t, size_t>&
     }
 }
 
-namespace {
-
-InputShape generate(const std::shared_ptr<ov::Node>& node,
-                    size_t in_port_id) {
-    const auto& param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(node->get_input_node_shared_ptr(in_port_id));
-    std::vector<ov::Shape> staticShapes = { param->get_partial_shape().get_min_shape(),
-                                            param->get_partial_shape().get_min_shape(),
-                                            param->get_partial_shape().get_max_shape() };
+ov::Shape generate_mid_shape(ov::PartialShape partial_shape) {
     ov::Shape midShape;
-    for (const auto s : param->get_partial_shape()) {
+    for (const auto s : partial_shape) {
         int dimValue = 1;
         if (s.is_dynamic()) {
             size_t range = s.get_max_length() - s.get_min_length();
@@ -66,8 +58,17 @@ InputShape generate(const std::shared_ptr<ov::Node>& node,
         }
         midShape.push_back(dimValue);
     }
-    staticShapes[1] = midShape;
+    return midShape;
+}
 
+namespace {
+
+InputShape generate(const std::shared_ptr<ov::Node>& node,
+                    size_t in_port_id) {
+    const auto& param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(node->get_input_node_shared_ptr(in_port_id));
+    std::vector<ov::Shape> staticShapes = { param->get_partial_shape().get_min_shape(),
+                                            generate_mid_shape(param->get_partial_shape()),
+                                            param->get_partial_shape().get_max_shape() };
     // Shape validation to avoid large values
     uint64_t dimMin = 1;
     uint64_t dimMax = std::numeric_limits<char>::max();
