@@ -1441,7 +1441,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                             }
                         }
 
-                        shared_buffer->set_offset(strlen(shared_buffer->data()) - 1lu);
+                        shared_buffer->set_offset((strchr(shared_buffer->data(), '\n') - shared_buffer->data()) + 1);
                     } catch (...) {
                         throw HeaderException();
                     }

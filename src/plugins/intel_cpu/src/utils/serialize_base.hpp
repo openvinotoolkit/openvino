@@ -3,11 +3,9 @@
 //
 #pragma once
 
-#include <functional>
-#include <iostream>
+#include <pugixml.hpp>
 
 #include "openvino/core/model.hpp"
-#include "openvino/util/mmap_object.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -15,24 +13,28 @@ namespace intel_cpu {
 class ModelSerializer {
 public:
     ModelSerializer(std::ostream& ostream);
+
     void operator<<(const std::shared_ptr<ov::Model>& model);
 
 private:
-    std::ostream& _ostream;
+    std::ostream& m_ostream;
 };
 
-class ModelDeserializer {
+class ModelDeserializerBase {
 public:
-    typedef std::function<std::shared_ptr<ov::Model>(const std::string&, const ov::Tensor&)> model_builder;
-    ModelDeserializer(std::istream& istream, model_builder fn);
-    ModelDeserializer(const std::shared_ptr<ov::MappedMemory>& buffer, model_builder fn);
-    void operator>>(std::shared_ptr<ov::Model>& model);
-    void parse_buffer(std::shared_ptr<ov::Model>& model);
-    void parse_stream(std::shared_ptr<ov::Model>& model);
+    virtual ~ModelDeserializerBase() = default;
 
-private:
-    std::istream* m_istream;
-    std::shared_ptr<ov::MappedMemory> m_model_buffer;
+    typedef std::function<std::shared_ptr<ov::Model>(const std::string&, const ov::Tensor&)> model_builder;
+
+    void operator>>(std::shared_ptr<ov::Model>& model);
+
+    virtual void parse(std::shared_ptr<ov::Model>& model) = 0;
+
+protected:
+    ModelDeserializerBase(model_builder fn) : m_model_builder(fn) {}
+
+    static void set_info(pugi::xml_node& root, std::shared_ptr<ov::Model>& model);
+
     model_builder m_model_builder;
 };
 
