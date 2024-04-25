@@ -80,6 +80,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
         auto parameters = std::make_shared<ParameterVector>();
         auto tensor_map = std::make_shared<TensorMap>();  // tensor map of the current context
         auto mutated_tensors = std::make_shared<std::set<size_t>>();
+        std::vector<size_t> inserted_params;
 
         if (input_model) {
             // When we have input model we should use its inputs order to create Parameters
@@ -143,6 +144,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                     // set name of parameter to the index of node in the model
                     encode_tensor_name(parameter->output(0), input);
                     parameters->push_back(parameter);
+                    inserted_params.push_back(input);
                 }
             }
             auto context = NodeContext(node, external_tensor_map, tensor_map, parameters, mutated_tensors, this);
@@ -259,6 +261,19 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
             } else {
                 OPENVINO_DEBUG << "Mutated tensor with id " << tensor_id << " doesn't exist in inputs, skipping.";
             }
+        }
+        if (!external_tensor_map.empty()) {
+            // for internal bodies we want to remove all extra inputs that were created, but not used
+            parameters->erase(std::remove_if(parameters->begin(),
+                                             parameters->end(),
+                                             [&](std::shared_ptr<v0::Parameter> p) {
+                                                 auto tensor_id = decode_tensor_name(p);
+                                                 return p->output(0).get_target_inputs().empty() &&
+                                                        std::find(inserted_params.begin(),
+                                                                  inserted_params.end(),
+                                                                  tensor_id) != inserted_params.end();
+                                             }),
+                              parameters->end());
         }
         resulting_model = std::make_shared<Model>(results, *parameters);
         // Did a conversion in a nested scope to automatically remove any holders of nodes except those in the graph
