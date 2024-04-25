@@ -130,6 +130,9 @@ protected:
 class MHABF16AMXBufferAllocationTest : public BufferAllocationCPUTest {
 protected:
     std::shared_ptr<ov::Model> GetModel() const override {
+        const size_t m_blk = 32;
+        const size_t k_blk = 16;
+        const size_t n_blk = 64;
         const auto subtensor_scalar = std::vector<size_t>{1};
         const auto subtensor_power = std::vector<size_t>{1, ov::snippets::lowered::PortDescriptor::ServiceDimensions::FULL_DIM};
         const auto subtensor_full = std::vector<size_t>(2, ov::snippets::lowered::PortDescriptor::ServiceDimensions::FULL_DIM);
@@ -149,9 +152,11 @@ protected:
         const auto scratch0 = std::make_shared<ov::snippets::op::NewMemoryBuffer>(ov::Shape{ov::intel_cpu::BrgemmCPU::SCRATCH_BYTE_SIZE});
         const auto brgemm_cpu0 = std::make_shared<ov::intel_cpu::BrgemmCPU>(
             parameter0, brgemm_copyb0->output(0), scratch0, ov::intel_cpu::BrgemmCPU::Type::AMX);
-        brgemm_cpu0->set_m_block_size(32);
-        brgemm_cpu0->set_k_block_size(16);
-        brgemm_cpu0->set_n_block_size(64);
+        brgemm_cpu0->set_m_block_size(m_blk);
+        brgemm_cpu0->set_k_block_size(k_blk);
+        brgemm_copyb0->set_k_block_size(k_blk);
+        brgemm_cpu0->set_n_block_size(n_blk);
+        brgemm_copyb0->set_n_block_size(n_blk);
 
         const auto relu1 = std::make_shared<ov::op::v0::Relu>(brgemm_cpu0);
 
@@ -173,9 +178,11 @@ protected:
         const auto scratch1 = std::make_shared<ov::snippets::op::NewMemoryBuffer>(ov::Shape{ov::intel_cpu::BrgemmCPU::SCRATCH_BYTE_SIZE});
         const auto brgemm_cpu1 = std::make_shared<ov::intel_cpu::BrgemmCPU>(
             convert2, brgemm_copyb1->output(0), scratch1, ov::intel_cpu::BrgemmCPU::Type::AMX);
-        brgemm_cpu1->set_m_block_size(32);
-        brgemm_cpu1->set_k_block_size(16);
-        brgemm_cpu1->set_n_block_size(64);
+        brgemm_cpu1->set_m_block_size(m_blk);
+        brgemm_cpu1->set_k_block_size(k_blk);
+        brgemm_copyb1->set_k_block_size(k_blk);
+        brgemm_cpu1->set_n_block_size(n_blk);
+        brgemm_copyb1->set_n_block_size(n_blk);
 
         const auto relu2 = std::make_shared<ov::op::v0::Relu>(brgemm_cpu1);
 
@@ -207,7 +214,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHABF16AMXNotOptimizedW
                          ::testing::Combine(
                                  ::testing::Values(false),
                                  ::testing::Values(true),
-                                 ::testing::Values(196608),
+                                 ::testing::Values(167936),
                                  ::testing::Values(11)),
                          BufferAllocationCPUTest::getTestCaseName);
 
@@ -215,7 +222,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHAOptimizedWSplit, MHA
                          ::testing::Combine(
                                  ::testing::Values(true),
                                  ::testing::Values(true),
-                                 ::testing::Values(90112),
+                                 ::testing::Values(73728),
                                  ::testing::Values(3)),
                          BufferAllocationCPUTest::getTestCaseName);
 
@@ -223,7 +230,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHANotOptimizedWOSplit,
                          ::testing::Combine(
                                  ::testing::Values(false),
                                  ::testing::Values(false),
-                                 ::testing::Values(393216),
+                                 ::testing::Values(364544),
                                  ::testing::Values(11)),
                          BufferAllocationCPUTest::getTestCaseName);
 
@@ -231,8 +238,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHAOptimizedWOSplit, MH
                          ::testing::Combine(
                                  ::testing::Values(true),
                                  ::testing::Values(false),
-                                 ::testing::Values(114688),
-                                 ::testing::Values(4)),
+                                 ::testing::Values(116736),
+                                 ::testing::Values(3)),
                          BufferAllocationCPUTest::getTestCaseName);
 
 }  // namespace BufferAllocationCPUTest_Instances
