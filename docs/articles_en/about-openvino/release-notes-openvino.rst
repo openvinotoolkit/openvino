@@ -20,6 +20,244 @@ OpenVINO Release Notes
 What's new
 +++++++++++++++++++++++++++++
 
+* More Gen AI coverage and framework integrations to minimize code changes.
+
+  * Mixtral and URLNet models optimized for performance improvements on Intel® Xeon® processors.
+  * Stable Diffusion 1.5, ChatGLM3-6B, and Qwen-7B models optimized for improved inference speed
+    on Intel® Core™ Ultra processors with integrated GPU.
+  * Support for Falcon-7B-Instruct, a GenAI Large Language Model (LLM) ready-to-use chat/instruct
+    model with superior performance metrics.
+  * New Jupyter Notebooks added: YOLO V9, YOLO V8 Oriented Bounding Boxes Detection (OOB), Stable
+    Diffusion in Keras, MobileCLIP, RMBG-v1.4 Background Removal, Magika, TripoSR, AnimateAnyone,
+    LLaVA-Next, and RAG system with OpenVINO and LangChain.
+
+* Broader LLM model support and more model compression techniques.
+
+  * LLM compilation time reduced through additional optimizations with compressed embedding.
+    Improved 1st token performance of LLMs on 4th and 5th generations of Intel® Xeon® processors
+    with Intel® Advanced Matrix Extensions (Intel® AMX).
+  * Better LLM compression and improved performance with oneDNN, INT4, and INT8 support for
+    Intel® Arc™ GPUs.
+  * Significant memory reduction for select smaller GenAI models on Intel® Core™ Ultra processors
+    with integrated GPU.
+
+* More portability and performance to run AI at the edge, in the cloud, or locally.
+
+  * The preview NPU plugin for Intel® Core™ Ultra processors is now available in the OpenVINO
+    open-source GitHub repository, in addition to the main OpenVINO package on PyPI.
+  * The JavaScript API is now more easily accessible through the npm repository, enabling
+    JavaScript developers' seamless access to the OpenVINO API.
+  * FP16 inference on ARM processors now enabled for the Convolutional Neural Network (CNN) by
+    default.
+
+
+OpenVINO™ Runtime
++++++++++++++++++++++++++++++
+
+Common
+-----------------------------
+
+* Unicode file paths for cached models are now supported on Windows.
+* Pad pre-processing API to extend input tensor on edges with constants.
+* A fix for inference failures of certain image generation models has been implemented
+  (fused I/O port names after transformation).
+* Compiler's warnings-as-errors option is now on, improving the coding criteria and quality.
+  Build warnings will not be allowed for new OpenVINO code and the existing warnings have been
+  fixed.
+
+AUTO Inference Mode
+-----------------------------
+
+* Returning the ov::enable_profiling value from ov::CompiledModel is now supported.
+
+CPU Device Plugin
+-----------------------------
+
+* 1st token performance of LLMs has been improved on the 4th and 5th generations of Intel® Xeon®
+  processors with Intel® Advanced Matrix Extensions (Intel® AMX).
+* LLM compilation time and memory footprint have been improved through additional optimizations
+  with compressed embeddings.
+* Performance of MoE (e.g. Mixtral), Gemma, and GPT-J has been improved further.
+* Performance has been improved significantly for a wide set of models on ARM devices.
+* FP16 inference precision is now the default for all types of models on ARM devices.
+* CPU architecture-agnostic build has been implemented, to enable unified binary distribution
+  on different ARM devices.
+
+GPU Device Plugin
+-----------------------------
+
+* LLM first token latency has been improved on both integrated and discrete GPU platforms.
+* For the ChatGLM3-6B model, average token latency has been improved on integrated GPU platforms.
+* For Stable Diffusion 1.5 FP16 precision, performance has been improved on Intel® Core™ Ultra
+  processors.
+
+NPU Device Plugin
+-----------------------------
+
+* NPU Plugin is now part of the OpenVINO GitHub repository. All the most recent plugin changes
+  will be immediately available in the repo. Note that NPU is part of Intel® Core™ Ultra
+  processors.
+* New OpenVINO™ notebook “Hello, NPU!” introducing NPU usage with OpenVINO has been added.
+* Version 22H2 or later is required for Microsoft Windows® 11 64-bit to run inference on NPU.
+
+OpenVINO Python API
+-----------------------------
+
+* GIL-free creation of RemoteTensors is now used - holding GIL means that the process is not suited
+  for multithreading and removing the GIL lock will increase performance which is critical for
+  the concept of Remote Tensors.
+* Packed data type BF16 on the Python API level has been added, opening a new way of supporting
+  data types not handled by numpy.
+* 'pad' operator support for ov::preprocess::PrePostProcessorItem has been added.
+* ov.PartialShape.dynamic(int) definition has been provided.
+
+
+OpenVINO C API
+-----------------------------
+
+* Two new pre-processing APIs for scale and mean have been added.
+
+OpenVINO Node.js API
+-----------------------------
+
+* New methods to align JavaScript API with CPP API have been added, such as
+  CompiledModel.exportModel(), core.import_model(), Core set/get property and Tensor.get_size(),
+  and Model.is_dynamic().
+* Documentation has been extended to help developers start integrating JavaScript applications
+  with OpenVINO™.
+
+TensorFlow Framework Support
+-----------------------------
+
+* `tf.keras.layers.TextVectorization tokenizer <https://www.tensorflow.org/api_docs/python/tf/keras/layers/TextVectorization>`__
+  is now supported.
+* Conversion of models with Variable and HashTable (dictionary) resources has been improved.
+* 8 NEW operations have been added
+  (`see the list here, marked as NEW <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/frontends/tensorflow/docs/supported_ops.md>`__).
+* 10 operations have received complex tensor support.
+* Input tensor names for TF1 models have been adjusted to have a single name per input.
+* Hugging Face model support coverage has increased significantly, due to:
+
+  * extraction of input signature of a model in memory has been fixed,
+  * reading of variable values for a model in memory has been fixed.
+
+
+PyTorch Framework Support
+-----------------------------
+
+* ModuleExtension, a new type of extension for PyTorch models is now supported
+  (`PR #23536 <https://github.com/openvinotoolkit/openvino/pull/23536>`__).
+* 22 NEW operations have been added.
+* Experimental support for models produced by torch.export (FX graph) has been added
+  (`PR #23815 <https://github.com/openvinotoolkit/openvino/pull/23815>`__).
+
+
+OpenVINO Model Server
++++++++++++++++++++++++++++++
+
+* OpenVINO™ Runtime backend used is now 2024.1
+* OpenVINO™ models with String data type on output are supported. Now, OpenVINO™ Model Server
+  can support models with input and output of the String type, so developers can take advantage
+  of the tokenization built into the model as the first layer. Developers can also rely on any
+  postprocessing embedded into the model which returns text only. Check the
+  `demo on string input data with the universal-sentence-encoder model <https://docs.openvino.ai/2024/ovms_demo_universal-sentence-encoder.html>`__
+  and the
+  `String output model demo <https://github.com/openvinotoolkit/model_server/tree/main/demos/image_classification_with_string_output>`__.
+* MediaPipe Python calculators have been updated to support relative paths for all related
+  configuration and Python code files. Now, the complete graph configuration folder can be
+  deployed in an arbitrary path without any code changes.
+* KServe REST API support has been extended to properly handle the string format in JSON body,
+  just like the binary format compatible with NVIDIA Triton™.
+* `A demo showcasing a full RAG algorithm <https://github.com/openvinotoolkit/model_server/tree/main/demos/python_demos/rag_chatbot>`__
+  fully delegated to the model server has been added.
+
+
+Neural Network Compression Framework
+++++++++++++++++++++++++++++++++++++++++++
+
+* Model subgraphs can now be defined in the ignored scope for INT8 Post-training Quantization,
+  nncf.quantize(), which simplifies excluding accuracy-sensitive layers from quantization.
+* A batch size of more than 1 is now partially supported for INT8 Post-training Quantization,
+  speeding up the process. Note that it is not recommended for transformer-based models as it
+  may impact accuracy. Here is an
+  `example demo <https://github.com/openvinotoolkit/nncf/blob/develop/examples/quantization_aware_training/torch/resnet18/README.md>`__.
+* Now it is possible to apply fine-tuning on INT8 models after Post-training Quantization to
+  improve model accuracy and make it easier to move from post-training to training-aware
+  quantization. Here is an
+  `example demo <https://github.com/openvinotoolkit/nncf/blob/develop/examples/quantization_aware_training/torch/resnet18/README.md>`__.
+
+OpenVINO Tokenizers
+++++++++++++++++++++++++++++++++++++++++++
+
+* TensorFlow support has been extended - TextVectorization layer translation:
+
+  * Aligned existing ops with TF ops and added a translator for them.
+  * Added new ragged tensor ops and string ops.
+
+* A new tokenizer type, RWKV is now supported:
+
+  * Added Trie tokenizer and Fuse op for ragged tensors.
+  * A new way to get OV Tokenizers: build a vocab from file.
+
+* Tokenizer caching has been redesigned to work with the OpenVINO™ model caching mechanism.
+
+
+Other Changes and Known Issues
+++++++++++++++++++++++++++++++++++++++++++
+
+Jupyter Notebooks
+-----------------------------
+
+The default branch for the OpenVINO™ Notebooks repository has been changed from 'main' to
+'latest'. The 'main' branch of the notebooks repository is now deprecated and will be maintained
+until September 30, 2024.
+
+The new branch, 'latest', offers a better user experience and simplifies maintenance due to
+significant refactoring and an improved directory naming structure.
+
+Use the local
+`README.md <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/README.md>`__
+file and OpenVINO™ Notebooks at
+`GitHub Pages <https://openvinotoolkit.github.io/openvino_notebooks/>`__
+to navigate through the content.
+
+
+The following notebooks have been updated or newly added:
+
+* `Grounded Segment Anything <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/grounded-segment-anything/grounded-segment-anything.ipynb>`__
+* `Visual Content Search with MobileCLIP <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/mobileclip-video-search/mobileclip-video-search.ipynb>`__
+* `YOLO V8 Oriented Bounding Box Detection Optimization <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/yolov8-optimization/yolov8-obb.ipynb>`__
+* `Magika: AI-powered fast and efficient file type identification <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/magika-content-type-recognition/magika-content-type-recognition.ipynb>`__
+* `Keras Stable Diffusion <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/stable-diffusion-keras-cv/stable-diffusion-keras-cv.ipynb>`__
+* `RMBG background removal <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/rmbg-background-removal/rmbg-background-removal.ipynb>`__
+* `AnimateAnyone: pose guided image to video generation <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/animate-anyone/animate-anyone.ipynb>`__
+* `LLaVA-Next visual-language assistant <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/llava-next-multimodal-chatbot/llava-next-multimodal-chatbot.ipynb>`__
+* `TripoSR: single image 3d reconstruction <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/triposr-3d-reconstruction/triposr-3d-reconstruction.ipynb>`__
+* `RAG system with OpenVINO and LangChain <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/llm-rag-langchain/llm-rag-langchain.ipynb>`__
+
+
+Known Issues
+-----------------------------
+
+| **Component - CPU Plugin**
+| *ID* - N/A
+| *Description:*
+|   Default CPU pinning policy on Windows has been changed to follow Windows' policy
+    instead of controlling the CPU pinning in the OpenVINO plugin. This brings certain dynamic or
+    performance variance on Windows. Developers can use ov::hint::enable_cpu_pinning to enable
+    or disable CPU pinning explicitly.
+
+
+
+Previous 2024 releases
++++++++++++++++++++++++++++++
+
+.. dropdown:: 2024.0 - 06 March 2024
+   :animate: fade-in-slide-down
+   :color: secondary
+
+   **What's new**
+
 * More Generative AI coverage and framework integrations to minimize code changes.
 
   * Improved out-of-the-box experience for TensorFlow sentence encoding models through the
