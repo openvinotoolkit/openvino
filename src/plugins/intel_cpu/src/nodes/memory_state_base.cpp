@@ -3,6 +3,7 @@
 //
 
 #include "memory_state_base.h"
+#include <openvino/core/node.hpp>
 
 using namespace ov::intel_cpu::node;
 
