@@ -30,6 +30,7 @@ class TestGlu(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("dim", [0, 1, 2, 3, -1, -2])
     def test_glu(self, dim, ie_device, precision, ir_version):
         self._test(*self.create_model(dim), ie_device, precision, ir_version)

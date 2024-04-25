@@ -274,18 +274,18 @@ TEST(type_prop, generate_proposals_dynamic) {
         attrs.pre_nms_count = 1000;
 
         if (s.im_info_shape.rank().is_static())
-            set_shape_labels(s.im_info_shape, 10);
+            set_shape_symbols(s.im_info_shape);
         if (s.anchors_shape.rank().is_static())
-            set_shape_labels(s.anchors_shape, 20);
+            set_shape_symbols(s.anchors_shape);
         if (s.deltas_shape.rank().is_static())
-            set_shape_labels(s.deltas_shape, 30);
+            set_shape_symbols(s.deltas_shape);
         if (s.scores_shape.rank().is_static())
-            set_shape_labels(s.scores_shape, 40);
+            set_shape_symbols(s.scores_shape);
 
-        ov::label_t expected_batch_label =
-            s.im_info_shape.rank().is_static()
-                ? 10
-                : s.deltas_shape.rank().is_static() ? 30 : s.scores_shape.rank().is_static() ? 40 : ov::no_label;
+        auto expected_batch_label = s.scores_shape.rank().is_static()    ? s.scores_shape[0].get_symbol()
+                                    : s.deltas_shape.rank().is_static()  ? s.deltas_shape[0].get_symbol()
+                                    : s.im_info_shape.rank().is_static() ? s.im_info_shape[0].get_symbol()
+                                                                         : nullptr;
 
         auto im_info = std::make_shared<ov::op::v0::Parameter>(element::f32, s.im_info_shape);
         auto anchors = std::make_shared<ov::op::v0::Parameter>(element::f32, s.anchors_shape);
@@ -301,8 +301,8 @@ TEST(type_prop, generate_proposals_dynamic) {
         EXPECT_EQ(proposals->get_output_partial_shape(0), s.expected_shape_0);
         EXPECT_EQ(proposals->get_output_partial_shape(1), s.expected_shape_1);
         EXPECT_EQ(proposals->get_output_partial_shape(2), s.expected_shape_2);
-        EXPECT_THAT(get_shape_labels(proposals->get_output_partial_shape(0)), ElementsAre(ov::no_label, ov::no_label));
-        EXPECT_THAT(get_shape_labels(proposals->get_output_partial_shape(1)), ElementsAre(ov::no_label));
-        EXPECT_THAT(get_shape_labels(proposals->get_output_partial_shape(2)), ElementsAre(expected_batch_label));
+        EXPECT_THAT(get_shape_symbols(proposals->get_output_partial_shape(0)), ElementsAre(nullptr, nullptr));
+        EXPECT_THAT(get_shape_symbols(proposals->get_output_partial_shape(1)), ElementsAre(nullptr));
+        EXPECT_THAT(get_shape_symbols(proposals->get_output_partial_shape(2)), ElementsAre(expected_batch_label));
     }
 }

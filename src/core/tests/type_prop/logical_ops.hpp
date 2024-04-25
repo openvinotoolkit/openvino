@@ -6,7 +6,6 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
 
 template <typename T, ov::element::Type_t ELEMENT_TYPE>
 class LogicalOperatorType {
@@ -133,18 +132,23 @@ TYPED_TEST_P(LogicalOperatorTypeProp, partial_shape_no_broadcast) {
 
     auto shape_a = PartialShape{1, {2, 4}, {2, 5}, 4, -1};
     auto shape_b = PartialShape{1, 3, {1, 6}, 4, {-1, 5}};
-    set_shape_labels(shape_a, ov::TensorLabel{ov::no_label, 11, 12, ov::no_label, 14});
-    set_shape_labels(shape_b, ov::TensorLabel{20, 21, ov::no_label, ov::no_label, ov::no_label});
+
+    auto A = std::make_shared<ov::Symbol>(), B = std::make_shared<ov::Symbol>(), C = std::make_shared<ov::Symbol>(),
+         D = std::make_shared<ov::Symbol>();
+    auto E = std::make_shared<ov::Symbol>(), F = std::make_shared<ov::Symbol>();
+
+    set_shape_symbols(shape_a, ov::TensorSymbol{nullptr, A, B, nullptr, C});
+    set_shape_symbols(shape_b, ov::TensorSymbol{E, F, nullptr, nullptr, nullptr});
     const auto exp_shape = PartialShape{1, 3, {2, 5}, 4, {-1, 5}};
 
     const auto a = std::make_shared<op::v0::Parameter>(element::boolean, shape_a);
     const auto b = std::make_shared<op::v0::Parameter>(element::boolean, shape_b);
 
     EXPECT_THAT(this->make_op(a, b, "NONE")->get_output_partial_shape(0),
-                AllOf(Eq(exp_shape), ResultOf(get_shape_labels, ElementsAre(20, 21, 12, ov::no_label, 14))));
+                AllOf(Eq(exp_shape), ResultOf(get_shape_symbols, ElementsAre(E, A, B, nullptr, C))));
 
     EXPECT_THAT(this->make_op(b, a, "NONE")->get_output_partial_shape(0),
-                AllOf(Eq(exp_shape), ResultOf(get_shape_labels, ElementsAre(20, 11, 12, ov::no_label, 14))));
+                AllOf(Eq(exp_shape), ResultOf(get_shape_symbols, ElementsAre(E, F, B, nullptr, C))));
 }
 
 TYPED_TEST_P(LogicalOperatorTypeProp, partial_shape_numpy_broadcast) {
@@ -153,18 +157,22 @@ TYPED_TEST_P(LogicalOperatorTypeProp, partial_shape_numpy_broadcast) {
 
     auto shape_a = PartialShape{1, {2, 4}, {2, 5}, 4, -1};
     auto shape_b = PartialShape{1, 3, {1, 6}, 4};
-    set_shape_labels(shape_a, ov::TensorLabel{ov::no_label, 11, 12, 13, 14});
-    set_shape_labels(shape_b, ov::TensorLabel{20, 21, ov::no_label, 23});
+
+    auto A = std::make_shared<ov::Symbol>(), B = std::make_shared<ov::Symbol>(), C = std::make_shared<ov::Symbol>(),
+         D = std::make_shared<ov::Symbol>();
+    auto E = std::make_shared<ov::Symbol>(), F = std::make_shared<ov::Symbol>(), G = std::make_shared<ov::Symbol>();
+    set_shape_symbols(shape_a, ov::TensorSymbol{nullptr, A, B, C, D});
+    set_shape_symbols(shape_b, ov::TensorSymbol{E, F, nullptr, G});
     const auto exp_shape = PartialShape{1, {2, 4}, 3, 4, 4};
 
     const auto a = std::make_shared<op::v0::Parameter>(element::boolean, shape_a);
     const auto b = std::make_shared<op::v0::Parameter>(element::boolean, shape_b);
 
     EXPECT_THAT(this->make_op(a, b, "NUMPY")->get_output_partial_shape(0),
-                AllOf(Eq(exp_shape), ResultOf(get_shape_labels, ElementsAre(ov::no_label, 11, 21, 13, 23))));
+                AllOf(Eq(exp_shape), ResultOf(get_shape_symbols, ElementsAre(nullptr, A, B, C, G))));
 
     EXPECT_THAT(this->make_op(b, a, "NUMPY")->get_output_partial_shape(0),
-                AllOf(Eq(exp_shape), ResultOf(get_shape_labels, ElementsAre(ov::no_label, 11, 12, 13, 23))));
+                AllOf(Eq(exp_shape), ResultOf(get_shape_symbols, ElementsAre(nullptr, A, F, C, G))));
 }
 
 TYPED_TEST_P(LogicalOperatorTypeProp, default_ctor) {

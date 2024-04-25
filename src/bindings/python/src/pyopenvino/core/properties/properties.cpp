@@ -71,6 +71,10 @@ void regmodule_properties(py::module m) {
         .value("PCORE_ONLY", ov::hint::SchedulingCoreType::PCORE_ONLY)
         .value("ECORE_ONLY", ov::hint::SchedulingCoreType::ECORE_ONLY);
 
+    py::enum_<ov::hint::ModelDistributionPolicy>(m_hint, "ModelDistributionPolicy", py::arithmetic())
+        .value("TENSOR_PARALLEL", ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL)
+        .value("PIPELINE_PARALLEL", ov::hint::ModelDistributionPolicy::PIPELINE_PARALLEL);
+
     py::enum_<ov::hint::ExecutionMode>(m_hint, "ExecutionMode", py::arithmetic())
         .value("PERFORMANCE", ov::hint::ExecutionMode::PERFORMANCE)
         .value("ACCURACY", ov::hint::ExecutionMode::ACCURACY);
@@ -81,6 +85,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_hint, ov::hint::performance_mode, "performance_mode");
     wrap_property_RW(m_hint, ov::hint::enable_cpu_pinning, "enable_cpu_pinning");
     wrap_property_RW(m_hint, ov::hint::scheduling_core_type, "scheduling_core_type");
+    wrap_property_RW(m_hint, ov::hint::model_distribution_policy, "model_distribution_policy");
     wrap_property_RW(m_hint, ov::hint::enable_hyper_threading, "enable_hyper_threading");
     wrap_property_RW(m_hint, ov::hint::execution_mode, "execution_mode");
     wrap_property_RW(m_hint, ov::hint::num_requests, "num_requests");

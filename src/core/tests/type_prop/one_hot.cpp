@@ -6,7 +6,6 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
@@ -47,9 +46,9 @@ TEST(type_prop, one_hot_v1_output_shape_2) {
     ASSERT_EQ(dyn_ont_hot->get_output_partial_shape(0), (PartialShape{1, {3, 5}, 2, 4, 3}));
 }
 
-TEST(type_prop, one_hot_v1_indices_labels) {
+TEST(type_prop, one_hot_v1_indices_symbols) {
     auto ind_shape = PartialShape{-1, {3, 5}, 2, 3};
-    set_shape_labels(ind_shape, {10, 11, 12, 13});
+    auto symbols = set_shape_symbols(ind_shape);
 
     auto dyn_indices = make_shared<ov::op::v0::Parameter>(element::i64, ind_shape);
     auto depth = ov::op::v0::Constant::create(element::i64, Shape{}, {4});
@@ -58,19 +57,19 @@ TEST(type_prop, one_hot_v1_indices_labels) {
     int64_t axis = 1;
 
     PartialShape expected_shape{-1, 4, {3, 5}, 2, 3};
-    ov::TensorLabel expected_labels{10, ov::no_label, 11, 12, 13};
+    ov::TensorSymbol expected_symbols = {symbols[0], nullptr, symbols[1], symbols[2], symbols[3]};
 
     auto dyn_one_hot = make_shared<op::v1::OneHot>(dyn_indices, depth, on_value, off_value, axis);
     const auto& out_shape = dyn_one_hot->get_output_partial_shape(0);
 
     EXPECT_EQ(dyn_one_hot->get_output_element_type(0), element::f32);
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+    EXPECT_EQ(get_shape_symbols(out_shape), expected_symbols);
 }
 
 TEST(type_prop, one_hot_v1_depth_shape_of_value) {
     auto ind_shape = PartialShape{-1, {3, 5}, 2, 3};
-    set_shape_labels(ind_shape, {10, 11, 12, 13});
+    set_shape_symbols(ind_shape);
 
     auto dyn_indices = make_shared<ov::op::v0::Parameter>(element::i64, ind_shape);
 
@@ -93,16 +92,16 @@ TEST(type_prop, one_hot_v1_depth_shape_of_value) {
     EXPECT_EQ(out_shape, expected_shape);
 }
 
-TEST(type_prop, one_hot_v1_depth_value_label) {
+TEST(type_prop, one_hot_v1_depth_value_symbol) {
     auto ind_shape = PartialShape{-1, {3, 5}, 2, 3};
-    set_shape_labels(ind_shape, {10, 11, 12, 13});
+    auto symbols = set_shape_symbols(ind_shape);
 
     auto dyn_indices = make_shared<ov::op::v0::Parameter>(element::i64, ind_shape);
 
-    auto labeled_dim = Dimension(4, 6);
-    ov::label_t depth_label = 2345664;
-    ov::DimensionTracker::set_label(labeled_dim, depth_label);
-    PartialShape shape_for_depth = PartialShape{labeled_dim};
+    auto symboled_dim = Dimension(4, 6);
+    auto depth_symbol = std::make_shared<Symbol>();
+    symboled_dim.set_symbol(depth_symbol);
+    PartialShape shape_for_depth = PartialShape{symboled_dim};
 
     auto data = make_shared<ov::op::v0::Parameter>(element::i8, shape_for_depth);
     auto depth_dim = make_shared<op::v3::ShapeOf>(data);
@@ -113,19 +112,19 @@ TEST(type_prop, one_hot_v1_depth_value_label) {
     int64_t axis = 1;
 
     PartialShape expected_shape{-1, {4, 6}, {3, 5}, 2, 3};
-    ov::TensorLabel expected_labels{10, depth_label, 11, 12, 13};
+    ov::TensorSymbol expected_symbols{symbols[0], depth_symbol, symbols[1], symbols[2], symbols[3]};
 
     auto dyn_one_hot = make_shared<op::v1::OneHot>(dyn_indices, depth, on_value, off_value, axis);
     const auto& out_shape = dyn_one_hot->get_output_partial_shape(0);
 
     EXPECT_EQ(dyn_one_hot->get_output_element_type(0), element::f32);
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+    EXPECT_EQ(get_shape_symbols(out_shape), expected_symbols);
 }
 
-TEST(type_prop, one_hot_v1_output_labels) {
+TEST(type_prop, one_hot_v1_output_symbols) {
     auto ind_shape = PartialShape{-1, {3, 5}, 2, 3};
-    set_shape_labels(ind_shape, {10, 11, 12, 13});
+    auto symbols = set_shape_symbols(ind_shape);
 
     auto dyn_indices = make_shared<ov::op::v0::Parameter>(element::i64, ind_shape);
     auto depth = ov::op::v0::Constant::create(element::i64, Shape{}, {4});
@@ -134,14 +133,14 @@ TEST(type_prop, one_hot_v1_output_labels) {
     int64_t axis = 1;
 
     PartialShape expected_shape{-1, 4, {3, 5}, 2, 3};
-    ov::TensorLabel expected_labels{10, ov::no_label, 11, 12, 13};
+    ov::TensorSymbol expected_symbols{symbols[0], nullptr, symbols[1], symbols[2], symbols[3]};
 
     auto dyn_one_hot = make_shared<op::v1::OneHot>(dyn_indices, depth, on_value, off_value, axis);
     const auto& out_shape = dyn_one_hot->get_output_partial_shape(0);
 
     EXPECT_EQ(dyn_one_hot->get_output_element_type(0), element::f32);
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+    EXPECT_EQ(get_shape_symbols(out_shape), expected_symbols);
 }
 
 TEST(type_prop, one_hot_v1_default_constructor) {

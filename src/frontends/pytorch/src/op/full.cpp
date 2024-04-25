@@ -94,7 +94,7 @@ OutputVector translate_full_like(const NodeContext& context) {
     if (context.get_input_size() == 7 && !context.input_is_none(2)) {
         return {base_translate_full_with_convert(context, sizes, value, 2)};
     }
-    auto out = context.input_is_none(3) ? input : context.get_input(3);
+    const auto& out = context.input_is_none(3) ? input : context.get_input(3);
     return {base_translate_full_with_convertlike(context, sizes, value, out)};
 };
 
@@ -107,6 +107,8 @@ OutputVector translate_full_like_fx(const NodeContext& context) {
     if (context.has_attribute("dtype")) {
         auto dtype = context.get_attribute<element::Type>("dtype");
         filled_tensor = context.mark_node(std::make_shared<v0::Convert>(filled_tensor, dtype));
+    } else {
+        filled_tensor = context.mark_node(std::make_shared<v1::ConvertLike>(filled_tensor, input));
     }
     return {filled_tensor};
 };
@@ -116,7 +118,7 @@ OutputVector translate_fill(const NodeContext& context) {
     auto input = context.get_input(0);
     auto value = context.get_input(1);
     auto sizes = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i32));
-    auto out = context.input_is_none(2) ? input : context.get_input(2);
+    const auto& out = context.input_is_none(2) ? input : context.get_input(2);
     auto result = base_translate_full_with_convertlike(context, sizes, value, out);
     if (!context.input_is_none(2)) {
         context.mutate_input(2, result);
@@ -187,7 +189,7 @@ OutputVector translate_zeros_like(const NodeContext& context) {
     if (context.get_input_size() == 6 && !context.input_is_none(1)) {
         return {base_translate_full_with_convert(context, sizes, value, 1)};
     }
-    auto out = context.input_is_none(2) ? input : context.get_input(2);
+    const auto& out = context.input_is_none(2) ? input : context.get_input(2);
     return {base_translate_full_with_convertlike(context, sizes, value, out)};
 };
 
@@ -200,6 +202,8 @@ OutputVector translate_zeros_like_fx(const NodeContext& context) {
     if (context.has_attribute("dtype")) {
         auto dtype = context.get_attribute<element::Type>("dtype");
         filled_tensor = context.mark_node(std::make_shared<v0::Convert>(filled_tensor, dtype));
+    } else {
+        filled_tensor = context.mark_node(std::make_shared<v1::ConvertLike>(filled_tensor, input));
     }
     return {filled_tensor};
 };
@@ -267,7 +271,7 @@ OutputVector translate_ones_like(const NodeContext& context) {
     if (context.get_input_size() == 6 && !context.input_is_none(1)) {
         return {base_translate_full_with_convert(context, sizes, value, 1)};
     }
-    auto out = context.input_is_none(2) ? input : context.get_input(2);
+    const auto& out = context.input_is_none(2) ? input : context.get_input(2);
     return {base_translate_full_with_convertlike(context, sizes, value, out)};
 };
 
@@ -280,6 +284,8 @@ OutputVector translate_ones_like_fx(const NodeContext& context) {
     if (context.has_attribute("dtype")) {
         auto dtype = context.get_attribute<element::Type>("dtype");
         filled_tensor = context.mark_node(std::make_shared<v0::Convert>(filled_tensor, dtype));
+    } else {
+        filled_tensor = context.mark_node(std::make_shared<v1::ConvertLike>(filled_tensor, input));
     }
     return {filled_tensor};
 };
@@ -346,7 +352,7 @@ OutputVector translate_empty_like(const NodeContext& context) {
             empty = base_translate_full_with_convertlike(context, sizes, value, input);
         }
     } else if (context.get_input_size() == 4) {
-        auto out = context.input_is_none(3) ? input : context.get_input(3);
+        const auto& out = context.input_is_none(3) ? input : context.get_input(3);
         empty = base_translate_full_with_convertlike(context, sizes, value, out);
         if (!context.input_is_none(3)) {
             context.mutate_input(3, empty);

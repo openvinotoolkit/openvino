@@ -35,7 +35,7 @@ public:
     bool evaluate_upper(TensorVector& output_values) const override;
     bool evaluate_lower(TensorVector& output_values) const override;
     bool has_evaluate() const override;
-    bool evaluate_label(TensorLabelVector& output_labels) const override;
+    bool evaluate_symbol(TensorSymbolVector& output_symbols) const override;
 
     /// \brief Inputs indexes and count.
     enum Ins : size_t { ARG, ORDER, IN_COUNT };

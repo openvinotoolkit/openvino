@@ -135,9 +135,9 @@ Output<Node> normalize_axis(const NodeContext& context, const Output<Node>& axis
     return new_axis;
 }
 
-std::shared_ptr<Node> numel(const NodeContext& context, const Output<Node>& x) {
-    auto input_shape = context.mark_node(std::make_shared<opset10::ShapeOf>(x, element::i32));
-    auto axes = context.mark_node(opset10::Constant::create(element::i32, Shape({1}), {0}));
+std::shared_ptr<Node> numel(const NodeContext& context, const Output<Node>& x, element::Type output_type) {
+    auto input_shape = context.mark_node(std::make_shared<opset10::ShapeOf>(x, output_type));
+    auto axes = context.mark_node(opset10::Constant::create(output_type, Shape({1}), {0}));
     return context.mark_node(std::make_shared<opset10::ReduceProd>(input_shape, axes, false));
 };
 
@@ -271,7 +271,7 @@ OutputVector make_framework_node(const NodeContext& context, const std::string& 
             auto input_idx = session->decode_tensor_name(param->output(0));
             inputs_map[input_idx].push_back(param);
         }
-        auto body_outputs = subgraph_decoder->outputs();
+        const auto& body_outputs = subgraph_decoder->outputs();
         if (i == 0) {
             num_body_outs = body_outputs.size();
         } else {
@@ -376,12 +376,12 @@ Any simplified_type_interpret(Any type) {
     // After applying of this interpretation we cannot distinguish true scalars (not tensors) and tensors with elements
     // of the same types
     if (type.is<type::Tensor>()) {
-        auto tensor = type.as<type::Tensor>();
+        const auto& tensor = type.as<type::Tensor>();
         if (tensor.element_type.is<element::Type>()) {
             return tensor.element_type;
         }
     } else if (type.is<type::PyScalar>()) {
-        auto scalar = type.as<type::PyScalar>();
+        const auto& scalar = type.as<type::PyScalar>();
         if (scalar.element_type.is<element::Type>()) {
             return scalar.element_type;
         }
@@ -450,11 +450,18 @@ void align_output_types(const NodeContext& context, OutputVector& outputs) {
 }
 
 Output<Node> get_input_with_floating_type(const NodeContext& context, size_t idx) {
-    FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(idx), "Input should not be None.");
     auto x = context.get_input(static_cast<int>(idx));
     // This const only needed for type alignment
     auto dummy_const = context.mark_node(ov::op::v0::Constant::create(element::f32, Shape({}), {0.5}))->output(0);
     align_eltwise_input_types(context, x, dummy_const, false, true);
+    return x;
+}
+
+Output<Node> get_input_as_i32(const NodeContext& context, size_t idx) {
+    auto x = context.get_input(static_cast<int>(idx));
+    if (x.get_element_type() != element::i32) {
+        x = context.mark_node(std::make_shared<ov::op::v0::Convert>(x, element::i32));
+    }
     return x;
 }
 

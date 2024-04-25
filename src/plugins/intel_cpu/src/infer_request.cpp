@@ -10,7 +10,7 @@
 #include "itt.h"
 #include "memory_state.h"
 #include "nodes/common/cpu_convert.h"
-#include "nodes/common/cpu_memcpy.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
 #include "nodes/memory.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -193,7 +193,7 @@ void SyncInferRequest::change_default_ptr() {
         auto input = inputNodesMap.find(it.first);
         OPENVINO_ASSERT(inputNodesMap.end() != input, "Cannot find input tensor with index: ", it.first);
         NodePtr inputNodePtr = input->second;
-        if (inputNodePtr->getChildEdgeAt(0)->getMemory().getData() == static_cast<void*>(it.second->data()))
+        if (inputNodePtr->getDstDataAtPort(0) == static_cast<void*>(it.second->data()))
             continue;
         auto& childEdges = inputNodePtr->getChildEdges();
         // Perform checks that the user's memory will not be modified
@@ -419,7 +419,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
         const auto& shape = port.get_partial_shape();
         const bool isDynamic = shape.is_dynamic();
 
-        if (!shape.compatible(ov::PartialShape(tensor->get_shape()))) {
+        if (!shape.compatible(ov::PartialShape(tensor->get_shape())) && tensor->get_size() != 0) {
             OPENVINO_THROW("Can't set the output tensor with index: ",
                            output_index,
                            ", because the model output tensor (shape=",
@@ -558,36 +558,6 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
                     tensor = ov::make_tensor(model_prec, tensor_shape);
                 }
                 ov::ISyncInferRequest::set_tensor(port, tensor);
-            } else {
-                const auto& tensor_shape = tensor->get_shape();
-                const bool isDynamic = port_shape.is_dynamic();
-                // Static shape case is enough information that shapes are incompatible to throw exception
-                // but in dynamic shape case we also need to handle following corner case:
-                // on tensor initialization stage we create empty tensor with dimensions equal 0
-                // so if we have tensor with all zero dimension we mustn't throw exception
-                if (!port_shape.compatible(ov::PartialShape(tensor_shape)) &&
-                    (!isDynamic || static_cast<int64_t>(tensor_shape.size()) != port_shape.rank().get_length() ||
-                     std::any_of(tensor_shape.begin(), tensor_shape.end(), [](const size_t& dims) {
-                         return dims != 0;
-                     }))) {
-                    OPENVINO_THROW("ParameterMismatch: model input and output use the same index: ",
-                                   port_index,
-                                   ", but expect tensors with different shapes. Input shape: ",
-                                   ov::PartialShape(tensor_shape),
-                                   ", output shape: ",
-                                   port_shape);
-                }
-
-                const auto netOutPrc = port.get_element_type();
-                if (netOutPrc != tensor->get_element_type()) {
-                    OPENVINO_THROW("ParameterMismatch: model input and output use the same index: ",
-                                   port_index,
-                                   " but expect tensor with different precision: ",
-                                   tensor->get_element_type(),
-                                   " for input and ",
-                                   netOutPrc,
-                                   " for output.");
-                }
             }
             m_outputs[port_index] = tensor;
             if (!port_shape.is_dynamic() && !m_output_external_ptr.count(port_index)) {

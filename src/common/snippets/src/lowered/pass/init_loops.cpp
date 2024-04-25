@@ -15,7 +15,7 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-using LoopPort = LinearIR::LoopManager::LoopPort;
+using MemoryAccess = ov::snippets::modifier::MemoryAccess;
 
 namespace {
 inline int64_t get_stride(size_t dim, const VectorDims& shape) {
@@ -29,9 +29,47 @@ inline int64_t get_stride(size_t dim, const VectorDims& shape) {
     return stride;
 }
 
-inline void init_is_incremented(LoopPort& loop_port) {
-    if (!ov::is_type<op::MemoryAccess>(loop_port.expr_port->get_expr()->get_node()))
-        loop_port.is_incremented = false;
+inline void init_is_incremented(LoopPort& port, size_t loop_id) {
+    const auto& expr = port.expr_port->get_expr();
+    const auto& expr_loops = expr->get_loop_ids();
+    if (!std::dynamic_pointer_cast<modifier::MemoryAccess>(expr->get_node())) {
+        port.is_incremented = false;
+    } else if (expr_loops.back() != loop_id) {
+        // Note: LoopPort connected to Buffer between two loops should not be incremented in the outermost loop
+        // Consider the example below:
+        //     Store; Loop ids [0,1,2,3]
+        //     IntermediateMemoryBuffer; Loop ids [0,1]
+        //     Load; Loop ids [0,1,4,5]
+        // Store is exit port of Loop-1, but it should be incremented only in Loop-2 and Loop-3. Similar with Load.
+        auto is_ignored = [=](const ExpressionPtr& target_expr) {
+            if (ov::is_type<op::IntermediateMemoryBuffer>(target_expr->get_node())) {
+                const auto& target_loops = target_expr->get_loop_ids();
+                const auto i_max = std::min(expr_loops.size(), target_loops.size());
+                for (size_t i = 0; i < i_max && expr_loops[i] == target_loops[i]; i++) {
+                    if (target_loops[i] == loop_id)
+                        return true;
+                }
+            }
+            return false;
+        };
+        if (port.expr_port->get_type() == ExpressionPort::Type::Output) {
+            const auto& out_connector = expr->get_output_port_connector(port.expr_port->get_index());
+            for (const auto& consumer : out_connector->get_consumers()) {
+                if (is_ignored(consumer.get_expr())) {
+                    port.is_incremented = false;
+                    return;
+                }
+            }
+        } else if (port.expr_port->get_type() == ExpressionPort::Type::Input) {
+            const auto& in_connector = expr->get_input_port_connector(port.expr_port->get_index());
+            if (is_ignored(in_connector->get_source().get_expr())) {
+                port.is_incremented = false;
+                return;
+            }
+        } else {
+            OPENVINO_THROW("Unexpected LoopPort type");
+        }
+    }
 }
 
 inline void init_ptr_increment(LoopPort& loop_port, size_t work_amount) {
@@ -75,7 +113,7 @@ inline void init_data_size(LoopPort& loop_port) {
     }
 }
 
-inline void init_work_amount(const LinearIR::LoopManager::LoopInfoPtr& loop_info) {
+inline void init_work_amount(const LoopInfoPtr& loop_info) {
     size_t work_amount = 1;
     for (const auto& loop_port : loop_info->get_entry_points()) {
         if (loop_port.is_incremented) {
@@ -97,7 +135,7 @@ inline void init_work_amount(const LinearIR::LoopManager::LoopInfoPtr& loop_info
 }
 }  // namespace
 
-void InitLoops::init_loop_info(const LinearIR::LoopManager::LoopInfoPtr& loop_info, bool only_runtime_args) {
+void InitLoops::init_loop_info(const LoopInfoPtr& loop_info, const size_t loop_id, bool only_runtime_args) {
     if (utils::is_dynamic_value(loop_info->get_work_amount()))
         init_work_amount(loop_info);
 
@@ -108,8 +146,8 @@ void InitLoops::init_loop_info(const LinearIR::LoopManager::LoopInfoPtr& loop_in
         init_finalization_offset(loop_port, work_amount);
     };
 
-    auto init_all_parameters = [&init_runtime_parameters](LoopPort& loop_port) {
-        init_is_incremented(loop_port);
+    auto init_all_parameters = [loop_id, &init_runtime_parameters](LoopPort& loop_port) {
+        init_is_incremented(loop_port, loop_id);
         init_data_size(loop_port);
         init_runtime_parameters(loop_port);
     };
@@ -131,7 +169,7 @@ bool InitLoops::run(LinearIR& linear_ir) {
     const auto& loop_manager = linear_ir.get_loop_manager();
     const auto& loops = loop_manager->get_map();
     for (const auto& loop : loops) {
-        init_loop_info(loop.second);
+        init_loop_info(loop.second, loop.first);
     }
 
     return true;

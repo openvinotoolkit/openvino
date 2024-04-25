@@ -110,7 +110,7 @@ void Tile::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    supportedPrimitiveDescriptors = getSupportedConfigs(this);
+    supportedPrimitiveDescriptors = getSupportedConfigs(this, outputShapes.size());
 }
 
 bool Tile::needPrepareParams() const {
@@ -145,7 +145,7 @@ bool Tile::needShapeInfer() const {
     if (!constMap[TILE_REPEATS]) {
         if (originRepeats.empty())
             return true;
-        const int32_t* repeatsData = getParentEdgeAt(TILE_REPEATS)->getMemory().getDataAs<const int32_t>();
+        const int32_t* repeatsData = getSrcDataAtPortAs<const int32_t>(TILE_REPEATS);
         for (size_t i = 0lu; i < originRepeats.size(); i++) {
             if (originRepeats[i] != static_cast<size_t>(repeatsData[i]))
                 return true;
@@ -175,7 +175,7 @@ void Tile::plainExecute(dnnl::stream strm) {
     auto& srcMemory = getParentEdgeAt(TILE_INPUT)->getMemory();
 
     const uint8_t* src_ptr = srcMemory.getDataAs<const uint8_t>();
-    uint8_t* dst_ptr = getChildEdgeAt(0)->getMemory().getDataAs<uint8_t>();
+    uint8_t* dst_ptr = getDstDataAtPortAs<uint8_t>(0);
 
     int m_inner_dim = 1;
     int m_outer_dim = 1;

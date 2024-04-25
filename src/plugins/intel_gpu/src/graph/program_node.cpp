@@ -671,6 +671,7 @@ void program_node::save(cldnn::BinaryOutputBuffer& ob) const {
     ob << constant;
     ob << data_flow;
     ob << in_shape_of_subgraph;
+    ob << runtime_skippable;
 
     ob << output;
     ob << user_mark;
@@ -836,6 +837,7 @@ void program_node::load(cldnn::BinaryInputBuffer& ib) {
     ib >> constant;
     ib >> data_flow;
     ib >> in_shape_of_subgraph;
+    ib >> runtime_skippable;
 
     ib >> output;
     ib >> user_mark;

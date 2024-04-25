@@ -220,6 +220,16 @@ void ActivationLayerTest::SetUp() {
     auto result = std::make_shared<ov::op::v0::Result>(activation);
 
     function = std::make_shared<ov::Model>(result, ov::ParameterVector{param}, "Activation");
+
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
+    abs_threshold = 9e-4;
+#else
+    if (model_type == ov::element::f32) {
+        abs_threshold = 1e-5;
+    } else if (model_type == ov::element::f16) {
+        abs_threshold = 5e-4;
+    }
+#endif
 }
 
 void ActivationParamLayerTest::SetUp() {

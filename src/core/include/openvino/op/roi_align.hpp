@@ -19,7 +19,15 @@ public:
 
     ROIAlign() = default;
     /// \brief Constructs a ROIAlign node matching the ONNX ROIAlign specification
-    /// Check util::ROIAlignBase for description of common params.
+    /// \param input           Input feature map {N, C, H, W}
+    /// \param rois            Regions of interest to pool over
+    /// \param batch_indices   Indices of images in the batch matching
+    ///                        the number or ROIs
+    /// \param pooled_h        Height of the ROI output features
+    /// \param pooled_w        Width of the ROI output features
+    /// \param sampling_ratio  Number of sampling points used to compute
+    ///                        an output element
+    /// \param spatial_scale   Spatial scale factor used to translate ROI coordinates
     ///
     /// \param mode            Method of pooling - 'avg' or 'max'
     ROIAlign(const Output<Node>& input,
@@ -76,7 +84,15 @@ public:
 
     ROIAlign() = default;
     /// \brief Constructs a ROIAlign operation.
-    /// Check util::ROIAlignBase for description of common params.
+    /// \param input           Input feature map {N, C, H, W}
+    /// \param rois            Regions of interest to pool over
+    /// \param batch_indices   Indices of images in the batch matching
+    ///                        the number or ROIs
+    /// \param pooled_h        Height of the ROI output features
+    /// \param pooled_w        Width of the ROI output features
+    /// \param sampling_ratio  Number of sampling points used to compute
+    ///                        an output element
+    /// \param spatial_scale   Spatial scale factor used to translate ROI coordinates
     ///
     /// \param mode            Method of pooling - 'avg' or 'max'
     /// \param aligned_mode    Method of coordinates alignment - 'asymmetric', 'half_pixel_for_nn' or 'half_pixel'

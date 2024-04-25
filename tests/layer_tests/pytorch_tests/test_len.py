@@ -22,7 +22,7 @@ class TestLen(PytorchLayerTest):
         class aten_len(torch.nn.Module):
 
             def forward(self, input_tensor):
-                return torch.as_tensor(len(input_tensor), dtype=torch.int)
+                return torch.tensor(len(input_tensor))
 
         ref_net = None
 
@@ -33,7 +33,7 @@ class TestLen(PytorchLayerTest):
 
             def forward(self, input_tensor):
                 int_list = input_tensor.size()
-                return torch.as_tensor(len(int_list), dtype=torch.int)
+                return torch.tensor(len(int_list))
 
         ref_net = None
 
@@ -64,7 +64,7 @@ class TestLenEmpty(PytorchLayerTest):
 
             def forward(self, input_tensor):
                 # len of empty slice
-                return torch.as_tensor(len(input_tensor[0:0]), dtype=torch.int)
+                return torch.tensor(len(input_tensor[0:0]))
 
         ref_net = None
 
