@@ -59,7 +59,7 @@ core = ov.Core()
 compiled_model = core.compile_model(ov_model, 'CPU')
 
 # infer the model on random data
-output = compiled_model.infer_new_request({0: example.numpy()})
+output = compiled_model({0: example.numpy()})
 ```
 
 **TensorFlow Model**
@@ -81,7 +81,7 @@ compiled_model = core.compile_model(ov_model, 'CPU')
 
 # infer the model on random data
 data = np.random.rand(1, 224, 224, 3)
-output = compiled_model.infer_new_request({0: data})
+output = compiled_model({0: data})
 ```
 
 OpenVINO also supports CPU, GPU, and NPU devices and works with models in TensorFlow, PyTorch, ONNX, TensorFlow Lite, PaddlePaddle model formats.
