@@ -48,7 +48,6 @@ jobs:
           echo "${{ toJSON(steps.smart_ci.outputs.affected_components) }}"
         shell: bash
 
-  # TODO: Make Docker job a part of Smart CI maybe?
   Docker:
     needs: Smart_CI
     runs-on: aks-linux-16-cores-arm-docker-build
