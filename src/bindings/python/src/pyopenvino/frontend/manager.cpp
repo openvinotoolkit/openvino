@@ -99,7 +99,6 @@ void regclass_frontend_FrontEndManager(py::module m) {
     });
 }
 
-
 // CVS-139194: migrate to new exception handling https://github.com/pybind/pybind11/pull/4772
 
 void regclass_frontend_GeneralFailureFrontEnd(py::module m) {
@@ -115,7 +114,8 @@ void regclass_frontend_GeneralFailureFrontEnd(py::module m) {
 }
 
 void regclass_frontend_OpValidationFailureFrontEnd(py::module m) {
-    static py::handle ex = py::exception<ov::frontend::OpValidationFailure>(std::move(m), "OpValidationFailure").release();
+    static py::handle ex =
+        py::exception<ov::frontend::OpValidationFailure>(std::move(m), "OpValidationFailure").release();
     py::register_exception_translator([](std::exception_ptr p) {
         try {
             if (p)
@@ -127,19 +127,21 @@ void regclass_frontend_OpValidationFailureFrontEnd(py::module m) {
 }
 
 void regclass_frontend_OpConversionFailureFrontEnd(py::module m) {
-    static py::handle ex = py::exception<ov::frontend::OpConversionFailure>(std::move(m), "OpConversionFailure").release();
+    static py::handle ex =
+        py::exception<ov::frontend::OpConversionFailure>(std::move(m), "OpConversionFailure").release();
     py::register_exception_translator([](std::exception_ptr p) {
         try {
             if (p)
                 std::rethrow_exception(p);
         } catch (const ov::frontend::OpConversionFailure& e) {
-           py::set_error(ex, e.what());
+            py::set_error(ex, e.what());
         }
     });
 }
 
 void regclass_frontend_InitializationFailureFrontEnd(py::module m) {
-    static py::handle ex = py::exception<ov::frontend::InitializationFailure>(std::move(m), "InitializationFailure").release();
+    static py::handle ex =
+        py::exception<ov::frontend::InitializationFailure>(std::move(m), "InitializationFailure").release();
     py::register_exception_translator([](std::exception_ptr p) {
         try {
             if (p)
@@ -151,7 +153,8 @@ void regclass_frontend_InitializationFailureFrontEnd(py::module m) {
 }
 
 void regclass_frontend_NotImplementedFailureFrontEnd(py::module m) {
-    static py::handle ex = py::exception<ov::frontend::NotImplementedFailure>(std::move(m), "NotImplementedFailure").release();
+    static py::handle ex =
+        py::exception<ov::frontend::NotImplementedFailure>(std::move(m), "NotImplementedFailure").release();
     py::register_exception_translator([](std::exception_ptr p) {
         try {
             if (p)
