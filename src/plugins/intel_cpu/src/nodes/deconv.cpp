@@ -23,7 +23,6 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "utils/general_utils.h"
 #include "utils/cpu_utils.hpp"
-#include  "utils/plain_tensor.hpp"
 
 #if defined(OV_CPU_WITH_ACL)
 #include "executors/acl/acl_utils.hpp"
