@@ -18,11 +18,11 @@ public:
     class GenericConfig {
     public:
         /**
-        * @brief Returns true is the config specifies all the parameters necessary for kernel compilation.
-         * Configs for static kernels should be complete on code emission stage,
-         * while dynamic kernels will be complete only in runtime, when all the shapes are known.
+        * @brief Returns true if the config specifies all the parameters necessary for kernel compilation.
+         * Configs for static kernels should be completed on code emission stage,
+         * while dynamic kernels will be completed only in runtime, when all the shapes are known.
         */
-        virtual bool is_complete() const = 0;
+        virtual bool is_completed() const = 0;
         virtual ~GenericConfig() = default;
     };
     virtual ~KernelExecutorBase() = default;
@@ -37,10 +37,10 @@ template<typename Conf, typename KernelType,
          typename std::enable_if<std::is_base_of<KernelExecutorBase::GenericConfig, Conf>::value, bool>::type = true>
 class KernelExecutor : public snippets::KernelExecutorBase {
 public:
-    explicit KernelExecutor(std::shared_ptr<Conf> c) : KernelExecutorBase(), m_config{c} {}
+    explicit KernelExecutor(std::shared_ptr<Conf> c) : KernelExecutorBase(), m_config{std::move(c)} {}
     /**
     * @brief check current config and recompile kernel if necessary. Use kernel caching to avoid redundant recompilations.
-     * This method must be called only for complete configs. It's the user responsibility to check is_complete() before calling.
+     * This method must be called only for complete configs. It's the user responsibility to check is_completed() before calling.
     */
     virtual void update_kernel()  = 0;
 protected:
@@ -65,9 +65,9 @@ public:
         m_table[expr] = instance;
         return instance;
     }
-    std::shared_ptr<KernelExecutorBase> get_kernel_desc(const snippets::lowered::ExpressionPtr& expr) {
+    std::shared_ptr<KernelExecutorBase> get_kernel_executor(const snippets::lowered::ExpressionPtr& expr) const {
         OPENVINO_ASSERT(m_table.count(expr), "This expression doesn't have a registered kernel executor");
-        return m_table[expr];
+        return m_table.at(expr);
     }
     virtual ~KernelExecutorTable() = default;
 
