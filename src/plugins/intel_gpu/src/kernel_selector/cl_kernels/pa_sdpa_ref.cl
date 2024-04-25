@@ -14,7 +14,7 @@
 #define Q_LOAD_ITERS (HEAD_SIZE / SUB_GROUP_SIZE)
 
 // How much QK outputs each subgroup calculates per block
-#define QK_VALS_PER_SG_PER_ITER (BLOCK_SIZE / SUBGROUPS_PER_WG)
+#define QK_VALS_PER_SG_PER_ITER CEIL_DIV(BLOCK_SIZE, SUBGROUPS_PER_WG)
 
 #define KV_CACHE_BLOCK_STRIDE (HEAD_SIZE * KV_HEADS_NUM * BLOCK_SIZE)
 
@@ -99,7 +99,12 @@ KERNEL(pa_sdpa_ref)(
             for (uint q_idx = 0; q_idx < Q_LOAD_ITERS; q_idx++) {
                 for (uint qk_idx = 0; qk_idx < QK_VALS_PER_SG_PER_ITER; qk_idx++) {
                     uint current_token = (block_start_idx + block_num) * BLOCK_SIZE + sgid * QK_VALS_PER_SG_PER_ITER + qk_idx;
+#if BLOCK_SIZE % SUBGROUPS_PER_WG != 0
+                    // TODO: Optimize for BLOCK_SIZE % SUBGROUPS_PER_WG != 0 case
+                    if (current_token >= context_len || sgid >= BLOCK_SIZE / QK_VALS_PER_SG_PER_ITER)
+#else
                     if (current_token >= context_len)
+#endif
                         continue;
 
                     const uint key_idx = block_offset +
@@ -123,7 +128,11 @@ KERNEL(pa_sdpa_ref)(
             // Summurize qk calculation across all WIs and apply scale
             for (uint qk_idx = 0; qk_idx < QK_VALS_PER_SG_PER_ITER; qk_idx++) {
                 const uint current_token = (block_start_idx + block_num) * BLOCK_SIZE + sgid * QK_VALS_PER_SG_PER_ITER + qk_idx;
+#if BLOCK_SIZE % SUBGROUPS_PER_WG != 0
+                if (current_token < context_len && sgid < BLOCK_SIZE / QK_VALS_PER_SG_PER_ITER) {
+#else
                 if (current_token < context_len) {
+#endif
                     qk[qk_idx] = sub_group_reduce_add(qk[qk_idx]);
 
                     // Apply scale
@@ -140,7 +149,11 @@ KERNEL(pa_sdpa_ref)(
             }
 
             // Save QK results to local memory
+#if BLOCK_SIZE % SUBGROUPS_PER_WG != 0
+            if (sglid < QK_VALS_PER_SG_PER_ITER && sgid < BLOCK_SIZE / QK_VALS_PER_SG_PER_ITER) {
+#else
             if (sglid < QK_VALS_PER_SG_PER_ITER) {
+#endif
                 const uint current_token_global_idx = (block_start_idx + block_num) * BLOCK_SIZE + sgid * QK_VALS_PER_SG_PER_ITER + sglid;
 #ifdef USE_SEQ_LEN_SPLIT
                 const uint current_token_local = block_num * BLOCK_SIZE + sgid * QK_VALS_PER_SG_PER_ITER + sglid;
