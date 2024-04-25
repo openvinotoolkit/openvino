@@ -14,6 +14,7 @@ def parse_args():
     parser.add_argument('-d', '--dockerfiles_root', required=True, help='Path to dockerfiles')
     parser.add_argument('-r', '--registry', required=True, help='Docker registry name')
     parser.add_argument('-s', '--commit', required=False, help='Commit SHA. If not set, --pr is used')
+    parser.add_argument('-b', '--docker_builder', required=False, help='Docker buildx builder name')
     parser.add_argument('--pr', type=int, required=False, help='PR number, if event is pull_request')
     parser.add_argument('--head_tag_file', default='.github/dockerfiles/docker_tag', help='Head docker tag file path')
     parser.add_argument('--base_tag_file', default=None, required=False, help='Base docker tag file path')
@@ -103,16 +104,18 @@ def main():
     if not images_to_build:
         logger.info(f"No images to build, will return the list of pre-built images with a new tag")
 
-    images.build(images_to_build, missing_only, args.push)
-    if args.push and not os.getenv("BUILDER_NAME"):
+    built_images = images.build(images_to_build, missing_only, args.push, args.docker_builder)
+    if not built_images:
+        logger.info(f"No images were built, a new tag will be applied to a pre-built base image if needed")
+
+    # When a custom builder is used, it allows to push the image automatically once built. Otherwise, pushing manually
+    if args.push and not args.docker_builder:
         images.push(images_to_build, missing_only)
 
     if environment_affected and base_tag:
         images.tag(images_to_tag)
 
     images_output = images_to_output(images.get(requested_images))
-    logger.info(images_output)
-
     set_github_output("images", json.dumps(images_output))
 
     if skip_workflow:

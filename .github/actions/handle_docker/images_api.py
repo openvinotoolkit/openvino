@@ -42,7 +42,8 @@ class Image:
         cmd = f"docker push {self.ref()} "
         run(cmd, dry)
 
-    def build(self, dry: bool = False, push: bool = True, import_cache: bool = True, export_cache: bool = True):
+    def build(self, dry: bool = False, push: bool = True, docker_builder: str = None, import_cache: bool = True,
+              export_cache: bool = True):
         cache_cmd = ""
         if import_cache:
             cache_cmd += f"--cache-from type=registry,ref={self.ref()}-cache "
@@ -52,7 +53,6 @@ class Image:
         if export_cache:
             cache_cmd += f"--cache-to type=registry,ref={self.ref()}-cache,mode=max "
 
-        docker_builder = os.getenv("BUILDER_NAME")
         build_cmd = f"docker buildx build --builder={docker_builder}" if docker_builder else "docker build"
         push_cmd = f"--push" if push else ""
 
@@ -93,8 +93,7 @@ class Image:
         return is_missing
 
 
-# Making it a class, so it's a little easier to switch to a tree structure for building
-# inherited images if we want
+# Making it a class, so it's a little easier to switch to a tree structure for building inherited images if we want
 class ImagesHandler:
     def __init__(self, dry_run: bool = False):
         self.logger = logging.getLogger(self.__class__.__name__)
@@ -118,11 +117,12 @@ class ImagesHandler:
         missing_images = [image.name for image in self.get(image_names) if image.is_missing(self.dry_run, base)]
         return missing_images
 
-    def build(self, image_names: Iterable = None, missing_only: bool = False, push: bool = True,
+    def build(self, image_names: Iterable = None, missing_only: bool = False, push: bool = True, builder: str = None,
               import_cache: bool = True, export_cache: bool = True):
         to_build = self.get(self.get_missing(image_names)) if missing_only else self.get(image_names)
         for image in to_build:
-            image.build(self.dry_run, push, import_cache, export_cache)
+            image.build(self.dry_run, push, builder, import_cache, export_cache)
+        return to_build
 
     def push(self, image_names: Iterable = None, missing_only: bool = False):
         to_push = self.get(self.get_missing(image_names)) if missing_only else self.get(image_names)
