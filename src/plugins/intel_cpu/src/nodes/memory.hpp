@@ -142,6 +142,9 @@ public:
 
     void execute(dnnl::stream strm) final;
     void executeDynamicImpl(dnnl::stream strm) final;
+    bool needShapeInfer() const override { return false; }
+    bool needPrepareParams() const override { return false; }
+    bool isExecutable() const final;
 
     void registerOutputNode(MemoryOutputBase* node);
     void deregisterSibling(MemoryOutputBase* node);
@@ -170,8 +173,6 @@ public:
     using MemoryInputBase::MemoryInputBase;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    bool needShapeInfer() const override;
-    bool isExecutable() const override;
     void initOptimalPrimitiveDescriptor() override;
 
     void resolveInPlaceEdges(Edge::LOOK look) override;
@@ -205,13 +206,12 @@ public:
     void createPrimitive() override;
     void initSupportedPrimitiveDescriptors() override;
     void initOptimalPrimitiveDescriptor() override;
-
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
-    void assignStateHook() override;
     MemStatePtr makeState() const override;
 
 private:
+    void assignStateHook() override;
     void runStatic(dnnl::stream strm) override;
     void runDynamic(dnnl::stream strm) override;
 

@@ -430,7 +430,12 @@ void MemoryInputBase::deregisterSibling(MemoryOutputBase* node) {
     if (node == outputNode) { outputNode = nullptr; }
 }
 
-void MemoryStatesRegister::registerInput(MemoryInputBase * node) {
+bool MemoryInputBase::isExecutable() const {
+    return true;
+}
+
+void MemoryStatesRegister::registerInput(MemoryInputBase* node) {
+    OPENVINO_ASSERT(node, "Unexpected null MemoryInput pointer");
     // in case of output already registered
     auto sibling = getMemoryOutputByName(node->getId());
     if (sibling != nullptr) {
@@ -440,6 +445,7 @@ void MemoryStatesRegister::registerInput(MemoryInputBase * node) {
 }
 
 void MemoryStatesRegister::registerOutput(MemoryOutputBase * node) {
+    OPENVINO_ASSERT(node, "Unexpected null MemoryOutput pointer");
     auto sibling = getMemoryInputByName(node->getId());
     if (sibling != nullptr) {
         node->registerInputNode(sibling);
@@ -491,14 +497,6 @@ void MemoryInputBase::executeDynamicImpl(dnnl::stream strm) {
 
 bool MemoryInput::needInitGraphProcessing() const {
     return !getParentEdges().empty() && getAssignedState()->is_reset_state();
-}
-
-bool MemoryInput::needShapeInfer() const {
-    return false;
-}
-
-bool MemoryInput::isExecutable() const {
-    return true;
 }
 
 void MemoryInput::initOptimalPrimitiveDescriptor() {
