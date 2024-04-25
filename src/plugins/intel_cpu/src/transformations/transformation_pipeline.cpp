@@ -516,7 +516,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                 if (node->is_dynamic() || !one_of(inferencePrecision, element::f32, element::undefined))
                     return false;
                 const auto group_norm = ov::as_type_ptr<const ov::op::v12::GroupNormalization>(node);
-                if (!group_norm)
+                if (!group_norm || !implication(inferencePrecision == element::undefined, group_norm->get_element_type() == element::f32))
                     return false;
                 const auto num_groups = static_cast<size_t>(group_norm->get_num_groups());
                 const auto shape = group_norm->get_input_partial_shape(0).to_shape();
@@ -838,7 +838,7 @@ void Transformations::MainSnippets(void) {
 #if defined(OPENVINO_ARCH_ARM64)
         CPU_REGISTER_PASS_ARM(snippetsManager, SnippetsMarkSkipped);
 #else
-        CPU_REGISTER_PASS_X64(snippetsManager, SnippetsMarkSkipped, !one_of(inferencePrecision, element::f32, element::undefined));
+        CPU_REGISTER_PASS_X64(snippetsManager, SnippetsMarkSkipped, inferencePrecision == ov::element::bf16);
 #endif
     }
     CPU_REGISTER_PASS_X64(snippetsManager, snippets::pass::SnippetsTokenization, tokenization_config);
