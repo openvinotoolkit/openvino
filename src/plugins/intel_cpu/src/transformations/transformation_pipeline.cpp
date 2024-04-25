@@ -876,8 +876,6 @@ void Transformations::MainSnippets(void) {
         }, snippets::pass::ExtractReshapesFromMHA);
         CPU_SET_CALLBACK_X64(snippetsManager,
             [](const std::shared_ptr<const ov::Node>& n) -> bool {
-                if (n->is_dynamic())
-                    return true;
                 // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant
                 const bool is_unsupported_swish =
                         ov::is_type<const ov::op::v4::Swish>(n) && n->inputs().size() > 1 &&
