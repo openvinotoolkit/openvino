@@ -52,12 +52,12 @@ class chromeTrace;
 struct ProfilerManagerFinalizer;
 
 class ProfilerManager {
-    bool enabled;
     std::deque<ProfileData> all_data;
     std::thread::id tid;
     int serial;
 
 public:
+    bool enabled;
     ProfilerManager();
     ~ProfilerManager();
 
