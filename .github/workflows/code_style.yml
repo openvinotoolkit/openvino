@@ -7,7 +7,7 @@ concurrency:
 
 jobs:
   clang-format:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
     steps:
@@ -15,10 +15,10 @@ jobs:
         with:
           submodules: 'true'
 
-      - name: Install clang-format-9
+      - name: Install clang-format-15
         run: |
           sudo apt update
-          sudo apt --assume-yes install clang-format-9
+          sudo apt --assume-yes install clang-format-15
 
       # Run cmake with -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT in order to enable codestyle check for ITT collector
       - name: CMake configure

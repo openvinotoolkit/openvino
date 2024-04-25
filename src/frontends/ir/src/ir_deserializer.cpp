@@ -757,11 +757,15 @@ ov::GenericLayerParams ov::XmlDeserializer::parse_generic_params(const pugi::xml
 
     auto outNode = node.child("output");
     if (!outNode.empty()) {
-        FOREACH_CHILD (_cn, outNode, "port") { params.outputPorts.emplace_back(parsePort(_cn, params, false)); }
+        FOREACH_CHILD (_cn, outNode, "port") {
+            params.outputPorts.emplace_back(parsePort(_cn, params, false));
+        }
     }
     auto inpNode = node.child("input");
     if (!inpNode.empty()) {
-        FOREACH_CHILD (_cn, inpNode, "port") { params.inputPorts.emplace_back(parsePort(_cn, params, true)); }
+        FOREACH_CHILD (_cn, inpNode, "port") {
+            params.inputPorts.emplace_back(parsePort(_cn, params, true));
+        }
     }
     return params;
 }
