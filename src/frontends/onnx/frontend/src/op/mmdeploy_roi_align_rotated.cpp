@@ -21,7 +21,9 @@ namespace set_1 {
 ov::OutputVector mmdeploy_roi_align_rotated(const ov::frontend::onnx::Node& node) {
     const auto inputs = node.get_ov_inputs();
 
-    FRONT_END_GENERAL_CHECK(inputs.size() == 2, "The mmdeploy.ROIAlignRotated operator expects 2 inputs. Got: ");
+    FRONT_END_GENERAL_CHECK(inputs.size() == 2,
+                            "The mmdeploy.MMCVRoIAlignRotated operator expects 2 inputs. Got: ",
+                            inputs.size());
 
     const auto& data = inputs[0];
     const auto& rois_data = inputs[1];
