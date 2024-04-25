@@ -51,15 +51,8 @@ if(WIN32)
     if(MINGW)
         target_compile_definitions(onnx PRIVATE OPTIONAL=OPTIONAL_PLACEHOLDER)
     endif()
-endif()
-
-# WA to support old compiler version, removes unused header which may block build
-if(CMAKE_COMPILER_IS_GNUCXX AND LINUX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
-    file(READ onnx/onnx/common/file_utils.h CONTENT)
-    string(REPLACE "#include <filesystem>" "" CONTENT "${CONTENT}")
-    string(REPLACE "std::filesystem::path proto_u8_path = std::filesystem::u8path(proto_path);" "" CONTENT "${CONTENT}")
-    string(REPLACE "proto_u8_path" "proto_path" CONTENT "${CONTENT}")
-    file(WRITE onnx/onnx/common/file_utils.h "${CONTENT}")
+else()
+    target_compile_features(onnx PRIVATE cxx_std_17)
 endif()
 
 ov_disable_all_warnings(onnx onnx_proto)
