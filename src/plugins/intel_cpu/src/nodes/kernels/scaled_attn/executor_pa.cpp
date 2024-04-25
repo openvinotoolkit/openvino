@@ -863,19 +863,212 @@ struct MHAKernel {
 // 2nd token case : only 1 token in query
 template <typename DATA_TYPE, typename KVCACHE_TYPE>
 struct MHASingleToken {
-    PlainTensor m_attn_w;
-    PlainTensor m_temp;
-    std::shared_ptr<JitMatMulVecAMX> m_gemv;
-    bool m_init = false;
-    bool m_fastpath_valid = false;
+    PlainTensor _attn_weight;
+    PlainTensor _attn_output;
+    std::shared_ptr<JitMatMulVecAMX> _gemv;
+    bool _init = false;
+    bool _fastpath_valid = false;
+
+    size_t _B;
+    size_t _H;
+    size_t _q_len;
+    size_t _S;
+    size_t _h_group_num;
+    size_t _h_each_group_len;
+    size_t _block_size;
+    size_t _nthr;
+    size_t _kv_len_in_blocks;
 
     void init(size_t block_size, size_t S) {
-        m_init = true;
-        m_fastpath_valid = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_bf16) &&
+        _init = true;
+        _fastpath_valid = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_bf16) &&
             (S % 32 == 0) && (block_size % 16 == 0) && (S <= 32 * 6) && precision_of<KVCACHE_TYPE>::value == ov::element::bf16;
         // aligned to cache line (64bytes=16*sizeof(float)) to avoid false sharing
-        if (m_fastpath_valid)
-            m_gemv = std::make_shared<JitMatMulVecAMX>(static_cast<int>(S), static_cast<int>(block_size));
+        if (_fastpath_valid)
+            _gemv = std::make_shared<JitMatMulVecAMX>(static_cast<int>(S), static_cast<int>(block_size));
+    }
+
+    // one loop along batch and head dimensions
+    void loop_bh(PlainTensor& query,
+                 PlainTensor& present_key,
+                 PlainTensor& present_value,
+                 PlainTensor& output_emb,
+                 const PlainTensor& block_tables,
+                 size_t max_context_len,
+                 const PlainTensor& context_lens,
+                 float d_scale) {
+        // aligned to cache line (64bytes=16*sizeof(float)) to avoid false sharing
+        _attn_weight.resize<float>({_B, _H, _q_len, rnd_up(max_context_len, std::max(_block_size, 16ul))});
+
+        parallel_for2d_dynamic(_B, _kv_len_in_blocks, [&](size_t b, size_t pk_in_blocks) {
+            auto context_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
+            // kv_len must be valid
+            auto pk = pk_in_blocks * _block_size;
+            if (pk < context_len) {
+                auto block_number = block_tables.ptr<int32_t>(b)[pk_in_blocks];
+                if (_fastpath_valid) {
+                    _gemv->tile_config();
+                    for (size_t h_group = 0; h_group < _h_group_num; h_group++) {
+                        for (size_t pq = 0; pq < _q_len; pq++) {
+                            for (size_t h = h_group * _h_each_group_len; h < (h_group + 1) * _h_each_group_len; h++) {
+                                (*_gemv)(query.ptr<ov::bfloat16>(b, h, pq), present_key.ptr<ov::bfloat16>(block_number, h_group),
+                                    _attn_weight.ptr<float>(b, h, pq) + pk);
+                            }
+                        }
+                    }
+                    _gemv->tile_release();
+                } else {
+                    for (size_t h_group = 0; h_group < _h_group_num; h_group++) {
+                        for (size_t pq = 0; pq < _q_len; pq++) {
+                            for (size_t h = h_group * _h_each_group_len; h < (h_group + 1) * _h_each_group_len; h++) {
+                                dot_product_block(query.ptr<DATA_TYPE>(b, h, pq), present_key.ptr<KVCACHE_TYPE>(block_number, h_group),
+                                    _attn_weight.ptr<float>(b, h, pq) + pk, _S, std::min(_block_size, context_len - pk));
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        PROFILE(_attn, "t1_softmax");
+        parallel_for3d_dynamic(_B, _H, _q_len, [&](size_t b, size_t h, size_t pq) {
+            auto cur_kv_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
+            auto ncausal = cur_kv_len;
+            // apply attention mask & sofmax
+            attn_softmax_kernel(_attn_weight.ptr<float>(b, h, pq),
+                                _attn_weight.ptr<float>(b, h, pq),
+                                d_scale,
+                                nullptr,
+                                nullptr,
+                                nullptr,
+                                false,
+                                ncausal,
+                                cur_kv_len,
+                                ov::element::f32,
+                                ov::element::f32);
+        });
+
+        _attn = ov::intel_cpu::profilerManagerInstance.startProfile("t1_kv");
+        // attn_w * V
+        // there are enough works for each thread
+        _attn_output.resize<float>({static_cast<size_t>(_nthr), _q_len, _h_each_group_len, _S});
+        parallel_for2d_dynamic(_B, _h_group_num, [&](size_t b, size_t h_group) {
+            auto ithr = parallel_get_thread_num();
+            auto context_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
+            memset(_attn_output.ptr<float>(ithr), 0, _q_len * _h_each_group_len * _S * sizeof(float));
+            for (size_t pv = 0; pv < context_len; pv += _block_size) {
+                size_t pv_in_blocks = pv / _block_size;
+                auto block_number = block_tables.ptr<int32_t>(b)[pv_in_blocks];
+                auto* v = present_value.ptr<KVCACHE_TYPE>(block_number, h_group);
+                for (size_t pq = 0; pq < _q_len; pq++) {
+                    for (size_t h = h_group * _h_each_group_len, group_idx = 0; h < (h_group + 1) * _h_each_group_len; h++, group_idx++) {
+                        attn_acc_value_block(_attn_output.ptr<float>(ithr, pq, group_idx),
+                                             _attn_weight.ptr<float>(b, h, pq) + pv,
+                                             v,
+                                             _S,
+                                             std::min(_block_size, context_len - pv));
+                    }
+                }
+            }
+            // convert to dst
+            for (size_t pq = 0; pq < _q_len; pq++)
+                for (size_t h = h_group * _h_each_group_len, group_idx = 0; h < (h_group + 1) * _h_each_group_len; h++, group_idx++)
+                    cvt_copy(output_emb.ptr<DATA_TYPE>(b, pq, h * _S), _attn_output.ptr<float>(ithr, pq, group_idx), _S);
+        });
+    }
+
+    // 3 loops along batch, head, kv cache length dimensions
+    void loop_bh_kv(PlainTensor& query,
+                    PlainTensor& present_key,
+                    PlainTensor& present_value,
+                    PlainTensor& output_emb,
+                    const PlainTensor& block_tables,
+                    size_t max_context_len,
+                    const PlainTensor& context_lens,
+                    float d_scale) {
+        // aligned to cache line (64bytes=16*sizeof(float)) to avoid false sharing
+        _attn_weight.resize<float>({_B, _H, _q_len, rnd_up(max_context_len, std::max(_block_size, 16ul))});
+
+        parallel_for3d_dynamic(_B, _kv_len_in_blocks, _h_group_num, [&](size_t b, size_t pk_in_blocks, size_t h_group) {
+            auto context_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
+            // kv_len must be valid
+            auto pk = pk_in_blocks * _block_size;
+            if (pk < context_len) {
+                auto block_number = block_tables.ptr<int32_t>(b)[pk_in_blocks];
+                if (_fastpath_valid) {
+                    _gemv->tile_config();
+                    for (size_t pq = 0; pq < _q_len; pq++) {
+                        for (size_t h = h_group * _h_each_group_len; h < (h_group + 1) * _h_each_group_len; h++) {
+                            (*_gemv)(query.ptr<ov::bfloat16>(b, h, pq), present_key.ptr<ov::bfloat16>(block_number, h_group),
+                                _attn_weight.ptr<float>(b, h, pq) + pk);
+                        }
+                    }
+                    _gemv->tile_release();
+                } else {
+                    for (size_t pq = 0; pq < _q_len; pq++) {
+                        for (size_t h = h_group * _h_each_group_len; h < (h_group + 1) * _h_each_group_len; h++) {
+                            dot_product_block(query.ptr<DATA_TYPE>(b, h, pq), present_key.ptr<KVCACHE_TYPE>(block_number, h_group),
+                                _attn_weight.ptr<float>(b, h, pq) + pk, _S, std::min(_block_size, context_len - pk));
+                        }
+                    }
+                }
+            }
+        });
+
+        PROFILE(_attn, "t1_softmax");
+        parallel_for3d_dynamic(_B, _H, _q_len, [&](size_t b, size_t h, size_t pq) {
+            auto cur_kv_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
+            auto ncausal = cur_kv_len;
+            // apply attention mask & sofmax
+            attn_softmax_kernel(_attn_weight.ptr<float>(b, h, pq),
+                                _attn_weight.ptr<float>(b, h, pq),
+                                d_scale,
+                                nullptr,
+                                nullptr,
+                                nullptr,
+                                false,
+                                ncausal,
+                                cur_kv_len,
+                                ov::element::f32,
+                                ov::element::f32);
+        });
+
+        _attn = ov::intel_cpu::profilerManagerInstance.startProfile("t1_kv");
+        // attn_w * V
+        _attn_output.resize<float>({static_cast<size_t>(_nthr), _B, _q_len, _H, _S});
+        // m_attn_w {B, H, q_len, kv_len}
+        parallel_nt_static(_nthr, [&](const size_t ithr, const size_t nthr) {
+            memset(_attn_output.ptr<float>(ithr, 0, 0, 0, 0), 0, _attn_output.stride(0) * sizeof(float));
+        });
+
+        _attn = ov::intel_cpu::profilerManagerInstance.startProfile("t1_kv_old");
+        parallel_for3d_dynamic(_B, _kv_len_in_blocks, _h_group_num, [&](size_t b, size_t pv_in_blocks, size_t h_group) {
+            auto ithr = parallel_get_thread_num();
+            auto context_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
+            auto pv = pv_in_blocks * _block_size;
+            // kv_len must be valid
+            if (pv < context_len) {
+                auto block_number = block_tables.ptr<int32_t>(b)[pv_in_blocks];
+                auto* v = present_value.ptr<KVCACHE_TYPE>(block_number, h_group);
+                for (size_t pq = 0; pq < _q_len; pq++) {
+                    for (size_t h = h_group * _h_each_group_len; h < (h_group + 1) * _h_each_group_len; h++) {
+                        attn_acc_value_block(_attn_output.ptr<float>(ithr, b, pq, h),
+                                             _attn_weight.ptr<float>(b, h, pq) + pv,
+                                             v,
+                                             _S,
+                                             std::min(_block_size, context_len - pv));
+                    }
+                }
+            }
+        });
+
+        _attn = ov::intel_cpu::profilerManagerInstance.startProfile("t1_reduce");
+        parallel_for3d(_B, _H, _q_len, [&](size_t b, size_t h, size_t pq) {
+            auto* temp = _attn_output.ptr<float>(0, b, pq, h);
+            size_t temp_stride = _attn_output.stride(0);
+            auto* dst = output_emb.ptr<DATA_TYPE>(b, pq, h * _S);
+            attn_reduce(dst, temp, _nthr, _S, temp_stride);
+        });
     }
 
     // Q, K, V is ready, do attention
@@ -891,188 +1084,49 @@ struct MHASingleToken {
                     size_t max_context_len,
                     const PlainTensor& context_lens,
                     float d_scale) {
-        auto B = query.size(0);
-        auto H = query.size(1);
-        auto q_len = query.size(2);
-        auto S = query.size(3);
-        auto h_group_num = present_value.size(1);
-        size_t h_each_group_len = 1;
-        size_t block_size = present_value.size(2);
-        if (h_group_num != H) {
-            h_each_group_len = H / h_group_num;
+        _B = query.size(0);
+        _H = query.size(1);
+        _q_len = query.size(2);
+        _S = query.size(3);
+        _h_group_num = present_value.size(1);
+        _h_each_group_len = 1;
+        _block_size = present_value.size(2);
+        _kv_len_in_blocks = block_tables.m_dims[1];
+        if (_h_group_num != _H) {
+            _h_each_group_len = _H / _h_group_num;
         }
         if (d_scale == 0.0f)
-            d_scale = 1.0f / sqrt(S);
-        auto nthr = parallel_get_max_threads();
+            d_scale = 1.0f / sqrt(_S);
 
-        if (!m_init)
-            init(block_size, S);
+        if (!_init)
+            init(_block_size, _S);
+        _nthr = static_cast<size_t>(parallel_get_max_threads());
 
         char buf[256];
         size_t real_len = 0;
         size_t aligned_len = 0;
-        for (size_t b = 0; b < B; b++) {
+        for (size_t b = 0; b < _B; b++) {
             auto s = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
             real_len += s;
             aligned_len += (s + 15) / 16 * 16;
         }
         size_t access_size;
         if (present_value.m_dt != ov::element::u8)
-            access_size = h_group_num * real_len * S * (32 * present_value.m_element_size);
+            access_size = _h_group_num * real_len * _S * (32 * present_value.m_element_size);
         else
-            access_size = h_group_num * real_len * (S + 8) * 32;
-        access_size += B * H * S * 2 * 32;    // query
-        access_size += aligned_len * H * 4 * 32; // m_attn_w
+            access_size = _h_group_num * real_len * (_S + 8) * 32;
+        access_size += _B * _H * _S * 2 * 32;    // query
+        access_size += aligned_len * _H * 4 * 32; // m_attn_w
         // only consider k or v theoretical cost
-        snprintf(buf, sizeof(buf), "t1_BL%ld,%ld,MC%.2f,%.2f", B, real_len, access_size / 260000000.0f,
-            H * real_len * S * 32 / 16 * 2 / 60 / 1800000.0f);
+        snprintf(buf, sizeof(buf), "t1_BL%ld,%ld,MC%.2f,%.2f", _B, real_len, access_size / 260000000.0f,
+            _H * real_len * _S * 32 / 16 * 2 / 60 / 1800000.0f);
         PROFILE(_attn, buf);
 
-        // aligned to cache line (64bytes=16*sizeof(float)) to avoid false sharing
-        m_attn_w.resize<float>({B, H, q_len, rnd_up(max_context_len, std::max(block_size, 16ul))});
-
-        auto kv_len_in_blocks = block_tables.m_dims[1];
-        if (B > static_cast<size_t>(nthr)) {
-            parallel_for2d_dynamic(B, kv_len_in_blocks, [&](size_t b, size_t pk_in_blocks) {
-                auto context_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
-                // kv_len must be valid
-                auto pk = pk_in_blocks * block_size;
-                if (pk < context_len) {
-                    auto block_number = block_tables.ptr<int32_t>(b)[pk_in_blocks];
-                    if (m_fastpath_valid) {
-                        m_gemv->tile_config();
-                        for (size_t h_group = 0; h_group < h_group_num; h_group++) {
-                            for (size_t pq = 0; pq < q_len; pq++) {
-                                for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
-                                    (*m_gemv)(query.ptr<ov::bfloat16>(b, h, pq), present_key.ptr<ov::bfloat16>(block_number, h_group),
-                                        m_attn_w.ptr<float>(b, h, pq) + pk);
-                                }
-                            }
-                        }
-                        m_gemv->tile_release();
-                    } else {
-                        for (size_t h_group = 0; h_group < h_group_num; h_group++) {
-                            for (size_t pq = 0; pq < q_len; pq++) {
-                                for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
-                                    dot_product_block(query.ptr<DATA_TYPE>(b, h, pq), present_key.ptr<KVCACHE_TYPE>(block_number, h_group),
-                                        m_attn_w.ptr<float>(b, h, pq) + pk, S, std::min(block_size, context_len - pk));
-                                }
-                            }
-                        }
-                    }
-                }
-            });
+        if (_B >= _nthr) {
+            loop_bh(query, present_key, present_value, output_emb, block_tables, max_context_len, context_lens, d_scale);
         } else {
-            parallel_for3d_dynamic(B, kv_len_in_blocks, h_group_num, [&](size_t b, size_t pk_in_blocks, size_t h_group) {
-                auto context_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
-                // kv_len must be valid
-                auto pk = pk_in_blocks * block_size;
-                if (pk < context_len) {
-                    auto block_number = block_tables.ptr<int32_t>(b)[pk_in_blocks];
-                    if (m_fastpath_valid) {
-                        m_gemv->tile_config();
-                        for (size_t pq = 0; pq < q_len; pq++) {
-                            for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
-                                (*m_gemv)(query.ptr<ov::bfloat16>(b, h, pq), present_key.ptr<ov::bfloat16>(block_number, h_group),
-                                    m_attn_w.ptr<float>(b, h, pq) + pk);
-                            }
-                        }
-                        m_gemv->tile_release();
-                    } else {
-                        for (size_t pq = 0; pq < q_len; pq++) {
-                            for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
-                                dot_product_block(query.ptr<DATA_TYPE>(b, h, pq), present_key.ptr<KVCACHE_TYPE>(block_number, h_group),
-                                    m_attn_w.ptr<float>(b, h, pq) + pk, S, std::min(block_size, context_len - pk));
-                            }
-                        }
-                    }
-                }
-            });
+            loop_bh_kv(query, present_key, present_value, output_emb, block_tables, max_context_len, context_lens, d_scale);
         }
-
-        _attn = ov::intel_cpu::profilerManagerInstance.startProfile("t1_softmax");
-        parallel_for3d_dynamic(B, H, q_len, [&](size_t b, size_t h, size_t pq) {
-            auto cur_kv_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
-            auto ncausal = cur_kv_len;
-            // apply attention mask & sofmax
-            attn_softmax_kernel(m_attn_w.ptr<float>(b, h, pq),
-                                m_attn_w.ptr<float>(b, h, pq),
-                                d_scale,
-                                nullptr,
-                                nullptr,
-                                nullptr,
-                                false,
-                                ncausal,
-                                cur_kv_len,
-                                ov::element::f32,
-                                ov::element::f32);
-        });
-
-        _attn = ov::intel_cpu::profilerManagerInstance.startProfile("t1_kv");
-        // attn_w * V
-        // there are enough works for each thread
-        if (B >= static_cast<size_t>(nthr)) {
-            m_temp.resize<float>({static_cast<size_t>(nthr), q_len, h_each_group_len, S});
-            parallel_for2d_dynamic(B, h_group_num, [&](size_t b, size_t h_group) {
-                auto ithr = parallel_get_thread_num();
-                auto context_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
-                memset(m_temp.ptr<float>(ithr), 0, q_len * h_each_group_len * S * sizeof(float));
-                for (size_t pv = 0; pv < context_len; pv += block_size) {
-                    size_t pv_in_blocks = pv / block_size;
-                    auto block_number = block_tables.ptr<int32_t>(b)[pv_in_blocks];
-                    auto* v = present_value.ptr<KVCACHE_TYPE>(block_number, h_group);
-                    for (size_t pq = 0; pq < q_len; pq++) {
-                        for (size_t h = h_group * h_each_group_len, group_idx = 0; h < (h_group + 1) * h_each_group_len; h++, group_idx++) {
-                            attn_acc_value_block(m_temp.ptr<float>(ithr, pq, group_idx),
-                                                 m_attn_w.ptr<float>(b, h, pq) + pv,
-                                                 v,
-                                                 S,
-                                                 std::min(block_size, context_len - pv));
-                        }
-                    }
-                }
-                // convert to dst
-                for (size_t pq = 0; pq < q_len; pq++)
-                    for (size_t h = h_group * h_each_group_len, group_idx = 0; h < (h_group + 1) * h_each_group_len; h++, group_idx++)
-                        cvt_copy(output_emb.ptr<DATA_TYPE>(b, pq, h * S), m_temp.ptr<float>(ithr, pq, group_idx), S);
-            });
-            return;
-        }
-
-        m_temp.resize<float>({static_cast<size_t>(nthr), B, q_len, H, S});
-        // m_attn_w {B, H, q_len, kv_len}
-        parallel_nt_static(nthr, [&](const size_t ithr, const size_t nthr) {
-            memset(m_temp.ptr<float>(ithr, 0, 0, 0, 0), 0, m_temp.stride(0) * sizeof(float));
-        });
-
-        _attn = ov::intel_cpu::profilerManagerInstance.startProfile("t1_kv_old");
-        parallel_for3d_dynamic(B, kv_len_in_blocks, h_group_num, [&](size_t b, size_t pv_in_blocks, size_t h_group) {
-            auto ithr = parallel_get_thread_num();
-            auto context_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
-            auto pv = pv_in_blocks * block_size;
-            // kv_len must be valid
-            if (pv < context_len) {
-                auto block_number = block_tables.ptr<int32_t>(b)[pv_in_blocks];
-                auto* v = present_value.ptr<KVCACHE_TYPE>(block_number, h_group);
-                for (size_t pq = 0; pq < q_len; pq++) {
-                    for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
-                        attn_acc_value_block(m_temp.ptr<float>(ithr, b, pq, h),
-                                             m_attn_w.ptr<float>(b, h, pq) + pv,
-                                             v,
-                                             S,
-                                             std::min(block_size, context_len - pv));
-                    }
-                }
-            }
-        });
-
-        _attn = ov::intel_cpu::profilerManagerInstance.startProfile("t1_reduce");
-        parallel_for3d(B, H, q_len, [&](size_t b, size_t h, size_t pq) {
-            auto* temp = m_temp.ptr<float>(0, b, pq, h);
-            size_t temp_stride = m_temp.stride(0);
-            auto* dst = output_emb.ptr<DATA_TYPE>(b, pq, h * S);
-            attn_reduce(dst, temp, nthr, S, temp_stride);
-        });
     }
 };
 
