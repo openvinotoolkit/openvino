@@ -200,7 +200,7 @@ public:
 
     using topological_sort_t =
         std::function<std::vector<std::shared_ptr<ov::Node>>(const std::vector<std::shared_ptr<ov::Node>>& root_nodes)>;
-    void set_topological_sort(topological_sort_t);
+    void set_topological_sort(const topological_sort_t&);
 
     virtual bool visit_attributes(ov::AttributeVisitor& visitor);
 

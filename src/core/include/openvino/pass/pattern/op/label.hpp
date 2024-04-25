@@ -53,13 +53,13 @@ public:
               },
               OutputVector()) {}
 
-    Label(const element::Type& type, const PartialShape& s, ValuePredicate pred)
+    Label(const element::Type& type, const PartialShape& s, const ValuePredicate& pred)
         : Label(type, s, pred, OutputVector{}) {}
 
-    Label(const element::Type& type, const PartialShape& s, NodePredicate pred)
+    Label(const element::Type& type, const PartialShape& s, const NodePredicate& pred)
         : Label(type, s, as_value_predicate(pred), OutputVector{}) {}
 
-    Label(const element::Type& type, const PartialShape& s, const NodePredicate pred, const NodeVector& wrapped_values)
+    Label(const element::Type& type, const PartialShape& s, const NodePredicate& pred, const NodeVector& wrapped_values)
         : Label(type, s, as_value_predicate(pred), as_output_vector(wrapped_values)) {}
 
     /// \brief creates a Label node containing a sub-pattern described by the type and

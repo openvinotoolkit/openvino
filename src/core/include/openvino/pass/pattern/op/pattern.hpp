@@ -75,11 +75,11 @@ OPENVINO_API
 std::function<bool(Output<Node>)> all_of(const std::vector<std::function<bool(Output<Node>)>>& predicates);
 
 namespace op {
-using NodePredicate = std::function<bool(std::shared_ptr<Node>)>;
+using NodePredicate = std::function<bool(const std::shared_ptr<Node>&)>;
 using ValuePredicate = std::function<bool(const Output<Node>& value)>;
 
 OPENVINO_API
-ValuePredicate as_value_predicate(NodePredicate pred);
+ValuePredicate as_value_predicate(const NodePredicate& pred);
 
 class OPENVINO_API Pattern : public Node {
 public:
