@@ -81,7 +81,7 @@ std::string BrgemmKernelConfig::print() const {
 }
 
 BrgemmKernelExecutor::BrgemmKernelExecutor(ov::intel_cpu::MultiCachePtr kernel_cache, const std::shared_ptr<BrgemmKernelConfig>& config) :
-        CPUKernelExecutor<BrgemmKernelConfig, brgemm_kernel_t>(kernel_cache, config) {
+        CPUKernelExecutor<BrgemmKernelConfig, brgemm_kernel_t>(std::move(kernel_cache), config) {
     if (config->is_complete())
         update_kernel();
 }
@@ -303,11 +303,6 @@ void jit_brgemm_emitter::emit_brgemm_kernel_call(Reg64 addr_A, Reg64 addr_B, Reg
     internal_call_preamble();
     h->mov(h->rbp, reinterpret_cast<uint64_t>(BrgemmKernelExecutor::execute));
     auto reserved_stack_size = sizeof(BrgemmKernelExecutor::call_args);
-#ifdef _WIN32
-    // Before function call we should also allocate stack area for ABI parameters (shadow space)
-    reserved_stack_size += 3 * gpr_size;
-#endif
-
     // Reserve memory on the stack
     h->sub(h->rsp, reserved_stack_size);
 
@@ -333,6 +328,11 @@ void jit_brgemm_emitter::emit_brgemm_kernel_call(Reg64 addr_A, Reg64 addr_B, Reg
 
     h->mov(abi_param1, reinterpret_cast<uintptr_t>(m_kernel_executor.get()));
     h->mov(abi_param2, h->rsp);
+#ifdef _WIN32
+    // Before function call we should also allocate stack area for ABI parameters (shadow space)
+    reserved_stack_size += 32;
+    h->sub(h->rsp, 32);
+#endif
 
     internal_call_rsp_align();
     h->call(h->rbp);

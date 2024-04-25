@@ -23,6 +23,7 @@ public:
      };
     void update_kernel() override {
         OPENVINO_ASSERT(m_config && m_config->is_complete(), "Update kernel was called with invalid config");
+        OPENVINO_ASSERT(m_kernel_cache, "Invalid kernel cache pointer in CPUKernelExecutor::update_kernel()");
         const auto& lookup_result = m_kernel_cache->getOrCreate(Key(m_config),
                                                                 [this](const Key& k) {
                                                                     return compile_kernel(k.config);
