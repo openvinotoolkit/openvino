@@ -20,6 +20,7 @@ struct typed_program_node<reshape> : public typed_program_node_base<reshape> {
     using parent = typed_program_node_base<reshape>;
     typed_program_node(const std::shared_ptr<reshape> prim, program& prog) : parent(prim, prog) {
         support_padding_all(true);
+        set_runtime_skippable(true);
     }
 
 public:
