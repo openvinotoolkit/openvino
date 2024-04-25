@@ -30,37 +30,29 @@ namespace intel_npu {
  * upon applying a transposition corresponding to the legacy layout value. Use the "transposedShape" one if not sure
  * which one you need.
  */
-struct IONodeDescriptor {
-    std::string legacyName;
-    std::string currentNodeName;
+struct IODescriptor {
+    std::string nameFromCompiler;
+    std::string nodeFriendlyName;
     std::unordered_set<std::string> outputTensorNames;
     ov::element::Type_t precision;
-    ov::PartialShape originalShape;
-    ov::PartialShape transposedShape;
+    ov::PartialShape shape;
+    bool isStateInput;
+    bool isStateOutput;
+    bool isShapeTensor;
 };
 
 /**
  * @brief A helper map to represent descriptions for inputs and outputs
  * of a network
  */
-using IONodeDescriptorMap = std::unordered_map<std::string, IONodeDescriptor>;
+using std::vector<IODescriptor> = std::vector<IODescriptor>;
 
 struct NetworkMetadata final {
     std::string name;
 
-    std::vector<std::string> inputNames;
-    std::vector<std::string> outputNames;
-    std::vector<std::string> stateNames;
-    std::vector<std::string> shapeNames;
-
-    IONodeDescriptorMap parameters;
-    IONodeDescriptorMap results;
-    IONodeDescriptorMap states;
-    IONodeDescriptorMap shapes;
-    IONodeDescriptorMap profilingOutputs;
-
-    std::unordered_map<std::string, size_t> inputOrder;
-    std::unordered_map<std::string, size_t> outputOrder;
+    std::vector<IODescriptor> inputs;
+    std::vector<IODescriptor> outputs;
+    std::vector<IODescriptor> profilingOutputs;
 
     int numStreams = 1;
 };

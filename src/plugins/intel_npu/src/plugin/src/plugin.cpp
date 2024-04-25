@@ -42,8 +42,8 @@ const char* NPU_PLUGIN_LIB_NAME = "openvino_intel_npu_plugin";
  * @param outputNames The names of the outputs registered in the order given by the model.
  * @param isBatchingSupported Newer driver versions support batching mode on the plugin.
  */
-std::shared_ptr<ov::Model> create_dummy_model(const IONodeDescriptorMap& parameterDescriptors,
-                                              const IONodeDescriptorMap& resultDescriptors,
+std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& parameterDescriptors,
+                                              const std::vector<IODescriptor>& resultDescriptors,
                                               const std::vector<std::string>& inputNames,
                                               const std::vector<std::string>& outputNames,
                                               bool isBatchingSupported) {
@@ -51,7 +51,7 @@ std::shared_ptr<ov::Model> create_dummy_model(const IONodeDescriptorMap& paramet
     ov::NodeVector results;
 
     for (const std::string& inputName : inputNames) {
-        const IONodeDescriptor& parameterDescriptor = parameterDescriptors.at(inputName);
+        const IODescriptor& parameterDescriptor = parameterDescriptors.at(inputName);
 
         std::shared_ptr<ov::op::v0::Parameter> parameter = [&] {
             if (isBatchingSupported) {
@@ -73,7 +73,7 @@ std::shared_ptr<ov::Model> create_dummy_model(const IONodeDescriptorMap& paramet
     // constant can't have dynamic shape). The dummy tensor was also brought in order to register the correct,
     // potentially dynamic, output shape.
     for (const std::string& outputName : outputNames) {
-        const IONodeDescriptor& resultDescriptor = resultDescriptors.at(outputName);
+        const IODescriptor& resultDescriptor = resultDescriptors.at(outputName);
         std::shared_ptr<ov::Node> constantDummy =
             std::make_shared<ov::op::v0::Constant>(resultDescriptor.precision, CONSTANT_NODE_DUMMY_SHAPE);
         constantDummy->set_friendly_name(resultDescriptor.legacyName);

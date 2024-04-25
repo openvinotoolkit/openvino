@@ -882,9 +882,9 @@ uint32_t LevelZeroCompilerInDriver<TableExtension>::getSupportedOpsetVersion() c
 
 template <typename TableExtension>
 template <typename T>
-void LevelZeroCompilerInDriver<TableExtension>::getLayoutOrStateDescriptor(IONodeDescriptorMap& parameters,
-                                                                           IONodeDescriptorMap& results,
-                                                                           IONodeDescriptorMap& states,
+void LevelZeroCompilerInDriver<TableExtension>::getLayoutOrStateDescriptor(std::vector<IODescriptor>& parameters,
+                                                                           std::vector<IODescriptor>& results,
+                                                                           std::vector<IODescriptor>& states,
                                                                            std::vector<std::string>& stateNames,
                                                                            const T& arg) const {
     std::string legacyName = arg.name;
@@ -926,7 +926,7 @@ void LevelZeroCompilerInDriver<TableExtension>::getLayoutOrStateDescriptor(IONod
  * @param names The I/O identifiers shall be stored here in the order found within the compiled model.
  * @param metadata The Level Zero structure fomr which the descriptors will be extracted.
  */
-static void getNodeDescriptor(IONodeDescriptorMap& nodeDescriptors,
+static void getNodeDescriptor(std::vector<IODescriptor>& nodeDescriptors,
                               std::vector<std::string>& names,
                               ze_graph_argument_properties_3_t& arg) {
     ov::element::Type_t precision = toOVElementType(arg.devicePrecision);
@@ -948,7 +948,7 @@ static void getNodeDescriptor(IONodeDescriptorMap& nodeDescriptors,
         {legacyName, arg.debug_friendly_name, std::move(outputTensorNames), precision, shape, shape};
 }
 
-static void getNodeDescriptor(IONodeDescriptorMap& nodeDescriptors,
+static void getNodeDescriptor(std::vector<IODescriptor>& nodeDescriptors,
                               std::vector<std::string>& names,
                               ze_graph_argument_properties_3_t& arg,
                               ze_graph_argument_metadata_t& metadata) {
@@ -983,9 +983,9 @@ void LevelZeroCompilerInDriver<TableExtension>::getMetadata(TableExtension* grap
                                                             std::vector<std::string>& inputNames,
                                                             std::vector<std::string>& outputNames,
                                                             std::vector<std::string>& stateNames,
-                                                            IONodeDescriptorMap& parameters,
-                                                            IONodeDescriptorMap& results,
-                                                            IONodeDescriptorMap& states) const {
+                                                            std::vector<IODescriptor>& parameters,
+                                                            std::vector<IODescriptor>& results,
+                                                            std::vector<IODescriptor>& states) const {
     ze_graph_argument_properties_3_t arg;
     auto result = graphDdiTableExt->pfnGetArgumentProperties3(graphHandle, index, &arg);
     if (ZE_RESULT_SUCCESS != result) {
@@ -1018,9 +1018,9 @@ void LevelZeroCompilerInDriver<TableExtension>::getMetadata(TableExtension* grap
                                                             std::vector<std::string>& inputNames,
                                                             std::vector<std::string>& outputNames,
                                                             std::vector<std::string>& stateNames,
-                                                            IONodeDescriptorMap& parameters,
-                                                            IONodeDescriptorMap& results,
-                                                            IONodeDescriptorMap& states) const {
+                                                            std::vector<IODescriptor>& parameters,
+                                                            std::vector<IODescriptor>& results,
+                                                            std::vector<IODescriptor>& states) const {
     ze_graph_argument_properties_3_t arg;
     auto result = graphDdiTableExt->pfnGetArgumentProperties3(graphHandle, index, &arg);
     if (ZE_RESULT_SUCCESS != result) {

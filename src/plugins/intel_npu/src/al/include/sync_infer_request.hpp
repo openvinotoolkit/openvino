@@ -177,7 +177,7 @@ protected:
      * @param allocator If provided, the tensor uses the custom allocator instead of using the default one.
      */
     void allocate_tensor(std::string tensorName,
-                         const IONodeDescriptor& descriptor,
+                         const IODescriptor& descriptor,
                          TensorType tensorType = TensorType::InputOrOutput,
                          const ov::Allocator& allocator = {});
 

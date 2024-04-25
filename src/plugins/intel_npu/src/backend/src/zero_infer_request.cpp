@@ -25,7 +25,7 @@ constexpr std::size_t BATCH_AXIS = 0;
  * @param zeDescriptor The Level Zero specific structure used for comparison.
  * @param name Tensor identifier used for error logging.
  */
-void checkLevelZeroAttributesMatch(const IONodeDescriptor& nodeDescriptor,
+void checkLevelZeroAttributesMatch(const IODescriptor& nodeDescriptor,
                                    const ZeroExecutor::ArgumentDescriptor& zeDescriptor,
                                    const std::string& name) {
     const ov::element::Type_t ovPrecision = nodeDescriptor.precision;
@@ -203,7 +203,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
     }
 
     for (const std::string& inputName : _metadata.inputNames) {
-        IONodeDescriptor& parameterDescriptor = _metadata.parameters.at(inputName);
+        IODescriptor& parameterDescriptor = _metadata.parameters.at(inputName);
         checkLevelZeroAttributesMatch(parameterDescriptor, executorInputDescriptors.at(inputName), inputName);
 
         ov::Allocator inputAllocator;
@@ -224,7 +224,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
         if (contains(_metadata.shapeNames, inputName)) {
             const std::string shapeBufferName = SHAPE_TENSOR_PREFIX + inputName;
-            const IONodeDescriptor& shapeDescriptor = _metadata.shapes.at(inputName);
+            const IODescriptor& shapeDescriptor = _metadata.shapes.at(inputName);
 
             checkLevelZeroAttributesMatch(shapeDescriptor,
                                           executorInputDescriptors.at(shapeBufferName),
@@ -251,7 +251,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
         if (shapeNameMatch != _nodeNameToLegacyName.end()) {
             if (contains(_metadata.shapeNames, shapeNameMatch->second)) {
                 const std::string shapeBufferName = SHAPE_TENSOR_PREFIX + shapeNameMatch->second;
-                const IONodeDescriptor& shapeDescriptor = _metadata.shapes.at(shapeNameMatch->second);
+                const IODescriptor& shapeDescriptor = _metadata.shapes.at(shapeNameMatch->second);
 
                 checkLevelZeroAttributesMatch(shapeDescriptor,
                                               executorOutputDescriptors.at(shapeBufferName),
@@ -274,7 +274,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
             OPENVINO_THROW("Invalid graph output descriptor key: " + stateOutputBufferName);
         }
 
-        const IONodeDescriptor& stateDescriptor = _metadata.states.at(stateName);
+        const IODescriptor& stateDescriptor = _metadata.states.at(stateName);
         checkLevelZeroAttributesMatch(stateDescriptor,
                                       executorInputDescriptors.at(stateInputBufferName),
                                       stateInputBufferName);

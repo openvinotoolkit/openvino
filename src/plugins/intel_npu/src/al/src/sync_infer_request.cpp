@@ -160,7 +160,7 @@ void SyncInferRequest::check_tensors() const {
 }
 
 void SyncInferRequest::allocate_tensor(std::string tensorName,
-                                       const IONodeDescriptor& descriptor,
+                                       const IODescriptor& descriptor,
                                        TensorType tensorType,
                                        const ov::Allocator& allocator) {
     std::shared_ptr<ov::ITensor> tensor;
