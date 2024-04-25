@@ -491,7 +491,6 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(smoke_AvgPool_CPU_4D_FP16/PoolingLayerCPUTest.CompareWithRefs/IS=\(\[\?.*\).*_Prc=f32_AvgPool_ExcludePad=1_K\(4\.4\)_S\(4\.4\)_PB\(2\.2\)_PE\(2\.2\)_Rounding=ceil.*)");
         retVector.emplace_back(R"(smoke_FC_(2|3)D_runtime_FP16/MatMulDecompressConvertTest.*transpose_b=1.*)");
         retVector.emplace_back(R"((smoke|nightly)_FC_(2|3)D.*_FP16/MatMulLayerCPUTest.*transpose_b=1.*)");
-        retVector.emplace_back(R"(smoke_SoftMax_Optimized_CPU_FP16/SoftMaxLayerCPUTest.CompareWithRefs/netPRC=f32_IS=\[5\.5\.5\.5.*_axis=(0|1|2|3).*)");
     }
 
     if (ov::with_cpu_x86_avx512_core_amx_fp16()) {

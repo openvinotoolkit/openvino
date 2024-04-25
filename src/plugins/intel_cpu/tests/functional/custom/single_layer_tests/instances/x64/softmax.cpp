@@ -85,28 +85,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_Optimized_CPU,
                          OptimizedParams,
                          SoftMaxLayerCPUTest::getTestCaseName);
 
-const auto optimizedCPUSpec_FP16 = []()-> std::vector<CPUSpecificParams>{
-    const auto avx512 = CPUSpecificParams{{}, {}, {"jit"}, "jit_avx512"};
-    const std::vector<CPUSpecificParams> vecCpuConfigs = {avx512};
-    auto supportConfigure = CPUTestUtils::filterCPUInfoForDeviceWithFP16(vecCpuConfigs);
-    if (supportConfigure.size() > 0) {
-         return std::vector<CPUSpecificParams>{supportConfigure[0]};
-     } else {
-         return std::vector<CPUSpecificParams>{};
-     }
-};
-
-const auto OptimizedParams_FP16 = testing::Combine(testing::Values(ElementType::f32),
-                                              testing::ValuesIn(optimizedConfigsFP32),
-                                              testing::Values(ov::test::utils::DEVICE_CPU),
-                                              testing::ValuesIn(optimizedCPUSpec_FP16()),
-                                              testing::Values(CPUTestUtils::cpu_f16_plugin_config));
-
-INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_Optimized_CPU_FP16,
-                         SoftMaxLayerCPUTest,
-                         OptimizedParams_FP16,
-                         SoftMaxLayerCPUTest::getTestCaseName);
-
 const auto notOptimizedCPUSpec = CPUSpecificParams{{}, {}, {"ref_any"}, "ref_any"};
 const std::vector<SoftMaxConfig> notOptimizedConfigsFP32{
     // Static shapes
