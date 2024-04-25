@@ -65,10 +65,11 @@ runs:
         --base_tag_file "base/${{ inputs.dockerfiles_root_dir }}/docker_tag" \
         --docker_env_changed "${{ fromJSON(inputs.changed_components).docker_env }}" \
         --dockerfiles_changed "${{ fromJSON(inputs.changed_components).dockerfiles }}" \
+        --docker_builder "${{ steps.buildx.outputs.name}}" \
         --repo "${{ github.repository }}" \
         --ref_name "${{ github.ref_name }}" \
         $([[ -n $pr ]] && echo "--pr $pr" || echo '-s ${{ github.sha }}') \
         $([[ -n "${{ inputs.push }}" ]] && echo "--push" || echo '')
       env:
         GITHUB_TOKEN: ${{ inputs.repo_token }} # ${{ github.token }}
-        BUILDER_NAME: ${{ steps.buildx.outputs.name }}
+
