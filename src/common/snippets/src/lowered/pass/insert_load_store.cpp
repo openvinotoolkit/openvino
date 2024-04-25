@@ -15,9 +15,6 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-using LoopManager = LinearIR::LoopManager;
-using LoopInfoPtr = LoopManager::LoopInfoPtr;
-
 InsertLoadStore::InsertLoadStore(size_t vector_size) : m_vector_size(vector_size) {}
 
 size_t InsertLoadStore::get_count(const ExpressionPort& port) const {
@@ -42,7 +39,8 @@ bool InsertLoadStore::insert_load(LinearIR& linear_ir, const LinearIR::constExpr
     const auto& data_out = data_expr->get_output_port_connector(0);
     for (const auto& consumer_input : data_out->get_consumers()) {
         const auto& consumer_expr = consumer_input.get_expr();
-        const auto ma = ov::as_type_ptr<op::MemoryAccess>(consumer_expr->get_node());
+        const auto& consumer = consumer_expr->get_node();
+        const auto ma = std::dynamic_pointer_cast<modifier::MemoryAccess>(consumer);
         if (ma && ma->is_memory_access_input_port(consumer_input.get_index()))
             return false;
 
@@ -63,7 +61,7 @@ bool InsertLoadStore::insert_store(LinearIR& linear_ir, const LinearIR::constExp
     const auto& parent_expr = parent_output.get_expr();
     const auto port = parent_output.get_index();
     const auto& parent = parent_expr->get_node();
-    const auto ma = ov::as_type_ptr<op::MemoryAccess>(parent);
+    const auto ma = std::dynamic_pointer_cast<modifier::MemoryAccess>(parent);
     if (ma && ma->is_memory_access_output_port(port))
         return false;
 

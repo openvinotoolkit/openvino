@@ -206,7 +206,7 @@ jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::x64::jit_g
                 const auto& mem_desc_expr = shape_infer_seq.empty() ? expr : shape_infer_seq.back();
                 auto consumer_inputs = mem_desc_expr->get_output_port_connector(0)->get_consumers();
                 for (const auto& child_input : consumer_inputs) {
-                    const auto ma = ov::as_type_ptr<snippets::op::MemoryAccess>(child_input.get_expr()->get_node());
+                    const auto ma = std::dynamic_pointer_cast<snippets::modifier::MemoryAccess>(child_input.get_expr()->get_node());
                     if (ma && ma->is_memory_access_input_port(child_input.get_index())) {
                         desc = child_input.get_descriptor_ptr();
                         break;
@@ -322,7 +322,7 @@ void jit_kernel_static_emitter::init_data_pointers(const std::vector<Xbyak::Reg6
     // * Static case: we can use reg_runtime_params as the last reg_tmp for the last iteration (and corrupt it), since
     //     it won't be used anymore
     // * Dynamic case: we will need reg_runtime_params to pass runtime args to LoopScheduler, so we have to
-    //     push a reg on the stack, and restore it value afterwards
+    //     push a reg on the stack, and restore it value afterward
     if (last_iter_explicitly) {
         h->mov(data_ptr_regs[i], h->ptr[reg_runtime_params + GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*)]);
         reg_tmp = reg_runtime_params;

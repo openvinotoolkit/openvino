@@ -37,6 +37,11 @@ interface Core {
   readModelSync(modelPath: string, weightsPath?: string): Model;
   readModelSync(modelBuffer: Uint8Array, weightsBuffer?: Uint8Array): Model;
   importModelSync(modelStream: Buffer, device: string): CompiledModel;
+  importModelSync(
+    modelStream: Buffer, 
+    device: string,
+    props: { [key: string]: string | number | boolean }
+  ): CompiledModel;
   getAvailableDevices(): string[];
   getVersions(deviceName: string): {
     [deviceName: string]: {
@@ -53,7 +58,8 @@ interface Core {
   getProperty(
     deviceName: string,
     propertyName: string,
-  ): string | number | boolean,
+  ): string | number | boolean;
+  addExtension(libraryPath: string): void;
 }
 interface CoreConstructor {
   new(): Core;
@@ -66,6 +72,8 @@ interface Model {
   input(nameOrId?: string | number): Output;
   getName(): string;
   isDynamic(): boolean;
+  setFriendlyName(name: string): void;
+  getFriendlyName(): string;
 }
 
 interface CompiledModel {
@@ -78,7 +86,7 @@ interface CompiledModel {
 }
 
 interface Tensor {
-  data: number[];
+  data: SupportedTypedArray;
   getElementType(): element;
   getShape(): number[];
   getData(): number[];
