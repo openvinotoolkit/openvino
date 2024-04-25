@@ -24,18 +24,14 @@ std::shared_ptr<Symbol> OPENVINO_API ancestor_of(const std::shared_ptr<Symbol>& 
 /// \brief Class representing unique symbol for the purpose of symbolic shape inference. Equality of symbols is being
 /// tracked by Disjoint-set data structure
 /// \ingroup ov_model_cpp_api
-class OPENVINO_API Symbol : public std::enable_shared_from_this<Symbol> {
+class OPENVINO_API Symbol {
 public:
     /// \brief Default constructs a unique symbol
     Symbol() = default;
 
 private:
-    /// \brief Returns immediate parent of the Symbol, in case parent is unknown sets this as a parent for itself
-    std::shared_ptr<Symbol> parent();
-
     friend std::shared_ptr<Symbol> ov::symbol::ancestor_of(const std::shared_ptr<Symbol>& x);
     friend void ov::symbol::set_equal(const std::shared_ptr<Symbol>& lhs, const std::shared_ptr<Symbol>& rhs);
-    friend bool ov::symbol::are_equal(const std::shared_ptr<Symbol>& lhs, const std::shared_ptr<Symbol>& rhs);
 
     std::shared_ptr<Symbol> m_parent = nullptr;
 };
