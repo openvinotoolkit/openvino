@@ -81,7 +81,6 @@ void OVPropertiesTestsWithCompileModelProps::SetUp() {
     std::tie(temp_device, properties) = this->GetParam();
 
     std::string::size_type pos = temp_device.find(":", 0);
-    std::string hw_device = "";
     if (pos != std::string::npos) {
         target_device = temp_device.substr(0, pos);
         compileModelProperties = {ov::device::priorities(target_device)};
