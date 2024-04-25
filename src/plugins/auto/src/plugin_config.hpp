@@ -6,6 +6,7 @@
 #pragma once
 
 #include "openvino/runtime/auto/properties.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
 #include "utils/log.hpp"
 #include "utils/log_util.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
