@@ -819,13 +819,14 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
     auto support_dynamic_devices_info = [&]() -> std::vector<DeviceInformation> {
         std::vector<DeviceInformation> ret;
         std::vector<std::string> devices_support_dynamic = {"CPU", "GPU"};
-        for (auto& item : devices_support_dynamic) {
-            auto dev_iter =
-                std::find_if(meta_devices.begin(), meta_devices.end(), [item](const DeviceInformation& device_info) {
-                    return device_info.device_name.find(item) != std::string::npos;
-                });
-            if (dev_iter != meta_devices.end())
-                ret.push_back(*dev_iter);
+        for (auto& item : meta_devices) {
+            auto dev_iter = std::find_if(devices_support_dynamic.begin(),
+                                         devices_support_dynamic.end(),
+                                         [item](const std::string& device) {
+                                             return item.device_name.find(device) != std::string::npos;
+                                         });
+            if (dev_iter != devices_support_dynamic.end())
+                ret.push_back(item);
         }
         return ret;
     };
