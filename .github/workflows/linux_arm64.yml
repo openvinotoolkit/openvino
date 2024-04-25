@@ -105,7 +105,7 @@ jobs:
             ${{ runner.os }}-${{ runner.arch }}-apt
 
       - name: Install git
-        run: apt update && apt install git ca-certificates
+        run: apt-get update && apt-get install git ca-certificates
 
       - name: Clone OpenVINO
         uses: actions/checkout@v4
@@ -138,14 +138,14 @@ jobs:
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
 
           # default-jdk - Java API
-          apt install default-jdk gcc-10 g++-10
+          apt-get install default-jdk gcc-10 g++-10
 
           # Set gcc-10 as a default one
           update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 30
           update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 30
 
           # For building the latest h5py
-          apt install libhdf5-dev
+          apt-get install libhdf5-dev
 
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.4

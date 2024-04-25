@@ -108,8 +108,8 @@ jobs:
 
       - name: Install git
         run: |
-          apt update
-          apt install git ca-certificates
+          apt-get update
+          apt-get install git ca-certificates
 
       - name: Clone OpenVINO
         uses: actions/checkout@v4
@@ -141,7 +141,7 @@ jobs:
         run: |
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
           # default-jdk - Java API
-          apt install default-jdk
+          apt-get install default-jdk
 
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.4
@@ -633,7 +633,7 @@ jobs:
           path: ${{ env.OPENVINO_REPO }}
 
       - name: Install Prerequisites
-        run: apt update && apt install git ca-certificates
+        run: apt-get update && apt-get install git ca-certificates
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v4
@@ -671,7 +671,7 @@ jobs:
       - name: Install build dependencies
         run: |
           ${OPENVINO_REPO}/install_build_dependencies.sh
-          apt install software-properties-common curl
+          apt-get install software-properties-common curl
 
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.4
@@ -685,8 +685,8 @@ jobs:
 
           apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/3bf863cc.pub
           add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/ /"
-          apt update
-          apt install \
+          apt-get update
+          apt-get install \
             libcudnn8=8.9.4.*-1+cuda11.8 \
             libcudnn8-dev=8.9.4.*-1+cuda11.8 \
             libcudnn8-samples=8.9.4.*-1+cuda11.8 \
@@ -803,7 +803,7 @@ jobs:
         run: |
           $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -c=gpu -y
 
-          apt update && apt install wget software-properties-common ca-certificates gpg-agent tzdata
+          apt-get update && apt-get install wget software-properties-common ca-certificates gpg-agent tzdata
         env:
           DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
           TZ: "Europe/London" # to prevent tzdata from waiting user input

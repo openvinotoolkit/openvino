@@ -99,8 +99,8 @@ jobs:
 
       - name: Install git
         run: |
-          apt update
-          apt install git ca-certificates git-lfs
+          apt-get update
+          apt-get install git ca-certificates git-lfs
 
       - name: Clone OpenVINO
         uses: actions/checkout@v4
@@ -132,7 +132,7 @@ jobs:
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
 
           # use clang as a default compiler
-          apt --assume-yes install clang
+          apt-get install --assume-yes clang
           update-alternatives --install /usr/bin/cc cc /usr/bin/clang 100
           update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++ 100
 
@@ -319,7 +319,7 @@ jobs:
             ${{ runner.os }}-${{ runner.arch }}-apt
 
       - name: Install git
-        run: apt update && apt install git ca-certificates git-lfs
+        run: apt-get update && apt-get install git ca-certificates git-lfs
 
       - name: Clone OpenVINO
         uses: actions/checkout@v4

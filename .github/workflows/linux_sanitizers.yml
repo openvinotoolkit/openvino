@@ -77,8 +77,8 @@ jobs:
 
       - name: Install git
         run: |
-          apt update
-          apt install git ca-certificates
+          apt-get update
+          apt-get install git ca-certificates
 
       - name: Clone OpenVINO
         uses: actions/checkout@v4
@@ -108,7 +108,7 @@ jobs:
       - name: Install build dependencies
         run: |
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
-          apt install clang lld
+          apt-get install clang lld
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./openvino/.github/actions/setup_python
@@ -297,7 +297,7 @@ jobs:
       - name: Install dependencies (Linux)
         run: |
           $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -c=gpu -y
-          apt update && apt install clang lld
+          apt-get update && apt-get install clang lld
 
       - name: Fetch Sanitizer Suppression Lists
         uses: actions/checkout@v4

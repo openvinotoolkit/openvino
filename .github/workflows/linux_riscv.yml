@@ -94,7 +94,7 @@ jobs:
             ${{ runner.os }}-${{ runner.arch }}-apt
 
       - name: Install git
-        run: apt update && apt install git ca-certificates
+        run: apt-get update && apt-get install git ca-certificates
 
       - name: Clone OpenVINO
         uses: actions/checkout@v4
@@ -145,10 +145,10 @@ jobs:
           mkdir -p ${OPENVINO_BUILD_DIR}
 
           # install compilers to build OpenVINO for RISC-V 64
-          apt install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu
-          apt install gcc g++ python3-pip python3-venv python3-dev
+          apt-get install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu
+          apt-get install gcc g++ python3-pip python3-venv python3-dev
           # generic dependencies
-          apt install cmake ccache ninja-build fdupes patchelf
+          apt-get install cmake ccache ninja-build fdupes patchelf
 
           python3 -m venv ${OPENVINO_BUILD_DIR}/env
           source ${OPENVINO_BUILD_DIR}/env/bin/activate
@@ -173,8 +173,8 @@ jobs:
           echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy-security main >> riscv64-sources.list
           mv riscv64-sources.list /etc/apt/sources.list.d/
           dpkg --add-architecture riscv64
-          apt update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/riscv64-sources.list
-          apt install libpython3-dev:riscv64
+          apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/riscv64-sources.list
+          apt-get install libpython3-dev:riscv64
 
       - name: Create conan_toolchain.cmake file
         run: |

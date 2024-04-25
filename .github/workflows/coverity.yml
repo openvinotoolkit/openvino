@@ -66,7 +66,7 @@ jobs:
         run: |
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
           # default-jdk - Java API
-          apt install --assume-yes --no-install-recommends default-jdk
+          apt-get install --assume-yes --no-install-recommends default-jdk
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./openvino/.github/actions/setup_python
@@ -120,15 +120,15 @@ jobs:
               -d version="${{ github.sha }}" \
               -d description="https://github.com/openvinotoolkit/openvino/runs/${{ github.run_number }}" \
               https://scan.coverity.com/projects/21921/builds/init | tee response
-          
+
             upload_url=$(jq -r '.url' response)
             build_id=$(jq -r '.build_id' response)
-          
+
             curl -X PUT \
               --header 'Content-Type: application/json' \
               --upload-file openvino.tgz \
               $upload_url
-            
+
             curl -X PUT \
               -d token=${{ secrets.COVERITY_TOKEN }} \
             https://scan.coverity.com/projects/21921/builds/$build_id/enqueue
