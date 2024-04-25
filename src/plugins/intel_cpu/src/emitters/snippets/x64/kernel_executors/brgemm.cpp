@@ -17,10 +17,11 @@ using namespace dnnl::impl::cpu::x64;
 
 namespace ov {
 namespace intel_cpu {
-BrgemmKernelConfig::BrgemmKernelConfig(const element::Type& in0_dtype, const element::Type& in1_dtype, float beta, bool is_with_amx,
+BrgemmKernelConfig::BrgemmKernelConfig(const element::Type& in0_dtype, const element::Type& in1_dtype, float beta,
+                                       bool is_with_amx, bool is_with_comp,
                                        size_t M, size_t N, size_t K, size_t LDA, size_t LDB, size_t LDC) :
                      dt_in0(DTYPE_CAST(in0_dtype)), dt_in1(DTYPE_CAST(in1_dtype)),
-                     is_with_amx(is_with_amx), beta(beta),
+                     is_with_amx(is_with_amx), is_with_comp(is_with_comp), beta(beta),
                      M(DIM_CAST(M)), N(DIM_CAST(N)), K(DIM_CAST(K)),
                      LDA(DIM_CAST(LDA)), LDB(DIM_CAST(LDB)), LDC(DIM_CAST(LDC)) {
     bool is_int8 = utils::one_of(dt_in0, data_type::u8, data_type::s8) &&
@@ -32,7 +33,6 @@ BrgemmKernelConfig::BrgemmKernelConfig(const element::Type& in0_dtype, const ele
                 is_int8 ?
                     cpu::x64::avx512_core_vnni :
                     cpu::x64::avx512_core;
-    is_with_comp = dt_in0 == dnnl_data_type_t::dnnl_s8 && !is_with_amx;
 }
 
 bool BrgemmKernelConfig::is_completed() const {

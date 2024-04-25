@@ -17,7 +17,8 @@ class BrgemmKernelExecutor;
 struct BrgemmKernelConfig : public snippets::KernelExecutorBase::GenericConfig {
     friend BrgemmKernelExecutor;
 public:
-    BrgemmKernelConfig(const element::Type& in0_dtype, const element::Type& in1_dtype, float beta, bool is_with_amx,
+    BrgemmKernelConfig(const element::Type& in0_dtype, const element::Type& in1_dtype, float beta,
+                       bool is_with_amx, bool is_with_comp,
                        size_t M = 0, size_t N = 0, size_t K = 0,
                        size_t LDA = 0, size_t LDB = 0, size_t LDC = 0);
     BrgemmKernelConfig() = default;

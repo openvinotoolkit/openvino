@@ -101,7 +101,8 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa,
 
     auto kernel_config = std::make_shared<BrgemmKernelConfig>(brg0Prc, brg1Prc,
                                                             brgemm_node->get_beta(),
-                                                            brgemm_node->is_amx());
+                                                            brgemm_node->is_amx(),
+                                                            brgemm_node->is_with_compensations());
 
     m_kernel_executor = kernel_table->register_kernel<BrgemmKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
     m_kernel_executor->update_kernel_config(*(output_subtensor.rbegin() + 1),
