@@ -102,8 +102,8 @@ jobs:
           cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
           cache-path: ${{ env.APT_CACHE_PATH }}/${{ runner.arch }}
           path: '/var/cache/apt/archives'
-          key: build-${{ github.sha }}
-          restore-keys: build
+          key: build-main-${{ github.sha }}
+          restore-keys: build-main
 
       - name: Install git
         run: |
