@@ -1,6 +1,6 @@
-# Thread_local Tests Suite
+# AppVerifier Tests Suite
 
-This test suite is used to detect whether AppVerifier will report a memory leak caused by thread_local.
+This test suite is used to detect whether AppVerifier will report a memory leak.
 
 ## Getting Started
 
@@ -27,3 +27,5 @@ cmake .. && cmake --build . --config Release -j8
 ``` bash
 .\test\Release\ov_appverifier_tests.exe
 ```
+
+This test can be run directly using the above command, but if you want to detect whether there is a memory leak, the test executable file need to be added in AppVerifier (refer to https://learn.microsoft.com/en-us/windows-hardware/drivers/devtest/application-verifier-testing-applications) before running the above command.
