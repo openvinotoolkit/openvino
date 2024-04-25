@@ -70,6 +70,8 @@ class TestInverse(PytorchLayerTest):
     @pytest.mark.precommit
     def test_inverse(self, data, dtype, out, ie_device, precision, ir_version):
         self.input_tensor = np.array(data, dtype=dtype)
+        if ie_device == "GPU":
+            pytest.xfail(reason="Inverse-14 is not supported on GPU")
         if not out:
             self._test(aten_inverse(), None, "aten::linalg_inv",
                     ie_device, precision, ir_version, trace_model=True, freeze_model=False)
@@ -105,4 +107,3 @@ class TestInverse(PytorchLayerTest):
         else:
             self._test(aten_inverse_out(), None, "aten::linalg_inv",
                     ie_device, precision, ir_version, trace_model=True, freeze_model=False, kwargs_to_prepare_input={"out": out})
-
