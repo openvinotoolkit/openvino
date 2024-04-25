@@ -104,7 +104,7 @@ bool RandomUniform::evaluate(TensorVector& outputs, const TensorVector& inputs) 
 
     // Update RandomUniform state
     std::lock_guard<std::mutex> guard(m_state_mutex);
-    m_state = state;
+    m_state = std::move(state);
     return true;
 }
 
