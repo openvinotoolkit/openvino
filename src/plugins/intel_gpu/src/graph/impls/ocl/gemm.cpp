@@ -228,6 +228,7 @@ public:
         params.indirect_input1 = primitive->indirect_b && indirect;
         if (indirect && (primitive->indirect_a || primitive->indirect_b)) {
             OPENVINO_ASSERT(impl_param.input_layouts.size() >= 3, "[GPU] Actual inputs count: ", impl_param.input_layouts.size());
+            params.indirect_axis = primitive->indirect_axis;
             params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[get_beam_table_id(primitive)]));
         }
 
