@@ -111,7 +111,7 @@ jobs:
       - name: Install git
         run: |
           apt update
-          apt install git ca-certificates
+          apt install -y git ca-certificates
 
       - name: Clone OpenVINO
         uses: actions/checkout@v4
