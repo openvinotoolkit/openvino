@@ -21,13 +21,13 @@ namespace reference {
  *
  *  Math Formula: (x / Sqrt(ReduceMean(x^2, axes) + eps)) * scale
  *
- * @param in        Input pointer to data.
- * @param axes      Axes for reduce mean calculation
- * @param out       Output pointer to results.
- * @param in_shape  Shape of the input Tensor
- * @param eps       Epsilon for not dividing by zero while normalizing the value
- * @param scale_shape  Shape of the scale Tensor
- * @param scale        Input pointer to scale.
+ * @param in           Input pointer to data.
+ * @param axes         Axes for reduce mean calculation
+ * @param out          Output pointer to results.
+ * @param in_shape     Shape of the input Tensor
+ * @param eps          Epsilon for not dividing by zero while normalizing the value
+ * @param scale_shape  Shape of the scale Tensor (optional)
+ * @param scale        Input pointer to scale (optional).
  *
  */
 template <class T>
@@ -55,7 +55,7 @@ void rms_norm(const T* in,
     divide(in, root_mean_square.data(), out, in_shape, reduced_shape, op::AutoBroadcastType::NUMPY, false);
 
     if (scale) {
-        multiply(in, scale, out, in_shape, scale_shape, op::AutoBroadcastType::NUMPY);
+        multiply(out, scale, out, in_shape, scale_shape, op::AutoBroadcastType::NUMPY);
     }
 }
 }  // namespace reference

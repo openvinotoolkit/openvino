@@ -17,11 +17,16 @@ struct RMSNormParams {
     RMSNormParams(const reference_tests::Tensor& paramInput,
                   const reference_tests::Tensor& paramReductionAxes,
                   const double eps,
-                  const reference_tests::Tensor& paramExpected)
+                  const reference_tests::Tensor& paramExpected,
+                  const reference_tests::Tensor& paramScale = {})
         : input(paramInput),
           reductionAxes(paramReductionAxes),
           eps(eps),
-          expected(paramExpected) {}
+          expected(paramExpected) {
+        if (paramScale.data) {
+            scale = paramScale;
+        }
+    }
     reference_tests::Tensor input;
     reference_tests::Tensor reductionAxes;
     reference_tests::Tensor scale;
@@ -33,8 +38,12 @@ class ReferenceRMSNormLayerTest : public testing::TestWithParam<RMSNormParams>, 
 public:
     void SetUp() override {
         auto params = GetParam();
-        function = CreateFunction(params.input, params.reductionAxes, params.eps);
-        inputData = {params.input.data};
+        function = CreateFunction(params.input, params.reductionAxes, params.eps, params.scale);
+        if (!params.scale.data) {
+            inputData = {params.input.data};
+        } else {
+            inputData = {params.input.data, params.scale.data};
+        }
         refOutData = {params.expected.data};
     }
     static std::string getTestCaseName(const testing::TestParamInfo<RMSNormParams>& obj) {
@@ -46,6 +55,10 @@ public:
                << ov::test::utils::vec2str(std::vector<int64_t>(
                       obj.param.reductionAxes.data.data<int64_t>(),
                       obj.param.reductionAxes.data.data<int64_t>() + shape_size(obj.param.reductionAxes.shape)));
+        if (param.scale.data) {
+            result << "_Scaled="
+                   << "True";
+        }
         result << "_eps=" << param.eps;
         return result.str();
     }
@@ -53,15 +66,20 @@ public:
 private:
     static std::shared_ptr<Model> CreateFunction(const reference_tests::Tensor& input,
                                                  const reference_tests::Tensor& reductionAxes,
-                                                 //  const reference_tests::Tensor& scale,
-                                                 const double eps) {
+                                                 const double eps,
+                                                 const reference_tests::Tensor& scale = {}) {
         const auto in = std::make_shared<op::v0::Parameter>(input.type, input.shape);
         const auto axes = std::make_shared<op::v0::Constant>(reductionAxes.type,
                                                              reductionAxes.shape,
                                                              reductionAxes.data.data<int64_t>());
 
-        auto rms_norm = std::make_shared<op::v14::RMSNorm>(in, axes, static_cast<float>(eps));
-        return std::make_shared<ov::Model>(NodeVector{rms_norm}, ParameterVector{in});
+        if (!scale.data) {
+            const auto rms_norm = std::make_shared<op::v14::RMSNorm>(in, axes, eps);
+            return std::make_shared<ov::Model>(NodeVector{rms_norm}, ParameterVector{in});
+        }
+        const auto scale_param = std::make_shared<op::v0::Parameter>(scale.type, scale.shape);
+        const auto rms_norm = std::make_shared<op::v14::RMSNorm>(in, axes, scale_param, eps);
+        return std::make_shared<ov::Model>(NodeVector{rms_norm}, ParameterVector{in, scale_param});
     }
 };
 
@@ -158,6 +176,25 @@ INSTANTIATE_TEST_SUITE_P(
                                              1.1187618,   0.30481678, -1.2866459, 0.687082,   1.5899425,   0.00002862,
                                              1.5844078,   -0.6442507, 0.27311474, -0.4285907, -0.3741618,  1.6359433,
                                              0.1348591,   1.7186543,  0.1674487,  -1.288446,  -0.41208065, 1.0817096}}),
+
+        RMSNormParams(
+            reference_tests::Tensor{
+                Shape{2, 2, 2, 3},
+                ov::element::f32,
+                std::vector<float>({-0.64425033, -5.9651356, 2.8081346, -0.3386033, 0.1047344,  -2.262147,
+                                    5.872749,    1.6000836,  -6.754028, 4.015047,   9.291021,   0.00016722,
+                                    7.7904015,   -3.167727,  1.3428825, -1.4490807, -1.2650547, 5.5311837,
+                                    0.71208346,  9.074844,   0.8841632, -8.358102,  -2.673152,  7.01701})},
+            reference_tests::Tensor{Shape{1}, ov::element::i64, std::vector<int64_t>({-1})},
+            1e-5,
+            reference_tests::Tensor{
+                Shape{2, 2, 2, 3},
+                ov::element::f32,
+                std::vector<float>{-0.08422372, -0.77983022, 0.36711121,  -0.1280659,  0.03961245,  -0.85558498,
+                                   0.55938089,  0.15240839,  -0.64332294, 0.343541,    0.79497123,  0.00001431,
+                                   0.7922039,   -0.32212535, 0.13655737,  -0.21429534, -0.1870809,  0.81797165,
+                                   0.06742955,  0.85932714,  0.08372435,  -0.64422297, -0.20604032, 0.54085481}},
+            reference_tests::Tensor{Shape{1}, ov::element::f32, std::vector<float>{0.5}}),
 
         RMSNormParams(reference_tests::Tensor{Shape{1, 3, 3, 3},
                                               ov::element::f32,
