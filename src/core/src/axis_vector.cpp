@@ -31,6 +31,6 @@ ov::AxisVector& ov::AxisVector::operator=(const AxisVector& v) {
 }
 
 ov::AxisVector& ov::AxisVector::operator=(AxisVector&& v) noexcept {
-    static_cast<std::vector<size_t>*>(this)->operator=(v);
+    static_cast<std::vector<size_t>*>(this)->operator=(std::move(v));
     return *this;
 }
