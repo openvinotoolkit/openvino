@@ -30,11 +30,6 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     add_compile_options(-Wno-error=attributes)
 endif()
 
-# if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
-#     # for proper fix need to update pybind to version which does not use PyEval_InitThreads()
-#     add_compile_options(-Wno-deprecated-declarations -Wno-undef)
-# endif()
-
 if(ENABLE_TESTS)
     add_subdirectory(test_utils)
 endif()
