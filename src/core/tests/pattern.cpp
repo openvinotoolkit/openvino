@@ -786,9 +786,9 @@ TEST(pattern, optional_subgraph) {
 
 // TODO: Issue: 139835
 // The pattern matching does not support operations with optional inputs.
-// For example, ov::op::v5::NonMaxSupression can be created without some optional input nodes (like `max_output_boxes_per_class`)
-// (In case we would not specify input in constructor, the node input won't be created by default as a constant).
-// Arguments matching will be failed due to different number of pattern and graph input args.
+// For example, ov::op::v5::NonMaxSupression can be created without some optional input nodes (like
+// `max_output_boxes_per_class`) (In case we would not specify input in constructor, the node input won't be created by
+// default as a constant). Arguments matching will be failed due to different number of pattern and graph input args.
 // Check `bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& graph_node)`
 TEST(pattern, DISABLED_optional_match_node_with_optional_input) {
     auto model_in_0 = std::make_shared<ov::op::v0::Parameter>(element::f32, ov::Shape{3, 100, 4});

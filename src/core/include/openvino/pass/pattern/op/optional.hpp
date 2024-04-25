@@ -40,10 +40,10 @@ namespace op {
 
 // Known limitations:
 // 1. The pattern matching does not support operations with optional inputs.
-//    For example, ov::op::v5::NonMaxSupression can be created without some optional input nodes (like `max_output_boxes_per_class`)
-//    (In case we would not specify input in constructor, the node input won't be created by default as a constant).
-//    Arguments matching will be failed due to different number of pattern and graph input args.
-//    Issue: 139835
+//    For example, ov::op::v5::NonMaxSupression can be created without some optional input nodes (like
+//    `max_output_boxes_per_class`) (In case we would not specify input in constructor, the node input won't be created
+//    by default as a constant). Arguments matching will be failed due to different number of pattern and graph input
+//    args. Issue: 139835
 // 2. The optional nodes with cumulative inputs will be matched by 1st input.
 //    Issue: 139839
 class OPENVINO_API Optional : public Pattern {
