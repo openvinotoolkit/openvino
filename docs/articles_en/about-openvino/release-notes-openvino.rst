@@ -91,14 +91,15 @@ GPU Device Plugin
 
 * LLM first token latency has been improved on both integrated and discrete GPU platforms.
 * For the ChatGLM3-6B model, average token latency has been improved on integrated GPU platforms.
-* For Stable Diffusion 1.5 FP16 precision, performance has been improved on  Intel® Core™ Ultra
-  platforms.
+* For Stable Diffusion 1.5 FP16 precision, performance has been improved on Intel® Core™ Ultra
+  processors.
 
 NPU Device Plugin
 -----------------------------
 
 * NPU Plugin is now part of the OpenVINO GitHub repository. All the most recent plugin changes
-  will be immediately available in the repo. Note that NPU is part of Intel Core Ultra processors.
+  will be immediately available in the repo. Note that NPU is part of Intel® Core™ Ultra
+  processors.
 * New OpenVINO™ notebook “Hello, NPU!” introducing NPU usage with OpenVINO has been added.
 * Version 22H2 or later is required for Microsoft Windows® 11 64-bit to run inference on NPU.
 
