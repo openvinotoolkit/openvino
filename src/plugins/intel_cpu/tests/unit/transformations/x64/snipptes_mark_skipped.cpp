@@ -8,6 +8,7 @@
 #include <transformations/snippets/x64/pass/snippets_mark_skipped.hpp>
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace test {
@@ -17,7 +18,7 @@ class SnippetsMarkSkippedTests : public TransformationTestsF {
 public:
     void run() {
         ASSERT_TRUE(model);
-        ov::snippets::pass::SnippetsTokenization::Config config = ov::snippets::pass::SnippetsTokenization::get_default_config();
+        ov::snippets::pass::SnippetsTokenization::Config config = get_default_config();
         manager.register_pass<ov::intel_cpu::SnippetsMarkSkipped>();
         manager.register_pass<ov::snippets::pass::EnumerateNodes>();
         manager.register_pass<ov::snippets::pass::TokenizeSnippets>(config);

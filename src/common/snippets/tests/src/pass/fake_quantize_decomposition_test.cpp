@@ -9,6 +9,7 @@
 #include "snippets/op/subgraph.hpp"
 #include "fake_quantize_helper.hpp"
 #include "function_helper.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace test {
@@ -17,7 +18,7 @@ namespace snippets {
 class FakeQuantizeDecompositionTest : public TransformationTestsF {
 public:
     void register_passes() {
-        ov::snippets::pass::SnippetsTokenization::Config config = ov::snippets::pass::SnippetsTokenization::get_default_config();
+        ov::snippets::pass::SnippetsTokenization::Config config = get_default_config();
         manager.register_pass<ov::snippets::pass::CommonOptimizations>(config);
     }
 

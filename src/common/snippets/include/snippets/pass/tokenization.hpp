@@ -114,8 +114,6 @@ public:
         std::set<size_t> mha_supported_transpose_ranks = { 3, 4 };
     };
 
-    static Config get_default_config() { return { 1, std::numeric_limits<size_t>::max(), true, true, { 3, 4 } }; }
-
     OPENVINO_RTTI("SnippetsTokenization", "0");
     SnippetsTokenization(const Config& config) : m_config(config) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
