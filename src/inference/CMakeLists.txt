@@ -117,7 +117,7 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_obj
 
 # Static library used for unit tests which are always built
 
-add_library(${TARGET_NAME}_s STATIC EXCLUDE_FROM_ALL
+add_library(${TARGET_NAME}_s STATIC
             $<$<TARGET_EXISTS:openvino_proxy_plugin_obj>:$<TARGET_OBJECTS:openvino_proxy_plugin_obj>>
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
@@ -138,9 +138,7 @@ target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS}
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
 
-set_target_properties(${TARGET_NAME}_s PROPERTIES
-    EXCLUDE_FROM_ALL ON
-    INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+set_target_properties(${TARGET_NAME}_s PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # LTO
 
