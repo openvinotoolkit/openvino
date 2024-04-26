@@ -28,12 +28,12 @@ bool NormalizeLoopIDs::run(lowered::LinearIR& linear_ir) {
                 loop_id_map[old_id] = new_id;
                 continue;
             }
-            OPENVINO_ASSERT(m_has_specific_loops, "NormalizeLoopIDs failed: LinearIR contains solid loops with the same IDs!");
+            OPENVINO_ASSERT(m_has_specific_loops, "NormalizeLoopIDs failed: LinearIR contains unified loops with the same IDs!");
         }
     }
 
     const auto& loop_manager = linear_ir.get_loop_manager();
-    return loop_manager->blend(linear_ir, loop_id_map);
+    return loop_manager->reassign_identifiers(linear_ir, loop_id_map);
 }
 
 } // namespace pass

@@ -22,7 +22,7 @@ namespace pass {
  *              Loop2 -> 1 -> 2
  *        Note: If the LinearIR contains Loop-specific iterations (`m_has_specific_loops` = true),
  *              loopEnd expressions in the LinearIR may have the same LoopIDs.
- *              Otherwise, when the LinearIR has Solid Loops, loopIDs must be unique!
+ *              Otherwise, when the LinearIR has unified Loops, loopIDs must be unique!
  * @ingroup snippets
  */
 
@@ -33,7 +33,7 @@ public:
     bool run(lowered::LinearIR& linear_ir) override;
 
 private:
-    bool m_has_specific_loops;
+    bool m_has_specific_loops = true;
 };
 
 } // namespace pass

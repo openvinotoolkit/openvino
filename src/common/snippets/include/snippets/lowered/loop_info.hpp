@@ -12,9 +12,11 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 
-/* The structure contains the information about a Loop in Linear Intermediate IR (Linear IR):
- * work amount of the Loop, step of loop counter increment, entry and exit ports of the Loop,
- * passes for specific iterations.
+/**
+ * @interface LoopInfo
+ * @brief The base class that contains the base common information about a Loop in Linear Intermediate IR (Linear IR):
+ *        work amount of the Loop, step of loop counter increment, entry and exit ports of the Loop.
+ * @ingroup snippets
  */
 class LoopInfo {
 public:
@@ -58,11 +60,6 @@ public:
      * @return m_exit_points
      */
     const std::vector<LoopPort>& get_exit_points() const;
-    /**
-     * @brief Returns handlers of loop specific iterations
-     * @return handlers
-     */
-    virtual const SpecificIterationHandlers& get_handlers() const = 0;
 
     /**
      * @brief Sets `dim_idx` to all entry and exit points
@@ -89,11 +86,6 @@ public:
      * @param exit_points - vector of loop output ports
      */
     void set_exit_points(std::vector<LoopPort> exit_points);
-    /**
-     * @brief Set handlers
-     * @param handlers - transformations for loop specific iterations
-     */
-    virtual void set_handlers(SpecificIterationHandlers handlers) = 0;
 
     /**
      * @brief Update the parameters of existing loop input ports
@@ -159,6 +151,12 @@ protected:
 };
 using LoopInfoPtr = std::shared_ptr<LoopInfo>;
 
+/**
+ * @interface UnifiedLoopInfo
+ * @brief The structure describes unified (entire) Loop before decomposition into specific loop iterations.
+ *        Contains passes for specific loop iterations that will be called in decomposition for each iteration (in `InsertSpecificIterations` pass).
+ * @ingroup snippets
+ */
 class UnifiedLoopInfo : public LoopInfo {
 public:
     UnifiedLoopInfo() = default;
@@ -180,12 +178,12 @@ public:
      * @brief Returns handlers of loop specific iterations
      * @return m_handlers
      */
-    const SpecificIterationHandlers& get_handlers() const override;
+    const SpecificIterationHandlers& get_handlers() const;
     /**
      * @brief Set m_handlers value
      * @param handlers - transformations for loop specific iterations
      */
-    void set_handlers(SpecificIterationHandlers handlers) override;
+    void set_handlers(SpecificIterationHandlers handlers);
 
     /**
      * @brief Register loop specific iteration handler
@@ -203,6 +201,12 @@ private:
 };
 using UnifiedLoopInfoPtr = std::shared_ptr<UnifiedLoopInfo>;
 
+/**
+ * @interface ExpandedLoopInfo
+ * @brief The structure describes expanded Loop (specific iterations) after unified loop decomposition into specific loop iterations.
+ *        Contains type of specific iteration, pointer to the original unified loop and dense data pointer shifts for quick recalculation.
+ * @ingroup snippets
+ */
 class ExpandedLoopInfo : public LoopInfo {
 public:
     ExpandedLoopInfo() = default;
@@ -221,11 +225,6 @@ public:
     std::shared_ptr<LoopInfo> clone_with_new_expr(const ExpressionMap& expr_map) const override;
 
     /**
-     * @brief Returns handlers of loop specific iterations
-     * @return handlers
-     */
-    const SpecificIterationHandlers& get_handlers() const override;
-    /**
      * @brief Returns original unified LoopInfo from which this LoopInfo was created
      * @return const reference of m_unified_loop_info
      */
@@ -240,12 +239,6 @@ public:
      * @return pass pipeline
      */
     const pass::PassPipeline& get_handlers_by_type() const;
-
-    /**
-     * @brief Set m_handlers value
-     * @param handlers - transformations for loop specific iterations
-     */
-    void set_handlers(SpecificIterationHandlers handlers) override;
 
     /**
      * @brief Returns dense vector with pointer increments

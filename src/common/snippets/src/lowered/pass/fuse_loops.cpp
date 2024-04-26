@@ -44,7 +44,8 @@ bool FuseLoops::loop_ports_are_compatible(const LoopInfoPtr& loop_upper,
     return true;
 }
 
-bool FuseLoops::can_be_fused(const LoopInfoPtr& loop_upper, const LoopInfoPtr& loop_lower) {
+bool FuseLoops::can_be_fused(const UnifiedLoopInfoPtr& loop_upper, const UnifiedLoopInfoPtr& loop_lower) {
+    OPENVINO_ASSERT(loop_upper != nullptr && loop_lower != nullptr, "LoopInfo is nullptr!");
     if (!loop_ports_are_compatible(loop_upper, loop_lower))
         return false;
     // Loop fusion is supported only if Loops have equal/broadcastable increments and work amounts.
@@ -106,8 +107,8 @@ bool FuseLoops::fuse_upper_into_current(LinearIR& linear_ir, const LoopManagerPt
                                         const std::shared_ptr<ExpressionPort>& current_entry_point,
                                         size_t current_loop_id, size_t target_loop_id,
                                         LinearIR::constExprIt& current_loop_begin_pos, LinearIR::constExprIt& current_loop_end_pos) {
-    const auto& loop_current = loop_manager->get_loop_info(current_loop_id);
-    const auto& loop_target = loop_manager->get_loop_info(target_loop_id);
+    const auto& loop_current = loop_manager->get_loop_info<UnifiedLoopInfo>(current_loop_id);
+    const auto& loop_target = loop_manager->get_loop_info<UnifiedLoopInfo>(target_loop_id);
     if (!can_be_fused(loop_target, loop_current))
         return false;
 
@@ -150,8 +151,8 @@ bool FuseLoops::fuse_lower_into_current(LinearIR& linear_ir, const LoopManagerPt
                                         const std::shared_ptr<ExpressionPort>& current_exit_point,
                                         size_t current_loop_id, size_t target_loop_id,
                                         LinearIR::constExprIt& current_loop_begin_pos, LinearIR::constExprIt& current_loop_end_pos) {
-    const auto& loop_current = loop_manager->get_loop_info(current_loop_id);
-    const auto& loop_target = loop_manager->get_loop_info(target_loop_id);
+    const auto& loop_current = loop_manager->get_loop_info<UnifiedLoopInfo>(current_loop_id);
+    const auto& loop_target = loop_manager->get_loop_info<UnifiedLoopInfo>(target_loop_id);
     if (!can_be_fused(loop_current, loop_target))
         return false;
 

@@ -18,7 +18,8 @@ namespace pass {
 
 SplitLoops::SplitLoops() : RangedPass() {}
 
-bool SplitLoops::can_be_split(const LoopInfoPtr& loop_to_split, const LoopInfoPtr& loop_to_fuse) {
+bool SplitLoops::can_be_split(const UnifiedLoopInfoPtr& loop_to_split, const UnifiedLoopInfoPtr& loop_to_fuse) {
+    OPENVINO_ASSERT(loop_to_split != nullptr && loop_to_fuse != nullptr, "LoopInfo is nullptr!");
     const auto current_dim_idx = loop_to_split->get_dim_idx();
     const auto parent_dim_idx = loop_to_fuse->get_dim_idx();
     const auto& handlers = loop_to_split->get_handlers();
@@ -80,7 +81,7 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
                                                                    loop_to_split->get_dim_idx(),
                                                                    loop_to_split->get_entry_points(),
                                                                    loop_to_split->get_exit_points());
-                const auto& new_loop_info = loop_manager->get_loop_info(split_loop_id);
+                const auto& new_loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(split_loop_id);
                 const auto work_amount = loop_to_fuse->get_work_amount();
                 const auto increment = loop_to_fuse->get_increment();
                 const auto tail_size = work_amount % increment;

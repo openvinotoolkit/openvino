@@ -9,22 +9,18 @@
 #include "snippets/utils.hpp"
 #include "snippets/itt.hpp"
 
+#include <array>
+
 namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
 
-std::array<SpecificLoopIterType, 3> InsertSpecificIterations::m_iterations = {
-    SpecificLoopIterType::FIRST_ITER,
-    SpecificLoopIterType::MAIN_BODY,
-    SpecificLoopIterType::LAST_ITER
-};
-
 bool InsertSpecificIterations::is_decomposed_loop_needed(const UnifiedLoopInfoPtr& unified_loop_info, SpecificLoopIterType type,
                                                          size_t remaining_work_amount) {
     OPENVINO_ASSERT(unified_loop_info, "UnifiedLoopInfo is missed!");
     const auto increment = unified_loop_info->get_increment();
-    OPENVINO_ASSERT(!utils::is_dynamic_value(increment) && increment > 0, "Incorrect increment!");
+    OPENVINO_ASSERT(!utils::is_dynamic_value(increment) && increment > 0, "Incorrect increment: ", increment);
     const auto is_dynamic = utils::is_dynamic_value(remaining_work_amount);
 
     switch (type) {
@@ -37,7 +33,6 @@ bool InsertSpecificIterations::is_decomposed_loop_needed(const UnifiedLoopInfoPt
         default:
             OPENVINO_THROW("Unknown SpecificLoopIterType!");
     }
-    return false;
 }
 size_t InsertSpecificIterations::get_decomposed_loop_work_amount(const UnifiedLoopInfoPtr& unified_loop_info, SpecificLoopIterType type,
                                                                  size_t remaining_work_amount) {
@@ -55,7 +50,6 @@ size_t InsertSpecificIterations::get_decomposed_loop_work_amount(const UnifiedLo
         default:
             OPENVINO_THROW("Unknown SpecificLoopIterType!");
     }
-    return 0;
 }
 size_t InsertSpecificIterations::get_decomposed_loop_increment(const UnifiedLoopInfoPtr& unified_loop_info, SpecificLoopIterType type,
                                                                size_t remaining_work_amount) {
@@ -72,7 +66,6 @@ size_t InsertSpecificIterations::get_decomposed_loop_increment(const UnifiedLoop
         default:
             OPENVINO_THROW("Unknown SpecificLoopIterType!");
     }
-    return 0;
 }
 
 LoopManager::LoopBounds InsertSpecificIterations::insert_copy_loop(LinearIR& linear_ir, const size_t loop_id, const LinearIR::constExprIt& insert_pos,
@@ -109,10 +102,10 @@ LoopManager::LoopBounds InsertSpecificIterations::insert_copy_loop(LinearIR& lin
 }
 
 void InsertSpecificIterations::init_decomposed_loop(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end,
-                                                    const ExpandedLoopInfoPtr& decomposed_loop_info, size_t solid_loop_id,
+                                                    const ExpandedLoopInfoPtr& decomposed_loop_info, size_t unified_loop_id,
                                                     const std::shared_ptr<op::LoopEnd>& decomposed_loop_end) {
     const auto& loop_manager = linear_ir.get_loop_manager();
-    const auto new_id = loop_manager->replace_with_new_loop(linear_ir, begin, std::next(end), decomposed_loop_info, solid_loop_id);
+    const auto new_id = loop_manager->replace_with_new_loop(linear_ir, begin, std::next(end), decomposed_loop_info, unified_loop_id);
     decomposed_loop_end->set_id(new_id);
     decomposed_loop_end->set_increment(decomposed_loop_info->get_increment());
     if (const auto static_loop_end = ov::as_type_ptr<op::LoopEndStatic>(decomposed_loop_end)) {
@@ -134,8 +127,12 @@ bool InsertSpecificIterations::decompose(LinearIR& linear_ir, LinearIR::constExp
     auto remaining_work_amount = unified_loop_info->get_work_amount();
     const auto is_wa_dynamic = utils::is_dynamic_value(remaining_work_amount);
 
+    static constexpr std::array<SpecificLoopIterType, 3> loop_iterations = {
+        SpecificLoopIterType::FIRST_ITER, SpecificLoopIterType::MAIN_BODY, SpecificLoopIterType::LAST_ITER
+    };
+
     auto decomposed = false;
-    for (const auto& iter_type : m_iterations) {
+    for (const auto& iter_type : loop_iterations) {
         if (is_decomposed_loop_needed(unified_loop_info, iter_type, remaining_work_amount)) {
             const auto work_amount = get_decomposed_loop_work_amount(unified_loop_info, iter_type, remaining_work_amount);
             const auto increment = get_decomposed_loop_increment(unified_loop_info, iter_type, remaining_work_amount);
@@ -158,7 +155,7 @@ bool InsertSpecificIterations::decompose(LinearIR& linear_ir, LinearIR::constExp
                 OPENVINO_ASSERT(decomposed_loop_end, "Cloned Loop does not contain LoopEnd op at the expected place.");
 
                 // Only latest loop iterations must have summarized finalization offsets!
-                // Since we inserted copy before the latest iterations, these copis should have reseted offsets
+                // Since we inserted copy before the latest iterations, these copies should have reseted offsets
                 auto nullify_finalization_offset = [](LoopPort& port) {
                     if (!utils::is_dynamic_value(port.finalization_offset))
                         port.finalization_offset = 0;
@@ -185,7 +182,8 @@ bool InsertSpecificIterations::run(LinearIR& linear_ir, lowered::LinearIR::const
     bool modified = false;
     for (auto expr_it = begin; expr_it != end; ++expr_it) {
         if (const auto loop_end = ov::as_type_ptr<op::LoopEnd>(expr_it->get()->get_node())) {
-            const auto begin_it = linear_ir.find_before(expr_it, linear_ir.get_expr_by_node(loop_end->get_loop_begin())), end_it = expr_it;
+            const auto begin_it = linear_ir.find_before(expr_it, linear_ir.get_expr_by_node(loop_end->get_loop_begin()));
+            const auto end_it = expr_it;
             OPENVINO_ASSERT(decompose(linear_ir, begin_it, end_it, loop_end), "Loop with ID ", loop_end->get_id(), " has not been decomposed!");
             modified = true;
         }

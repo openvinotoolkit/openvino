@@ -10,8 +10,6 @@
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/op/loop.hpp"
 
-#include <array>
-
 
 namespace ov {
 namespace snippets {
@@ -32,7 +30,7 @@ public:
 
     /**
      * @brief Check if specific Loop iterations needed
-     * @param unified_loop_info loop info of the original (solid) Loop
+     * @param unified_loop_info loop info of the original (unified) Loop
      * @param type type of the specific loop iterations
      * @param remaining_work_amount the work amount on the current moment (after applying of the previous loop decomposed parts)
      * @return True if needed otherwise - False
@@ -40,7 +38,7 @@ public:
     static bool is_decomposed_loop_needed(const UnifiedLoopInfoPtr& unified_loop_info, SpecificLoopIterType type, size_t remaining_work_amount);
     /**
      * @brief Calculate work amount of specific Loop iterations
-     * @param unified_loop_info loop info of the original (solid) Loop
+     * @param unified_loop_info loop info of the original (unified) Loop
      * @param type type of the specific loop iterations
      * @param remaining_work_amount the work amount on the current moment (after applying of the previous loop decomposed parts)
      * @return work amount
@@ -48,7 +46,7 @@ public:
     static size_t get_decomposed_loop_work_amount(const UnifiedLoopInfoPtr& unified_loop_info, SpecificLoopIterType type, size_t remaining_work_amount);
     /**
      * @brief Calculate increment of specific Loop iterations
-     * @param unified_loop_info loop info of the original (solid) Loop
+     * @param unified_loop_info loop info of the original (unified) Loop
      * @param type type of the specific loop iterations
      * @param remaining_work_amount the work amount on the current moment (after applying of the previous loop decomposed parts)
      * @return increment
@@ -82,11 +80,11 @@ private:
      * @param begin iterator of LoopBegin
      * @param end iterator of LoopEnd
      * @param decomposed_loop_info loop info of the corresponding decomposed loop
-     * @param solid_loop_id ID of the solid loop
+     * @param unified_loop_id ID of the unified loop
      * @param decomposed_loop_end LoopEnd of the decomposed loop
      */
     static void init_decomposed_loop(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end,
-                                     const ExpandedLoopInfoPtr& decomposed_loop_info, size_t solid_loop_id,
+                                     const ExpandedLoopInfoPtr& decomposed_loop_info, size_t unified_loop_id,
                                      const std::shared_ptr<op::LoopEnd>& decomposed_loop_end);
 
     static std::array<SpecificLoopIterType, 3> m_iterations;

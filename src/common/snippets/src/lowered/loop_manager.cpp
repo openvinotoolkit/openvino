@@ -264,11 +264,8 @@ void LoopManager::fuse_loops(const LinearIR& linear_ir, size_t loop_id_upper, si
 
 void LoopManager::fuse_loops(LinearIR::constExprIt loop_begin_target, LinearIR::constExprIt loop_end_target,
                              size_t loop_id_upper, size_t loop_id_lower, bool fuse_into_upper) {
-    OPENVINO_ASSERT(m_map.count(loop_id_upper) == 1 && m_map.count(loop_id_lower) == 1,
-                    "Failed Loop Fusion: the Loop with the Loop ID isn't existed");
-
-    const auto& loop_info_upper = m_map[loop_id_upper];
-    const auto& loop_info_lower = m_map[loop_id_lower];
+    const auto& loop_info_upper = get_loop_info<UnifiedLoopInfo>(loop_id_upper);
+    const auto& loop_info_lower = get_loop_info<UnifiedLoopInfo>(loop_id_lower);
 
     auto entry_points_upper = loop_info_upper->get_entry_points();
     auto exit_points_upper = loop_info_upper->get_exit_points();
@@ -459,7 +456,7 @@ void LoopManager::sort_loop_ports(LinearIR::constExprIt& loop_begin_pos, LinearI
     loop_info->set_exit_points(exits);
 }
 
-bool LoopManager::blend(const LinearIR& linear_ir, const std::map<size_t, size_t>& loop_id_map) {
+bool LoopManager::reassign_identifiers(const LinearIR& linear_ir, const std::map<size_t, size_t>& loop_id_map) {
     // If all new IDs are the same as original - nothing to update
     if (std::all_of(loop_id_map.cbegin(), loop_id_map.cend(), [](const std::pair<size_t, size_t>& p) { return p.first == p.second; })) {
         return false;

@@ -196,21 +196,13 @@ std::shared_ptr<LoopInfo> ExpandedLoopInfo::clone_with_new_expr(const Expression
                                               m_ptr_increments, m_finalization_offsets, m_data_sizes, m_type, m_unified_loop_info);
 }
 
-const SpecificIterationHandlers& ExpandedLoopInfo::get_handlers() const {
-    OPENVINO_THROW("ExpandedLoopInfo doesn't support get_handlers");
-}
-
 const std::shared_ptr<UnifiedLoopInfo>& ExpandedLoopInfo::get_unified_loop_info() const {
-    OPENVINO_ASSERT(m_unified_loop_info, "Failed to get solid loop info: it's nullptr");
+    OPENVINO_ASSERT(m_unified_loop_info, "Failed to get unified loop info: it's nullptr");
     return m_unified_loop_info;
 }
 
 SpecificLoopIterType ExpandedLoopInfo::get_type() const {
     return m_type;
-}
-
-void ExpandedLoopInfo::set_handlers(SpecificIterationHandlers handlers) {
-    OPENVINO_THROW("ExpandedLoopInfo doesn't support set_handlers");
 }
 
 const pass::PassPipeline& ExpandedLoopInfo::get_handlers_by_type() const {
