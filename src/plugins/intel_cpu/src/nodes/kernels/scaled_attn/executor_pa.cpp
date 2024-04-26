@@ -600,7 +600,6 @@ struct MHAKernel {
     // k: [B, H, kv_len, S]
     // v: [B, H, kv_len, S]
     PlainTensor _score;
-    PlainTensor _weight;
     PlainTensor _fp32_out;
     PlainTensor _qk_scratch_a;
     PlainTensor _qk_scratch_b;
@@ -626,7 +625,6 @@ struct MHAKernel {
 
     MHAKernel() {
         _score.resize<float>({1ul, 1ul, 1ul, 1ul});
-        _weight.resize<float>({1ul, 1ul, 1ul, 1ul});
     }
 
     void prepare_brgemm_prim(PlainTensor& query, PlainTensor& present_key, const PlainTensor& block_tables) {
@@ -646,7 +644,6 @@ struct MHAKernel {
         auto new_score_stride = std::max(prev_score_stride, want_score_stride);
         // resize temporary buffers, score.size(3) will be aligned to block_size
         _score.resize<float>({static_cast<size_t>(_nthr), _H, _q_len, new_score_stride});
-        _weight.resize<float>({static_cast<size_t>(_nthr), _H, _q_len, new_score_stride});
         _fp32_out.resize<float>({static_cast<size_t>(_nthr), _q_len, _H, _S});
 
         // TODO: kernel supports stride
@@ -666,7 +663,8 @@ struct MHAKernel {
                 _wv_gemm[i] = std::make_shared<BrgemmKernel>(i + 1,
                                                              _S,
                                                              _block_size,
-                                                             _weight.stride(2),
+                                                             // if it's bf16, the stride needs double due to reuse float buffer
+                                                             (in_type == ov::element::Type_t::f32 ? 1 : 2) * _score.stride(2),
                                                              present_key.stride(2),
                                                              _fp32_out.stride(1),
                                                              false,
@@ -674,7 +672,8 @@ struct MHAKernel {
                 _wv_gemm_acc[i] = std::make_shared<BrgemmKernel>(i + 1,
                                                                  _S,
                                                                  _block_size,
-                                                                 _weight.stride(2),
+                                                                 // if it's bf16, the stride needs double due to reuse float buffer
+                                                                 (in_type == ov::element::Type_t::f32 ? 1 : 2) * _score.stride(2),
                                                                  present_key.stride(2),
                                                                  _fp32_out.stride(1),
                                                                  false,
@@ -734,6 +733,11 @@ struct MHAKernel {
                 auto* q_ptr = query.ptr<DATA_TYPE>(b, h, m_start, 0);
                 float* c_ptr = _score.ptr<float>(tid, h, m_start, 0);
                 // for each query block, loop through all key block
+                // for blocks:
+                // 1 0 0 0 ...
+                // 1 1 0 0 ...
+                // 1 1 1 0 ...
+                // just computing the positions of 1 should be enough
                 for (size_t k_blk = 0; k_blk <= m_blk; k_blk++) {
                     auto* k_ptr = _qk_scratch_b.ptr<DATA_TYPE>(b, hk, k_blk);
                     _qk_gemm[m_cnt - 1]->executeGemm(m_cnt < _block_size,
@@ -747,6 +751,7 @@ struct MHAKernel {
                 for (size_t m = m_start; m < m_end; m++) {
                     // apply attention mask & sofmax
                     auto ncausal = (cur_kv_len - q_len + m + 1);
+                    auto score = _score.ptr<float>(tid, h, m);
                     if (sliding_window) {
                         size_t start_idx = 0;
                         auto new_causal = ncausal;
@@ -754,8 +759,8 @@ struct MHAKernel {
                             start_idx = ncausal - static_cast<size_t>(sliding_window);
                             new_causal = sliding_window;
                         }
-                        attn_softmax_kernel(_score.ptr<float>(tid, h, m, start_idx),
-                                            _weight.ptr<DATA_TYPE>(tid, h, m, start_idx),
+                        attn_softmax_kernel(score + start_idx,
+                                            reinterpret_cast<DATA_TYPE*>(score) + start_idx,
                                             d_scale,
                                             nullptr,
                                             nullptr,
@@ -766,10 +771,10 @@ struct MHAKernel {
                                             precision_of<DATA_TYPE>::value,
                                             precision_of<DATA_TYPE>::value);
 
-                        memset(_weight.ptr<DATA_TYPE>(b, h, m, 0), 0, sizeof(DATA_TYPE) * start_idx);
+                        memset(score, 0, sizeof(DATA_TYPE) * start_idx);
                     } else {
-                        attn_softmax_kernel(_score.ptr<float>(tid, h, m, 0),
-                                            _weight.ptr<DATA_TYPE>(tid, h, m, 0),
+                        attn_softmax_kernel(score,
+                                            reinterpret_cast<DATA_TYPE*>(score),
                                             d_scale,
                                             nullptr,
                                             nullptr,
@@ -782,7 +787,8 @@ struct MHAKernel {
                     }
                 }
 
-                auto* w_ptr = _weight.ptr<DATA_TYPE>(tid, h, m_start, 0);
+                // reuse float buffer, need to use float to compute offset
+                auto* w_ptr = reinterpret_cast<DATA_TYPE*>(_score.ptr<float>(tid, h, m_start, 0));
                 float* fp32_out_ptr = is_bf16 ? _fp32_out.ptr<float>(tid, m_start, h, 0) : output_emb.ptr<float>(b, m_start, h * _S);
 
                 // for each weight block, loop through all value block
