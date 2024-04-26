@@ -51,8 +51,7 @@ std::shared_ptr<ov::Node> get_horizon_node(const ov::Output<ov::Node>& input, co
 }
 }  // namespace
 
-using LoopInfo = LinearIR::LoopManager::LoopInfo;
-using HandlerType = LoopInfo::SpecificIterationHandlers::HandlerType;
+using HandlerType = SpecificIterationHandlers::HandlerType;
 
 ReduceDecomposition::ReduceDecomposition(size_t vector_size) : RangedPass(), m_vector_size{vector_size} {}
 
