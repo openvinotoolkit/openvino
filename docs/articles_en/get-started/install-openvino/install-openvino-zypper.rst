@@ -67,22 +67,17 @@ Step 1: Set Up the Repository
 
    You will see the available list of packages.
 
-   To list available OpenVINO packages, use the following command:
+To list available OpenVINO packages, use the following command:
 
    .. code-block:: sh
 
-   zypper se openvino
+      zypper se openvino
 
-Step 2: Install OpenVINO Runtime Using the YUM Package Manager
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Step 2: Install OpenVINO Runtime Using the ZYPPER Package Manager
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Install OpenVINO Runtime
 -------------------------
-
-.. tab-set::
-
-   .. tab-item:: The Latest Version
-      :sync: latest-version
 
       Run the following command:
 
