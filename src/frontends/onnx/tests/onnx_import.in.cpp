@@ -6611,7 +6611,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_multinomial_13_param_inputs) {
 
     auto test_case = ov::test::TestCase(model, s_device);
 
-    test_case.add_input<float>({0.1f, 0.2f, 0.3f, 0.4f});
+    std::vector<float> input_values = {0.1f, 0.2f, 0.3f, 0.4f};
+    test_case.add_input<float>(ov::Shape{1,4}, input_values);
     test_case.add_input<int>({3});
 
     test_case.add_expected_output<int>({1, 0, 2, 1});
@@ -6624,7 +6625,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_multinomial_13_const_inputs) {
 
     auto test_case = ov::test::TestCase(model, s_device);
 
-    test_case.add_input<float>({0.4f, 0.5f, 0.1f, 0.3f, 0.2f, 0.5f});
+    std::vector<float> input_values = {0.2f, 0.2f, 0.2f, 0.2f, 0.1f, 0.1f, 0.0f, 0.0f, 0.0f, 0.0f};
+    test_case.add_input<float>(ov::Shape{1,10}, input_values);
     test_case.add_input<int>({3});
 
     test_case.add_expected_output<int>({1, 0, 2, 1});
