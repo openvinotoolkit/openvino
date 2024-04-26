@@ -96,7 +96,7 @@ private:
 struct MemoryManagementUnit {
     MemoryManagementUnit() = default;
 
-    void appendArgument(const std::string& name, const ze_graph_argument_properties_t& argument);
+    void appendArgument(const std::string& name, const std::size_t argSize);
     /* Allocate Device memories */
     void allocate(const ze_device_handle_t device_handle, const ze_context_handle_t context);
 

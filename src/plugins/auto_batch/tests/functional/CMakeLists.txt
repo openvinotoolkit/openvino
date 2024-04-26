@@ -19,7 +19,7 @@ ov_add_test_target(
             openvino_auto_batch_plugin
         ADD_CPPLINT
         LABELS
-            OV UNIT AUTO_BATCH
+            OV AUTO_BATCH
 )
 
 ov_set_threading_interface_for(${TARGET_NAME})

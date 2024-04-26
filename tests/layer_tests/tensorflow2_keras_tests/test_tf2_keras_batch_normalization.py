@@ -1,4 +1,4 @@
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -32,7 +32,6 @@ class TestKerasBatchNormalization(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data_float32)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.precommit_tf_fe
     def test_keras_batch_normalization_float32(self, params, ie_device, precision, ir_version,
                                                temp_dir, use_legacy_frontend):
         self._test(*self.create_keras_batch_normalization_net(**params, ir_version=ir_version),
@@ -47,15 +46,16 @@ class TestKerasBatchNormalization(CommonTF2LayerTest):
                                        scale=False,
                                        input_names=["x1"], input_shapes=[[3, 4, 5]],
                                        input_type=tf.float32),
-                                  pytest.param(dict(axis=-1, momentum=0.0, epsilon=1e-5, center=True, scale=True,
-                                                    input_names=["x1"], input_shapes=[[3, 4, 5, 6]],
-                                                    input_type=tf.float32), marks=pytest.mark.precommit_tf_fe),
+                                  dict(axis=-1, momentum=0.0, epsilon=1e-5, center=True, scale=True,
+                                       input_names=["x1"], input_shapes=[[3, 4, 5, 6]],
+                                       input_type=tf.float32),
                                   dict(axis=[2, 1, 4], momentum=0.99, epsilon=1e-2, center=False,
                                        scale=True,
                                        input_names=["x1"], input_shapes=[[3, 4, 5, 6, 7]],
                                        input_type=tf.float32)]
 
     @pytest.mark.parametrize("params", test_data_extended_float32)
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_keras_batch_normalization_extended_float32(self, params, ie_device, precision,
                                                         ir_version, temp_dir, use_legacy_frontend):

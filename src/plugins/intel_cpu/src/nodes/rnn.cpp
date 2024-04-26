@@ -6,10 +6,10 @@
 #include "utils/general_utils.h"
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/common/cpu_convert.h"
-#include "utils/bfloat16.hpp"
 #include "input.h"
 #include "dnnl_extension_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
 #include "common/primitive_hashing_utils.hpp"
 #include <memory>
 #include "shape_inference/shape_inference_ngraph.hpp"
@@ -18,6 +18,11 @@
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
 
+#include "openvino/op/gru_cell.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/rnn_cell.hpp"
+#include "openvino/op/rnn_sequence.hpp"
 #include "openvino/core/node.hpp"
 
 #include <oneapi/dnnl/dnnl.hpp>
