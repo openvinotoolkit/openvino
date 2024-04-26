@@ -72,49 +72,8 @@ bool isFullyConnected(const std::shared_ptr<const ov::Node>& node) {
            ov::op::util::is_on_constant_path(out_weights);
 }
 
-bool canBePerformedAsScaleShift(const std::shared_ptr<const Node> &node, const int channelAxis) {
-    size_t fusingPort = 0;
-    size_t numNonConstInputs = 0;
-    ov::PartialShape dataShape;
-    for (size_t i = 0; i < node->get_input_size(); i++) {
-        const auto parent = node->get_input_node_shared_ptr(i);
-        if (!ov::is_type<ov::op::v0::Constant>(parent)) {
-            fusingPort = i;
-            dataShape = node->get_input_partial_shape(i);
-            // only one non-const parent is allowed
-            if (++numNonConstInputs != 1)
-                return false;
-        } else {
-            // every const parent must have exactly one child
-            const auto out = parent->outputs();
-            const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
-            if (!has_only_child)
-                return false;
-        }
-    }
-
-    const auto isBroadcastableToDataInput = [&]() {
-        for (size_t i = 0; i < node->get_input_size(); i++) {
-            if (i == fusingPort)
-                continue;
-            const ov::PartialShape weightShape = node->get_input_partial_shape(i);
-            if (!isPerTensorOrPerChannelBroadcastable(dataShape.get_max_shape(), weightShape.get_max_shape(), channelAxis, true))
-                return false;
-        }
-        return true;
-    };
-
-    // Prelu and MulAdd are still ignored
-    // isConvertablePowerStatic() is ignored
-    return (ov::is_type<ov::opset1::Add>(node) ||
-            ov::is_type<ov::opset1::Multiply>(node) ||
-            ov::is_type<ov::opset1::Subtract>(node) ||
-            ov::is_type<ov::opset1::Divide>(node)) &&
-           isBroadcastableToDataInput();
-}
-
-bool SupportsFusingWithConvolution_Simple(const std::shared_ptr<const Node> &node, const int channelAxis = DEFAULT_AXIS) {
-    return canBePerformedAsScaleShift(node, channelAxis);
+bool SupportsFusingWithConvolution_Simple(const std::shared_ptr<const Node> &node) {
+    return ov::is_type<ov::op::v0::Relu>(node);
 }
 // Convolution is a special case, since it supports peculiar fusings
 bool isSuitableConvolutionParent(const std::shared_ptr<const Node> &node) {
@@ -169,7 +128,7 @@ bool isSuitablePoolChild(const std::shared_ptr<const Node> &node) {
 
     return is_suitable_node && has_only_child && has_conv_parent;
 }
-bool isSuitableChildForFusingSimple(const std::shared_ptr<const Node> &node, NodeFusingType fusingChainType, const int channelAxis = DEFAULT_AXIS) {
+bool isSuitableChildForFusingSimple(const std::shared_ptr<const Node> &node, NodeFusingType fusingChainType) {
     auto is_conv_node = [](const std::shared_ptr<const Node> &node) {
         return ov::is_type<ov::op::v1::Convolution>(node) ||
                ov::is_type<ov::op::v1::GroupConvolution>(node);
@@ -184,7 +143,7 @@ bool isSuitableChildForFusingSimple(const std::shared_ptr<const Node> &node, Nod
     }
 
     // Note: Fusing child is allowed to have several users, but that must be the end of the chain
-    return SupportsFusingWithConvolution_Simple(node, channelAxis) && getNumNonConstInputs(node) == 1;
+    return SupportsFusingWithConvolution_Simple(node) && getNumNonConstInputs(node) == 1;
 }
 
 bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, NodeFusingType &updatedChainType, int& fusingAxis) {
@@ -226,7 +185,7 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, Nod
     // FuseMatMulAndSimpleOperation or FuseFullyConnectedAndSimpleOperation
     // Invoke SupportsFusingWithConvolution_Simple directly instead of isSuitableChildForFusingSimple to
     // eliminate getNumNonConstInputs() check
-    if (SupportsFusingWithConvolution_Simple(node, fusingAxis)) {
+    if (SupportsFusingWithConvolution_Simple(node)) {
         size_t num_non_const_inputs = 0;
         size_t num_mm_inputs = 0;
         for (const auto &parent_out : node->input_values()) {
@@ -323,7 +282,7 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
             }
         } else {
             for (const auto fusingChainType : getContinuableChains(node)) {
-                if (isSuitableChildForFusingSimple(node, fusingChainType, channelAxis)) {
+                if (isSuitableChildForFusingSimple(node, fusingChainType)) {
                     PropagateIfHasOnlyChild(node, fusingChainType);
                 } else if (fusingChainType == NodeFusingType::FusedWithConvolution ||
                            fusingChainType == NodeFusingType::FusedWithBinaryConvolution) {
