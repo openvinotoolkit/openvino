@@ -599,24 +599,34 @@ struct MHAKernel {
     // q: [B, H, q_len, S]
     // k: [B, H, kv_len, S]
     // v: [B, H, kv_len, S]
-    PlainTensor score;
-    PlainTensor weight;
-    PlainTensor fp32_out;
-    PlainTensor qk_scratch_a;
-    PlainTensor qk_scratch_b;
-    PlainTensor wv_scratch_a;
-    PlainTensor wv_scratch_b;
-    std::vector<size_t> wsp;
-    size_t wsp_size_per_thread = 0;
+    PlainTensor _score;
+    PlainTensor _weight;
+    PlainTensor _fp32_out;
+    PlainTensor _qk_scratch_a;
+    PlainTensor _qk_scratch_b;
+    PlainTensor _wv_scratch_a;
+    PlainTensor _wv_scratch_b;
+    std::vector<size_t> _wsp;
+    size_t _wsp_size_per_thread = 0;
 
-    std::vector<std::shared_ptr<BrgemmKernel>> qk_gemm;
-    std::vector<std::shared_ptr<BrgemmKernel>> wv_gemm;
+    std::vector<std::shared_ptr<BrgemmKernel>> _qk_gemm;
+    std::vector<std::shared_ptr<BrgemmKernel>> _wv_gemm;
     // will accumulate C buffer
-    std::vector<std::shared_ptr<BrgemmKernel>> wv_gemm_acc;
+    std::vector<std::shared_ptr<BrgemmKernel>> _wv_gemm_acc;
+
+    size_t _B;
+    size_t _H;
+    size_t _q_len;
+    size_t _S;
+    size_t _Hk;
+    size_t _h_each_group_len;
+    size_t _block_size;
+    size_t _nthr;
+    size_t _kv_len_in_blocks;
 
     MHAKernel() {
-        score.resize<float>({1ul, 1ul, 1ul, 1ul});
-        weight.resize<float>({1ul, 1ul, 1ul, 1ul});
+        _score.resize<float>({1ul, 1ul, 1ul, 1ul});
+        _weight.resize<float>({1ul, 1ul, 1ul, 1ul});
     }
 
     void prepare_brgemm_prim(PlainTensor& query, PlainTensor& present_key, const PlainTensor& block_tables) {
@@ -630,65 +640,58 @@ struct MHAKernel {
         //   aka: M:1~block_size, N:S, K:block_size
         // Because K and V are from cache, can use M2'=rnd_up(M2, block_size) to simplify logic
         auto in_type = precision_of<DATA_TYPE>::value;
-        auto B = query.size(0);
-        auto H = query.size(1);
-        auto q_len = query.size(2);
-        auto S = query.size(3);
-        auto block_size = present_key.size(2);
-        auto Hk = present_key.size(1);
 
-        auto prev_score_stride = score.stride(2);
-        auto want_score_stride = rnd_up(q_len, block_size);
+        auto prev_score_stride = _score.stride(2);
+        auto want_score_stride = rnd_up(_q_len, _block_size);
         auto new_score_stride = std::max(prev_score_stride, want_score_stride);
         // resize temporary buffers, score.size(3) will be aligned to block_size
-        score.resize<float>({B, H, q_len, new_score_stride});
-        weight.resize<float>({B, H, q_len, new_score_stride});
-        fp32_out.resize<float>({B, q_len, H, S});
+        _score.resize<float>({static_cast<size_t>(_nthr), _H, _q_len, new_score_stride});
+        _weight.resize<float>({static_cast<size_t>(_nthr), _H, _q_len, new_score_stride});
+        _fp32_out.resize<float>({static_cast<size_t>(_nthr), _q_len, _H, _S});
 
         // TODO: kernel supports stride
-        if (qk_gemm.empty() || prev_score_stride < new_score_stride) {
-            qk_gemm.resize(block_size);
-            wv_gemm.resize(block_size);
-            wv_gemm_acc.resize(block_size);
-            for (size_t i = 0; i < block_size; i++) {
-                qk_gemm[i] = std::make_shared<BrgemmKernel>(i + 1,
-                                                            block_size,
-                                                            S,
-                                                            query.stride(2),
-                                                            present_key.stride(2),
-                                                            score.stride(2),
-                                                            true,
-                                                            in_type);
-                wv_gemm[i] = std::make_shared<BrgemmKernel>(i + 1,
-                                                            S,
-                                                            block_size,
-                                                            weight.stride(2),
-                                                            present_key.stride(2),
-                                                            fp32_out.stride(1),
-                                                            false,
-                                                            in_type);
-                wv_gemm_acc[i] = std::make_shared<BrgemmKernel>(i + 1,
-                                                                S,
-                                                                block_size,
-                                                                weight.stride(2),
-                                                                present_key.stride(2),
-                                                                fp32_out.stride(1),
-                                                                false,
-                                                                in_type,
-                                                                true);
+        if (_qk_gemm.empty() || prev_score_stride < new_score_stride) {
+            _qk_gemm.resize(_block_size);
+            _wv_gemm.resize(_block_size);
+            _wv_gemm_acc.resize(_block_size);
+            for (size_t i = 0; i < _block_size; i++) {
+                _qk_gemm[i] = std::make_shared<BrgemmKernel>(i + 1,
+                                                             _block_size,
+                                                             _S,
+                                                             query.stride(2),
+                                                             present_key.stride(2),
+                                                             _score.stride(2),
+                                                             true,
+                                                             in_type);
+                _wv_gemm[i] = std::make_shared<BrgemmKernel>(i + 1,
+                                                             _S,
+                                                             _block_size,
+                                                             _weight.stride(2),
+                                                             present_key.stride(2),
+                                                             _fp32_out.stride(1),
+                                                             false,
+                                                             in_type);
+                _wv_gemm_acc[i] = std::make_shared<BrgemmKernel>(i + 1,
+                                                                 _S,
+                                                                 _block_size,
+                                                                 _weight.stride(2),
+                                                                 present_key.stride(2),
+                                                                 _fp32_out.stride(1),
+                                                                 false,
+                                                                 in_type,
+                                                                 true);
             }
-            size_t nthr = static_cast<size_t>(parallel_get_max_threads());
 
             // wsp is used to compute beta when K is blocked
-            wsp_size_per_thread = wv_gemm[0]->get_wsp_size();
-            wsp.resize(nthr * wsp_size_per_thread);
+            _wsp_size_per_thread = _wv_gemm[0]->get_wsp_size();
+            _wsp.resize(_nthr * _wsp_size_per_thread);
 
             // allocate scratch a/b, notice get_scratch_a_size/get_scratch_b_size returns in bytes
-            qk_scratch_a.resize<DATA_TYPE>({nthr, qk_gemm[block_size - 1]->get_scratch_a_size() / sizeof(DATA_TYPE)});
-            wv_scratch_a.resize<DATA_TYPE>({nthr, wv_gemm[block_size - 1]->get_scratch_a_size() / sizeof(DATA_TYPE)});
+            _qk_scratch_a.resize<DATA_TYPE>({_nthr, _qk_gemm[_block_size - 1]->get_scratch_a_size() / sizeof(DATA_TYPE)});
+            _wv_scratch_a.resize<DATA_TYPE>({_nthr, _wv_gemm[_block_size - 1]->get_scratch_a_size() / sizeof(DATA_TYPE)});
         }
-        qk_scratch_b.resize<DATA_TYPE>({B, Hk, block_tables.size(1), qk_gemm[block_size - 1]->get_scratch_b_size() / sizeof(DATA_TYPE)});
-        wv_scratch_b.resize<DATA_TYPE>({B, Hk, block_tables.size(1), wv_gemm[block_size - 1]->get_scratch_b_size() / sizeof(DATA_TYPE)});
+        _qk_scratch_b.resize<DATA_TYPE>({_B, _Hk, block_tables.size(1), _qk_gemm[_block_size - 1]->get_scratch_b_size() / sizeof(DATA_TYPE)});
+        _wv_scratch_b.resize<DATA_TYPE>({_B, _Hk, block_tables.size(1), _wv_gemm[_block_size - 1]->get_scratch_b_size() / sizeof(DATA_TYPE)});
     }
 
     void execute_brgemm(PlainTensor& query,
@@ -700,127 +703,122 @@ struct MHAKernel {
                         const PlainTensor& context_lens,
                         float d_scale = 0.0f,
                         size_t sliding_window = 0) {
-        const auto B = query.size(0);
-        const auto H = query.size(1);
-        const auto S = query.size(3);
-        const auto Hk = present_key.size(1);
-        const auto m_blocks = block_tables.size(1);
-        const auto block_size = present_key.size(2);
-        size_t h_each_group_len = H / Hk;
         bool is_bf16 = precision_of<DATA_TYPE>::value == ov::element::bf16;
         PROFILE(_attn, "brgemm_pack");
         // packed k, v
-        parallel_for3d_dynamic(B, m_blocks, Hk, [&](size_t b, size_t kv_block, size_t h) {
+        parallel_for3d_dynamic(_B, _kv_len_in_blocks, _Hk, [&](size_t b, size_t kv_block, size_t hk) {
             auto block_number = block_tables.ptr<int32_t>(b)[kv_block];
             if (block_number < 0)
                 return;
-            auto* k_ptr = present_key.ptr<DATA_TYPE>(block_number, h);
-            auto* v_ptr = present_value.ptr<DATA_TYPE>(block_number, h);
-            qk_gemm[block_size - 1]->copy_buffer_b(k_ptr, qk_scratch_b.ptr<DATA_TYPE>(b, h, kv_block));
+            auto* k_ptr = present_key.ptr<DATA_TYPE>(block_number, hk);
+            auto* v_ptr = present_value.ptr<DATA_TYPE>(block_number, hk);
+            _qk_gemm[_block_size - 1]->copy_buffer_b(k_ptr, _qk_scratch_b.ptr<DATA_TYPE>(b, hk, kv_block));
             if (is_bf16)
-                wv_gemm[block_size - 1]->copy_buffer_b(v_ptr, wv_scratch_b.ptr<DATA_TYPE>(b, h, kv_block));
+                _wv_gemm[_block_size - 1]->copy_buffer_b(v_ptr, _wv_scratch_b.ptr<DATA_TYPE>(b, hk, kv_block));
         });
 
         _attn = ov::intel_cpu::profilerManagerInstance.startProfile("brgemm_attn");
         // query breaks to [B, H, m_blocks, block_size, S], k cache is split to [B, H, m_blocks', S, block_size]
         // v cache may be [B, H, m_blocks', block_size, S] or [block_number, H, block_size, S]
         // outer loop will use B, H, m_blocks to walkthrough query
-        parallel_for3d_dynamic(B, m_blocks, H, [&](size_t b, size_t m_blk, size_t h) {
+        parallel_for3d_dynamic(_B, _kv_len_in_blocks, _Hk, [&](size_t b, size_t m_blk, size_t hk) {
             if (block_tables.ptr<int32_t>(b)[m_blk] < 0)
                 return;
             auto cur_kv_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
             auto q_len = cur_kv_len;
-            auto m_start = m_blk * block_size;
-            auto m_end = std::min(m_start + block_size, q_len);
+            auto m_start = m_blk * _block_size;
+            auto m_end = std::min(m_start + _block_size, q_len);
             auto m_cnt = m_end - m_start;
             size_t tid = parallel_get_thread_num();
-            auto* q_ptr = query.ptr<DATA_TYPE>(b, h, m_start, 0);
-            float* c_ptr = score.ptr<float>(b, h, m_start, 0);
-            // for each query block, loop through all key block
-            for (size_t k_blk = 0; k_blk <= m_blk; k_blk++) {
-                auto* k_ptr = qk_scratch_b.ptr<DATA_TYPE>(b, h / h_each_group_len, k_blk);
-                qk_gemm[m_cnt - 1]->executeGemm(m_cnt < block_size,
-                                                q_ptr,
-                                                k_ptr,
-                                                c_ptr + k_blk * block_size,
-                                                wsp.data() + tid * wsp_size_per_thread,
-                                                qk_scratch_a ? qk_scratch_a.ptr<DATA_TYPE>(tid, 0) : nullptr);
-            }
+            for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
+                auto* q_ptr = query.ptr<DATA_TYPE>(b, h, m_start, 0);
+                float* c_ptr = _score.ptr<float>(tid, h, m_start, 0);
+                // for each query block, loop through all key block
+                for (size_t k_blk = 0; k_blk <= m_blk; k_blk++) {
+                    auto* k_ptr = _qk_scratch_b.ptr<DATA_TYPE>(b, hk, k_blk);
+                    _qk_gemm[m_cnt - 1]->executeGemm(m_cnt < _block_size,
+                                                     q_ptr,
+                                                     k_ptr,
+                                                     c_ptr + k_blk * _block_size,
+                                                     _wsp.data() + tid * _wsp_size_per_thread,
+                                                     _qk_scratch_a ? _qk_scratch_a.ptr<DATA_TYPE>(tid, 0) : nullptr);
+                }
 
-            for (size_t m = m_start; m < m_end; m++) {
-                // apply attention mask & sofmax
-                auto ncausal = (cur_kv_len - q_len + m + 1);
-                if (sliding_window) {
-                    size_t start_idx = 0;
-                    auto new_causal = ncausal;
-                    if (ncausal > sliding_window) {
-                        start_idx = ncausal - static_cast<size_t>(sliding_window);
-                        new_causal = sliding_window;
+                for (size_t m = m_start; m < m_end; m++) {
+                    // apply attention mask & sofmax
+                    auto ncausal = (cur_kv_len - q_len + m + 1);
+                    if (sliding_window) {
+                        size_t start_idx = 0;
+                        auto new_causal = ncausal;
+                        if (ncausal > sliding_window) {
+                            start_idx = ncausal - static_cast<size_t>(sliding_window);
+                            new_causal = sliding_window;
+                        }
+                        attn_softmax_kernel(_score.ptr<float>(tid, h, m, start_idx),
+                                            _weight.ptr<DATA_TYPE>(tid, h, m, start_idx),
+                                            d_scale,
+                                            nullptr,
+                                            nullptr,
+                                            nullptr,
+                                            false,
+                                            new_causal,
+                                            rnd_up(cur_kv_len, _block_size) - start_idx,
+                                            precision_of<DATA_TYPE>::value,
+                                            precision_of<DATA_TYPE>::value);
+
+                        memset(_weight.ptr<DATA_TYPE>(b, h, m, 0), 0, sizeof(DATA_TYPE) * start_idx);
+                    } else {
+                        attn_softmax_kernel(_score.ptr<float>(tid, h, m, 0),
+                                            _weight.ptr<DATA_TYPE>(tid, h, m, 0),
+                                            d_scale,
+                                            nullptr,
+                                            nullptr,
+                                            nullptr,
+                                            false,
+                                            ncausal,
+                                            rnd_up(cur_kv_len, _block_size),
+                                            precision_of<DATA_TYPE>::value,
+                                            precision_of<DATA_TYPE>::value);
                     }
-                    attn_softmax_kernel(score.ptr<float>(b, h, m, start_idx),
-                                        weight.ptr<DATA_TYPE>(b, h, m, start_idx),
-                                        d_scale,
-                                        nullptr,
-                                        nullptr,
-                                        nullptr,
-                                        false,
-                                        new_causal,
-                                        rnd_up(cur_kv_len, block_size) - start_idx,
-                                        precision_of<DATA_TYPE>::value,
-                                        precision_of<DATA_TYPE>::value);
-
-                    memset(weight.ptr<DATA_TYPE>(b, h, m, 0), 0, sizeof(DATA_TYPE) * start_idx);
-                } else {
-                    attn_softmax_kernel(score.ptr<float>(b, h, m, 0),
-                                        weight.ptr<DATA_TYPE>(b, h, m, 0),
-                                        d_scale,
-                                        nullptr,
-                                        nullptr,
-                                        nullptr,
-                                        false,
-                                        ncausal,
-                                        rnd_up(cur_kv_len, block_size),
-                                        precision_of<DATA_TYPE>::value,
-                                        precision_of<DATA_TYPE>::value);
                 }
-            }
 
-            auto* w_ptr = weight.ptr<DATA_TYPE>(b, h, m_start, 0);
-            float* fp32_out_ptr = is_bf16 ? fp32_out.ptr<float>(b, m_start, h, 0) : output_emb.ptr<float>(b, m_start, h * S);
+                auto* w_ptr = _weight.ptr<DATA_TYPE>(tid, h, m_start, 0);
+                float* fp32_out_ptr = is_bf16 ? _fp32_out.ptr<float>(tid, m_start, h, 0) : output_emb.ptr<float>(b, m_start, h * _S);
 
-            // for each weight block, loop through all value block
-            for (size_t v_blk = 0; v_blk <= m_blk; v_blk++) {
-                DATA_TYPE* v_ptr;
+                // for each weight block, loop through all value block
+                for (size_t v_blk = 0; v_blk <= m_blk; v_blk++) {
+                    DATA_TYPE* v_ptr;
+                    if (is_bf16) {
+                        v_ptr = _wv_scratch_b.ptr<DATA_TYPE>(b, hk, v_blk);
+                    } else {
+                        v_ptr = present_value.ptr<DATA_TYPE>(block_tables.ptr<int32_t>(b)[v_blk], hk);
+                    }
+                    if (v_blk == 0) {
+                        _wv_gemm[m_cnt - 1]->executeGemm(m_cnt < _block_size,
+                                                         w_ptr + v_blk * _block_size,
+                                                         v_ptr,
+                                                         fp32_out_ptr,
+                                                         _wsp.data() + tid * _wsp_size_per_thread,
+                                                         _wv_scratch_a ? _wv_scratch_a.ptr<DATA_TYPE>(tid, 0) : nullptr);
+                    } else {
+                        _wv_gemm_acc[m_cnt - 1]->executeGemm(m_cnt < _block_size,
+                                                             w_ptr + v_blk * _block_size,
+                                                             v_ptr,
+                                                             fp32_out_ptr,
+                                                             _wsp.data() + tid * _wsp_size_per_thread,
+                                                             _wv_scratch_a ? _wv_scratch_a.ptr<DATA_TYPE>(tid, 0) : nullptr);
+                    }
+                }
                 if (is_bf16) {
-                    v_ptr = wv_scratch_b.ptr<DATA_TYPE>(b, h / h_each_group_len, v_blk);
-                } else {
-                    v_ptr = present_value.ptr<DATA_TYPE>(block_tables.ptr<int32_t>(b)[v_blk], h / h_each_group_len);
+                    attn_memcpy2d_kernel(_fp32_out.ptr<float>(tid, m_start, h, 0),
+                                         output_emb.ptr<DATA_TYPE>(b, m_start, h * _S),
+                                         ov::element::f32,
+                                         ov::element::bf16,
+                                         _fp32_out.stride(1),
+                                         output_emb.stride(1),
+                                         _S,
+                                         m_cnt);
                 }
-                if (v_blk == 0) {
-                    wv_gemm[m_cnt - 1]->executeGemm(m_cnt < block_size,
-                                                    w_ptr + v_blk * block_size,
-                                                    v_ptr,
-                                                    fp32_out_ptr,
-                                                    wsp.data() + tid * wsp_size_per_thread,
-                                                    wv_scratch_a ? wv_scratch_a.ptr<DATA_TYPE>(tid, 0) : nullptr);
-                } else {
-                    wv_gemm_acc[m_cnt - 1]->executeGemm(m_cnt < block_size,
-                                                        w_ptr + v_blk * block_size,
-                                                        v_ptr,
-                                                        fp32_out_ptr,
-                                                        wsp.data() + tid * wsp_size_per_thread,
-                                                        wv_scratch_a ? wv_scratch_a.ptr<DATA_TYPE>(tid, 0) : nullptr);
-                }
-            }
-            if (is_bf16) {
-                attn_memcpy2d_kernel(fp32_out.ptr<float>(b, m_start, h, 0),
-                                     output_emb.ptr<DATA_TYPE>(b, m_start, h * S),
-                                     ov::element::f32,
-                                     ov::element::bf16,
-                                     fp32_out.stride(1),
-                                     output_emb.stride(1),
-                                     S,
-                                     m_cnt);
             }
         });
     }
@@ -842,9 +840,21 @@ struct MHAKernel {
                     float d_scale = 0.0f,
                     size_t sliding_window = 0) {
         PROFILE(_attn, "prepare_prim");
-        auto S = query.size(3);
+        _B = query.size(0);
+        _H = query.size(1);
+        _q_len = query.size(2);
+        _S = query.size(3);
+        _Hk = present_value.size(1);
+        _h_each_group_len = 1;
+        _block_size = present_value.size(2);
+        _kv_len_in_blocks = block_tables.m_dims[1];
+        if (_Hk != _H) {
+            _h_each_group_len = _H / _Hk;
+        }
         if (d_scale == 0.0f)
-            d_scale = 1.0f / sqrt(S);
+            d_scale = 1.0f / sqrt(_S);
+
+        _nthr = static_cast<size_t>(parallel_get_max_threads());
 
         prepare_brgemm_prim(query, present_key, block_tables);
         _attn = ov::intel_cpu::profilerManagerInstance.startProfile("exec_qk");
@@ -873,7 +883,7 @@ struct MHASingleToken {
     size_t _H;
     size_t _q_len;
     size_t _S;
-    size_t _h_group_num;
+    size_t _Hk;
     size_t _h_each_group_len;
     size_t _block_size;
     size_t _nthr;
@@ -900,7 +910,7 @@ struct MHASingleToken {
         _attn_weight.resize<float>({static_cast<size_t>(_nthr), _q_len, _H, rnd_up(max_context_len, _block_size)});
         _attn_output.resize<float>({static_cast<size_t>(_nthr), _q_len, _H, _S});
 
-        parallel_for2d_dynamic(_B, _h_group_num, [&](size_t b, size_t h_group) {
+        parallel_for2d_dynamic(_B, _Hk, [&](size_t b, size_t hk) {
             auto context_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
             auto ithr = parallel_get_thread_num();
 
@@ -915,8 +925,8 @@ struct MHASingleToken {
                 for (size_t pk = 0; pk < context_len; pk += _block_size) {
                     auto block_number = *block_table++;
                     for (size_t pq = 0; pq < _q_len; pq++) {
-                        for (size_t h = h_group * _h_each_group_len; h < (h_group + 1) * _h_each_group_len; h++) {
-                            (*_gemv)(query.ptr<ov::bfloat16>(b, h, pq), present_key.ptr<ov::bfloat16>(block_number, h_group),
+                        for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
+                            (*_gemv)(query.ptr<ov::bfloat16>(b, h, pq), present_key.ptr<ov::bfloat16>(block_number, hk),
                                 _attn_weight.ptr<float>(ithr, pq, h) + pk);
                         }
                     }
@@ -926,8 +936,8 @@ struct MHASingleToken {
                 for (size_t pk = 0; pk < context_len; pk += _block_size) {
                     auto block_number = *block_table++;
                     for (size_t pq = 0; pq < _q_len; pq++) {
-                        for (size_t h = h_group * _h_each_group_len; h < (h_group + 1) * _h_each_group_len; h++) {
-                            dot_product_block(query.ptr<DATA_TYPE>(b, h, pq), present_key.ptr<KVCACHE_TYPE>(block_number, h_group),
+                        for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
+                            dot_product_block(query.ptr<DATA_TYPE>(b, h, pq), present_key.ptr<KVCACHE_TYPE>(block_number, hk),
                                 _attn_weight.ptr<float>(ithr, pq, h) + pk, _S, std::min(_block_size, context_len - pk));
                         }
                     }
@@ -937,7 +947,7 @@ struct MHASingleToken {
             snprintf(name_buf, sizeof(name_buf), "t1_softmax_%d", ithr);
             _attn = ov::intel_cpu::profilerManagerInstance.startProfile(name_buf);
             for (size_t pq = 0; pq < _q_len; pq++) {
-                for (size_t h = h_group * _h_each_group_len; h < (h_group + 1) * _h_each_group_len; h++) {
+                for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
                     // apply attention mask & sofmax
                     attn_softmax_kernel(_attn_weight.ptr<float>(ithr, pq, h),
                                         _attn_weight.ptr<float>(ithr, pq, h),
@@ -959,9 +969,9 @@ struct MHASingleToken {
             block_table = block_tables.ptr<int32_t>(b);
             for (size_t pv = 0; pv < context_len; pv += _block_size) {
                 auto block_number = *block_table++;
-                auto* v = present_value.ptr<KVCACHE_TYPE>(block_number, h_group);
+                auto* v = present_value.ptr<KVCACHE_TYPE>(block_number, hk);
                 for (size_t pq = 0; pq < _q_len; pq++) {
-                    for (size_t h = h_group * _h_each_group_len; h < (h_group + 1) * _h_each_group_len; h++) {
+                    for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
                         attn_acc_value_block(_attn_output.ptr<float>(ithr, pq, h),
                                              _attn_weight.ptr<float>(ithr, pq, h) + pv,
                                              v,
@@ -972,7 +982,7 @@ struct MHASingleToken {
             }
             // convert to dst
             for (size_t pq = 0; pq < _q_len; pq++)
-                for (size_t h = h_group * _h_each_group_len; h < (h_group + 1) * _h_each_group_len; h++)
+                for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++)
                     cvt_copy(output_emb.ptr<DATA_TYPE>(b, pq, h * _S), _attn_output.ptr<float>(ithr, pq, h), _S);
         });
     }
@@ -989,7 +999,7 @@ struct MHASingleToken {
         // aligned to cache line (64bytes=16*sizeof(float)) to avoid false sharing
         _attn_weight.resize<float>({_B, _H, _q_len, rnd_up(max_context_len, std::max(_block_size, 16ul))});
 
-        parallel_for3d_dynamic(_B, _kv_len_in_blocks, _h_group_num, [&](size_t b, size_t pk_in_blocks, size_t h_group) {
+        parallel_for3d_dynamic(_B, _kv_len_in_blocks, _Hk, [&](size_t b, size_t pk_in_blocks, size_t hk) {
             auto context_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
             // kv_len must be valid
             auto pk = pk_in_blocks * _block_size;
@@ -998,16 +1008,16 @@ struct MHASingleToken {
                 if (_fastpath_valid) {
                     _gemv->tile_config();
                     for (size_t pq = 0; pq < _q_len; pq++) {
-                        for (size_t h = h_group * _h_each_group_len; h < (h_group + 1) * _h_each_group_len; h++) {
-                            (*_gemv)(query.ptr<ov::bfloat16>(b, h, pq), present_key.ptr<ov::bfloat16>(block_number, h_group),
+                        for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
+                            (*_gemv)(query.ptr<ov::bfloat16>(b, h, pq), present_key.ptr<ov::bfloat16>(block_number, hk),
                                 _attn_weight.ptr<float>(b, h, pq) + pk);
                         }
                     }
                     _gemv->tile_release();
                 } else {
                     for (size_t pq = 0; pq < _q_len; pq++) {
-                        for (size_t h = h_group * _h_each_group_len; h < (h_group + 1) * _h_each_group_len; h++) {
-                            dot_product_block(query.ptr<DATA_TYPE>(b, h, pq), present_key.ptr<KVCACHE_TYPE>(block_number, h_group),
+                        for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
+                            dot_product_block(query.ptr<DATA_TYPE>(b, h, pq), present_key.ptr<KVCACHE_TYPE>(block_number, hk),
                                 _attn_weight.ptr<float>(b, h, pq) + pk, _S, std::min(_block_size, context_len - pk));
                         }
                     }
@@ -1042,16 +1052,16 @@ struct MHASingleToken {
         });
 
         _attn = ov::intel_cpu::profilerManagerInstance.startProfile("t1_kv_old");
-        parallel_for3d_dynamic(_B, _kv_len_in_blocks, _h_group_num, [&](size_t b, size_t pv_in_blocks, size_t h_group) {
+        parallel_for3d_dynamic(_B, _kv_len_in_blocks, _Hk, [&](size_t b, size_t pv_in_blocks, size_t hk) {
             auto ithr = parallel_get_thread_num();
             auto context_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
             auto pv = pv_in_blocks * _block_size;
             // kv_len must be valid
             if (pv < context_len) {
                 auto block_number = block_tables.ptr<int32_t>(b)[pv_in_blocks];
-                auto* v = present_value.ptr<KVCACHE_TYPE>(block_number, h_group);
+                auto* v = present_value.ptr<KVCACHE_TYPE>(block_number, hk);
                 for (size_t pq = 0; pq < _q_len; pq++) {
-                    for (size_t h = h_group * _h_each_group_len; h < (h_group + 1) * _h_each_group_len; h++) {
+                    for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
                         attn_acc_value_block(_attn_output.ptr<float>(ithr, b, pq, h),
                                              _attn_weight.ptr<float>(b, h, pq) + pv,
                                              v,
@@ -1088,12 +1098,12 @@ struct MHASingleToken {
         _H = query.size(1);
         _q_len = query.size(2);
         _S = query.size(3);
-        _h_group_num = present_value.size(1);
+        _Hk = present_value.size(1);
         _h_each_group_len = 1;
         _block_size = present_value.size(2);
         _kv_len_in_blocks = block_tables.m_dims[1];
-        if (_h_group_num != _H) {
-            _h_each_group_len = _H / _h_group_num;
+        if (_Hk != _H) {
+            _h_each_group_len = _H / _Hk;
         }
         if (d_scale == 0.0f)
             d_scale = 1.0f / sqrt(_S);
@@ -1112,9 +1122,9 @@ struct MHASingleToken {
         }
         size_t access_size;
         if (present_value.m_dt != ov::element::u8)
-            access_size = _h_group_num * real_len * _S * (32 * present_value.m_element_size);
+            access_size = _Hk * real_len * _S * (32 * present_value.m_element_size);
         else
-            access_size = _h_group_num * real_len * (_S + 8) * 32;
+            access_size = _Hk * real_len * (_S + 8) * 32;
         access_size += _B * _H * _S * 2 * 32;    // query
         access_size += aligned_len * _H * 4 * 32; // m_attn_w
         // only consider k or v theoretical cost
