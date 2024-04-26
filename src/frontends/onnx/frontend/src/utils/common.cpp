@@ -6,6 +6,7 @@
 
 #include <onnx/onnx_pb.h>  // onnx types
 
+#include "core/tensor.hpp"
 #include "onnx_framework_node.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
@@ -40,6 +41,8 @@ const ov::element::Type& get_ov_element_type(int64_t onnx_type) {
         return ov::element::f16;
     case TensorProto_DataType::TensorProto_DataType_FLOAT:
         return ov::element::f32;
+    case TensorProto_DataType::TensorProto_DataType_INT4:
+        return ov::element::i4;
     case TensorProto_DataType::TensorProto_DataType_INT8:
         return ov::element::i8;
     case TensorProto_DataType::TensorProto_DataType_INT16:
@@ -48,6 +51,8 @@ const ov::element::Type& get_ov_element_type(int64_t onnx_type) {
         return ov::element::i32;
     case TensorProto_DataType::TensorProto_DataType_INT64:
         return ov::element::i64;
+    case TensorProto_DataType::TensorProto_DataType_UINT4:
+        return ov::element::u4;
     case TensorProto_DataType::TensorProto_DataType_UINT8:
         return ov::element::u8;
     case TensorProto_DataType::TensorProto_DataType_UINT16:
@@ -61,7 +66,10 @@ const ov::element::Type& get_ov_element_type(int64_t onnx_type) {
     case TensorProto_DataType::TensorProto_DataType_BFLOAT16:
         return ov::element::bf16;
     }
-    OPENVINO_THROW("unsupported element type");
+    ONNX_UNSUPPORTED_DATA_TYPE(
+        onnx_type,
+        "BOOL, BFLOAT16, FLOAT, FLOAT16, DOUBLE, INT4, INT8, INT16, INT32, INT64, UINT4, UINT8, UINT16, "
+        "UINT32, UINT64, STRING, UNDEFINED");
 }
 
 std::shared_ptr<ov::Node> get_monotonic_range_along_node_rank(const ov::Output<ov::Node>& value,
