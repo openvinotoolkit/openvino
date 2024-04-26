@@ -195,11 +195,6 @@ void jit_brgemm_emitter::emit_brgemm_kernel_call(Reg64 addr_A, Reg64 addr_B, Reg
 
     h->mov(abi_param1, reinterpret_cast<uintptr_t>(m_kernel_executor.get()));
     h->mov(abi_param2, h->rsp);
-#ifdef _WIN32
-    // Before function call we should also allocate stack area for ABI parameters (shadow space)
-    reserved_stack_size += 32;
-    h->sub(h->rsp, 32);
-#endif
 
     internal_call_rsp_align();
     h->call(h->rbp);

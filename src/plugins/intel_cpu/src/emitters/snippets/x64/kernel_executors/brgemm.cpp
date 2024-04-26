@@ -63,7 +63,8 @@ bool BrgemmKernelConfig::operator!=(const BrgemmKernelConfig& rhs) const {
     return !(*this == rhs);
 }
 
-std::string BrgemmKernelConfig::print() const {
+#ifdef SNIPPETS_DEBUG_CAPS
+std::string BrgemmKernelConfig::to_string() const {
     std::stringstream ss;
 #define PRINT(X) ss << #X  << " = " << X << "\n"
     PRINT(dt_in0); PRINT(dt_in1);
@@ -74,6 +75,7 @@ std::string BrgemmKernelConfig::print() const {
 #undef PRINT
     return ss.str();
 }
+#endif
 
 BrgemmKernelExecutor::BrgemmKernelExecutor(ov::intel_cpu::MultiCachePtr kernel_cache, const std::shared_ptr<BrgemmKernelConfig>& config) :
         CPUKernelExecutor<BrgemmKernelConfig, brgemm_kernel_t>(std::move(kernel_cache), config) {
@@ -141,9 +143,12 @@ void BrgemmKernelExecutor::update(size_t M, size_t N, size_t K, size_t LDA, size
 #undef CAST
     update_kernel();
 }
-std::string BrgemmKernelExecutor::print_config() const {
-    return m_config ? m_config->print() : "";
+
+#ifdef SNIPPETS_DEBUG_CAPS
+std::string BrgemmKernelExecutor::config_to_string() const {
+    return m_config ? m_config->to_string() : "";
 }
+#endif
 
 }   // namespace intel_cpu
 }   // namespace ov
