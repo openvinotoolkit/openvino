@@ -105,12 +105,12 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa,
                                                             brgemm_node->is_with_compensations());
 
     m_kernel_executor = kernel_table->register_kernel<BrgemmKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
-    m_kernel_executor->update_kernel_config(*(output_subtensor.rbegin() + 1),
-                                            *output_subtensor.rbegin(),
-                                            *input_0_subtensor.rbegin(),
-                                            leading_dimensions[0],
-                                            leading_dimensions[1],
-                                            leading_dimensions[2]);
+    m_kernel_executor->update(*(output_subtensor.rbegin() + 1),
+                              *output_subtensor.rbegin(),
+                              *input_0_subtensor.rbegin(),
+                              leading_dimensions[0],
+                              leading_dimensions[1],
+                              leading_dimensions[2]);
 
     m_load_offset_a = brgemm_node->get_offset_a();
     m_load_offset_b = brgemm_node->get_offset_b();

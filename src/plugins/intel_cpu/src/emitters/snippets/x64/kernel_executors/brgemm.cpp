@@ -133,8 +133,8 @@ void BrgemmKernelExecutor::execute(const BrgemmKernelExecutor* desc, call_args* 
     (*desc->m_kernel)(&brgemm_p);
 }
 
-void BrgemmKernelExecutor::update_kernel_config(size_t M, size_t N, size_t K, size_t LDA, size_t LDB, size_t LDC) {
-    OV_CPU_JIT_EMITTER_ASSERT(m_config, "update_kernel_config is called for empty kernel config");
+void BrgemmKernelExecutor::update(size_t M, size_t N, size_t K, size_t LDA, size_t LDB, size_t LDC) {
+    OV_CPU_JIT_EMITTER_ASSERT(m_config, "update is called for empty kernel config");
 #define CAST(X) m_config->X = DIM_CAST(X)
     CAST(M); CAST(N); CAST(K);
     CAST(LDA); CAST(LDB); CAST(LDC);
