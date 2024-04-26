@@ -211,7 +211,7 @@ std::vector<std::string> Tensor::get_data() const {
         FRONT_END_THROW("Loading strings from raw data isn't supported");
     }
     if (m_tensor_proto->data_type() == TensorProto_DataType::TensorProto_DataType_STRING) {
-        return std::vector<std::string>(m_tensor_proto->string_data().begin(), m_tensor_proto->string_data().end());
+        return detail::__get_data<std::string>(m_tensor_proto->string_data());
     }
     ONNX_INVALID_DATA_TYPE(m_tensor_proto->data_type(), "STRING");
 }
