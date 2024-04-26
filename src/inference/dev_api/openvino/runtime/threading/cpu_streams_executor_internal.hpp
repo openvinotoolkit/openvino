@@ -25,7 +25,7 @@ enum StreamCreateType {
 /**
  * @brief      Get current stream information
  * @param[in]  stream_id stream id
- * @param[in]  cpu_reservation cpu reservation
+ * @param[in]  cpu_pinning whether to bind threads to cpus
  * @param[in]  org_proc_type_table available processors in the platform
  * @param[in]  streams_info_table streams information table
  * @param[out]  stream_type stream create type
@@ -35,7 +35,7 @@ enum StreamCreateType {
  * @param[out]  max_threads_per_core the max number of threads per cpu core
  */
 void get_cur_stream_info(const int stream_id,
-                         const bool cpu_reservation,
+                         const bool cpu_pinning,
                          const std::vector<std::vector<int>> org_proc_type_table,
                          const std::vector<std::vector<int>> streams_info_table,
                          StreamCreateType& stream_type,
