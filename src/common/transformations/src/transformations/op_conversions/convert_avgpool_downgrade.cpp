@@ -9,8 +9,13 @@
 #include "openvino/op/avg_pool.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/convert_like.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/pad.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -39,6 +44,7 @@ ov::pass::ConvertAvgPool14ToAvgPool1::ConvertAvgPool14ToAvgPool1() {
         using ov::op::v1::ConvertLike;
         using ov::op::v3::Broadcast;
         using ov::op::v3::ShapeOf;
+        using ov::op::v4::Range;
 
         if (!exclude_pad && rounding_type_v14 == ov::op::RoundingType::CEIL_TORCH) {
             const auto zero = node_registry.make<Constant>(element::f32, Shape{}, 0);
@@ -56,7 +62,7 @@ ov::pass::ConvertAvgPool14ToAvgPool1::ConvertAvgPool14ToAvgPool1() {
             const auto pads_diff = node_registry.make<Subtract>(rank, pads_len);
             const auto pads_remaining = node_registry.make<Broadcast>(zero_i64, pads_diff);
             const auto pads_begin_v1 =
-                node_registry.make<Concat>(OutputVector{std::move(pads_remaining), std::move(pads_begin_node)}, 0);
+                node_registry.make<ov::op::v0::Concat>(OutputVector{std::move(pads_remaining), std::move(pads_begin_node)}, 0);
             const auto pads_end_v1 =
                 node_registry.make<Concat>(OutputVector{std::move(pads_remaining), std::move(pads_begin_node)}, 0);
             const auto pad_node =
