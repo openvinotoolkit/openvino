@@ -771,20 +771,20 @@ TEST(pattern, optional_subgraph) {
     auto model_input = std::make_shared<op::v0::Parameter>(element::i32, shape);
     auto model_relu = std::make_shared<op::v0::Relu>(model_input);
     auto model_abs = std::make_shared<op::v0::Abs>(model_relu->output(0));
-    auto model_acos = std::make_shared<op::v0::Acos>(model_abs->output(0));
+    auto model_exp = std::make_shared<op::v0::Exp>(model_abs->output(0));
 
     auto pattern_input = ov::pass::pattern::optional<op::v0::Parameter>();
     auto pattern_relu = ov::pass::pattern::optional<op::v0::Relu>(pattern_input);
     auto pattern_abs = ov::pass::pattern::optional<op::v0::Abs>(pattern_relu);
-    auto pattern_acos = ov::pass::pattern::optional<op::v0::Acos>(pattern_abs);
+    auto pattern_exp = ov::pass::pattern::optional<op::v0::Exp>(pattern_abs);
 
     TestMatcher tm;
-    ASSERT_TRUE(tm.match(pattern_acos, model_acos));
-    ASSERT_TRUE(tm.match(pattern_acos, model_abs));
-    ASSERT_TRUE(tm.match(pattern_acos, model_relu));
-    ASSERT_TRUE(tm.match(pattern_acos, model_input));
+    ASSERT_TRUE(tm.match(pattern_exp, model_exp));
+    ASSERT_TRUE(tm.match(pattern_exp, model_abs));
+    ASSERT_TRUE(tm.match(pattern_exp, model_relu));
+    ASSERT_TRUE(tm.match(pattern_exp, model_input));
     auto constant = make_shared<op::v0::Constant>(element::i32, ov::Shape{3}, std::vector<int>{2, 0, 1});
-    ASSERT_FALSE(tm.match(pattern_acos, constant));
+    ASSERT_FALSE(tm.match(pattern_exp, constant));
 }
 
 // TODO: Issue: 139835
