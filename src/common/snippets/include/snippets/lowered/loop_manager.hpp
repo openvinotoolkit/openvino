@@ -82,7 +82,7 @@ public:
                    LinearIR::constExprIt loop_end_pos,
                    size_t loop_depth, size_t vector_size);
     /**
-     * @brief Create new LoopInfo and mark all expressions in loop bounds by new loop ID with more manual parameters
+     * @brief Create new UnifiedLoopInfo and mark all expressions in loop bounds by new loop ID with more manual parameters
      * @param loop_begin_pos the first expression iterator
      * @param loop_end_pos the next iterator after last expression
      * @param work_amount work amount of the loop
@@ -112,7 +112,7 @@ public:
         return loop_id;
     }
     /**
-     * @brief Create new LoopInfo and mark all expressions in loop bounds by new loop ID with more manual parameters
+     * @brief Create new UnifiedLoopInfo and mark all expressions in loop bounds by new loop ID with more manual parameters
      * @param loop_begin_pos the first expression iterator
      * @param loop_end_pos the next iterator after last expression
      * @param work_amount work amount of the loop
@@ -133,7 +133,7 @@ public:
                      const std::vector<T>& exits,
                      bool set_default_handlers = true) {
         const auto loop_id = mark_loop(loop_begin_pos, loop_end_pos, work_amount, increment, entries, exits, set_default_handlers);
-        const auto loop_info = get_loop_info(loop_id);
+        const auto loop_info = get_loop_info<UnifiedLoopInfo>(loop_id);
         loop_info->set_dim_idx(dim_idx);
         return loop_id;
     }

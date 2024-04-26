@@ -61,14 +61,6 @@ void LoopInfo::set_increment(size_t increment) {
     m_increment = increment;
 }
 
-void LoopInfo::set_dim_idx(size_t dim_idx) {
-    auto set_common_dim_idx = [dim_idx](LoopPort& port) {
-        port.dim_idx = dim_idx;
-    };
-    update_entry_points(set_common_dim_idx);
-    update_exit_points(set_common_dim_idx);
-}
-
 void LoopInfo::set_entry_points(std::vector<LoopPort> entry_points) {
     m_entry_points = std::move(entry_points);
 }
@@ -77,48 +69,9 @@ void LoopInfo::set_exit_points(std::vector<LoopPort> exit_points) {
     m_exit_points = std::move(exit_points);
 }
 
-std::vector<bool> LoopInfo::get_is_incremented() const {
-    std::vector<bool> values;
-    values.reserve(m_entry_points.size() + m_exit_points.size());
-    auto initializer = [&values](const LoopPort& port) {
-        values.push_back(port.is_incremented);
-    };
-    init_using_entry_points(initializer);
-    init_using_exit_points(initializer);
-    return values;
-}
-
-std::vector<int64_t> LoopInfo::get_ptr_increments() const {
-    std::vector<int64_t> values;
-    values.reserve(m_entry_points.size() + m_exit_points.size());
-    auto initializer = [&values](const LoopPort& port) {
-        values.push_back(port.ptr_increment);
-    };
-    init_using_entry_points(initializer);
-    init_using_exit_points(initializer);
-    return values;
-}
-
-std::vector<int64_t> LoopInfo::get_finalization_offsets() const {
-    std::vector<int64_t> values;
-    values.reserve(m_entry_points.size() + m_exit_points.size());
-    auto initializer = [&values](const LoopPort& port) {
-        values.push_back(port.finalization_offset);
-    };
-    init_using_entry_points(initializer);
-    init_using_exit_points(initializer);
-    return values;
-}
-
-std::vector<int64_t> LoopInfo::get_data_sizes() const {
-    std::vector<int64_t> values;
-    values.reserve(m_entry_points.size() + m_exit_points.size());
-    auto initializer = [&values](const LoopPort& port) {
-        values.push_back(port.data_size);
-    };
-    init_using_entry_points(initializer);
-    init_using_exit_points(initializer);
-    return values;
+void LoopInfo::init_from_ports(const std::function<void(const LoopPort&)>& initializer) const {
+    std::for_each(m_entry_points.cbegin(), m_entry_points.cend(), initializer);
+    std::for_each(m_exit_points.cbegin(), m_exit_points.cend(), initializer);
 }
 
 std::vector<LoopPort> LoopInfo::clone_loop_ports(const ExpressionMap& expr_map, const std::vector<LoopPort>& port_ports) {
@@ -158,8 +111,44 @@ const SpecificIterationHandlers& UnifiedLoopInfo::get_handlers() const {
     return m_handlers;
 }
 
+std::vector<bool> UnifiedLoopInfo::get_is_incremented() const {
+    std::vector<bool> values;
+    values.reserve(m_entry_points.size() + m_exit_points.size());
+    init_from_ports([&values](const LoopPort& port) { values.push_back(port.is_incremented); });
+    return values;
+}
+
+std::vector<int64_t> UnifiedLoopInfo::get_ptr_increments() const {
+    std::vector<int64_t> values;
+    values.reserve(m_entry_points.size() + m_exit_points.size());
+    init_from_ports([&values](const LoopPort& port) { values.push_back(port.ptr_increment); });
+    return values;
+}
+
+std::vector<int64_t> UnifiedLoopInfo::get_finalization_offsets() const {
+    std::vector<int64_t> values;
+    values.reserve(m_entry_points.size() + m_exit_points.size());
+    init_from_ports([&values](const LoopPort& port) { values.push_back(port.finalization_offset); });
+    return values;
+}
+
+std::vector<int64_t> UnifiedLoopInfo::get_data_sizes() const {
+    std::vector<int64_t> values;
+    values.reserve(m_entry_points.size() + m_exit_points.size());
+    init_from_ports([&values](const LoopPort& port) { values.push_back(port.data_size); });
+    return values;
+}
+
 void UnifiedLoopInfo::set_handlers(SpecificIterationHandlers handlers) {
     m_handlers = std::move(handlers);
+}
+
+void UnifiedLoopInfo::set_dim_idx(size_t dim_idx) {
+    auto set_common_dim_idx = [dim_idx](LoopPort& port) {
+        port.dim_idx = dim_idx;
+    };
+    update_entry_points(set_common_dim_idx);
+    update_exit_points(set_common_dim_idx);
 }
 
 ExpandedLoopInfo::ExpandedLoopInfo(size_t work_amount, size_t increment,
@@ -169,9 +158,14 @@ ExpandedLoopInfo::ExpandedLoopInfo(size_t work_amount, size_t increment,
     OPENVINO_ASSERT(unified_loop_info, "Failed to create ExpandedLoopInfo: unified loop info is nullptr!");
     m_unified_loop_info = std::move(unified_loop_info);
 
-    m_ptr_increments = get_ptr_increments();
-    m_finalization_offsets = get_finalization_offsets();
-    m_data_sizes = get_data_sizes();
+    m_ptr_increments.reserve(m_entry_points.size() + m_exit_points.size());
+    m_finalization_offsets.reserve(m_entry_points.size() + m_exit_points.size());
+    m_data_sizes.reserve(m_entry_points.size() + m_exit_points.size());
+    init_from_ports([this](const LoopPort& port) {
+        m_ptr_increments.push_back(port.ptr_increment);
+        m_finalization_offsets.push_back(port.finalization_offset);
+        m_data_sizes.push_back(port.data_size);
+    });
 }
 
 ExpandedLoopInfo::ExpandedLoopInfo(size_t work_amount, size_t increment,
@@ -209,15 +203,15 @@ const pass::PassPipeline& ExpandedLoopInfo::get_handlers_by_type() const {
     return get_unified_loop_info()->get_handlers().get_handlers_by_type(m_type);
 }
 
-std::vector<int64_t>& ExpandedLoopInfo::get_dense_ptr_increments() {
+const std::vector<int64_t>& ExpandedLoopInfo::get_ptr_increments() const {
     return m_ptr_increments;
 }
 
-std::vector<int64_t>& ExpandedLoopInfo::get_dense_finalization_offsets() {
+const std::vector<int64_t>& ExpandedLoopInfo::get_finalization_offsets() const {
     return m_finalization_offsets;
 }
 
-const std::vector<int64_t>& ExpandedLoopInfo::get_dense_data_sizes() const {
+const std::vector<int64_t>& ExpandedLoopInfo::get_data_sizes() const {
     return m_data_sizes;
 }
 

@@ -62,11 +62,6 @@ public:
     const std::vector<LoopPort>& get_exit_points() const;
 
     /**
-     * @brief Sets `dim_idx` to all entry and exit points
-     * @param dim_idx - index
-     */
-    void set_dim_idx(size_t dim_idx);
-    /**
      * @brief Set m_work_amount value
      * @param work_amount - work amount of the loop
      */
@@ -87,58 +82,19 @@ public:
      */
     void set_exit_points(std::vector<LoopPort> exit_points);
 
-    /**
-     * @brief Update the parameters of existing loop input ports
-     * @param updater - function that updates ports
-     */
-    inline void update_entry_points(const std::function<void(LoopPort&)>& updater) {
-        std::for_each(m_entry_points.begin(), m_entry_points.end(), updater);
-    }
-    /**
-     * @brief Update the parameters of existing loop output ports
-     * @param updater - function that updates ports
-     */
-    inline void update_exit_points(const std::function<void(LoopPort&)>& updater) {
-        std::for_each(m_exit_points.begin(), m_exit_points.end(), updater);
-    }
-    /**
-     * @brief Calls `initializer` for each entry point
-     * @param initializer - function that address to entry point
-     */
-    inline void init_using_entry_points(const std::function<void(const LoopPort&)>& initializer) const {
-        std::for_each(m_entry_points.cbegin(), m_entry_points.cend(), initializer);
-    }
-    /**
-     * @brief Calls `initializer` for each exit point
-     * @param initializer - function that address to exit point
-     */
-    inline void init_using_exit_points(const std::function<void(const LoopPort&)>& initializer) const {
-        std::for_each(m_exit_points.cbegin(), m_exit_points.cend(), initializer);
-    }
-
-    /**
-     * @brief Returns vector with boolean values `is_incremented` of loop ports
-     * @return vector with boolean values
-     */
-    std::vector<bool> get_is_incremented() const;
-    /**
-     * @brief Returns vector with pointer increments of loop ports
-     * @return vector with ptr increments
-     */
-    std::vector<int64_t> get_ptr_increments() const;
-    /**
-     * @brief Returns vector with finalization offsets of loop ports
-     * @return vector with finalization offsets
-     */
-    std::vector<int64_t> get_finalization_offsets() const;
-    /**
-     * @brief Returns vector with data sizes of loop ports
-     * @return vector with data sizes
-     */
-    std::vector<int64_t> get_data_sizes() const;
-
 protected:
+    /**
+     * @brief Helper to clone Loop ports using `ExpressionMap`
+     * @param expr_map expression map [the current expr -> the new expr]
+     * @param port_ports the loop ports that will be cloned
+     * @return vector with new cloned loop ports
+     */
     static std::vector<LoopPort> clone_loop_ports(const ExpressionMap& expr_map, const std::vector<LoopPort>& port_ports);
+    /**
+     * @brief Helper to initialize some values from loop ports
+     * @param initializer function that can access to LoopPort
+     */
+    void init_from_ports(const std::function<void(const LoopPort&)>& initializer) const;
 
     size_t m_work_amount = 0;
     size_t m_increment = 0;
@@ -180,10 +136,36 @@ public:
      */
     const SpecificIterationHandlers& get_handlers() const;
     /**
+     * @brief Returns vector with boolean values `is_incremented` of loop ports
+     * @return vector with boolean values
+     */
+    std::vector<bool> get_is_incremented() const;
+    /**
+     * @brief Returns vector with pointer increments of loop ports
+     * @return vector with ptr increments
+     */
+    std::vector<int64_t> get_ptr_increments() const;
+    /**
+     * @brief Returns vector with finalization offsets of loop ports
+     * @return vector with finalization offsets
+     */
+    std::vector<int64_t> get_finalization_offsets() const;
+    /**
+     * @brief Returns vector with data sizes of loop ports
+     * @return vector with data sizes
+     */
+    std::vector<int64_t> get_data_sizes() const;
+
+    /**
      * @brief Set m_handlers value
      * @param handlers - transformations for loop specific iterations
      */
     void set_handlers(SpecificIterationHandlers handlers);
+    /**
+     * @brief Sets `dim_idx` to all entry and exit points
+     * @param dim_idx - index
+     */
+    void set_dim_idx(size_t dim_idx);
 
     /**
      * @brief Register loop specific iteration handler
@@ -196,6 +178,21 @@ public:
         m_handlers.register_handler<Type, T>(args...);
     }
 
+    /**
+     * @brief Update the parameters of existing loop input ports
+     * @param updater - function that updates ports
+     */
+    inline void update_entry_points(const std::function<void(LoopPort&)>& updater) {
+        std::for_each(m_entry_points.begin(), m_entry_points.end(), updater);
+    }
+    /**
+     * @brief Update the parameters of existing loop output ports
+     * @param updater - function that updates ports
+     */
+    inline void update_exit_points(const std::function<void(LoopPort&)>& updater) {
+        std::for_each(m_exit_points.begin(), m_exit_points.end(), updater);
+    }
+
 private:
     SpecificIterationHandlers m_handlers = {};
 };
@@ -204,7 +201,7 @@ using UnifiedLoopInfoPtr = std::shared_ptr<UnifiedLoopInfo>;
 /**
  * @interface ExpandedLoopInfo
  * @brief The structure describes expanded Loop (specific iterations) after unified loop decomposition into specific loop iterations.
- *        Contains type of specific iteration, pointer to the original unified loop and dense data pointer shifts for quick recalculation.
+ *        Contains type of specific iteration, pointer to the original unified loop and data pointer shifts for quick recalculation.
  * @ingroup snippets
  */
 class ExpandedLoopInfo : public LoopInfo {
@@ -242,24 +239,26 @@ public:
 
     /**
      * @brief Returns dense vector with pointer increments
-     * @return ref of `m_ptr_increments`
+     * @return const ref of `m_ptr_increments`
      */
-    std::vector<int64_t>& get_dense_ptr_increments();
+    const std::vector<int64_t>& get_ptr_increments() const;
     /**
      * @brief Returns dense vector with finalization offsets
-     * @return ref of `m_finalization_offsets`
+     * @return const ref of `m_finalization_offsets`
      */
-    std::vector<int64_t>& get_dense_finalization_offsets();
+    const std::vector<int64_t>& get_finalization_offsets() const;
     /**
      * @brief Returns dense vector with data sizes
      * @return const ref of `m_data_sizes`
      */
-    const std::vector<int64_t>& get_dense_data_sizes() const;
+    const std::vector<int64_t>& get_data_sizes() const;
 
 private:
     // ExpandedLoopInfo has LoopPorts to have opportunity to work with Loops
-    // in iter handlers in InsertSpecificIterations/ For example, in UpdateSubtensors.
+    // in iter handlers in InsertSpecificIterations. For example, in UpdateSubtensors.
     // However, for faster work with data ptr shifts ExpandedLoopInfo has the separate dense attributes.
+    // Thus, LoopPorts of ExpandedLoopInfo are interpreted as entry and exit points of specific Loop iterations.
+    // All needed informations about data pointer shifts are stored in attributes below!
     // Note: the first initialization of these attributes is in ctor from entry and exit loop ports
     std::vector<int64_t> m_ptr_increments = {};
     std::vector<int64_t> m_finalization_offsets = {};

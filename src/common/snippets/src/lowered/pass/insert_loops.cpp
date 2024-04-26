@@ -16,7 +16,7 @@ namespace lowered {
 namespace pass {
 
 void InsertLoops::insertion(LinearIR& linear_ir, const LoopManagerPtr& loop_manager, size_t loop_id) {
-    const auto loop_info = loop_manager->get_loop_info(loop_id);
+    const auto loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_id);
     auto loop_entries = loop_info->get_entry_points();
     auto loop_exits = loop_info->get_exit_points();
     const auto work_amount = loop_info->get_work_amount();
@@ -29,8 +29,8 @@ void InsertLoops::insertion(LinearIR& linear_ir, const LoopManagerPtr& loop_mana
     auto init_inputs = [&loop_end_inputs](const LoopPort& port) {
         loop_end_inputs.push_back(port.expr_port->get_port_connector_ptr());
     };
-    loop_info->init_using_entry_points(init_inputs);
-    loop_info->init_using_exit_points(init_inputs);
+    std::for_each(loop_entries.cbegin(), loop_entries.cend(), init_inputs);
+    std::for_each(loop_exits.cbegin(), loop_exits.cend(), init_inputs);
 
     const auto is_incremented = loop_info->get_is_incremented();
     const auto io_data_sizes = loop_info->get_data_sizes();
@@ -62,7 +62,7 @@ void InsertLoops::insertion(LinearIR& linear_ir, const LoopManagerPtr& loop_mana
     linear_ir.insert_node(loop_end, loop_end_inputs, outer_loop_ids, false, loop_bounds.second);
 }
 
-bool InsertLoops::is_loop_dynamic(const LoopInfoPtr& loop_info) {
+bool InsertLoops::is_loop_dynamic(const UnifiedLoopInfoPtr& loop_info) {
     auto is_loop_port_dynamic = [](const LoopPort& port) {
         return port.is_dynamic();
     };

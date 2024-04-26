@@ -135,7 +135,8 @@ inline void init_work_amount(const LoopInfoPtr& loop_info) {
 }
 }  // namespace
 
-void InitLoops::init_loop_info(const LoopInfoPtr& loop_info, const size_t loop_id, bool only_runtime_args) {
+void InitLoops::init_loop_info(const UnifiedLoopInfoPtr& loop_info, const size_t loop_id, bool only_runtime_args) {
+    OPENVINO_ASSERT(loop_info != nullptr, "UnifiedLoopInfo is nullptr, nothing to initialize");
     if (utils::is_dynamic_value(loop_info->get_work_amount()))
         init_work_amount(loop_info);
 
@@ -169,7 +170,7 @@ bool InitLoops::run(LinearIR& linear_ir) {
     const auto& loop_manager = linear_ir.get_loop_manager();
     const auto& loops = loop_manager->get_map();
     for (const auto& loop : loops) {
-        init_loop_info(loop.second, loop.first);
+        init_loop_info(std::dynamic_pointer_cast<UnifiedLoopInfo>(loop.second), loop.first);
     }
 
     return true;
