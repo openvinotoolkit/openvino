@@ -47,7 +47,6 @@ class TestAtan2(PytorchLayerTest):
         else:
             model_class = aten_atan2()
                 
-    
         ref_net = None
     
         return model_class, ref_net, "aten::atan2"
