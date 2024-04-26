@@ -111,6 +111,15 @@ jobs:
       - name: Install git
         run: |
           apt update
+
+      - name: Simulate network errors
+        shell: bash
+        run: |
+          echo 'Acquire::http::Proxy "http://proxy.com:911";' >> /etc/apt/apt.conf
+          echo 'Acquire::https::Proxy "http://proxy.com:911";' >> /etc/apt/apt.conf
+
+      - name: Install git
+        run: |
           apt install -y git ca-certificates
 
       - name: Clone OpenVINO
