@@ -75,31 +75,31 @@ std::shared_ptr<ov::Model> ConvolutionFunction::getOriginal(
             transposeOnData ? std::make_shared<ov::opset1::Transpose>(convertedWeights, constant) : convertedWeights,
             transposeOnInputLow ?
                 std::make_shared<ov::opset1::Transpose>(
-                    ov::test::utils::make_constant_from_data_or_random(
+                    ov::test::utils::make_constant(
                         netPrecision, fqOnWeights.constantShape, fqOnWeights.inputLowValues),
                     constant->clone_with_new_inputs({})) :
-                ov::test::utils::make_constant_from_data_or_random(
+                ov::test::utils::make_constant(
                     netPrecision, fqOnWeights.constantShape, fqOnWeights.inputLowValues),
             transposeOnInputHigh ?
                 std::make_shared<ov::opset1::Transpose>(
-                    ov::test::utils::make_constant_from_data_or_random(
+                    ov::test::utils::make_constant(
                         netPrecision, fqOnWeights.constantShape, fqOnWeights.inputHighValues),
                     constant->clone_with_new_inputs({})) :
-                ov::test::utils::make_constant_from_data_or_random(
+                ov::test::utils::make_constant(
                     netPrecision, fqOnWeights.constantShape, fqOnWeights.inputHighValues),
             transposeOnOutputLow ?
                 std::make_shared<ov::opset1::Transpose>(
-                    ov::test::utils::make_constant_from_data_or_random(
+                    ov::test::utils::make_constant(
                         netPrecision, fqOnWeights.constantShape, fqOnWeights.outputLowValues),
                     constant->clone_with_new_inputs({})) :
-                ov::test::utils::make_constant_from_data_or_random(
+                ov::test::utils::make_constant(
                     netPrecision, fqOnWeights.constantShape, fqOnWeights.outputLowValues),
             transposeOnOutputHigh ?
                 std::make_shared<ov::opset1::Transpose>(
-                    ov::test::utils::make_constant_from_data_or_random(
+                    ov::test::utils::make_constant(
                         netPrecision, fqOnWeights.constantShape, fqOnWeights.outputHighValues),
                     constant->clone_with_new_inputs({})) :
-                ov::test::utils::make_constant_from_data_or_random(
+                ov::test::utils::make_constant(
                     netPrecision, fqOnWeights.constantShape, fqOnWeights.outputHighValues),
             fqOnWeights.quantizationLevel);
     }

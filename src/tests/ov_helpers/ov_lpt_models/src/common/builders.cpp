@@ -277,7 +277,7 @@ std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantize(
                 std::vector<float>{fqOnData.inputHighValues[0] / fqOnData.outputHighValues[0]}),
             subtractMax);
     } else {
-        inputLowNode = ov::test::utils::make_constant_from_data_or_random(
+        inputLowNode = ov::test::utils::make_constant(
             constantPrecision,
             fqOnData.constantShapes.empty() ? ov::Shape{} : fqOnData.constantShapes[0],
             fqOnData.inputLowValues);
@@ -285,7 +285,7 @@ std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantize(
             inputLowNode = std::make_shared<ov::op::v0::Convert>(inputLowNode, ov::element::f32);
         }
 
-        inputHighNode = ov::test::utils::make_constant_from_data_or_random(
+        inputHighNode = ov::test::utils::make_constant(
             constantPrecision,
             fqOnData.constantShapes.empty() ?
                 ov::Shape{} :
@@ -296,7 +296,7 @@ std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantize(
         }
     }
 
-    auto outputLowNode = ov::test::utils::make_constant_from_data_or_random(
+    auto outputLowNode = ov::test::utils::make_constant(
         constantPrecision,
         fqOnData.constantShapes.empty() ?
             ov::Shape{} :
@@ -306,7 +306,7 @@ std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantize(
         outputLowNode = std::make_shared<ov::op::v0::Convert>(outputLowNode, ov::element::f32);
     }
 
-    auto outputHighNode = ov::test::utils::make_constant_from_data_or_random(
+    auto outputHighNode = ov::test::utils::make_constant(
         constantPrecision,
         fqOnData.constantShapes.empty() ?
             ov::Shape{} :
