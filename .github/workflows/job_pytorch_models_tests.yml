@@ -113,12 +113,6 @@ jobs:
 
       - name: Install PyTorch tests requirements
         run: |
-          # the following makes sense only in containerized environment
-          # where no GUI is needed. Without this
-          # tests will fail with "libGL1.so cannot open shared object file
-          # no such file or directory" error
-          python3 -m pip install opencv-python-headless
-          # install the rest requirements as usual
           python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/requirements.txt
           python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/requirements_secondary.txt
           echo "Available storage:"
