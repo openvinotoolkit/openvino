@@ -231,7 +231,7 @@ bool layout::is_static() const {
     return !is_dynamic();
 }
 
-ov::PartialShape layout::get_partial_shape() const {
+const ov::PartialShape& layout::get_partial_shape() const {
     return size;
 }
 
