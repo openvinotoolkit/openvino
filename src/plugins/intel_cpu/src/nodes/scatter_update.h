@@ -18,7 +18,8 @@ enum class ScatterUpdateMode {
     ScatterElementsUpdate
 };
 
-namespace scatter_elements_update {
+namespace scatter_reductions {
+enum class CommonReduction { NONE, SUM, SUB, PROD, MIN, MAX, MEAN };
 class ReduceMultiply {
 public:
     template <typename DT>
@@ -32,6 +33,14 @@ public:
     template <typename DT>
     void operator() (DT* dst_data, const DT* src_data) const {
         *dst_data += *src_data;
+    }
+};
+
+class ReduceSub {
+public:
+    template <typename DT>
+    void operator() (DT* dst_data, const DT* src_data) const {
+        *dst_data -= *src_data;
     }
 };
 
@@ -66,7 +75,7 @@ public:
         *dst_data = *src_data;
     }
 };
-};  // namespace scatter_elements_update
+};  // namespace scatter_reductions
 
 class ScatterUpdate : public Node {
 public:
@@ -86,16 +95,18 @@ public:
     bool isExecutable() const override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    using Reduction = ov::op::v12::ScatterElementsUpdate::Reduction;
+    using Reduction = scatter_reductions::CommonReduction;
     template <typename DataType, typename KernelType>
     void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis, const KernelType& kernel);
+    template <typename DataType, typename KernelType>
+    void scatterNDUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, const KernelType& kernel);
     template <typename DataType>
     void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates,
-                                int axis, const scatter_elements_update::ReduceMean& kernel);
+                                int axis, const scatter_reductions::ReduceMean& kernel);
 
 private:
     void scatterUpdate(uint8_t *indicesPtr, uint8_t *updatePtr, int axis, uint8_t *dstDataPtr);
-    void scatterNDUpdate(uint8_t *indicesPtr, uint8_t *updatePtr, uint8_t *dstDataPtr);
+    void scatterNDUpdate(const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr);
     void scatterElementsUpdate(const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr, int axis);
     inline int64_t getIndicesValue(uint8_t *indices, size_t offset);
 
@@ -111,6 +122,8 @@ private:
     ov::element::Type dataPrec, indicesPrec, axisPrec;
 
     std::string errorPrefix;
+
+    const std::shared_ptr<ov::Node> ovOp;
 };
 
 }   // namespace node

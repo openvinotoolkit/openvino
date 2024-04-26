@@ -399,6 +399,8 @@ using IStaticShapeInferFactory =
 // To use other version of operators, explicitly specify operator with opset version namespace.
 template <>
 const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
+    // opset15
+    _OV_OP_SHAPE_INFER_MASK_REG(op::v15::ScatterNDUpdate, ShapeInferTA, util::bit::mask()),
     // opset14
     _OV_OP_SHAPE_INFER_MASK_REG(op::v14::RMSNorm, ShapeInferTA, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset14::Inverse, ShapeInferTA, util::bit::mask()),
