@@ -119,8 +119,7 @@ std::string init_info_jit_brgemm_emitter(const jit_brgemm_emitter *emitter) {
        << " m_load_offset_b:" << emitter->m_load_offset_b
        << " m_load_offset_scratch:" << emitter->m_load_offset_scratch
        << " m_store_offset_c:" << emitter->m_store_offset_c
-       << " m_with_scratch:" << emitter->m_with_scratch
-       << " m_with_comp:" << emitter->m_with_comp;
+       << " m_with_scratch:" << emitter->m_with_scratch;
 
     return ss.str();
 }
@@ -128,20 +127,16 @@ std::string init_info_jit_brgemm_emitter(const jit_brgemm_emitter *emitter) {
 std::string init_info_jit_brgemm_copy_b_emitter(const jit_brgemm_copy_b_emitter *emitter) {
     std::stringstream ss;
     ss << "Emitter_type_name:jit_brgemm_copy_b_emitter"
-       << " m_LDB:" << emitter->m_LDB
-       << " m_K:" << emitter->m_K
-       << " m_K_blk:" << emitter->m_K_blk
-       << " m_K_tail:" << emitter->m_K_tail
-       << " m_N:" << emitter->m_N
+       << " m_brg_weight_etype:" << emitter->m_brg_weight_etype
        << " m_N_blk:" << emitter->m_N_blk
-       << " m_N_tail:" << emitter->m_N_tail
-       << " m_brgemm_prc_in0:" << emitter->m_brgemm_prc_in0
-       << " m_brgemm_prc_in1:" << emitter->m_brgemm_prc_in1
+       << " m_inner_N_block:" << emitter->m_inner_N_block
+       << " m_inner_N_tail:" << emitter->m_inner_N_tail
+       << " m_K_blk:" << emitter->m_K_blk
        << " m_brgemmVNNIFactor:" << emitter->m_brgemmVNNIFactor
-       << " m_with_comp:" << emitter->m_with_comp
        << " m_in_offset:" << emitter->m_in_offset
        << " m_out_offset:" << emitter->m_out_offset
-       << ",m_comp_offset:" << emitter->m_comp_offset;
+       << " m_comp_offset:" << emitter->m_comp_offset
+       << " m_with_comp:" << emitter->m_with_comp;
 
     return ss.str();
 }
