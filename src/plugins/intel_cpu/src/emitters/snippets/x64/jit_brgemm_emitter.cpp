@@ -78,9 +78,9 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa, const ov
 
     init_in_scheduling_params(input_0_desc);
     if (brgemm_node->is_with_data_repacking()) {
-        const auto& brgemm_copy = brgemm_node->get_brgemm_copy();
-        const auto& allocated_shape = brgemm_copy->get_data_repacking_shape(input_1_desc->get_shape());
-        leading_dimensions.push_back(*allocated_shape.rbegin());
+        const auto repacking_buffer_shape = brgemm_node->get_brgemm_copy()->get_repacking_buffer_shape();
+        OV_CPU_JIT_EMITTER_ASSERT(!repacking_buffer_shape.empty(), "Repacking buffer shape mustn't be empty");
+        leading_dimensions.push_back(repacking_buffer_shape.back());
     } else {
         init_in_scheduling_params(input_1_desc);
     }
@@ -89,7 +89,6 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa, const ov
     const auto& brg0Prc = brgemm_node->get_input_element_type(0);
     const auto& brg1Prc = brgemm_node->get_input_element_type(1);
 
-    m_with_comp = brgemm_node->is_with_compensations();
     m_with_scratch = brgemm_node->is_with_scratchpad();
 
     const auto& output_subtensor = output_desc->get_subtensor();
@@ -113,6 +112,7 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa, const ov
     m_ctx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(brg1Prc));
     m_ctx.beta = brgemm_node->get_beta();
     m_ctx.is_with_amx = brgemm_node->is_amx();
+    m_ctx.is_with_comp = brgemm_node->is_with_compensations();
 
     init_brgemm_kernel(m_ctx, m_kernel);
 
@@ -154,8 +154,6 @@ void jit_brgemm_emitter::init_brgemm_kernel(brgemmCtx& ctx, std::unique_ptr<brge
         OV_CPU_JIT_EMITTER_THROW("cannot initialize brgemm descriptor due to invalid params");
 
     status = brgemm_init_tiles(desc, ctx.palette);
-
-    ctx.is_with_comp = ctx.dt_in0 == dnnl_data_type_t::dnnl_s8 && !ctx.is_with_amx;
 
     brgemm_kernel_t* kernel_ = nullptr;
     status = brgemm_kernel_create(&kernel_, desc);

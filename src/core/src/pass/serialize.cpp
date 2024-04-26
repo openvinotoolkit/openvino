@@ -482,8 +482,8 @@ public:
             }
         }
         if (is_body_target) {
-            auto body_name = std::get<0>(bnames);
-            auto portmap_name = std::get<1>(bnames);
+            const auto& body_name = std::get<0>(bnames);
+            const auto& portmap_name = std::get<1>(bnames);
             std::vector<std::string> result_mapping =
                 map_type_from_body(m_xml_node.parent(), "Result", m_version, body_name);
             std::vector<std::string> parameter_mapping =
@@ -1004,12 +1004,12 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
                 pugi::xml_node port = input.append_child("port");
                 port.append_attribute("id").set_value(port_id++);
 
-                auto rt_info = i.get_tensor().get_rt_info();
+                const auto& rt_info = i.get_tensor().get_rt_info();
                 auto port_element_type =
                     is_fp16_compression_postponed(rt_info) ? ov::element::f16 : i.get_element_type();
 
                 port.append_attribute("precision").set_value(get_precision_name(port_element_type).c_str());
-                for (auto d : i.get_partial_shape()) {
+                for (const auto& d : i.get_partial_shape()) {
                     pugi::xml_node dim = port.append_child("dim");
                     if (d.is_dynamic()) {
                         dim.append_child(pugi::xml_node_type::node_pcdata).set_value("-1");
