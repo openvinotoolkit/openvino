@@ -1,21 +1,7 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <math.h>
-#include <algorithm>
-#include <functional>
-
 #include "utils/generate_static_shapes.hpp"
-
-#include "ov_ops/augru_cell.hpp"
-#include "ov_ops/augru_sequence.hpp"
-
-#include "common_test_utils/ov_tensor_utils.hpp"
-#include "common_test_utils/data_utils.hpp"
-
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "shared_test_classes/single_op/roi_align.hpp"
-
 #include "common_test_utils/data_utils.hpp"
 
 namespace ov {
@@ -42,7 +28,7 @@ void clip_restrict_dims(InputShape& input_shape, const std::map<size_t, size_t>&
     }
 }
 
-ov::Shape generate_mid_shape(ov::PartialShape partial_shape) {
+ov::Shape generate_mid_shape(const ov::PartialShape& partial_shape) {
     ov::Shape midShape;
     for (const auto s : partial_shape) {
         int dimValue = 1;
