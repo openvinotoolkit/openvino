@@ -59,7 +59,7 @@ if __name__ == '__main__':
                 LOGGER.info(f'THE PR ALREADY HAS THE "{label.name}" LABEL')
                 break
         else:
-            is_intel_user = bool(pr.user.email and ('@intel.com' in pr.user.email))
+            is_intel_user = bool(pr.user.email and pr.user.email.endswith('@intel.com'))
             label_to_add: str = ExternalPRLabels.ExternalIntelPR.name if is_intel_user else ExternalPRLabels.ExternalPR.name
 
             pr.add_to_labels(label_to_add)
