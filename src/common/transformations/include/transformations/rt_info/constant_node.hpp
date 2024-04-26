@@ -25,9 +25,8 @@ class TRANSFORMATIONS_API ConstantNode : public RuntimeAttribute {
 public:
     OPENVINO_RTTI("constant_node", "0");
 
-    // Not copyable for such subgraphs as ShapeOf
     bool is_copyable() const override {
-        return false;
+        return true;
     }
 };
 
