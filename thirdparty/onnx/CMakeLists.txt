@@ -52,6 +52,13 @@ endif()
 # from onnx==1.13.1 it requires C++17 when compiling on Windows, and since onnx==1.16.0 on Linux
 target_compile_features(onnx PRIVATE cxx_std_17)
 
+# WA to allow build on MacOS before 10.15 when filesystem become as non-experimental
+if(APPLE AND CMAKE_OSX_DEPLOYMENT_TARGET LESS "10.15")
+    file(READ onnx/onnx/common/file_utils.h CONTENT)
+    string(REPLACE "#include <filesystem>" "#include <experimental/filesystem>" CONTENT "${CONTENT}")
+    file(WRITE onnx/onnx/common/file_utils.h "${CONTENT}")
+endif()
+
 ov_disable_all_warnings(onnx onnx_proto)
 
 # install
