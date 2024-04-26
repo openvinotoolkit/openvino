@@ -154,6 +154,10 @@ PyTorch Framework Support
 * Experimental support for models produced by torch.export (FX graph) has been added
   (`PR #23815 <https://github.com/openvinotoolkit/openvino/pull/23815>`__).
 
+ONNX Framework Support
+-----------------------------
+* 8 new operations have been added.
+
 
 OpenVINO Model Server
 +++++++++++++++++++++++++++++
