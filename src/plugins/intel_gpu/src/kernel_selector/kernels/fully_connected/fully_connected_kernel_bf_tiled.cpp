@@ -246,7 +246,7 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
         if (!params.is_shape_agnostic && batch == 1) {
             // Tuning for Meteor Lake
             size_t ideal_num_threads = params.engineInfo.maxThreadsPerDevice * simd;
-            if (output_f / 2 < ideal_num_threads * 0.8) {
+            if (output_f / 2 < ideal_num_threads * 0.8 && params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) {
                 GPU_DEBUG_TRACE_DETAIL << "FC bf tiled: Set ofm_tile 1. (output_f : " << output_f
                                        << ", ideal threads : " << ideal_num_threads << ")" << std::endl;
                 return selector.Default(tune_params(1, 1, 4, 2, 1, 1, EXE_MODE_DEFAULT));
