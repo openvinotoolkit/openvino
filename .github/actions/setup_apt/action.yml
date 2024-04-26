@@ -4,6 +4,10 @@ description: 'Setups apt manager with common options'
 runs:
   using: 'composite'
   steps:
+    - name: Pre-Dump apt config
+      shell: bash
+      run: apt-config dump
+
     - name: Set Retry options
       shell: bash
       run: |
@@ -30,3 +34,7 @@ runs:
       run: |
         echo 'Acquire::http::Proxy "http://proxy.com:911";' >> /etc/apt/apt.conf
         echo 'Acquire::https::Proxy "http://proxy.com:911";' >> /etc/apt/apt.conf
+
+    - name: Post-Dump apt config
+      shell: bash
+      run: apt-config dump
