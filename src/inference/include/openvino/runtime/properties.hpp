@@ -1070,6 +1070,13 @@ struct PCIInfo {
     uint32_t function;
 };
 
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const PCIInfo& pci_info) {
+    return os << "{ domain: " << pci_info.domain << "; bus: " << pci_info.bus << "; device: " << std::hex
+              << pci_info.device << "; function: " << pci_info.function << " }";
+}
+/** @endcond */
+
 /**
  * @brief Read-only property to get PCI bus information of device. See PCIInfo struct definition for details
  * @ingroup ov_runtime_cpp_prop_api
