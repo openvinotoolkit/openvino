@@ -27,13 +27,14 @@ ov::OutputVector multinomial(const ov::frontend::onnx::Node& node) {
     const auto seed = node.get_attribute_value<float>("seed", 0.0f);
     const auto target_type = common::get_ov_element_type(dtype);
     const uint64_t global_seed = 0;
-    const auto seed_uint64 = static_cast<uint64_t>(seed * 1000);
+    float seed_copy = seed;
+    const auto seed_uint64 = *reinterpret_cast<uint64_t*>(&seed_copy);
 
     auto multinomial_op = std::make_shared<ov::op::v13::Multinomial>(input,
                                                                      sample_size,
                                                                      target_type,
                                                                      false,
-                                                                     false,
+                                                                     true,
                                                                      seed_uint64,
                                                                      global_seed);
 
