@@ -10,6 +10,7 @@
 #include "node/include/helper.hpp"
 #include "node/include/model_wrap.hpp"
 #include "node/include/read_model_args.hpp"
+#include "node/include/type_validation.hpp"
 
 void validate_set_property_args(const Napi::CallbackInfo& info) {
     const size_t args_length = info.Length();
@@ -127,7 +128,7 @@ Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info,
 
 Napi::Value CoreWrap::compile_model_sync_dispatch(const Napi::CallbackInfo& info) {
     try {
-        if (info.Length() == 2 && info[0].IsString() && info[1].IsString()) {
+        if (js::validate<std::string, std::string>(info)) {
             return compile_model_sync(info, info[0].ToString(), info[1].ToString());
         } else if (info.Length() == 2 && info[0].IsObject() && info[1].IsString()) {
             return compile_model_sync(info, info[0].ToObject(), info[1].ToString());
