@@ -92,8 +92,8 @@ jobs:
         uses: ./.github/actions/setup_apt
 
       # TODO: remove before merge
-      - name: Cleanup cache
-        run: rm -rf ${{ env.APT_CACHE_PATH }}/${{ runner.arch }}/*.cache
+      # - name: Cleanup cache
+      #   run: rm -rf ${{ env.APT_CACHE_PATH }}/${{ runner.arch }}/*.cache
 
       - name: Setup apt cache
         uses: ./.github/actions/cache
