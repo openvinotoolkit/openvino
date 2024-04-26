@@ -128,6 +128,7 @@ size_t CPUTargetMachine::get_lanes() const {
     }
 }
 
+// TODO [139932]: Support separate vec_count and gpr_count
 size_t CPUTargetMachine::get_reg_count() const {
     return 32;
 }
