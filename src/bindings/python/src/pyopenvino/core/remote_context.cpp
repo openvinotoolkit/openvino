@@ -99,6 +99,157 @@ void regclass_RemoteContext(py::module m) {
         )");
 }
 
+void regclass_ClContext(py::module m) {
+    py::class_<ClContextWrapper, RemoteContextWrapper, std::shared_ptr<ClContextWrapper>> cls(m, "ClContext");
+
+    // TODO: Figure out how to pass the pointer without using cl_context
+    cls.def(py::init([](ov::Core& core, long int* ctx, int ctx_device_id) {
+        ov::AnyMap context_params = {{ov::intel_gpu::context_type.name(), ov::intel_gpu::ContextType::OCL},
+                                     {ov::intel_gpu::ocl_context.name(), static_cast<void*>(ctx)},
+                                     {ov::intel_gpu::ocl_context_device_id.name(), ctx_device_id}};
+        auto _ctx = core.create_context("GPU", context_params);
+        return ClContextWrapper(_ctx);
+    }),
+    py::arg("core"),
+    py::arg("ctx"),
+    py::arg("ctx_device_id") = 0);
+
+    cls.def(py::init([](ov::Core& core, void* ctx, int ctx_device_id) {
+        ov::AnyMap context_params = {{ov::intel_gpu::context_type.name(), ov::intel_gpu::ContextType::OCL},
+                                     {ov::intel_gpu::ocl_context.name(), ctx},
+                                     {ov::intel_gpu::ocl_context_device_id.name(), ctx_device_id}};
+        auto _ctx = core.create_context("GPU", context_params);
+        return ClContextWrapper(_ctx);
+    }),
+    py::arg("core"),
+    py::arg("ctx"),
+    py::arg("ctx_device_id") = 0);
+
+    // Won't compile without conditionl compilation, depending on CL commands
+    // cls.def(py::init([](ov::Core& core, /*cl_command_queue*/ void* queue) {
+    //     cl_context ctx;
+    //     auto res = clGetCommandQueueInfo(queue, CL_QUEUE_CONTEXT, sizeof(cl_context), &ctx, nullptr);
+    //     OPENVINO_ASSERT(res == CL_SUCCESS, "Can't get context from given opencl queue");
+    //     ov::AnyMap context_params = {{ov::intel_gpu::context_type.name(), ov::intel_gpu::ContextType::OCL},
+    //                                  {ov::intel_gpu::ocl_context.name(), ctx},
+    //                                  {ov::intel_gpu::ocl_queue.name(), queue}};
+    //     auto _ctx = core.create_context("GPU", context_params);
+    //     return ClContextWrapper(_ctx);
+    // }));
+
+    /* somehow const cl::Image2D& */
+    cls.def(
+        "create_tensor_nv12",
+        [](ClContextWrapper& self,
+            void* nv12_image_plane_y,
+            void* nv12_image_plane_uv) {
+            ov::RemoteTensor y_tensor, uv_tensor;
+            {
+                py::gil_scoped_release release;
+                // This is not possible without OpenCL interface:
+                // size_t width = nv12_image_plane_y.getImageInfo<CL_IMAGE_WIDTH>();
+                // size_t height = nv12_image_plane_y.getImageInfo<CL_IMAGE_HEIGHT>();
+                size_t width = 0;
+                size_t height = 0;
+
+                ov::AnyMap tensor_params = {
+                    {ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::OCL_IMAGE2D},
+                    {ov::intel_gpu::mem_handle.name(), nv12_image_plane_y}};
+                auto y_tensor = self.context.create_tensor(ov::element::u8, {1, height, width, 1}, tensor_params);
+                tensor_params[ov::intel_gpu::mem_handle.name()] = nv12_image_plane_uv;
+                auto uv_tensor = self.context.create_tensor(ov::element::u8, {1, height / 2, width / 2, 2}, tensor_params);
+            }
+            return py::make_tuple(ClImage2DTensorWrapper(y_tensor), ClImage2DTensorWrapper(uv_tensor));
+        },
+        py::arg("nv12_image_plane_y"),
+        py::arg("nv12_image_plane_uv"));
+
+    /* const cl_mem */
+    cls.def(
+        "create_tensor",
+        [](ClContextWrapper& self,
+            const ov::element::Type type,
+            const ov::Shape& shape,
+            void* buffer) {
+            ov::AnyMap params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::OCL_BUFFER},
+                                 {ov::intel_gpu::mem_handle.name(), buffer}};
+            return ClBufferTensorWrapper(self.context.create_tensor(type, shape, params));
+        },
+        py::arg("type"),
+        py::arg("shape"),
+        py::arg("buffer"));
+
+    // Should it be possible? ^ above does the same thing.
+    // cls.def(
+    //     "create_tensor",
+    //     [](ClContextWrapper& self,
+    //         const ov::element::Type type,
+    //         const ov::Shape& shape,
+    //         void* /* const cl::Buffer& */ buffer) {
+    //         return ClBufferTensorWrapper(self.context.create_tensor(type, shape, buffer));
+    //     },
+    //     py::arg("type"),
+    //     py::arg("shape"),
+    //     py::arg("buffer"),
+    //     R"(
+    //         TBA.
+    //     )");
+
+    /* const cl::Image2D& */
+    cls.def(
+        "create_tensor",
+        [](ClContextWrapper& self,
+            const ov::element::Type type,
+            const ov::Shape& shape,
+            void* image) {
+            ov::AnyMap params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::OCL_IMAGE2D},
+                                 {ov::intel_gpu::mem_handle.name(), image}};
+            return ClImage2DTensorWrapper(self.context.create_tensor(type, shape, params));
+        },
+        py::arg("type"),
+        py::arg("shape"),
+        py::arg("image"));
+
+    cls.def(
+        "create_tensor",
+        [](ClContextWrapper& self,
+            const ov::element::Type type,
+            const ov::Shape& shape,
+            void* usm_ptr) {
+            ov::AnyMap params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::USM_USER_BUFFER},
+                                 {ov::intel_gpu::mem_handle.name(), usm_ptr}};
+            return USMTensorWrapper(self.context.create_tensor(type, shape, params));
+        },
+        py::arg("type"),
+        py::arg("shape"),
+        py::arg("usm_ptr"),
+        R"(
+            TBA.
+        )");
+
+    cls.def(
+        "create_usm_host_tensor",
+        [](ClContextWrapper& self,
+            const ov::element::Type type,
+            const ov::Shape& shape) {
+            ov::AnyMap params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::USM_HOST_BUFFER}};
+            return USMTensorWrapper(self.context.create_tensor(type, shape, params));
+        },
+        py::arg("type"),
+        py::arg("shape"));
+
+    cls.def(
+        "create_usm_device_tensor",
+        [](ClContextWrapper& self,
+            const ov::element::Type type,
+            const ov::Shape& shape) {
+            ov::AnyMap params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::USM_DEVICE_BUFFER}};
+            return USMTensorWrapper(self.context.create_tensor(type, shape, params));
+        },
+        py::arg("type"),
+        py::arg("shape"));
+}
+
 void regclass_VAContext(py::module m) {
     py::class_<VAContextWrapper, RemoteContextWrapper, std::shared_ptr<VAContextWrapper>> cls(m, "VAContext");
 
