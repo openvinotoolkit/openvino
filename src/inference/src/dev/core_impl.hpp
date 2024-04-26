@@ -165,7 +165,7 @@ private:
     bool device_supports_cache_dir(const ov::Plugin& plugin) const;
 
     ov::AnyMap create_compile_config(const ov::Plugin& plugin, const ov::AnyMap& origConfig) const;
-    ov::AnyMap create_compile_config(const std::string& device_name, const ov::AnyMap& origConfig) const {
+    ov::AnyMap create_compile_config(const std::string& device_name, const ov::AnyMap& origConfig) const override {
         return create_compile_config(get_plugin(device_name), origConfig);
     }
 
