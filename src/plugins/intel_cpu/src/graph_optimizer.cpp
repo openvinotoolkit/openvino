@@ -3082,6 +3082,9 @@ void GraphOptimizer::MatchSdpaKvCache(Graph &graph) {
             }
         }
 
+        //capture reference to the original mem output before graph transformations
+        auto& memOutput = memInputNode->getOutputNode();
+
         auto memInputSdpa = std::make_shared<MemoryInputSDPA>(
             memInputNode->getId(),
             memInputNode->getName(),
@@ -3109,8 +3112,6 @@ void GraphOptimizer::MatchSdpaKvCache(Graph &graph) {
         }
 
         //create a stub memory output
-        auto& memOutput = memInputNode->getOutputNode();
-
         auto memOutputStub = std::make_shared<MemoryOutputStub>(
             memOutput.getId(),
             memOutput.getName(),
@@ -3123,8 +3124,6 @@ void GraphOptimizer::MatchSdpaKvCache(Graph &graph) {
         const auto inputNum = memOutputEdge->getInputNum();
         graph.RemoveEdge(memOutputEdge);
         graph.CreateEdge(sdpa, memOutputStub, inputNum, 0);
-
-        memInputSdpa->registerOutputNode(memOutputStub.get());
 
         graph.AddNode(memInputSdpa);
         graph.AddNode(memOutputStub);

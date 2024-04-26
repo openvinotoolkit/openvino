@@ -113,6 +113,9 @@ MemoryOutputBase::MemoryOutputBase(const std::string id,
     if (isDynamic) {
         shapeInference = PassThroughShapeInferFactory().makeShapeInfer();
     }
+    if (created()) {
+        context->getMemoryStatesRegister()->registerOutput(this);
+    }
 }
 
 MemoryOutputBase::~MemoryOutputBase() {
@@ -188,6 +191,7 @@ void MemoryOutputBase::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void MemoryOutputBase::assignState(MemStatePtr newState) {
+    OPENVINO_ASSERT(newState, "MemoryOutput ", getName(), " got null state");
     state = newState;
     assignExtMemory(state->output_mem(), state->internal_desc());
 }
@@ -374,8 +378,9 @@ MemoryInputBase::MemoryInputBase(const std::string id,
     if (input_prc) {
         addOriginalInputPrecision(*input_prc);
     }
-    // We don't need to use a virtual edge since this constructor is used in transformations and
-    // this is their responsibility to link the input/output nodes properly
+    if (created()) {
+        context->getMemoryStatesRegister()->registerInput(this);
+    }
 }
 
 MemoryInputBase::~MemoryInputBase() {
@@ -481,6 +486,7 @@ MemoryOutputBase* MemoryStatesRegister::getMemoryOutputByName(const std::string&
 }
 
 void MemoryInputBase::assignState(MemStatePtr newState) {
+    OPENVINO_ASSERT(newState, "MemoryInput ", getName(), " got null state");
     state = newState;
     assignStateHook();
 }
