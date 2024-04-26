@@ -7,19 +7,19 @@
 #include <utility>
 
 #include "openvino/core/any.hpp"
-#include "openvino/frontend/decoder.hpp"
+#include "openvino/frontend/tensorflow_lite/decoder.hpp"
 #include "openvino/frontend/tensorflow_lite/visibility.hpp"
 
 namespace ov {
 namespace frontend {
 namespace tensorflow_lite {
 
-class DecoderMap : public ov::frontend::DecoderBase {
+class DecoderMap : public ov::frontend::tensorflow_lite::DecoderBase {
 public:
     DecoderMap(std::shared_ptr<ov::frontend::DecoderBase> decoder,
                const std::map<std::string, ov::Any>& attrs,
                bool empty_name = false)
-        : ov::frontend::DecoderBase(),
+        : ov::frontend::tensorflow_lite::DecoderBase(),
           m_attrs(attrs),
           m_decoder(std::move(decoder)),
           m_empty_name(empty_name) {}
@@ -28,7 +28,7 @@ public:
                const std::map<std::string, ov::Any>& attrs,
                std::string type,
                bool empty_name = false)
-        : ov::frontend::DecoderBase(),
+        : ov::frontend::tensorflow_lite::DecoderBase(),
           m_attrs(attrs),
           m_decoder(std::move(decoder)),
           m_type(type),
@@ -72,6 +72,22 @@ public:
     /// \brief Get node name
     const std::string& get_op_name() const override {
         return m_empty_name ? empty_name : m_decoder->get_op_name();
+    }
+
+    size_t get_output_size() const override {
+        FRONT_END_THROW("incorrect usage");
+    }
+
+    std::string get_output_tensor_name(size_t idx) const override {
+        FRONT_END_THROW("incorrect usage");
+    }
+
+    ov::element::Type get_output_tensor_type(size_t idx) const override {
+        FRONT_END_THROW("incorrect usage");
+    }
+
+    std::string get_input_tensor_name(size_t idx) const override {
+        FRONT_END_THROW("incorrect usage");
     }
 
     /// \brief Destructor

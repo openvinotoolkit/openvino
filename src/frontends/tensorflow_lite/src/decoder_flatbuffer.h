@@ -7,10 +7,11 @@
 #include <string>
 #include <vector>
 
-#include "tensor_lite_place.hpp"
 #include "graph_iterator_flatbuffer.hpp"
-#include "openvino/frontend/tensorflow_lite/visibility.hpp"
 #include "openvino/frontend/decoder.hpp"
+#include "openvino/frontend/tensorflow_lite/decoder.hpp"
+#include "openvino/frontend/tensorflow_lite/visibility.hpp"
+#include "tensor_lite_place.hpp"
 
 namespace ov {
 namespace frontend {
@@ -19,8 +20,7 @@ namespace tensorflow_lite {
 class TensorLitePlace;
 struct TensorInfo;
 
-
-class DecoderFlatBuffer : public ov::frontend::DecoderBase {
+class DecoderFlatBuffer : public ov::frontend::tensorflow_lite::DecoderBase {
 public:
     explicit DecoderFlatBuffer(const tflite::Operator* node_def,
                                const std::string& type,
@@ -47,7 +47,7 @@ public:
     ov::Any get_attribute(const std::string& name) const override;
 
     size_t get_input_size() const override;
-    size_t get_output_size() const;
+    size_t get_output_size() const override;
 
     void get_input_node(size_t input_port_idx,
                         std::string& producer_name,

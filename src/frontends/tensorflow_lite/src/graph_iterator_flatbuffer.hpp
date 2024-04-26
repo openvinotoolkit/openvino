@@ -14,11 +14,11 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "schema_generated.h"
+#include "openvino/frontend/tensorflow_lite/decoder.hpp"
 
 namespace ov {
 namespace frontend {
 namespace tensorflow_lite {
-class DecoderFlatBuffer;
 
 struct TensorInfo {
     const tflite::Tensor* tensor;
@@ -105,7 +105,7 @@ public:
     }
 
     /// Return Decoder for the current node that iterator points to
-    std::shared_ptr<ov::frontend::tensorflow_lite::DecoderFlatBuffer> get_decoder() const;
+    std::shared_ptr<ov::frontend::tensorflow_lite::DecoderBase> get_decoder() const;
 
     /// \brief Returns the number of sub-graphs that can be enumerated with get_subgraph
     size_t get_subgraph_size() const;

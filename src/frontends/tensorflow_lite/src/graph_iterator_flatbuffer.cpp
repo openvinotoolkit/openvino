@@ -59,7 +59,7 @@ std::shared_ptr<GraphIteratorFlatBuffer> GraphIteratorFlatBuffer::get_subgraph(c
     return iterator;
 }
 
-std::shared_ptr<DecoderFlatBuffer> GraphIteratorFlatBuffer::get_decoder() const {
+std::shared_ptr<DecoderBase> GraphIteratorFlatBuffer::get_decoder() const {
     auto any_item = m_nodes[node_index];
     bool is_op = any_item.is<const tflite::Operator*>();
     FRONT_END_GENERAL_CHECK(is_op || any_item.is<int32_t>());

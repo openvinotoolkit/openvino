@@ -31,7 +31,9 @@ void translate_framework_node(const std::shared_ptr<ov::frontend::tensorflow::Fr
     auto translator_it = TRANSLATE_OP_MAP.find(type);
     FRONT_END_OP_CONVERSION_CHECK(translator_it != TRANSLATE_OP_MAP.end(), "No translator found for ", type, " node.");
     ov::OutputVector ov_inputs = node->input_values();
-    ov::frontend::tensorflow_lite::NodeContext node_ctx(node->get_decoder(), ov_inputs);
+    const auto& decoder = std::dynamic_pointer_cast<ov::frontend::tensorflow_lite::DecoderBase>(node->get_decoder());
+    FRONT_END_GENERAL_CHECK(decoder != nullptr, "Decoder must be tensorflow_lite::DecoderBase or its child");
+    ov::frontend::tensorflow_lite::NodeContext node_ctx(decoder, ov_inputs);
     auto new_outputs = translator_it->second(node_ctx);
     ov::frontend::tensorflow_lite::op::set_output_names(node_ctx, new_outputs);
     auto old_outputs = node->outputs();
@@ -216,8 +218,9 @@ void FrontEnd::translate_graph(const InputModel::Ptr& model,
 
     // operations
     for (const auto& op_place : model_lite->get_op_places()) {
-        const auto& decoder = std::dynamic_pointer_cast<tensorflow_lite::DecoderFlatBuffer>(op_place->get_decoder());
-        FRONT_END_GENERAL_CHECK(decoder != nullptr, "Decoder must be DecoderFlatBuffer or its child");
+        // const auto& decoder = std::dynamic_pointer_cast<tensorflow_lite::DecoderFlatBuffer>(op_place->get_decoder());
+        const auto& decoder = std::dynamic_pointer_cast<tensorflow_lite::DecoderBase>(op_place->get_decoder());
+        FRONT_END_GENERAL_CHECK(decoder != nullptr, "Decoder must be tensorflow_lite::DecoderBase or its child");
         ov::OutputVector inputs(decoder->get_input_size());
         for (size_t i = 0; i < decoder->get_input_size(); ++i) {
             auto name = decoder->get_input_tensor_name(i);

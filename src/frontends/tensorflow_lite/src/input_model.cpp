@@ -105,7 +105,10 @@ void InputModel::InputModelTFLiteImpl::load_model() {
         }
 
         for (size_t i = 0; i < decoder->get_input_size(); ++i) {
-            auto place = decoder->decode_input_tensor(i, m_input_model);
+            // TODO: avoid use of DecoderFlatBuffer
+            const auto& decoder_flat_buffer =
+                std::dynamic_pointer_cast<ov::frontend::tensorflow_lite::DecoderFlatBuffer>(decoder);
+            auto place = decoder_flat_buffer->decode_input_tensor(i, m_input_model);
             auto name = place->get_names()[0];
             if (m_tensor_places.count(name) == 0) {
                 m_tensor_places[name] = place;
@@ -135,7 +138,10 @@ void InputModel::InputModelTFLiteImpl::load_model() {
             }
         }
         for (size_t i = 0; i < decoder->get_output_size(); ++i) {
-            auto place = decoder->decode_output_tensor(i, m_input_model);
+            // TODO: avoid use of DecoderFlatBuffer
+            const auto& decoder_flat_buffer =
+                std::dynamic_pointer_cast<ov::frontend::tensorflow_lite::DecoderFlatBuffer>(decoder);
+            auto place = decoder_flat_buffer->decode_output_tensor(i, m_input_model);
             auto name = place->get_names()[0];
             if (m_tensor_places.count(name) == 0)
                 m_tensor_places[name] = place;
