@@ -11,6 +11,7 @@
 namespace ov {
 
 TRANSFORMATIONS_API void mark_as_constant_node(const std::shared_ptr<Node>& node);
+TRANSFORMATIONS_API void mark_as_constant_node(const Output<Node>& node);
 
 TRANSFORMATIONS_API bool is_marked_as_constant_node(const std::shared_ptr<Node>& node);
 TRANSFORMATIONS_API bool is_marked_as_constant_node(const Output<Node>& node);
@@ -24,8 +25,9 @@ class TRANSFORMATIONS_API ConstantNode : public RuntimeAttribute {
 public:
     OPENVINO_RTTI("constant_node", "0");
 
+    // Not copyable for such subgraphs as ShapeOf
     bool is_copyable() const override {
-        return true;
+        return false;
     }
 };
 
