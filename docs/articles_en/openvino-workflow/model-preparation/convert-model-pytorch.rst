@@ -28,6 +28,7 @@ Here is the simplest example of PyTorch model conversion using a model from ``to
 * ``torch.nn.Module`` derived classes
 * ``torch.jit.ScriptModule``
 * ``torch.jit.ScriptFunction``
+* ``torch.export.ExportedProgram``
 
 When using ``torch.nn.Module`` as an input model, ``openvino.convert_model`` often requires the ``example_input`` parameter to be specified. Internally, it triggers the model tracing during the model conversion process, using the capabilities  of the ``torch.jit.trace`` function.
 
@@ -126,6 +127,35 @@ Check out more examples of model conversion with non-tensor data types in the fo
 * `Video Subtitle Generation using Whisper and OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/227-whisper-subtitles-generation>`__
 * `Visual Question Answering and Image Captioning using BLIP and OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/233-blip-visual-language-processing>`__
 
+Input and output names of the model
+###################################
+
+PyTorch doesn't produce relevant names for model inputs and outputs in the TorchScript representation. OpenVINO will assign input names based on the signature of models's ``forward`` method or ``dict`` keys provided in the ``example_input``. Output names will be assigned if there is a ``dict`` at the output or when there is some internal name available in the TorchScript model representation. In general, the output name is not assigned and stays empty. It is recommended to address model outputs by the index rather then the name.
+
+Support for torch.export
+########################
+
+`torch.export <https://pytorch.org/docs/2.2/export.html>` is the current way to get a graph representation of a model (since PyTorch 2.1). It produces ``ExportedProgram`` which includes the graph representation in the FX format. Refer to
+`PyTorch documentation <https://pytorch.org/docs/stable/fx.html>`__
+to see why it has advantage over the TorchScript representation.
+
+Here is an example of how to convert a model obtained with ``torch.export``:
+
+.. code-block:: py
+   :force:
+
+   from torchvision.models import resnet50, ResNet50_Weights
+   from torch.export import export
+   from openvino import convert_model
+
+   model = resnet50(weights=ResNet50_Weights.DEFAULT)
+   model.eval()
+   exported_model = export(model, (torch.randn(1, 3, 224, 224),))
+   ov_model = convert_model(exported_model)
+
+.. note::
+
+   This is an experimental feature. Use it only if you know that you need to. PyTorch version 2.2 is recommended. Dynamic shapes are not supported yet.
 
 Exporting a PyTorch Model to ONNX Format
 ########################################
