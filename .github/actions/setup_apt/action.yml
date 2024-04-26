@@ -11,7 +11,7 @@ runs:
     - name: Set Retry options
       shell: bash
       run: |
-        echo 'Acquire::Retries "3";' > /etc/apt/apt.conf
+        echo 'Acquire::Retries "3";' >> /etc/apt/apt.conf
 
     - name: Set Install options
       shell: bash
