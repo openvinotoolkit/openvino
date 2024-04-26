@@ -101,7 +101,7 @@ jobs:
           save-always: true # TODO: for the 1st run only
           cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
           cache-path: ${{ env.APT_CACHE_PATH }}/${{ runner.arch }}
-          path: '/var/cache/apt/archives'
+          path: '/var/cache/apt'
           key: build-main-${{ github.sha }}
           restore-keys: build-main
 
@@ -112,15 +112,15 @@ jobs:
         run: |
           apt update
 
-      - name: Simulate network errors
-        shell: bash
-        run: |
-          echo 'Acquire::http::Proxy "http://proxy.com:911";' >> /etc/apt/apt.conf
-          echo 'Acquire::https::Proxy "http://proxy.com:911";' >> /etc/apt/apt.conf
+      # - name: Simulate network errors
+      #   shell: bash
+      #   run: |
+      #     echo 'Acquire::http::Proxy "http://proxy.com:911";' >> /etc/apt/apt.conf
+      #     echo 'Acquire::https::Proxy "http://proxy.com:911";' >> /etc/apt/apt.conf
 
       - name: Install git
         run: |
-          apt install -y git ca-certificates
+          apt install git ca-certificates
 
       - name: Clone OpenVINO
         uses: actions/checkout@v4
