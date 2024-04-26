@@ -101,8 +101,7 @@ Run the following command:
    zypper se -i openvino
 
 .. note::
-
-   You can additionally install Python API using one of the alternative methods (:doc:`conda <openvino_docs_install_guides_installing_openvino_conda>` or :doc:`pip <openvino_docs_install_guides_installing_openvino_pip>`).
+   You can additionally install Python API using one of the alternative methods (:doc:`conda <install-openvino-conda>` or :doc:`pip <install-openvino-pip>`).
 
 Congratulations! You've just Installed OpenVINO! For some use cases you may still
 need to install additional components. Check the
