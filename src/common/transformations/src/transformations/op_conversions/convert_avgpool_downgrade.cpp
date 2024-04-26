@@ -61,10 +61,14 @@ ov::pass::ConvertAvgPool14ToAvgPool1::ConvertAvgPool14ToAvgPool1() {
             const auto pads_len = node_registry.make<Constant>(element::i64, Shape{}, pads_begin_v14.size());
             const auto pads_diff = node_registry.make<Subtract>(rank, pads_len);
             const auto pads_remaining = node_registry.make<Broadcast>(zero_i64, pads_diff);
-            const auto pads_begin_v1 =
-                node_registry.make<ov::op::v0::Concat>(OutputVector{std::move(pads_remaining), std::move(pads_begin_node)}, 0);
-            const auto pads_end_v1 =
-                node_registry.make<Concat>(OutputVector{std::move(pads_remaining), std::move(pads_begin_node)}, 0);
+            const auto pads_begin_v1 = node_registry.make<ov::op::v0::Concat>(
+                OutputVector{std::move(pads_remaining),
+                std::move(pads_begin_node)},
+                0);
+            const auto pads_end_v1 = node_registry.make<Concat>(
+                OutputVector{std::move(pads_remaining),
+                std::move(pads_begin_node)},
+                0);
             const auto pad_node =
                 node_registry.make<Pad>(input, pads_begin_v1, pads_end_v1, zero_node, ov::op::PadMode::CONSTANT);
             pads_begin = Shape(pads_begin_v14.size(), 0);
