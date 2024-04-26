@@ -86,8 +86,6 @@ private:
     static void init_decomposed_loop(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end,
                                      const ExpandedLoopInfoPtr& decomposed_loop_info, size_t unified_loop_id,
                                      const std::shared_ptr<op::LoopEnd>& decomposed_loop_end);
-
-    static std::array<SpecificLoopIterType, 3> m_iterations;
 };
 
 } // namespace pass
