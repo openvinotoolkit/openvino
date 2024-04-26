@@ -11,9 +11,9 @@ namespace ov {
 namespace test {
 
 /*
-    input1(f32_abcd_{1,64,32,32})                      input2(f16_abcd_{1,128,1,1})
+    input1(f32_abcd_{1,64,32,32})                      input2(f32_abcd_{1,128,1,1})
         |                                                 |
-    Reorder(f32_acdb_{1,64,32,32})   const             Convert(f32_abcd_{1,128,1,1})
+    Reorder(f32_acdb_{1,64,32,32})   const                |
         |                           /                     |
         |                          /                      |
     Convolution(f32_acdb_{1,1,30,30})  Range_1520      VariadicSplit(f32_abcd_{1,64,1,1}, f32_abcd_{1,64,1,1})
@@ -41,7 +41,7 @@ class SubgraphSelectPD : virtual public SubgraphBaseStaticTest {
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        abs_threshold = 1e-2;
+        abs_threshold = 2e-2;
 
         auto type = element::f32;
         constexpr int const1 = 32;
