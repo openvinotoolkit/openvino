@@ -106,6 +106,13 @@ function(ov_add_onednn)
         ov_add_compiler_flags(/wd4334)
     endif()
 
+    # remove CMAKE_COMPILE_WARNING_AS_ERROR for thirdparty
+    if(CMAKE_CROSSCOMPILING AND CMAKE_COMPILE_WARNING_AS_ERROR)
+        string(REPLACE " -Werror " "  " CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+        string(REPLACE " -Werror " "  "  CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+        set(CMAKE_COMPILE_WARNING_AS_ERROR "OFF")
+    endif()
+
     if(SUGGEST_OVERRIDE_SUPPORTED)
         # xbyak compilation fails
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
@@ -135,6 +142,11 @@ function(ov_add_onednn)
                 ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL})
     endif()
 endfunction()
+
+if (ENABLE_SNIPPETS_LIBXSMM_TPP)
+    add_subdirectory(libxsmm)
+    ov_install_static_lib(libxsmm ${OV_CPACK_COMP_CORE})
+endif()
 
 if(ENABLE_MLAS_FOR_CPU)
     add_subdirectory(mlas)
