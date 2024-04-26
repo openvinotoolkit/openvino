@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "transformations/rt_info/constant_node.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
