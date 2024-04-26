@@ -20,21 +20,14 @@ OutputVector translate_rrelu_fx(const NodeContext& context) {
     float default_upper = 1 / 3.0;
     Output<Node> lower = ov::op::v0::Constant::create(element::f32, Shape{1}, {default_lower});
     Output<Node> upper = ov::op::v0::Constant::create(element::f32, Shape{1}, {default_upper});
-    if (context.get_input_size() == 1) {
-        lower = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(lower, x));
-        upper = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(upper, x));
-    } else if (context.get_input_size() == 2) {
-        if (context.input_is_none(1)) {
-            lower = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(lower, x));
-            upper = context.get_input(2);
-        } else if (context.input_is_none(2)) {
-            lower = context.get_input(1);
-            upper = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(upper, x));
-        }
-    } else {
+    if (!context.input_is_none(1)) {
         lower = context.get_input(1);
+    }
+    if (!context.input_is_none(2)) {
         upper = context.get_input(2);
     }
+    lower = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(lower, x));
+    upper = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(upper, x));
     auto lower_plus_upper = context.mark_node(std::make_shared<ov::op::v1::Add>(lower, upper));
     auto two = context.mark_node(v0::Constant::create(element::f32, Shape{}, {2.0f});
     auto average = context.mark_node(std::make_shared<v1::Divide>(lower_plus_upper, two));
