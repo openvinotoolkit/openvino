@@ -604,7 +604,6 @@ void Snippet::SnippetJitExecutor::segfault_detector() {
 #endif
 
 void Snippet::SnippetJitExecutor::schedule_6d(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
-    const auto& dom = parallel_exec_domain;
     // < N, C, H, W > < 1, 1, N, C*H*W>
     const auto& callable = schedule.get_callable<kernel>();
 #if defined(__linux__) && defined(OPENVINO_ARCH_X86_64) && defined(SNIPPETS_DEBUG_CAPS)
@@ -617,14 +616,13 @@ void Snippet::SnippetJitExecutor::schedule_6d(const std::vector<MemoryPtr>& inMe
         size_t start = 0, end = 0;
         splitter(harnessWorkAmount, nthr, ithr, start, end);
 
-        int64_t indexes[] = {0, 0, 0, 0, 0};
+        size_t indexes[] = {0, 0, 0, 0, 0};
+        size_t dom[] = {parallel_exec_domain[0], parallel_exec_domain[1], parallel_exec_domain[2],
+                        parallel_exec_domain[3], parallel_exec_domain[4]};
+        parallel_it_init(start, indexes[0], dom[0], indexes[1], dom[1], indexes[2], dom[2], indexes[3], dom[3], indexes[4], dom[4]);
         for (size_t iwork = start; iwork < end; ++iwork) {
-            size_t tmp = iwork;
-            for (int j = 4; j >= 0; j--) {
-                indexes[j] = static_cast<int64_t>(tmp % dom[j]);
-                tmp /= dom[j];
-            }
             callable(&call_args, indexes);
+            parallel_it_step(indexes[0], dom[0], indexes[1], dom[1], indexes[2], dom[2], indexes[3], dom[3], indexes[4], dom[4]);
         }
     });
 }
