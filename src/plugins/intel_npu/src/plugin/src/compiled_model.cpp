@@ -230,12 +230,7 @@ void CompiledModel::initialize_properties() {
          {true,
           ov::PropertyMutability::RO,
           [&](const Config& config) {
-              // This mainly concerns the device name displayed to the user
-              // e.g. "NPU.3720" or "NPU" if the platform is set to "AUTO_DETECT"
-              if (config.get<PLATFORM>() == ov::intel_npu::Platform::AUTO_DETECT) {
-                  return std::string("NPU");
-              }
-              return std::string("NPU.") + ov::intel_npu::Platform::standardize(config.get<PLATFORM>());
+              return std::string("NPU");
           }}},
         {ov::loaded_from_cache.name(),
          {true,
