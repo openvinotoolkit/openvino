@@ -27,7 +27,7 @@ layout scatter_elements_update_inst::calc_output_layout(scatter_elements_update_
     auto output_type = input_layout.data_type;
 
     if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
     }
 
     if (static_cast<size_t>(axis) < 0 || static_cast<size_t>(axis) >= input_number_of_dims)

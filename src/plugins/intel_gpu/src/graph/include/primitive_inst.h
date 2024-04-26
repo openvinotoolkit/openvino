@@ -181,14 +181,16 @@ public:
     virtual event::ptr set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0);
     void check_memory_to_set(const memory& mem, const layout& layout) const;
     const std::list<const cldnn::program_node *>& get_users() const { return _node->get_users(); }
-    std::vector<primitive_inst*> get_user_insts() const {
+    const std::vector<primitive_inst*>& get_user_insts() const { return _users; }
+    void init_users() {
         std::vector<primitive_id> users;
         for (auto u : get_users()) {
             users.push_back(u->id());
         }
-        return _network.get_primitives(users);
+        _users = _network.get_primitives(users);
     }
-    std::set<size_t> get_runtime_memory_dependencies() { return _runtime_memory_dependencies; }
+
+    const std::set<size_t>& get_runtime_memory_dependencies() const { return _runtime_memory_dependencies; }
 
     const kernel_impl_params* get_impl_params() const { return _impl_params.get(); }
     // return pointer to const to prevent arbitrary 'execute' call -> use primitive_inst.execute() instead
@@ -320,6 +322,8 @@ protected:
 
     // List of depandant shape_of primitives for shape_of subgraphs
     std::vector<primitive_inst*> dependant_shape_of_insts;
+
+    std::vector<primitive_inst*> _users;
     // this is a set of dependencies in terms of execution
     // execution of all primitives from this set should be enough to guarantee that all memory deps (see _deps)
     // will be valid when executing this primitive. Most of the time this set will be equal to the _deps minus all
@@ -422,7 +426,7 @@ protected:
         auto output_type = impl_param.desc->output_data_types[0].value_or(in_layout.data_type);
 
         if (impl_param.has_fused_primitives()) {
-            output_type = impl_param.get_fused_output_layout().data_type;
+            output_type = impl_param.get_output_element_type();
         }
 
         return { layout(in_layout.get<ShapeType>(), output_type, in_layout.format) };

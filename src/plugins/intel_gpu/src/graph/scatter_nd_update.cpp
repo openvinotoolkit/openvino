@@ -21,7 +21,7 @@ layout scatter_nd_update_inst::calc_output_layout(scatter_nd_update_node const& 
     auto output_type = input_layout.data_type;
 
     if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
     }
 
     return layout{output_type, input_format, output_shape};

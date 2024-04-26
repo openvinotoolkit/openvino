@@ -864,6 +864,7 @@ void network::build_insts_deps() {
     GPU_DEBUG_DEFINE_MEM_LOGGER("build_insts_deps");
     for (auto& inst : _primitives) {
         inst.second->build_deps();
+        inst.second->init_users();
         inst.second->configure_shape_of_dependencies();
     }
 }
@@ -917,7 +918,6 @@ std::map<primitive_id, network_output> network::execute(const std::vector<event:
     }
     return result;
 }
-
 
 void network::execute_impl(const std::vector<event::ptr>& events) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "NetworkImpl::Execute");

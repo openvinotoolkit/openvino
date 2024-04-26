@@ -24,7 +24,7 @@ layout concatenation_inst::calc_output_layout(concatenation_node const& node, ke
 
     auto output_dt = desc->output_data_types[0].value_or(input_layout.data_type);
     if (impl_param.has_fused_primitives()) {
-        output_dt = impl_param.get_fused_output_layout().data_type;
+        output_dt = impl_param.get_output_element_type();
     }
 
     auto axis_index = desc->axis;
@@ -52,7 +52,7 @@ std::vector<layout> concatenation_inst::calc_output_layouts(const concatenation_
 
     auto output_dt = desc->output_data_types[0].value_or(input_layout.data_type);
     if (impl_param.has_fused_primitives()) {
-        output_dt = impl_param.get_fused_output_layout().data_type;
+        output_dt = impl_param.get_output_element_type();
     }
     auto output_format = input_layout.format;
     for (size_t i = 0; i < desc->input.size(); ++i) {
