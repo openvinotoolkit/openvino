@@ -29,7 +29,7 @@ public:
     bool run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 
 private:
-    bool reuse_increments(const LinearIR::LoopManagerPtr& loop_manager, const ExpressionPtr& loop_end_expr);
+    bool reuse_increments(const LoopManagerPtr& loop_manager, const ExpressionPtr& loop_end_expr);
 };
 
 } // namespace pass

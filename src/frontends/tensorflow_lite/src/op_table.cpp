@@ -86,7 +86,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         {"FULLY_CONNECTED", DEQUANTIZE_INPUTS(fully_connected)},
         {"GATHER", DEQUANTIZE_INPUTS(gather)},
         {"GATHER_ND", DEQUANTIZE_INPUTS(translate_gather_nd_op)},
-        // GELU
+        {"GELU", DEQUANTIZE_INPUTS(gelu)},
         {"GREATER", translate_binary<opset8::Greater>},
         {"GREATER_EQUAL", translate_binary<opset8::GreaterEqual>},
         {"HARD_SWISH", translate_unary<opset8::HSwish>},

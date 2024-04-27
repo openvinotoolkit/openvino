@@ -7,13 +7,12 @@
 #include <fstream>
 
 #include "compiled_model.hpp"
+#include "compiler.hpp"
 #include "device_helpers.hpp"
 #include "intel_npu/al/config/common.hpp"
 #include "intel_npu/al/config/compiler.hpp"
 #include "intel_npu/al/config/runtime.hpp"
 #include "intel_npu/al/itt.hpp"
-#include "npu_compiler.hpp"
-#include "npu_metrics.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
@@ -292,22 +291,28 @@ Plugin::Plugin()
               const auto specifiedDeviceName = get_specified_device_name(config);
               return _metrics->GetFullDeviceName(specifiedDeviceName);
           }}},
+        {ov::hint::model_priority.name(),
+         {true,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<MODEL_PRIORITY>();
+          }}},
         // OV Internals
         // =========
         {ov::internal::caching_properties.name(),
-         {true,
+         {false,
           ov::PropertyMutability::RO,
           [&](const Config&) {
               return _metrics->GetCachingProperties();
           }}},
         {ov::internal::exclusive_async_requests.name(),
-         {true,
+         {false,
           ov::PropertyMutability::RW,
           [](const Config& config) {
               return config.get<EXCLUSIVE_ASYNC_REQUESTS>();
           }}},
         {ov::internal::supported_properties.name(),
-         {true,
+         {false,
           ov::PropertyMutability::RO,
           [&](const Config&) {
               return _metrics->GetInternalSupportedProperties();
@@ -330,16 +335,10 @@ Plugin::Plugin()
          {true,
           ov::PropertyMutability::RO,
           [&](const Config& config) {
-              return _metrics->GetDriverVersion(get_specified_device_name(config));
+              return _metrics->GetDriverVersion();
           }}},
         // NPU Private
         // =========
-        {ov::hint::model_priority.name(),
-         {false,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<MODEL_PRIORITY>();
-          }}},
         {ov::intel_npu::dma_engines.name(),
          {false,
           ov::PropertyMutability::RW,
@@ -417,6 +416,12 @@ Plugin::Plugin()
           ov::PropertyMutability::RW,
           [](const Config& config) {
               return config.get<PROFILING_TYPE>();
+          }}},
+        {ov::intel_npu::backend_compilation_params.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.getString<BACKEND_COMPILATION_PARAMS>();
           }}},
     };
 

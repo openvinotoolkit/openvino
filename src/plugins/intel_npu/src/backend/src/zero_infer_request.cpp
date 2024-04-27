@@ -15,9 +15,6 @@ using namespace intel_npu;
 
 namespace {
 
-constexpr bool STATE_TENSOR = true;
-constexpr bool NOT_STATE_TENSOR = false;
-
 /**
  * @brief Checks that the metadata of the provided descriptor corresponds to the values registered in the Level Zero
  * structure.
@@ -35,7 +32,7 @@ void check_level_zero_attributes_match(const IONodeDescriptor& nodeDescriptor,
         OPENVINO_THROW("Precision mismatch for parameter " + name);
     }
 
-    const std::vector<size_t>& ovDimensions = nodeDescriptor.originalShape.get_shape();
+    const std::vector<size_t>& ovDimensions = nodeDescriptor.originalShape.get_max_shape();
 
     if (ovDimensions.size() > ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE) {
         OPENVINO_THROW(
@@ -44,7 +41,7 @@ void check_level_zero_attributes_match(const IONodeDescriptor& nodeDescriptor,
     }
 
     for (size_t index = 0; index < ovDimensions.size(); ++index) {
-        if (ovDimensions[index] != zeDescriptor.info.dims[index]) {
+        if (ovDimensions[index] != zeDescriptor.info.dims[index] && !nodeDescriptor.originalShape.is_dynamic()) {
             OPENVINO_THROW("Shape mismatch for parameter " + name);
         }
     }
@@ -90,6 +87,12 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
     zeroUtils::throwOnFail("zeDeviceGetProperties",
                            zeDeviceGetProperties(_executor->getInitStructs()->getDevice(), &properties));
 
+    const auto contains = [](const auto& container, const auto& value) {
+        return std::find(container.begin(), container.end(), value) != container.end();
+    };
+
+    auto allocator = zeroMemory::HostMemAllocator(backendPtr);
+
     for (const std::string& inputName : _metadata.inputNames) {
         if (!executorInputDescriptors.count(inputName)) {
             OPENVINO_THROW("Invalid graph input descriptor key: " + inputName);
@@ -98,15 +101,26 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
         const IONodeDescriptor& parameterDescriptor = _metadata.parameters.at(inputName);
         check_level_zero_attributes_match(parameterDescriptor, executorInputDescriptors.at(inputName), inputName);
 
-        ov::Allocator allocator;
+        ov::Allocator inputAllocator;
         if (properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED) {
-            allocator = zeroMemory::HostMemAllocator(backendPtr, ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED);
+            inputAllocator = zeroMemory::HostMemAllocator(backendPtr, ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED);
         } else {
-            allocator = zeroMemory::HostMemAllocator(backendPtr);
-        }
+            inputAllocator = zeroMemory::HostMemAllocator(backendPtr);
+        };
 
         // The I/O buffers already allocated using the Level Zero API are being reused here
-        allocate_tensor(inputName, parameterDescriptor, NOT_STATE_TENSOR, allocator);
+        allocate_tensor(inputName, parameterDescriptor, TensorType::InputOrOutput, inputAllocator);
+
+        if (contains(_metadata.shapeNames, inputName)) {
+            const std::string shapeBufferName = SHAPE_TENSOR_PREFIX + inputName;
+            const IONodeDescriptor& shapeDescriptor = _metadata.shapes.at(inputName);
+
+            check_level_zero_attributes_match(shapeDescriptor,
+                                              executorInputDescriptors.at(shapeBufferName),
+                                              shapeBufferName);
+
+            allocate_tensor(inputName, shapeDescriptor, TensorType::Shape, inputAllocator);
+        }
     }
 
     for (const std::string& outputName : _metadata.outputNames) {
@@ -117,9 +131,21 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
         const IONodeDescriptor& resultDescriptor = _metadata.results.at(outputName);
         check_level_zero_attributes_match(resultDescriptor, executorOutputDescriptors.at(outputName), outputName);
 
-        auto allocator = zeroMemory::HostMemAllocator(backendPtr);
+        allocate_tensor(outputName, resultDescriptor, TensorType::InputOrOutput, allocator);
 
-        allocate_tensor(outputName, resultDescriptor, NOT_STATE_TENSOR, allocator);
+        const auto& shapeNameMatch = _nodeNameToLegacyName.find(outputName);
+        if (shapeNameMatch != _nodeNameToLegacyName.end()) {
+            if (contains(_metadata.shapeNames, shapeNameMatch->second)) {
+                const std::string shapeBufferName = SHAPE_TENSOR_PREFIX + shapeNameMatch->second;
+                const IONodeDescriptor& shapeDescriptor = _metadata.shapes.at(shapeNameMatch->second);
+
+                check_level_zero_attributes_match(shapeDescriptor,
+                                                  executorOutputDescriptors.at(shapeBufferName),
+                                                  shapeBufferName);
+
+                allocate_tensor(shapeNameMatch->second, shapeDescriptor, TensorType::Shape, allocator);
+            }
+        }
     }
 
     for (const std::string& stateName : _metadata.stateNames) {
@@ -141,11 +167,9 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
                                           executorOutputDescriptors.at(stateOutputBufferName),
                                           stateOutputBufferName);
 
-        auto allocator = zeroMemory::HostMemAllocator(backendPtr);
-
         // Only one buffer per state variable is required, we'll use the "output" one since this one captures the latest
         // tensor value
-        allocate_tensor(stateName, stateDescriptor, STATE_TENSOR, allocator);
+        allocate_tensor(stateName, stateDescriptor, TensorType::State, allocator);
     }
 
     /// Construct pipepline
@@ -162,8 +186,18 @@ void ZeroInferRequest::infer_async() {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "infer_async");
 
     for (const auto& name : _inputAndStateInputNames) {
-        const std::shared_ptr<ov::ITensor>& inputTensor = _allTensors.at(name);
-        const std::shared_ptr<ov::ITensor>& wrapperInputTensor = _copyAllTensors.at(name);
+        auto& inputTensor = _allTensors.at(name);
+        const auto& wrapperInputTensor = _copyAllTensors.at(name);
+
+        if (isShapeTensorName(name)) {
+            const auto actualTensorName = name.substr(SHAPE_TENSOR_PREFIX.size());
+            const auto& inputDims = _allTensors.at(actualTensorName)->get_shape();
+
+            for (size_t i = 0; i < inputTensor->get_size(); ++i) {
+                const auto reverseIdx = inputDims.size() - 1 - i;
+                inputTensor->data<uint32_t>()[i] = static_cast<uint32_t>(inputDims[reverseIdx]);
+            }
+        }
 
         const uint8_t* tensorBuffer = reinterpret_cast<uint8_t*>(inputTensor->data());
         uint8_t* copyTensorBuffer = reinterpret_cast<uint8_t*>(wrapperInputTensor->data());
@@ -186,8 +220,24 @@ void ZeroInferRequest::get_result() {
     _pipeline->pull();
 
     for (const auto& name : _outputAndStateOutputNames) {
-        const std::shared_ptr<ov::ITensor>& outputTensor = _allTensors.at(name);
-        const std::shared_ptr<ov::ITensor>& wrapperOutputTensor = _copyAllTensors.at(name);
+        const auto& outputTensor = _allTensors.at(name);
+        const auto& wrapperOutputTensor = _copyAllTensors.at(name);
+
+        if (isShapeTensorName(name)) {
+            const auto actualTensorName = name.substr(SHAPE_TENSOR_PREFIX.size());
+            const auto& shapeNameMatch = _legacyNameToNodeName.find(actualTensorName);
+            if (shapeNameMatch != _legacyNameToNodeName.end()) {
+                ov::Shape actualDims;
+                actualDims.reserve(outputTensor->get_size());
+
+                for (size_t i = 0; i < outputTensor->get_size(); ++i) {
+                    const auto reverseIdx = outputTensor->get_size() - 1 - i;
+                    actualDims.push_back(outputTensor->data<uint32_t>()[reverseIdx]);
+                }
+                auto& tensorToBeReshaped = _allTensors.at(shapeNameMatch->second);
+                tensorToBeReshaped->set_shape(actualDims);
+            }
+        }
 
         uint8_t* tensorBuffer = reinterpret_cast<uint8_t*>(outputTensor->data());
         const uint8_t* copyTensorBuffer = reinterpret_cast<uint8_t*>(wrapperOutputTensor->data());

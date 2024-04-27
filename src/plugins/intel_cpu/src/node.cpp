@@ -907,6 +907,13 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryD
 }
 
 void Node::toNumaNode(int numaNodeID) {
+    if (!isExecutable())
+        return;
+
+    return toNumaNodeImpl(numaNodeID);
+}
+
+void Node::toNumaNodeImpl(int numaNodeID) {
     if (curNumaNode == numaNodeID)
         return;
 
@@ -1700,7 +1707,7 @@ void Node::fuseDQScales(const float* scaleData, const size_t scaleSize) {
              DQScales[i] *= scaleData[i];
          }
      }
-     if (std::all_of(DQScales.begin(), DQScales.end(), [=](float val){ return (val == DQScales[0]);}))
+     if (std::all_of(DQScales.begin(), DQScales.end(), [OV_CAPTURE_CPY_AND_THIS](float val){ return (val == DQScales[0]);}))
         DQScales.resize(1);
 }
 
