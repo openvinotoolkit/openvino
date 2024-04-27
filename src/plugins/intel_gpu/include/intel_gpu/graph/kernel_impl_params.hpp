@@ -89,6 +89,8 @@ struct kernel_impl_params final {
                        , primary_input_idx(0) {
     }
 
+    virtual ~kernel_impl_params() = default;
+
     const layout& get_input_layout(size_t idx = 0) const {
         OPENVINO_ASSERT(input_layouts.size() > idx,
                         "The size of input layouts must be greater than the requested index: ",

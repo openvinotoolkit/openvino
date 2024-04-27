@@ -75,7 +75,7 @@ TransposeMatMulMatcher::TransposeMatMulMatcher() {
 
     auto matmul_m = wrap_type<ov::op::v0::MatMul>({ matmul_in_a, matmul_in_b }, is_dynamic);
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto matmul = std::dynamic_pointer_cast<ov::op::v0::MatMul>(pattern_map.at(matmul_m).get_node_shared_ptr());
@@ -161,7 +161,7 @@ TransposeMatMulTransposeMatcher::TransposeMatMulTransposeMatcher() {
     auto transpose_c_order_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
     auto transpose_c_m = wrap_type<ov::op::v1::Transpose>({matmul_m, transpose_c_order_m});
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto matmul = std::dynamic_pointer_cast<ov::op::v0::MatMul>(pattern_map.at(matmul_m).get_node_shared_ptr());

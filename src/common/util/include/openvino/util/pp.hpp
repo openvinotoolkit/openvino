@@ -51,3 +51,15 @@
 
 // Ignores inputs
 #define OV_PP_IGNORE(...)
+
+/* This macro is intended to fix C++20 [=] lambda
+warning. Although C++20 identifier is 202002L,
+some compilers supporting C++20, or their drafts like
+C++2a, producing the warning, are using 201402L value.
+Also, MSVC requires a special check due to the
+__cplusplus value compatibility issues.*/
+#if (defined(_MSVC_LANG) && (_MSVC_LANG >= 202002L)) || (__cplusplus >= 202002L)
+#    define OV_CAPTURE_CPY_AND_THIS =, this
+#else
+#    define OV_CAPTURE_CPY_AND_THIS =
+#endif /* C++20 */

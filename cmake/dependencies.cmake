@@ -158,6 +158,7 @@ function(ov_download_tbb)
         update_deps_cache(TBB_DIR "${TBBROOT}/lib/cmake/TBB" "Path to TBB cmake folder")
     elseif(EXISTS "${TBBROOT}/lib/cmake/tbb/TBBConfig.cmake")
         # oneTBB release package version less than 2021.6.0
+        # or TBB from oneAPI package
         update_deps_cache(TBB_DIR "${TBBROOT}/lib/cmake/tbb" "Path to TBB cmake folder")
     elseif(EXISTS "${TBBROOT}/lib64/cmake/TBB/TBBConfig.cmake")
         # 64-bits oneTBB case

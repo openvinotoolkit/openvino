@@ -10,6 +10,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/pass/mha_tokenization.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ov::pass;
 
@@ -26,7 +27,7 @@ ov::snippets::pass::ExtractReshapesFromMHA::ExtractReshapesFromMHA() {
     auto add_2_m = pattern::wrap_type<opset1::Add>({add_1_m, sparse_input_2_m}, static_shape_single_consumer);
     auto reshape_2_m = pattern::wrap_type<opset1::Reshape>({add_2_m, pattern::wrap_type<opset1::Constant>()}, pattern::has_static_shape());
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::ExtractReshapesFromMHA")
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& matmul = pattern_map.at(matmul_m);

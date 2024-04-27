@@ -10,6 +10,7 @@
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 #include "template_model_transformation.hpp"
 
 // ! [graph_rewrite:template_transformation_cpp]
@@ -61,7 +62,7 @@ ov::pass::ReluReluFusionMatcher::ReluReluFusionMatcher() {
     auto m_relu1 = ov::pass::pattern::wrap_type<ov::opset3::Relu>(pattern::consumers_count(1));
     auto m_relu2 = ov::pass::pattern::wrap_type<ov::opset3::Relu>({m_relu1});
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         // Map that helps to connect labels with matched outputs
         auto& node_to_output = m.get_pattern_value_map();
 

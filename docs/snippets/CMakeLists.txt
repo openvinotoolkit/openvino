@@ -4,11 +4,8 @@
 
 set(TARGET_NAME openvino_docs_snippets)
 
-if(CMAKE_COMPILER_IS_GNUCXX)
+if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM)
     ov_add_compiler_flags(-Wall)
-endif()
-
-if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
     ov_add_compiler_flags(-Wno-unused-variable)
 endif()
 if(UNUSED_BUT_SET_VARIABLE_SUPPORTED)

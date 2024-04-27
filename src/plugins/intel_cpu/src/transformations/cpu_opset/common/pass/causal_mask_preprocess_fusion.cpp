@@ -199,7 +199,7 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
                                                         nullptr);  //  tensor_array<f32[?,1,?,..8192]>
     auto result = index_Gather;
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
         PatternValidator validator(m);
