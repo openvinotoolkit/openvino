@@ -18,6 +18,7 @@ bool JitEltwiseExecutor::isSupported(
     const float beta,
     const float gamma) {
     const auto is_supported = one_of(algorithm,
+                                     Algorithm::EltwiseAbs,
                                      Algorithm::EltwiseAdd,
                                      Algorithm::EltwiseClamp,
                                      Algorithm::EltwiseDivide,
@@ -30,7 +31,9 @@ bool JitEltwiseExecutor::isSupported(
                                      Algorithm::EltwiseRelu,
                                      Algorithm::EltwiseSelect,
                                      Algorithm::EltwiseSigmoid,
-                                     Algorithm::EltwiseSubtract);
+                                     Algorithm::EltwiseSubtract,
+                                     Algorithm::EltwiseSwish,
+                                     Algorithm::EltwiseTanh);
     if (!is_supported) {
         return false;
     }

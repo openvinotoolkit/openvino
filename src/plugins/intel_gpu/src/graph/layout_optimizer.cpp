@@ -922,12 +922,6 @@ static bool is_node_for_onednn(fully_connected_node const& node) {
 
     if (fc_prim->compressed_weights) {
         auto weights_dt = node.weights().get_output_layout().data_type;
-        if (ov::element::Type(weights_dt).bitwidth() != 8)
-            return false;
-
-        if (fc_prim->decompression_zero_point_scalar.has_value())
-            return false;
-
         if (!fc_prim->decompression_zero_point.empty()) {
             auto decompression_zp_idx = fc_prim->bias.empty() ? 3 : 4;
             auto decompression_zp_dt = node.get_input_layout(decompression_zp_idx).data_type;
@@ -1146,9 +1140,14 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
         return format::adjust_to_rank(format::bfyx, output_layout.get_partial_shape().size());
     }
 
-    // Use planar bfyx format for dynamic convolutions with explicit padding
-    if (node.is_dynamic() && output_layout.get_partial_shape().size() == 4 && node.use_explicit_padding() && !i8_u8_input)
+    bool onednn_valid_post_ops = get_post_ops_count(node) <= 32;
+    bool use_onednn_impls = _optimization_attributes.use_onednn_impls && input_layout.data_type != data_types::f32;
+
+    // Use planar bfyx format for dynamic convolutions with explicit padding in clDNN
+    if (node.is_dynamic() && output_layout.get_partial_shape().size() == 4 && node.use_explicit_padding() && !i8_u8_input &&
+        !(use_onednn_impls && onednn_valid_post_ops && !node.has_padded_dependency())) {
         return format::bfyx;
+    }
 
     if (input_layout.is_dynamic() || output_layout.is_dynamic()) {
         if (input_layout.get_partial_shape().size() <= 4)
@@ -1159,9 +1158,6 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
     }
 
     const float cond_denom = _total_conv > 0 ? 1.0f / static_cast<float>(_total_conv) : 1.0f;
-
-    bool onednn_valid_post_ops = get_post_ops_count(node) <= 32;
-    bool use_onednn_impls = _optimization_attributes.use_onednn_impls && input_layout.data_type != data_types::f32;
 
     if (use_onednn_impls && onednn_valid_post_ops && node.get_preferred_output_fmt() != format::any) {
         expected_format = node.get_preferred_output_fmt();
@@ -1373,7 +1369,7 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
             const auto& fc_node = node.as<fully_connected>();
             const auto fc_prim = fc_node.get_primitive();
             wei_dt = fc_node.weights().get_output_layout(false).data_type;
-            if (fc_prim->compressed_weights && ov::element::Type(wei_dt).bitwidth() == 8)
+            if (fc_prim->compressed_weights)
                 return true;
         } else {
             wei_dt = node.as<gemm>().get_input_layout(1).data_type;

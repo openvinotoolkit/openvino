@@ -63,7 +63,7 @@ OutputVector translate_tensor_array_v3_op(const NodeContext& node) {
     default_op_checks(node, 1, {"TensorArrayV3"});
     auto dtype = node.get_attribute<element::Type>("dtype");
     auto size = node.get_input(0);
-    auto element_shape = node.get_attribute<PartialShape>("element_shape");
+    auto element_shape = node.get_attribute<PartialShape>("element_shape", ov::PartialShape::dynamic());
     bool dynamic_size = node.get_attribute<bool>("dynamic_size", false);
     int64_t element_rank = element_shape.rank().is_static() ? element_shape.rank().get_length() : -1;
 

@@ -57,6 +57,7 @@ add_library(${PROJECT_NAME} SHARED
     ${CMAKE_CURRENT_SOURCE_DIR}/src/preprocess/resize_algorithm.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/errors.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/helper.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/type_validation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/tensor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/infer_request.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiled_model.cpp
@@ -101,6 +102,8 @@ ov_set_install_rpath(${PROJECT_NAME}
     ${OV_CPACK_RUNTIMEDIR} ${OV_CPACK_RUNTIMEDIR})
 
 ov_add_clang_format_target(${PROJECT_NAME}_clang FOR_TARGETS ${PROJECT_NAME})
+
+ov_cpack_add_component(${OV_CPACK_COMP_NPM} HIDDEN)
 
 install(TARGETS ${PROJECT_NAME}
     LIBRARY DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${PROJECT_NAME} ${OV_CPACK_COMP_NPM_EXCLUDE_ALL}

@@ -47,7 +47,7 @@ Linux operating system (as of the current version).
 
       python -m venv openvino_llm
 
-      ``openvino_llm`` is an example name; you can choose any name for your environment.
+   ``openvino_llm`` is an example name; you can choose any name for your environment.
 
 2. Activate the virtual environment
 

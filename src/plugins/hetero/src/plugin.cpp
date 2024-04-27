@@ -162,14 +162,18 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
                 } else if (available_discrete_device_memory >= 1.2 * total_ops_size ||
                            available_device_mem_map.count("CPU")) {
                     float model_ratio =
-                        static_cast<float>(available_device_mem_map[device_name] * 1.0 / (1.2 * total_ops_size));
+                        total_ops_size > 0
+                            ? static_cast<float>(available_device_mem_map[device_name] * 1.0 / (1.2 * total_ops_size))
+                            : 1.0f;
                     if (total_ops_size < available_device_mem_map[device_name]) {
                         model_ratio = 1.0f;
                     }
                     device_config[ov::internal::query_model_ratio.name()] = model_ratio;
                 } else {
-                    float model_ratio = static_cast<float>(available_device_mem_map[device_name] * 1.0 /
-                                                           available_discrete_device_memory);
+                    float model_ratio = available_discrete_device_memory > 0
+                                            ? static_cast<float>(available_device_mem_map[device_name] * 1.0 /
+                                                                 available_discrete_device_memory)
+                                            : 1.0f;
                     device_config[ov::internal::query_model_ratio.name()] = model_ratio;
                 }
                 // Remove the current device
@@ -275,7 +279,7 @@ ov::Any ov::hetero::Plugin::get_property(const std::string& name, const ov::AnyM
         supported_properties.reserve(ro_properties.size() + rw_properties.size());
         supported_properties.insert(supported_properties.end(), ro_properties.begin(), ro_properties.end());
         supported_properties.insert(supported_properties.end(), rw_properties.begin(), rw_properties.end());
-        return decltype(ov::supported_properties)::value_type(supported_properties);
+        return decltype(ov::supported_properties)::value_type(std::move(supported_properties));
     } else if (ov::internal::supported_properties == name) {
         return decltype(ov::internal::supported_properties)::value_type{
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO}};
