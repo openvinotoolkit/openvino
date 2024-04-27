@@ -83,6 +83,8 @@ macro(ov_cpack_settings)
         2024.1.0
         )
 
+    ov_check_conflicts_versions(conflicting_versions)
+
     find_host_program(rpmlint_PROGRAM NAMES rpmlint DOC "Path to rpmlint")
     if(rpmlint_PROGRAM)
         execute_process(COMMAND "${rpmlint_PROGRAM}" --version
