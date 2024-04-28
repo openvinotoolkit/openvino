@@ -31,8 +31,8 @@
 
 using namespace cldnn;
 
-int get_env(std::string key, int &val);
-int get_env(std::string key, int &val) {
+static int get_env(std::string key, int &val);
+static int get_env(std::string key, int &val) {
         if (const auto env_var = std::getenv(key.c_str())) {
             val = std::atoi(env_var);
             return true;
