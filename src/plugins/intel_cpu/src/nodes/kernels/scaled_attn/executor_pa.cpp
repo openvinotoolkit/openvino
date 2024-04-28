@@ -609,8 +609,8 @@ struct MHAHelper {
     PlainTensor _weight;             // [nthr, H, 32, rnd_up(kv_len, block_size)], shared by first and second loop along bh
     PlainTensor _output;            // [nthr, 32, H, S], shared by first and second loop along bh
     PlainTensor _qk_scratch_a;      // [nthr, scratch_a_size]
-    PlainTensor _qk_scratch_b;
-    PlainTensor _wv_scratch_a;      // [B, Hk, rnd_up(kv_len, block_size), scratch_b_size]
+    PlainTensor _qk_scratch_b;      // [B, rnd_up(kv_len, block_size), Hk, scratch_b_size]
+    PlainTensor _wv_scratch_a;
     PlainTensor _wv_scratch_b;
     std::vector<size_t> _wsp;
     size_t _wsp_size_per_thread = 0;
@@ -631,7 +631,7 @@ struct MHAHelper {
     }
 
     void init(size_t H, size_t S, size_t Hk, size_t h_each_group_len, size_t block_size, size_t sliding_window,
-              float d_scale, size_t new_batch, size_t kv_len) {
+              float d_scale, size_t kv_len) {
         // query shape: [B, H, L, S]
         // present_key shape: [block, H, 32, S]
         // Q*K': [M1, S] * [M2, S]'
@@ -707,8 +707,11 @@ struct MHAHelper {
             if (_fastpath_valid && !_gemv)
                 _gemv = std::make_shared<JitMatMulVecAMX>(static_cast<int>(S), static_cast<int>(block_size));
         }
-        _qk_scratch_b.resize<DATA_TYPE>({new_batch, Hk, div_up(kv_len, _block_size), _qk_gemm[_block_size - 1]->get_scratch_b_size() / sizeof(DATA_TYPE)});
-        _wv_scratch_b.resize<DATA_TYPE>({new_batch, Hk, div_up(kv_len, _block_size), _wv_gemm[_block_size - 1]->get_scratch_b_size() / sizeof(DATA_TYPE)});
+    }
+
+    void init_reorder_buffers(size_t batch, size_t kv_len_in_blocks) {
+        _qk_scratch_b.resize<DATA_TYPE>({batch, kv_len_in_blocks, _Hk, _qk_gemm[_block_size - 1]->get_scratch_b_size() / sizeof(DATA_TYPE)});
+        _wv_scratch_b.resize<DATA_TYPE>({batch, kv_len_in_blocks, _Hk, _wv_gemm[_block_size - 1]->get_scratch_b_size() / sizeof(DATA_TYPE)});
     }
 
     // compute one block(such as 32 tokens) of query in M dimension: softmax(q_block*k')*v
@@ -716,8 +719,8 @@ struct MHAHelper {
     //  query: [H, L, S]
     //  present_value: [block_number, H, 32, S]
     //  output_emb: [L, H * S]
-    //  qk_scratch_b: [Hk, rnd_up(kv_len, block_size), scratch_b_size]
-    //  wv_scratch_b: [Hk, rnd_up(kv_len, block_size), scratch_b_size]
+    //  qk_scratch_b: [rnd_up(kv_len, block_size), Hk, scratch_b_size]
+    //  wv_scratch_b: [rnd_up(kv_len, block_size), Hk, scratch_b_size]
     void exec_kernel_multiple(const PlainTensor& query, const PlainTensor& present_value, const PlainTensor& output_emb,
         const PlainTensor& qk_scratch_b, const PlainTensor& wv_scratch_b,
         const int32_t* block_table, size_t ithr, size_t q_blk, size_t hk, size_t q_len, size_t cur_kv_len) {
@@ -735,7 +738,7 @@ struct MHAHelper {
             // 1 1 1 0 ...
             // just computing the positions of 1 should be enough
             for (size_t k_blk = 0; k_blk <= q_blk; k_blk++) {
-                auto* k_ptr = qk_scratch_b.ptr<DATA_TYPE>(hk, k_blk);
+                auto* k_ptr = qk_scratch_b.ptr<DATA_TYPE>(k_blk, hk);
                 _qk_gemm[q_cnt - 1]->executeGemm(q_cnt < _block_size,
                                                  q_ptr,
                                                  k_ptr,
@@ -791,7 +794,7 @@ struct MHAHelper {
             for (size_t v_blk = 0; v_blk <= q_blk; v_blk++) {
                 DATA_TYPE* v_ptr;
                 if (is_bf16) {
-                    v_ptr = wv_scratch_b.ptr<DATA_TYPE>(hk, v_blk);
+                    v_ptr = wv_scratch_b.ptr<DATA_TYPE>(v_blk, hk);
                 } else {
                     v_ptr = present_value.ptr<DATA_TYPE>(block_table[v_blk], hk);
                 }
@@ -1023,6 +1026,10 @@ struct MHAMultiple {
         auto B = query.m_dims[0];
         auto Hk = present_value.m_dims[1];
         bool is_bf16 = precision_of<DATA_TYPE>::value == ov::element::bf16;
+
+        // buffer for transpose and repack
+        _helper.init_reorder_buffers(B, block_tables.m_dims[1]);
+
         PROFILE(_attn, "brgemm_pack");
         // packed k, v
         parallel_for3d_dynamic(B, block_tables.m_dims[1], Hk, [&](size_t b, size_t kv_block, size_t hk) {
@@ -1031,9 +1038,9 @@ struct MHAMultiple {
                 return;
             auto* k_ptr = present_key.ptr<DATA_TYPE>(block_number, hk);
             auto* v_ptr = present_value.ptr<DATA_TYPE>(block_number, hk);
-            _helper._qk_gemm[_helper._block_size - 1]->copy_buffer_b(k_ptr, _helper._qk_scratch_b.template ptr<DATA_TYPE>(b, hk, kv_block));
+            _helper._qk_gemm[_helper._block_size - 1]->copy_buffer_b(k_ptr, _helper._qk_scratch_b.template ptr<DATA_TYPE>(b, kv_block, hk));
             if (is_bf16)
-                _helper._wv_gemm[_helper._block_size - 1]->copy_buffer_b(v_ptr, _helper._wv_scratch_b.template ptr<DATA_TYPE>(b, hk, kv_block));
+                _helper._wv_gemm[_helper._block_size - 1]->copy_buffer_b(v_ptr, _helper._wv_scratch_b.template ptr<DATA_TYPE>(b, kv_block, hk));
         });
 
         _attn = ov::intel_cpu::profilerManagerInstance.startProfile("brgemm_attn");
@@ -1126,12 +1133,221 @@ struct MHASingle {
 };
 
 template <typename DATA_TYPE, typename KVCACHE_TYPE>
+struct MHAMixed {
+    MHAHelper<DATA_TYPE, KVCACHE_TYPE>& _helper;
+    struct AttnWorkItem {
+        int32_t batch_in_reorder;                   // which batch in reorder buffer will be used
+        int32_t batch_in_query;                     // batch idx in query
+        int32_t q_len;                              // current sequence length, 1 for second token, 2+ for first token
+        int32_t q_block_id;                         // block id in this seq, valid at first token
+    };
+    struct ReorderWorkItem {
+        int32_t batch_in_query_last;                // last batch idx in a sentence
+        int32_t batch_in_reorder;                   // which batch in reorder buffer will be used
+        int32_t kv_block_id;                        // block id in this kv cache seq
+    };
+    struct WorkItems {
+    private:
+        std::vector<AttnWorkItem> attn_items;
+        std::vector<ReorderWorkItem> reorder_items;
+        int32_t max_kv_len_in_reorder;              // max kv len between first tokens
+        int32_t max_batch_in_reorder;
+
+    public:
+        void reset(const PlainTensor& query, const PlainTensor& context_lens, const PlainTensor& subsequence_lens, size_t block_size) {
+            attn_items.clear();
+            reorder_items.clear();
+            max_kv_len_in_reorder = 0;
+            max_batch_in_reorder = 0;
+
+            int32_t start_batch_in_query = 0;
+            auto seq_cout = static_cast<int32_t>(subsequence_lens.m_dims[0]);
+            for (int32_t i = 0; i < seq_cout; i++) {
+                auto q_len = subsequence_lens.ptr<int32_t>()[i];
+                if (q_len == 1) {
+                    attn_items.emplace_back(AttnWorkItem{
+                        0,                          // batch_in_reorder
+                        start_batch_in_query,       // batch_in_query
+                        1ull,                       // q_len
+                        0                           // q_block_id
+                    });
+                    start_batch_in_query++;
+                } else {
+                    // workitems for transpose, repack
+                    // last token corresponding batch index
+                    auto batch_in_query_last = start_batch_in_query + q_len - 1;
+                    auto kv_len = context_lens.ptr<int32_t>()[batch_in_query_last];
+                    max_kv_len_in_reorder = std::max(max_kv_len_in_reorder, kv_len);
+                    auto reorder_sub_work_count = static_cast<int32_t>(div_up(kv_len, block_size));
+                    for (int32_t block_id = 0; block_id < reorder_sub_work_count; block_id++) {
+                        reorder_items.emplace_back(ReorderWorkItem{
+                            batch_in_query_last,     // batch_in_query_last
+                            max_batch_in_reorder,    // batch_in_reorder
+                            block_id                 // kv_block_id
+                        });
+                    }
+
+                    // workitems for attention
+                    auto attn_sub_work_count = static_cast<int32_t>(div_up(q_len, block_size));
+                    for (int32_t block_id = 0; block_id < attn_sub_work_count; block_id++) {
+                        attn_items.emplace_back(AttnWorkItem{
+                            max_batch_in_reorder,    // batch_in_reorder
+                            start_batch_in_query,    // batch_in_query
+                            q_len,                   // q_len
+                            block_id                 // q_block_id
+                        });
+                    }
+                    start_batch_in_query += q_len;
+                    max_batch_in_reorder++;
+                }
+            }
+        }
+        const AttnWorkItem& get_attn_work_item(size_t idx) const {
+            return attn_items[idx];
+        }
+        size_t attn_work_size() const {
+            return attn_items.size();
+        }
+        const ReorderWorkItem& get_reorder_work_item(size_t idx) const {
+            return reorder_items[idx];
+        }
+        size_t reorder_work_size() const {
+            return reorder_items.size();
+        }
+        size_t get_reorder_max_batch_size() const {
+            return static_cast<size_t>(max_batch_in_reorder);
+        }
+        size_t get_reorder_max_kv_len() const {
+            return static_cast<size_t>(max_kv_len_in_reorder);
+        }
+    };
+
+    WorkItems _workitems;
+
+    MHAMixed(MHAHelper<DATA_TYPE, KVCACHE_TYPE>& helper) : _helper(helper) {}
+
+    // one loop to handle first and second tokens
+    void exec_loop_mixed(const PlainTensor& query,
+                         const PlainTensor& present_key,
+                         const PlainTensor& present_value,
+                         const PlainTensor& output_emb,
+                         const PlainTensor& block_tables,
+                         size_t max_context_len,
+                         const PlainTensor& context_lens,
+                         const PlainTensor& subsequence_lens) {
+        auto Hk = present_value.m_dims[1];
+
+        bool is_bf16 = precision_of<DATA_TYPE>::value == ov::element::bf16;
+        auto attn_work_count = _workitems.attn_work_size();
+        auto reorder_work_count = _workitems.reorder_work_size();
+
+        PROFILE(_attn, "mixed_pack");
+        // buffer for transpose and repack
+        _helper.init_reorder_buffers(_workitems.get_reorder_max_batch_size(), div_up(_workitems.get_reorder_max_kv_len(), _helper._block_size));
+
+        // packed k, v
+        parallel_for2d_dynamic(reorder_work_count, Hk, [&](size_t w, size_t hk) {
+            const auto& item = _workitems.get_reorder_work_item(w);
+            const auto batch_in_query_last = item.batch_in_query_last;
+            const auto batch_in_reorder = item.batch_in_reorder;
+            const auto kv_block = item.kv_block_id;
+            auto block_number = block_tables.ptr<int32_t>(batch_in_query_last)[kv_block];
+            if (block_number < 0)
+                return;
+            auto* k_ptr = present_key.ptr<DATA_TYPE>(block_number, hk);
+            auto* v_ptr = present_value.ptr<DATA_TYPE>(block_number, hk);
+            _helper._qk_gemm[_helper._block_size - 1]->copy_buffer_b(k_ptr, _helper._qk_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk));
+            if (is_bf16)
+                _helper._wv_gemm[_helper._block_size - 1]->copy_buffer_b(v_ptr, _helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk));
+        });
+
+        _attn = ov::intel_cpu::profilerManagerInstance.startProfile("mixed_attn");
+        parallel_for2d_dynamic(attn_work_count, Hk, [&](size_t w, size_t hk) {
+            const auto& item = _workitems.get_attn_work_item(w);
+            const auto batch_in_query = item.batch_in_query;
+            const auto q_len = static_cast<size_t>(item.q_len);
+            size_t ithr = parallel_get_thread_num();
+            if (q_len == 1) {
+                const auto cur_kv_len = static_cast<size_t>(context_lens.ptr<int32_t>()[batch_in_query]);
+                // second token
+                _helper.exec_kernel_one_bh(query.slice(0, batch_in_query, batch_in_query), present_key, present_value,
+                    output_emb.slice(0, batch_in_query, batch_in_query), block_tables.ptr<int32_t>(batch_in_query), ithr, hk, 1ul, cur_kv_len);
+            } else {
+                const auto batch_in_reorder = item.batch_in_reorder;
+                const auto q_blk = item.q_block_id;
+                const auto q_start = static_cast<size_t>(batch_in_query) + q_blk * _helper._block_size;
+                const auto q_cnt = std::min(_helper._block_size, q_len - q_blk * _helper._block_size);
+                const auto cur_kv_len = static_cast<size_t>(context_lens.ptr<int32_t>()[q_start + q_cnt - 1]);
+                PlainTensor sub_query;
+                sub_query.resize({q_len, _helper._H, _helper._S}, query.ptr<DATA_TYPE>(batch_in_query));
+                sub_query = sub_query.permute({1, 0, 2});
+                _helper.exec_kernel_multiple(sub_query,
+                    present_value,
+                    output_emb.slice(0, batch_in_query, batch_in_query + q_len).reshape({q_len, _helper._H * _helper._S}),
+                    _helper._qk_scratch_b.slice(0, batch_in_reorder, batch_in_reorder),
+                    _helper._wv_scratch_b.slice(0, batch_in_reorder, batch_in_reorder),
+                    block_tables.ptr<int32_t>(q_start + q_cnt - 1),
+                    ithr,
+                    q_blk,
+                    hk,
+                    q_len,
+                    cur_kv_len);
+            }
+        });
+    }
+
+    // Q, K, V is ready, do attention
+    void operator()(PlainTensor& query,
+                    PlainTensor& present_key,
+                    PlainTensor& present_value,
+                    PlainTensor& output_emb,
+                    const PlainTensor& block_tables,
+                    size_t max_context_len,
+                    const PlainTensor& context_lens,
+                    const PlainTensor& subsequence_lens) {
+        auto B_in_query = query.size(0);
+        auto nthr = static_cast<size_t>(parallel_get_max_threads());
+
+        auto H = query.size(1);
+        auto S = query.size(3);
+        auto Hk = present_value.size(1);
+        char buf[256];
+        size_t real_len = 0;
+        size_t aligned_len = 0;
+        for (size_t b = 0; b < B_in_query; b++) {
+            auto s = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
+            real_len += s;
+            aligned_len += (s + 15) / 16 * 16;
+        }
+        size_t access_size;
+        if (present_value.m_dt != ov::element::u8)
+            access_size = Hk * real_len * S * (32 * present_value.m_element_size);
+        else
+            access_size = Hk * real_len * (S + 8) * 32;
+        access_size += B_in_query * H * S * 2 * 32;    // query
+        access_size += aligned_len * H * 4 * 32; // m_attn_w
+        // only consider k or v theoretical cost
+        snprintf(buf, sizeof(buf), "t1_BL%ld,%ld,MC%.2f,%.2f", B_in_query, real_len, access_size / 260000000.0f,
+            H * real_len * S * 32 / 16 * 2 / 60 / 1800000.0f);
+        PROFILE(_attn, buf);
+
+        _workitems.reset(query, context_lens, subsequence_lens, _helper._block_size);
+        if (subsequence_lens.m_dims[0] >= nthr || _workitems.get_reorder_max_batch_size() > 0) {
+            exec_loop_mixed(query, present_key, present_value, output_emb, block_tables, max_context_len, context_lens, subsequence_lens);
+        } else {
+            _helper.exec_loop_bhl(query, present_key, present_value, output_emb, block_tables, max_context_len, context_lens);
+        }
+    }
+};
+
+template <typename DATA_TYPE, typename KVCACHE_TYPE>
 struct AttentionExecutor : public PagedAttentionExecutor {
     MHAHelper<DATA_TYPE, KVCACHE_TYPE> _helper;
     MHAMultiple<DATA_TYPE, KVCACHE_TYPE> _kernel_multiple;
     MHASingle<DATA_TYPE, KVCACHE_TYPE> _kernel_single;
+    MHAMixed<DATA_TYPE, KVCACHE_TYPE> _kernel_mixed;
 
-    AttentionExecutor() : _kernel_multiple(_helper), _kernel_single(_helper) {}
+    AttentionExecutor() : _kernel_multiple(_helper), _kernel_single(_helper), _kernel_mixed(_helper) {}
 
     void execute(const std::vector<MemoryPtr>& inputs, const MemoryPtr output) override {
         bool is_prompt = false;
@@ -1187,24 +1403,19 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             scale_input = 1.0f / sqrt(S);
 
         q_input.assert_dims({B, L1, H * S});
-        if (!is_prompt) {
-            context_lens.assert_dims({B});
-            block_tables.assert_dims({B, 0}, true);
-        } else {
-            sliding_window = static_cast<size_t>(*inputs[ID_SLIDING_WINDOW]->getDataAs<int32_t>());
-        }
         output_emb.assert_dims({B, L1, H * S});
         q_input = q_input.reshape({B, L1, H, S}).permute({0, 2, 1, 3});
         k_input = k_input.reshape({B, L1, Hk, S}).permute({0, 2, 1, 3});
         v_input = v_input.reshape({B, L1, Hk, S}).permute({0, 2, 1, 3});
 
-        _helper.init(H, S, Hk, h_each_group_len, block_size, sliding_window, scale_input, B, max_context_len);
+        _helper.init(H, S, Hk, h_each_group_len, block_size, sliding_window, scale_input, max_context_len);
 
         if (is_prompt) {
             char buf[256];
             snprintf(buf, sizeof(buf), "first_BL%ld,%ld", B, L1);
             _attn = ov::intel_cpu::profilerManagerInstance.startProfile(buf);
 
+            sliding_window = static_cast<size_t>(*inputs[ID_SLIDING_WINDOW]->getDataAs<int32_t>());
             // always construct block_tables, max_context_len, context_lens from slot_mapping
             {
                 PlainTensor slot_mapping;
@@ -1228,7 +1439,18 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             // multi-token version
             _kernel_multiple(q_input, present_key, present_value, output_emb, block_tables, max_context_len, context_lens);
         } else {
-            _kernel_single(q_input, present_key, present_value, output_emb, block_tables, max_context_len, context_lens);
+            context_lens.assert_dims({B});
+            block_tables.assert_dims({B, 0}, true);
+            if (inputs.size() > 13) {
+                // first and second tokens mixed path
+                // subsequence_lens contains the length of each sequence
+                PlainTensor subsequence_lens;
+                subsequence_lens.reset(inputs[ID_SUBSEQUENCE_LENS]);
+
+                _kernel_mixed(q_input, present_key, present_value, output_emb, block_tables, max_context_len, context_lens, subsequence_lens);
+            } else {
+                _kernel_single(q_input, present_key, present_value, output_emb, block_tables, max_context_len, context_lens);
+            }
         }
     }
 };

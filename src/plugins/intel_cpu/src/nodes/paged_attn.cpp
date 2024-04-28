@@ -69,7 +69,8 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
 
     NodeConfig config;
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-    config.inConfs.resize(getOriginalInputsNumber());
+    auto orgInputNumber = getOriginalInputsNumber();
+    config.inConfs.resize(orgInputNumber);
     config.outConfs.resize(getOriginalOutputsNumber());
     config.inConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
         rtPrecision, getInputShapeAtPort(0)));
@@ -78,7 +79,7 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
     config.inConfs[2].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
         rtPrecision, getInputShapeAtPort(2)));
 
-    OPENVINO_ASSERT(getOriginalInputsNumber() == 13, "The input number of PagedAttention should be 13.");
+    OPENVINO_ASSERT(orgInputNumber == 13 || orgInputNumber == 14, "The input number of PagedAttention should be 13 or 14.");
     // kvcache, float, []
     auto past_kv_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
     config.inConfs[PagedAttentionExecutor::ID_KCACHE].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
@@ -109,6 +110,11 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
     // sliding_window, int, []
     config.inConfs[PagedAttentionExecutor::ID_SLIDING_WINDOW].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
         ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_SLIDING_WINDOW)));
+    if (orgInputNumber == 14) {
+        // subsequence_lens, int, [batch_size]
+        config.inConfs[PagedAttentionExecutor::ID_SUBSEQUENCE_LENS].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+            ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_SUBSEQUENCE_LENS)));
+    }
 
     config.outConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
         rtPrecision, getOutputShapeAtPort(0)));

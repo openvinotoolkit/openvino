@@ -30,6 +30,7 @@ struct PagedAttentionExecutor {
     static const size_t ID_SCALE = 10;
     static const size_t ID_ALIBI_SLOPES = 11;
     static const size_t ID_SLIDING_WINDOW = 12;
+    static const size_t ID_SUBSEQUENCE_LENS = 13;
     virtual void execute(const std::vector<ov::intel_cpu::MemoryPtr>& inputs, const ov::intel_cpu::MemoryPtr output) = 0;
 };
 
