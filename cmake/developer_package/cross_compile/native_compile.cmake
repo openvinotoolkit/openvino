@@ -62,7 +62,7 @@ function(ov_native_compile_external_project)
     endif()
 
     # compile flags
-    if(CMAKE_COMPILER_IS_GNUCXX)
+    if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM)
         set(compile_flags "-Wno-undef -Wno-error -Wno-deprecated-declarations")
     endif()
 
