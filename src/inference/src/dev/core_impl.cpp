@@ -1289,9 +1289,7 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
                 if (device_supports_cache_dir(plugin.second)) {
                     ov::AnyMap empty_map;
                     auto cacheConfig = coreConfig.get_cache_config_for_device(plugin.second, empty_map);
-                    if (cacheConfig._cacheManager || cacheConfig._unsetCacheDir) {
-                        configCopy[ov::cache_dir.name()] = cacheConfig._cacheDir;
-                    }
+                    configCopy[ov::cache_dir.name()] = cacheConfig._cacheDir;
                 } else if (configCopy.count(ov::cache_dir.name()) > 0) {
                     // Remove "CACHE_DIR" from config if it is not supported by plugin
                     configCopy.erase(ov::cache_dir.name());
@@ -1554,15 +1552,13 @@ ov::CoreImpl::CoreConfig::CacheConfig ov::CoreImpl::CoreConfig::get_cache_config
 
 ov::CoreImpl::CoreConfig::CacheConfig ov::CoreImpl::CoreConfig::CacheConfig::create(const std::string& dir) {
     std::shared_ptr<ov::ICacheManager> cache_manager = nullptr;
-    bool unsetCacheDir = true;
 
     if (!dir.empty()) {
         ov::util::create_directory_recursive(dir);
         cache_manager = std::make_shared<ov::FileStorageCacheManager>(dir);
-        unsetCacheDir = false;
     }
 
-    return {dir, cache_manager, unsetCacheDir};
+    return {dir, cache_manager};
 }
 
 std::mutex& ov::CoreImpl::get_mutex(const std::string& dev_name) const {
