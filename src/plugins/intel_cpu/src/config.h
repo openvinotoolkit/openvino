@@ -71,6 +71,8 @@ struct Config {
     bool changedCpuPinning = false;
     ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
     std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy = {};
+    int streamsRankLevel = 1;
+    int numSubStreams = 0;
     bool enableHyperThreading = true;
     bool changedHyperThreading = false;
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)

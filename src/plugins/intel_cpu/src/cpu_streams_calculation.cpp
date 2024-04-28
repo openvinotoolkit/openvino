@@ -54,8 +54,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                                       const IStreamsExecutor::Config::StreamsMode sub_streams_model,
                                       const int& target_proc) {
         stream_info[PROC_TYPE] = ALL_PROC;
-        stream_info[NUMBER_OF_STREAMS] =
-            sub_streams_model == IStreamsExecutor::Config::StreamsMode::SUB_STREAMS_NULL ? 1 : -1;
+        stream_info[NUMBER_OF_STREAMS] = 1;
         stream_info[THREADS_PER_STREAM] = num_threads;
         update_ids_method(one_proc_info);
         streams_info_table.push_back(stream_info);
@@ -108,8 +107,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
         } else {
             stream_info[PROC_TYPE] =
                 one_proc_info[MAIN_CORE_PROC] >= num_threads ? MAIN_CORE_PROC : EFFICIENT_CORE_PROC;
-            stream_info[NUMBER_OF_STREAMS] =
-                sub_streams_model == IStreamsExecutor::Config::StreamsMode::SUB_STREAMS_NULL ? 1 : -1;
+            stream_info[NUMBER_OF_STREAMS] = 1;
             stream_info[THREADS_PER_STREAM] = num_threads;
             update_ids_method(one_proc_info);
             streams_info_table.push_back(stream_info);
@@ -461,6 +459,33 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
     return streams_info_table;
 }
 
+std::vector<std::vector<int>> get_streams_rank_table(const std::vector<std::vector<int>>& streams_info_table,
+                                                     const int input_rank_level,
+                                                     int& num_sub_streams) {
+    std::vector<std::vector<int>> rank_table = {};
+    num_sub_streams = 0;
+    std::vector<int> init_rank = {};
+    int rank_level = input_rank_level == 0 ? 1 : input_rank_level;
+    init_rank.resize(rank_level, 0);
+
+    for (auto& row : streams_info_table) {
+        if (row[NUMBER_OF_STREAMS] > 0) {
+            for (int i = 0; i < row[NUMBER_OF_STREAMS]; i++) {
+                init_rank[rank_level - 1] = num_sub_streams + i;
+                rank_table.push_back(init_rank);
+            }
+            num_sub_streams += row[NUMBER_OF_STREAMS];
+        }
+    }
+    if (rank_level == 2) {
+        for (int i = num_sub_streams / 2; i < num_sub_streams; i++) {
+            rank_table[i][0] = 1;
+            rank_table[i][1] -= num_sub_streams / 2;
+        }
+    }
+    return rank_table;
+}
+
 int get_model_prefer_threads(const int num_streams,
                              const std::vector<std::vector<int>> proc_type_table,
                              const std::shared_ptr<ov::Model>& model,
@@ -607,6 +632,12 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                      ov::util::to_string(config.hintPerfMode),
                                                      config.modelDistributionPolicy,
                                                      proc_type_table);
+
+    if (config.modelDistributionPolicy.find(ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL) !=
+        config.modelDistributionPolicy.end()) {
+        auto streams_rank_table =
+            get_streams_rank_table(streams_info_table, config.streamsRankLevel, config.numSubStreams);
+    }
 
     auto cpu_reservation =
         get_cpu_pinning(config.enableCpuPinning, config.changedCpuPinning, proc_type_table, streams_info_table);
