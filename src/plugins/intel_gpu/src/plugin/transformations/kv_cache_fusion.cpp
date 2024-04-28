@@ -11,8 +11,10 @@
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/sink.hpp"
@@ -46,7 +48,7 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
     auto present_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{concat, convert_present});
     auto present = wrap_type<ov::op::v6::Assign>({present_input});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         if (transformation_callback(m.get_match_root())) {
             return false;
         }

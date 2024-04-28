@@ -209,7 +209,7 @@ void regclass_CompiledModel(py::module m) {
 
     cls.def(
         "input",
-        (const ov::Output<const ov::Node>& (ov::CompiledModel::*)(const std::string&)const) & ov::CompiledModel::input,
+        (const ov::Output<const ov::Node>& (ov::CompiledModel::*)(const std::string&) const) & ov::CompiledModel::input,
         py::arg("tensor_name"),
         R"(
                 Gets input of a compiled model identified by a tensor_name.
@@ -253,11 +253,11 @@ void regclass_CompiledModel(py::module m) {
                 :rtype: openvino.runtime.ConstOutput
             )");
 
-    cls.def(
-        "output",
-        (const ov::Output<const ov::Node>& (ov::CompiledModel::*)(const std::string&)const) & ov::CompiledModel::output,
-        py::arg("tensor_name"),
-        R"(
+    cls.def("output",
+            (const ov::Output<const ov::Node>& (ov::CompiledModel::*)(const std::string&) const) &
+                ov::CompiledModel::output,
+            py::arg("tensor_name"),
+            R"(
                 Gets output of a compiled model identified by a tensor_name.
                 If the output with given tensor name is not found, this method throws an exception.
 
