@@ -50,14 +50,25 @@ void ov::hetero::CompiledModel::compile_model(const std::shared_ptr<ov::Model>& 
         }
     }
 
+    // Restore properties in order to pass "device priorities" together
+    // with devices properties
+    auto full_properties = m_cfg.get_hetero_properties();
+    for (const auto& property : m_cfg.get_device_properties())
+        full_properties[property.first] = property.second;
+
     auto compile_device_model = [&](CompiledModelDesc& compiled_model_desc, bool add_exclusive) {
         auto meta_devices =
             get_hetero_plugin()->get_properties_per_device(compiled_model_desc.device, m_cfg.get_device_properties());
+        auto model_distribution_policy =
+            get_hetero_plugin()->get_property(ov::hint::model_distribution_policy.name(), full_properties);
+        const bool enable_pipeline_parallel =
+            model_distribution_policy.as<std::set<ov::hint::ModelDistributionPolicy>>().count(
+                ov::hint::ModelDistributionPolicy::PIPELINE_PARALLEL);
         // disable caching for subgraphs, because the whole HETERO model is cached
         auto device_config = meta_devices[compiled_model_desc.device];
         device_config[ov::cache_dir.name()] = "";
-        // set exclusive_async_requests in case when model is split
-        if (add_exclusive) {
+        // set exclusive_async_requests in case when model is split and disable pipeline parallel
+        if (add_exclusive && !enable_pipeline_parallel) {
             auto supported_internal_properties =
                 get_hetero_plugin()->get_core()->get_property(compiled_model_desc.device,
                                                               ov::internal::supported_properties);
@@ -92,12 +103,6 @@ void ov::hetero::CompiledModel::compile_model(const std::shared_ptr<ov::Model>& 
             ++id;
         }
     } else {
-        // Restore properties in order to pass "device priorities" together
-        // with devices properties
-        auto full_properties = m_cfg.get_hetero_properties();
-        for (const auto& property : m_cfg.get_device_properties())
-            full_properties[property.first] = property.second;
-
         // This function modifes original model
         auto cloned_model = model->clone();
         std::tie(query_model_result, m_mapping_info) =
