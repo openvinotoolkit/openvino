@@ -31,6 +31,16 @@
 
 using namespace cldnn;
 
+int get_env(std::string key, int &val);
+int get_env(std::string key, int &val) {
+        if (const auto env_var = std::getenv(key.c_str())) {
+            val = std::atoi(env_var);
+            return true;
+        }
+        return false;
+}
+
+
 namespace cldnn {
 bool concat_noop_optimization::match(concatenation_node& node) {
     if (node.is_output())
@@ -411,6 +421,25 @@ static bool can_crop_be_optimized_along_feature(const crop_node& node) {
     return false;
 }
 
+static bool can_crop_be_optimized_along_batch(const crop_node& node) {
+    const auto& crop_layout = node.get_output_layout();
+    auto format = crop_layout.format;
+    auto input_layout = node.get_dependency(0).get_output_layout();
+    const auto crop_shape = crop_layout.get_ordered_dims();
+    const auto input_shape = input_layout.get_ordered_dims();
+    const auto& in_padding = input_layout.data_padding;
+    const auto& out_padding = crop_layout.data_padding;
+
+    // Check format's order is 'bxxx' and only batch size is different
+    if (format::is_simple_data_format(format) && format.dims_order()[0] == 0 &&
+        std::equal(input_shape.begin()+1, input_shape.end(), crop_shape.begin()+1) &&
+        !out_padding && !in_padding) {
+        return true;
+    }
+
+    return false;
+}
+
 static bool can_crop_be_optimized_simple_data_format(const crop_node& node) {
     const auto& crop_layout = node.get_output_layout();
     auto format = crop_layout.format;
@@ -487,12 +516,6 @@ void prepare_buffer_fusing::run(program& p) {
         auto& node = (*node_itr++);
         if (!node->is_valid_output_layout())
             continue;
-        if (node->id().find("__module.down_blocks.0.attentions.0.transformer_blocks.0.ff.net.0/prim::ListUnpack/VariadicSplit.out0") != std::string::npos) {
-            GPU_DEBUG_COUT << "__module.down_blocks.0.attentions.0.transformer_blocks.0.ff.net.0/prim::ListUnpack/VariadicSplit.out0 " << std::endl;
-        }
-        if (node->id().find("__module.down_blocks.0.attentions.0.transformer_blocks.0.ff.net.0/prim::ListUnpack/VariadicSplit.out1") != std::string::npos) {
-            GPU_DEBUG_COUT << "__module.down_blocks.0.attentions.0.transformer_blocks.0.ff.net.0/prim::ListUnpack/VariadicSplit.out1 " << std::endl;
-        }
         if (!can_optimize(node))
             continue;
 
@@ -541,6 +564,9 @@ void prepare_buffer_fusing::run(program& p) {
                 auto input_layout = node.get_input_layout(0);
                 auto crop_prim = node.get_primitive();
 
+                int val = 0;
+                get_env("TEST_CROP", val);
+
                 //  Regular crop
                 //  crop input buffer
                 //  |___________data____________|
@@ -582,38 +608,7 @@ void prepare_buffer_fusing::run(program& p) {
                                 opt_upper_pad,
                                 out_pad.upper_size().spatial[0],
                                 out_pad.upper_size().spatial[1]}));
-                // } else if (can_crop_be_optimized_along_batch(node)) {
-                //     auto crop_prim = node.get_primitive();
-                //     auto opt_lower_pad = crop_prim->offsets.batch[0];
-                //     auto opt_upper_pad = input_layout.batch() - crop_prim->offsets.batch[0] - crop_size.batch[0];
-
-                //     padding new_padding;
-                //     if (crop_layout.get_rank() == 4) {
-                //         new_padding = padding({opt_lower_pad,
-                //                     out_pad.lower_size().feature[0],
-                //                     out_pad.lower_size().spatial[0],
-                //                     out_pad.lower_size().spatial[1]},
-                //                     {opt_upper_pad,
-                //                     out_pad.upper_size().feature[0],
-                //                     out_pad.upper_size().spatial[0],
-                //                     out_pad.upper_size().spatial[1]});
-                //     } else if (crop_layout.get_rank() == 5) {
-                //         new_padding = padding({opt_lower_pad,
-                //                 out_pad.lower_size().feature[0],
-                //                 out_pad.lower_size().spatial[0],
-                //                 out_pad.lower_size().spatial[1],
-                //                 out_pad.lower_size().spatial[2]},
-                //                 {opt_upper_pad,
-                //                 out_pad.upper_size().feature[0],
-                //                 out_pad.upper_size().spatial[0],
-                //                 out_pad.upper_size().spatial[1],
-                //                 out_pad.upper_size().spatial[2]});
-                //     } else {
-                //         return;
-                //     }
-
-                //     node.set_output_padding(new_padding);
-                } else if (can_crop_be_optimized_simple_data_format(node)) {
+                } else if (can_crop_be_optimized_simple_data_format(node) && val == 1) {
                     auto crop_prim = node.get_primitive();
 
                     std::vector<int32_t> lower_sizes;
@@ -628,21 +623,6 @@ void prepare_buffer_fusing::run(program& p) {
                     for (size_t i = 0; i < input_layout.get_spatial_rank(); i++) {
                         upper_sizes.push_back(input_layout.spatial(i) - crop_prim->offsets.spatial[i] - crop_size.spatial[i]);
                     }
-
-                    // auto opt_lower_pad_b = crop_prim->offsets.batch[0];
-                    // auto opt_upper_pad_b = input_layout.batch() - crop_prim->offsets.batch[0] - crop_size.batch[0];
-                    // auto opt_lower_pad_f = crop_prim->offsets.feature[0];
-                    // auto opt_upper_pad_f = input_layout.feature() - crop_prim->offsets.feature[0] - crop_size.feature[0];
-                    // auto opt_lower_pad_s0 = crop_prim->offsets.spatial[0];
-                    // auto opt_upper_pad_s0 = input_layout.spatial(0) - crop_prim->offsets.spatial[0] - crop_size.spatial[0];
-                    // auto opt_lower_pad_s1 = crop_prim->offsets.spatial[1];
-                    // auto opt_upper_pad_s1 = input_layout.spatial(1) - crop_prim->offsets.spatial[1] - crop_size.spatial[1];
-
-                    // auto opt_lower_pad = crop_prim->offsets.spatial[0];
-                    // auto opt_upper_pad = input_layout.spatial(0) - crop_prim->offsets.spatial[0] - crop_size.spatial[0];
-                    // std::cout << "input/crop spatial0: " << input_layout.spatial(0) << ", " << crop_size.spatial[0] << std::endl;
-                    // std::cout << "input/crop spatial1: " << input_layout.spatial(1) << ", " << crop_size.spatial[1] << std::endl;
-                    // std::cout << "opt_lower_pad(offset): " << crop_prim->offsets.spatial[0] << ", " << crop_prim->offsets.spatial[1] << std::endl;
 
                     padding new_padding;
                     new_padding = padding(lower_sizes, upper_sizes);
@@ -669,6 +649,37 @@ void prepare_buffer_fusing::run(program& p) {
                         return;
                     }
 #endif
+                    node.set_output_padding(new_padding);
+                } else if (can_crop_be_optimized_along_batch(node)) {
+                    auto crop_prim = node.get_primitive();
+                    auto opt_lower_pad = crop_prim->offsets.batch[0];
+                    auto opt_upper_pad = input_layout.batch() - crop_prim->offsets.batch[0] - crop_size.batch[0];
+
+                    padding new_padding;
+                    if (crop_layout.get_rank() == 4) {
+                        new_padding = padding({opt_lower_pad,
+                                    out_pad.lower_size().feature[0],
+                                    out_pad.lower_size().spatial[0],
+                                    out_pad.lower_size().spatial[1]},
+                                    {opt_upper_pad,
+                                    out_pad.upper_size().feature[0],
+                                    out_pad.upper_size().spatial[0],
+                                    out_pad.upper_size().spatial[1]});
+                    } else if (crop_layout.get_rank() == 5) {
+                        new_padding = padding({opt_lower_pad,
+                                out_pad.lower_size().feature[0],
+                                out_pad.lower_size().spatial[0],
+                                out_pad.lower_size().spatial[1],
+                                out_pad.lower_size().spatial[2]},
+                                {opt_upper_pad,
+                                out_pad.upper_size().feature[0],
+                                out_pad.upper_size().spatial[0],
+                                out_pad.upper_size().spatial[1],
+                                out_pad.upper_size().spatial[2]});
+                    } else {
+                        return;
+                    }
+
                     node.set_output_padding(new_padding);
                 } else {
                     return;
