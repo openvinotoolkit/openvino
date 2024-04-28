@@ -23,6 +23,16 @@ LinearIR::constExprIt InsertSpecificIterations::insert_copy_loop(LinearIR& linea
     const auto new_loop_begin_pos = linear_ir.insert(insert_pos, loop_copy_range.begin(), loop_copy_range.end());
     const auto new_loop_end_pos = insert_pos;
 
+    // Set the same pointers of Tensor Shape to the cloned loop
+    for (LinearIR::constExprIt cloned_it = new_loop_begin_pos, original_it = loop_bounds.first; cloned_it != new_loop_end_pos; ++cloned_it, ++original_it) {
+        const auto& cloned_expr = *cloned_it;
+        const auto& original_expr = *original_it;
+        for (size_t i = 0; i < original_expr->get_input_count(); ++i)
+            cloned_expr->get_input_port_descriptor(i)->set_shape_ptr(original_expr->get_input_port_descriptor(i)->get_shape_ptr());
+        for (size_t i = 0; i < original_expr->get_output_count(); ++i)
+            cloned_expr->get_output_port_descriptor(i)->set_shape_ptr(original_expr->get_output_port_descriptor(i)->get_shape_ptr());
+    }
+
     const auto original_loop_info = loop_manager->get_loop_info(loop_id);
     std::vector<LoopPort> new_entry_points, new_exit_points;
     // Clone loop ports from original loop info to new loop info
