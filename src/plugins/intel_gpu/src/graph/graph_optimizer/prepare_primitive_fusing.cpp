@@ -52,6 +52,15 @@
 
 using namespace cldnn;
 
+int get_env(std::string key, int &val);
+int get_env(std::string key, int &val) {
+        if (const auto env_var = std::getenv(key.c_str())) {
+            val = std::atoi(env_var);
+            return true;
+        }
+        return false;
+}
+
 void prepare_primitive_fusing::run(program& p) {
     fuse_reorders(p);
     remove_redundant_reshape(p);
@@ -563,6 +572,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto eltwise_supports_fusings = [&](eltwise_node& node) -> bool {
+            int val = 0;
+            get_env("TEST_ELTWISE", val);
+            if (val) return true;
             auto out_layout = node.get_output_layout();
             // Do not fuse if the estimated format is fs_b_yx_fsv32 because the optimized kernel does not support fusion
             if (out_layout.data_type == data_types::f16 && out_layout.is_static() && out_layout.batch() > 1 &&
