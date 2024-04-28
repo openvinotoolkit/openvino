@@ -603,9 +603,11 @@ struct MHAHelper {
     size_t _h_each_group_len;
     size_t _block_size;
     size_t _nthr;
+    size_t _sliding_window;
+    float _d_scale;
 
-    PlainTensor _score;             // [nthr, H, q_len, rnd_up(kv_len, block_size)]
-    PlainTensor _fp32_out;          // [nthr, q_len, H, S]
+    PlainTensor _weight;             // [nthr, H, 32, rnd_up(kv_len, block_size)], shared by first and second loop along bh
+    PlainTensor _output;            // [nthr, 32, H, S], shared by first and second loop along bh
     PlainTensor _qk_scratch_a;      // [nthr, scratch_a_size]
     PlainTensor _qk_scratch_b;
     PlainTensor _wv_scratch_a;      // [B, Hk, rnd_up(kv_len, block_size), scratch_b_size]
@@ -617,13 +619,15 @@ struct MHAHelper {
     std::vector<std::shared_ptr<BrgemmKernel>> _wv_gemm;
     // will accumulate C buffer
     std::vector<std::shared_ptr<BrgemmKernel>> _wv_gemm_acc;
-
-    // initialized at the beginning of the inference, shared between one inference
-    size_t _sliding_window;
-    float _d_scale;
+    // second token
+    std::shared_ptr<JitMatMulVecAMX> _gemv;
+    bool _fastpath_valid = false;
+    // second token for bhl loop
+    PlainTensor _weight_bhl;
+    PlainTensor _output_bhl;
 
     MHAHelper() {
-        _score.resize<float>({1ul, 1ul, 1ul, 1ul});
+        _weight.resize<float>({1ul, 1ul, 1ul, 1ul});
     }
 
     void init(size_t H, size_t S, size_t Hk, size_t h_each_group_len, size_t block_size, size_t sliding_window,
@@ -647,12 +651,12 @@ struct MHAHelper {
         _sliding_window = sliding_window;
         _d_scale = d_scale;
 
-        auto prev_score_stride = _score.stride(2);
+        auto prev_score_stride = _weight.stride(2);
         auto want_score_stride = rnd_up(kv_len, _block_size);
         auto new_score_stride = std::max(prev_score_stride, want_score_stride);
-        // resize temporary buffers, score.size(3) will be aligned to block_size
-        _score.resize<float>({static_cast<size_t>(_nthr), H, _block_size, new_score_stride});
-        _fp32_out.resize<float>({static_cast<size_t>(_nthr), _block_size, H, S});
+        // resize temporary buffers, weight.size(3) will be aligned to block_size
+        _weight.resize<float>({static_cast<size_t>(_nthr), H, _block_size, new_score_stride});
+        _output.resize<float>({static_cast<size_t>(_nthr), _block_size, H, S});
 
         // TODO: kernel supports stride
         if (_qk_gemm.empty() || prev_score_stride < new_score_stride) {
@@ -665,25 +669,25 @@ struct MHAHelper {
                                                              _S,
                                                              _H * _S,
                                                              _S,
-                                                             _score.stride(2),
+                                                             _weight.stride(2),
                                                              true,
                                                              in_type);
                 _wv_gemm[i] = std::make_shared<BrgemmKernel>(i + 1,
                                                              _S,
                                                              _block_size,
                                                              // if it's bf16, the stride needs double due to reuse float buffer
-                                                             (in_type == ov::element::Type_t::f32 ? 1 : 2) * _score.stride(2),
+                                                             (in_type == ov::element::Type_t::f32 ? 1 : 2) * _weight.stride(2),
                                                              _S,
-                                                             _fp32_out.stride(1),
+                                                             _output.stride(1),
                                                              false,
                                                              in_type);
                 _wv_gemm_acc[i] = std::make_shared<BrgemmKernel>(i + 1,
                                                                  _S,
                                                                  _block_size,
                                                                  // if it's bf16, the stride needs double due to reuse float buffer
-                                                                 (in_type == ov::element::Type_t::f32 ? 1 : 2) * _score.stride(2),
+                                                                 (in_type == ov::element::Type_t::f32 ? 1 : 2) * _weight.stride(2),
                                                                  _S,
-                                                                 _fp32_out.stride(1),
+                                                                 _output.stride(1),
                                                                  false,
                                                                  in_type,
                                                                  true);
@@ -696,6 +700,12 @@ struct MHAHelper {
             // allocate scratch a/b, notice get_scratch_a_size/get_scratch_b_size returns in bytes
             _qk_scratch_a.resize<DATA_TYPE>({_nthr, _qk_gemm[_block_size - 1]->get_scratch_a_size() / sizeof(DATA_TYPE)});
             _wv_scratch_a.resize<DATA_TYPE>({_nthr, _wv_gemm[_block_size - 1]->get_scratch_a_size() / sizeof(DATA_TYPE)});
+
+            _fastpath_valid = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_bf16) &&
+                (S % 32 == 0) && (block_size % 16 == 0) && (S <= 32 * 6) && precision_of<KVCACHE_TYPE>::value == ov::element::bf16;
+            // aligned to cache line (64bytes=16*sizeof(float)) to avoid false sharing
+            if (_fastpath_valid && !_gemv)
+                _gemv = std::make_shared<JitMatMulVecAMX>(static_cast<int>(S), static_cast<int>(block_size));
         }
         _qk_scratch_b.resize<DATA_TYPE>({new_batch, Hk, div_up(kv_len, _block_size), _qk_gemm[_block_size - 1]->get_scratch_b_size() / sizeof(DATA_TYPE)});
         _wv_scratch_b.resize<DATA_TYPE>({new_batch, Hk, div_up(kv_len, _block_size), _wv_gemm[_block_size - 1]->get_scratch_b_size() / sizeof(DATA_TYPE)});
@@ -708,16 +718,16 @@ struct MHAHelper {
     //  output_emb: [L, H * S]
     //  qk_scratch_b: [Hk, rnd_up(kv_len, block_size), scratch_b_size]
     //  wv_scratch_b: [Hk, rnd_up(kv_len, block_size), scratch_b_size]
-    void exec_many_tokens(const PlainTensor& query, const PlainTensor& present_value, const PlainTensor& output_emb,
+    void exec_kernel_multiple(const PlainTensor& query, const PlainTensor& present_value, const PlainTensor& output_emb,
         const PlainTensor& qk_scratch_b, const PlainTensor& wv_scratch_b,
-        int32_t* block_table, size_t ithr, size_t q_blk, size_t hk, size_t q_len, size_t cur_kv_len) {
+        const int32_t* block_table, size_t ithr, size_t q_blk, size_t hk, size_t q_len, size_t cur_kv_len) {
         auto q_start = q_blk * _block_size;
         auto q_end = std::min(q_start + _block_size, q_len);
         auto q_cnt = q_end - q_start;
         constexpr bool is_bf16 = precision_of<DATA_TYPE>::value == ov::element::bf16;
         for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
             auto* q_ptr = query.ptr<DATA_TYPE>(h, q_start, 0);
-            float* c_ptr = _score.ptr<float>(ithr, h, 0, 0);
+            float* c_ptr = _weight.ptr<float>(ithr, h, 0, 0);
             // for each query block, loop through all key block
             // for blocks:
             // 1 0 0 0 ...
@@ -737,7 +747,7 @@ struct MHAHelper {
             for (size_t m = q_start; m < q_end; m++) {
                 // apply attention mask & sofmax
                 auto ncausal = (cur_kv_len - q_len + m + 1);
-                auto score = _score.ptr<float>(ithr, h, m - q_start);
+                auto score = _weight.ptr<float>(ithr, h, m - q_start);
                 if (_sliding_window) {
                     size_t start_idx = 0;
                     auto new_causal = ncausal;
@@ -774,8 +784,8 @@ struct MHAHelper {
             }
 
             // reuse float buffer, need to use float to compute offset
-            auto* w_ptr = reinterpret_cast<DATA_TYPE*>(_score.ptr<float>(ithr, h, 0, 0));
-            float* fp32_out_ptr = is_bf16 ? _fp32_out.ptr<float>(ithr, 0, h, 0) : output_emb.ptr<float>(q_start, h * _S);
+            auto* w_ptr = reinterpret_cast<DATA_TYPE*>(_weight.ptr<float>(ithr, h, 0, 0));
+            float* fp32_out_ptr = is_bf16 ? _output.ptr<float>(ithr, 0, h, 0) : output_emb.ptr<float>(q_start, h * _S);
 
             // for each weight block, loop through all value block
             for (size_t v_blk = 0; v_blk <= q_blk; v_blk++) {
@@ -802,24 +812,206 @@ struct MHAHelper {
                 }
             }
             if (is_bf16) {
-                attn_memcpy2d_kernel(_fp32_out.ptr<float>(ithr, 0, h, 0),
+                attn_memcpy2d_kernel(_output.ptr<float>(ithr, 0, h, 0),
                                      output_emb.ptr<DATA_TYPE>(q_start, h * _S),
                                      ov::element::f32,
                                      ov::element::bf16,
-                                     _fp32_out.stride(1),
+                                     _output.stride(1),
                                      output_emb.stride(0),
                                      _S,
                                      q_cnt);
             }
         }
     }
+
+    // compute one token, loop along batch and head dimensions
+    // all tensors such as query... have no batch dimension because batch dimension is varying
+    //  query: [H, L, S]
+    //  present_*: [block_number, H, 32, S]
+    //  output_emb: [L, H * S]
+    //  weight: [nthr, H, 32, rnd_up(kv_len, block_size)]
+    //  output: [nthr, 32, H, S]
+    void exec_kernel_one_bh(const PlainTensor& query, const PlainTensor& present_key, const PlainTensor& present_value, const PlainTensor& output_emb,
+        const int32_t* block_table, size_t ithr, size_t hk, size_t q_len, size_t cur_kv_len) {
+        if (ithr % 8 != 0)
+            ov::intel_cpu::profilerManagerInstance.enabled = false;
+        char name_buf[256];
+        snprintf(name_buf, sizeof(name_buf), "t1_qk_%ld", ithr);
+        PROFILE(_attn, name_buf);
+        if (_fastpath_valid) {
+            _gemv->tile_config();
+            for (size_t pk = 0, i = 0; pk < cur_kv_len; pk += _block_size, i++) {
+                auto block_number = block_table[i];
+                for (size_t pq = 0; pq < q_len; pq++) {
+                    for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
+                        (*_gemv)(query.ptr<ov::bfloat16>(h, pq), present_key.ptr<ov::bfloat16>(block_number, hk),
+                            _weight.ptr<float>(ithr, h, pq) + pk);
+                    }
+                }
+            }
+            _gemv->tile_release();
+        } else {
+            for (size_t pk = 0, i = 0; pk < cur_kv_len; pk += _block_size, i++) {
+                auto block_number = block_table[i];
+                for (size_t pq = 0; pq < q_len; pq++) {
+                    for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
+                        dot_product_block(query.ptr<DATA_TYPE>(h, pq), present_key.ptr<KVCACHE_TYPE>(block_number, hk),
+                            _weight.ptr<float>(ithr, h, pq) + pk, _S, std::min(_block_size, cur_kv_len - pk));
+                    }
+                }
+            }
+        }
+
+        snprintf(name_buf, sizeof(name_buf), "t1_softmax_%ld", ithr);
+        _attn = ov::intel_cpu::profilerManagerInstance.startProfile(name_buf);
+        for (size_t pq = 0; pq < q_len; pq++) {
+            for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
+                // apply attention mask & sofmax
+                attn_softmax_kernel(_weight.ptr<float>(ithr, h, pq),
+                                    _weight.ptr<float>(ithr, h, pq),
+                                    _d_scale,
+                                    nullptr,
+                                    nullptr,
+                                    nullptr,
+                                    false,
+                                    cur_kv_len,
+                                    cur_kv_len,
+                                    ov::element::f32,
+                                    ov::element::f32);
+            }
+        }
+
+        snprintf(name_buf, sizeof(name_buf), "t1_kv_%ld", ithr);
+        _attn = ov::intel_cpu::profilerManagerInstance.startProfile(name_buf);
+        memset(_output.ptr<float>(ithr), 0, q_len * _H * _S * sizeof(float));
+        for (size_t pv = 0, i = 0; pv < cur_kv_len; pv += _block_size, i++) {
+            auto block_number = block_table[i];
+            auto* v = present_value.ptr<KVCACHE_TYPE>(block_number, hk);
+            for (size_t pq = 0; pq < q_len; pq++) {
+                for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
+                    attn_acc_value_block(_output.ptr<float>(ithr, pq, h),
+                                         _weight.ptr<float>(ithr, h, pq) + pv,
+                                         v,
+                                         _S,
+                                         std::min(_block_size, cur_kv_len - pv));
+                }
+            }
+        }
+        // convert to dst
+        for (size_t pq = 0; pq < q_len; pq++)
+            for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++)
+                cvt_copy(output_emb.ptr<DATA_TYPE>(pq, h * _S), _output.ptr<float>(ithr, pq, h), _S);
+    }
+
+    // compute one token, loop along batch, head dimensions and kv_len, it's special for very long kv_len with small batch tokens.
+    // It will assume NO mixture execution of first and second token.
+    // all tensors such as query... have batch dimension which is DIFFERENT from above
+    //  query: [B, H, L, S]
+    //  present_*: [block_number, H, 32, S]
+    //  output_emb: [B, L, H * S]
+    // 3 loops along batch, head, kv cache length dimensions
+    void exec_loop_bhl(const PlainTensor& query,
+                       const PlainTensor& present_key,
+                       const PlainTensor& present_value,
+                       const PlainTensor& output_emb,
+                       const PlainTensor& block_tables,
+                       size_t max_context_len,
+                       const PlainTensor& context_lens) {
+        auto B = query.size(0);
+        auto q_len = query.size(2);
+        auto kv_len_in_blocks = block_tables.m_dims[1];
+
+        // aligned to cache line (64bytes=16*sizeof(float)) to avoid false sharing
+        _weight_bhl.resize<float>({B, _H, q_len, rnd_up(max_context_len, std::max(_block_size, 16ul))});
+
+        parallel_for3d_dynamic(B, kv_len_in_blocks, _Hk, [&](size_t b, size_t pk_in_blocks, size_t hk) {
+            auto context_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
+            // kv_len must be valid
+            auto pk = pk_in_blocks * _block_size;
+            if (pk < context_len) {
+                auto block_number = block_tables.ptr<int32_t>(b)[pk_in_blocks];
+                if (_fastpath_valid) {
+                    _gemv->tile_config();
+                    for (size_t pq = 0; pq < q_len; pq++) {
+                        for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
+                            (*_gemv)(query.ptr<ov::bfloat16>(b, h, pq), present_key.ptr<ov::bfloat16>(block_number, hk),
+                                _weight_bhl.ptr<float>(b, h, pq) + pk);
+                        }
+                    }
+                    _gemv->tile_release();
+                } else {
+                    for (size_t pq = 0; pq < q_len; pq++) {
+                        for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
+                            dot_product_block(query.ptr<DATA_TYPE>(b, h, pq), present_key.ptr<KVCACHE_TYPE>(block_number, hk),
+                                _weight_bhl.ptr<float>(b, h, pq) + pk, _S, std::min(_block_size, context_len - pk));
+                        }
+                    }
+                }
+            }
+        });
+
+        PROFILE(_attn, "t1_softmax");
+        parallel_for3d_dynamic(B, _H, q_len, [&](size_t b, size_t h, size_t pq) {
+            auto cur_kv_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
+            auto ncausal = cur_kv_len;
+            // apply attention mask & sofmax
+            attn_softmax_kernel(_weight_bhl.ptr<float>(b, h, pq),
+                                _weight_bhl.ptr<float>(b, h, pq),
+                                _d_scale,
+                                nullptr,
+                                nullptr,
+                                nullptr,
+                                false,
+                                ncausal,
+                                cur_kv_len,
+                                ov::element::f32,
+                                ov::element::f32);
+        });
+
+        _attn = ov::intel_cpu::profilerManagerInstance.startProfile("t1_kv");
+        // attn_w * V
+        _output_bhl.resize<float>({static_cast<size_t>(_nthr), B, q_len, _H, _S});
+        // m_attn_w {B, H, q_len, kv_len}
+        parallel_nt_static(_nthr, [&](const size_t ithr, const size_t nthr) {
+            memset(_output_bhl.ptr<float>(ithr, 0, 0, 0, 0), 0, _output_bhl.stride(0) * sizeof(float));
+        });
+
+        _attn = ov::intel_cpu::profilerManagerInstance.startProfile("t1_kv_old");
+        parallel_for3d_dynamic(B, kv_len_in_blocks, _Hk, [&](size_t b, size_t pv_in_blocks, size_t hk) {
+            auto ithr = parallel_get_thread_num();
+            auto context_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
+            auto pv = pv_in_blocks * _block_size;
+            // kv_len must be valid
+            if (pv < context_len) {
+                auto block_number = block_tables.ptr<int32_t>(b)[pv_in_blocks];
+                auto* v = present_value.ptr<KVCACHE_TYPE>(block_number, hk);
+                for (size_t pq = 0; pq < q_len; pq++) {
+                    for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
+                        attn_acc_value_block(_output_bhl.ptr<float>(ithr, b, pq, h),
+                                             _weight_bhl.ptr<float>(b, h, pq) + pv,
+                                             v,
+                                             _S,
+                                             std::min(_block_size, context_len - pv));
+                    }
+                }
+            }
+        });
+
+        _attn = ov::intel_cpu::profilerManagerInstance.startProfile("t1_reduce");
+        parallel_for3d(B, _H, q_len, [&](size_t b, size_t h, size_t pq) {
+            auto* temp = _output_bhl.ptr<float>(0, b, pq, h);
+            size_t temp_stride = _output_bhl.stride(0);
+            auto* dst = output_emb.ptr<DATA_TYPE>(b, pq, h * _S);
+            attn_reduce(dst, temp, _nthr, _S, temp_stride);
+        });
+    }
 };
 
 template <typename DATA_TYPE, typename KVCACHE_TYPE>
-struct MHAKernel {
+struct MHAMultiple {
     MHAHelper<DATA_TYPE, KVCACHE_TYPE>& _helper;
 
-    MHAKernel(MHAHelper<DATA_TYPE, KVCACHE_TYPE>& helper) : _helper(helper) {}
+    MHAMultiple(MHAHelper<DATA_TYPE, KVCACHE_TYPE>& helper) : _helper(helper) {}
 
     void operator()(PlainTensor& query,
                     PlainTensor& present_key,
@@ -854,7 +1046,7 @@ struct MHAKernel {
             size_t ithr = parallel_get_thread_num();
             auto cur_kv_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
             auto q_len = cur_kv_len;
-            _helper.exec_many_tokens(query.slice(0, b, b), present_value.slice(0, b, b), output_emb.slice(0, b, b),
+            _helper.exec_kernel_multiple(query.slice(0, b, b), present_value, output_emb.slice(0, b, b),
                 _helper._qk_scratch_b.slice(0, b, b), _helper._wv_scratch_b.slice(0, b, b),
                 block_tables.ptr<int32_t>(b), ithr, q_blk, hk, q_len, cur_kv_len);
         });
@@ -863,212 +1055,27 @@ struct MHAKernel {
 
 // 2nd token case : only 1 token in query
 template <typename DATA_TYPE, typename KVCACHE_TYPE>
-struct MHASingleToken {
-    PlainTensor _attn_weight;
-    PlainTensor _attn_output;
-    std::shared_ptr<JitMatMulVecAMX> _gemv;
-    bool _init = false;
-    bool _fastpath_valid = false;
+struct MHASingle {
+    MHAHelper<DATA_TYPE, KVCACHE_TYPE>& _helper;
 
-    size_t _B;
-    size_t _H;
-    size_t _q_len;
-    size_t _S;
-    size_t _Hk;
-    size_t _h_each_group_len;
-    size_t _block_size;
-    size_t _nthr;
-    size_t _kv_len_in_blocks;
-
-    void init(size_t block_size, size_t S) {
-        _init = true;
-        _fastpath_valid = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_bf16) &&
-            (S % 32 == 0) && (block_size % 16 == 0) && (S <= 32 * 6) && precision_of<KVCACHE_TYPE>::value == ov::element::bf16;
-        // aligned to cache line (64bytes=16*sizeof(float)) to avoid false sharing
-        if (_fastpath_valid)
-            _gemv = std::make_shared<JitMatMulVecAMX>(static_cast<int>(S), static_cast<int>(block_size));
-    }
+    MHASingle(MHAHelper<DATA_TYPE, KVCACHE_TYPE>& helper) : _helper(helper) {}
 
     // one loop along batch and head dimensions
-    void loop_bh(PlainTensor& query,
-                 PlainTensor& present_key,
-                 PlainTensor& present_value,
-                 PlainTensor& output_emb,
-                 const PlainTensor& block_tables,
-                 size_t max_context_len,
-                 const PlainTensor& context_lens,
-                 float d_scale) {
-        _attn_weight.resize<float>({static_cast<size_t>(_nthr), _q_len, _H, rnd_up(max_context_len, _block_size)});
-        _attn_output.resize<float>({static_cast<size_t>(_nthr), _q_len, _H, _S});
-
-        parallel_for2d_dynamic(_B, _Hk, [&](size_t b, size_t hk) {
-            auto context_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
-            auto ithr = parallel_get_thread_num();
-
-            if (ithr % 8 != 0)
-                ov::intel_cpu::profilerManagerInstance.enabled = false;
-            char name_buf[256];
-            snprintf(name_buf, sizeof(name_buf), "t1_qk_%d", ithr);
-            PROFILE(_attn, name_buf);
-            auto block_table = block_tables.ptr<int32_t>(b);
-            if (_fastpath_valid) {
-                _gemv->tile_config();
-                for (size_t pk = 0; pk < context_len; pk += _block_size) {
-                    auto block_number = *block_table++;
-                    for (size_t pq = 0; pq < _q_len; pq++) {
-                        for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
-                            (*_gemv)(query.ptr<ov::bfloat16>(b, h, pq), present_key.ptr<ov::bfloat16>(block_number, hk),
-                                _attn_weight.ptr<float>(ithr, pq, h) + pk);
-                        }
-                    }
-                }
-                _gemv->tile_release();
-            } else {
-                for (size_t pk = 0; pk < context_len; pk += _block_size) {
-                    auto block_number = *block_table++;
-                    for (size_t pq = 0; pq < _q_len; pq++) {
-                        for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
-                            dot_product_block(query.ptr<DATA_TYPE>(b, h, pq), present_key.ptr<KVCACHE_TYPE>(block_number, hk),
-                                _attn_weight.ptr<float>(ithr, pq, h) + pk, _S, std::min(_block_size, context_len - pk));
-                        }
-                    }
-                }
-            }
-
-            snprintf(name_buf, sizeof(name_buf), "t1_softmax_%d", ithr);
-            _attn = ov::intel_cpu::profilerManagerInstance.startProfile(name_buf);
-            for (size_t pq = 0; pq < _q_len; pq++) {
-                for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
-                    // apply attention mask & sofmax
-                    attn_softmax_kernel(_attn_weight.ptr<float>(ithr, pq, h),
-                                        _attn_weight.ptr<float>(ithr, pq, h),
-                                        d_scale,
-                                        nullptr,
-                                        nullptr,
-                                        nullptr,
-                                        false,
-                                        context_len,
-                                        context_len,
-                                        ov::element::f32,
-                                        ov::element::f32);
-                }
-            }
-
-            snprintf(name_buf, sizeof(name_buf), "t1_kv_%d", ithr);
-            _attn = ov::intel_cpu::profilerManagerInstance.startProfile(name_buf);
-            memset(_attn_output.ptr<float>(ithr), 0, _q_len * _H * _S * sizeof(float));
-            block_table = block_tables.ptr<int32_t>(b);
-            for (size_t pv = 0; pv < context_len; pv += _block_size) {
-                auto block_number = *block_table++;
-                auto* v = present_value.ptr<KVCACHE_TYPE>(block_number, hk);
-                for (size_t pq = 0; pq < _q_len; pq++) {
-                    for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
-                        attn_acc_value_block(_attn_output.ptr<float>(ithr, pq, h),
-                                             _attn_weight.ptr<float>(ithr, pq, h) + pv,
-                                             v,
-                                             _S,
-                                             std::min(_block_size, context_len - pv));
-                    }
-                }
-            }
-            // convert to dst
-            for (size_t pq = 0; pq < _q_len; pq++)
-                for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++)
-                    cvt_copy(output_emb.ptr<DATA_TYPE>(b, pq, h * _S), _attn_output.ptr<float>(ithr, pq, h), _S);
-        });
-    }
-
-    // 3 loops along batch, head, kv cache length dimensions
-    void loop_bh_kv(PlainTensor& query,
-                    PlainTensor& present_key,
-                    PlainTensor& present_value,
-                    PlainTensor& output_emb,
-                    const PlainTensor& block_tables,
-                    size_t max_context_len,
-                    const PlainTensor& context_lens,
-                    float d_scale) {
-        // aligned to cache line (64bytes=16*sizeof(float)) to avoid false sharing
-        _attn_weight.resize<float>({_B, _H, _q_len, rnd_up(max_context_len, std::max(_block_size, 16ul))});
-
-        parallel_for3d_dynamic(_B, _kv_len_in_blocks, _Hk, [&](size_t b, size_t pk_in_blocks, size_t hk) {
-            auto context_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
-            // kv_len must be valid
-            auto pk = pk_in_blocks * _block_size;
-            if (pk < context_len) {
-                auto block_number = block_tables.ptr<int32_t>(b)[pk_in_blocks];
-                if (_fastpath_valid) {
-                    _gemv->tile_config();
-                    for (size_t pq = 0; pq < _q_len; pq++) {
-                        for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
-                            (*_gemv)(query.ptr<ov::bfloat16>(b, h, pq), present_key.ptr<ov::bfloat16>(block_number, hk),
-                                _attn_weight.ptr<float>(b, h, pq) + pk);
-                        }
-                    }
-                    _gemv->tile_release();
-                } else {
-                    for (size_t pq = 0; pq < _q_len; pq++) {
-                        for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
-                            dot_product_block(query.ptr<DATA_TYPE>(b, h, pq), present_key.ptr<KVCACHE_TYPE>(block_number, hk),
-                                _attn_weight.ptr<float>(b, h, pq) + pk, _S, std::min(_block_size, context_len - pk));
-                        }
-                    }
-                }
-            }
-        });
-
-        PROFILE(_attn, "t1_softmax");
-        parallel_for3d_dynamic(_B, _H, _q_len, [&](size_t b, size_t h, size_t pq) {
+    void exec_loop_bh(PlainTensor& query,
+                      PlainTensor& present_key,
+                      PlainTensor& present_value,
+                      PlainTensor& output_emb,
+                      const PlainTensor& block_tables,
+                      size_t max_context_len,
+                      const PlainTensor& context_lens) {
+        auto B = query.m_dims[0];
+        auto Hk = present_value.m_dims[1];
+        parallel_for2d_dynamic(B, Hk, [&](size_t b, size_t hk) {
+            size_t ithr = parallel_get_thread_num();
             auto cur_kv_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
-            auto ncausal = cur_kv_len;
-            // apply attention mask & sofmax
-            attn_softmax_kernel(_attn_weight.ptr<float>(b, h, pq),
-                                _attn_weight.ptr<float>(b, h, pq),
-                                d_scale,
-                                nullptr,
-                                nullptr,
-                                nullptr,
-                                false,
-                                ncausal,
-                                cur_kv_len,
-                                ov::element::f32,
-                                ov::element::f32);
-        });
-
-        _attn = ov::intel_cpu::profilerManagerInstance.startProfile("t1_kv");
-        // attn_w * V
-        _attn_output.resize<float>({static_cast<size_t>(_nthr), _B, _q_len, _H, _S});
-        // m_attn_w {B, H, q_len, kv_len}
-        parallel_nt_static(_nthr, [&](const size_t ithr, const size_t nthr) {
-            memset(_attn_output.ptr<float>(ithr, 0, 0, 0, 0), 0, _attn_output.stride(0) * sizeof(float));
-        });
-
-        _attn = ov::intel_cpu::profilerManagerInstance.startProfile("t1_kv_old");
-        parallel_for3d_dynamic(_B, _kv_len_in_blocks, _Hk, [&](size_t b, size_t pv_in_blocks, size_t hk) {
-            auto ithr = parallel_get_thread_num();
-            auto context_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
-            auto pv = pv_in_blocks * _block_size;
-            // kv_len must be valid
-            if (pv < context_len) {
-                auto block_number = block_tables.ptr<int32_t>(b)[pv_in_blocks];
-                auto* v = present_value.ptr<KVCACHE_TYPE>(block_number, hk);
-                for (size_t pq = 0; pq < _q_len; pq++) {
-                    for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
-                        attn_acc_value_block(_attn_output.ptr<float>(ithr, b, pq, h),
-                                             _attn_weight.ptr<float>(b, h, pq) + pv,
-                                             v,
-                                             _S,
-                                             std::min(_block_size, context_len - pv));
-                    }
-                }
-            }
-        });
-
-        _attn = ov::intel_cpu::profilerManagerInstance.startProfile("t1_reduce");
-        parallel_for3d(_B, _H, _q_len, [&](size_t b, size_t h, size_t pq) {
-            auto* temp = _attn_output.ptr<float>(0, b, pq, h);
-            size_t temp_stride = _attn_output.stride(0);
-            auto* dst = output_emb.ptr<DATA_TYPE>(b, pq, h * _S);
-            attn_reduce(dst, temp, _nthr, _S, temp_stride);
+            auto q_len = 1ul;
+            _helper.exec_kernel_one_bh(query.slice(0, b, b), present_key, present_value,
+                output_emb.slice(0, b, b), block_tables.ptr<int32_t>(b), ithr, hk, q_len, cur_kv_len);
         });
     }
 
@@ -1083,50 +1090,37 @@ struct MHASingleToken {
                     PlainTensor& output_emb,
                     const PlainTensor& block_tables,
                     size_t max_context_len,
-                    const PlainTensor& context_lens,
-                    float d_scale) {
-        _B = query.size(0);
-        _H = query.size(1);
-        _q_len = query.size(2);
-        _S = query.size(3);
-        _Hk = present_value.size(1);
-        _h_each_group_len = 1;
-        _block_size = present_value.size(2);
-        _kv_len_in_blocks = block_tables.m_dims[1];
-        if (_Hk != _H) {
-            _h_each_group_len = _H / _Hk;
-        }
-        if (d_scale == 0.0f)
-            d_scale = 1.0f / sqrt(_S);
+                    const PlainTensor& context_lens) {
+        auto B = query.size(0);
+        auto nthr = static_cast<size_t>(parallel_get_max_threads());
 
-        if (!_init)
-            init(_block_size, _S);
-        _nthr = static_cast<size_t>(parallel_get_max_threads());
-
+        auto H = query.size(1);
+        auto S = query.size(3);
+        auto Hk = present_value.size(1);
         char buf[256];
         size_t real_len = 0;
         size_t aligned_len = 0;
-        for (size_t b = 0; b < _B; b++) {
+        for (size_t b = 0; b < B; b++) {
             auto s = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
             real_len += s;
             aligned_len += (s + 15) / 16 * 16;
         }
         size_t access_size;
         if (present_value.m_dt != ov::element::u8)
-            access_size = _Hk * real_len * _S * (32 * present_value.m_element_size);
+            access_size = Hk * real_len * S * (32 * present_value.m_element_size);
         else
-            access_size = _Hk * real_len * (_S + 8) * 32;
-        access_size += _B * _H * _S * 2 * 32;    // query
-        access_size += aligned_len * _H * 4 * 32; // m_attn_w
+            access_size = Hk * real_len * (S + 8) * 32;
+        access_size += B * H * S * 2 * 32;    // query
+        access_size += aligned_len * H * 4 * 32; // m_attn_w
         // only consider k or v theoretical cost
-        snprintf(buf, sizeof(buf), "t1_BL%ld,%ld,MC%.2f,%.2f", _B, real_len, access_size / 260000000.0f,
-            _H * real_len * _S * 32 / 16 * 2 / 60 / 1800000.0f);
+        snprintf(buf, sizeof(buf), "t1_BL%ld,%ld,MC%.2f,%.2f", B, real_len, access_size / 260000000.0f,
+            H * real_len * S * 32 / 16 * 2 / 60 / 1800000.0f);
         PROFILE(_attn, buf);
 
-        if (_B >= _nthr) {
-            loop_bh(query, present_key, present_value, output_emb, block_tables, max_context_len, context_lens, d_scale);
+        if (B >= nthr) {
+            exec_loop_bh(query, present_key, present_value, output_emb, block_tables, max_context_len, context_lens);
         } else {
-            loop_bh_kv(query, present_key, present_value, output_emb, block_tables, max_context_len, context_lens, d_scale);
+            _helper.exec_loop_bhl(query, present_key, present_value, output_emb, block_tables, max_context_len, context_lens);
         }
     }
 };
@@ -1134,10 +1128,10 @@ struct MHASingleToken {
 template <typename DATA_TYPE, typename KVCACHE_TYPE>
 struct AttentionExecutor : public PagedAttentionExecutor {
     MHAHelper<DATA_TYPE, KVCACHE_TYPE> _helper;
-    MHAKernel<DATA_TYPE, KVCACHE_TYPE> _kernel;
-    MHASingleToken<DATA_TYPE, KVCACHE_TYPE> _kernel_single_token;
+    MHAMultiple<DATA_TYPE, KVCACHE_TYPE> _kernel_multiple;
+    MHASingle<DATA_TYPE, KVCACHE_TYPE> _kernel_single;
 
-    AttentionExecutor() : _kernel(_helper) {}
+    AttentionExecutor() : _kernel_multiple(_helper), _kernel_single(_helper) {}
 
     void execute(const std::vector<MemoryPtr>& inputs, const MemoryPtr output) override {
         bool is_prompt = false;
@@ -1204,16 +1198,17 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         k_input = k_input.reshape({B, L1, Hk, S}).permute({0, 2, 1, 3});
         v_input = v_input.reshape({B, L1, Hk, S}).permute({0, 2, 1, 3});
 
+        _helper.init(H, S, Hk, h_each_group_len, block_size, sliding_window, scale_input, B, max_context_len);
+
         if (is_prompt) {
             char buf[256];
             snprintf(buf, sizeof(buf), "first_BL%ld,%ld", B, L1);
             _attn = ov::intel_cpu::profilerManagerInstance.startProfile(buf);
 
-            if (!block_tables) {
-                // construct block_tables, max_context_len, context_lens from slot_mapping
+            // always construct block_tables, max_context_len, context_lens from slot_mapping
+            {
                 PlainTensor slot_mapping;
                 slot_mapping.reset(inputs[ID_SLOT_MAPPING]);    // [B, max_context_len]
-                max_context_len = slot_mapping.m_dims[1];
                 block_tables.resize<int32_t>({B, div_up(max_context_len, block_size)});
                 context_lens.resize<int32_t>({B});
                 for (size_t i = 0; i < B; i++) {
@@ -1229,14 +1224,11 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                     }
                 }
             }
-            _helper.init(H, S, Hk, h_each_group_len, block_size, sliding_window, scale_input, B, max_context_len);
 
             // multi-token version
-            _kernel(q_input, present_key, present_value,
-                output_emb, block_tables, max_context_len, context_lens);
+            _kernel_multiple(q_input, present_key, present_value, output_emb, block_tables, max_context_len, context_lens);
         } else {
-            _kernel_single_token(q_input, present_key, present_value,
-                output_emb, block_tables, max_context_len, context_lens, scale_input);
+            _kernel_single(q_input, present_key, present_value, output_emb, block_tables, max_context_len, context_lens);
         }
     }
 };
