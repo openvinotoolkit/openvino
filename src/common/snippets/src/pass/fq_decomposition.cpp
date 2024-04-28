@@ -70,6 +70,8 @@ ov::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
                                                                  return val == 0.f;
                                                              })) ||
                                                 out_scales.size() != 0));
+        // const bool do_rounding = do_dequantize || fake_quantize_node->get_output_element_type(0) == ov::element::f32 ||
+        //                          fake_quantize_node->get_output_element_type(0) == ov::element::f16;
         const bool do_rounding = do_dequantize || fake_quantize_node->get_output_element_type(0) == ov::element::f32;
 
         ov::NodeVector decomp_ops;
@@ -92,8 +94,9 @@ ov::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
             ov::PartialShape::broadcast_merge_into(scale_shape,
                                                        input_high.get_partial_shape(),
                                                        broadcast_type);
-            const auto scales =
-                std::make_shared<ov::op::v0::Constant>(ov::element::f32, scale_shape.get_shape(), out_scales);
+            const auto scales = std::make_shared<ov::op::v0::Constant>(input_low.get_element_type(),
+                                                                       scale_shape.get_shape(),
+                                                                       out_scales);
             decomp_ops.push_back(scales);
 
             result = std::make_shared<ov::op::v1::Multiply>(min, scales);

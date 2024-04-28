@@ -16,7 +16,8 @@
 
 namespace {
 bool is_supported_tensor(const ov::descriptor::Tensor& t) {
-    return t.get_partial_shape().is_static() && ov::snippets::utils::one_of(t.get_shape().size(), 3lu, 4lu);
+    return t.get_partial_shape().is_static() && ov::snippets::utils::one_of(t.get_shape().size(), 3lu, 4lu) &&
+           (t.get_element_type() != ov::element::f16);
 }
 
 bool is_supported_intermediate_op(const std::shared_ptr<ov::Node>& node) {
