@@ -38,6 +38,8 @@ struct Configuration {
 
     std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy = {};
 
+    ov::hint::PerformanceMode performance_mode = ov::hint::PerformanceMode::LATENCY;
+
     ov::AnyMap device_properties;
 };
 }  // namespace hetero

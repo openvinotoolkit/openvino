@@ -33,6 +33,9 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
                 }
             }
             modelDistributionPolicy = value.as<std::set<ov::hint::ModelDistributionPolicy>>();
+        } else if (ov::hint::performance_mode == key) {
+            performance_mode = value.as<ov::hint::PerformanceMode>();
+            device_properties.emplace(key, value);
         } else {
             if (throwOnUnsupported)
                 OPENVINO_THROW("Property was not found: ", key);
@@ -46,6 +49,8 @@ ov::Any Configuration::get(const std::string& name) const {
         return {device_priorities};
     } else if (name == ov::hint::model_distribution_policy) {
         return {modelDistributionPolicy};
+    } else if (name == ov::hint::performance_mode) {
+        return {performance_mode};
     } else {
         OPENVINO_THROW("Property was not found: ", name);
     }

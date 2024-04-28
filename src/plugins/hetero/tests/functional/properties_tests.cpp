@@ -12,7 +12,8 @@ TEST_F(HeteroTests, get_property_supported_properties) {
                                                                 ov::device::full_name,
                                                                 ov::device::capabilities,
                                                                 ov::device::priorities,
-                                                                ov::hint::model_distribution_policy};
+                                                                ov::hint::model_distribution_policy,
+                                                                ov::hint::performance_mode};
     auto actual_supported_properties = core.get_property("HETERO", ov::supported_properties);
     EXPECT_EQ(supported_properties.size(), actual_supported_properties.size());
     for (auto& supported_property : supported_properties) {
@@ -58,4 +59,10 @@ TEST_F(HeteroTests, set_property_ModelDistributionPolicy) {
     ASSERT_NO_THROW(core.set_property("HETERO", ov::hint::model_distribution_policy(model_policy)));
     ASSERT_NO_THROW(value = core.get_property("HETERO", ov::hint::model_distribution_policy));
     ASSERT_EQ(model_policy, value);
+}
+
+TEST_F(HeteroTests, set_property_performance_hint) {
+    EXPECT_EQ(ov::hint::PerformanceMode::LATENCY, core.get_property("HETERO", ov::hint::performance_mode));
+    core.set_property("HETERO", ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT));
+    EXPECT_EQ(ov::hint::PerformanceMode::THROUGHPUT, core.get_property("HETERO", ov::hint::performance_mode));
 }
