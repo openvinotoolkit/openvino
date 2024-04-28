@@ -301,8 +301,8 @@ bool DefineBufferClusters::are_buffer_neighbours(const ExpressionPtr& up, const 
 }
 
 void DefineBufferClusters::parse_memory_access_op(const ExpressionPtr& expr) {
-    const auto ma = ov::as_type_ptr<op::MemoryAccess>(expr->get_node());
-    if (!ma->is_full_memory_access_op())
+    const auto ma = std::dynamic_pointer_cast<modifier::MemoryAccess>(expr->get_node());
+    if (!ma->is_full_memory_access_op(expr->get_node()))
         return;
     // TODO: Some full MemoryAccess ops can have inplace inputs and outputs in general.
     //       Need to add mechanism of inplace ports using MemoryAccess::PortDescriptor::inplace
@@ -331,7 +331,7 @@ bool DefineBufferClusters::run(lowered::LinearIR& linear_ir, lowered::LinearIR::
             continue;
         }
 
-        if (ov::is_type<op::MemoryAccess>(op)) {
+        if (std::dynamic_pointer_cast<modifier::MemoryAccess>(op)) {
             parse_memory_access_op(expr);
             continue;
         }

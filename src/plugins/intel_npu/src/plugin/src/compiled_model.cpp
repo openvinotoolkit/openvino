@@ -158,21 +158,11 @@ void CompiledModel::configure_stream_executors() {
     } else if (get_property(ov::hint::enable_cpu_pinning.name()).as<bool>()) {
         auto executor_config = ov::threading::IStreamsExecutor::Config{
             "Intel NPU plugin executor",
-            0,
-            0,
-            ov::threading::IStreamsExecutor::ThreadBindingType::CORES,
+            get_plugin()->get_property(ov::num_streams.name(), {}).as<ov::streams::Num>(),
             1,
-            0,
-            0,
-            ov::threading::IStreamsExecutor::Config::PreferredCoreType::BIG,
-            {{get_plugin()->get_property(ov::num_streams.name(), {}).as<ov::streams::Num>(),
-              ov::MAIN_CORE_PROC,
-              1,
-              0,
-              0}},
+            ov::hint::SchedulingCoreType::PCORE_ONLY,
             true};
-        auto post_config = ov::threading::IStreamsExecutor::Config::reserve_cpu_threads(executor_config);
-        task_executor = std::make_shared<ov::threading::CPUStreamsExecutor>(post_config);
+        task_executor = std::make_shared<ov::threading::CPUStreamsExecutor>(executor_config);
     } else {
         task_executor = std::make_shared<ov::threading::CPUStreamsExecutor>(
             ov::threading::IStreamsExecutor::Config{"NPUPlugin executor"});
@@ -263,10 +253,16 @@ void CompiledModel::initialize_properties() {
           [](const Config& config) {
               return config.get<ENABLE_CPU_PINNING>();
           }}},
+        {ov::hint::model_priority.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.get<MODEL_PRIORITY>();
+          }}},
         // OV Internals
         // =========
         {ov::internal::supported_properties.name(),
-         {true,
+         {false,
           ov::PropertyMutability::RO,
           [&](const Config&) {
               static const std::vector<ov::PropertyName> supportedProperty{
@@ -276,12 +272,6 @@ void CompiledModel::initialize_properties() {
           }}},
         // NPU Private
         // =========
-        {ov::hint::model_priority.name(),
-         {false,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<MODEL_PRIORITY>();
-          }}},
         {ov::intel_npu::tiles.name(),
          {false,
           ov::PropertyMutability::RO,

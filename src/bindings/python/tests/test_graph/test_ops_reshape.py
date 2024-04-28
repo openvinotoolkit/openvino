@@ -10,15 +10,17 @@ from openvino import Type
 from openvino.runtime.utils.types import get_element_type
 
 
-def test_concat():
+@pytest.mark.parametrize("op_name", ["ABC", "concat", "123456"])
+def test_concat(op_name):
     input_a = np.array([[1, 2], [3, 4]]).astype(np.float32)
     input_b = np.array([[5, 6]]).astype(np.float32)
     axis = 0
 
     parameter_a = ov.parameter(list(input_a.shape), name="A", dtype=np.float32)
     parameter_b = ov.parameter(list(input_b.shape), name="B", dtype=np.float32)
-    node = ov.concat([parameter_a, parameter_b], axis)
+    node = ov.concat([parameter_a, parameter_b], axis, name=op_name)
     assert node.get_type_name() == "Concat"
+    assert node.get_friendly_name() == op_name
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == [3, 2]
 
@@ -99,7 +101,8 @@ def test_constant_from_integer_array(val_type, range_start, range_end):
     assert list(node.get_output_shape(0)) == [2, 2]
 
 
-def test_broadcast_numpy():
+@pytest.mark.parametrize("op_name", ["broadcast", "123412"])
+def test_broadcast_numpy(op_name):
     data_shape = [16, 1, 1]
     target_shape_shape = [4]
 
@@ -108,13 +111,15 @@ def test_broadcast_numpy():
         target_shape_shape, name="Target_shape", dtype=np.int64,
     )
 
-    node = ov.broadcast(data_parameter, target_shape_parameter)
+    node = ov.broadcast(data_parameter, target_shape_parameter, name=op_name)
 
     assert node.get_type_name() == "Broadcast"
+    assert node.get_friendly_name() == op_name
     assert node.get_output_size() == 1
 
 
-def test_broadcast_bidirectional():
+@pytest.mark.parametrize("op_name", ["broadcast", "broadcast_bidiretional"])
+def test_broadcast_bidirectional(op_name):
     data_shape = [16, 1, 1]
     target_shape_shape = [4]
 
@@ -123,37 +128,43 @@ def test_broadcast_bidirectional():
         target_shape_shape, name="Target_shape", dtype=np.int64,
     )
 
-    node = ov.broadcast(data_parameter, target_shape_parameter, "BIDIRECTIONAL")
+    node = ov.broadcast(data_parameter, target_shape_parameter, name=op_name)
 
     assert node.get_type_name() == "Broadcast"
+    assert node.get_friendly_name() == op_name
     assert node.get_output_size() == 1
 
 
-def test_transpose():
+@pytest.mark.parametrize("op_name", ["transpose", "transpose123"])
+def test_transpose(op_name):
     input_tensor = np.arange(3 * 3 * 224 * 224, dtype=np.int32).reshape(
         (3, 3, 224, 224),
     )
     input_order = np.array([0, 2, 3, 1], dtype=np.int32)
 
-    node = ov.transpose(input_tensor, input_order)
+    node = ov.transpose(input_tensor, input_order, name=op_name)
     assert node.get_type_name() == "Transpose"
+    assert node.get_friendly_name() == op_name
     assert node.get_output_size() == 1
     assert node.get_output_element_type(0) == Type.i32
     assert list(node.get_output_shape(0)) == [3, 224, 224, 3]
 
 
-def test_tile():
+@pytest.mark.parametrize("op_name", ["tile", "tile123"])
+def test_tile(op_name):
     input_tensor = np.arange(6, dtype=np.int32).reshape((2, 1, 3))
     repeats = np.array([2, 1], dtype=np.int32)
-    node = ov.tile(input_tensor, repeats)
+    node = ov.tile(input_tensor, repeats, name=op_name)
 
     assert node.get_type_name() == "Tile"
+    assert node.get_friendly_name() == op_name
     assert node.get_output_size() == 1
     assert node.get_output_element_type(0) == Type.i32
     assert list(node.get_output_shape(0)) == [2, 2, 3]
 
 
-def test_strided_slice():
+@pytest.mark.parametrize("op_name", ["slice", "strided_slice"])
+def test_strided_slice(op_name):
     input_tensor = np.arange(2 * 3 * 4, dtype=np.float32).reshape((2, 3, 4))
     begin = np.array([1, 0], dtype=np.int32)
     end = np.array([0, 0], dtype=np.int32)
@@ -174,30 +185,36 @@ def test_strided_slice():
         new_axis_mask,
         shrink_axis_mask,
         ellipsis_mask,
+        name=op_name,
     )
     assert node.get_type_name() == "StridedSlice"
+    assert node.get_friendly_name() == op_name
     assert node.get_output_size() == 1
     assert node.get_output_element_type(0) == Type.f32
     assert list(node.get_output_shape(0)) == [1, 3, 4]
 
 
-def test_reshape_v1():
+@pytest.mark.parametrize("op_name", ["reshape", "reshapev1"])
+def test_reshape_v1(op_name):
     param_a = np.arange(1200, dtype=np.float32).reshape((2, 5, 5, 24))
     shape = np.array([0, -1, 4], dtype=np.int32)
     special_zero = True
 
-    node = ov.reshape(param_a, shape, special_zero)
+    node = ov.reshape(param_a, shape, special_zero, name=op_name)
     assert node.get_type_name() == "Reshape"
+    assert node.get_friendly_name() == op_name
     assert node.get_output_size() == 1
     assert node.get_output_element_type(0) == Type.f32
     assert list(node.get_output_shape(0)) == [2, 150, 4]
 
 
-def test_shape_of():
+@pytest.mark.parametrize("op_name", ["shape", "shape_of"])
+def test_shape_of(op_name):
     input_tensor = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=np.float32)
 
-    node = ov.shape_of(input_tensor)
+    node = ov.shape_of(input_tensor, name=op_name)
     assert node.get_type_name() == "ShapeOf"
+    assert node.get_friendly_name() == op_name
     assert node.get_output_size() == 1
     assert node.get_output_element_type(0) == Type.i64
     assert list(node.get_output_shape(0)) == [2]
