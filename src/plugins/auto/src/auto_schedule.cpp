@@ -142,26 +142,28 @@ void AutoSchedule::init() {
             // if have CPU Device,  enable m_compile_context[CPU]
             if (cpu_iter != m_context->m_device_priorities.end()) {
                 m_compile_context[CPU].m_is_enabled = true;
-                if (is_actual_gpu) {
+                if (!is_actual_cpu) {
                     // user does not set the compiling threads
                     // limit the threads num for compiling
                     auto device = m_compile_context[ACTUALDEVICE].m_device_info.device_name;
                     auto& device_config = m_compile_context[ACTUALDEVICE].m_device_info.config;
-                    int max_threads = 0;
-                    try {
-                        max_threads = m_context->m_ov_core->get_property(device, ov::compilation_num_threads);
-                    } catch (const ov::Exception&) {
-                        LOG_DEBUG_TAG("cannot get MAX_NUM_THREADS from GPU");
-                    }
-                    if (max_threads == static_cast<int>(std::thread::hardware_concurrency())) {
-                        int thread_num = max_threads / 2;
-                        m_compile_context[ACTUALDEVICE].m_device_info.config.insert(
-                            ov::compilation_num_threads(thread_num));
-                        LOG_DEBUG_TAG("gpu streams number for compiling: %d", thread_num);
-                    } else {
-                        // user set the compiling threads num
-                        // use the user's val anyway
-                        LOG_DEBUG_TAG("user defined compiling threads: %d", max_threads);
+                    if (is_actual_gpu) {
+                        int max_threads = 0;
+                        try {
+                            max_threads = m_context->m_ov_core->get_property(device, ov::compilation_num_threads);
+                        } catch (const ov::Exception&) {
+                            LOG_DEBUG_TAG("cannot get MAX_NUM_THREADS from GPU");
+                        }
+                        if (max_threads == static_cast<int>(std::thread::hardware_concurrency())) {
+                            int thread_num = max_threads / 2;
+                            m_compile_context[ACTUALDEVICE].m_device_info.config.insert(
+                                ov::compilation_num_threads(thread_num));
+                            LOG_DEBUG_TAG("gpu streams number for compiling: %d", thread_num);
+                        } else {
+                            // user set the compiling threads num
+                            // use the user's val anyway
+                            LOG_DEBUG_TAG("user defined compiling threads: %d", max_threads);
+                        }
                     }
                     std::string cache_dir = device_config.count(ov::cache_dir.name())
                                                 ? device_config[ov::cache_dir.name()].as<std::string>()
