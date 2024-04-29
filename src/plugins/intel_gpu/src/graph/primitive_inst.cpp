@@ -144,6 +144,14 @@ bool is_any_user_cpu(const std::list<const program_node*>& users) {
     return false;
 }
 
+bool has_runtime_skippable_users(const std::list<const program_node*>& users) {
+    for (const auto& user : users) {
+        if (user->is_runtime_skippable())
+            return true;
+    }
+    return false;
+}
+
 static memory::ptr get_memory_from_pool(engine& _engine,
                                 uint32_t net_id,
                                 memory_pool& pool,
@@ -983,10 +991,6 @@ void primitive_inst::do_runtime_skip_reorder() {
                 update_memory_dependencies(u->get_user_insts());
 
                 u->set_can_be_optimized(true);
-                // Opt out reorder which has _needs_completion_event = true causes syncronization failed in dGPU.
-                if (_needs_completion_event == false && u->_needs_completion_event == true) {
-                    _needs_completion_event = true;
-                }
                 GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] set user " << u->id() << " as can_be_optimized" << std::endl;
             } else {
                 GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] user " << u->id() << " cannot be optimized" << std::endl;
@@ -1508,7 +1512,7 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
     , _can_be_optimized(node.can_be_optimized())
     , _can_share_buffer(node.can_share_buffer())
     , _is_constant(node.is_constant())
-    , _needs_completion_event(is_any_user_cpu(node.get_users()) || node.is_output()) {
+    , _needs_completion_event(is_any_user_cpu(node.get_users()) || node.is_output() || has_runtime_skippable_users(node.get_users())) {
     // When dynamic shape node has huge upper boundary which causes bigger mem size than system max allocable mem size, do not allocate in build time.
     auto output_layout = node.get_output_layout();
     auto& engine = network.get_engine();

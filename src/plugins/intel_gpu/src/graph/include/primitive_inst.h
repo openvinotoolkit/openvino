@@ -35,6 +35,8 @@ namespace cldnn {
 // checks if any user in a list is a cpu primitive
 bool is_any_user_cpu(const std::list<const program_node*>& users);
 
+bool has_runtime_skippable_users(const std::list<const program_node*>& users);
+
 class primitive_inst;
 
 template <class PType>
