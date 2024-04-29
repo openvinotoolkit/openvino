@@ -31,12 +31,12 @@ runs:
         DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
         TZ: "Europe/London" # to prevent tzdata from waiting user input
 
-    - if: ${{ runner.os == 'Linux' && runner.arch == 'ARM64' }}
+    - if: ${{ runner.os == 'Linux' }}
       name: Setup sudo and python3
       shell: bash
       run: apt-get update && apt-get install -y sudo python3 # Needed for the deadsnakes action
 
-    - if: ${{ runner.os == 'Linux' && runner.arch == 'ARM64' }}
+    - if: ${{ runner.os == 'Linux' }}
       name: Setup Python ${{ inputs.version }}
       uses: akashchi/deadsnakes-action@92417281055a5878a0450f240a5b95883eb2d7e2
       with:
