@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,8 +21,21 @@ struct IRDFTConstantAxesAndConstantSignalSizeTestParams {
     PartialShape ref_output_shape;
     std::vector<int64_t> axes;
     std::vector<int64_t> signal_size;
-    std::vector<label_t> expected_labels;
+    std::vector<size_t> expected_symbols;
 };
+
+namespace {
+TensorSymbol from_idx_to_symbol_vector(const std::vector<size_t>& indices, const TensorSymbol& initial_symbols) {
+    TensorSymbol result;
+    for (const auto& i : indices) {
+        if (i == 0)
+            result.push_back(nullptr);
+        else
+            result.push_back(initial_symbols[i - 10]);
+    }
+    return result;
+}
+}  // namespace
 
 struct IRDFTConstantAxesAndConstantSignalSizeTest
     : ::testing::TestWithParam<IRDFTConstantAxesAndConstantSignalSizeTestParams> {};
@@ -31,7 +44,7 @@ TEST_P(IRDFTConstantAxesAndConstantSignalSizeTest, irdft_constant_axes_and_signa
     auto params = GetParam();
 
     auto input_shape = params.input_shape;
-    set_shape_labels(input_shape, 10);
+    auto symbols = set_shape_symbols(input_shape);
     auto data = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
     auto axes_input = op::v0::Constant::create<int64_t>(element::i64, params.axes_shape, params.axes);
 
@@ -46,7 +59,8 @@ TEST_P(IRDFTConstantAxesAndConstantSignalSizeTest, irdft_constant_axes_and_signa
 
     EXPECT_EQ(irdft->get_element_type(), element::f32);
     EXPECT_EQ(irdft->get_output_partial_shape(0), params.ref_output_shape);
-    EXPECT_EQ(get_shape_labels(irdft->get_output_partial_shape(0)), (params.expected_labels));
+    auto output_expected_symbols = from_idx_to_symbol_vector(params.expected_symbols, symbols);
+    EXPECT_EQ(get_shape_symbols(irdft->get_output_partial_shape(0)), output_expected_symbols);
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -59,126 +73,126 @@ INSTANTIATE_TEST_SUITE_P(
                                                          {2, 180, 358},
                                                          {1, 2},
                                                          {},
-                                                         {10, 11, no_label}},
+                                                         {10, 11, 0}},
         IRDFTConstantAxesAndConstantSignalSizeTestParams{{2, 180, 180, 2},
                                                          {2},
                                                          Shape{},
                                                          {2, 180, 180},
                                                          {2, 0},
                                                          {},
-                                                         {no_label, 11, 12}},
+                                                         {0, 11, 12}},
         IRDFTConstantAxesAndConstantSignalSizeTestParams{{4, 180, 180, 2},
                                                          {2},
                                                          Shape{},
                                                          {6, 180, 180},
                                                          {2, 0},
                                                          {},
-                                                         {no_label, 11, 12}},
+                                                         {0, 11, 12}},
         IRDFTConstantAxesAndConstantSignalSizeTestParams{{16, 500, 180, 369, 2},
                                                          {3},
                                                          Shape{},
                                                          {16, 998, 180, 369},
                                                          {0, 3, 1},
                                                          {},
-                                                         {10, no_label, 12, 13}},
+                                                         {10, 0, 12, 13}},
         IRDFTConstantAxesAndConstantSignalSizeTestParams{{2, 180, 180, Dimension(1, 18)},
                                                          {2},
                                                          Shape{},
                                                          {2, 180, 358},
                                                          {1, 2},
                                                          {},
-                                                         {10, 11, no_label}},
+                                                         {10, 11, 0}},
         IRDFTConstantAxesAndConstantSignalSizeTestParams{{2, 180, Dimension(7, 500), 2},
                                                          {2},
                                                          Shape{},
                                                          {2, 180, Dimension(12, 998)},
                                                          {1, 2},
                                                          {},
-                                                         {10, 11, no_label}},
+                                                         {10, 11, 0}},
         IRDFTConstantAxesAndConstantSignalSizeTestParams{{2, 180, Dimension(7, 500), Dimension(1, 18)},
                                                          {2},
                                                          Shape{},
                                                          {2, 180, Dimension(12, 998)},
                                                          {1, 2},
                                                          {},
-                                                         {10, 11, no_label}},
+                                                         {10, 11, 0}},
         IRDFTConstantAxesAndConstantSignalSizeTestParams{{2, Dimension(7, 500), 180, 2},
                                                          {2},
                                                          Shape{},
                                                          {2, Dimension(7, 500), 358},
                                                          {1, 2},
                                                          {},
-                                                         {10, 11, no_label}},
+                                                         {10, 11, 0}},
         IRDFTConstantAxesAndConstantSignalSizeTestParams{{2, Dimension(7, 500), 180, Dimension(1, 18)},
                                                          {2},
                                                          Shape{},
                                                          {2, Dimension(7, 500), 358},
                                                          {1, 2},
                                                          {},
-                                                         {10, 11, no_label}},
+                                                         {10, 11, 0}},
         IRDFTConstantAxesAndConstantSignalSizeTestParams{{2, Dimension(7, 500), Dimension(7, 500), 2},
                                                          {2},
                                                          Shape{},
                                                          {2, Dimension(7, 500), Dimension(12, 998)},
                                                          {1, 2},
                                                          {},
-                                                         {10, 11, no_label}},
+                                                         {10, 11, 0}},
         IRDFTConstantAxesAndConstantSignalSizeTestParams{{2, Dimension(7, 500), Dimension(7, 500), Dimension(1, 18)},
                                                          {2},
                                                          Shape{},
                                                          {2, Dimension(7, 500), Dimension(12, 998)},
                                                          {1, 2},
                                                          {},
-                                                         {10, 11, no_label}},
+                                                         {10, 11, 0}},
         IRDFTConstantAxesAndConstantSignalSizeTestParams{{Dimension(0, 2), 180, 180, 2},
                                                          {2},
                                                          Shape{},
                                                          {Dimension(0, 2), 180, 358},
                                                          {1, 2},
                                                          {},
-                                                         {10, 11, no_label}},
+                                                         {10, 11, 0}},
         IRDFTConstantAxesAndConstantSignalSizeTestParams{{Dimension(0, 2), 180, 180, Dimension(1, 18)},
                                                          {2},
                                                          Shape{},
                                                          {Dimension(0, 2), 180, 358},
                                                          {1, 2},
                                                          {},
-                                                         {10, 11, no_label}},
+                                                         {10, 11, 0}},
         IRDFTConstantAxesAndConstantSignalSizeTestParams{{Dimension(0, 2), 180, Dimension(7, 500), 2},
                                                          {2},
                                                          Shape{},
                                                          {Dimension(0, 2), 180, Dimension(12, 998)},
                                                          {1, 2},
                                                          {},
-                                                         {10, 11, no_label}},
+                                                         {10, 11, 0}},
         IRDFTConstantAxesAndConstantSignalSizeTestParams{{Dimension(0, 2), 180, Dimension(7, 500), Dimension(1, 18)},
                                                          {2},
                                                          Shape{},
                                                          {Dimension(0, 2), 180, Dimension(12, 998)},
                                                          {1, 2},
                                                          {},
-                                                         {10, 11, no_label}},
+                                                         {10, 11, 0}},
         IRDFTConstantAxesAndConstantSignalSizeTestParams{{Dimension(0, 2), Dimension(7, 500), 180, 2},
                                                          {2},
                                                          Shape{},
                                                          {Dimension(0, 2), Dimension(7, 500), 358},
                                                          {1, 2},
                                                          {},
-                                                         {10, 11, no_label}},
+                                                         {10, 11, 0}},
         IRDFTConstantAxesAndConstantSignalSizeTestParams{{Dimension(0, 2), Dimension(7, 500), 180, Dimension(1, 18)},
                                                          {2},
                                                          Shape{},
                                                          {Dimension(0, 2), Dimension(7, 500), 358},
                                                          {1, 2},
                                                          {},
-                                                         {10, 11, no_label}},
+                                                         {10, 11, 0}},
         IRDFTConstantAxesAndConstantSignalSizeTestParams{{Dimension(0, 2), Dimension(7, 500), Dimension(7, 500), 2},
                                                          {2},
                                                          Shape{},
                                                          {Dimension(0, 2), Dimension(7, 500), Dimension(12, 998)},
                                                          {1, 2},
                                                          {},
-                                                         {10, 11, no_label}},
+                                                         {10, 11, 0}},
         IRDFTConstantAxesAndConstantSignalSizeTestParams{
             {Dimension(0, 2), Dimension(7, 500), Dimension(7, 500), Dimension(1, 18)},
             {2},
@@ -186,54 +200,54 @@ INSTANTIATE_TEST_SUITE_P(
             {Dimension(0, 2), Dimension(7, 500), Dimension(12, 998)},
             {1, 2},
             {},
-            {10, 11, no_label}},
+            {10, 11, 0}},
         IRDFTConstantAxesAndConstantSignalSizeTestParams{{2, 180, 180, 2},
                                                          {2},
                                                          {2},
                                                          {2, 180, 77},
                                                          {1, 2},
                                                          {-1, 77},
-                                                         {10, 11, no_label}},
+                                                         {10, 11, 0}},
         IRDFTConstantAxesAndConstantSignalSizeTestParams{{2, 180, 180, 2},
                                                          {2},
                                                          {2},
                                                          {87, 180, 390},
                                                          {2, 0},
                                                          {390, 87},
-                                                         {no_label, 11, no_label}},
+                                                         {0, 11, 0}},
         IRDFTConstantAxesAndConstantSignalSizeTestParams{{7, 50, 130, 400, 2},
                                                          {3},
                                                          {3},
                                                          {7, 40, 130, 600},
                                                          {3, 0, 1},
                                                          {600, -1, 40},
-                                                         {10, no_label, 12, no_label}},
+                                                         {10, 0, 12, 0}},
         IRDFTConstantAxesAndConstantSignalSizeTestParams{{2, Dimension(0, 200), 180, 2},
                                                          {2},
                                                          {2},
                                                          {2, Dimension(0, 200), 77},
                                                          {1, 2},
                                                          {-1, 77},
-                                                         {10, 11, no_label}},
+                                                         {10, 11, 0}},
         IRDFTConstantAxesAndConstantSignalSizeTestParams{{Dimension(0, 18), 180, Dimension(0, 400), 2},
                                                          {2},
                                                          {2},
                                                          {87, 180, 390},
                                                          {2, 0},
                                                          {390, 87},
-                                                         {no_label, 11, no_label}},
+                                                         {0, 11, 0}},
         IRDFTConstantAxesAndConstantSignalSizeTestParams{{Dimension(8, 129), 50, 130, Dimension(0, 500), 2},
                                                          {3},
                                                          {3},
                                                          {Dimension(8, 129), 40, 130, 600},
                                                          {3, 0, 1},
                                                          {600, -1, 40},
-                                                         {10, no_label, 12, no_label}}),
+                                                         {10, 0, 12, 0}}),
     PrintToDummyParamName());
 
 TEST(type_prop, irdft_dynamic_axes) {
     auto input_shape = PartialShape{2, 180, 180, Dimension(1, 18)};
-    set_shape_labels(input_shape, 10);
+    auto symbols = set_shape_symbols(input_shape);
     const auto axes_shape = PartialShape::dynamic();
     const auto ref_output_shape = PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()};
 
@@ -243,7 +257,7 @@ TEST(type_prop, irdft_dynamic_axes) {
 
     EXPECT_EQ(irdft->get_element_type(), element::f32);
     EXPECT_EQ(irdft->get_output_partial_shape(0), ref_output_shape);
-    EXPECT_THAT(get_shape_labels(irdft->get_output_partial_shape(0)), Each(no_label));
+    EXPECT_THAT(get_shape_symbols(irdft->get_output_partial_shape(0)), Each(nullptr));
 }
 
 struct IRDFTNonConstantAxesTestParams {
@@ -257,7 +271,7 @@ struct IRDFTNonConstantAxesTest : ::testing::TestWithParam<IRDFTNonConstantAxesT
 TEST_P(IRDFTNonConstantAxesTest, irdft_non_constant_axes) {
     auto params = GetParam();
     auto input_shape = params.input_shape;
-    set_shape_labels(input_shape, 10);
+    set_shape_symbols(input_shape);
 
     auto data = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
     auto axes_input = std::make_shared<op::v0::Parameter>(element::i64, params.axes_shape);
@@ -265,7 +279,7 @@ TEST_P(IRDFTNonConstantAxesTest, irdft_non_constant_axes) {
 
     EXPECT_EQ(irdft->get_element_type(), element::f32);
     EXPECT_EQ(irdft->get_output_partial_shape(0), params.ref_output_shape);
-    EXPECT_THAT(get_shape_labels(irdft->get_output_partial_shape(0)), Each(no_label));
+    EXPECT_THAT(get_shape_symbols(irdft->get_output_partial_shape(0)), Each(nullptr));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -325,7 +339,7 @@ struct IRDFTNonConstantSignalSizeTestParams {
     Shape signal_size_shape;
     PartialShape ref_output_shape;
     std::vector<int64_t> axes;
-    std::vector<label_t> expected_labels;
+    std::vector<size_t> expected_symbols;
 };
 
 struct IRDFTNonConstantSignalSizeTest : ::testing::TestWithParam<IRDFTNonConstantSignalSizeTestParams> {};
@@ -334,7 +348,7 @@ TEST_P(IRDFTNonConstantSignalSizeTest, irdft_non_constant_signal_size) {
     auto params = GetParam();
 
     auto input_shape = params.input_shape;
-    set_shape_labels(input_shape, 10);
+    set_shape_symbols(input_shape);
 
     auto data = std::make_shared<op::v0::Parameter>(element::f32, params.input_shape);
     auto axes_input = op::v0::Constant::create<int64_t>(element::i64, params.axes_shape, params.axes);
@@ -343,7 +357,8 @@ TEST_P(IRDFTNonConstantSignalSizeTest, irdft_non_constant_signal_size) {
 
     EXPECT_EQ(irdft->get_element_type(), element::f32);
     EXPECT_EQ(irdft->get_output_partial_shape(0), params.ref_output_shape);
-    EXPECT_EQ(get_shape_labels(irdft->get_output_partial_shape(0)), params.expected_labels);
+    EXPECT_EQ(get_shape_symbols(irdft->get_output_partial_shape(0)),
+              TensorSymbol(params.expected_symbols.size(), nullptr));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -354,20 +369,20 @@ INSTANTIATE_TEST_SUITE_P(
                                                            {2},
                                                            {2, Dimension(0, 200), Dimension::dynamic()},
                                                            {1, 2},
-                                                           {no_label, no_label, no_label}},
+                                                           {0, 0, 0}},
                       IRDFTNonConstantSignalSizeTestParams{{Dimension(0, 18), 180, Dimension(0, 400), 2},
                                                            {2},
                                                            {2},
                                                            {Dimension::dynamic(), 180, Dimension(0, 400)},
                                                            {2, 0},
-                                                           {no_label, no_label, no_label}},
+                                                           {0, 0, 0}},
                       IRDFTNonConstantSignalSizeTestParams{
                           {Dimension(8, 129), 50, 130, Dimension(0, 500), 2},
                           {3},
                           {3},
                           {Dimension(8, 129), Dimension::dynamic(), 130, Dimension(0, 500)},
                           {3, 0, 1},
-                          {no_label, no_label, no_label, no_label}}),
+                          {0, 0, 0, 0}}),
     PrintToDummyParamName());
 
 TEST(type_prop, irdft_invalid_input) {

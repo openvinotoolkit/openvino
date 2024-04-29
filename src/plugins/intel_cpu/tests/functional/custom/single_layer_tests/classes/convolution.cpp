@@ -196,6 +196,11 @@ TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
     }
 
     if (!priority.empty()) {
+        // Skip all the brgconv avx2 tests for now. Current brgconv_avx2 is disabled due to perf regression[CVS-105756].
+        // This convolution test code has already covered brgconv avx2 primitive.
+        // @todo: Remove this once brgconv_avx2 is enabled for convolution node.
+        if (priority[0].find("brgconv_avx2") != std::string::npos)
+                GTEST_SKIP() << "Disabled test due to the brgconv_avx2 is not enabled." << std::endl;
         // Skip tests for brgconv convolution where kernel size = 1x1
         if (one_of(priority[0], "brgconv_avx512", "brgconv_avx512_amx", "brgconv_avx2")) {
                 bool is_1x1 = true;
@@ -345,6 +350,19 @@ const std::vector<CPUSpecificParams>& CPUParams_2D() {
         conv_avx512_2D_nspc_brgconv
     };
     return CPUParams_2D;
+}
+
+const std::vector<CPUSpecificParams>& CPUParams_3D() {
+    static const std::vector<CPUSpecificParams> CPUParams_3D = {
+        //conv_sse42_3D, // not supported jit_sse42 for 3d
+        conv_avx2_3D,
+        conv_avx512_3D,
+        conv_avx2_3D_nspc,
+        conv_avx2_3D_nspc_brgconv,
+        conv_avx512_3D_nspc,
+        conv_avx512_3D_nspc_brgconv
+    };
+    return CPUParams_3D;
 }
 
 const std::vector<CPUSpecificParams>& CPUParams_GEMM_1D() {

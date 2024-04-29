@@ -36,7 +36,7 @@ std::shared_ptr<ov::Model> create_simple_model() {
     // Create opset8::Result operation
     auto res = std::make_shared<ov::opset8::Result>(mul);
 
-    // Create nGraph function
+    // Create OpenVINO function
     return std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{data});
 }
 // ! [ov:create_simple_model]

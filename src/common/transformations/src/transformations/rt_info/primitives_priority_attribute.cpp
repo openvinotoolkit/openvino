@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,9 @@
 #include <ostream>
 
 #include "openvino/core/node.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/matmul.hpp"
 
 using namespace ov;
 
@@ -31,11 +33,11 @@ std::string ov::getPrimitivesPriority(const std::shared_ptr<ov::Node>& node) {
 
 Any PrimitivesPriority::merge(const ov::NodeVector& nodes) const {
     auto canBeMerged = [](const std::shared_ptr<Node>& node) -> bool {
-        if (std::dynamic_pointer_cast<ov::opset1::Convolution>(node) ||
-            std::dynamic_pointer_cast<ov::opset1::GroupConvolution>(node) ||
-            std::dynamic_pointer_cast<ov::opset1::GroupConvolutionBackpropData>(node) ||
-            std::dynamic_pointer_cast<ov::opset1::ConvolutionBackpropData>(node) ||
-            std::dynamic_pointer_cast<ov::opset1::MatMul>(node)) {
+        if (std::dynamic_pointer_cast<ov::op::v1::Convolution>(node) ||
+            std::dynamic_pointer_cast<ov::op::v1::GroupConvolution>(node) ||
+            std::dynamic_pointer_cast<ov::op::v1::GroupConvolutionBackpropData>(node) ||
+            std::dynamic_pointer_cast<ov::op::v1::ConvolutionBackpropData>(node) ||
+            std::dynamic_pointer_cast<ov::op::v0::MatMul>(node)) {
             return true;
         }
         return false;

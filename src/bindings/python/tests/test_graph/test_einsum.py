@@ -14,7 +14,7 @@ def einsum_op_check(input_shapes: list, equation: str, data_type: np.dtype,
     """Test Einsum operation for given input shapes, equation, and data type.
 
     It generates input data of given shapes and type, receives reference results using numpy,
-    and tests IE implementation by matching with reference numpy results.
+    and tests OV implementation by matching with reference numpy results.
     :param input_shapes: a list of tuples with shapes
     :param equation: Einsum equation
     :param data_type: a type of input data

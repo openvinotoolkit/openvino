@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,8 +28,6 @@ std::string FakeQuantizeWithNotOptimalTransformation::getTestCaseName(const test
 }
 
 void FakeQuantizeWithNotOptimalTransformation::SetUp() {
-    abs_threshold = 4;
-    rel_threshold = 2778;
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::PartialShape inputShape;
     ov::element::Type netPrecision;

@@ -37,8 +37,7 @@ PerfCounters& perf_counters() {
 
 namespace {
 bool getenv_visualize_tracing() {
-    return ov::util::getenv_bool("NGRAPH_ENABLE_VISUALIZE_TRACING") ||
-           ov::util::getenv_bool("OV_ENABLE_VISUALIZE_TRACING");
+    return ov::util::getenv_bool("OV_ENABLE_VISUALIZE_TRACING");
 }
 }  // namespace
 
@@ -93,11 +92,9 @@ private:
 }  // namespace
 
 bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "pass::Manager::run_passes");
 
-    static bool profile_enabled =
-        ov::util::getenv_bool("NGRAPH_PROFILE_PASS_ENABLE") || ov::util::getenv_bool("OV_PROFILE_PASS_ENABLE");
+    static bool profile_enabled = ov::util::getenv_bool("OV_PROFILE_PASS_ENABLE");
 
     size_t index = 0;
     stopwatch pass_timer;
@@ -171,7 +168,6 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
     if (profile_enabled) {
         cout << "passes done in " << overall_timer.get_milliseconds() << "ms\n";
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     return function_changed;
 }

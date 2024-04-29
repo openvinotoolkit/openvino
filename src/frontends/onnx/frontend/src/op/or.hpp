@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 inline ov::OutputVector logical_or(const ov::frontend::onnx::Node& node) {
-    return {std::make_shared<ov::op::v1::LogicalOr>(node.get_ng_inputs().at(0), node.get_ng_inputs().at(1))};
+    return {std::make_shared<ov::op::v1::LogicalOr>(node.get_ov_inputs().at(0), node.get_ov_inputs().at(1))};
 }
 
 }  // namespace set_1

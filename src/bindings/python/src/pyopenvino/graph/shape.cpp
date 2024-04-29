@@ -40,8 +40,21 @@ void regclass_graph_Shape(py::module m) {
     shape.def("__setitem__", [](ov::Shape& self, size_t key, ov::Dimension d) {
         self[key] = d.get_length();
     });
-    shape.def("__getitem__", [](const ov::Shape& v, size_t key) {
+    shape.def("__getitem__", [](const ov::Shape& v, int64_t key) {
+        if (key < 0) {
+            key += v.size();
+        }
         return v[key];
+    });
+
+    shape.def("__getitem__", [](const ov::Shape& v, py::slice& slice) {
+        size_t start, stop, step, slicelength;
+        if (!slice.compute(v.size(), &start, &stop, &step, &slicelength)) {
+            throw py::error_already_set();
+        }
+        ov::Shape result(slicelength);
+        Common::shape_helpers::get_slice(result, v, start, step, slicelength);
+        return result;
     });
 
     shape.def(

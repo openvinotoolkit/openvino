@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,6 @@
 #include <string>
 
 #include "utils/cpu_test_utils.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 using namespace CPUTestUtils;
@@ -54,5 +53,11 @@ class FuseTransposeAndReorderTest4 : public FuseTransposeAndReorderTest {
 protected:
     void create_model() override;
 };
+
+class FuseTransposeAndReorderTest5 : public FuseTransposeAndReorderTest {
+protected:
+    void create_model() override;
+};
+
 } // namespace test
 } // namespace ov

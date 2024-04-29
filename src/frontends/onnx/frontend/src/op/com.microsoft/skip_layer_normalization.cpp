@@ -19,7 +19,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector skip_layer_normalization(const ov::frontend::onnx::Node& node) {
-    auto nodes = node.get_ng_inputs();
+    auto nodes = node.get_ov_inputs();
     auto num_nodes = nodes.size();
     FRONT_END_GENERAL_CHECK(num_nodes >= 3 && num_nodes <= 5,
                             "SkipLayerNormalization takes 3, 4 or 5 inputs. Provided " + std::to_string(num_nodes));

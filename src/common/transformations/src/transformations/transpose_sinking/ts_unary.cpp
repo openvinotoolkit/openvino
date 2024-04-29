@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,11 +10,17 @@
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/elu.hpp"
+#include "openvino/op/hard_sigmoid.hpp"
 #include "openvino/op/is_finite.hpp"
 #include "openvino/op/is_inf.hpp"
+#include "openvino/op/is_nan.hpp"
+#include "openvino/op/log_softmax.hpp"
 #include "openvino/op/logical_not.hpp"
+#include "openvino/op/selu.hpp"
 #include "openvino/op/softplus.hpp"
+#include "openvino/op/swish.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -96,7 +102,7 @@ TSUnaryBackward::TSUnaryBackward() {
 
     auto transpose_label = wrap_type<ov::op::v1::Transpose>({unary_label, transpose_const_label});
 
-    ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose_const =
             as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());

@@ -13,7 +13,7 @@ namespace onnx {
 namespace op {
 namespace set_7 {
 inline ov::OutputVector acos(const ov::frontend::onnx::Node& node) {
-    return {std::make_shared<ov::op::v0::Acos>(node.get_ng_inputs().at(0))};
+    return {std::make_shared<ov::op::v0::Acos>(node.get_ov_inputs().at(0))};
 }
 }  // namespace set_7
 }  // namespace op

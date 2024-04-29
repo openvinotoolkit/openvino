@@ -71,12 +71,29 @@ Install required dependencies
 
 .. code:: ipython3
 
-    %pip install -q "openvino>=2023.1.0" "matplotlib" "opencv-python"
+    import platform
+    
+    %pip install -q "openvino>=2023.1.0" "opencv-python"
+    
+    if platform.system() != "Windows":
+        %pip install -q "matplotlib>=3.4"
+    else:
+        %pip install -q "matplotlib>=3.4,<3.7"
 
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     
 
 .. parsed-literal::
@@ -118,7 +135,7 @@ Download pretrained model and test image
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/notebooks/243-tflite-selfie-segmentation/selfie_multiclass_256x256.tflite')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/243-tflite-selfie-segmentation/selfie_multiclass_256x256.tflite')
 
 
 
@@ -143,9 +160,9 @@ instance which represents this model. The obtained model is ready to use
 and to be loaded on the device using ``compile_model`` or can be saved
 on a disk using the ``ov.save_model`` function reducing loading time for
 the next running. For more information about model conversion, see this
-`page <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__.
 For TensorFlow Lite, refer to the `models
-support <https://docs.openvino.ai/2023.3/openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite.html>`__.
+support <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/convert-model-tensorflow-lite.html>`__.
 
 .. code:: ipython3
 

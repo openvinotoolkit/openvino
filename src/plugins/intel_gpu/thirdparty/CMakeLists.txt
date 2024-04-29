@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -30,7 +30,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
             message(WARNING "Intel GPU plugin unsupported architecture: ${CMAKE_SYSTEM_PROCESSOR}")
         endif()
 
-        if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
+        if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM)
             ov_add_compiler_flags(-Wno-undef)
             ov_add_compiler_flags(-Wno-missing-declarations)
             if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND CMAKE_COMPILER_IS_GNUCXX)
@@ -47,7 +47,9 @@ if(ENABLE_ONEDNN_FOR_GPU)
 
         foreach(cmake_var IN ITEMS CMAKE_SYSTEM_NAME CMAKE_SYSTEM_VERSION
                                    CMAKE_SYSTEM_PROCESSOR CMAKE_TOOLCHAIN_FILE)
-            list(APPEND cmake_extra_args "-D${cmake_var}=${${cmake_var}}")
+            if(${cmake_var})
+                list(APPEND cmake_extra_args "-D${cmake_var}=${${cmake_var}}")
+            endif()
         endforeach()
 
         if(OV_GENERATOR_MULTI_CONFIG)
@@ -83,6 +85,12 @@ if(ENABLE_ONEDNN_FOR_GPU)
         set(onednn_gpu_lib "${CMAKE_STATIC_LIBRARY_PREFIX}${DNNL_GPU_LIBRARY_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}")
         set(ONEDNN_GPU_LIB_PATH ${ONEDNN_INSTALL_DIR}/lib/${onednn_gpu_lib} CACHE FILEPATH "Path to oneDNN GPU library")
 
+        # remove CMAKE_COMPILE_WARNING_AS_ERROR for onednn_gpu
+        if(WIN32 AND CMAKE_COMPILE_WARNING_AS_ERROR AND CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND CMAKE_VERSION VERSION_LESS 3.24)
+            string(REPLACE "/WX" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+            string(REPLACE "/WX" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+        endif()
+
         ExternalProject_Add(onednn_gpu_build
             # Directory Options:
             PREFIX "${ONEDNN_PREFIX_DIR}"
@@ -106,7 +114,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DDNNL_LIBRARY_NAME=${DNNL_GPU_LIBRARY_NAME}"
                 "-DCMAKE_INSTALL_PREFIX=${ONEDNN_INSTALL_DIR}"
                 "-DDNNL_ENABLE_CONCURRENT_EXEC=ON"
-                "-DDNNL_ENABLE_PRIMITIVE_CACHE=OFF"
+                "-DDNNL_ENABLE_PRIMITIVE_CACHE=ON"
                 "-DDNNL_ENABLE_WORKLOAD=INFERENCE"
                 "-DDNNL_ENABLE_JIT_PROFILING=${BUILD_SHARED_LIBS}"
                 "-DDNNL_ENABLE_ITT_TASKS=${BUILD_SHARED_LIBS}"

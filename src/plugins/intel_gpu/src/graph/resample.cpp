@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <string>
@@ -23,7 +23,7 @@ layout resample_inst::calc_output_layout(resample_node const& node, kernel_impl_
         output_type = data_types::f32;
     }
     if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
     }
 
     return desc->sizes.empty() ? layout({output_type, input_layout.format, desc->output_size}) :

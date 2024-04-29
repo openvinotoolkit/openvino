@@ -15,7 +15,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector squeeze(const ov::frontend::onnx::Node& node) {
-    auto data = node.get_ng_inputs().at(0);
+    auto data = node.get_ov_inputs().at(0);
     const auto axes = node.get_attribute_value<std::vector<std::int64_t>>("axes", {});
 
     if (axes.empty()) {
@@ -30,7 +30,7 @@ ov::OutputVector squeeze(const ov::frontend::onnx::Node& node) {
 
 namespace set_13 {
 ov::OutputVector squeeze(const ov::frontend::onnx::Node& node) {
-    const auto inputs = node.get_ng_inputs();
+    const auto inputs = node.get_ov_inputs();
     if (inputs.size() < 2) {
         return {std::make_shared<v0::Squeeze>(inputs.at(0))};
     } else {

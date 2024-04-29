@@ -28,6 +28,36 @@ protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
 };
+
+/// One unary operation: Exp
+/// Tokenized simply by starting subgraph.
+//    in1
+//    Exp
+//   Result
+class ExpFunction : public SnippetsFunctionBase {
+public:
+    explicit ExpFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+        OPENVINO_ASSERT(input_shapes.size() == 1, "Got invalid number of input shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+};
+
+/// Two unary operations: Exp + Power(x, -1) (aka Reciprocal)
+/// Tokenized simply by starting subgraph.
+//    in1
+//    Exp
+//  Power(x, -1)
+//   Result
+class ExpReciprocalFunction : public SnippetsFunctionBase {
+public:
+    explicit ExpReciprocalFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+        OPENVINO_ASSERT(input_shapes.size() == 1, "Got invalid number of input shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+};
+
 /// Like AddSinh but with a constant second input (and no sinh on in)
 //   in1       in2
 //        Add
@@ -94,18 +124,18 @@ public:
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 };
-/// Eltwise graph with 10 inputs and 2 outputs.
+/// Eltwise graph with 9 inputs and 2 outputs.
 /// Needed to test for a max number of inputs+outputs allowed.
-// in1   in2   in3 ... in10
+// in1   in2   in3 ... in9
 // ........................
-//    Subtract    Power
-//          \   Sinh
+//    Subtract        Power
+//          \     Sinh
 //          Result
 class EltwiseMaxNumParamsFunction : public SnippetsFunctionBase {
 public:
     explicit EltwiseMaxNumParamsFunction(const std::vector<PartialShape>& inputShapes) :
             SnippetsFunctionBase(inputShapes) {
-        OPENVINO_ASSERT(input_shapes.size() == 10, "Got invalid number of input shapes");
+        OPENVINO_ASSERT(input_shapes.size() == 9, "Got invalid number of input shapes");
     }
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
@@ -155,8 +185,8 @@ protected:
 /// Also Output tensors have names to check correct copying output names
 //    in1    in2
 //        Add
-//  HSwish   Result
-//  Relu
+//  Relu   Result
+//  HSwish
 //  Result
 class EltwiseTwoResultsFunction : public SnippetsFunctionBase {
 public:

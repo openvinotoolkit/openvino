@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,10 +7,10 @@
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include "max_pool_shape_inference.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "pooling_inst.h"
 #include "primitive_type_base.h"
 #include "sliding_window_utils.hpp"
-#include "validation_util.hpp"
 
 using namespace ov::intel_gpu;
 
@@ -27,7 +27,7 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node, kernel_i
     auto window_size = desc->size;
 
     // auto output_type = node.get_primitive()->output_data_type ? *node.get_primitive()->output_data_type : input_layout.data_type;
-    // FIXME: dirty hack. Replace it with optional output data type (above) once IE returns correct precision on edges
+    // FIXME: dirty hack. Replace it with optional output data type (above) once OV returns correct precision on edges
     auto output_type = input_layout.data_type;
 
     if (output_type == data_types::u8 || output_type == data_types::i8) {
@@ -37,7 +37,7 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node, kernel_i
     }
 
     if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
 
         // pooling doesn't support i32 data type
         // FIXME: Someday delete this, when pooling supports i32 output.
@@ -157,7 +157,7 @@ std::vector<layout> pooling_inst::calc_output_layouts(pooling_node const& /*node
         }
     }
     if (impl_param.has_fused_primitives()) {
-        output_dtype = impl_param.get_fused_output_layout().data_type;
+        output_dtype = impl_param.get_output_element_type();
 
         // pooling doesn't support i32 data type
         // FIXME: Someday delete this, when pooling supports i32 output.

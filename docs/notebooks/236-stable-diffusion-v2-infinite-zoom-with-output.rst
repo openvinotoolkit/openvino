@@ -1223,9 +1223,3 @@ Run Infinite Zoom video generation
 
     This share link expires in 72 hours. For free permanent hosting and GPU upgrades, run `gradio deploy` from Terminal to deploy to Spaces (https://huggingface.co/spaces)
 
-
-
-.. .. raw:: html
-
-..    <div><iframe src="https://372deef95f8b1d0168.gradio.live" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
-

@@ -47,7 +47,7 @@ jobs:
           git diff > samples_diff.diff
         working-directory: samples/python
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: samples_diff
@@ -65,7 +65,7 @@ jobs:
           git diff > pyopenvino_diff.diff
         working-directory: src/bindings/python/src/openvino
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: pyopenvino_diff
@@ -83,7 +83,7 @@ jobs:
           git diff > wheel_diff.diff
         working-directory: src/bindings/python/wheel
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: wheel_diff

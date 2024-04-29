@@ -14,8 +14,6 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-using LoopPort = LinearIR::LoopManager::LoopPort;
-
 ValidateLoops::ValidateLoops() {}
 
 bool ValidateLoops::run(LinearIR& linear_ir) {
@@ -56,15 +54,13 @@ bool ValidateLoops::run(LinearIR& linear_ir) {
                 const auto id = loop_ids[i];
                 const auto dim_idx = loop_manager->get_loop_info(id)->get_dim_idx();
                 // if the loop has different dimension indexes, it don't have to meet the split loop related requirements
-                if (dim_idx == LinearIR::LoopManager::LoopInfo::UNDEFINED_DIM_IDX)
+                if (dim_idx == LoopInfo::UNDEFINED_DIM_IDX)
                     continue;
                 if (std::find(dim_indexes.cbegin(), dim_indexes.cend(), dim_idx) != dim_indexes.cend()) {
                     OPENVINO_ASSERT(*dim_indexes.rbegin() == dim_idx,
                                     "Incorrect Loop ID configuration: the Loops with splitted dimension should be successively nested");
                     OPENVINO_ASSERT(loop_manager->get_loop_info(loop_ids[i - 1])->get_increment() == loop_manager->get_loop_info(id)->get_work_amount(),
                                     "Incorrect Loop ID configuration: the Loops with splitted dimension should be successively nested");
-                    OPENVINO_ASSERT(loop_manager->get_loop_info(loop_ids[i - 1])->get_outer_splited_loop(),
-                                    "Incorrect Loop ID configuration: the outer Loop with splitted dimension should have `outer_splited_loop=True`");
                 }
                 dim_indexes.push_back(dim_idx);
             }
@@ -80,7 +76,7 @@ bool ValidateLoops::run(LinearIR& linear_ir) {
                                                : ov::snippets::utils::get_preordered_vdims(*loop_port.expr_port);
             const auto& dim = *(planar_shape.rbegin() + loop_port.dim_idx);
             // Since dim == 1 can be broadcasted to any value, it's not necessary to add it to unique dims
-            if (dim != 1)
+            if (!utils::is_dynamic_value(dim) && dim != 1)
                 unique_dims.insert(dim);
         }
     };

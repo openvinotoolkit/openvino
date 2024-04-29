@@ -19,7 +19,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector gemm(const ov::frontend::onnx::Node& node) {
-    ov::OutputVector inputs{node.get_ng_inputs()};
+    ov::OutputVector inputs{node.get_ov_inputs()};
     ov::Output<ov::Node> input_a = inputs.at(0);
     ov::Output<ov::Node> input_b = inputs.at(1);
     ov::Output<ov::Node> input_c;
@@ -63,7 +63,7 @@ ov::OutputVector gemm(const ov::frontend::onnx::Node& node) {
 
 namespace set_6 {
 ov::OutputVector gemm(const ov::frontend::onnx::Node& node) {
-    ov::OutputVector inputs{node.get_ng_inputs()};
+    ov::OutputVector inputs{node.get_ov_inputs()};
     ov::Output<ov::Node> input_a = inputs.at(0);
     ov::Output<ov::Node> input_b = inputs.at(1);
     ov::Output<ov::Node> input_c;

@@ -23,13 +23,11 @@ public:
     Transformations(const std::shared_ptr<ov::Model>& initialModel,
                     const bool                        enableLpt,
                     const ov::element::Type           inferencePrecision,
-                    const bool                        isLegacyApi,
                     const Config::SnippetsMode&       snippetsMode,
                     const Config&                     config)
         : model(initialModel),
           enableLpt(enableLpt),
           inferencePrecision(inferencePrecision),
-          isLegacyApi(isLegacyApi),
           snippetsMode(snippetsMode),
           config(config) {
             CPU_DEBUG_CAPS_MAYBE_UNUSED(this->config);
@@ -39,16 +37,17 @@ public:
     void CpuSpecificOpSet();
     void PostLpt();
     void Snippets(void);
+    void SetSubStreamNum(int);
 
 private:
     std::shared_ptr<ov::Model> model;
     const bool    enableLpt;
     const ov::element::Type inferencePrecision;
-    const bool    isLegacyApi;
     const Config::SnippetsMode snippetsMode;
     const Config& config;
+    int subStreamNum = -1;
 
-    void PreLpt(const std::vector<ov::element::Type>& defaultPrecisions, const bool isLegacyApi);
+    void PreLpt(const std::vector<ov::element::Type>& defaultPrecisions);
 
     void Lpt(const std::vector<ov::element::Type>& defaultPrecisions);
 

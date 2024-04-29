@@ -15,7 +15,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector adaptive_avg_pooling2d(const ov::frontend::onnx::Node& node) {
-    const auto inputs = node.get_ng_inputs();
+    const auto inputs = node.get_ov_inputs();
     const auto num_inputs = inputs.size();
 
     CHECK_VALID_NODE(node, num_inputs == 2, "adaptive_avg_pooling2d expects 2 input tensors. Got: ", num_inputs);

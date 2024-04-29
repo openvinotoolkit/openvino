@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,6 +23,10 @@
 #include <cstring>
 #include <utility>
 
+#if defined(OV_CPU_WITH_ACL)
+#include "nodes/executors/acl/acl_ie_scheduler.hpp"
+#endif
+
 using namespace ov::threading;
 
 namespace ov {
@@ -46,28 +50,22 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
       m_cfg{cfg},
       m_name{model->get_name()},
       m_loaded_from_cache(loaded_from_cache) {
-    bool isFloatModel = !ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(m_model);
     m_mutex = std::make_shared<std::mutex>();
     const auto& core = m_plugin->get_core();
     if (!core)
         OPENVINO_THROW("Unable to get API version. Core is unavailable");
-    m_cfg.isLegacyApi = !core->is_new_api();
 
+    ov::threading::IStreamsExecutor::Ptr stream_executor = nullptr;
     if (cfg.exclusiveAsyncRequests) {
         // special case when all InferRequests are muxed into a single queue
         m_task_executor = m_plugin->get_executor_manager()->get_executor("CPU");
     } else {
-        auto streamsExecutorConfig =
-            is_cpu_map_available()
-                ? m_cfg.streamExecutorConfig
-                : IStreamsExecutor::Config::make_default_multi_threaded(m_cfg.streamExecutorConfig, isFloatModel);
-        streamsExecutorConfig._name = "CPUStreamsExecutor";
-        m_cfg.streamExecutorConfig._threads = streamsExecutorConfig._threads;
-        m_task_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig);
+        stream_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(m_cfg.streamExecutorConfig);
+        m_task_executor = stream_executor;
     }
-    if (0 != cfg.streamExecutorConfig._streams) {
+    if (0 != m_cfg.streamExecutorConfig.get_streams()) {
         m_callback_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(
-            IStreamsExecutor::Config{"CPUCallbackExecutor", 1, 0, IStreamsExecutor::ThreadBindingType::NONE});
+            IStreamsExecutor::Config{"CPUCallbackExecutor", 1, 0});
     } else {
         m_callback_executor = m_task_executor;
     }
@@ -77,11 +75,11 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     if (m_callback_executor)
         set_callback_executor(m_callback_executor);
 
-    int streams = std::max(1, m_cfg.streamExecutorConfig._streams);
+    int streams = std::max(1, m_cfg.streamExecutorConfig.get_streams());
     std::vector<Task> tasks;
     tasks.resize(streams);
     m_graphs.resize(streams);
-    if (m_cfg.streamExecutorConfig._streams != 0) {
+    if (m_cfg.streamExecutorConfig.get_streams() != 0) {
         auto all_graphs_ready = [&] {
             return std::all_of(m_graphs.begin(), m_graphs.end(), [&](Graph& graph) {
                 return graph.IsReady();
@@ -90,6 +88,13 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         do {
             for (auto&& task : tasks) {
                 task = [this] {
+#if defined(OV_CPU_WITH_ACL)
+                    static std::once_flag flag_once;
+                    std::call_once(flag_once, [&]() {
+                        std::shared_ptr<arm_compute::IScheduler> acl_scheduler = std::make_shared<ACLScheduler>();
+                        arm_compute::Scheduler::set(std::static_pointer_cast<arm_compute::IScheduler>(acl_scheduler));
+                    });
+#endif
                     CompiledModel::get_graph();
                 };
             }
@@ -97,6 +102,16 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         } while (!all_graphs_ready());
     } else {
         CompiledModel::get_graph();
+    }
+    // init sub stream threads of executor
+    int sub_streams = m_cfg.streamExecutorConfig.get_sub_streams();
+    if (sub_streams > 0 && stream_executor != nullptr) {
+        std::vector<Task> tasks;
+        tasks.resize(sub_streams);
+        for (auto&& task : tasks) {
+            task = [] {};
+        }
+        stream_executor->run_sub_stream_and_wait(tasks);
     }
 }
 
@@ -117,12 +132,12 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
                 {
                     std::lock_guard<std::mutex> lock{*m_mutex.get()};
                     // disable weights caching if graph was created only once
-                    auto weightsCache = m_cfg.streamExecutorConfig._streams != 1 ? m_socketWeights[socketId] : nullptr;
+                    auto weightsCache = m_cfg.streamExecutorConfig.get_streams() != 1 ? m_socketWeights[socketId] : nullptr;
                     auto isQuantizedFlag =
                         (m_cfg.lpTransformsMode == Config::On) &&
                         ov::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);
 
-                    ctx = std::make_shared<GraphContext>(m_cfg, weightsCache, isQuantizedFlag);
+                    ctx = std::make_shared<GraphContext>(m_cfg, weightsCache, isQuantizedFlag, streamsExecutor);
                 }
                 const std::shared_ptr<const ov::Model> model = m_model;
                 graphLock._graph.CreateGraph(model, ctx);
@@ -187,13 +202,11 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     };
 
     if (name == ov::supported_properties) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        return std::vector<ov::PropertyName>{
+        std::vector<ov::PropertyName> ro_properties{
             RO_property(ov::supported_properties.name()),
             RO_property(ov::model_name.name()),
             RO_property(ov::optimal_number_of_infer_requests.name()),
             RO_property(ov::num_streams.name()),
-            RO_property(ov::affinity.name()),
             RO_property(ov::inference_num_threads.name()),
             RO_property(ov::enable_profiling.name()),
             RO_property(ov::hint::inference_precision.name()),
@@ -202,13 +215,21 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::hint::num_requests.name()),
             RO_property(ov::hint::enable_cpu_pinning.name()),
             RO_property(ov::hint::scheduling_core_type.name()),
+            RO_property(ov::hint::model_distribution_policy.name()),
             RO_property(ov::hint::enable_hyper_threading.name()),
             RO_property(ov::execution_devices.name()),
             RO_property(ov::intel_cpu::denormals_optimization.name()),
             RO_property(ov::log::level.name()),
             RO_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+            RO_property(ov::hint::dynamic_quantization_group_size.name()),
+            RO_property(ov::hint::kv_cache_precision.name()),
         };
+
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        ro_properties.insert(ro_properties.end(), RO_property(ov::affinity.name()));
         OPENVINO_SUPPRESS_DEPRECATED_END
+
+        return ro_properties;
     }
 
     if (name == ov::model_name) {
@@ -216,16 +237,16 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         const std::string modelName = graph.dump()->get_friendly_name();
         return decltype(ov::model_name)::value_type(modelName);
     } else if (name == ov::optimal_number_of_infer_requests) {
-        const auto streams = config.streamExecutorConfig._streams;
+        const auto streams = config.streamExecutorConfig.get_streams();
         return decltype(ov::optimal_number_of_infer_requests)::value_type(
             streams > 0 ? streams : 1);  // ov::optimal_number_of_infer_requests has no negative values
     } else if (name == ov::num_streams) {
-        const auto streams = config.streamExecutorConfig._streams;
+        const auto streams = config.streamExecutorConfig.get_streams();
         return decltype(ov::num_streams)::value_type(
             streams);  // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
         OPENVINO_SUPPRESS_DEPRECATED_START
     } else if (name == ov::affinity) {
-        const auto affinity = config.streamExecutorConfig._threadBindingType;
+        const auto affinity = config.threadBindingType;
         switch (affinity) {
         case IStreamsExecutor::ThreadBindingType::NONE:
             return ov::Affinity::NONE;
@@ -239,7 +260,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         return ov::Affinity::NONE;
         OPENVINO_SUPPRESS_DEPRECATED_END
     } else if (name == ov::inference_num_threads) {
-        const auto num_threads = config.streamExecutorConfig._threads;
+        const auto num_threads = config.streamExecutorConfig.get_threads();
         return decltype(ov::inference_num_threads)::value_type(num_threads);
     } else if (name == ov::enable_profiling.name()) {
         const bool perfCount = config.collectPerfCounters;
@@ -254,8 +275,11 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         const bool use_pin = config.enableCpuPinning;
         return decltype(ov::hint::enable_cpu_pinning)::value_type(use_pin);
     } else if (name == ov::hint::scheduling_core_type) {
-        const auto core_type = config.schedulingCoreType;
-        return core_type;
+        const auto stream_mode = config.schedulingCoreType;
+        return stream_mode;
+    } else if (name == ov::hint::model_distribution_policy) {
+        const auto& distribution_policy = config.modelDistributionPolicy;
+        return distribution_policy;
     } else if (name == ov::hint::enable_hyper_threading.name()) {
         const bool use_ht = config.enableHyperThreading;
         return decltype(ov::hint::enable_hyper_threading)::value_type(use_ht);
@@ -271,6 +295,11 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     } else if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
         return decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type(
             config.fcSparseWeiDecompressionRate);
+    } else if (name == ov::hint::dynamic_quantization_group_size) {
+        return decltype(ov::hint::dynamic_quantization_group_size)::value_type(
+            config.fcDynamicQuantizationGroupSize);
+    } else if (name == ov::hint::kv_cache_precision) {
+        return decltype(ov::hint::kv_cache_precision)::value_type(config.kvCachePrecision);
     }
     OPENVINO_THROW("Unsupported property: ", name);
 }

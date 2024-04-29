@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,8 +28,6 @@ std::string FakeQuantizePrecisionSelectionTransformation::getTestCaseName(const 
 }
 
 void FakeQuantizePrecisionSelectionTransformation::SetUp() {
-    abs_threshold = 0.01;
-
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;

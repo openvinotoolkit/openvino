@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,9 @@
 #include "openvino/op/sinh.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/cosh.hpp"
+#include "openvino/op/softsign.hpp"
 #include "openvino/op/swish.hpp"
+#include "openvino/op/sqrt.hpp"
 #include "openvino/op/hswish.hpp"
 #include "openvino/op/mish.hpp"
 #include "openvino/op/gelu.hpp"

@@ -80,7 +80,7 @@ std::shared_ptr<ov::Node> quantize_linear(ov::Output<ov::Node> x,
 namespace op {
 namespace set_1 {
 ov::OutputVector dynamic_quantize_linear(const ov::frontend::onnx::Node& node) {
-    const ov::OutputVector& inputs = node.get_ng_inputs();
+    const ov::OutputVector& inputs = node.get_ov_inputs();
     const auto& x = inputs.at(0);
 
     // quantization range in case of uint8 is [0, 255]

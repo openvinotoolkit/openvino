@@ -68,5 +68,20 @@ public:
     Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
 };
 
+class ReduceShapeInfer : public IShapeInferSnippets {
+    size_t m_axis;
+public:
+    explicit ReduceShapeInfer(const std::shared_ptr<Node>& n);
+    Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
+};
+
+class ReshapeShapeInfer : public IShapeInferSnippets {
+    VectorDims target_shape;
+    size_t target_shape_volume = 0;
+public:
+    explicit ReshapeShapeInfer(const std::shared_ptr<Node>& n);
+    Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
+};
+
 } // namespace snippets
 } // namespace ov

@@ -25,6 +25,10 @@ JitConstants BroadcastKernelBase::GetJitConstants(const broadcast_params& params
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     jit.AddConstants({MakeJitConstant("BROADCAST_ORDER", params.input_order)});
+    std::vector<uint16_t> default_order(params.input_order.size());
+    std::iota(default_order.begin(), default_order.end(), 0);
+    jit.AddConstants({MakeJitConstant("BROADCAST_ORDER_DEFAULT", default_order == params.input_order ? 1 : 0)});
+
     jit.AddConstants({MakeJitConstant("VEC_SIZE", VEC_SIZE)});
     jit.AddConstants({MakeJitConstant("Y_BLOCKS", Y_BLOCKS)});
     jit.AddConstants({MakeJitConstant("SAME_RANK_PLAIN_FORMAT", is_same_planar_format(in_layout, out_layout))});
@@ -124,8 +128,7 @@ void BroadcastKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData BroadcastKernelBase::GetCommonKernelsData(const Params& params,
-                                                      const optional_params& options) const {
+KernelsData BroadcastKernelBase::GetCommonKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::BROADCAST);
 
     const auto& prim_params = static_cast<const broadcast_params&>(params);
@@ -136,7 +139,7 @@ KernelsData BroadcastKernelBase::GetCommonKernelsData(const Params& params,
 
     auto cldnn_jit = GetJitConstants(prim_params);
     cldnn_jit.AddConstant(MakeJitConstant("INPUT0_BLOCK_ND", GetInputBlockND(prim_params)));
-    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = k_data.kernels[0];
@@ -147,7 +150,7 @@ KernelsData BroadcastKernelBase::GetCommonKernelsData(const Params& params,
                      1,
                      0,
                      1,
-                     prim_params.inputs[0].is_dynamic() || prim_params.outputs[0].is_dynamic());
+                     prim_params.is_shape_agnostic);
 
     return {k_data};
 }

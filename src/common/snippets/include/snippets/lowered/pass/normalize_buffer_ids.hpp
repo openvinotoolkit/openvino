@@ -23,15 +23,15 @@ namespace pass {
  * @ingroup snippets
  */
 
-class NormalizeBufferIDs : public Pass {
+class NormalizeBufferIDs : public RangedPass {
 public:
-    OPENVINO_RTTI("NormalizeBufferIDs", "Pass")
+    OPENVINO_RTTI("NormalizeBufferIDs", "RangedPass")
     /**
      * @brief Apply the pass to the Linear IR
      * @param linear_ir the target Linear IR
      * @return status of the pass
      */
-    bool run(lowered::LinearIR& linear_ir) override;
+    bool run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 };
 
 } // namespace pass

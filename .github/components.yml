@@ -27,13 +27,13 @@ CPU:
   revalidate:
     - C_API
     - Python_API
-    - JS_API
     - samples
     - ONNX_RT
     - PyTorch_FE
     - TF_FE
     - ONNX_FE
   build:
+    - AUTO
     - HETERO
     - AUTO_BATCH
     - TEMPLATE
@@ -41,11 +41,16 @@ CPU:
 
 GPU:
   build:
+    - AUTO
     - HETERO
     - AUTO_BATCH
     - TEMPLATE
     - IR_FE
     - PROXY
+
+NPU:
+  revalidate: []
+  build: []
 
 HETERO:
   revalidate:
@@ -82,7 +87,6 @@ TEMPLATE:
     - C_API
     - Python_API
     - NVIDIA
-    - TOKENIZERS
   build:
     - IR_FE
 
@@ -105,7 +109,6 @@ IR_FE:
   revalidate:
     - C_API
     - Python_API
-    - JS_API
     - samples
   build:
     - CPU
@@ -130,6 +133,7 @@ TF_FE:
   build:
     - CPU
     - Python_API
+    - TOKENIZERS
 
 TFL_FE:
   revalidate:
@@ -144,10 +148,12 @@ PyTorch_FE:
   build:
     - CPU
     - Python_API
+    - TOKENIZERS
 
 C_API:
   build:
     - CPU
+    - GPU
     - HETERO
     - AUTO_BATCH
     - AUTO
@@ -172,8 +178,6 @@ Python_API:
     - PyTorch_FE
 
 JS_API:
-  revalidate:
-    - samples
   build:
     - CPU
     - IR_FE
@@ -196,7 +200,6 @@ IE_Tests:
     - TEMPLATE
     - AUTO
     - NVIDIA
-    - TOKENIZERS
   build:
     - IR_FE
 

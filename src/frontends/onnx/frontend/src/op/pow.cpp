@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector pow(const ov::frontend::onnx::Node& node) {
-    auto inputs = node.get_ng_inputs();
+    auto inputs = node.get_ov_inputs();
     FRONT_END_GENERAL_CHECK(inputs.size() == 2, "Power operation requires 2 inputs. Got: ", inputs.size());
 
     auto base = inputs[0];

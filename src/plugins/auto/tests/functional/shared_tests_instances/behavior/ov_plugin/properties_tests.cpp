@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,8 @@ const std::vector<ov::AnyMap> multi_Auto_properties = {
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::intel_auto::device_bind_buffer("NO")},
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::intel_auto::enable_startup_fallback("YES")},
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::intel_auto::enable_startup_fallback("NO")},
-};
+    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::enable_profiling(true)},
+    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::enable_profiling(false)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiBehaviorTests,
                          OVPropertiesTests,
@@ -52,7 +53,9 @@ const std::vector<ov::AnyMap> multi_setcore_properties = {
 const std::vector<ov::AnyMap> multi_compileModel_properties = {
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE),
      ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
-     ov::hint::model_priority(ov::hint::Priority::MEDIUM)}};
+     ov::hint::model_priority(ov::hint::Priority::MEDIUM)},
+    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::enable_profiling(true)},
+    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::enable_profiling(false)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_MultiCompileModelBehaviorTests,
                          OVSetPropComplieModleGetPropTests,
@@ -81,7 +84,9 @@ const std::vector<ov::AnyMap> auto_compileModel_properties = {
      ov::hint::model_priority(ov::hint::Priority::MEDIUM)},
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE),
      ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
-     ov::hint::model_priority(ov::hint::Priority::MEDIUM)}};
+     ov::hint::model_priority(ov::hint::Priority::MEDIUM)},
+    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::enable_profiling(true)},
+    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::enable_profiling(false)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoCompileModelBehaviorTests,
                          OVSetPropComplieModleGetPropTests,
@@ -125,7 +130,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiSetAndCompileModelBehaviorTestsThrow,
                          OVSetUnsupportPropCompileModelWithoutConfigTests::getTestCaseName);
 
 //
-// IE Class GetMetric
+// OV Class GetMetric
 //
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoOVGetMetricPropsTest, OVGetMetricPropsTest, ::testing::Values("MULTI", "AUTO"));

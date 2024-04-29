@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,7 @@ struct event {
 public:
     using ptr = std::shared_ptr<event>;
     event() = default;
+    virtual ~event() = default;
 
     void wait();
     void set();

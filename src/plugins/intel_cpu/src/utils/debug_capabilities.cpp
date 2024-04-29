@@ -1,5 +1,5 @@
 
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #ifdef CPU_DEBUG_CAPS
@@ -8,6 +8,7 @@
 #include "debug_capabilities.h"
 #include "node.h"
 #include "edge.h"
+#include "graph.h"
 #include <iomanip>
 #include "nodes/input.h"
 #include "nodes/eltwise.h"
@@ -213,7 +214,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
                     leftside << comma << desc->getPrecision().get_type_name()
                                 << "_" << desc->serializeFormat()
                                 << "_" << shape_str
-                                << "_" << getData(ptr);
+                                << "&" << getData(ptr);
                     b_ouputed = true;
                 } else {
                     leftside << "(empty)";
@@ -289,22 +290,24 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
     comma = "";
     for (size_t port = 0; port < node.getParentEdges().size(); ++port) {
         // find the Parent edge connecting to port
+        os << comma;
+        const char * sep2 = "";
         for (const auto & e : node.getParentEdges()) {
             auto edge = e.lock();
             if (!edge) continue;
             if (edge->getOutputNum() != static_cast<int>(port)) continue;
             auto n = edge->getParent();
-            os << comma;
+            os << sep2;
             os << node_id(*edge->getParent());
             auto ptr = edge->getMemoryPtr();
             if (ptr) {
-                os << "_" << getData(ptr);
+                os << "&" << getData(ptr);
             }
             if (!is_single_output_port(*n))
                 os << "[" << edge->getInputNum() << "]";
-            comma = ",";
-            break;
+            sep2 = "|"; // show all edges at single port(usually indicating bugs)
         }
+        comma = ",";
     }
 
     if (node.getType() == intel_cpu::Type::Input && node.isConstant()) {
@@ -355,6 +358,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
 
     // last line(s): fused layers
     os << " " << node.getOriginalLayers();
+    os << " " << node.getParallelDomain();
 
     if (node.PerfCounter().count()) {
         os << " latency:" << node.PerfCounter().avg() << "(us) x" << node.PerfCounter().count();
@@ -383,6 +387,16 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
 }
 std::ostream & operator<<(std::ostream & os, const Shape& shape) {
     os << shape.toString();
+    return os;
+}
+
+// Print complex data structures in a textualized form to the console is an efficient way to investigate them
+std::ostream & operator<<(std::ostream & os, const Graph& g) {
+    os << "ov::intel_cpu::Graph " << g.GetName() << " {" << std::endl;
+    for (auto &graphNode : g.GetNodes()) {
+        std::cout << *graphNode << std::endl;
+    }
+    os << "};" << std::endl;
     return os;
 }
 
@@ -643,11 +657,11 @@ std::ostream& operator<<(std::ostream& os, const IMemory& mem) {
     if (mem.isAllocated()) {
         os << " [";
         if (desc.getPrecision() == ov::element::i32) {
-            os << to_string(reinterpret_cast<int32_t*>(mem.getData()), mem.getSize() / sizeof(int32_t), 256);
+            os << to_string(mem.getDataAs<int32_t>(), mem.getSize() / sizeof(int32_t), 256);
         } else if (desc.getPrecision() == ov::element::f32) {
-            os << to_string(reinterpret_cast<float*>(mem.getData()), mem.getSize() / sizeof(float), 256);
+            os << to_string(mem.getDataAs<float>(), mem.getSize() / sizeof(float), 256);
         } else if (desc.getPrecision() == ov::element::i64) {
-            os << to_string(reinterpret_cast<int64_t*>(mem.getData()), mem.getSize() / sizeof(int64_t), 256);
+            os << to_string(mem.getDataAs<int64_t>(), mem.getSize() / sizeof(int64_t), 256);
         } else {
             os << " ? ";
         }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <string>
 
 #include "openvino/runtime/properties.hpp"
+#include "properties.hpp"
 
 namespace ov {
 namespace hetero {
@@ -34,6 +35,9 @@ struct Configuration {
     bool dump_dot_files() const;
 
     std::string device_priorities;
+
+    std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy = {};
+
     ov::AnyMap device_properties;
 };
 }  // namespace hetero

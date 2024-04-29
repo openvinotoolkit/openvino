@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -217,6 +217,10 @@ protected:
         }
 
         function = makeNgraphFunction(netPrecision, parameters, deformable_conv, "deformable_convolution");
+
+        if (netPrecision == ov::element::f32) {
+            abs_threshold = 5e-6;
+        }
     }
 };
 

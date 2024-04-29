@@ -9,27 +9,40 @@ subjects with up to 20x speedup. In addition, BLIP-Diffusion can be
 flexibly combined with ControlNet and prompt-to-prompt to enable novel
 subject-driven generation and editing applications.
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents**:
+-  `Prerequisites <#prerequisites>`__
+-  `Load the model <#load-the-model>`__
+-  `Infer the original model <#infer-the-original-model>`__
 
-- `Prerequisites <#prerequisites>`__
-- `Load the model <#load-the-model>`__
-- `Infer the original model <#infer-the-original-model>`__
-- `Zero-Shot subject-driven generation <#zero-shot-subject-driven-generation>`__
-- `Controlled subject-driven generation (Canny-edge) <#controlled-subject-driven-generation-canny-edge>`__
-- `Controlled subject-driven generation (Scribble) <#controlled-subject-driven-generation-scribble>`__
-- `Convert the model to OpenVINO Intermediate Representation (IR) <#convert-the-model-to-openvino-intermediate-representation-ir>`__
-- `Q-Former <#q-former>`__
-- `Text encoder <#text-encoder>`__
-- `ControlNet <#controlnet>`__
-- `UNet <#unet>`__
-- `Variational Autoencoder (VAE) <#variational-autoencoder-vae>`__
-- `Select inference device <#select-inference-device>`__
-- `Inference <#inference>`__
-- `Zero-Shot subject-driven generation <#zero-shot-subject-driven-generation>`__
-- `Controlled subject-driven generation (Canny-edge) <#controlled-subject-driven-generation-canny-edge>`__
-- `Controlled subject-driven generation (Scribble) <#controlled-subject-driven-generation-scribble>`__
-- `Interactive inference <#interactive-inference>`__
+   -  `Zero-Shot subject-driven
+      generation <#zero-shot-subject-driven-generation>`__
+   -  `Controlled subject-driven generation
+      (Canny-edge) <#controlled-subject-driven-generation-canny-edge>`__
+   -  `Controlled subject-driven generation
+      (Scribble) <#controlled-subject-driven-generation-scribble>`__
+
+-  `Convert the model to OpenVINO Intermediate Representation
+   (IR) <#convert-the-model-to-openvino-intermediate-representation-ir>`__
+
+   -  `Q-Former <#q-former>`__
+   -  `Text encoder <#text-encoder>`__
+   -  `ControlNet <#controlnet>`__
+   -  `UNet <#unet>`__
+   -  `Variational Autoencoder (VAE) <#variational-autoencoder-vae>`__
+   -  `Select inference device <#select-inference-device>`__
+
+-  `Inference <#inference>`__
+
+   -  `Zero-Shot subject-driven
+      generation <#zero-shot-subject-driven-generation>`__
+   -  `Controlled subject-driven generation
+      (Canny-edge) <#controlled-subject-driven-generation-canny-edge>`__
+   -  `Controlled subject-driven generation
+      (Scribble) <#controlled-subject-driven-generation-scribble>`__
+
+-  `Interactive inference <#interactive-inference>`__
 
 .. |image0| image:: https://github.com/salesforce/LAVIS/raw/main/projects/blip-diffusion/teaser-website.png
 
@@ -40,8 +53,15 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q "openvino>=2023.1.0" matplotlib Pillow gradio
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu torch transformers accelerate controlnet_aux "diffusers>=0.23.0"
+    import platform
+
+    %pip install -q "openvino>=2023.1.0" Pillow gradio
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu torch transformers accelerate controlnet_aux "diffusers>=0.23.0" "peft==0.6.2"
+
+    if platform.system() != "Windows":
+        %pip install -q "matplotlib>=3.4"
+    else:
+        %pip install -q "matplotlib>=3.4,<3.7"
 
 
 .. parsed-literal::
@@ -61,7 +81,6 @@ Prerequisites
     import diffusers
     import torch
     import matplotlib.pyplot as plt
-    import ipywidgets
     import PIL
     import numpy as np
     import gradio as gr
@@ -840,9 +859,11 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
+    import ipywidgets as widgets
+
     core = ov.Core()
 
-    device = ipywidgets.Dropdown(
+    device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",

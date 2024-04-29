@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,20 +22,23 @@ struct gemm_params : public base_params {
     std::vector<int64_t> input0_order;
     std::vector<int64_t> input1_order;
     std::vector<int64_t> output_order;
+    int64_t input0_reshape_axes = 0;
+    int64_t input1_reshape_axes = 0;
+    int64_t input0_broadcast_val = 0;
+    int64_t input1_broadcast_val = 0;
+    DataTensor beam_table;
+    bool indirect_input0 = false;
+    bool indirect_input1 = false;
     QuantizationType quantization = QuantizationType::NONE;
 
     ParamsKey GetParamsKey() const override {
         ParamsKey k = base_params::GetParamsKey();
         k.EnableQuantization(quantization);
+
+        if (indirect_input0 || indirect_input1)
+            k.EnableIndirectGemm();
         return k;
     }
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// gemm_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct gemm_optional_params : optional_params {
-    gemm_optional_params() : optional_params(KernelType::GEMM) {}
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -51,7 +54,7 @@ public:
 protected:
     virtual JitConstants GetJitConstants(const gemm_params& params) const;
     virtual DispatchData SetDefault(const gemm_params& params) const;
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
+    KernelsData GetCommonKernelsData(const Params& params) const;
 
     std::string GetDimsOrder(const std::vector<int64_t>& order_idx) const;
     size_t GetOuputSize(const std::vector<int64_t>& output_order, const kernel_selector::DataTensor &output, char target_dim) const;
@@ -62,7 +65,7 @@ protected:
     virtual JitConstants GetFusedPrimitivesJitConstants(const gemm_params& params, const DispatchData& dispatchData) const;
     Datatype GetActivationType(const gemm_params& params) const;
     // --Fused ops
-    bool Validate(const Params& p, const optional_params&) const override;
+    bool Validate(const Params& p) const override;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ class TypePropRollV7Test : public TypePropOpTest<op::v7::Roll> {};
 
 TEST(type_prop, roll_output_shape_type_test) {
     auto arg_shape = PartialShape{3, 3, 4, 1, 5};
-    set_shape_labels(arg_shape, 10);
+    auto symbols = set_shape_symbols(arg_shape);
     auto arg = make_shared<opset7::Parameter>(element::f32, arg_shape);
     auto shift = make_shared<opset7::Parameter>(element::i32, Shape{2});
     auto axes = make_shared<opset7::Parameter>(element::i64, Shape{2});
@@ -24,7 +24,7 @@ TEST(type_prop, roll_output_shape_type_test) {
 
     EXPECT_EQ(r->get_output_element_type(0), element::f32);
     EXPECT_EQ(r->get_output_partial_shape(0), PartialShape({3, 3, 4, 1, 5}));
-    EXPECT_THAT(get_shape_labels(r->get_output_partial_shape(0)), ElementsAre(10, 11, 12, 13, 14));
+    EXPECT_THAT(get_shape_symbols(r->get_output_partial_shape(0)), symbols);
 }
 
 TEST(type_prop, roll_axis_const_test) {
@@ -144,7 +144,7 @@ TEST(type_prop, roll_static_axes_dynamic_shift) {
 
 TEST_F(TypePropRollV7Test, static_axes_dynamic_data) {
     auto arg_shape = PartialShape{-1, -1};
-    set_shape_labels(arg_shape, 10);
+    auto symbols = set_shape_symbols(arg_shape);
     const auto arg = make_shared<Parameter>(element::f32, arg_shape);
     const auto shift = Constant::create(element::i64, Shape{}, {5});
     const auto axes = make_shared<Parameter>(element::i32, PartialShape{Dimension::dynamic()});
@@ -153,12 +153,12 @@ TEST_F(TypePropRollV7Test, static_axes_dynamic_data) {
 
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic(2));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 11));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), symbols);
 }
 
 TEST_F(TypePropRollV7Test, const_shift_axes_and_interval_dim_on_arg_shape) {
     auto arg_shape = PartialShape{{2, 5}, {-1, 10}, {4, -1}, -1};
-    set_shape_labels(arg_shape, 10);
+    auto symbols = set_shape_symbols(arg_shape);
     const auto arg = make_shared<Parameter>(element::f32, arg_shape);
     const auto shift = Constant::create(element::i64, Shape{}, {5});
     const auto axes = Constant::create(element::i64, Shape{2}, {0, 1});
@@ -167,7 +167,7 @@ TEST_F(TypePropRollV7Test, const_shift_axes_and_interval_dim_on_arg_shape) {
 
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), arg_shape);
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 11, 12, 13));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), symbols);
 }
 
 TEST_F(TypePropRollV7Test, default_ctor) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,9 +31,11 @@ OP_T_CONVERTER(translate_unary_op);
 OP_CONVERTER(translate_selu_op);
 OP_T_CONVERTER(translate_binary_op);
 OP_T_CONVERTER(translate_direct_reduce_op);
-
+OP_CONVERTER(translate_addv2_op);
 OP_CONVERTER(translate_add_n_op);
+OP_CONVERTER(translate_approximate_equal_op);
 OP_CONVERTER(translate_adjust_contrast_op);
+OP_CONVERTER(translate_angle_op);
 OP_CONVERTER(translate_arg_max_op);
 OP_CONVERTER(translate_arg_min_op);
 OP_CONVERTER(translate_atan2_op);
@@ -42,6 +44,7 @@ OP_CONVERTER(translate_batch_mat_mul_op);
 OP_CONVERTER(translate_batch_mat_mul_with_type_op);
 OP_CONVERTER(translate_batch_to_space_nd_op);
 OP_CONVERTER(translate_bias_add_op);
+OP_CONVERTER(translate_bincount_op);
 OP_CONVERTER(translate_broadcast_args_op);
 OP_CONVERTER(translate_broadcast_to_op);
 OP_CONVERTER(translate_bucketize_op);
@@ -81,6 +84,7 @@ OP_CONVERTER(translate_gather_op);
 OP_CONVERTER(translate_gather_v2_op);
 OP_CONVERTER(translate_gather_nd_op);
 OP_CONVERTER(translate_gather_tree_op);
+OP_CONVERTER(translate_gelu_op);
 OP_CONVERTER(translate_identity_op);
 OP_CONVERTER(translate_identity_n_op);
 OP_CONVERTER(translate_ifft_op);
@@ -102,6 +106,8 @@ OP_CONVERTER(translate_log_1p_op);
 OP_CONVERTER(translate_lrn_op);
 OP_CONVERTER(translate_mat_mul_op);
 OP_CONVERTER(translate_matrix_diag_op);
+OP_CONVERTER(translate_matrix_band_part_op);
+OP_CONVERTER(translate_matrix_inverse_op);
 OP_CONVERTER(translate_max_pool_op);
 OP_CONVERTER_NAMED(translate_max_pool_with_argmax);
 OP_CONVERTER(translate_mirror_pad_op);
@@ -130,6 +136,7 @@ OP_CONVERTER(translate_reverse_op);
 OP_CONVERTER(translate_reverse_v2_op);
 OP_CONVERTER(translate_reverse_sequence_op);
 OP_CONVERTER(translate_rfft_op);
+OP_CONVERTER(translate_rint_op);
 OP_CONVERTER(translate_roll_op);
 OP_CONVERTER(translate_round_op);
 OP_CONVERTER(translate_rsqrt_op);

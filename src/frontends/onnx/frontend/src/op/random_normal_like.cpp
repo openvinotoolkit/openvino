@@ -18,7 +18,7 @@ namespace op {
 namespace set_1 {
 
 ov::OutputVector random_normal_like(const ov::frontend::onnx::Node& node) {
-    const auto input = node.get_ng_inputs().at(0);
+    const auto input = node.get_ov_inputs().at(0);
 
     ov::element::Type target_type;
     if (node.has_attribute("dtype")) {

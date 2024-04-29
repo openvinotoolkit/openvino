@@ -1,6 +1,8 @@
-// // Copyright (C) 2018-2023 Intel Corporation
+// // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include <limits>
 
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
@@ -20,11 +22,11 @@ std::shared_ptr<Node> handle_minus_index(const std::vector<int64_t>& node, const
     return new_node;
 }
 
-// std::shared_ptr<Node> handle_maximum_index(Output<Node>& node, const Output<Node>& update_node) {
-//     const auto maximum_node = default_opset::Constant::create(element::i64, {1}, {INT_MAX});
-//     const auto mask = std::make_shared<default_opset::Equal>(node, maximum_node);
-//     return std::make_shared<default_opset::Select>(mask, update_node, node);
-// }
+std::shared_ptr<Node> handle_maximum_index(Output<Node>& node, const Output<Node>& update_node) {
+    const auto maximum_node = default_opset::Constant::create(element::i64, {1}, {std::numeric_limits<int32_t>::max()});
+    const auto mask = std::make_shared<default_opset::Equal>(node, maximum_node);
+    return std::make_shared<default_opset::Select>(mask, update_node, node);
+}
 
 bool is_contain_minus(const std::vector<int64_t> vec) {
     for (int64_t i : vec) {
@@ -52,14 +54,14 @@ NamedOutputs set_value(const NodeContext& node) {
     // Given:
     // input_data: shape(5, 6, 7, 8, 9)
     // update_value: shape(1, 6, 3, 3)
-    // operation: input_data[:, :, 2: 7: 2, -4: -1] = update_value
+    // operation: input_data[:, :, 2: 7: 2, -4: -1, :] = update_value
     // axes = [2, 3]
     // starts = [2, -4]
     // ends = [7, -1]
     // steps = [2, 1]
     // Our process is:
     // 1. Get axes [2, 3], get shape of input [5, 6, 7, 8, 9], select dimension from shape by axes: [7, 8].
-    // 2. Get starts [2, -4] and ends [3, -1]. Process minus starts and ends. starts: [2, 4], ends: [7, 7].
+    // 2. Get starts [2, -4] and ends [7, -1]. Process minus starts and ends. starts: [2, 4], ends: [7, 7].
     // 3. Calculate starts_node, ends_node and steps_node
     //    1. Create `starts node` filled with 0. Update `starts` to `starts_node` according to axes.
     //    starts_node[axes[i]] = starts[i] for i in axes.size
@@ -92,25 +94,41 @@ NamedOutputs set_value(const NodeContext& node) {
     const auto slice_shape = default_opset::Constant::create(ov::element::i64, {1, 1}, {-1});
 
     // get positive starts ends and steps
-    if (node.has_input("StartsTensorList") && node.has_input("StepsTensorList") && node.has_input("EndsTensorList")) {
+    if (node.has_input("StartsTensorList")) {
         starts = handle_minus_index(node.get_ng_inputs("StartsTensorList"), spec_dim_node);
-        ends = handle_minus_index(node.get_ng_inputs("EndsTensorList"), spec_dim_node);
-        steps = std::make_shared<default_opset::Concat>(node.get_ng_inputs("StepsTensorList"), 0);
-    } else if (node.has_attribute("starts") && node.has_attribute("steps") && node.has_attribute("ends")) {
-        const auto start_vec = node.get_attribute<std::vector<int64_t>>("starts");
-        const auto ends_vec = node.get_attribute<std::vector<int64_t>>("ends");
-        const auto step_vec = node.get_attribute<std::vector<int64_t>>("steps");
-        if (is_contain_minus(start_vec) || is_contain_minus(ends_vec) || is_contain_minus(step_vec)) {
-            PADDLE_OP_CHECK(node, (false), "Currently not support minus start, ends and steps!");
+    } else if (node.has_attribute("starts")) {
+        auto start_vec = node.get_attribute<std::vector<int64_t>>("starts");
+        if (is_contain_minus(start_vec)) {
+            PADDLE_OP_CHECK(node, (false), "Currently not support minus start!");
         }
         starts = handle_minus_index(start_vec, spec_dim_node);
+    } else
+        PADDLE_OP_CHECK(node, (false), "Invalid arguments!");
+
+    if (node.has_input("EndsTensorList")) {
+        ends = handle_minus_index(node.get_ng_inputs("EndsTensorList"), spec_dim_node);
+    } else if (node.has_attribute("ends")) {
+        auto ends_vec = node.get_attribute<std::vector<int64_t>>("ends");
+        if (is_contain_minus(ends_vec)) {
+            PADDLE_OP_CHECK(node, (false), "Currently not support minus ends!");
+        }
         ends = handle_minus_index(ends_vec, spec_dim_node);
-        steps = default_opset::Constant::create(element::i64, {step_vec.size()}, step_vec);
+    } else
+        PADDLE_OP_CHECK(node, (false), "Invalid arguments!");
+
+    if (node.has_input("StepsTensorList")) {
+        steps = handle_minus_index(node.get_ng_inputs("StepsTensorList"), spec_dim_node);
+    } else if (node.has_attribute("steps")) {
+        auto step_vec = node.get_attribute<std::vector<int64_t>>("steps");
+        if (is_contain_minus(step_vec)) {
+            PADDLE_OP_CHECK(node, (false), "Currently not support minus steps!");
+        }
+        steps = handle_minus_index(step_vec, spec_dim_node);
     } else
         PADDLE_OP_CHECK(node, (false), "Invalid arguments!");
 
     // for unsepcified end: x[::2], end will be 2147483647
-    // ends = handle_maximum_index(ends, spec_dim_node);
+    ends = handle_maximum_index(ends, spec_dim_node);
 
     // 3.1 get starts node
     starts_node =
@@ -142,7 +160,12 @@ NamedOutputs set_value(const NodeContext& node) {
         std::make_shared<default_opset::ScatterNDUpdate>(input_shape, axes_node, value_shape_update_node);
 
     // 4.5 broadcast
-    value_node = std::make_shared<default_opset::Broadcast>(value_node, value_target_shape);
+    auto value_shape = std::make_shared<default_opset::ShapeOf>(value_node);
+    auto value_rank = std::make_shared<default_opset::ShapeOf>(value_shape);
+    auto value_rank_scalar = std::make_shared<default_opset::Squeeze>(value_rank);
+    Output<Node> broadcast_axes =
+        std::make_shared<default_opset::Range>(zero_node, value_rank_scalar, one_node, element::i64);
+    value_node = std::make_shared<default_opset::Broadcast>(value_node, value_target_shape, broadcast_axes);
 
     // get total number of elements
     const auto numel_node = std::make_shared<default_opset::ReduceProd>(input_shape, zero_node);

@@ -34,7 +34,11 @@ std::string EltwiseLayerCPUTest::getTestCaseName(testing::TestParamInfo<EltwiseL
     return result.str();
 }
 
-ov::Tensor EltwiseLayerCPUTest::generate_eltwise_input(const ov::element::Type& type, const ov::Shape& shape) {
+// If adopt_intervals is true then:
+// 1) the generated tensor value range is limited by operation result value (especially for multiply)
+// which has to be in signed/unsigned int8 type range,
+// 2) start value is defined by type sign: for signed int8 it's zero to have symmetric interval.
+ov::Tensor EltwiseLayerCPUTest::generate_eltwise_input(const ov::element::Type& type, const ov::Shape& shape, const bool adopt_intervals) {
     struct gen_params {
         uint32_t range;
         int32_t start_from;
@@ -66,10 +70,18 @@ ov::Tensor EltwiseLayerCPUTest::generate_eltwise_input(const ov::element::Type& 
     } else {
         switch (type) {
             case ov::element::i8:
-                params = gen_params(INT8_MAX, INT8_MIN);
+                if (adopt_intervals) {
+                    params = gen_params(11 * 2, -11);
+                } else {
+                    params = gen_params(INT8_MAX, INT8_MIN);
+                }
                 break;
             case ov::element::u8:
-                params = gen_params(UINT8_MAX, 0);
+                if (adopt_intervals) {
+                    params = gen_params(15, 0);
+                } else {
+                    params = gen_params(UINT8_MAX, 0);
+                }
                 break;
             case ov::element::i16:
                 params = gen_params(INT16_MAX, INT16_MIN);
@@ -78,11 +90,19 @@ ov::Tensor EltwiseLayerCPUTest::generate_eltwise_input(const ov::element::Type& 
                 params = gen_params(UINT16_MAX, 0);
                 break;
             case ov::element::u32:
-                // testing::internal::Random::random limitation
-                params = gen_params(INT32_MAX, 0);
+                if (adopt_intervals) {
+                    params = gen_params(INT8_MAX, 0);
+                } else {
+                    // testing::internal::Random::random limitation
+                    params = gen_params(INT32_MAX, 0);
+                }
                 break;
             default:
-                params = gen_params(INT32_MAX, INT32_MIN);
+                if (adopt_intervals) {
+                    params = gen_params(INT8_MAX, INT8_MIN);
+                } else {
+                    params = gen_params(INT32_MAX, INT32_MIN);
+                }
                 break;
         }
     }
@@ -98,7 +118,11 @@ void EltwiseLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetIn
     const auto& funcInputs = function->inputs();
     for (size_t i = 0; i < funcInputs.size(); ++i) {
         const auto& funcInput = funcInputs[i];
-        inputs.insert({funcInput.get_node_shared_ptr(), generate_eltwise_input(funcInput.get_element_type(), targetInputStaticShapes[i])});
+        inputs.insert({funcInput.get_node_shared_ptr(), generate_eltwise_input(
+            funcInput.get_element_type(),
+            targetInputStaticShapes[i],
+            (funcInput.get_element_type() == element::i32) || (funcInput.get_element_type() == element::u32) ||
+            (funcInput.get_element_type() == element::i8) || (funcInput.get_element_type() == element::u8))});
     }
 }
 
@@ -147,7 +171,10 @@ void EltwiseLayerCPUTest::SetUp() {
 
     init_input_shapes(shapes);
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
-    updateSelectedType(getPrimitiveType(), netType, configuration);
+    updateSelectedType(
+        getPrimitiveType(eltwiseType, netType, shapes),
+        netType,
+        configuration);
     // selectedType = makeSelectedTypeStr(getPrimitiveType(), netType);
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     if (eltwiseType == utils::POWER) {
@@ -185,7 +212,11 @@ void EltwiseLayerCPUTest::SetUp() {
                     }
                 }
 
-                auto data_tensor = generate_eltwise_input(netType, shape);
+                auto data_tensor = generate_eltwise_input(
+                    netType,
+                    shape,
+                    (netType == element::i32) || (netType == element::u32) ||
+                    (netType == element::i8) || (netType == element::u8));
                 if ((netType == ElementType::i8) || (netType == ElementType::u8)) {
                     auto data_ptr = reinterpret_cast<uint8_t*>(data_tensor.data());
                     std::vector<uint8_t> data(data_ptr, data_ptr + ov::shape_size(shape));
@@ -216,6 +247,24 @@ void EltwiseLayerCPUTest::SetUp() {
     }
     auto eltwise = utils::make_eltwise(parameters[0], secondaryInput, eltwiseType);
     function = makeNgraphFunction(netType, parameters, eltwise, "Eltwise");
+}
+
+std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& eltwise_type,
+                                                  const ov::element::Type_t& element_type,
+                                                  const std::vector<std::pair<ov::PartialShape, std::vector<ov::Shape>>>& input_shapes) const {
+#if defined(OV_CPU_WITH_ACL)
+#if defined(OPENVINO_ARCH_ARM64)
+    if ((eltwise_type == utils::EltwiseTypes::ADD) ||
+       (eltwise_type == utils::EltwiseTypes::MULTIPLY) ||
+       (eltwise_type == utils::EltwiseTypes::SUBTRACT) ||
+       (eltwise_type == utils::EltwiseTypes::DIVIDE)) {
+        return "jit";
+    }
+#endif
+    return "acl";
+#else
+    return CPUTestsBase::getPrimitiveType();
+#endif
 }
 
 TEST_P(EltwiseLayerCPUTest, CompareWithRefs) {
@@ -472,6 +521,20 @@ const std::vector<std::vector<InputShape>>& inShapes_4D_dyn_const() {
         },
     };
     return inShapes_4D_dyn_const;
+}
+
+const std::vector<std::vector<ov::Shape>>& inShapes_fusing_4D() {
+        static const std::vector<std::vector<ov::Shape>> inShapes_4D_fusing = {
+                {{1, 3, 16, 16}, {1}},
+        };
+        return inShapes_4D_fusing;
+}
+
+const std::vector<std::vector<ov::Shape>>& inShapes_fusing_5D() {
+        static const std::vector<std::vector<ov::Shape>> inShapes_5D_fusing = {
+                {{1, 3, 16, 16, 16}, {1}},
+        };
+        return inShapes_5D_fusing;
 }
 
 const std::vector<CPUSpecificParams>& cpuParams_5D_1D_constant() {

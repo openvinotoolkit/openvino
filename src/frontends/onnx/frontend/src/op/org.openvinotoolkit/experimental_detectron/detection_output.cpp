@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ namespace set_1 {
 ov::OutputVector experimental_detectron_detection_output(const ov::frontend::onnx::Node& node) {
     using DetectionOutput = v6::ExperimentalDetectronDetectionOutput;
 
-    auto inputs = node.get_ng_inputs();
+    auto inputs = node.get_ov_inputs();
     auto rois = inputs[0];
     auto deltas = inputs[1];
     auto scores = inputs[2];

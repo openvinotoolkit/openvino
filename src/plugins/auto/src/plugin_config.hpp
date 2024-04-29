@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 #pragma once
 
 #include "openvino/runtime/auto/properties.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
 #include "utils/log.hpp"
 #include "utils/log_util.hpp"
 #include "openvino/runtime/device_id_parser.hpp"

@@ -33,11 +33,14 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkSupportedPropertiesAreAvailable
         RO_property(ov::hint::num_requests.name()),
         RO_property(ov::hint::enable_cpu_pinning.name()),
         RO_property(ov::hint::scheduling_core_type.name()),
+        RO_property(ov::hint::model_distribution_policy.name()),
         RO_property(ov::hint::enable_hyper_threading.name()),
         RO_property(ov::execution_devices.name()),
         RO_property(ov::intel_cpu::denormals_optimization.name()),
         RO_property(ov::log::level.name()),
         RO_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+        RO_property(ov::hint::dynamic_quantization_group_size.name()),
+        RO_property(ov::hint::kv_cache_precision.name()),
     };
 
     ov::Core ie;
@@ -156,6 +159,28 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckSparseWeigthsDecompression
 
     core.set_property(deviceName, ov::intel_cpu::sparse_weights_decompression_rate(0.8));
     ASSERT_NO_THROW(ov::CompiledModel compiledModel = core.compile_model(model, deviceName));
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckDynamicQuantizationGroupSize) {
+    ov::Core core;
+
+    core.set_property(deviceName, ov::hint::dynamic_quantization_group_size(64));
+    ov::CompiledModel compiledModel = core.compile_model(model, deviceName);
+
+    size_t groupSize = 0;
+    ASSERT_NO_THROW(groupSize = compiledModel.get_property(ov::hint::dynamic_quantization_group_size));
+    ASSERT_EQ(groupSize, 64);
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckKVCachePrecision) {
+    ov::Core core;
+
+    core.set_property(deviceName, ov::hint::kv_cache_precision(ov::element::f32));
+    ov::CompiledModel compiledModel = core.compile_model(model, deviceName);
+
+    auto kv_cache_precision_value = ov::element::undefined;
+    ASSERT_NO_THROW(kv_cache_precision_value = compiledModel.get_property(ov::hint::kv_cache_precision));
+    ASSERT_EQ(kv_cache_precision_value, ov::element::f32);
 }
 
 const auto bf16_if_can_be_emulated = ov::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;

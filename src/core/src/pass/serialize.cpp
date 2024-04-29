@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,13 +22,13 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/reference/convert.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/runtime/string_aligned_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 #include "pugixml.hpp"
 #include "transformations/hash.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {  // helpers
 template <typename Container>
 std::string join(const Container& c, const char* glue = ", ") {
@@ -482,8 +482,8 @@ public:
             }
         }
         if (is_body_target) {
-            auto body_name = std::get<0>(bnames);
-            auto portmap_name = std::get<1>(bnames);
+            const auto& body_name = std::get<0>(bnames);
+            const auto& portmap_name = std::get<1>(bnames);
             std::vector<std::string> result_mapping =
                 map_type_from_body(m_xml_node.parent(), "Result", m_version, body_name);
             std::vector<std::string> parameter_mapping =
@@ -512,6 +512,55 @@ public:
         } else if (const auto& a =
                        ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::op::util::Variable>>>(&adapter)) {
             m_xml_node.append_attribute(name.c_str()).set_value(a->get()->get_info().variable_id.c_str());
+        } else if (ov::is_type<ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>>(&adapter) ||
+                   ov::is_type<ov::AttributeAdapter<std::shared_ptr<ov::SharedStringAlignedBuffer>>>(&adapter)) {
+            if (name == "value" && translate_type_name(m_node_type_name) == "Const") {
+                auto a1 = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>>(&adapter);
+                auto a2 = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::SharedStringAlignedBuffer>>>(&adapter);
+                size_t new_size = 0;
+                size_t inter_size = 0;
+                // write a header of packed string tensor
+                std::shared_ptr<uint8_t> header_ptr = nullptr;
+                size_t header_size = 0;
+                if (a1) {
+                    a1->get_header(header_ptr, header_size);
+                } else {
+                    a2->get_header(header_ptr, header_size);
+                }
+
+                int64_t offset = m_constant_write_handler.write(reinterpret_cast<const char*>(header_ptr.get()),
+                                                                header_size,
+                                                                &inter_size,
+                                                                m_compress_to_fp16,
+                                                                m_output_element_type);
+                new_size += inter_size;
+
+                // write raw strings part
+                size_t num_elements = 0;
+                if (a1) {
+                    num_elements = a1->get()->get_num_elements();
+                } else {
+                    num_elements = a2->get()->get_num_elements();
+                }
+                for (size_t ind = 0; ind < num_elements; ++ind) {
+                    const char* raw_string_ptr;
+                    size_t raw_string_size;
+                    if (a1) {
+                        a1->get_raw_string_by_index(raw_string_ptr, raw_string_size, ind);
+                    } else {
+                        a2->get_raw_string_by_index(raw_string_ptr, raw_string_size, ind);
+                    }
+
+                    m_constant_write_handler.write(raw_string_ptr,
+                                                   raw_string_size,
+                                                   &inter_size,
+                                                   m_compress_to_fp16,
+                                                   m_output_element_type);
+                    new_size += inter_size;
+                }
+                m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
+                m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
+            }
         } else if (const auto& a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
             if (name == "value" && translate_type_name(m_node_type_name) == "Const") {
                 const int64_t size = a->get()->size();
@@ -660,6 +709,16 @@ const std::vector<Edge> create_edge_mapping(const std::unordered_map<ov::Node*, 
 
 std::string get_opset_name(const ov::Node* n) {
     OPENVINO_ASSERT(n != nullptr);
+
+    // TODO: remove it one day: try to find opset name from RT info
+    // It's a dirty hack to TypeRelaxed and similar template internal operations
+    auto opset_it = n->get_rt_info().find("opset");
+    if (opset_it != n->get_rt_info().end()) {
+        if (opset_it->second.is<std::string>()) {
+            return opset_it->second.as<std::string>();
+        }
+    }
+
     return n->get_type_info().version_id == nullptr ? "experimental" : n->get_type_info().version_id;
 }
 
@@ -722,32 +781,6 @@ std::string escape_delim(const std::string& name, const char delim = ',') {
         index = result_name.find(delim, index + 2);
     }
     return result_name;
-}
-
-std::string generate_unique_name(const std::unordered_set<std::string>& unique_names,
-                                 const std::string& base_name,
-                                 int suffix) {
-    std::string new_name = base_name + std::to_string(suffix);
-    if (unique_names.find(new_name) == unique_names.end()) {
-        return new_name;
-    } else {
-        suffix++;
-        return generate_unique_name(unique_names, base_name, suffix);
-    }
-}
-
-bool is_name_auto_generated(const ov::Node& n) {
-    return n.get_friendly_name().find("autogenerated") != std::string::npos;
-}
-
-// TODO: remove when CNNNetwork will be supporting not-unique names
-std::string get_node_unique_name(std::unordered_set<std::string>& unique_names, const ov::Node* n) {
-    std::string name = n->get_friendly_name();
-    if (unique_names.find(name) != unique_names.end()) {
-        name = generate_unique_name(unique_names, name, 0);
-    }
-    unique_names.insert(name);
-    return name;
 }
 
 void visit_exec_graph_node(pugi::xml_node& layer, const ov::Node* n) {
@@ -872,8 +905,8 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
                      ConstantWriter& constant_node_write_handler,
                      int64_t version,
                      bool deterministic) {
-    // If determinism is not required, do not include names into xml
-    // model name is not critial for hash computing
+    // If determinism is not required, include auto-generated names into xml
+    // model name is not critical for hash computing
     if (!deterministic) {
         netXml.append_attribute("name").set_value(model.get_friendly_name().c_str());
     }
@@ -881,7 +914,6 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
     pugi::xml_node layers = netXml.append_child("layers");
 
     const std::unordered_map<ov::Node*, int> layer_ids = create_layer_ids(model);
-    std::unordered_set<std::string> unique_names;
 
     const bool exec_graph = is_exec_graph(model);
 
@@ -919,8 +951,9 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         pugi::xml_node layer = layers.append_child("layer");
         layer.append_attribute("id").set_value(layer_ids.find(node)->second);
         // If determinism is not required, include auto-generated names into xml
-        if (!deterministic || !is_name_auto_generated(*node)) {
-            layer.append_attribute("name").set_value(get_node_unique_name(unique_names, node).c_str());
+        // layer name is not critical for hash computing
+        if (!deterministic) {
+            layer.append_attribute("name").set_value(node->get_friendly_name().c_str());
         }
         layer.append_attribute("type").set_value(translate_type_name(node_type_name).c_str());
         if (!exec_graph) {
@@ -971,12 +1004,12 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
                 pugi::xml_node port = input.append_child("port");
                 port.append_attribute("id").set_value(port_id++);
 
-                auto rt_info = i.get_tensor().get_rt_info();
+                const auto& rt_info = i.get_tensor().get_rt_info();
                 auto port_element_type =
                     is_fp16_compression_postponed(rt_info) ? ov::element::f16 : i.get_element_type();
 
                 port.append_attribute("precision").set_value(get_precision_name(port_element_type).c_str());
-                for (auto d : i.get_partial_shape()) {
+                for (const auto& d : i.get_partial_shape()) {
                     pugi::xml_node dim = port.append_child("dim");
                     if (d.is_dynamic()) {
                         dim.append_child(pugi::xml_node_type::node_pcdata).set_value("-1");

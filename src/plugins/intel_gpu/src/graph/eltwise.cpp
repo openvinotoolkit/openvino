@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "eltwise_inst.h"
@@ -94,7 +94,7 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node, kernel_impl_pa
     }
 
     if (node.has_fused_primitives()) {
-        output_layout.data_type = node.get_fused_output_layout().data_type;
+        output_layout.data_type = impl_param.get_output_element_type();
     }
 
     if (!desc->stride.empty()) {
@@ -185,7 +185,7 @@ std::vector<layout> eltwise_inst::calc_output_layouts(eltwise_node const& /*node
     output_layout.data_type = desc->output_data_types[0].value_or(output_layout.data_type);
 
     if (impl_param.has_fused_primitives()) {
-        output_layout.data_type = impl_param.get_fused_output_layout().data_type;
+        output_layout.data_type = impl_param.get_output_element_type();
     }
 
     if (!desc->stride.empty()) {

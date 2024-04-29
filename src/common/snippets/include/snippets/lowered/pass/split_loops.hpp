@@ -29,15 +29,14 @@ namespace pass {
  * @ingroup snippets
  */
 
-class SplitLoops : public Pass {
+class SplitLoops : public RangedPass {
 public:
-    OPENVINO_RTTI("SplitLoops", "Pass")
+    OPENVINO_RTTI("SplitLoops", "RangedPass")
     SplitLoops();
-    bool run(LinearIR& linear_ir) override;
+    bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 
 private:
-    static bool can_be_split(const LinearIR::LoopManager::LoopInfoPtr& current,
-                             const LinearIR::LoopManager::LoopInfoPtr& target);
+    static bool can_be_split(const LoopInfoPtr& current, const LoopInfoPtr& target);
 };
 
 } // namespace pass

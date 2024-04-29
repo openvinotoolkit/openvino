@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "itt.hpp"
+#include "openvino/op/ops.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -99,9 +100,14 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::compile_model");
 
     auto fullConfig = Configuration{properties, m_cfg};
+    fullConfig.streams_executor_config = ov::threading::IStreamsExecutor::Config{stream_executor_name,
+                                                                                 fullConfig.streams,
+                                                                                 fullConfig.threads_per_stream};
     auto streamsExecutorConfig =
         ov::threading::IStreamsExecutor::Config::make_default_multi_threaded(fullConfig.streams_executor_config);
-    streamsExecutorConfig._name = stream_executor_name;
+    fullConfig.streams = streamsExecutorConfig.get_streams();
+    fullConfig.threads = streamsExecutorConfig.get_threads();
+    fullConfig.threads_per_stream = streamsExecutorConfig.get_threads_per_stream();
     auto compiled_model = std::make_shared<CompiledModel>(
         model->clone(),
         shared_from_this(),
@@ -138,6 +144,9 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
     }
 
     auto fullConfig = Configuration{_properties, m_cfg};
+    fullConfig.streams_executor_config = ov::threading::IStreamsExecutor::Config{stream_executor_name,
+                                                                                 fullConfig.streams,
+                                                                                 fullConfig.threads_per_stream};
     // read XML content
     std::string xmlString;
     std::uint64_t dataSize = 0;
@@ -156,7 +165,9 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
     auto ov_model = get_core()->read_model(xmlString, weights);
     auto streamsExecutorConfig =
         ov::threading::IStreamsExecutor::Config::make_default_multi_threaded(fullConfig.streams_executor_config);
-    streamsExecutorConfig._name = stream_executor_name;
+    fullConfig.streams = streamsExecutorConfig.get_streams();
+    fullConfig.threads = streamsExecutorConfig.get_threads();
+    fullConfig.threads_per_stream = streamsExecutorConfig.get_threads_per_stream();
     auto compiled_model =
         std::make_shared<CompiledModel>(ov_model,
                                         shared_from_this(),
@@ -205,6 +216,7 @@ ov::SupportedOpsMap ov::template_plugin::Plugin::query_model(const std::shared_p
 #include "openvino/opsets/opset12_tbl.hpp"
 #include "openvino/opsets/opset13_tbl.hpp"
 #include "openvino/opsets/opset14_tbl.hpp"
+#include "openvino/opsets/opset15_tbl.hpp"
         // clang-format on
 #undef _OPENVINO_OP_REG
             return op_super_set.contains_type(node->get_type_info());

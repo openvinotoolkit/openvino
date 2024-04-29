@@ -4,7 +4,6 @@ Image generation with Würstchen and OpenVINO
 .. image:: 265-wuerstchen-image-generation-with-output_files/499b779a-61d1-4e68-a1c3-437122622ba7.png
 
 
-
 `Würstchen <https://arxiv.org/abs/2306.00637>`__ is a diffusion model,
 whose text-conditional model works in a highly compressed latent space
 of images. Why is this important? Compressing data can reduce
@@ -59,7 +58,14 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q  "diffusers>=0.21.0" transformers accelerate matplotlib gradio "openvino>=2023.2.0" --extra-index-url https://download.pytorch.org/whl/cpu
+    import platform
+
+    if platform.system() != "Windows":
+        %pip install -q "matplotlib>=3.4"
+    else:
+        %pip install -q "matplotlib>=3.4,<3.7"
+
+    %pip install -q  "diffusers>=0.21.0" transformers accelerate gradio "openvino>=2023.2.0" "peft==0.6.2" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q datasets "nncf>=2.7.0"
 
 

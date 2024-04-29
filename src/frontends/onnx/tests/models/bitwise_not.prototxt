@@ -1,5 +1,5 @@
 ir_version: 9
-producer_name: "BitwiseNotModel"
+producer_name: "OpenVINO ONNX Frontend"
 graph {
   node {
     input: "x"

@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ov_models/builders.hpp>
-#include <common_test_utils/ov_tensor_utils.hpp>
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/test_enums.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -118,7 +118,7 @@ protected:
                 return;
         }
         ASSERT_EQ(actualOutputs.size(), expectedOutputs.size())
-                << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
+                << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while OV " << actualOutputs.size();
 
         compare(expectedOutputs, actualOutputs);
     }

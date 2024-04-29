@@ -22,7 +22,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector group_normalization(const ov::frontend::onnx::Node& node) {
-    const auto inputs = node.get_ng_inputs();
+    const auto inputs = node.get_ov_inputs();
     OPENVINO_ASSERT(inputs.size() == 3);
 
     const auto& data = inputs[0];   // Shape [N, C, ...]

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -28,7 +28,6 @@ from tests import (
     skip_issue_58676,
     xfail_issue_44858,
     xfail_issue_44965,
-    xfail_issue_45180,
     xfail_issue_47323,
     xfail_issue_73538,
     xfail_issue_48052,
@@ -38,7 +37,6 @@ from tests import (
     xfail_issue_63036,
     xfail_issue_63043,
     xfail_issue_63137,
-    xfail_issue_63138,
     xfail_issue_69444,
     xfail_issue_81976,
     skip_segfault,
@@ -52,16 +50,12 @@ from tests import (
     xfail_issue_99954,
     xfail_issue_99955,
     xfail_issue_99957,
-    xfail_issue_99958,
-    xfail_issue_99959,
     xfail_issue_99960,
     xfail_issue_99961,
     xfail_issue_99968,
     xfail_issue_99969,
     xfail_issue_99970,
-    xfail_issue_99972,
     xfail_issue_99973,
-    skip_issue_91151,
     xfail_issue_101965,
     xfail_issue_113506,
     skip_dynamic_model,
@@ -80,7 +74,6 @@ from tests import (
     xfail_issue_125491,
     xfail_issue_125492,
     xfail_issue_125493,
-    xfail_issue_125495,
     xfail_issue_122775,
     xfail_issue_122776,
     skip_misalignment,
@@ -279,11 +272,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_training_dropout_zero_ratio_mask_cpu",
     ),
     (
-        xfail_issue_45180,
-        "OnnxBackendNodeModelTest.test_reduce_sum_do_not_keepdims_example_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_sum_do_not_keepdims_random_cpu",
-    ),
-    (
         xfail_issue_44858,
         "OnnxBackendNodeModelTest.test_unsqueeze_axis_0_cpu",
         "OnnxBackendNodeModelTest.test_unsqueeze_axis_1_cpu",
@@ -342,15 +330,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_loop16_seq_none_cpu",  # OptionalHasElement, SequenceInsert
     ),
     (
-        xfail_issue_63138,
-        "OnnxBackendNodeModelTest.test_shape_end_1_cpu",
-        "OnnxBackendNodeModelTest.test_shape_end_negative_1_cpu",
-        "OnnxBackendNodeModelTest.test_shape_start_1_cpu",
-        "OnnxBackendNodeModelTest.test_shape_start_1_end_2_cpu",
-        "OnnxBackendNodeModelTest.test_shape_start_1_end_negative_1_cpu",
-        "OnnxBackendNodeModelTest.test_shape_start_negative_1_cpu",
-    ),
-    (
         xfail_issue_69444,
         "OnnxBackendNodeModelTest.test_resize_downsample_scales_linear_align_corners_cpu",
         "OnnxBackendNodeModelTest.test_resize_downsample_scales_cubic_align_corners_cpu",
@@ -363,6 +342,25 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_sce_NCd1d2d3d4d5_mean_weight_log_prob_cpu",  # ticket: 81976
         "OnnxBackendNodeModelTest.test_sce_NCd1d2d3d4d5_none_no_weight_cpu",  # ticket: 81976
         "OnnxBackendNodeModelTest.test_sce_NCd1d2d3d4d5_none_no_weight_log_prob_cpu",  # ticket: 81976
+        "OnnxBackendNodeModelTest.test_layer_normalization_2d_axis0_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_2d_axis1_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_2d_axis_negative_1_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_2d_axis_negative_2_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_3d_axis0_epsilon_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_3d_axis1_epsilon_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_3d_axis2_epsilon_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_3d_axis_negative_1_epsilon_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_3d_axis_negative_2_epsilon_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_3d_axis_negative_3_epsilon_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis0_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis1_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis2_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis3_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis_negative_1_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis_negative_2_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis_negative_3_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis_negative_4_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_default_axis_cpu",  # ticket: 90649
     ),
     (
         xfail_issue_81976,  # SoftmaxCrossEntropyLoss operator
@@ -443,14 +441,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_layer_normalization_default_axis_expanded_ver18_cpu",
     ),
     (
-        xfail_issue_99958,
-        "OnnxBackendNodeModelTest.test_logsoftmax_large_number_expanded_ver18_cpu",
-    ),
-    (
-        xfail_issue_99959,
-        "OnnxBackendNodeModelTest.test_mish_cpu",
-    ),
-    (
         xfail_issue_99960,
         "OnnxBackendNodeModelTest.test_mvn_expanded_ver18_cpu",
     ),
@@ -470,40 +460,21 @@ tests_expected_to_fail = [
     (
         xfail_issue_99968,
         "OnnxBackendNodeModelTest.test_reduce_l1_do_not_keepdims_example_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_l1_do_not_keepdims_example_expanded_cpu",
         "OnnxBackendNodeModelTest.test_reduce_l1_do_not_keepdims_random_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_l1_do_not_keepdims_random_expanded_cpu",
         "OnnxBackendNodeModelTest.test_reduce_l1_keep_dims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_l1_keep_dims_random_cpu",
         "OnnxBackendNodeModelTest.test_reduce_l1_negative_axes_keep_dims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_l1_negative_axes_keep_dims_random_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_l2_do_not_keepdims_example_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_l2_do_not_keepdims_example_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_l2_do_not_keepdims_random_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_l2_do_not_keepdims_random_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_l2_keep_dims_example_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_l2_keep_dims_random_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_l2_negative_axes_keep_dims_example_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_l2_negative_axes_keep_dims_random_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_asc_axes_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_asc_axes_expanded_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_desc_axes_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_desc_axes_expanded_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_do_not_keepdims_example_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_do_not_keepdims_example_expanded_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_do_not_keepdims_random_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_do_not_keepdims_random_expanded_cpu",
         "OnnxBackendNodeModelTest.test_reduce_l1_do_not_keepdims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_keepdims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_negative_axes_keepdims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_keepdims_random_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_log_sum_negative_axes_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_max_do_not_keepdims_example_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_max_do_not_keepdims_random_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_max_keepdims_example_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_max_keepdims_random_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_max_negative_axes_keepdims_example_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_max_negative_axes_keepdims_random_cpu",
         "OnnxBackendNodeModelTest.test_reduce_mean_do_not_keepdims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_negative_axes_keepdims_random_cpu",
         "OnnxBackendNodeModelTest.test_reduce_mean_do_not_keepdims_random_cpu",
@@ -511,12 +482,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_reduce_mean_negative_axes_keepdims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_mean_keepdims_random_cpu",
         "OnnxBackendNodeModelTest.test_reduce_mean_negative_axes_keepdims_random_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_min_do_not_keepdims_example_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_min_do_not_keepdims_random_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_min_keepdims_example_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_min_keepdims_random_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_min_negative_axes_keepdims_example_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_min_negative_axes_keepdims_random_cpu",
         "OnnxBackendNodeModelTest.test_reduce_prod_do_not_keepdims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_prod_do_not_keepdims_random_cpu",
         "OnnxBackendNodeModelTest.test_reduce_prod_keepdims_example_cpu",
@@ -524,9 +489,7 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_reduce_prod_negative_axes_keepdims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_prod_negative_axes_keepdims_random_cpu",
         "OnnxBackendNodeModelTest.test_reduce_sum_square_do_not_keepdims_example_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_sum_square_do_not_keepdims_example_expanded_cpu",
         "OnnxBackendNodeModelTest.test_reduce_sum_square_do_not_keepdims_random_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_sum_square_do_not_keepdims_random_expanded_cpu",
         "OnnxBackendNodeModelTest.test_reduce_sum_square_keepdims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_sum_square_keepdims_random_cpu",
         "OnnxBackendNodeModelTest.test_reduce_sum_square_negative_axes_keepdims_example_cpu",
@@ -554,18 +517,9 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_scatternd_min_cpu",
     ),
     (
-        xfail_issue_99972,
-        "OnnxBackendNodeModelTest.test_softmax_large_number_expanded_ver18_cpu",
-    ),
-    (
         xfail_issue_99973,
         "OnnxBackendNodeModelTest.test_split_1d_uneven_split_opset18_cpu",
         "OnnxBackendNodeModelTest.test_split_2d_uneven_split_opset18_cpu",
-    ),
-    (
-        skip_issue_91151,
-        "OnnxBackendNodeModelTest.test_castlike_BFLOAT16_to_FLOAT_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_BFLOAT16_cpu",
     ),
     (
         xfail_issue_101965,
@@ -673,9 +627,13 @@ tests_expected_to_fail = [
     (
         xfail_issue_125485,
         "OnnxBackendNodeModelTest.test_affine_grid_2d_align_corners_cpu",
+        "OnnxBackendNodeModelTest.test_affine_grid_2d_align_corners_expanded_cpu",
         "OnnxBackendNodeModelTest.test_affine_grid_2d_cpu",
+        "OnnxBackendNodeModelTest.test_affine_grid_2d_expanded_cpu",
         "OnnxBackendNodeModelTest.test_affine_grid_3d_align_corners_cpu",
+        "OnnxBackendNodeModelTest.test_affine_grid_3d_align_corners_expanded_cpu",
         "OnnxBackendNodeModelTest.test_affine_grid_3d_cpu",
+        "OnnxBackendNodeModelTest.test_affine_grid_3d_expanded_cpu",
     ),
     (
         xfail_issue_125488,
@@ -725,22 +683,13 @@ tests_expected_to_fail = [
     (
         xfail_issue_125493,
         "OnnxBackendNodeModelTest.test_reduce_l1_empty_set_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_l2_empty_set_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_log_sum_empty_set_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_empty_set_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_min_empty_set_cpu",
         "OnnxBackendNodeModelTest.test_reduce_prod_empty_set_cpu",
         "OnnxBackendNodeModelTest.test_reduce_sum_square_empty_set_cpu",
     ),
     (
-        xfail_issue_125495,
-        "OnnxBackendNodeModelTest.test_reduce_max_bool_inputs_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_min_bool_inputs_cpu",
-    ),
-    (
         skip_misalignment,
         "OnnxBackendNodeModelTest.test_gelu_default_2_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_log_sum_empty_set_expanded_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_empty_set_expanded_cpu",
     ),
     (

@@ -1,8 +1,9 @@
-build
+bin
 include
 lib
 src
 tests
+thirdparty
 
 .eslintrc.js
 CMakeLists.txt

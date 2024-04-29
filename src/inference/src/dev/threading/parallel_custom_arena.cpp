@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "dev/threading/parallel_custom_arena.hpp"
@@ -246,19 +246,17 @@ task_arena::task_arena(int max_concurrency_, unsigned reserved_for_masters)
 
 task_arena::task_arena(const constraints& constraints_, unsigned reserved_for_masters)
 #    if USE_TBBBIND_2_5
-    : my_task_arena {
-    info::default_concurrency(constraints_), reserved_for_masters
-}
+    : my_task_arena{info::default_concurrency(constraints_), reserved_for_masters}
 #    elif TBB_NUMA_SUPPORT_PRESENT || TBB_HYBRID_CPUS_SUPPORT_PRESENT
-    : my_task_arena {
-    convert_constraints(constraints_), reserved_for_masters
-}
+    : my_task_arena{convert_constraints(constraints_), reserved_for_masters}
 #    else
-    : my_task_arena {
-    constraints_.max_concurrency, reserved_for_masters
-}
+    : my_task_arena{constraints_.max_concurrency, reserved_for_masters}
 #    endif
-, my_initialization_state{}, my_constraints{constraints_}, my_binding_observer{} {}
+      ,
+      my_initialization_state{},
+      my_constraints{constraints_},
+      my_binding_observer{} {
+}
 
 task_arena::task_arena(const task_arena& s)
     : my_task_arena{s.my_task_arena},

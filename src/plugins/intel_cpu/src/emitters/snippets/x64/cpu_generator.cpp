@@ -39,6 +39,20 @@
 #include "emitters/snippets/x64/verbose.hpp"
 #endif
 
+#ifdef SNIPPETS_LIBXSMM_TPP
+#include "transformations/tpp/x64/op/brgemm.hpp"
+#include "transformations/tpp/x64/op/eltwise.hpp"
+#include "transformations/tpp/x64/op/reduce.hpp"
+#include "transformations/tpp/x64/op/modifiers.hpp"
+#include "transformations/tpp/x64/op/scalar.hpp"
+#include "emitters/tpp/x64/jit_eltwise_emitters.hpp"
+#include "emitters/tpp/x64/jit_brgemm_emitter.hpp"
+#include "emitters/tpp/x64/jit_scalar_emitter.hpp"
+#include "emitters/tpp/x64/jit_debug_emitter.hpp"
+// Note: for reference implementations
+#include <cmath>
+#endif
+
 namespace ov {
 
 #ifdef SNIPPETS_DEBUG_CAPS
@@ -90,9 +104,9 @@ static bool is_segfault_detector_emitter(const intel_cpu::jit_emitter *emitter) 
     } \
 }
 #else
-#define CREATE_SNIPPETS_EMITTER(e_type) { \
+#define CREATE_SNIPPETS_EMITTER(e_type, ...) { \
     [this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
-        return std::make_shared<e_type>(h.get(), isa, expr); \
+        return std::make_shared<e_type>(h.get(), isa, expr, ##__VA_ARGS__); \
     }, \
     [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> { \
         return e_type::get_supported_precisions(n); \
@@ -100,12 +114,31 @@ static bool is_segfault_detector_emitter(const intel_cpu::jit_emitter *emitter) 
 }
 #endif
 
+#define CREATE_DEBUG_TPP_EMITTER(e_type) { \
+    [this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
+        return std::make_shared<DebugTppEmitter>(expr, std::make_shared<e_type>(h.get(), isa, expr)); \
+    }, \
+    [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> { \
+        return e_type::get_supported_precisions(n); \
+    } \
+}
+
+
 #define CREATE_CPU_EMITTER(e_type) { \
     [this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
         return std::make_shared<e_type>(h.get(), isa, expr->get_node()); \
     }, \
     [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> { \
         return e_type::get_supported_precisions(n); \
+    } \
+}
+
+#define CREATE_UNDEFINED_EMITTER(supported_precisions) { \
+    [](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
+        return nullptr; \
+    }, \
+    [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> { \
+        return supported_precisions; \
     } \
 }
 
@@ -129,6 +162,7 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
     jitters[snippets::op::NewMemoryBuffer::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
     jitters[snippets::op::VectorBuffer::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
     jitters[snippets::op::RankNormalization::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
+    jitters[snippets::op::Reshape::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
 
     jitters[snippets::op::Load::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_load_memory_emitter);
     jitters[snippets::op::LoadReshape::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_load_memory_emitter);
@@ -199,17 +233,48 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
     jitters[snippets::op::HorizonMax::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_horizon_emitter);
     jitters[snippets::op::HorizonSum::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_horizon_emitter);
 
-    jitters[snippets::op::Kernel::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_kernel_emitter);
-    jitters[snippets::op::LoopBegin::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_begin_emitter);
-    jitters[snippets::op::LoopEnd::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_end_emitter);
+    jitters[snippets::op::KernelStatic::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_kernel_static_emitter);
+    jitters[snippets::op::KernelDynamic::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_kernel_dynamic_emitter);
+    jitters[snippets::op::LoopBeginStatic::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_begin_static_emitter);
+    jitters[snippets::op::LoopBeginDynamic::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_begin_dynamic_emitter);
+    jitters[snippets::op::LoopEndStatic::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_end_static_emitter);
+    jitters[snippets::op::LoopEndDynamic::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_end_dynamic_emitter);
     jitters[intel_cpu::BrgemmCPU::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_brgemm_emitter);
     jitters[intel_cpu::BrgemmCopyB::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_brgemm_copy_b_emitter);
+    jitters[snippets::op::ReduceMax::get_type_info_static()] = CREATE_UNDEFINED_EMITTER({{ov::element::f32}});
+    jitters[snippets::op::ReduceSum::get_type_info_static()] = CREATE_UNDEFINED_EMITTER({{ov::element::f32}});
 
 #ifdef SNIPPETS_DEBUG_CAPS
     jitters[snippets::op::PerfCountBegin::get_type_info_static()] = CREATE_CPU_EMITTER(ov::intel_cpu::jit_perf_count_chrono_start_emitter);
     jitters[snippets::op::PerfCountEnd::get_type_info_static()] = CREATE_CPU_EMITTER(ov::intel_cpu::jit_perf_count_chrono_end_emitter);
     jitters[ov::intel_cpu::PerfCountRdtscBegin::get_type_info_static()] = CREATE_CPU_EMITTER(ov::intel_cpu::jit_perf_count_rdtsc_start_emitter);
     jitters[ov::intel_cpu::PerfCountRdtscEnd::get_type_info_static()] = CREATE_CPU_EMITTER(ov::intel_cpu::jit_perf_count_rdtsc_end_emitter);
+#endif
+
+#ifdef SNIPPETS_LIBXSMM_TPP
+    jitters[intel_cpu::tpp::op::BrgemmTPP::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BrgemmTppEmitter);
+    jitters[intel_cpu::tpp::op::Add::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BinaryEltwiseTppEmitter);
+    jitters[intel_cpu::tpp::op::Subtract::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BinaryEltwiseTppEmitter);
+    jitters[intel_cpu::tpp::op::Multiply::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BinaryEltwiseTppEmitter);
+    jitters[intel_cpu::tpp::op::Divide::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BinaryEltwiseTppEmitter);
+
+    jitters[intel_cpu::tpp::op::Exp::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(UnaryEltwiseTppEmitter);
+    // Note: you can register Debug emitter for Unary/Binary operations as shown below:
+    // jitters[intel_cpu::tpp::op::Add::get_type_info_static()] = CREATE_DEBUG_TPP_EMITTER(UnaryEltwiseTppEmitter);
+    //
+    // Note: you can register Reference emitter for Unary operations using std::function or lambda function as shown below:
+    // jitters[intel_cpu::tpp::op::Exp::get_type_info_static()] =
+    //        CREATE_SNIPPETS_EMITTER(ReferenceUnaryEltwiseTppEmitter, static_cast<float(*)(float)>(std::exp));
+    // jitters[intel_cpu::tpp::op::Reciprocal::get_type_info_static()] =
+    //         CREATE_SNIPPETS_EMITTER(ReferenceUnaryEltwiseTppEmitter, [](float x){ return 1.f/x; });
+    jitters[intel_cpu::tpp::op::Reciprocal::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(UnaryEltwiseTppEmitter);
+
+    jitters[intel_cpu::tpp::op::Relu::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(UnaryEltwiseTppEmitter);
+    jitters[intel_cpu::tpp::op::Square::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(UnaryEltwiseTppEmitter);
+    jitters[intel_cpu::tpp::op::SquareRoot::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(UnaryEltwiseTppEmitter);
+    jitters[intel_cpu::tpp::op::ReduceMax::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(ReduceTppEmitter);
+    jitters[intel_cpu::tpp::op::ReduceSum::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(ReduceTppEmitter);
+    jitters[intel_cpu::tpp::op::Scalar::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(ScalarTppEmitter);
 #endif
 }
 
@@ -268,6 +333,10 @@ std::shared_ptr<snippets::Generator> intel_cpu::CPUGenerator::clone() const {
 ov::snippets::RegType intel_cpu::CPUGenerator::get_specific_op_out_reg_type(const ov::Output<ov::Node>& out) const {
     const auto op = out.get_node_shared_ptr();
     if (std::dynamic_pointer_cast<intel_cpu::BrgemmCPU>(op) ||
+#ifdef SNIPPETS_LIBXSMM_TPP
+        std::dynamic_pointer_cast<intel_cpu::tpp::modifier::TensorProcessingPrimitive>(op) ||
+        std::dynamic_pointer_cast<intel_cpu::tpp::op::Scalar>(op) ||
+#endif
         std::dynamic_pointer_cast<intel_cpu::BrgemmCopyB>(op))
         return ov::snippets::RegType::gpr;
     else if (
@@ -275,7 +344,7 @@ ov::snippets::RegType intel_cpu::CPUGenerator::get_specific_op_out_reg_type(cons
         std::dynamic_pointer_cast<intel_cpu::SwishNode>(op))
         return ov::snippets::RegType::vec;
     else
-        OPENVINO_THROW("Register type of the operation " + std::string(op->get_type_name()) + " isn't determined!");
+       return ov::snippets::RegType::undefined;
 }
 
 bool intel_cpu::CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snippets::Emitter>& e) const {
@@ -288,6 +357,10 @@ bool intel_cpu::CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snip
            std::dynamic_pointer_cast<intel_cpu::jit_perf_count_chrono_end_emitter>(e) ||
            std::dynamic_pointer_cast<intel_cpu::jit_perf_count_rdtsc_start_emitter>(e) ||
            std::dynamic_pointer_cast<intel_cpu::jit_perf_count_rdtsc_end_emitter>(e);
+#endif
+#ifdef SNIPPETS_LIBXSMM_TPP
+    need |= std::dynamic_pointer_cast<intel_cpu::ReferenceUnaryEltwiseTppEmitter>(e) ||
+            std::dynamic_pointer_cast<intel_cpu::DebugTppEmitter>(e);
 #endif
     return need;
 }

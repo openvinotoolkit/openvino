@@ -10,6 +10,7 @@ import shutil
 from os import path
 from test_data import TestData
 from test_data import TestError
+from utils.helpers import formatJSON
 
 sys.path.append('../')
 from utils.helpers import getMeaningfullCommitTail
@@ -31,18 +32,22 @@ def getVersionList(td: TestData):
 
     # apply patches and fill version list
     versionList = []
-    for patch in patchList:
+    for id, patch in enumerate(patchList):
         state = 'EMPTY'
         if 'state' in patch:
             state = patch['state']
         sub = patch['str']
-        newData = data[:prefixPos] + sub + "\n" + data[postfixPos + 1:]
+        newData = "// {}\n{}{}\n{}".format(
+            id,  # distinctive string to guarantee that versions differ
+            data[:prefixPos],
+            sub, # patch
+            data[postfixPos + 1:]
+        )
         newVersion = {
             "content": newData,
             "state": state,
             "comment": patch['comment']}
         versionList.append(newVersion)
-
     return versionList
 
 
@@ -51,7 +56,6 @@ def makeRepoContent(td: TestData):
 
     td.repoStructure['files'] = formatJSON(
         td.repoStructure['files'],
-        td,
         lambda content: content.format(
             repoName=td.repoName,
             mainFile=td.mainFile)
@@ -87,22 +91,6 @@ def runCmd(cmd, cwd, verbose=False):
     proc.wait()
     proc.communicate()
     return output
-
-
-def formatJSON(content, td: TestData, formatLambda):
-    if isinstance(content, dict):
-        for k, value in content.items():
-            content[k] = formatJSON(value, td, formatLambda)
-    elif isinstance(content, list):
-        for id, item in enumerate(content):
-            content[id] = formatJSON(item, td, formatLambda)
-    elif isinstance(content, str):
-        content = formatLambda(content)
-    else:
-        # bool or digit object
-        pass
-    return content
-
 
 def createRepo(td: TestData):
     repoName = td.repoName
@@ -140,14 +128,20 @@ def commitPatchList(versionList, innerPath, fileName):
 
     return markedVersionList
 
+def getBordersByTestData(td: TestData):
+    return\
+        getMeaningfullCommitTail(td.start),\
+        getMeaningfullCommitTail(td.end)
 
 def getExpectedCommit(td: TestData):
     markedVersionList = createRepo(td)
-    breakCommit = markedVersionList[[
-        i for i in range(
-            len(markedVersionList)
-        ) if markedVersionList[i]['state'] == 'BREAK'][0]]['commit']
-    breakCommit = getMeaningfullCommitTail(breakCommit)
+    breakList = [i for i in range(len(markedVersionList))\
+                if markedVersionList[i]['state'] == 'BREAK']
+    if not breakList:
+        breakCommit = None
+    else:
+        breakCommit = markedVersionList[breakList[0]]['commit']
+        breakCommit = getMeaningfullCommitTail(breakCommit)
 
     td.fillActualData(markedVersionList)
     td.actualDataReceived = True
@@ -159,7 +153,7 @@ def getActualCommit(td: TestData):
         raise TestError("Running actual commit before expected.")
 
     # prepare config
-    cfg = formatJSON(td.testCfg, td, td.formatConfig)
+    cfg = formatJSON(td.testCfg, td.formatConfig)
     testCfg = "test_cfg.json"
 
     with open(testCfg, "w+") as customCfg:
@@ -173,10 +167,7 @@ def getActualCommit(td: TestData):
         "../")
 
     sliderOutput = '\n'.join(map(str, sliderOutput))
-    foundCommit = re.search(
-            "Break commit: (.*),", sliderOutput, flags=re.MULTILINE
-        ).group(1)
-
+    rejectReason, foundCommit = parseSliderOutput(sliderOutput)
     # clear temp data
     [shutil.rmtree(dir) for dir in [
             td.repoName,
@@ -184,4 +175,58 @@ def getActualCommit(td: TestData):
             td.logPath]]
     os.remove(testCfg)
 
-    return foundCommit
+    return foundCommit, rejectReason
+
+def parseSliderOutput(sliderOutput: str):
+    rejectReason, foundCommit, matcher = None, None, None
+    pattern = "Preliminary check failed, reason: (.*)"
+    matcher = re.search(
+            pattern, sliderOutput, flags=re.MULTILINE
+        )
+    if matcher is not None:
+        rejectReason = matcher.group(1)
+        return rejectReason, None
+
+    pattern = "Break commit: (.*), state"
+    matcher = re.search(
+            pattern, sliderOutput, flags=re.MULTILINE
+        )
+    if matcher is not None:
+        foundCommit = matcher.group(1)
+        return None, foundCommit
+
+    pattern = "Output results invalid, reason: (.*)"
+    matcher = re.search(
+            pattern, sliderOutput, flags=re.MULTILINE
+        )
+    if matcher is not None:
+        rejectReason = matcher.group(1)
+        return rejectReason, None
+    else:
+        raise TestError(
+            "Unexpected output: {}".format(
+                sliderOutput
+            ))
+
+
+def requireBinarySearchData(td: TestData, rsc: map):
+    td.requireTestData(
+            lambda td, rsc: setattr(td,
+                'commonRsc',
+                rsc['binarySearchRes'])
+        )
+    td.requireTestData(
+        lambda td, rsc: [setattr(td, key, rsc[td.getTestName()][key]) for key in [
+            'testCfg', 'patchedFile', 'repoName'
+        ]]
+    )
+
+    [setattr(td, key, td.commonRsc[key]) for key in [
+        'repoStructure', 'cachePath', 'logPath',
+        'mainFile', 'repoPath'
+    ]]
+    td.patternPrefix = td.commonRsc['patchGeneratorPrefix']
+    td.patternPostfix = td.commonRsc['patchGeneratorPostfix']
+    td.pattern = "{pre}(.+?){post}".format(
+        pre=td.patternPrefix,
+        post=td.patternPostfix)

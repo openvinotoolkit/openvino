@@ -1,9 +1,8 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "blob_dump.h"
-#include "blob_factory.hpp"
 #include <cpu_memory.h>
 #include "dnnl_extension_utils.h"
 #include <nodes/common/cpu_memcpy.h>

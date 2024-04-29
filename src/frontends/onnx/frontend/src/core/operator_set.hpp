@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@
 namespace ov {
 namespace frontend {
 namespace onnx {
-/// \brief      Function which transforms single ONNX operator to nGraph sub-graph.
+/// \brief      Function which transforms single ONNX operator to OV sub-graph.
 
 using Operator = std::function<OutputVector(const Node&)>;
 

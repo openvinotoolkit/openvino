@@ -1,21 +1,18 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/pass/mha_tokenization.hpp"
-
-
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/op/brgemm.hpp"
+#include "snippets/op/subgraph.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
-#include "snippets/op/subgraph.hpp"
-#include "snippets/op/brgemm.hpp"
+#include "snippets/pass/mha_tokenization.hpp"
 #include "snippets/utils.hpp"
-
-#include "openvino/core/rt_info.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "validation_util.hpp"
-
+#include "transformations/utils/utils.hpp"
 
 namespace {
 bool is_supported_tensor(const ov::descriptor::Tensor& t) {
@@ -211,7 +208,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
                                                           ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()));
 
     register_matcher(std::make_shared<ov::pass::pattern::Matcher>(m_matmul0, matcher_name),
-        [=](ov::pass::pattern::Matcher &m) {
+        [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher &m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::TokenizeMHASnippets")
         auto& pattern_to_output = m.get_pattern_value_map();
 
@@ -458,7 +455,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
 
         // TODO [75567]: move this plugin-specific constraint to the plugin callback
         const auto last_node = ordered_ops.back();
-        if (potential_body_params_count + last_node->get_output_size() + hidden_virtual_ports_count + buffer_count > 12) {
+        if (potential_body_params_count + last_node->get_output_size() + hidden_virtual_ports_count + buffer_count > 11) {
             return false;
         }
 

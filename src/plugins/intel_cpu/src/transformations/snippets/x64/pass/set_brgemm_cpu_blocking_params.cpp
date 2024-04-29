@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,27 +50,32 @@ pass::SetBrgemmCPUBlockingParams::SetBrgemmCPUBlockingParams() {
         };
 
         const auto brgemm_in0_dims = snippets::utils::get_planar_pshape(brgemm->input(0)).get_shape();
-        const auto M = *(brgemm_in0_dims.rbegin() + 1);
-        const auto K = *brgemm_in0_dims.rbegin();
         const auto brgemm_in1_dims = snippets::utils::get_planar_pshape(brgemm->input(1)).get_shape();
-        const auto N = *brgemm_in1_dims.rbegin();
+        const auto& M = *++brgemm_in0_dims.rbegin();
+        const auto& K = *brgemm_in0_dims.rbegin();
+        const auto& N = *brgemm_in1_dims.rbegin();
+        const auto m_blk = get_block_size_m(M);
+        const auto k_blk = get_block_size_k(K);
+        const auto n_blk = get_block_size_n(N);
+
         if (brgemm->is_with_data_repacking()) {
             const auto brgemm_copy_b = brgemm->get_brgemm_copy();
-            const bool isAMXSupported = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx);
-            const auto precision = brgemm_copy_b->get_src_element_type();
             const auto brgemmVNNIFactor = brgemm_copy_b->get_brgemm_vnni_factor();
-            const bool use_amx = isAMXSupported && precision != ov::element::f32 && (K % brgemmVNNIFactor == 0) && (N % brgemmVNNIFactor == 0);
-
-            const size_t copy_b_block_size_k = use_amx ? get_block_size_k(K) : K;
-            const size_t copy_b_block_size_n = 64;
-
-            brgemm_copy_b->set_k_block_size(copy_b_block_size_k);
-            brgemm_copy_b->set_n_block_size(copy_b_block_size_n);
+            OPENVINO_ASSERT(k_blk == K || k_blk % brgemmVNNIFactor == 0,
+                            "K Block size (",
+                            k_blk,
+                            "), which is not divisible by brgemmVNNIFactor (",
+                            brgemmVNNIFactor,
+                            ") and not equal to K dimension (",
+                            K,
+                            "), is not supported for brgemm data repacking.");
+            brgemm_copy_b->set_k_block_size(k_blk);
+            brgemm_copy_b->set_n_block_size(n_blk);
         }
 
-        brgemm->set_m_block_size(get_block_size_m(M));
-        brgemm->set_k_block_size(get_block_size_k(K));
-        brgemm->set_n_block_size(get_block_size_n(N));
+        brgemm->set_m_block_size(m_blk);
+        brgemm->set_k_block_size(k_blk);
+        brgemm->set_n_block_size(n_blk);
         return false;
     };
 

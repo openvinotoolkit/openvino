@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,9 +9,9 @@
 
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/reference/if.hpp"
-#include "validation_util.hpp"
 
 ov::op::v8::If::If() : MultiSubGraphOp(2) {}
 

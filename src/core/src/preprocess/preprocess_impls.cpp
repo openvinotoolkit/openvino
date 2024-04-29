@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "preprocess_impls.hpp"
 
 #include "layout_utils.hpp"
+#include "openvino/core/descriptor_tensor.hpp"
 
 namespace ov {
 namespace preprocess {

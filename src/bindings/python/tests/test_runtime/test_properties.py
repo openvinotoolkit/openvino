@@ -87,6 +87,12 @@ def test_properties_rw_base():
             ),
         ),
         (
+            hints.ModelDistributionPolicy,
+            (
+                (hints.ModelDistributionPolicy.TENSOR_PARALLEL, "ModelDistributionPolicy.TENSOR_PARALLEL", 0),
+            ),
+        ),
+        (
             hints.ExecutionMode,
             (
                 (hints.ExecutionMode.PERFORMANCE, "ExecutionMode.PERFORMANCE", 1),
@@ -280,6 +286,13 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((hints.SchedulingCoreType.PCORE_ONLY, hints.SchedulingCoreType.PCORE_ONLY),),
         ),
         (
+            hints.model_distribution_policy,
+            "MODEL_DISTRIBUTION_POLICY",
+            (
+                ({hints.ModelDistributionPolicy.TENSOR_PARALLEL}, {hints.ModelDistributionPolicy.TENSOR_PARALLEL}),
+            ),
+        ),
+        (
             hints.enable_hyper_threading,
             "ENABLE_HYPER_THREADING",
             (
@@ -304,6 +317,12 @@ def test_properties_ro(ov_property_ro, expected_value):
             "ALLOW_AUTO_BATCHING",
             ((True, True),),
         ),
+        (
+            hints.dynamic_quantization_group_size,
+            "DYNAMIC_QUANTIZATION_GROUP_SIZE",
+            ((64, 64),),
+        ),
+        (hints.kv_cache_precision, "KV_CACHE_PRECISION", ((Type.f32, Type.f32),)),
         (
             intel_cpu.denormals_optimization,
             "CPU_DENORMALS_OPTIMIZATION",
@@ -538,7 +557,7 @@ def test_single_property_setting(device):
             hints.scheduling_core_type: hints.SchedulingCoreType.PCORE_ONLY,
             hints.num_requests: 12,
             "NUM_STREAMS": streams.Num(5),
-            "ENABLE_MMAP": "NO",
+            "ENABLE_MMAP": False,
         },
     ],
 )

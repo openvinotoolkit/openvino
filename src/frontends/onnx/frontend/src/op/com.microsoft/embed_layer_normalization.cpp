@@ -25,7 +25,7 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector embed_layer_normalization(const ov::frontend::onnx::Node& node) {
-    auto nodes = node.get_ng_inputs();
+    auto nodes = node.get_ov_inputs();
     auto num_nodes = nodes.size();
 
     FRONT_END_GENERAL_CHECK(num_nodes >= 7 && num_nodes <= 9,

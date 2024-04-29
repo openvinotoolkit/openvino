@@ -18,16 +18,16 @@ namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector swish(const ov::frontend::onnx::Node& node) {
-    ov::OutputVector ng_inputs{node.get_ng_inputs()};
+    ov::OutputVector ov_inputs{node.get_ov_inputs()};
 
     ov::Output<ov::Node> beta;
-    if (ng_inputs.size() > 1) {
-        beta = ov::frontend::onnx::reshape::interpret_as_scalar(ng_inputs.at(1));
+    if (ov_inputs.size() > 1) {
+        beta = ov::frontend::onnx::reshape::interpret_as_scalar(ov_inputs.at(1));
     } else {
         beta = v0::Constant::create(ov::element::f32, ov::Shape{}, {1.0});
     }
 
-    return {std::make_shared<v4::Swish>(ng_inputs.at(0), beta)};
+    return {std::make_shared<v4::Swish>(ov_inputs.at(0), beta)};
 }
 
 }  // namespace set_1

@@ -1,18 +1,19 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "snippets/generator.hpp"
 
+#include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/pass/assign_registers.hpp"
 #include "snippets/lowered/pass/cleanup_loop_offsets.hpp"
-#include "snippets/lowered/pass/insert_tail_loop.hpp"
+#include "snippets/lowered/pass/insert_specific_iterations.hpp"
 #include "snippets/lowered/pass/optimize_loop_single_evaluation.hpp"
-
+#include "snippets/lowered/pass/pass.hpp"
 #include "snippets/op/kernel.hpp"
-
-#include "snippets/itt.hpp"
+#include "snippets/op/memory_access.hpp"
 
 namespace ov {
 namespace snippets {
@@ -20,12 +21,12 @@ namespace snippets {
 void Generator::generate(lowered::LinearIR& linear_ir, LoweringResult& result, const void* compile_params) const {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::Generator::generate")
     OV_ITT_TASK_CHAIN(GENERATE, ov::pass::itt::domains::SnippetsTransform, "Snippets::Generator", "::Transformations")
-    if (!target->is_supported())
-        OPENVINO_THROW("unsupported architecture for code generation");
+    OPENVINO_ASSERT(target->is_supported(), "unsupported architecture for code generation");
 
     std::function<RegType(const ov::Output<Node>& out)> reg_type_mapper = [&](const ov::Output<Node>& out) -> RegType {
         return get_op_out_reg_type(out);
     };
+
     lowered::pass::PassPipeline lowered_pipeline;
     // Note: the order of all passes in this pipeline must not be changed since they have hard dependencies
     //    1. InsertTailLoop must be called after AssignRegisters since tail loop expressions must have the same
@@ -35,17 +36,18 @@ void Generator::generate(lowered::LinearIR& linear_ir, LoweringResult& result, c
     //    3. OptimizeLoopSingleEvaluation must be called after CleanupLoopOffsets
     //       since CleanupLoopOffsets can't handle loops with evaluate_once = true
     lowered_pipeline.register_pass<lowered::pass::AssignRegisters>(reg_type_mapper);
-    lowered_pipeline.register_pass<lowered::pass::InsertTailLoop>();
+    lowered_pipeline.register_pass<lowered::pass::InsertSpecificIterations>();
     lowered_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
     lowered_pipeline.register_pass<lowered::pass::OptimizeLoopSingleEvaluation>();
     lowered_pipeline.run(linear_ir);
     linear_ir.init_emitters(target);
 
     OV_ITT_TASK_NEXT(GENERATE, "::EmitCode")
-    auto loops2DKernel = std::make_shared<op::Kernel>(linear_ir);
-    loops2DKernel->compile_params = compile_params;
-    auto loops2DKernelExpr = linear_ir.create_expression(loops2DKernel, std::vector<lowered::PortConnectorPtr>{});
-    std::shared_ptr<Emitter> kernel = target->get(op::Kernel::get_type_info_static())(loops2DKernelExpr);
+
+    const auto kernel_op = op::Kernel::make_kernel(linear_ir);
+    kernel_op->compile_params = compile_params;
+    const auto kernel_expr = linear_ir.create_expression(kernel_op, std::vector<lowered::PortConnectorPtr>{});
+    const auto kernel = target->get(kernel_expr->get_node()->get_type_info())(kernel_expr);
 
     kernel->emit_code({}, {});
 
@@ -71,6 +73,9 @@ std::shared_ptr<const TargetMachine> Generator::get_target_machine() const {
 }
 
 RegType Generator::get_op_out_reg_type(const ov::Output<Node>& out) const {
+    auto reg_type = get_specific_op_out_reg_type(out);
+    if (reg_type != RegType::undefined)
+        return reg_type;
     const auto op = out.get_node_shared_ptr();
     if (std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) ||
         std::dynamic_pointer_cast<ov::op::v0::Result>(op) ||
@@ -80,6 +85,7 @@ RegType Generator::get_op_out_reg_type(const ov::Output<Node>& out) const {
         std::dynamic_pointer_cast<op::IntermediateMemoryBuffer>(op) ||
         std::dynamic_pointer_cast<op::NewMemoryBuffer>(op) ||
         std::dynamic_pointer_cast<op::RankNormalization>(op) ||
+        std::dynamic_pointer_cast<op::Reshape>(op) ||
         std::dynamic_pointer_cast<snippets::op::Store>(op)
 #ifdef SNIPPETS_DEBUG_CAPS
         || std::dynamic_pointer_cast<op::PerfCountBeginBase>(op)
@@ -105,7 +111,8 @@ RegType Generator::get_op_out_reg_type(const ov::Output<Node>& out) const {
              std::dynamic_pointer_cast<op::Fill>(op))
         return RegType::vec;
     else
-        return get_specific_op_out_reg_type(op);
+        OPENVINO_THROW("Register type of the operation " + std::string(op->get_type_name()) + " isn't determined!");
+    return reg_type;
 }
 
 RegType Generator::get_specific_op_out_reg_type(const ov::Output<Node>& out) const {

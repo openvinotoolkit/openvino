@@ -14,7 +14,7 @@ from openvino.runtime.opset4.ops import asinh
 from openvino.runtime.opset6.ops import assign
 from openvino.runtime.opset1.ops import atan
 from openvino.runtime.opset4.ops import atanh
-from openvino.runtime.opset1.ops import avg_pool
+from openvino.runtime.opset14.ops import avg_pool
 from openvino.runtime.opset5.ops import batch_norm_inference
 from openvino.runtime.opset2.ops import batch_to_space
 from openvino.runtime.opset1.ops import binary_convolution
@@ -31,6 +31,7 @@ from openvino.runtime.opset1.ops import concat
 from openvino.runtime.opset13.ops import constant
 from openvino.runtime.opset1.ops import convert
 from openvino.runtime.opset1.ops import convert_like
+from openvino.runtime.opset14.ops import convert_promote_types
 from openvino.runtime.opset1.ops import convolution
 from openvino.runtime.opset1.ops import convolution_backprop_data
 from openvino.runtime.opset1.ops import cos
@@ -81,6 +82,7 @@ from openvino.runtime.opset4.ops import hswish
 from openvino.runtime.opset7.ops import idft
 from openvino.runtime.opset8.ops import if_op
 from openvino.runtime.opset11.ops import interpolate
+from openvino.runtime.opset14.ops import inverse
 from openvino.runtime.opset9.ops import irdft
 from openvino.runtime.opset10.ops import is_finite
 from openvino.runtime.opset10.ops import is_inf
@@ -101,7 +103,7 @@ from openvino.runtime.opset4.ops import lstm_cell
 from openvino.runtime.opset5.ops import lstm_sequence
 from openvino.runtime.opset1.ops import matmul
 from openvino.runtime.opset8.ops import matrix_nms
-from openvino.runtime.opset8.ops import max_pool
+from openvino.runtime.opset14.ops import max_pool
 from openvino.runtime.opset1.ops import maximum
 from openvino.runtime.opset1.ops import minimum
 from openvino.runtime.opset4.ops import mish

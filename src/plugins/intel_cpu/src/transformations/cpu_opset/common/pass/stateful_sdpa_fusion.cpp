@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,8 +35,8 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
     auto cur_k = any_input();
     auto cur_v = any_input();
 
-    auto axis_seq_len = Symbol("axis_seq_len");
-    auto axis_beam = Symbol("axis_beam");
+    auto axis_seq_len = ov::gen_pattern::Symbol("axis_seq_len");
+    auto axis_beam = ov::gen_pattern::Symbol("axis_beam");
 
     // past_kv can be BHLS/LBHS
     auto past_k = makePattern<opset6::ReadValue>({});
@@ -55,16 +55,26 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
 
     auto multi_query_bcst = [](std::shared_ptr<Node> kv) {
         auto reshape_kv = wrap_type<opset6::Reshape>({kv, any_input()});
-        auto unsqueeze_kv = makePattern<opset1::Unsqueeze>({kv, -2});
-        auto multiply_kv = wrap_type<opset6::Multiply>({reshape_kv | unsqueeze_kv, any_input()});
+        auto unsqueeze_kv = makePattern<opset1::Unsqueeze>({kv, any_input()});
+
+        auto check_one = [] (Output<Node> output) -> bool {
+            auto node = std::dynamic_pointer_cast<opset1::Constant>(output.get_node_shared_ptr());
+            const auto& bcst_arg = node->cast_vector<float>();
+            return std::all_of(bcst_arg.begin(), bcst_arg.end(), [](float i) {
+                return i == 1.0f;
+            });
+        };
+        auto constant_bcst = wrap_type<opset1::Constant>(check_one);
+
+        auto computed_bcst = makePattern<opset1::Broadcast>({wrap_type<opset1::Constant>(check_one),
+            any_input(), any_input()}, {{"mode", "numpy"}});
+
+        auto multiply_kv = wrap_type<opset6::Multiply>({reshape_kv | unsqueeze_kv, constant_bcst | computed_bcst});
         return wrap_type<opset6::Reshape>({multiply_kv, any_input()});
     };
 
-    auto k_bcst = multi_query_bcst(concat_k);
-    auto v_bcst = multi_query_bcst(concat_v);
-
-    auto present_k = concat_k | k_bcst;
-    auto present_v = concat_v | v_bcst;
+    auto present_k = concat_k | multi_query_bcst(concat_k);
+    auto present_v = concat_v | multi_query_bcst(concat_v);
 
     // canonical q/k/v shape definition: [B,H,...L,S]
     auto sdp0 = makePattern<opset13::ScaledDotProductAttention>({cur_q, present_k, present_v});
@@ -98,8 +108,6 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
 
         auto find_assign = [&](const ov::Output<ov::Node>& out, opset6::Assign*& assign, opset1::Convert*& cvt) {
             auto present_to = out.get_target_inputs();
-            if (present_to.size() != 2)
-                return false;
             for (auto& to : present_to) {
                 auto to_node = to.get_node();
                 if (auto convert = dynamic_cast<opset1::Convert*>(to_node)) {
@@ -136,27 +144,30 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         if (!check_valid_children_type(past_k_node) || !check_valid_children_type(past_v_node)) {
             return false;
         }
-        // check whether multi-query's bcst has valid parameter.
-        auto check_bcst = [](const std::shared_ptr<Node>& ptr) {
-            const auto multiply = ptr->get_input_node_shared_ptr(0);
-            const auto constant_node = ov::as_type_ptr<opset6::Constant>(multiply->get_input_node_shared_ptr(1));
-            if (!constant_node)
-                return false;
-            const auto& bcst_arg = constant_node->cast_vector<float>();
-            return std::all_of(bcst_arg.begin(), bcst_arg.end(), [](float i) {
-                return i == 1.0;
-            });
-        };
-
-        if (pattern_map.count(k_bcst) && !check_bcst(pattern_map.at(k_bcst).get_node_shared_ptr())) {
-            return false;
-        }
-
-        if (pattern_map.count(v_bcst) && !check_bcst(pattern_map.at(v_bcst).get_node_shared_ptr())) {
-            return false;
-        }
         const auto concat_k_node = ov::as_type_ptr<opset6::Concat>(pattern_map.at(concat_k).get_node_shared_ptr());
         const auto concat_v_node = ov::as_type_ptr<opset6::Concat>(pattern_map.at(concat_v).get_node_shared_ptr());
+
+        for (auto&& item : {concat_k_node, concat_v_node}) {
+            auto&& children = item->get_output_target_inputs(0);
+            switch (children.size()) {
+                case 2:
+                    // pass, as the existence of Assign will be checked later
+                    break;
+                case 3:
+                    // the first one leads to SDPA, otherwise the matcher doesn't find the pattern
+                    // the second one leads to Assign, and this is checked later
+                    // the third child is allowed to be a ShapeOf op only, thus one of them must be ShapeOf
+                    if (!std::any_of(children.begin(), children.end(), [](const ov::Input<ov::Node>& child) {
+                            return ov::is_type<ov::op::v3::ShapeOf>(child.get_node()) ||
+                                ov::is_type<ov::op::v0::ShapeOf>(child.get_node());
+                        })) {
+                        return false;
+                    }
+                    break;
+                default:
+                    return false;
+            }
+        }
 
         opset6::Assign *assign_k_node = nullptr, *assign_v_node = nullptr;
         opset1::Convert *assign_cvt_k_node = nullptr, *assign_cvt_v_node = nullptr;

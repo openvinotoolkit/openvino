@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_avg_poolnd(const NodeContext& context) {
-    num_inputs_check(context, 3, 7);
+    num_inputs_check(context, 2, 7);
     auto input = context.get_input(0);
     auto kernel = context.const_input<Shape>(1);
     Strides strides;
@@ -45,8 +45,8 @@ OutputVector translate_avg_poolnd(const NodeContext& context) {
     if (!(context.input_is_none(5))) {
         count_include_pad = context.const_input<bool>(5);
     }
-    FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(6),
-                                  "Translation for aten::avg_pool2d do not support divisor_override input.");
+    PYTORCH_OP_CONVERSION_CHECK(context.input_is_none(6),
+                                "Translation for aten::avg_pool2d do not support divisor_override input.");
     // Although ov::AvgPool provides exclude_pad=false,
     // The corner case of Average Pooling with ceil_mode on
     // PyTorch allows sliding window go off bound, which leads to this accommodation.
@@ -57,7 +57,7 @@ OutputVector translate_avg_poolnd(const NodeContext& context) {
         auto zero_i32 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
         Output<Node> rank;
         std::tie(std::ignore, rank) = get_shape_rank(context, input);
-        auto pad_values = context.get_input(3);
+        auto pad_values = get_input_as_i32(context, 3);
         auto pads_len = context.mark_node(v0::Constant::create(element::i32, Shape{}, {pads.size()}));
         auto pads_diff = context.mark_node(std::make_shared<v1::Subtract>(rank, pads_len));
         auto pads_remaining = context.mark_node(std::make_shared<v3::Broadcast>(zero_i32, pads_diff));

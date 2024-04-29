@@ -1,0 +1,20 @@
+/* the bottom banner only for benchmark pages */
+/* ========================================== */
+
+.benchmark-banner {
+    position: sticky;
+    bottom: 0;
+    width: 100%;
+    z-index: 1001;
+    text-align: center;
+    padding: 7px;
+    border-width: 0px;
+    background: #525252;
+ }
+ .benchmark-banner p {
+    margin: 0;
+    color: #E9E9E9;
+ }
+ .benchmark-banner p a {
+    color: #B4F0FF;
+ }

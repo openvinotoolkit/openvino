@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@ _OPENVINO_OP_REG(Acos, ov::op::v0)
 _OPENVINO_OP_REG(Add, ov::op::v1)
 _OPENVINO_OP_REG(Asin, ov::op::v0)
 _OPENVINO_OP_REG(Atan, ov::op::v0)
-_OPENVINO_OP_REG(AvgPool, ov::op::v1)
+_OPENVINO_OP_REG(AvgPool, ov::op::v14)
 _OPENVINO_OP_REG(BatchNormInference, ov::op::v5)
 _OPENVINO_OP_REG(BinaryConvolution, ov::op::v1)
 _OPENVINO_OP_REG(Broadcast, ov::op::v3)
@@ -174,7 +174,7 @@ _OPENVINO_OP_REG(DetectionOutput, ov::op::v8)
 _OPENVINO_OP_REG(I420toBGR, ov::op::v8)
 _OPENVINO_OP_REG(I420toRGB, ov::op::v8)
 _OPENVINO_OP_REG(MatrixNms, ov::op::v8)
-_OPENVINO_OP_REG(MaxPool, ov::op::v8)
+_OPENVINO_OP_REG(MaxPool, ov::op::v14)
 _OPENVINO_OP_REG(NV12toBGR, ov::op::v8)
 _OPENVINO_OP_REG(NV12toRGB, ov::op::v8)
 _OPENVINO_OP_REG(RandomUniform, ov::op::v8)
@@ -219,3 +219,5 @@ _OPENVINO_OP_REG(ScaledDotProductAttention, ov::op::v13)
 _OPENVINO_OP_REG(FakeConvert, ov::op::v13)
 
 // New operations added in opset14
+_OPENVINO_OP_REG(ConvertPromoteTypes, ov::op::v14)
+_OPENVINO_OP_REG(Inverse, ov::op::v14)

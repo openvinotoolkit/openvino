@@ -6,7 +6,7 @@
 
 #include <list>
 
-#include "expression.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/target_machine.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 
@@ -49,6 +49,9 @@ public:
     bool m_are_buffers_optimized = true;
 };
 
+class LoopManager;
+using LoopManagerPtr = std::shared_ptr<LoopManager>;
+
 /* The control flow of Snippets is built on Linear Intermediate Representation (Linear IR).
  * The class diagram is described in the documentation `snippets/docs/snippets_design_guide.md`.
  */
@@ -70,11 +73,11 @@ public:
     std::shared_ptr<LinearIR> clone() const;
     static LinearIR::container deep_copy_range(LinearIR::container::const_iterator begin,
                                                LinearIR::container::const_iterator end,
-                                               ExressionMap& expression_map);
+                                               ExpressionMap& expression_map);
 
-    const container& get_ops() const {return m_expressions; }
-    const io_container& get_IO_ops() const {return m_io_expressions; }
-    Config get_config() {return m_config; }
+    const container& get_ops() const { return m_expressions; }
+    const io_container& get_IO_ops() const { return m_io_expressions; }
+    const Config& get_config() const { return m_config; }
     void set_loop_depth(size_t loop_depth) { m_config.m_loop_depth = loop_depth; }
 
     const ExpressionPtr& get_expr_by_node(const std::shared_ptr<Node>& n) const;
@@ -125,14 +128,13 @@ public:
 
     void init_emitters(const std::shared_ptr<TargetMachine>& target);
 
-    class LoopManager;
-    using LoopManagerPtr = std::shared_ptr<LoopManager>;
-
     const LoopManagerPtr& get_loop_manager() const { return m_loop_manager; }
 
     IShapeInferSnippets::Result shape_infer(const std::vector<VectorDimsRef>& input_shapes);
     const std::shared_ptr<ShapeInferSnippetsNode>& get_shape_infer_instance() const {return m_shape_infer; }
     VectorDims get_master_shape() const;
+
+    bool is_dynamic() const;
 
     /* ------ Helpers for work with LinearIR ----- */
     /**
@@ -251,6 +253,7 @@ private:
     Config m_config{};
     LoopManagerPtr m_loop_manager = nullptr;
     std::shared_ptr<IShapeInferSnippetsFactory> m_shape_infer_factory;
+    bool m_is_dynamic = false;
 };
 
 template<typename iterator>

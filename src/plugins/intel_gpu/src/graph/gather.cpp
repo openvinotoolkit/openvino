@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,7 +60,7 @@ layout gather_inst::calc_output_layout(gather_node const& node, kernel_impl_para
         output_type = impl_param.typed_desc<gather>()->decompressed_type;
     }
     if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
     }
 
     return layout{output_type,
@@ -80,7 +80,7 @@ std::vector<layout> gather_inst::calc_output_layouts(gather_node const& /*node*/
         output_type = impl_param.typed_desc<gather>()->decompressed_type;
     }
     if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
     }
 
     ov::op::v8::Gather op;

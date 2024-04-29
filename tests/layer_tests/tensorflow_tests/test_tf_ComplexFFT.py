@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -7,7 +7,6 @@ import numpy as np
 import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
-
 
 OPS = {
     'tf.raw_ops.IRFFT': tf.raw_ops.IRFFT,
@@ -24,16 +23,17 @@ OPS = {
     'tf.raw_ops.RFFT3D': tf.raw_ops.RFFT3D
 }
 
+
 class TestComplexFFT(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         rng = np.random.default_rng()
-        assert 'param_real' in inputs_info
-        assert 'param_imag' in inputs_info
-        param_real_shape = inputs_info['param_real']
-        param_imag_shape = inputs_info['param_imag']
+        assert 'param_real:0' in inputs_info
+        assert 'param_imag:0' in inputs_info
+        param_real_shape = inputs_info['param_real:0']
+        param_imag_shape = inputs_info['param_imag:0']
         inputs_data = {}
-        inputs_data['param_real'] = 4 * rng.random(param_real_shape).astype(np.float32) - 2
-        inputs_data['param_imag'] = 4 * rng.random(param_imag_shape).astype(np.float32) - 2
+        inputs_data['param_real:0'] = 4 * rng.random(param_real_shape).astype(np.float32) - 2
+        inputs_data['param_imag:0'] = 4 * rng.random(param_imag_shape).astype(np.float32) - 2
         return inputs_data
 
     def create_complex_fft_net(self, input_shape, shift_roll, axis_roll, fft_op):
@@ -69,32 +69,34 @@ class TestComplexFFT(CommonTFLayerTest):
         "tf.raw_ops.IFFT", "tf.raw_ops.IFFT2D", "tf.raw_ops.IFFT3D"
     ])
     @pytest.mark.parametrize("input_shape, shift_roll, axis_roll", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
-    @pytest.mark.xfail(condition=platform.system() == 'Linux' and platform.machine() in ['arm', 'armv7l',
-                                                                                         'aarch64',
-                                                                                         'arm64', 'ARM64'],
-                       reason='Ticket - 126314')
+    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['arm', 'armv7l',
+                                                                                                     'aarch64',
+                                                                                                     'arm64', 'ARM64'],
+                       reason='Ticket - 126314, 132699')
     def test_complex_fft_basic(self, input_shape, shift_roll, axis_roll, fft_op,
                                ie_device, precision, ir_version, temp_dir,
-                               use_new_frontend):
+                               use_legacy_frontend):
+        if ie_device == 'GPU' and fft_op == "tf.raw_ops.FFT3D":
+            pytest.skip("accuracy mismatch on GPU")
         params = dict(input_shape=input_shape, shift_roll=shift_roll, axis_roll=axis_roll)
         self._test(
             *self.create_complex_fft_net(**params, fft_op=OPS[fft_op]),
             ie_device, precision, ir_version, temp_dir=temp_dir,
-            use_new_frontend=use_new_frontend, custom_eps=1e-2)
+            use_legacy_frontend=use_legacy_frontend, custom_eps=1e-2)
 
 
 class TestComplexAbs(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         rng = np.random.default_rng()
-        assert 'param_real' in inputs_info
-        assert 'param_imag' in inputs_info
-        param_real_shape = inputs_info['param_real']
-        param_imag_shape = inputs_info['param_imag']
+        assert 'param_real:0' in inputs_info
+        assert 'param_imag:0' in inputs_info
+        param_real_shape = inputs_info['param_real:0']
+        param_imag_shape = inputs_info['param_imag:0']
         inputs_data = {}
-        inputs_data['param_real'] = 4 * rng.random(param_real_shape).astype(np.float32) - 2
-        inputs_data['param_imag'] = 4 * rng.random(param_imag_shape).astype(np.float32) - 2
+        inputs_data['param_real:0'] = 4 * rng.random(param_real_shape).astype(np.float32) - 2
+        inputs_data['param_imag:0'] = 4 * rng.random(param_imag_shape).astype(np.float32) - 2
         return inputs_data
 
     def create_complex_abs_net(self, input_shape):
@@ -117,24 +119,25 @@ class TestComplexAbs(CommonTFLayerTest):
         [2, 3, 4],
         [3, 4, 5, 6],
     ]
+
     @pytest.mark.parametrize("input_shape", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_complex_abs_basic(self, input_shape, ie_device, precision, ir_version, temp_dir,
-                               use_new_frontend):
+                               use_legacy_frontend):
         self._test(
             *self.create_complex_abs_net(input_shape),
             ie_device, precision, ir_version, temp_dir=temp_dir,
-            use_new_frontend=use_new_frontend)
+            use_legacy_frontend=use_legacy_frontend)
 
 
 class TestComplexRFFT(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         rng = np.random.default_rng()
-        assert 'param' in inputs_info
-        param_shape = inputs_info['param']
+        assert 'param:0' in inputs_info
+        param_shape = inputs_info['param:0']
         inputs_data = {}
-        inputs_data['param'] = 4 * rng.random(param_shape).astype(np.float32) - 2
+        inputs_data['param:0'] = 4 * rng.random(param_shape).astype(np.float32) - 2
         return inputs_data
 
     def create_complex_rfft_net(self, input_shape, fft_length, rfft_op):
@@ -161,27 +164,29 @@ class TestComplexRFFT(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("input_shape, fft_length, rfft_op", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_complex_rfft_basic(self, input_shape, fft_length, rfft_op, ie_device, precision, ir_version, temp_dir,
-                                use_new_frontend):
+                                use_legacy_frontend):
+        if ie_device == 'GPU' and rfft_op == 'tf.raw_ops.RFFT2D':
+            pytest.skip("accuracy mismatch on GPU")
         params = dict(input_shape=input_shape, fft_length=fft_length, rfft_op=OPS[rfft_op])
         self._test(
             *self.create_complex_rfft_net(**params),
             ie_device, precision, ir_version, temp_dir=temp_dir,
-            use_new_frontend=use_new_frontend)
+            use_legacy_frontend=use_legacy_frontend)
 
 
 class TestComplexIRFFT(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         rng = np.random.default_rng()
-        assert 'param_real' in inputs_info
-        assert 'param_imag' in inputs_info
-        param_real_shape = inputs_info['param_real']
-        param_imag_shape = inputs_info['param_imag']
+        assert 'param_real:0' in inputs_info
+        assert 'param_imag:0' in inputs_info
+        param_real_shape = inputs_info['param_real:0']
+        param_imag_shape = inputs_info['param_imag:0']
         inputs_data = {}
-        inputs_data['param_real'] = 4 * rng.random(param_real_shape).astype(np.float32) - 2
-        inputs_data['param_imag'] = 4 * rng.random(param_imag_shape).astype(np.float32) - 2
+        inputs_data['param_real:0'] = 4 * rng.random(param_real_shape).astype(np.float32) - 2
+        inputs_data['param_imag:0'] = 4 * rng.random(param_imag_shape).astype(np.float32) - 2
         return inputs_data
 
     def create_complex_irfft_net(self, input_shape, fft_length, irfft_op):
@@ -203,16 +208,17 @@ class TestComplexIRFFT(CommonTFLayerTest):
         [[1, 3, 20], [20], 'tf.raw_ops.IRFFT'],
         [[1, 3, 20, 40], [20, 10], 'tf.raw_ops.IRFFT2D'],
         [[1, 3, 20, 40], [10, 40], 'tf.raw_ops.IRFFT2D'],
-        pytest.param([1, 10, 20, 30, 5], [2, 3, 4], 'tf.raw_ops.IRFFT3D', 
-                        marks=pytest.mark.xfail(reason="accuracy-issue-124452"))
+        pytest.param([1, 10, 20, 30, 5], [2, 3, 4], 'tf.raw_ops.IRFFT3D',
+                     marks=pytest.mark.xfail(reason="accuracy-issue-124452"))
     ]
+
     @pytest.mark.parametrize("input_shape, fft_length, irfft_op", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_complex_irfft_basic(self, input_shape, fft_length, irfft_op, ie_device, precision, ir_version, temp_dir,
-                                 use_new_frontend):
+                                 use_legacy_frontend):
         params = dict(input_shape=input_shape, fft_length=fft_length, irfft_op=OPS[irfft_op])
         self._test(
             *self.create_complex_irfft_net(**params),
             ie_device, precision, ir_version, temp_dir=temp_dir,
-            use_new_frontend=use_new_frontend)
+            use_legacy_frontend=use_legacy_frontend)

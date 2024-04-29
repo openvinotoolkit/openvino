@@ -7,12 +7,12 @@
 #include "core/graph.hpp"
 #include "core/null_node.hpp"
 #include "exceptions.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "validation_util.hpp"
 
 using namespace ov::op;
 
@@ -118,7 +118,7 @@ ov::OutputVector import_onnx_scan(const ov::frontend::onnx::Node& node,
                                   int64_t default_axis,
                                   int64_t in_offset,
                                   std::string&& in_directions_attr_name) {
-    const auto& node_inputs = node.get_ng_inputs();
+    const auto& node_inputs = node.get_ov_inputs();
 
     const auto& subgraphs = node.get_subgraphs();
     auto body_graph = subgraphs.at("body");
@@ -161,7 +161,7 @@ namespace set_1 {
 ov::OutputVector scan(const ov::frontend::onnx::Node& node) {
     // ONNX Scan-8 can have optional `sequence_lens` input,
     // and sequence scan_input axis is assumed to be always 1.
-    OPENVINO_ASSERT(ov::op::util::is_null(node.get_ng_inputs().at(0)),
+    OPENVINO_ASSERT(ov::op::util::is_null(node.get_ov_inputs().at(0)),
                     node.get_description(),
                     " ONNX Scan-8 `sequence_lens` input is not supported. ");
     return import_onnx_scan(node, 1, 1, "directions");

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/fake_quantize.hpp"
@@ -17,7 +18,6 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
-#include "validation_util.hpp"
 
 // This transformation multiplies the "output_low" and "output_high" inputs of the FQ operation
 // by the constant value that before transormation is used to multiply the output of FQ.
@@ -54,7 +54,7 @@ ov::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
     const auto mul_node_p =
         ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({fq_node_p, mul_constant_p}, pattern::consumers_count(1));
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         const auto& data = pattern_map.at(data_p);

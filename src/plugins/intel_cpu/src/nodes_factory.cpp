@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,6 +44,7 @@
 #include "nodes/input.h"
 #include "nodes/interaction.h"
 #include "nodes/interpolate.h"
+#include "nodes/inverse.hpp"
 #include "nodes/log_softmax.h"
 #include "nodes/lrn.h"
 #include "nodes/mathematics.h"
@@ -95,6 +96,7 @@
 #include "nodes/topk.h"
 #include "nodes/transpose.h"
 #include "nodes/unique.hpp"
+#include "nodes/causal_mask_preprocess.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -182,7 +184,9 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(Unique, Type::Unique);
     INTEL_CPU_NODE(Ngram, Type::Ngram);
     INTEL_CPU_NODE(RoPE, Type::RoPE);
+    INTEL_CPU_NODE(CausalMaskPreprocess, Type::CausalMaskPreprocess);
     INTEL_CPU_NODE(Interpolate, Type::Interpolate);
+    INTEL_CPU_NODE(Inverse, Type::Inverse);
     INTEL_CPU_NODE(RandomUniform, Type::RandomUniform);
     INTEL_CPU_NODE(Reduce, Type::Reduce);
     INTEL_CPU_NODE(Gather, Type::Gather);

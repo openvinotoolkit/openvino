@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,9 +41,6 @@ std::string ConcatWithChildAndOutputTransformation::getTestCaseName(const testin
 */
 
 void ConcatWithChildAndOutputTransformation::SetUp() {
-    rel_threshold = 5;
-    abs_threshold = 0.1;
-
     ov::element::Type netPrecision;
     ov::PartialShape inputShapes;
     ConcatWithChildAndOutputTransformationParam param;

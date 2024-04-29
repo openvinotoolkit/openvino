@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,6 +52,8 @@ public:
     int get_numa_node_id() override;
 
     int get_socket_id() override;
+
+    void run_sub_stream(Task task, int id) override;
 
 private:
     struct Impl;

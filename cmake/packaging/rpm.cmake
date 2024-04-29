@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -39,6 +39,10 @@ macro(ov_cpack_settings)
            (NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_python.*" OR ENABLE_PYTHON_PACKAGING) AND
            # temporary block nvidia
            NOT item STREQUAL "nvidia" AND
+           # don't install node_addon
+           NOT item MATCHES "node_addon" AND
+           # temporary block npu
+           NOT item STREQUAL "npu" AND
            # don't install Intel OpenMP
            NOT item STREQUAL "omp" AND
            # the same for pugixml
@@ -75,7 +79,11 @@ macro(ov_cpack_settings)
         2023.1.0
         2023.2.0
         2023.3.0 2023.3.1 2023.3.2 2023.3.3 2023.3.4 2023.3.5
+        2024.0.0
+        2024.1.0
         )
+
+    ov_check_conflicts_versions(conflicting_versions)
 
     find_host_program(rpmlint_PROGRAM NAMES rpmlint DOC "Path to rpmlint")
     if(rpmlint_PROGRAM)
@@ -175,6 +183,15 @@ macro(ov_cpack_settings)
         set(CPACK_RPM_GPU_PACKAGE_NAME "libopenvino-intel-gpu-plugin-${cpack_name_ver}")
         _ov_add_package(plugin_packages gpu)
         set(gpu_copyright "generic")
+    endif()
+
+    # intel-npu
+    if(ENABLE_INTEL_NPU AND "npu" IN_LIST CPACK_COMPONENTS_ALL)
+        set(CPACK_COMPONENT_NPU_DESCRIPTION "Intel® Neural Processing Unit inference plugin")
+        set(CPACK_RPM_NPU_PACKAGE_REQUIRES "${core_package}")
+        set(CPACK_RPM_NPU_PACKAGE_NAME "libopenvino-intel-npu-plugin-${cpack_name_ver}")
+        _ov_add_package(plugin_packages npu)
+        set(npu_copyright "generic")
     endif()
 
     #

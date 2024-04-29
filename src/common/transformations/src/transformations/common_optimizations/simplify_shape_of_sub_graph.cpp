@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
@@ -23,7 +24,6 @@
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
 #include "transformations/utils/utils.hpp"
-#include "validation_util.hpp"
 
 using namespace ov;
 using namespace ov::op;
@@ -33,7 +33,7 @@ pass::GroupedGatherElimination::GroupedGatherElimination() {
     MATCHER_SCOPE(GroupedGatherElimination);
     auto concat_label = wrap_type<v0::Concat>(rank_equals(1));
 
-    matcher_pass_callback callback = [=](Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         auto concat = m.get_match_root();
         OutputVector inputs = concat->input_values();
         NodeRegistry new_ops;

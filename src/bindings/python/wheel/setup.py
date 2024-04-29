@@ -38,6 +38,8 @@ elif machine == "arm" or machine == "armv7l":
     ARCH = "arm"
 elif machine == "aarch64" or machine == "arm64" or machine == "ARM64":
     ARCH = "arm64"
+elif machine == "riscv64":
+    ARCH = "riscv64"
 
 # The following variables can be defined in environment or .env file
 SCRIPT_DIR = Path(__file__).resolve().parents[0]
@@ -81,6 +83,13 @@ LIB_INSTALL_CFG = {
     "cpu_plugin": {
         "name": "cpu",
         "prefix": f"{BUILD_BASE}/libs.cpu",
+        "install_dir": OV_RUNTIME_LIBS_DIR,
+        "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BINARY_DIR,
+    },
+    "npu_plugin": {
+        "name": "npu",
+        "prefix": f"{BUILD_BASE}/libs.npu",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BINARY_DIR,
@@ -270,7 +279,6 @@ class CustomBuild(build):
                 self.spawn(["cmake", "--install", binary_dir,
                                      "--prefix", prefix,
                                      "--config", CONFIG,
-                                     "--strip",
                                      "--component", cpack_comp_name])
 
     def run(self):

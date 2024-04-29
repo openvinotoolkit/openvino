@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,7 @@
 
 #include <node.h>
 
-#if defined(OV_CPU_ARM_ENABLE_FP16)
 #include "nodes/executors/transpose.hpp"
-#endif
 
 namespace ov {
 namespace intel_cpu {
@@ -76,10 +74,9 @@ private:
     void optimizedNspc2Ncsp();
     void optimizedNcsp2Nspc();
     void createReorderPrimitive(const dnnl::memory::desc &srcDesc, void* srcPtr, const dnnl::memory::desc &dstDesc, void* dstPtr);
-#if defined(OV_CPU_ARM_ENABLE_FP16)
+
     void prepareReorderAsTranspose(MemoryDescPtr parentDesc, MemoryDescPtr childDesc);
     TransposeExecutorPtr transposeExecutor;
-#endif
 };
 
 }   // namespace node

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,9 +55,6 @@ public:
         return m_inputs;
     }
 
-    bool is_new_api() const {
-        return std::static_pointer_cast<const ov::intel_gpu::Plugin>(get_plugin())->is_new_api();
-    }
     RemoteContextImpl::Ptr get_context_impl() const {
         return m_context;
     }

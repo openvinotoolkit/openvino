@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,7 +54,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(ov::element::Type prc, const Shape&
 /**
  * Construct from blocked parameters
  *
- * IE  IOhw_4i16o4i   dims(N) = {32, 64, 128, 128}
+ * OV  IOhw_4i16o4i   dims(N) = {32, 64, 128, 128}
  *   blockedDims  {4, 2, 128, 128, 4, 16, 4}                      // total dims(inner, outermost, auto blocked/padded). Generally sorted by strides.
  *   strides      {8388608, 4194304,  32768, 256, 64,  4, 1}      // strides for blockedDims, growing sequence
  *   order        {1, 0,   2,   3, 1,  0, 1}                      // matching to original dims
@@ -444,7 +444,7 @@ static dnnl::memory::desc cloneDescWithNewDims(const dnnl::memory::desc& desc,
     dnnl::impl::memory_desc_t& newCdesc = *newMklDesc.get();
     auto retCode = dnnl::impl::fill_blocked(newCdesc, perm, innerBlks, innerIdxs);
     if (retCode != dnnl::impl::status::success) {
-        OPENVINO_THROW("Can not clone DnnlBlockedMemoryDesc with dims: ", MemoryDescUtils::dims2str(dims));
+        OPENVINO_THROW("Can not clone DnnlBlockedMemoryDesc with dims: ", dims2str(dims));
     }
     // dnnl::impl::fill_blocked always set offset0 to 0
     // so we need to restore actual value

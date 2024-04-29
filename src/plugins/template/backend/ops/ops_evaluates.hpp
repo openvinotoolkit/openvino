@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,10 @@ extern template bool evaluate_node<ov::op::v0::BatchNormInference>(std::shared_p
                                                                    const ov::TensorVector& inputs);
 
 extern template bool evaluate_node<ov::op::v0::Ceiling>(std::shared_ptr<ov::Node> node,
+                                                        ov::TensorVector& outputs,
+                                                        const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::v0::Convert>(std::shared_ptr<ov::Node> node,
                                                         ov::TensorVector& outputs,
                                                         const ov::TensorVector& inputs);
 
@@ -131,6 +135,10 @@ extern template bool evaluate_node<ov::op::v1::AvgPool>(std::shared_ptr<ov::Node
                                                         ov::TensorVector& outputs,
                                                         const ov::TensorVector& inputs);
 
+extern template bool evaluate_node<ov::op::v14::AvgPool>(std::shared_ptr<ov::Node> node,
+                                                         ov::TensorVector& outputs,
+                                                         const ov::TensorVector& inputs);
+
 extern template bool evaluate_node<ov::op::v1::BinaryConvolution>(std::shared_ptr<ov::Node> node,
                                                                   ov::TensorVector& outputs,
                                                                   const ov::TensorVector& inputs);
@@ -150,6 +158,10 @@ extern template bool evaluate_node<ov::op::v1::ConvolutionBackpropData>(std::sha
 extern template bool evaluate_node<ov::op::v1::DeformablePSROIPooling>(std::shared_ptr<ov::Node> node,
                                                                        ov::TensorVector& outputs,
                                                                        const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::v1::Divide>(std::shared_ptr<ov::Node> node,
+                                                       ov::TensorVector& outputs,
+                                                       const ov::TensorVector& inputs);
 
 extern template bool evaluate_node<ov::op::v1::Equal>(std::shared_ptr<ov::Node> node,
                                                       ov::TensorVector& outputs,
@@ -174,6 +186,10 @@ extern template bool evaluate_node<ov::op::v1::DeformableConvolution>(std::share
 extern template bool evaluate_node<ov::op::v1::Mod>(std::shared_ptr<ov::Node> node,
                                                     ov::TensorVector& outputs,
                                                     const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::v1::Multiply>(std::shared_ptr<ov::Node> node,
+                                                         ov::TensorVector& outputs,
+                                                         const ov::TensorVector& inputs);
 
 extern template bool evaluate_node<ov::op::v1::NonMaxSuppression>(std::shared_ptr<ov::Node> node,
                                                                   ov::TensorVector& outputs,
@@ -468,6 +484,14 @@ extern template bool evaluate_node<ov::op::v13::NMSRotated>(std::shared_ptr<ov::
 extern template bool evaluate_node<ov::op::v13::Multinomial>(std::shared_ptr<ov::Node> node,
                                                              ov::TensorVector& outputs,
                                                              const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::v14::Inverse>(std::shared_ptr<ov::Node> node,
+                                                         ov::TensorVector& outputs,
+                                                         const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::v14::ROIAlignRotated>(std::shared_ptr<ov::Node> node,
+                                                                 ov::TensorVector& outputs,
+                                                                 const ov::TensorVector& inputs);
 
 extern template bool evaluate_node<ov::op::internal::AUGRUCell>(std::shared_ptr<ov::Node> node,
                                                                 ov::TensorVector& outputs,

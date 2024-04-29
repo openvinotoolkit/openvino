@@ -39,11 +39,14 @@ struct reorder_impl : public typed_primitive_impl<reorder> {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "reorder::execute_impl");
         auto& stream = instance.get_network().get_stream();
 
-        for (auto e : events) {
-            e->wait();
+        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
+
+        if (!pass_through_events) {
+            for (auto e : events) {
+                e->wait();
+            }
         }
 
-        auto ev = stream.create_user_event(false);
         auto params = instance.get_impl_params();
 
         if (instance.get_impl_params()->input_layouts[0].format != instance.get_impl_params()->input_layouts[0].format)
@@ -68,9 +71,15 @@ struct reorder_impl : public typed_primitive_impl<reorder> {
         OPENVINO_ASSERT(op->evaluate(output_host_tensors, input_host_tensors),
                         "[GPU] Couldn't execute reorder primitive with id ", instance.id());
 
-        ev->set();
+        if (pass_through_events) {
+            if (events.size() > 1) {
+                return stream.group_events(events);
+            } else if (events.size() == 1) {
+                return events[0];
+            }
+        }
 
-        return ev;
+        return stream.create_user_event(true);
     }
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}

@@ -94,10 +94,10 @@ cards <https://www.intel.com/content/www/us/en/products/details/discrete-gpus/ar
 and `Intel® Data Center GPU Flex
 Series <https://www.intel.com/content/www/us/en/products/details/discrete-gpus/data-center-gpu/flex-series.html>`__.
 To get started, first `install
-OpenVINO <https://docs.openvino.ai/2023.3/openvino_docs_install_guides_overview.html>`__
+OpenVINO <https://docs.openvino.ai/2024/get-started/install-openvino.html>`__
 on a system equipped with one or more Intel GPUs. Follow the `GPU
 configuration
-instructions <https://docs.openvino.ai/2023.3/openvino_docs_install_guides_configurations_for_intel_gpu.html>`__
+instructions <https://docs.openvino.ai/2024/get-started/configurations/configurations-intel-gpu.html>`__
 to configure OpenVINO to work with your GPU. Then, read on to learn how
 to accelerate inference with GPUs in OpenVINO!
 
@@ -108,7 +108,7 @@ Install required packages
 
 .. code:: ipython3
 
-    %pip install -q "openvino-dev>=2023.1.0"
+    %pip install -q "openvino-dev>=2024.0.0"
     %pip install -q tensorflow
     
     # Fetch `notebook_utils` module
@@ -167,12 +167,12 @@ the system has a CPU, an integrated and discrete GPU, we should expect
 to see a list like this: ``['CPU', 'GPU.0', 'GPU.1']``. To simplify its
 use, the “GPU.0” can also be addressed with just “GPU”. For more
 details, see the `Device Naming
-Convention <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_GPU.html#device-naming-convention>`__
+Convention <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/gpu-device.html#device-naming-convention>`__
 section.
 
 If the GPUs are installed correctly on the system and still do not
 appear in the list, follow the steps described
-`here <https://docs.openvino.ai/2023.3/openvino_docs_install_guides_configurations_for_intel_gpu.html>`__
+`here <https://docs.openvino.ai/2024/get-started/configurations/configurations-intel-gpu.html>`__
 to configure your GPU drivers to work with OpenVINO. Once we have the
 GPUs working with OpenVINO, we can proceed with the next sections.
 
@@ -218,7 +218,7 @@ for that property.
     indent = len(max(supported_properties, key=len))
     
     for property_key in supported_properties:
-        if property_key not in ('SUPPORTED_PROPERTIES'):
+        if property_key not in ('SUPPORTED_METRICS', 'SUPPORTED_CONFIG_KEYS', 'SUPPORTED_PROPERTIES'):
             try:
                 property_val = core.get_property(device, property_key)
             except TypeError:
@@ -288,7 +288,7 @@ the key properties are:
    speed up compilation time.
 
 To learn more about devices and properties, see the `Query Device
-Properties <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_query_api.html>`__
+Properties <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/query-device-properties.html>`__
 page.
 
 Compiling a Model on GPU
@@ -299,7 +299,7 @@ Compiling a Model on GPU
 Now, we know how to list the GPUs in the system and check their
 properties. We can easily use one for compiling and running models with
 OpenVINO `GPU
-plugin <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_GPU.html>`__.
+plugin <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/gpu-device.html>`__.
 
 Download and Convert a Model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -380,7 +380,7 @@ Convert the Model to OpenVINO IR format
 To convert the model to OpenVINO IR with ``FP16`` precision, use model
 conversion API. The models are saved to the ``model/ir_model/``
 directory. For more details about model conversion, see this
-`page <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__.
 
 .. code:: ipython3
 
@@ -439,7 +439,7 @@ the ``available_devices`` method are valid device specifiers. You may
 also use “AUTO”, which will automatically select the best device for
 inference (which is often the GPU). To learn more about AUTO plugin,
 visit the `Automatic Device
-Selection <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__
+Selection <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/auto-device-selection.html>`__
 page as well as the `AUTO device
 tutorial <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/106-auto-device>`__.
 
@@ -511,7 +511,7 @@ compile times with caching enabled and disabled as follows:
 The actual time improvements will depend on the environment as well as
 the model being used but it is definitely something to consider when
 optimizing an application. To read more about this, see the `Model
-Caching <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Model_caching_overview.html>`__
+Caching <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/optimizing-latency/model-caching-overview.html>`__
 docs.
 
 Throughput and Latency Performance Hints
@@ -554,12 +554,12 @@ Using Multiple GPUs with Multi-Device and Cumulative Throughput
 The latency and throughput hints mentioned above are great and can make
 a difference when used adequately but they usually use just one device,
 either due to the `AUTO
-plugin <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_AUTO.html#how-auto-works>`__
+plugin <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/auto-device-selection.html#how-auto-works>`__
 or by manual specification of the device name as above. When we have
 multiple devices, such as an integrated and discrete GPU, we may use
 both at the same time to improve the utilization of the resources. In
 order to do this, OpenVINO provides a virtual device called
-`MULTI <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_Running_on_multiple_devices.html>`__,
+`MULTI <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/multi-device.html>`__,
 which is just a combination of the existent devices that knows how to
 split inference work between them, leveraging the capabilities of each
 device.
@@ -586,7 +586,7 @@ manually specify devices to use. Below is an example showing how to use
    how to set up an asynchronous pipeline that takes advantage of
    parallelism to increase throughput.** To learn more, see
    `Asynchronous
-   Inferencing <https://docs.openvino.ai/2023.3/openvino_docs_ov_plugin_dg_async_infer_request.html>`__
+   Inferencing <https://docs.openvino.ai/2024/documentation/openvino-extensibility/openvino-plugin-library/asynch-inference-request.html>`__
    in OpenVINO as well as the `Asynchronous Inference
    notebook <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/115-async-api>`__.
 
@@ -612,7 +612,7 @@ Note that benchmark_app only requires the model path to run but both the
 device and hint arguments will be useful to us. For more advanced
 usages, the tool itself has other options that can be checked by running
 ``benchmark_app -h`` or reading the
-`docs <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__.
+`docs <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__.
 The following example shows how to benchmark a simple model, using a GPU
 with a latency focus:
 
@@ -1337,7 +1337,7 @@ Process Results
         # Draw info at the top left such as current fps, the devices and the performance hint being used
         cv2.putText(frame, f"fps {str(round(frame_fps[current_frame], 2))}", (5, 20), cv2.FONT_ITALIC, 0.6, (0, 0, 0), 1, cv2.LINE_AA)
         cv2.putText(frame, f"device {device_name}", (5, 40), cv2.FONT_ITALIC, 0.6, (0, 0, 0), 1, cv2.LINE_AA) 
-        cv2.putText(frame, f"hint {compiled_model.get_property('PERFORMANCE_HINT').name}", (5, 60), cv2.FONT_ITALIC, 0.6, (0, 0, 0), 1, cv2.LINE_AA)
+        cv2.putText(frame, f"hint {compiled_model.get_property('PERFORMANCE_HINT')}", (5, 60), cv2.FONT_ITALIC, 0.6, (0, 0, 0), 1, cv2.LINE_AA)
     
         # prediction contains [image_id, label, conf, x_min, y_min, x_max, y_max] according to model
         for prediction in np.squeeze(results[current_frame]):
@@ -1390,18 +1390,18 @@ To read more about any of these topics, feel free to visit their
 corresponding documentation:
 
 -  `GPU
-   Plugin <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_GPU.html>`__
+   Plugin <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/gpu-device.html>`__
 -  `AUTO
-   Plugin <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__
+   Plugin <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/auto-device-selection.html>`__
 -  `Model
-   Caching <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Model_caching_overview.html>`__
+   Caching <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/optimizing-latency/model-caching-overview.html>`__
 -  `MULTI Device
-   Mode <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_Running_on_multiple_devices.html>`__
+   Mode <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/multi-device.html>`__
 -  `Query Device
-   Properties <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_query_api.html>`__
+   Properties <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/query-device-properties.html>`__
 -  `Configurations for GPUs with
-   OpenVINO <https://docs.openvino.ai/2023.3/openvino_docs_install_guides_configurations_for_intel_gpu.html>`__
+   OpenVINO <https://docs.openvino.ai/2024/get-started/configurations/configurations-intel-gpu.html>`__
 -  `Benchmark Python
-   Tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__
+   Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
 -  `Asynchronous
-   Inferencing <https://docs.openvino.ai/2023.3/openvino_docs_ov_plugin_dg_async_infer_request.html>`__
+   Inferencing <https://docs.openvino.ai/2024/documentation/openvino-extensibility/openvino-plugin-library/asynch-inference-request.html>`__

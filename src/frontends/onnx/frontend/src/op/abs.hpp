@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ inline ov::OutputVector abs(const ov::frontend::onnx::Node& node) {
     CHECK_VALID_NODE(node,
                      !node.has_attribute("consumed_inputs"),
                      "consumed_inputs legacy attribute of Abs op is not supported");
-    return {std::make_shared<ov::op::v0::Abs>(node.get_ng_inputs().at(0))};
+    return {std::make_shared<ov::op::v0::Abs>(node.get_ov_inputs().at(0))};
 }
 }  // namespace set_1
 

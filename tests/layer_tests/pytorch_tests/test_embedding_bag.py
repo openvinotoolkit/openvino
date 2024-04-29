@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -42,6 +42,7 @@ class TestEmbeddingBag1dOffsets(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("indicies_dtype", ["int", "int32"])
     @pytest.mark.parametrize("per_sample_weights", [True, False])
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
@@ -49,7 +50,7 @@ class TestEmbeddingBag1dOffsets(PytorchLayerTest):
     def test_embedding_bag(self, ie_device, precision, ir_version, indicies_dtype, per_sample_weights):
         self._test(*self.create_model(per_sample_weights), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"indicies_dtype": indicies_dtype, "per_sample_weights": per_sample_weights}, 
-                   trace_model=True, dynamic_shapes=not per_sample_weights)
+                   trace_model=True, dynamic_shapes=not per_sample_weights and ie_device != "GPU")
 
 
 class TestEmbeddingBag2d(PytorchLayerTest):
@@ -86,6 +87,7 @@ class TestEmbeddingBag2d(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("indicies_size", [[1, 1], [2, 5], [3, 10], [4, 7]])
     @pytest.mark.parametrize("indicies_dtype", ["int", "int32"])
     @pytest.mark.parametrize("per_sample_weights", [True, False])
@@ -94,4 +96,4 @@ class TestEmbeddingBag2d(PytorchLayerTest):
     def test_embedding_bag(self, ie_device, precision, ir_version, indicies_dtype, indicies_size, per_sample_weights):
         self._test(*self.create_model(per_sample_weights), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"indicies_size": indicies_size, "indicies_dtype": indicies_dtype, "per_sample_weights": per_sample_weights}, 
-                   trace_model=True, dynamic_shapes=not per_sample_weights)
+                   trace_model=True, dynamic_shapes=not per_sample_weights and ie_device != "GPU")

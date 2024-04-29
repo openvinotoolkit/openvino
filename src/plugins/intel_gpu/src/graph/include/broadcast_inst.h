@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,6 +39,10 @@ public:
     static layout calc_output_layout(broadcast_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(broadcast_node const& node);
     typed_primitive_inst(network& network, broadcast_node const& node);
+    void update_output_memory() override;
+
+private:
+    void on_execute() override;
 };
 
 using broadcast_inst = typed_primitive_inst<broadcast>;

@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/subgraph/multiply_add.hpp"
 
 #include "common_test_utils/node_builders/constant.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
 
 namespace ov {
 namespace test {

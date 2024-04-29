@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -783,7 +783,7 @@ TEST_F(IRFrontendTests, name_is_not_unique) {
     createTemporalModelFile(xmlModel, buffer);
     std::shared_ptr<ov::Model> model;
 
-    ASSERT_THROW(core.read_model(xmlFileName, binFileName), ov::Exception);
+    EXPECT_NO_THROW(core.read_model(xmlFileName, binFileName));
 }
 
 TEST_F(IRFrontendTests, edge_has_wrong_port_id) {

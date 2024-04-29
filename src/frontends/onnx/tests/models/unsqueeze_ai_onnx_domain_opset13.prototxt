@@ -1,5 +1,5 @@
 ir_version: 8
-producer_name: "onnx-importer-test"
+producer_name: "OpenVINO ONNX Frontend"
 graph {
   node {
     output: "AXIS"

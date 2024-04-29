@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,11 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/binary_elementwise_arithmetic.hpp"
+#include "openvino/op/util/binary_elementwise_bitwise.hpp"
+#include "openvino/op/util/binary_elementwise_comparison.hpp"
+#include "openvino/op/util/binary_elementwise_logical.hpp"
+#include "openvino/op/util/gather_base.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
@@ -78,7 +83,7 @@ ov::pass::EliminateGatherUnsqueeze::EliminateGatherUnsqueeze() {
     const auto or_label = std::make_shared<pattern::op::Or>(OutputVector{gather_label, be_label});
     const auto unsqueeze_label = wrap_type<v0::Unsqueeze, v1::Reshape>({or_label, any_input()}, rank_equals(1));
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         auto pattern_nodes = m.get_pattern_map();
         auto& gather = pattern_nodes.at(gather_label);
         auto& unsqueeze = pattern_nodes.at(unsqueeze_label);

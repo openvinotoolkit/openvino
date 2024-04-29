@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "intel_gpu/op/gemm.hpp"
+#include "intel_gpu/op/indirect_gemm.hpp"
 
 #include "intel_gpu/primitives/gemm.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
@@ -22,6 +23,7 @@ namespace ov {
 namespace op {
 namespace internal {
 using Gemm = ov::intel_gpu::op::Gemm;
+using IndirectGemm = ov::intel_gpu::op::IndirectGemm;
 }  // namespace internal
 }  // namespace op
 }  // namespace ov
@@ -158,16 +160,16 @@ static void CreateGemmOp(ProgramBuilder& p, const std::shared_ptr<ov::op::intern
     size_t rank_b = shape_b.rank().get_length();
     size_t output_rank = out_shape.rank().get_length();
 
-    OPENVINO_ASSERT(rank_a == op->get_input0_order().size(), "[GPU] Length of input0_order is not same as rank of input0");
-    OPENVINO_ASSERT(rank_b == op->get_input1_order().size(), "[GPU] Length of input1_order is not same as rank of input1");
-    OPENVINO_ASSERT(output_rank == op->get_output_order().size(), "[GPU] Length of output_order is not same as rank of output");
+    OPENVINO_ASSERT(rank_a == op->get_input0_transpose_order().size(), "[GPU] Length of input0_transpose_order is not same as rank of input0");
+    OPENVINO_ASSERT(rank_b == op->get_input1_transpose_order().size(), "[GPU] Length of input1_transpose_order is not same as rank of input1");
+    OPENVINO_ASSERT(output_rank == op->get_output_transpose_order().size(), "[GPU] Length of output_transpose_order is not same as rank of output");
 
     auto gemmPrim = cldnn::gemm(layerName,
                                 inputs,
                                 cldnn::element_type_to_data_type(op->get_output_element_type(0)),
-                                op->get_input0_order(),
-                                op->get_input1_order(),
-                                op->get_output_order(),
+                                op->get_input0_transpose_order(),
+                                op->get_input1_transpose_order(),
+                                op->get_output_transpose_order(),
                                 alpha,
                                 beta);
 
@@ -186,8 +188,32 @@ static void CreateGemmOp(ProgramBuilder& p, const std::shared_ptr<ov::op::intern
     }
 }
 
+static void CreateIndirectGemmOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_gpu::op::IndirectGemm>& op) {
+    validate_inputs_count(op, {3});
+    auto inputs = p.GetInputInfo(op);
+    std::string layer_name = layer_type_name_ID(op);
+
+    auto alpha = 1.0f;
+    auto beta = 0.0f;
+
+    auto gemmPrim = cldnn::gemm(layer_name,
+                                std::vector<cldnn::input_info>{ inputs[0], inputs[1] },
+                                inputs[2],
+                                cldnn::element_type_to_data_type(op->get_output_element_type(0)),
+                                op->get_input0_transpose_order(),
+                                op->get_input1_transpose_order(),
+                                op->get_output_transpose_order(),
+                                op->get_indirect_a(),
+                                op->get_indirect_b(),
+                                alpha,
+                                beta);
+
+    p.add_primitive(*op, gemmPrim);
+}
+
 REGISTER_FACTORY_IMPL(v0, MatMul);
 REGISTER_FACTORY_IMPL(internal, Gemm);
+REGISTER_FACTORY_IMPL(internal, IndirectGemm);
 
 }  // namespace intel_gpu
 }  // namespace ov

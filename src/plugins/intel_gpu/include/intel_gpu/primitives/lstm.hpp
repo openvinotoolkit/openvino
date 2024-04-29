@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ namespace cldnn {
 /// ONNX order: iofz
 /// Caffe order: ifoz
 /// pyTorch order: izof
-/// IE order: fizo
+/// OV order: fizo
 enum class lstm_weights_order {
     iofz,
     ifoz,

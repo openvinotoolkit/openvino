@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,9 +13,6 @@ std::vector<std::string> disabledTestPatterns() {
     std::vector<std::string> retVector{
         // unsupported metrics
         R"(.*smoke_OVGetMetricPropsTest.*OVGetMetricPropsTest.*(RANGE_FOR_STREAMS|MAX_BATCH_SIZE).*)",
-
-        // CVS-55937
-        R"(.*SplitLayerTest.*numSplits=30.*)",
 
         // CVS-64094
         R"(.*ReferenceLogSoftmaxLayerTest.*4.*iType=f16.*axis=.*1.*)",
@@ -72,12 +69,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReferenceConcatTest.*concat_zero_.*)",
         // CVS-64102
         R"(.*ReferenceExperimentalPGGLayerTest.*iType=bf16.*stride_x=(32|64).*)",
-        // CVS-72215
-        R"(.*ReferenceTileTest.*aType=i4.*)",
-        R"(.*ReferenceTileTest.*aType=u4.*)",
-        // CVS-71891
-        R"(.*ReferenceTileTest.*rType=i4.*)",
-        R"(.*ReferenceTileTest.*rType=u4.*)",
 
         // New plugin API doesn't support legacy NV12 I420 preprocessing
         R"(.*ConvertNV12WithLegacyTest.*)",
@@ -106,8 +97,14 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*eltwiseOpType=Mod_secondaryInputType=PARAMETER_opType=VECTOR_NetType=(f16|f32).*)",
         // Interpreter backend doesn't implement evaluate method for OP Multiply (by GroupNormalizationDecomposition)
         R"(.*ReferenceGroupNormalization.*_f64*)",
+        // Precision not high enough to get exact result for the complex test cases
+        // (both tiny values and very high values necessary)
+        R"(.*ReferenceInverse.*bf16.*[4,4].*)",
+        R"(.*smoke_CompareWithRefs_static/EltwiseLayerTest.Inference/IS=\(\[\]_\)_TS=.*(4.4.200|1.10.200|10.200|2.200|1.10.100|4.4.16).*_eltwise_op_type=Mod_secondary_input_type=PARAMETER_opType=VECTOR_model_type=f32_InType=undefined_OutType=undefined.*)",
+        R"(.*smoke_CompareWithRefs_static/EltwiseLayerTest.Inference/IS=.*_TS=\(\(2.17.5.1\)_\(1.17.1.4\)_\)_eltwise_op_type=Mod_secondary_input_type=PARAMETER_opType=VECTOR_model_type=f16_InType=undefined_OutType=undefined_.*)",
+        R"(.*smoke_CompareWithRefs_static/EltwiseLayerTest.Inference/IS=.*_TS=.*(2.200|10.200|1.10.100|4.4.16|1.2.4|1.4.4|1.4.4.1).*eltwise_op_type=Mod_secondary_input_type=PARAMETER_opType=VECTOR_model_type=f16_InType=undefined_OutType=undefined.*)",
+        R"(.*smoke_CompareWithRefs_static/EltwiseLayerTest.Inference/IS=.*_TS=.*2.*eltwise_op_type=Pow_secondary_input_type=PARAMETER_opType=VECTOR_model_type=f32_InType=undefined_OutType=undefined.*)",
     };
-
 #ifdef _WIN32
     // CVS-63989
     retVector.emplace_back(R"(.*ReferenceSigmoidLayerTest.*u64.*)");

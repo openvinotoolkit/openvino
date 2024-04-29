@@ -53,7 +53,7 @@ public:
     Node& operator=(Node&&) noexcept = delete;
     Node& operator=(const Node&) = delete;
 
-    ov::OutputVector get_ng_inputs() const;
+    ov::OutputVector get_ov_inputs() const;
     const std::string& domain() const;
     const std::string& op_type() const;
     const std::string& get_name() const;

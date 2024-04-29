@@ -11,6 +11,7 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/nms_rotated.hpp"
 #include "openvino/op/non_max_suppression.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -21,7 +22,7 @@ ov::pass::ConvertNMSRotatedToNMSIEInternal::ConvertNMSRotatedToNMSIEInternal() {
     MATCHER_SCOPE(ConvertNMSRotatedToNMSIEInternal);
     auto nms = ov::pass::pattern::wrap_type<ov::op::v13::NMSRotated>();
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto nms_rotated = std::dynamic_pointer_cast<ov::op::v13::NMSRotated>(m.get_match_root());
         if (!nms_rotated || transformation_callback(nms_rotated)) {
             return false;
@@ -87,14 +88,12 @@ ov::pass::ConvertNMSRotatedToNMSIEInternal::ConvertNMSRotatedToNMSIEInternal() {
         Output<Node> output_0 = nms_legacy->output(0);
         if (nms_rotated->output(0).get_element_type() != output_0.get_element_type()) {
             output_0 = std::make_shared<ov::op::v0::Convert>(output_0, nms_rotated->output(0).get_element_type());
-            output_0.get_node_shared_ptr()->set_friendly_name(op::util::create_ie_output_name(nms_rotated->output(0)));
             new_ops.emplace_back(output_0.get_node_shared_ptr());
         }
 
         Output<Node> output_2 = nms_legacy->output(2);
         if (nms_rotated->output(2).get_element_type() != output_2.get_element_type()) {
             output_2 = std::make_shared<ov::op::v0::Convert>(output_2, nms_rotated->output(2).get_element_type());
-            output_2.get_node_shared_ptr()->set_friendly_name(op::util::create_ie_output_name(nms_rotated->output(2)));
             new_ops.emplace_back(output_2.get_node_shared_ptr());
         }
 

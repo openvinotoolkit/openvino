@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,7 +49,10 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         auto index_op = cast_fw_node(m.get_match_root(), "aten::index_put_");
         if (!index_op) {
-            return false;
+            index_op = cast_fw_node(m.get_match_root(), "aten.index_put.default");
+            if (!index_op) {
+                return false;
+            }
         }
         NodeVector rt_copy_from;
         ov::pass::NodeRegistry rg;
@@ -82,7 +85,7 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
                 add_exception_to_fw_node(index_op, "aten::index_put_: dynamic rank for indices is not supported.");
                 return false;
             }
-            auto indices_first_dim = indices_partial_shape[0];
+            const auto& indices_first_dim = indices_partial_shape[0];
             if (!indices_first_dim.is_static()) {
                 // We support only lists of tensors with static number of elements.
                 add_exception_to_fw_node(index_op,

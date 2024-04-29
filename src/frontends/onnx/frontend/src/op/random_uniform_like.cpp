@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ namespace op {
 namespace set_1 {
 
 ov::OutputVector random_uniform_like(const ov::frontend::onnx::Node& node) {
-    ov::OutputVector inputs{node.get_ng_inputs()};
+    ov::OutputVector inputs{node.get_ov_inputs()};
     const auto input = inputs.at(0);
 
     ov::element::Type target_type;

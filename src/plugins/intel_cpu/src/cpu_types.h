@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,9 @@ namespace intel_cpu {
 
 using Dim = std::size_t;
 using VectorDims = std::vector<Dim>;
+
+std::string dim2str(Dim dim);
+std::string dims2str(const VectorDims& dims);
 
 enum class Type {
     Unknown,
@@ -99,8 +102,9 @@ enum class Type {
     ExperimentalDetectronROIFeatureExtractor,
     ExperimentalDetectronPriorGridGenerator,
     ExperimentalDetectronGenerateProposalsSingleImage,
-    GenerateProposals,
     ExtractImagePatches,
+    GenerateProposals,
+    Inverse,
     NonMaxSuppression,
     MatrixNms,
     MulticlassNms,
@@ -115,6 +119,7 @@ enum class Type {
     Ngram,
     ScaledDotProductAttention,
     RoPE,
+    CausalMaskPreprocess,
 };
 
 enum class Algorithm {

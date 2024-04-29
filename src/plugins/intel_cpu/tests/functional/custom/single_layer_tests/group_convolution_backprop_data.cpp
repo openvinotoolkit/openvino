@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -141,7 +141,7 @@ public:
             return;
         }
         ASSERT_EQ(actualOutputs.size(), expectedOutputs.size())
-            << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
+            << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while OV " << actualOutputs.size();
 
         compare(expectedOutputs, actualOutputs);
     }
