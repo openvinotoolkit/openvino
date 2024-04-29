@@ -37,10 +37,11 @@ public:
 };
 
 StreamsRankTestCase _2sockets_mock_1 = {
-    {{1, ALL_PROC, 104, 0, 0},
+    {{1, ALL_PROC, 208, -1, -1},
+     {-1, ALL_PROC, 104, 0, 0},
      {0, MAIN_CORE_PROC, 52, 0, 0},
      {0, HYPER_THREADING_PROC, 52, 0, 0},
-     {1, ALL_PROC, 104, 1, 1},
+     {-1, ALL_PROC, 104, 1, 1},
      {0, MAIN_CORE_PROC, 52, 1, 1},
      {0, HYPER_THREADING_PROC, 52, 1, 1}},  // param[in]: the expected result of streams_info_table in this simulation
     1,                                      // param[in]: the number of rank level in this simulation
@@ -48,18 +49,19 @@ StreamsRankTestCase _2sockets_mock_1 = {
     {{0}, {1}},  // param[expected out]: the expected result of streams_rank_table in thissimulation
 };
 StreamsRankTestCase _2sockets_mock_2 = {
-    {{1, MAIN_CORE_PROC, 52, 0, 0}, {1, MAIN_CORE_PROC, 52, 1, 1}},
+    {{1, MAIN_CORE_PROC, 104, -1, -1}, {-1, MAIN_CORE_PROC, 52, 0, 0}, {-1, MAIN_CORE_PROC, 52, 1, 1}},
     1,
     2,
     {{0}, {1}},
 };
 StreamsRankTestCase _2sockets_mock_3 = {
-    {{1, ALL_PROC, 104, -1, 0},
+    {{1, ALL_PROC, 208, -1, -1},
+     {-1, ALL_PROC, 104, -1, 0},
      {0, MAIN_CORE_PROC, 26, 0, 0},
      {0, MAIN_CORE_PROC, 26, 1, 0},
      {0, HYPER_THREADING_PROC, 26, 0, 0},
      {0, HYPER_THREADING_PROC, 26, 1, 0},
-     {1, ALL_PROC, 104, -1, 1},
+     {-1, ALL_PROC, 104, -1, 1},
      {0, MAIN_CORE_PROC, 26, 2, 1},
      {0, MAIN_CORE_PROC, 26, 3, 1},
      {0, HYPER_THREADING_PROC, 26, 2, 1},
@@ -69,37 +71,39 @@ StreamsRankTestCase _2sockets_mock_3 = {
     {{0}, {1}},
 };
 StreamsRankTestCase _2sockets_mock_4 = {
-    {{1, MAIN_CORE_PROC, 26, 0, 0},
-     {1, MAIN_CORE_PROC, 26, 1, 0},
-     {1, MAIN_CORE_PROC, 26, 2, 1},
-     {1, MAIN_CORE_PROC, 26, 3, 1}},
+    {{1, MAIN_CORE_PROC, 104, -1, -1},
+     {-1, MAIN_CORE_PROC, 26, 0, 0},
+     {-1, MAIN_CORE_PROC, 26, 1, 0},
+     {-1, MAIN_CORE_PROC, 26, 2, 1},
+     {-1, MAIN_CORE_PROC, 26, 3, 1}},
     1,
     4,
     {{0}, {1}, {2}, {3}},
 };
 StreamsRankTestCase _2sockets_mock_5 = {
-    {{1, MAIN_CORE_PROC, 26, 0, 0},
-     {1, MAIN_CORE_PROC, 26, 1, 0},
-     {1, MAIN_CORE_PROC, 26, 2, 1},
-     {1, MAIN_CORE_PROC, 26, 3, 1}},
+    {{1, MAIN_CORE_PROC, 104, -1, -1},
+     {-1, MAIN_CORE_PROC, 26, 0, 0},
+     {-1, MAIN_CORE_PROC, 26, 1, 0},
+     {-1, MAIN_CORE_PROC, 26, 2, 1},
+     {-1, MAIN_CORE_PROC, 26, 3, 1}},
     2,
     4,
     {{0, 0}, {0, 1}, {1, 0}, {1, 1}},
 };
 StreamsRankTestCase _1sockets_mock_1 = {
-    {{4, MAIN_CORE_PROC, 4, 0, 0}},
+    {{1, MAIN_CORE_PROC, 16, 0, 0}, {-4, MAIN_CORE_PROC, 4, 0, 0}},
     1,
     4,
     {{0}, {1}, {2}, {3}},
 };
 StreamsRankTestCase _1sockets_mock_2 = {
-    {{4, MAIN_CORE_PROC, 4, 0, 0}},
+    {{1, MAIN_CORE_PROC, 16, 0, 0}, {-4, MAIN_CORE_PROC, 4, 0, 0}},
     2,
     4,
     {{0, 0}, {0, 1}, {1, 0}, {1, 1}},
 };
 StreamsRankTestCase _1sockets_mock_3 = {
-    {{8, MAIN_CORE_PROC, 4, 0, 0}},
+    {{1, MAIN_CORE_PROC, 32, 0, 0}, {-8, MAIN_CORE_PROC, 4, 0, 0}},
     2,
     8,
     {{0, 0}, {0, 1}, {0, 2}, {0, 3}, {1, 0}, {1, 1}, {1, 2}, {1, 3}},
