@@ -99,7 +99,7 @@ void regclass_frontend_FrontEndManager(py::module m) {
     });
 }
 
-template<class T>
+template <class T>
 void handle_exception(py::module m, const char* exc_type) {
 #if PYBIND11_VERSION_MAJOR < 2 || (PYBIND11_VERSION_MAJOR == 2 && PYBIND11_VERSION_MINOR < 12)
     static py::exception<T> exc(std::move(m), exc_type);
@@ -112,8 +112,7 @@ void handle_exception(py::module m, const char* exc_type) {
         }
     });
 #else
-    static py::handle ex =
-    py::exception<T>(std::move(m), exc_type).release();
+    static py::handle ex = py::exception<T>(std::move(m), exc_type).release();
     py::register_exception_translator([](std::exception_ptr p) {
         try {
             if (p)
@@ -122,7 +121,7 @@ void handle_exception(py::module m, const char* exc_type) {
             py::set_error(ex, e.what());
         }
     });
- #endif 
+#endif
 }
 
 void regclass_frontend_GeneralFailureFrontEnd(py::module m) {
