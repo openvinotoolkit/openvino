@@ -563,6 +563,66 @@ struct ConvertFromBinPrecision {
     }
 };
 
+#define INTEL_CPU_CVT_FROM_4BIT(DT) OV_CASE(ov::element::DT, PrecisionInfo<ov::element::DT>::value_type)
+
+#define INTEL_CPU_CVT_FROM_4BIT_LIST                                                          \
+    INTEL_CPU_CVT_FROM_4BIT(f32), INTEL_CPU_CVT_FROM_4BIT(bf16), INTEL_CPU_CVT_FROM_4BIT(i8), \
+        INTEL_CPU_CVT_FROM_4BIT(u8)
+
+struct ConvertFrom4BitContext {
+    ov::element::Type_t inType;
+    const void *srcPtr;
+    void *dstPtr;
+    size_t size;
+    bool converted;
+};
+
+static int8_t get_i4(const uint8_t& val, bool high) {
+    if (high) {
+        if (val & 0x80) {
+            return static_cast<int8_t>(((val >> 4) & 0x7) | 0xf8);
+        } else {
+            return static_cast<int8_t>((val & 0xF) >> 4);
+        }
+    }
+    if (val & 0x8) {
+        // Just fill in the high 4 bits with 1
+        return static_cast<int8_t>((val & 0x7) | 0xf8);
+    } else {
+        return static_cast<int8_t>(val & 0xF);
+    }
+}
+
+static int8_t get_u4(const uint8_t& val, bool high) {
+    if (high) {
+        return (val >> 4) & 0xF;
+    }
+    return val & 0xF;
+}
+
+template <typename DT>
+struct ConvertFrom4BitPrecision {
+    void operator()(ConvertFrom4BitContext &ctx) {
+        std::function<int8_t(const uint8_t&, bool)> get4Bit = nullptr;
+        switch (ctx.inType) {
+        case ov::element::u4:
+            get4Bit = get_u4;
+            break;
+        case ov::element::i4:
+            get4Bit = get_i4;
+            break;
+        default:
+            break;
+        }
+
+        auto src = static_cast<const uint8_t*>(ctx.srcPtr);
+        auto dst = static_cast<DT*>(ctx.dstPtr);
+        for (size_t i = 0; i < ctx.size; i++) {
+            dst[i] = static_cast<DT>(get4Bit(src[i], i % 2));
+        }
+        ctx.converted = true;
+    }
+};
 
 void cpu_convert(const void *srcPtr, void *dstPtr, ov::element::Type srcPrc, ov::element::Type dstPrc, const size_t size) {
     cpu_convert(srcPtr, dstPtr, srcPrc, dstPrc, dstPrc, size);
@@ -621,6 +681,11 @@ void cpu_convert(const void *srcPtr,
                            srcPrc.bitwidth(),
                            "> precision to: ",
                            dstPrc);
+    } else if (srcPrc.bitwidth() == 4u) {
+        ConvertFrom4BitContext ctx{srcPrc, srcPtr, dstPtr, size, false};
+        OV_SWITCH(intel_cpu, ConvertFrom4BitPrecision, ctx, dstPrc, INTEL_CPU_CVT_FROM_4BIT_LIST);
+        if (!ctx.converted)
+            OPENVINO_THROW("cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
     } else {
         ConvertContext ctx {
             srcPtr,
