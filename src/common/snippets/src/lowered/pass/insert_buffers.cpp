@@ -32,7 +32,7 @@ std::vector<size_t> get_buffer_loop_ids(const std::vector<size_t>& lhs, const st
 
 // Ticket: 113744
 // TODO: This logic covers only several specific cases so it should be generalized.
-ov::Shape compute_allocation_shape(const LinearIR::LoopManagerPtr& loop_manager,
+ov::Shape compute_allocation_shape(const LoopManagerPtr& loop_manager,
                                    const std::vector<size_t>& buffer_loop_ids,
                                    const ExpressionPort& parent_expr_output,
                                    const int allocation_rank) {
@@ -77,7 +77,7 @@ ov::Shape compute_allocation_shape(const LinearIR::LoopManagerPtr& loop_manager,
                 const auto& exit_points = loop_info->get_exit_points();
                 auto it = std::find_if(exit_points.begin(),
                                        exit_points.end(),
-                                       [&parent_expr_output](const LinearIR::LoopManager::LoopPort& port) {
+                                       [&parent_expr_output](const LoopPort& port) {
                                            return *port.expr_port == parent_expr_output;
                                        });
                 OPENVINO_ASSERT(it != exit_points.end(), "compute_allocation_shape: exit point of parent loop can not be found");
@@ -105,7 +105,7 @@ ov::Shape compute_allocation_shape(const LinearIR::LoopManagerPtr& loop_manager,
 InsertBuffers::InsertBuffers(int32_t buffer_allocation_rank)
     : RangedPass(), m_buffer_allocation_rank(buffer_allocation_rank) {}
 
-LinearIR::constExprIt InsertBuffers::insertion_position(const LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager,
+LinearIR::constExprIt InsertBuffers::insertion_position(const LinearIR& linear_ir, const LoopManagerPtr& loop_manager,
                                                         const ExpressionPtr& up_expr, const ExpressionPtr& down_expr) {
     const auto& up_loops = up_expr->get_loop_ids();
     const auto& down_loops = down_expr->get_loop_ids();
@@ -145,9 +145,9 @@ LinearIR::constExprIt InsertBuffers::insertion_position(const LinearIR& linear_i
 void InsertBuffers::insertion(LinearIR& linear_ir,
                               const LinearIR::constExprIt& begin_it,
                               const LinearIR::constExprIt& end_it,
-                              const LinearIR::LoopManagerPtr& loop_manager,
-                              const std::vector<LinearIR::LoopManager::LoopPort>& loop_entries,
-                              const std::vector<LinearIR::LoopManager::LoopPort>& loop_exits) const {
+                              const LoopManagerPtr& loop_manager,
+                              const std::vector<LoopPort>& loop_entries,
+                              const std::vector<LoopPort>& loop_exits) const {
     for (const auto& entry_point : loop_entries) {
         const auto& entry_port = entry_point.expr_port;
         const auto& expr = entry_port->get_expr();
@@ -315,7 +315,7 @@ bool InsertBuffers::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begi
 
         const auto input_ports = ma->get_memory_access_input_ports();
         const auto output_ports = ma->get_memory_access_output_ports();
-        std::vector<LinearIR::LoopManager::LoopPort> loop_entries(input_ports.size()), loop_exits(output_ports.size());
+        std::vector<LoopPort> loop_entries(input_ports.size()), loop_exits(output_ports.size());
         for (const auto& p : input_ports) {
             loop_entries[p.first] = expr->get_input_port(p.first);
         }
