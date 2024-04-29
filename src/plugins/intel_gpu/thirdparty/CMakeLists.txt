@@ -30,7 +30,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
             message(WARNING "Intel GPU plugin unsupported architecture: ${CMAKE_SYSTEM_PROCESSOR}")
         endif()
 
-        if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
+        if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM)
             ov_add_compiler_flags(-Wno-undef)
             ov_add_compiler_flags(-Wno-missing-declarations)
             if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND CMAKE_COMPILER_IS_GNUCXX)
@@ -47,7 +47,9 @@ if(ENABLE_ONEDNN_FOR_GPU)
 
         foreach(cmake_var IN ITEMS CMAKE_SYSTEM_NAME CMAKE_SYSTEM_VERSION
                                    CMAKE_SYSTEM_PROCESSOR CMAKE_TOOLCHAIN_FILE)
-            list(APPEND cmake_extra_args "-D${cmake_var}=${${cmake_var}}")
+            if(${cmake_var})
+                list(APPEND cmake_extra_args "-D${cmake_var}=${${cmake_var}}")
+            endif()
         endforeach()
 
         if(OV_GENERATOR_MULTI_CONFIG)
@@ -112,7 +114,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DDNNL_LIBRARY_NAME=${DNNL_GPU_LIBRARY_NAME}"
                 "-DCMAKE_INSTALL_PREFIX=${ONEDNN_INSTALL_DIR}"
                 "-DDNNL_ENABLE_CONCURRENT_EXEC=ON"
-                "-DDNNL_ENABLE_PRIMITIVE_CACHE=OFF"
+                "-DDNNL_ENABLE_PRIMITIVE_CACHE=ON"
                 "-DDNNL_ENABLE_WORKLOAD=INFERENCE"
                 "-DDNNL_ENABLE_JIT_PROFILING=${BUILD_SHARED_LIBS}"
                 "-DDNNL_ENABLE_ITT_TASKS=${BUILD_SHARED_LIBS}"

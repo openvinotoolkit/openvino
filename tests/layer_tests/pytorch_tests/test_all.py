@@ -77,6 +77,7 @@ class TestAll(PytorchLayerTest):
     @pytest.mark.parametrize("out", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_fx_backend
     def test_all_noparams(self, input_shape, d_type, out, ie_device, precision, ir_version):
         if type(input_shape) is list:
             self.input_tensor = np.random.randint(0, 2, input_shape, dtype=d_type)
@@ -104,6 +105,7 @@ class TestAll(PytorchLayerTest):
     @pytest.mark.parametrize("out", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_fx_backend
     @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ('arm', 'armv7l',
                                                                                                      'aarch64',
                                                                                                      'arm64', 'ARM64'),

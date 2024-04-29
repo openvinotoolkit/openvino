@@ -36,12 +36,12 @@ jobs:
           packages: ocl-icd-opencl-dev opencl-headers
           version: 3.0
 
+      - name: Install scons
+        if: runner.os == 'macOS'
+        run: brew install scons
+
       - name: CMake configure
         run: cmake -DCMAKE_BUILD_TYPE=Release -DTHREADING=SEQ -B build
 
-      - name: Get number of CPU cores
-        uses: SimenB/github-actions-cpu-cores@v2
-        id: cpu-cores
-
       - name: Build snippets
-        run:  cmake --build build --target openvino_docs_snippets --parallel ${{ steps.cpu-cores.outputs.count }}
+        run:  cmake --build build --target openvino_docs_snippets --parallel

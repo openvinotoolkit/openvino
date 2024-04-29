@@ -28,8 +28,8 @@ struct DFTParams {
         m_expected_shape = expected_shape;
         m_input_type = input_type;
         m_expected_type = expected_type;
-        m_input_value = CreateTensor(input_type, input_value);
-        m_expected_value = CreateTensor(expected_type, expected_value);
+        m_input_value = CreateTensor(input_shape, input_type, input_value);
+        m_expected_value = CreateTensor(expected_shape, expected_type, expected_value);
         m_axes = axes;
         m_signal = signal;
     }
@@ -1247,7 +1247,7 @@ std::vector<DFTParams> generateParamsForDFT() {
                   NULL),
         // dft1d_signal_size_eval
         DFTParams(Shape{2, 10, 10, 2},
-                  Shape{2, 10, 10, 2},
+                  Shape{2, 20, 10, 2},
                   ET,
                   ET,
                   input_data,
@@ -1256,7 +1256,7 @@ std::vector<DFTParams> generateParamsForDFT() {
                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {20})),
         // dft2d_signal_size_eval_1
         DFTParams(Shape{4, 6, 8, 2},
-                  Shape{4, 6, 8, 2},
+                  Shape{5, 6, 9, 2},
                   ET,
                   ET,
                   input_data_1,
@@ -1274,7 +1274,7 @@ std::vector<DFTParams> generateParamsForDFT() {
                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {4, 6})),
         // dft2d_signal_size_eval_3
         DFTParams(Shape{4, 6, 8, 2},
-                  Shape{4, 6, 8, 2},
+                  Shape{3, 6, 4, 2},
                   ET,
                   ET,
                   input_data_1,
@@ -1292,7 +1292,7 @@ std::vector<DFTParams> generateParamsForDFT() {
                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {4, 8})),
         // dft2d_signal_size_eval_5
         DFTParams(Shape{4, 6, 8, 2},
-                  Shape{4, 6, 8, 2},
+                  Shape{5, 6, 4, 2},
                   ET,
                   ET,
                   input_data_1,
@@ -1301,7 +1301,7 @@ std::vector<DFTParams> generateParamsForDFT() {
                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {5, 4})),
         // dft3d_signal_size_eval
         DFTParams(Shape{4, 6, 8, 2},
-                  Shape{4, 6, 8, 2},
+                  Shape{3, 7, 5, 2},
                   ET,
                   ET,
                   input_data_1,

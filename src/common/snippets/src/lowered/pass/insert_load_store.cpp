@@ -15,9 +15,6 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-using LoopManager = LinearIR::LoopManager;
-using LoopInfoPtr = LoopManager::LoopInfoPtr;
-
 InsertLoadStore::InsertLoadStore(size_t vector_size) : m_vector_size(vector_size) {}
 
 size_t InsertLoadStore::get_count(const ExpressionPort& port) const {
@@ -35,19 +32,15 @@ size_t InsertLoadStore::get_count(const ExpressionPort& port) const {
 }
 
 bool InsertLoadStore::insert_load(LinearIR& linear_ir, const LinearIR::constExprIt& data_expr_it) {
-    std::shared_ptr<Expression> data_expr = *data_expr_it;
-    auto consumer_inputs = data_expr->get_output_port_connector(0)->get_consumers();
-    const auto& first_consumer = consumer_inputs.begin()->get_expr();
-    if (is_type<op::RankNormalization>(first_consumer->get_node())) {
-        OPENVINO_ASSERT(consumer_inputs.size() == 1, "RankNormalization is supposed to be the only consumer");
-        data_expr = first_consumer;
-    }
+    const auto& shape_infer_seq = utils::get_first_child_shape_infer_expr_seq(*data_expr_it);
+    const std::shared_ptr<Expression>& data_expr = shape_infer_seq.empty() ? *data_expr_it : shape_infer_seq.back();
     const auto& data_ngraph_output = data_expr->get_node()->output(0);
     bool was_inserted = false;
     const auto& data_out = data_expr->get_output_port_connector(0);
     for (const auto& consumer_input : data_out->get_consumers()) {
         const auto& consumer_expr = consumer_input.get_expr();
-        const auto ma = ov::as_type_ptr<op::MemoryAccess>(consumer_expr->get_node());
+        const auto& consumer = consumer_expr->get_node();
+        const auto ma = std::dynamic_pointer_cast<modifier::MemoryAccess>(consumer);
         if (ma && ma->is_memory_access_input_port(consumer_input.get_index()))
             return false;
 
@@ -61,12 +54,14 @@ bool InsertLoadStore::insert_load(LinearIR& linear_ir, const LinearIR::constExpr
 }
 
 bool InsertLoadStore::insert_store(LinearIR& linear_ir, const LinearIR::constExprIt& data_expr_it) {
-    const auto& data_expr = *data_expr_it;
+    const auto& shape_infer_seq = utils::get_first_parent_shape_infer_expr_seq(*data_expr_it);
+    const auto& data_expr = shape_infer_seq.empty() ? *data_expr_it : shape_infer_seq.back();
+
     const auto& parent_output = data_expr->get_input_port_connector(0)->get_source();
     const auto& parent_expr = parent_output.get_expr();
     const auto port = parent_output.get_index();
     const auto& parent = parent_expr->get_node();
-    const auto ma = ov::as_type_ptr<op::MemoryAccess>(parent);
+    const auto ma = std::dynamic_pointer_cast<modifier::MemoryAccess>(parent);
     if (ma && ma->is_memory_access_output_port(port))
         return false;
 

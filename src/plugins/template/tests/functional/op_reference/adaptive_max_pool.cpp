@@ -29,9 +29,9 @@ struct AdaptiveMaxPoolParams {
           m_output_shape(output_shape),
           m_input_type(input_type),
           m_output_type(output_type),
-          m_input_data(CreateTensor(input_type, input_values)),
-          m_expected_data(CreateTensor(output_type, output_values)),
-          m_expected_indices(CreateTensor(element::Type_t::i64, output_indices)),
+          m_input_data(CreateTensor(input_shape, input_type, input_values)),
+          m_expected_data(CreateTensor(output_shape, output_type, output_values)),
+          m_expected_indices(CreateTensor(output_shape, element::Type_t::i64, output_indices)),
           m_adaptive_shape(adaptive_shape),
           m_adaptive_values(adaptive_values) {}
     Shape m_input_shape;

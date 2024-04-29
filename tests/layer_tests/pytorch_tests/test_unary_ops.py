@@ -66,7 +66,8 @@ OPS = {
     "aten::asinh": torch.asinh,
     "aten::asinh_": torch.asinh_,
     "aten::atanh": torch.atanh,
-    "aten::atanh_": torch.atanh_
+    "aten::atanh_": torch.atanh_,
+    "aten::hardswish": F.hardswish
 }
 
 
@@ -117,6 +118,7 @@ class TestUnaryOp(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64, torch.int8, torch.uint8, torch.int32, torch.int64])
     @pytest.mark.parametrize("op_type",
                              [
@@ -160,6 +162,7 @@ class TestUnaryOp(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
     @pytest.mark.parametrize("op_type",
                              [
@@ -192,7 +195,8 @@ class TestUnaryOp(PytorchLayerTest):
                                  "aten::atan_",
                                  "aten::acosh_",
                                  "aten::asinh_",
-                                 "aten::atanh_"
+                                 "aten::atanh_",
+                                 "aten::hardswish"
                              ])
     def test_unary_op_float(self, op_type, dtype, ie_device, precision, ir_version):
         self.dtype = dtype
@@ -241,12 +245,14 @@ class TestUnaryOp(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
     @pytest.mark.parametrize("op_type",
                              [
                                  "aten::relu6",
                                  "aten::selu",
                                  "aten::silu",
+                                 "aten::hardswish",
                                  "aten::mish",
                              ])
     def test_unary_func_op_inplace(self, op_type, dtype, ie_device, precision, ir_version):

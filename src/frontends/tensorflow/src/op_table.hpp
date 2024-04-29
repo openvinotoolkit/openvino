@@ -18,6 +18,8 @@ namespace tensorflow {
 namespace op {
 
 const std::map<std::string, CreatorFunction> get_supported_ops();
+
+const std::vector<std::string> get_supported_ops_via_tokenizers();
 }  // namespace op
 }  // namespace tensorflow
 }  // namespace frontend

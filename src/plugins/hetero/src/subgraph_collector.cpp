@@ -236,8 +236,8 @@ void ov::hetero::SubgraphCollector::split_subgraphs_by_parameter_results() {
             _subgraph_ids.emplace(result, output_subgraph_id);
             _intermediate_results.push_back(result);
             for (const auto& input_subset : input_subsets) {
-                const auto input_subgraph_id = input_subset.first;
-                const auto inputs = input_subset.second;
+                const auto& input_subgraph_id = input_subset.first;
+                const auto& inputs = input_subset.second;
                 // Avoid duplicate parameters in the same subgraph
                 auto parameter =
                     std::make_shared<ov::op::v0::Parameter>(output.get_element_type(), output.get_partial_shape());
@@ -428,9 +428,9 @@ void ov::hetero::merge_submodels(std::vector<std::shared_ptr<ov::Model>>& submod
                 port_in_index++;
                 continue;
             }
-            auto submodel_out_index = item->second.first;
-            auto submodel_out_result_name = item->second.second;
-            auto submodel_out = submodels.at(submodel_out_index);
+            const auto& submodel_out_index = item->second.first;
+            const auto& submodel_out_result_name = item->second.second;
+            const auto& submodel_out = submodels.at(submodel_out_index);
 
             std::shared_ptr<ov::op::v0::Result> result_to_replace = nullptr;
             for (auto& result : submodel_out->get_results()) {
@@ -600,7 +600,7 @@ ov::hetero::SubgraphsMappingInfo ov::hetero::mask_model_subgraphs_by_ops(std::sh
     const std::string subgraph_id_rt_info_name = "HETERO_SUBGRAPH_ID";
     const std::string input_id_rt_info_name = "HETERO_INPUT_ID";
     const std::string output_id_rt_info_name = "HETERO_OUTPUT_ID";
-    const auto name = model->get_friendly_name();
+    const auto& name = model->get_friendly_name();
 
     SubgraphsVector ordered_subgraphs;
     SubgraphsMappingInfo mapping_info;

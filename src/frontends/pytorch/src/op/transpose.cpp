@@ -31,8 +31,8 @@ OutputVector translate_transpose(const NodeContext& context) {
     num_inputs_check(context, 3, 3);
     Output<Node> rank;
     std::tie(std::ignore, rank) = get_shape_rank(context, context.get_input(0), true);
-    auto dim0_node = context.get_input(1);
-    auto dim1_node = context.get_input(2);
+    auto dim0_node = get_input_as_i32(context, 1);
+    auto dim1_node = get_input_as_i32(context, 2);
     dim0_node = normalize_axis(context, dim0_node, rank);
     dim1_node = normalize_axis(context, dim1_node, rank);
     auto start = v0::Constant::create(element::i32, {}, {0});
@@ -94,8 +94,8 @@ OutputVector translate_movedim(const NodeContext& context) {
     // based on https://github.com/pytorch/pytorch/blob/main/aten/src/ATen/native/TensorShape.cpp#L3816
     num_inputs_check(context, 3, 3);
     auto x = context.get_input(0);
-    auto src_dims = context.get_input(1);
-    auto dst_dims = context.get_input(2);
+    auto src_dims = get_input_as_i32(context, 1);
+    auto dst_dims = get_input_as_i32(context, 2);
     Output<Node> rank;
     std::tie(std::ignore, rank) = get_shape_rank(context, context.get_input(0), true);
     src_dims = normalize_axis(context, src_dims, rank);

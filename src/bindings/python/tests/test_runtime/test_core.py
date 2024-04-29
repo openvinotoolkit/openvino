@@ -90,12 +90,12 @@ def test_compile_model(request, tmp_path, device_name):
     assert isinstance(compiled_model, CompiledModel)
 
 
-@pytest.fixture()
+@pytest.fixture
 def get_model():
     return get_relu_model()
 
 
-@pytest.fixture()
+@pytest.fixture
 def get_model_path(request, tmp_path):
     xml_path, _ = create_filename_for_test(request.node.name, tmp_path, True)
     serialize(get_relu_model(), xml_path)
@@ -309,7 +309,7 @@ def test_query_model(device):
     assert device in next(iter(set(query_model.values()))), "Wrong device for some layers"
 
 
-@pytest.mark.dynamic_library()
+@pytest.mark.dynamic_library
 def test_register_plugin():
     device = "TEST_DEVICE"
     lib_name = "test_plugin"
@@ -322,7 +322,7 @@ def test_register_plugin():
     assert f"Cannot load library '{full_lib_name}'" in str(e.value)
 
 
-@pytest.mark.dynamic_library()
+@pytest.mark.dynamic_library
 def test_register_plugins():
     device = "TEST_DEVICE"
     lib_name = "test_plugin"
@@ -346,8 +346,8 @@ def test_unload_plugin(device):
     core.unload_plugin(device)
 
 
-@pytest.mark.template_extension()
-@pytest.mark.dynamic_library()
+@pytest.mark.template_extension
+@pytest.mark.dynamic_library
 @pytest.mark.xfail(condition=sys.platform == "darwin", reason="Ticket - 132696")
 def test_add_extension_template_extension(device):
     core, model = get_model_with_template_extension()

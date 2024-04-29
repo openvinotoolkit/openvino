@@ -22,13 +22,27 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # oneDNN arm64: unary minus operator applied to unsigned type, result still unsigned
     ov_add_compiler_flags(/wd4146)
 elseif(OV_COMPILER_IS_CLANG)
-    # -Wno-delete-non-abstract-non-virtual-dtor is support > clang8.0
-    if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 8)
+    # -Wno-delete-non-abstract-non-virtual-dtor is support > clang 9.0
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 9.0)
         ov_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
     else()
         ov_add_compiler_flags(-Wno-delete-non-virtual-dtor)
     endif()
+elseif(CMAKE_COMPILER_IS_GNUCXX)
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11)
+        ov_add_compiler_flags(-Wno-array-bounds)
+    endif()
 endif()
+
+if (AARCH64 AND NOT APPLE AND CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 10.2)
+    # according to https://github.com/ARM-software/ComputeLibrary/issues/1053#issuecomment-1846903707 comment
+    # the 'multi_isa=1' below enables FP32, FP16 and SVE / SVE2 kernels
+    # But: arm_sve.h header is not available on gcc older 10.2 (let's test it), so we have to check it
+    set(OV_CPU_AARCH64_USE_MULTI_ISA_DEFAULT ON)
+else()
+    set(OV_CPU_AARCH64_USE_MULTI_ISA_DEFAULT OFF)
+endif()
+set(OV_CPU_AARCH64_USE_MULTI_ISA ${OV_CPU_AARCH64_USE_MULTI_ISA_DEFAULT} CACHE BOOL "Build multi-ISA ACL")
 
 set(OV_CPU_ARM_TARGET_GENERIC_ARCHS armv8a
                                     armv8.2-a
@@ -41,7 +55,18 @@ if(ARM)
                                 # requires estate=32
                                 ${OV_CPU_ARM_TARGET_GENERIC_ARCHS})
 elseif(AARCH64)
-    set(OV_CPU_ARM_TARGET_ARCH_DEFAULT arm64-v8.2-a)
+    if(APPLE)
+        set(OV_CPU_ARM_TARGET_ARCH_DEFAULT arm64-v8.2-a)
+    else()
+        if(OV_CPU_AARCH64_USE_MULTI_ISA)
+            # set v8a even we want fp16 kernels, because
+            # we use multi_isa=1 in ACLConfig.cmake to enable both fp16 and fp32 kernels
+            # actual kernel is selected in runtime based on runtime capabilities
+            set(OV_CPU_ARM_TARGET_ARCH_DEFAULT arm64-v8a)
+        else()
+            set(OV_CPU_ARM_TARGET_ARCH_DEFAULT arm64-v8.2-a)
+        endif()
+    endif()
     set(OV_CPU_ARM_TARGET_ARCHS arm64-v8a
                                 arm64-v8.2-a arm64-v8.2-a-sve arm64-v8.2-a-sve2
                                 # used with estate=64
@@ -49,9 +74,6 @@ elseif(AARCH64)
 endif()
 set(OV_CPU_ARM_TARGET_ARCH ${OV_CPU_ARM_TARGET_ARCH_DEFAULT} CACHE STRING "Architecture for ARM ComputeLibrary")
 set_property(CACHE OV_CPU_ARM_TARGET_ARCH PROPERTY STRINGS ${OV_CPU_ARM_TARGET_ARCHS})
-if(OV_CPU_ARM_TARGET_ARCH MATCHES "(armv|arm64-v)[8-9]\\.")
-    add_definitions(-DOV_CPU_ARM_ENABLE_FP16)
-endif()
 
 if(X86 OR X86_64 OR AARCH64)
     # disable mlas with webassembly
@@ -73,6 +95,11 @@ endif()
 
 if(ENABLE_CPU_DEBUG_CAPS)
     add_definitions(-DCPU_DEBUG_CAPS)
+endif()
+
+if (ENABLE_SNIPPETS_LIBXSMM_TPP)
+    # Note: LIBXSMM_DEFAULT_CONFIG needed so libxsmm_config can be included without issues
+    add_definitions(-DSNIPPETS_LIBXSMM_TPP -DLIBXSMM_DEFAULT_CONFIG)
 endif()
 
 set(OV_CPU_WITH_DNNL ON)
@@ -117,6 +144,11 @@ if (NOT ENABLE_MLAS_FOR_CPU)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/mlas/*)
 endif()
 
+if (NOT ENABLE_SNIPPETS_LIBXSMM_TPP)
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/tpp/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/*)
+endif ()
+
 file(GLOB_RECURSE FILES_TO_REMOVE ${EXCLUDE_PATHS})
 list(REMOVE_ITEM SOURCES ${FILES_TO_REMOVE})
 list(REMOVE_ITEM HEADERS ${FILES_TO_REMOVE})
@@ -148,6 +180,11 @@ if (ENABLE_MLAS_FOR_CPU)
     target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:mlas,INCLUDE_DIRECTORIES>)
     add_definitions(-DOV_CPU_WITH_MLAS)
 endif()
+if (ENABLE_SNIPPETS_LIBXSMM_TPP)
+    target_compile_definitions(xsmm PRIVATE __BLAS=0)
+    target_link_libraries(${TARGET_NAME} PRIVATE xsmm)
+    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:xsmm,INCLUDE_DIRECTORIES>)
+endif ()
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
 target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:openvino::reference,INTERFACE_INCLUDE_DIRECTORIES>)
 
@@ -178,14 +215,14 @@ cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 ANY
                     src/nodes/kernels/scaled_attn/attn_memcpy.cpp
         API         src/nodes/kernels/scaled_attn/attn_memcpy.hpp
-        NAME        attn_memcpy
+        NAME        attn_memcpy paged_attn_memcpy attn_memcpy2d_kernel
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 ANY
                     src/nodes/kernels/scaled_attn/attn_quant.cpp
         API         src/nodes/kernels/scaled_attn/attn_quant.hpp
-        NAME        attn_quantkv attn_quant_u8 attn_dequant_u8
+        NAME        attn_quantkv paged_attn_quantkv attn_quant_u8 attn_dequant_u8
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 # system dependencies must go last
@@ -220,6 +257,9 @@ if(BUILD_SHARED_LIBS)
             $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>)
 
     target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
+    if(ENABLE_SNIPPETS_LIBXSMM_TPP)
+        target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:xsmm,INCLUDE_DIRECTORIES>)
+    endif()
 
     if(ENABLE_MLAS_FOR_CPU)
         target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:mlas,INCLUDE_DIRECTORIES>)

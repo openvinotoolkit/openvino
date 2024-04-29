@@ -139,6 +139,7 @@ public:
     // Return estimated unique buffer count (upper bound). It's needed for tokenization
     static auto get_estimated_buffer_count(const ov::NodeVector& ops) -> size_t;
     static auto is_domain_sensitive_op(const std::shared_ptr<ov::Node>& op) -> bool;
+    static auto is_shape_infer_op(const std::shared_ptr<ov::Node>& op) -> bool;
 
     void data_flow_transformations(const BlockedShapeVector& blocked_input_shapes = {},
                                    const std::vector<ov::element::Type>& input_precisions = {},
@@ -179,6 +180,9 @@ private:
         // True if body has operations that don't support plugin-side domain optimizations
         // (e.g. Transpose, Softmax, MatMul in general doesn't support dimensions collapsing)
         bool m_has_domain_sensitive_ops = false;
+        // True if Subgraph contains ops that are not applicable to auto broadcast rule.
+        // (e.g. GroupNormalization, reshape)
+        bool m_has_broadcast_sensitive_ops = false;
     } config;
 
     std::shared_ptr<ShapeInferSnippetsNode> m_shape_infer = nullptr;

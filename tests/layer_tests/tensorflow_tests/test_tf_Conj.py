@@ -1,10 +1,11 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import pytest
 import numpy as np
+import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
+
 
 # Testing operation Conj
 # Documentation: https://www.tensorflow.org/api_docs/python/tf/raw_ops/Conj
@@ -12,7 +13,6 @@ from common.tf_layer_test_class import CommonTFLayerTest
 class TestComplexConjugate(CommonTFLayerTest):
 
     def _prepare_input(self, inputs_info):
-
         rng = np.random.default_rng()
         assert 'real_part:0' in inputs_info
         real_part_shape = inputs_info['real_part:0']
@@ -24,6 +24,7 @@ class TestComplexConjugate(CommonTFLayerTest):
         inputs_data['imag_part:0'] = 4 * rng.random(imag_part_shape).astype(np.float32) - 2
 
         return inputs_data
+
     def create_complex_conjugate_net(self, input_shape):
         """
             TensorFlow net                                 IR net
@@ -39,9 +40,9 @@ class TestComplexConjugate(CommonTFLayerTest):
 
             complex_input = tf.raw_ops.Complex(real=real_part, imag=imag_part)
 
-            conj= tf.raw_ops.Conj(input=complex_input, name = "Operation")
-            real = tf.raw_ops.Real(input=conj)
-            img = tf.raw_ops.Imag(input=conj)
+            conj = tf.raw_ops.Conj(input=complex_input, name="Operation")
+            tf.raw_ops.Real(input=conj)
+            tf.raw_ops.Imag(input=conj)
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
@@ -50,12 +51,11 @@ class TestComplexConjugate(CommonTFLayerTest):
 
         return tf_net, ref_net
 
-
-    @pytest.mark.parametrize("input_shape", [[1,2], [1,2,3], [1,2,3,4], [1,2,3,4,5,6]])
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.parametrize("input_shape", [[1, 2], [1, 2, 3], [1, 2, 3, 4], [1, 2, 3, 4, 5]])
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_conjugate(self, input_shape, ie_device, precision, ir_version, temp_dir,
-                                 use_legacy_frontend):
+                       use_legacy_frontend):
         self._test(*self.create_complex_conjugate_net(input_shape),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)

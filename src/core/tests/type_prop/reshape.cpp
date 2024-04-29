@@ -6,7 +6,6 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -37,16 +36,16 @@ TEST(type_prop, static_value_propagation) {
     ASSERT_EQ(r->get_shape(), (Shape{1, 2, 3}));
 }
 
-TEST(type_prop, reshape_static_dimension_stops_label_propagation_for_auto_batch_case) {
+TEST(type_prop, reshape_static_dimension_stops_symbol_propagation_for_auto_batch_case) {
     auto shape = ov::PartialShape({1, 1280, 1, 1});
-    ov::DimensionTracker::set_label(shape[0], 1);
+    shape[0].set_symbol(std::make_shared<Symbol>());
     auto param = make_shared<ov::op::v0::Parameter>(element::f32, shape);
     auto pattern = op::v0::Constant::create(element::i64, {2}, {-1, 1280});
     auto r = make_shared<op::v1::Reshape>(param, pattern, false);
 
     ASSERT_EQ(r->get_element_type(), element::f32);
     ASSERT_EQ(r->get_shape(), (Shape{1, 1280}));
-    ASSERT_EQ(ov::no_label, ov::DimensionTracker::get_label(r->get_output_partial_shape(0)[0]));
+    ASSERT_EQ(nullptr, r->get_output_partial_shape(0)[0].get_symbol());
 }
 
 TEST(type_prop, interval_value_propagation) {
@@ -680,9 +679,10 @@ TEST(type_prop, reshape_dynamic_shape_propagation_with_i32_precision) {
     ASSERT_EQ(reshape->get_output_partial_shape(0), (PartialShape{-1, -1, 1}));
 }
 
-TEST(type_prop, reshape_dynamic_value_and_label_propagation) {
+TEST(type_prop, reshape_dynamic_value_and_symbol_propagation) {
     Dimension marked_0 = Dimension(3);
-    ov::DimensionTracker::set_label(marked_0, 10);
+    auto symbol = std::make_shared<ov::Symbol>();
+    marked_0.set_symbol(symbol);
     PartialShape target_0 = PartialShape{marked_0, 4};
 
     auto param = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
@@ -703,7 +703,7 @@ TEST(type_prop, reshape_dynamic_value_and_label_propagation) {
 
     const auto& output_shape = bc->get_output_partial_shape(0);
     EXPECT_EQ(output_shape, PartialShape({3}));
-    EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(10));
+    EXPECT_THAT(get_shape_symbols(output_shape), ElementsAre(symbol));
 }
 
 TEST(type_prop, reshape_when_pattern_has_static_shape_only) {
@@ -733,11 +733,11 @@ TEST(type_prop, reshape_when_pattern_has_scalar_shape_only) {
                     HasSubstr("Input must be scalar as pattern is scalar!"));
 }
 
-TEST(type_prop, reshape_label_propagation) {
+TEST(type_prop, reshape_symbol_propagation) {
     auto param_shape = PartialShape{{1, 2}, {2, 4}, 6, {2, 4}, 8};
     auto out_shape = PartialShape{{3, 5}, 0, 1, 0};
-    set_shape_labels(param_shape, 10);
-    set_shape_labels(out_shape, 20);
+    auto in_symbols = set_shape_symbols(param_shape);
+    auto out_symbols = set_shape_symbols(out_shape);
 
     const auto data = make_shared<op::v0::Parameter>(element::f32, param_shape);
     const auto out = make_shared<op::v0::Parameter>(element::f32, out_shape);
@@ -748,14 +748,19 @@ TEST(type_prop, reshape_label_propagation) {
     const auto op = make_shared<op::v1::Reshape>(data, shape, true);
 
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({{3, 5}, {2, 4}, 1, {2, 4}, {10, 32}}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(20, 11, 22, 13, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(out_symbols[0], in_symbols[1], out_symbols[2], in_symbols[3], nullptr));
 }
 
-TEST(type_prop, reshape_label_propagation_dynamic_pattern_got_same_label_as_input) {
-    auto param_shape = PartialShape{{1, 2}, {2, 4}, {3, 5}, {2, 4}, 8};
-    auto out_shape = PartialShape{{3, 5}, 0, 1, 0, 8};
-    set_shape_labels(param_shape, 10);
-    set_shape_labels(out_shape, {12, 21, 22, 23, 24});
+TEST(type_prop, reshape_symbol_propagation_dynamic_pattern_got_same_symbol_as_input) {
+    auto common_dim = Dimension(3, 5);
+    auto symbol = std::make_shared<Symbol>();
+    common_dim.set_symbol(symbol);
+
+    auto param_shape = PartialShape{{1, 2}, {2, 4}, common_dim, {2, 4}, 8};
+    auto out_shape = PartialShape{common_dim, 0, 1, 0, 8};
+    auto p_symbols = set_shape_symbols(param_shape);
+    auto out_symbols = set_shape_symbols(out_shape);
 
     const auto data = make_shared<op::v0::Parameter>(element::f32, param_shape);
     const auto out = make_shared<op::v0::Parameter>(element::f32, out_shape);
@@ -766,14 +771,15 @@ TEST(type_prop, reshape_label_propagation_dynamic_pattern_got_same_label_as_inpu
     const auto op = make_shared<op::v1::Reshape>(data, shape, true);
 
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({{3, 5}, {2, 4}, 1, {2, 4}, 8, {1, 2}}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(12, 11, 22, 13, 24, 10));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(symbol, p_symbols[1], out_symbols[2], p_symbols[3], out_symbols[4], p_symbols[0]));
 }
 
-TEST(type_prop, reshape_label_propagation_minus_one_corner_case_zero_div_by_inf) {
+TEST(type_prop, reshape_symbol_propagation_minus_one_corner_case_zero_div_by_inf) {
     auto param_shape = PartialShape{0, 0};
     auto out_shape = PartialShape{-1, 2};
-    set_shape_labels(param_shape, 10);
-    set_shape_labels(out_shape, 20);
+    set_shape_symbols(param_shape);
+    auto symbols = set_shape_symbols(out_shape);
 
     const auto data = make_shared<op::v0::Parameter>(element::f32, param_shape);
     const auto out = make_shared<op::v0::Parameter>(element::f32, out_shape);
@@ -784,14 +790,14 @@ TEST(type_prop, reshape_label_propagation_minus_one_corner_case_zero_div_by_inf)
     const auto op = make_shared<op::v1::Reshape>(data, shape, true);
 
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({-1, -1, 2}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(ov::no_label, 20, 21));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), ElementsAre(nullptr, symbols[0], symbols[1]));
 }
 
 TEST(type_prop, reshape_default_ctor) {
     auto param_shape = PartialShape{{1, 2}, {2, 4}, 6, {2, 4}, 8};
     auto out_shape = PartialShape{{3, 5}, 0, 1, 0};
-    set_shape_labels(param_shape, 10);
-    set_shape_labels(out_shape, 20);
+    auto in_symbols = set_shape_symbols(param_shape);
+    auto out_symbols = set_shape_symbols(out_shape);
 
     const auto data = make_shared<op::v0::Parameter>(element::f32, param_shape);
     const auto out = make_shared<op::v0::Parameter>(element::f32, out_shape);
@@ -805,7 +811,8 @@ TEST(type_prop, reshape_default_ctor) {
     op->validate_and_infer_types();
 
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({{3, 5}, {2, 4}, 1, {2, 4}, {10, 32}}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(20, 11, 22, 13, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(out_symbols[0], in_symbols[1], out_symbols[2], in_symbols[3], nullptr));
 }
 
 TEST(type_prop, reshape_deduce_wrong_output_shape) {
@@ -873,393 +880,443 @@ TEST(type_prop, reshape_zero_dim_in_output_pattern_but_not_in_data_shape) {
                   "also zero-size"));
 }
 
-TEST(type_prop, reshape_label_propagation_minus_one_no_special_zero_input_has_zero) {
+TEST(type_prop, reshape_symbol_propagation_minus_one_no_special_zero_input_has_zero) {
     auto data_shape = PartialShape{4, 0, 2, 1, 3};
-    set_shape_labels(data_shape, 10);
+    set_shape_symbols(data_shape);
 
     auto input = make_shared<op::v0::Parameter>(element::f32, data_shape);
     auto output_pattern = make_shared<op::v0::Constant>(element::i64, Shape{3}, std::vector<int64_t>{12, 0, 1});
-    output_pattern->get_default_output().get_tensor().set_value_label({20, 21, 22});
+    auto A = std::make_shared<Symbol>(), B = std::make_shared<Symbol>(), C = std::make_shared<Symbol>();
+    output_pattern->get_default_output().get_tensor().set_value_symbol({A, B, C});
 
     const auto reshape = make_shared<op::v1::Reshape>(input, output_pattern, false);
 
     auto output_shape = reshape->get_output_partial_shape(0);
     EXPECT_EQ(output_shape, PartialShape({12, 0, 1}));
-    EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(20, 21, 22));
+    EXPECT_THAT(get_shape_symbols(output_shape), ElementsAre(A, B, C));
 }
 
-TEST(type_prop, reshape_label_propagation_minus_one_no_special_zero_case_1) {
+TEST(type_prop, reshape_symbol_propagation_minus_one_no_special_zero_case_1) {
     auto data_shape = PartialShape{4, -1, 2, 1, 3};
-    set_shape_labels(data_shape, 10);
+    auto in_symbols = set_shape_symbols(data_shape);
 
     auto input = make_shared<op::v0::Parameter>(element::f32, data_shape);
     auto output_pattern = make_shared<op::v0::Constant>(element::i64, Shape{3}, std::vector<int64_t>{-1, 12, 2});
-    output_pattern->get_default_output().get_tensor().set_value_label({20, 21, 22});
+    auto A = std::make_shared<Symbol>(), B = std::make_shared<Symbol>(), C = std::make_shared<Symbol>();
+    output_pattern->get_default_output().get_tensor().set_value_symbol({A, B, C});
 
     const auto reshape = make_shared<op::v1::Reshape>(input, output_pattern, false);
 
     auto output_shape = reshape->get_output_partial_shape(0);
     EXPECT_EQ(output_shape, PartialShape({-1, 12, 2}));
-    EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(11, 21, 22));
+    EXPECT_THAT(get_shape_symbols(output_shape), ElementsAre(in_symbols[1], B, C));
 }
 
-TEST(type_prop, reshape_label_propagation_minus_one_no_special_zero_case_2) {
+TEST(type_prop, reshape_symbol_propagation_minus_one_no_special_zero_case_2) {
     auto data_shape = PartialShape{4, 2, {2, 6}, 1, 3};
-    set_shape_labels(data_shape, 10);
+    auto in_symbols = set_shape_symbols(data_shape);
 
     auto input = make_shared<op::v0::Parameter>(element::f32, data_shape);
     auto output_pattern = make_shared<op::v0::Constant>(element::i64, Shape{3}, std::vector<int64_t>{-1, 12, 2});
-    output_pattern->get_default_output().get_tensor().set_value_label({20, 21, 22});
+    auto A = std::make_shared<Symbol>(), B = std::make_shared<Symbol>(), C = std::make_shared<Symbol>();
+    output_pattern->get_default_output().get_tensor().set_value_symbol({A, B, C});
 
     const auto reshape = make_shared<op::v1::Reshape>(input, output_pattern, false);
 
     auto output_shape = reshape->get_output_partial_shape(0);
     EXPECT_EQ(output_shape, PartialShape({{2, 6}, 12, 2}));
-    EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(12, 21, 22));
+    EXPECT_THAT(get_shape_symbols(output_shape), ElementsAre(in_symbols[2], B, C));
 }
 
-TEST(type_prop, reshape_label_propagation_minus_one_no_special_zero_case_3) {
+TEST(type_prop, reshape_symbol_propagation_minus_one_no_special_zero_case_3) {
     auto data_shape = PartialShape{{2, 4}, 2, {2, 6}, 1, 3};
-    set_shape_labels(data_shape, 10);
+    set_shape_symbols(data_shape);
 
     auto input = make_shared<op::v0::Parameter>(element::f32, data_shape);
     auto output_pattern = make_shared<op::v0::Constant>(element::i64, Shape{3}, std::vector<int64_t>{-1, 12, 2});
-    output_pattern->get_default_output().get_tensor().set_value_label({20, 21, 22});
+    auto A = std::make_shared<Symbol>(), B = std::make_shared<Symbol>(), C = std::make_shared<Symbol>();
+    output_pattern->get_default_output().get_tensor().set_value_symbol({A, B, C});
 
     const auto reshape = make_shared<op::v1::Reshape>(input, output_pattern, false);
 
     auto output_shape = reshape->get_output_partial_shape(0);
     EXPECT_EQ(output_shape, PartialShape({{1, 6}, 12, 2}));
-    EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(no_label, 21, 22));
+    EXPECT_THAT(get_shape_symbols(output_shape), ElementsAre(nullptr, B, C));
 }
 
-TEST(type_prop, reshape_label_propagation_minus_one_no_special_zero_case_4) {
+TEST(type_prop, reshape_symbol_propagation_minus_one_no_special_zero_case_4) {
     PartialShape data_shape = PartialShape{2, {2, 4}, 2, 3};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
 
     auto input = make_shared<op::v0::Parameter>(element::f32, data_shape);
     auto output_pattern =
         make_shared<op::v0::Constant>(element::i64, Shape{6}, std::vector<int64_t>{1, 4, 3, 1, 1, -1});
-    output_pattern->get_default_output().get_tensor().set_value_label({20, 21, 22, 23, 24, 25});
+    auto A = std::make_shared<Symbol>(), B = std::make_shared<Symbol>(), C = std::make_shared<Symbol>();
+    auto D = std::make_shared<Symbol>(), E = std::make_shared<Symbol>(), F = std::make_shared<Symbol>();
+    output_pattern->get_default_output().get_tensor().set_value_symbol({A, B, C, D, E, F});
 
     const auto reshape = make_shared<op::v1::Reshape>(input, output_pattern, false);
 
     auto output_shape = reshape->get_output_partial_shape(0);
     EXPECT_EQ(output_shape, PartialShape({1, 4, 3, 1, 1, {2, 4}}));
-    EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(20, 21, 22, 23, 24, 11));
+    EXPECT_THAT(get_shape_symbols(output_shape), ElementsAre(A, B, C, D, E, symbols[1]));
 }
 
-TEST(type_prop, reshape_label_propagation_minus_one_no_special_zero_case_5) {
+TEST(type_prop, reshape_symbol_propagation_minus_one_no_special_zero_case_5) {
     PartialShape data_shape = PartialShape{2, 4, 2, 3};
-    set_shape_labels(data_shape, 10);
+    set_shape_symbols(data_shape);
 
     auto input = make_shared<op::v0::Parameter>(element::f32, data_shape);
     auto output_pattern =
         make_shared<op::v0::Constant>(element::i64, Shape{6}, std::vector<int64_t>{1, 4, 3, 1, 1, -1});
-    output_pattern->get_default_output().get_tensor().set_value_label({20, 21, 22, 23, 24, 25});
+    auto A = std::make_shared<Symbol>(), B = std::make_shared<Symbol>(), C = std::make_shared<Symbol>();
+    auto D = std::make_shared<Symbol>(), E = std::make_shared<Symbol>(), F = std::make_shared<Symbol>();
+    output_pattern->get_default_output().get_tensor().set_value_symbol({A, B, C, D, E, F});
 
     const auto reshape = make_shared<op::v1::Reshape>(input, output_pattern, false);
 
     auto output_shape = reshape->get_output_partial_shape(0);
     EXPECT_EQ(output_shape, PartialShape({1, 4, 3, 1, 1, 4}));
-    EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(20, 21, 22, 23, 24, no_label));
+    EXPECT_THAT(get_shape_symbols(output_shape), ElementsAre(A, B, C, D, E, nullptr));
 }
 
-TEST(type_prop, reshape_label_propagation_minus_one_no_special_zero_case_6) {
+TEST(type_prop, reshape_symbol_propagation_minus_one_no_special_zero_case_6) {
     PartialShape data_shape = PartialShape{2, 3, 2, 1, 4};
-    DimensionTracker::set_label(data_shape[1], 11);
+    data_shape[1].set_symbol(std::make_shared<Symbol>());
 
     auto input = make_shared<op::v0::Parameter>(element::f32, data_shape);
     auto output_pattern = make_shared<op::v0::Constant>(element::i64, Shape{5}, std::vector<int64_t>{4, 1, -1, 1, 4});
-    output_pattern->get_default_output().get_tensor().set_value_label({20, 21, 22, 23, 24});
+    auto A = std::make_shared<Symbol>(), B = std::make_shared<Symbol>(), C = std::make_shared<Symbol>();
+    auto D = std::make_shared<Symbol>(), E = std::make_shared<Symbol>();
+    output_pattern->get_default_output().get_tensor().set_value_symbol({A, B, C, D, E});
 
     const auto reshape = make_shared<op::v1::Reshape>(input, output_pattern, false);
 
     auto output_shape = reshape->get_output_partial_shape(0);
     EXPECT_EQ(output_shape, PartialShape({4, 1, 3, 1, 4}));
-    EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(20, 21, no_label, 23, 24));
+    EXPECT_THAT(get_shape_symbols(output_shape), ElementsAre(A, B, nullptr, D, E));
 }
 
-TEST(type_prop, reshape_label_propagation_minus_one_no_special_zero_case_7) {
+TEST(type_prop, reshape_symbol_propagation_minus_one_no_special_zero_case_7) {
     PartialShape data_shape = PartialShape{{1, 2}, 4, 2, 3};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
 
     auto input = make_shared<op::v0::Parameter>(element::f32, data_shape);
     auto output_pattern = make_shared<op::v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{4, 2, 3, -1});
-    output_pattern->get_default_output().get_tensor().set_value_label({20, 21, 22, 23});
+    auto A = std::make_shared<Symbol>(), B = std::make_shared<Symbol>(), C = std::make_shared<Symbol>();
+    auto D = std::make_shared<Symbol>();
+    output_pattern->get_default_output().get_tensor().set_value_symbol({A, B, C, D});
 
     const auto reshape = make_shared<op::v1::Reshape>(input, output_pattern, false);
 
     auto output_shape = reshape->get_output_partial_shape(0);
     EXPECT_EQ(output_shape, PartialShape({4, 2, 3, {1, 2}}));
-    EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(20, 21, 22, 10));
+    EXPECT_THAT(get_shape_symbols(output_shape), ElementsAre(A, B, C, symbols[0]));
 }
 
-TEST(type_prop, reshape_label_propagation_minus_one_no_special_zero_case_8) {
+TEST(type_prop, reshape_symbol_propagation_minus_one_no_special_zero_case_8) {
     PartialShape data_shape = PartialShape{{1, 2}, 4, 2, 3};
-    DimensionTracker::set_label(data_shape[0], 121);
+    auto symbol = std::make_shared<Symbol>();
+    data_shape[0].set_symbol(symbol);
 
     auto input = make_shared<op::v0::Parameter>(element::f32, data_shape);
     auto output_pattern = make_shared<op::v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{4, 2, 3, -1});
-    output_pattern->get_default_output().get_tensor().set_value_label({20, 21, 22, 23});
+    auto A = std::make_shared<Symbol>(), B = std::make_shared<Symbol>(), C = std::make_shared<Symbol>();
+    auto D = std::make_shared<Symbol>();
+    output_pattern->get_default_output().get_tensor().set_value_symbol({A, B, C, D});
 
     const auto reshape = make_shared<op::v1::Reshape>(input, output_pattern, false);
 
     auto output_shape = reshape->get_output_partial_shape(0);
     EXPECT_EQ(output_shape, PartialShape({4, 2, 3, {1, 2}}));
-    EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(20, 21, 22, 121));
+    EXPECT_THAT(get_shape_symbols(output_shape), ElementsAre(A, B, C, symbol));
 }
 
-TEST(type_prop, reshape_label_propagation_minus_one_no_special_zero_case_9) {
+TEST(type_prop, reshape_symbol_propagation_minus_one_no_special_zero_case_9) {
     PartialShape data_shape = PartialShape{2, 4, 2, 3};
-    set_shape_labels(data_shape, 10);
+    set_shape_symbols(data_shape);
 
     auto input = make_shared<op::v0::Parameter>(element::f32, data_shape);
     auto output_pattern = make_shared<op::v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{4, 2, 3, -1});
-    output_pattern->get_default_output().get_tensor().set_value_label({20, 21, 22, 23});
+    auto A = std::make_shared<Symbol>(), B = std::make_shared<Symbol>(), C = std::make_shared<Symbol>();
+    auto D = std::make_shared<Symbol>();
+    output_pattern->get_default_output().get_tensor().set_value_symbol({A, B, C, D});
 
     const auto reshape = make_shared<op::v1::Reshape>(input, output_pattern, false);
 
     auto output_shape = reshape->get_output_partial_shape(0);
     EXPECT_EQ(output_shape, PartialShape({4, 2, 3, 2}));
-    EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(20, 21, 22, no_label));
+    EXPECT_THAT(get_shape_symbols(output_shape), ElementsAre(A, B, C, nullptr));
 }
 
-TEST(type_prop, reshape_label_propagation_minus_one_no_special_zero_case_10) {
+TEST(type_prop, reshape_symbol_propagation_minus_one_no_special_zero_case_10) {
     PartialShape data_shape = PartialShape{1, {1, -1}, {1, -1}, 512};
-    set_shape_labels(data_shape, 10);
+    set_shape_symbols(data_shape);
     constexpr int64_t squeeze_dim = 7 * 7 * 512;
 
     auto input = make_shared<op::v0::Parameter>(element::f32, data_shape);
     auto output_pattern = make_shared<op::v0::Constant>(element::i64, Shape{2}, std::vector<int64_t>{-1, squeeze_dim});
-    output_pattern->get_default_output().get_tensor().set_value_label({20, 21});
+    auto A = std::make_shared<Symbol>(), B = std::make_shared<Symbol>();
+    output_pattern->get_default_output().get_tensor().set_value_symbol({A, B});
 
     const auto reshape = make_shared<op::v1::Reshape>(input, output_pattern, false);
 
     auto output_shape = reshape->get_output_partial_shape(0);
     EXPECT_EQ(output_shape, PartialShape({{1, -1}, squeeze_dim}));
-    EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(no_label, 21));
+    EXPECT_THAT(get_shape_symbols(output_shape), ElementsAre(nullptr, B));
 }
 
-TEST(type_prop, reshape_label_propagation_minus_one_special_zero_case_1) {
+TEST(type_prop, reshape_symbol_propagation_minus_one_special_zero_case_1) {
     auto data_shape = PartialShape{4, -1, 2, 1, 3};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
 
     auto input = make_shared<op::v0::Parameter>(element::f32, data_shape);
     auto output_pattern = make_shared<op::v0::Constant>(element::i64, Shape{3}, std::vector<int64_t>{-1, 12, 0});
-    output_pattern->get_default_output().get_tensor().set_value_label({20, 21, 22});
+    auto A = std::make_shared<Symbol>(), B = std::make_shared<Symbol>(), C = std::make_shared<Symbol>();
+    output_pattern->get_default_output().get_tensor().set_value_symbol({A, B, C});
 
     const auto reshape = make_shared<op::v1::Reshape>(input, output_pattern, true);
 
     auto output_shape = reshape->get_output_partial_shape(0);
     EXPECT_EQ(output_shape, PartialShape({-1, 12, 2}));
-    EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(11, 21, 12));
+    EXPECT_THAT(get_shape_symbols(output_shape), ElementsAre(symbols[1], B, symbols[2]));
 }
 
-TEST(type_prop, reshape_label_propagation_minus_one_special_zero_case_2) {
+TEST(type_prop, reshape_symbol_propagation_minus_one_special_zero_case_2) {
     auto data_shape = PartialShape{{2, 4}, 8, {2, 6}, 1, 3};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
 
     auto input = make_shared<op::v0::Parameter>(element::f32, data_shape);
     auto output_pattern = make_shared<op::v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, -1, 12, 2});
-    output_pattern->get_default_output().get_tensor().set_value_label({20, 21, 22, 23});
+    auto A = std::make_shared<Symbol>(), B = std::make_shared<Symbol>(), C = std::make_shared<Symbol>();
+    auto D = std::make_shared<Symbol>();
+    output_pattern->get_default_output().get_tensor().set_value_symbol({A, B, C, D});
 
     const auto reshape = make_shared<op::v1::Reshape>(input, output_pattern, true);
 
     auto output_shape = reshape->get_output_partial_shape(0);
     EXPECT_EQ(output_shape, PartialShape({{2, 4}, {2, 6}, 12, 2}));
-    EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(10, 12, 22, 23));
+    EXPECT_THAT(get_shape_symbols(output_shape), ElementsAre(symbols[0], symbols[2], C, D));
 }
 
-TEST(type_prop, reshape_label_propagation_minus_one_special_zero_case_3) {
+TEST(type_prop, reshape_symbol_propagation_minus_one_special_zero_case_3) {
     auto data_shape = PartialShape{{2, 4}, 8, 6, 1, 3};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
 
     auto input = make_shared<op::v0::Parameter>(element::f32, data_shape);
     auto output_pattern = make_shared<op::v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, -1, 12, 2});
-    output_pattern->get_default_output().get_tensor().set_value_label({20, 21, 22, 23});
+    auto A = std::make_shared<Symbol>(), B = std::make_shared<Symbol>(), C = std::make_shared<Symbol>();
+    auto D = std::make_shared<Symbol>();
+    output_pattern->get_default_output().get_tensor().set_value_symbol({A, B, C, D});
 
     const auto reshape = make_shared<op::v1::Reshape>(input, output_pattern, true);
 
     auto output_shape = reshape->get_output_partial_shape(0);
     EXPECT_EQ(output_shape, PartialShape({{2, 4}, 6, 12, 2}));
-    EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(10, no_label, 22, 23));
+    EXPECT_THAT(get_shape_symbols(output_shape), ElementsAre(symbols[0], nullptr, C, D));
 }
 
-TEST(type_prop, reshape_label_propagation_minus_one_special_zero_case_4) {
+TEST(type_prop, reshape_symbol_propagation_minus_one_special_zero_case_4) {
     PartialShape data_shape = PartialShape{2, 10, 4, {1, 5}, {1, 2}, 3};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
 
     auto input = make_shared<op::v0::Parameter>(element::f32, data_shape);
     auto output_pattern =
         make_shared<op::v0::Constant>(element::i64, Shape{7}, std::vector<int64_t>{1, 0, 4, 0, 6, 1, -1});
-    output_pattern->get_default_output().get_tensor().set_value_label({20, 21, 22, 23, 24, 25, 26});
+    auto A = std::make_shared<Symbol>(), B = std::make_shared<Symbol>(), C = std::make_shared<Symbol>();
+    auto D = std::make_shared<Symbol>(), E = std::make_shared<Symbol>(), F = std::make_shared<Symbol>();
+    auto G = std::make_shared<Symbol>();
+    output_pattern->get_default_output().get_tensor().set_value_symbol({A, B, C, D, E, F, G});
 
     const auto reshape = make_shared<op::v1::Reshape>(input, output_pattern, true);
 
     auto output_shape = reshape->get_output_partial_shape(0);
     EXPECT_EQ(output_shape, PartialShape({1, 10, 4, {1, 5}, 6, 1, {1, 2}}));
-    EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(20, 11, 22, 13, 24, 25, 14));
+    EXPECT_THAT(get_shape_symbols(output_shape), ElementsAre(A, symbols[1], C, symbols[3], E, F, symbols[4]));
 }
 
-TEST(type_prop, reshape_label_propagation_minus_one_special_zero_case_5) {
+TEST(type_prop, reshape_symbol_propagation_minus_one_special_zero_case_5) {
     PartialShape data_shape = PartialShape{2, 10, 4, {1, 5}, 2, 3};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
 
     auto input = make_shared<op::v0::Parameter>(element::f32, data_shape);
     auto output_pattern =
         make_shared<op::v0::Constant>(element::i64, Shape{7}, std::vector<int64_t>{1, 0, 4, 0, 6, 1, -1});
-    output_pattern->get_default_output().get_tensor().set_value_label({20, 21, 22, 23, 24, 25, 26});
+    auto A = std::make_shared<Symbol>(), B = std::make_shared<Symbol>(), C = std::make_shared<Symbol>();
+    auto D = std::make_shared<Symbol>(), E = std::make_shared<Symbol>(), F = std::make_shared<Symbol>();
+    auto G = std::make_shared<Symbol>();
+    output_pattern->get_default_output().get_tensor().set_value_symbol({A, B, C, D, E, F, G});
 
     const auto reshape = make_shared<op::v1::Reshape>(input, output_pattern, true);
 
     auto output_shape = reshape->get_output_partial_shape(0);
     EXPECT_EQ(output_shape, PartialShape({1, 10, 4, {1, 5}, 6, 1, 2}));
-    EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(20, 11, 22, 13, 24, 25, no_label));
+    EXPECT_THAT(get_shape_symbols(output_shape), ElementsAre(A, symbols[1], C, symbols[3], E, F, nullptr));
 }
 
-TEST(type_prop, reshape_label_propagation_minus_one_special_zero_case_6) {
+TEST(type_prop, reshape_symbol_propagation_minus_one_special_zero_case_6) {
     PartialShape data_shape = PartialShape{2, 3, 2, 1, 4};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
 
     auto input = make_shared<op::v0::Parameter>(element::f32, data_shape);
     auto output_pattern = make_shared<op::v0::Constant>(element::i64, Shape{5}, std::vector<int64_t>{0, 0, -1, 0, 0});
-    output_pattern->get_default_output().get_tensor().set_value_label({20, 21, 22, 23, 24});
+    output_pattern->get_default_output().get_tensor().set_value_symbol({std::make_shared<Symbol>(),
+                                                                        std::make_shared<Symbol>(),
+                                                                        std::make_shared<Symbol>(),
+                                                                        std::make_shared<Symbol>(),
+                                                                        std::make_shared<Symbol>()});
 
     const auto reshape = make_shared<op::v1::Reshape>(input, output_pattern, true);
 
     auto output_shape = reshape->get_output_partial_shape(0);
     EXPECT_EQ(output_shape, PartialShape({2, 3, 2, 1, 4}));
-    EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(10, 11, 12, 13, 14));
+    EXPECT_THAT(get_shape_symbols(output_shape), symbols);
 }
 
-TEST(type_prop, reshape_label_propagation_minus_one_special_zero_case_7) {
+TEST(type_prop, reshape_symbol_propagation_minus_one_special_zero_case_7) {
     auto data_shape = PartialShape{{2, 4}, 12, -1, 1, 2};
-    DimensionTracker::set_label(data_shape[2], 121);
-    DimensionTracker::set_label(data_shape[0], 10);
+    auto A = std::make_shared<Symbol>(), B = std::make_shared<Symbol>();
+    data_shape[0].set_symbol(A);
+    data_shape[2].set_symbol(B);
 
     auto input = make_shared<op::v0::Parameter>(element::f32, data_shape);
     auto output_pattern = make_shared<op::v0::Constant>(element::i64, Shape{5}, std::vector<int64_t>{0, -1, 3, 4, 3});
-    output_pattern->get_default_output().get_tensor().set_value_label({20, 21, 22, 23, no_label});
+    auto C = std::make_shared<Symbol>(), D = std::make_shared<Symbol>(), E = std::make_shared<Symbol>(),
+         F = std::make_shared<Symbol>();
+    output_pattern->get_default_output().get_tensor().set_value_symbol({C, D, E, F, nullptr});
 
     const auto reshape = make_shared<op::v1::Reshape>(input, output_pattern, true);
 
     auto output_shape = reshape->get_output_partial_shape(0);
     EXPECT_EQ(output_shape, PartialShape({{2, 4}, -1, 3, 4, 3}));
-    EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(10, no_label, 22, 23, no_label));
+    EXPECT_THAT(get_shape_symbols(output_shape), ElementsAre(A, nullptr, E, F, nullptr));
 }
 
-TEST(type_prop, reshape_label_propagation_minus_one_special_zero_case_8) {
+TEST(type_prop, reshape_symbol_propagation_minus_one_special_zero_case_8) {
     auto data_shape = PartialShape{{2, 4}, 4, -1, 1, 3, 3};
-    DimensionTracker::set_label(data_shape[2], 121);
-    DimensionTracker::set_label(data_shape[0], 10);
+    auto A = std::make_shared<Symbol>(), B = std::make_shared<Symbol>();
+    data_shape[0].set_symbol(A);
+    data_shape[2].set_symbol(B);
 
     auto input = make_shared<op::v0::Parameter>(element::f32, data_shape);
     auto output_pattern = make_shared<op::v0::Constant>(element::i64, Shape{5}, std::vector<int64_t>{0, -1, 3, 4, 3});
-    output_pattern->get_default_output().get_tensor().set_value_label({20, 21, 22, 23, no_label});
+    auto C = std::make_shared<Symbol>(), D = std::make_shared<Symbol>();
+    auto E = std::make_shared<Symbol>(), F = std::make_shared<Symbol>();
+    output_pattern->get_default_output().get_tensor().set_value_symbol({C, D, E, F, nullptr});
 
     const auto reshape = make_shared<op::v1::Reshape>(input, output_pattern, true);
 
     auto output_shape = reshape->get_output_partial_shape(0);
     EXPECT_EQ(output_shape, PartialShape({{2, 4}, -1, 3, 4, 3}));
-    EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(10, 121, 22, 23, no_label));
+    EXPECT_THAT(get_shape_symbols(output_shape), ElementsAre(A, B, E, F, nullptr));
 }
 
-TEST(type_prop, reshape_label_propagation_minus_one_special_zero_case_9) {
+TEST(type_prop, reshape_symbol_propagation_minus_one_special_zero_case_9) {
     PartialShape data_shape = PartialShape{2, 3, {2, 4}, 1, 4};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
 
     auto input = make_shared<op::v0::Parameter>(element::f32, data_shape);
     auto output_pattern = make_shared<op::v0::Constant>(element::i64, Shape{5}, std::vector<int64_t>{0, 0, -1, 1, 0});
-    output_pattern->get_default_output().get_tensor().set_value_label({20, 21, 22, 23, 24});
+    auto A = std::make_shared<Symbol>(), B = std::make_shared<Symbol>(), C = std::make_shared<Symbol>();
+    auto D = std::make_shared<Symbol>(), E = std::make_shared<Symbol>();
+    output_pattern->get_default_output().get_tensor().set_value_symbol({A, B, C, D, E});
 
     const auto reshape = make_shared<op::v1::Reshape>(input, output_pattern, true);
 
     auto output_shape = reshape->get_output_partial_shape(0);
     EXPECT_EQ(output_shape, PartialShape({2, 3, {2, 4}, 1, 4}));
-    EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(10, 11, 12, 23, 14));
+    EXPECT_THAT(get_shape_symbols(output_shape), ElementsAre(symbols[0], symbols[1], symbols[2], D, symbols[4]));
 }
 
-TEST(type_prop, reshape_tricky_label_propagation_for_auto_batch_case_1) {
+TEST(type_prop, reshape_tricky_symbol_propagation_for_auto_batch_case_1) {
     auto shape = PartialShape({1, 1280, 1, 1});
-    DimensionTracker::set_label(shape[0], 1);
+    auto A = std::make_shared<Symbol>();
+    shape[0].set_symbol(A);
     auto param = make_shared<op::v0::Parameter>(element::f32, shape);
     auto pattern = op::v0::Constant::create(element::i64, {2}, {-1, 1280});
     auto r = make_shared<op::v1::Reshape>(param, pattern, false);
 
     auto output_shape = r->get_output_partial_shape(0);
     EXPECT_EQ(output_shape, PartialShape({1, 1280}));
-    EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(no_label, no_label));
+    EXPECT_THAT(get_shape_symbols(output_shape), ElementsAre(nullptr, nullptr));
 }
 
-TEST(type_prop, reshape_tricky_label_propagation_for_auto_batch_case_2) {
+TEST(type_prop, reshape_tricky_symbol_propagation_for_auto_batch_case_2) {
     auto shape = ov::PartialShape({1, 1280, 1, 1});
-    DimensionTracker::set_label(shape[2], 2);
+    auto A = std::make_shared<Symbol>();
+    shape[2].set_symbol(A);
     auto param = make_shared<op::v0::Parameter>(element::f32, shape);
     auto pattern = op::v0::Constant::create(element::i64, {2}, {-1, 1280});
     auto r = make_shared<op::v1::Reshape>(param, pattern, false);
 
     auto output_shape = r->get_output_partial_shape(0);
     EXPECT_EQ(output_shape, PartialShape({1, 1280}));
-    EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(no_label, no_label));
+    EXPECT_THAT(get_shape_symbols(output_shape), ElementsAre(nullptr, nullptr));
 }
 
-TEST(type_prop, reshape_tricky_label_propagation_for_auto_batch_case_3) {
+TEST(type_prop, reshape_tricky_symbol_propagation_for_auto_batch_case_3) {
     auto shape = PartialShape({1, 1280, 1, 1});
-    DimensionTracker::set_label(shape[0], 1);
-    DimensionTracker::set_label(shape[2], 2);
+    auto A = std::make_shared<Symbol>(), B = std::make_shared<Symbol>();
+    shape[0].set_symbol(A);
+    shape[2].set_symbol(B);
     auto param = make_shared<op::v0::Parameter>(element::f32, shape);
     auto pattern = op::v0::Constant::create(element::i64, {2}, {-1, 1280});
     auto r = make_shared<op::v1::Reshape>(param, pattern, false);
 
     auto output_shape = r->get_output_partial_shape(0);
     EXPECT_EQ(output_shape, PartialShape({1, 1280}));
-    EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(no_label, no_label));
+    EXPECT_THAT(get_shape_symbols(output_shape), ElementsAre(nullptr, nullptr));
 }
 
-TEST(type_prop, reshape_tricky_label_propagation_for_auto_batch_case_4) {
+TEST(type_prop, reshape_tricky_symbol_propagation_for_auto_batch_case_4) {
     auto shape = PartialShape({1, 1280});
-    DimensionTracker::set_label(shape[0], 1);
+    auto A = std::make_shared<Symbol>();
+    shape[0].set_symbol(A);
     auto param = make_shared<op::v0::Parameter>(element::f32, shape);
     auto pattern = op::v0::Constant::create(element::i64, {2}, {-1, 1280});
     auto r = make_shared<op::v1::Reshape>(param, pattern, false);
 
     auto output_shape = r->get_output_partial_shape(0);
     EXPECT_EQ(output_shape, PartialShape({1, 1280}));
-    EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(1, no_label));
+    EXPECT_THAT(get_shape_symbols(output_shape), ElementsAre(A, nullptr));
 }
 
 TEST(type_prop, reshape_resolve_minus_one_when_static_product_same_value) {
     auto data_shape = PartialShape{2, 3, 4, 5};
-    set_shape_labels(data_shape, 10);
+    set_shape_symbols(data_shape);
     auto input = make_shared<op::v0::Parameter>(element::f32, data_shape);
     auto output_pattern = make_shared<op::v0::Constant>(element::i64, Shape{2}, std::vector<int64_t>{120, -1});
-    output_pattern->get_default_output().get_tensor().set_value_label({20, 21});
+    auto A = std::make_shared<Symbol>(), B = std::make_shared<Symbol>();
+    output_pattern->get_default_output().get_tensor().set_value_symbol({A, B});
 
     const auto reshape = make_shared<op::v1::Reshape>(input, output_pattern, false);
 
     auto output_shape = reshape->get_output_partial_shape(0);
     EXPECT_EQ(output_shape, PartialShape({120, 1}));
-    EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(20, no_label));
+    EXPECT_THAT(get_shape_symbols(output_shape), ElementsAre(A, nullptr));
 }
 
-TEST(type_prop, reshape_label_not_propagated_on_minus_one_dim_as_not_same_dynamic_dim) {
+TEST(type_prop, reshape_symbol_not_propagated_on_minus_one_dim_as_not_same_dynamic_dim) {
     auto data_shape = PartialShape{-1, 2};
     auto pattern_shape = PartialShape{-1, -1, 2};
-    set_shape_labels(data_shape, {90, no_label});
-    set_shape_labels(pattern_shape, {37, 87, 98});
+
+    auto A = std::make_shared<ov::Symbol>(), B = std::make_shared<ov::Symbol>(), C = std::make_shared<ov::Symbol>(),
+         D = std::make_shared<ov::Symbol>(), E = std::make_shared<ov::Symbol>();
+
+    set_shape_symbols(data_shape, {A, nullptr});
+    set_shape_symbols(pattern_shape, {B, C, D});
 
     auto pattern = make_shared<op::v0::Parameter>(element::i32, pattern_shape);
     auto pattern_shape_of = make_shared<op::v3::ShapeOf>(pattern, element::i32);
     auto dim_minus_one = ov::op::v0::Constant::create(element::i32, {1}, {-1});
-    dim_minus_one->get_default_output().get_tensor().set_value_label({93});
+    dim_minus_one->get_default_output().get_tensor().set_value_symbol({E});
     auto output_pattern = make_shared<op::v0::Concat>(OutputVector{dim_minus_one, pattern_shape_of}, 0);
     auto input = make_shared<op::v0::Parameter>(element::f32, data_shape);
     const auto reshape = make_shared<op::v1::Reshape>(input, output_pattern, false);
 
     auto output_shape = reshape->get_output_partial_shape(0);
     EXPECT_EQ(output_shape, PartialShape({-1, -1, -1, 2}));
-    EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(no_label, 37, 87, 98));
+    EXPECT_THAT(get_shape_symbols(output_shape), ElementsAre(nullptr, B, C, D));
 }
 
 TEST(type_prop, reshape_pattern_dim_has_invalid_bound) {
