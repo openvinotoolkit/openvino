@@ -37,6 +37,16 @@ RUN apt-get update && \
         && \
     rm -rf /var/lib/apt/lists/*
 
+# Install sscache
+ARG SCCACHE_VERSION="v0.7.5"
+ENV SCCACHE_HOME="/opt/sccache" \
+    SCCACHE_PATH="${SCCACHE_HOME}/sccache"
+
+RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
+    SCCACHE_ARCHIVE="sccache-${SCCACHE_VERSION}-aarch64-unknown-linux-musl.tar.gz" && \
+    curl -SLO https://github.com/mozilla/sccache/releases/download/${SCCACHE_VERSION}/${SCCACHE_ARCHIVE} && \
+    tar -xzf ${SCCACHE_ARCHIVE} --strip-components=1 && rm ${SCCACHE_ARCHIVE}
+
 # Setup pip
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3.8 get-pip.py  --no-cache-dir pip==24.0 && \
@@ -56,4 +66,4 @@ RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 30 && \
 # Use Python 3.11 as default instead of Python 3.8
 # Using venv here 'cause other methods to switch the default Python on Ubuntu 20 break both system and wheels build
 RUN python3.11 -m venv venv
-ENV PATH="/venv/bin:$PATH"
+ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"

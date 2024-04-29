@@ -130,10 +130,6 @@ jobs:
       #
       # Dependencies
       #
-      - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.4
-        with:
-          version: "v0.7.5"
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./openvino/.github/actions/setup_python
