@@ -951,6 +951,27 @@ static bool is_node_for_onednn(fully_connected_node const& node) {
         }
     }
 
+    if (fc_prim->decompression_zero_point_scalar.has_value() && !fc_prim->decompression_scale.empty()) {
+        size_t decompression_scale_idx = !node.bias_term() ? 2ul : 3ul;
+        const auto& weights_pshape = node.get_dependency(1).get_output_pshape();
+        const auto& decompression_scale_pshape = node.get_dependency(decompression_scale_idx).get_output_pshape();
+
+        const auto& ifm = weights_pshape[1];
+        const auto& ngroups = decompression_scale_pshape[1];
+
+        if (ifm.is_static() && ngroups.is_static()) {
+            auto is_power_of_two = [](int64_t x) {
+                return (x & (x - 1)) == 0;
+            };
+
+            int64_t group_size = ifm.get_length() / ngroups.get_length();
+
+            if (!is_power_of_two(group_size)) {
+                return false;
+            }
+        }
+    }
+
     return true;
 }
 
