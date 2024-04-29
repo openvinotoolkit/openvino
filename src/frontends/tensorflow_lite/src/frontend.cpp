@@ -70,6 +70,9 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         }
     }
 #endif
+    else if (variants[0].is<GraphIterator::Ptr>()) {
+        return true;
+    }
     return false;
 }
 
@@ -95,6 +98,10 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
             }
         }
 #endif
+        else if (variants[0].is<GraphIterator::Ptr>()) {
+            auto graph_iterator = variants[0].as<GraphIterator::Ptr>();
+            return std::make_shared<tensorflow_lite::InputModel>(graph_iterator, m_telemetry);
+        }
     }
     return nullptr;
 }

@@ -42,7 +42,7 @@ size_t GraphIteratorFlatBuffer::get_subgraph_size() const {
     return m_subgraphs.size();
 }
 
-std::shared_ptr<GraphIteratorFlatBuffer> GraphIteratorFlatBuffer::get_subgraph(const size_t& idx) const {
+std::shared_ptr<GraphIterator> GraphIteratorFlatBuffer::get_subgraph(const size_t& idx) const {
     FRONT_END_GENERAL_CHECK(m_subgraphs.size() > idx, "There is no subgraph with idx ", idx);
     auto iterator = std::make_shared<GraphIteratorFlatBuffer>();
     iterator->node_index = 0;

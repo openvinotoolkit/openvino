@@ -51,9 +51,8 @@ namespace tensorflow_lite {
 
 class InputModel::InputModelTFLiteImpl {
 public:
-    InputModelTFLiteImpl(const GraphIteratorFlatBuffer::Ptr& graph_iterator,
-                         const ov::frontend::InputModel& input_model);
-    InputModelTFLiteImpl(const GraphIteratorFlatBuffer::Ptr& graph_iterator,
+    InputModelTFLiteImpl(const GraphIterator::Ptr& graph_iterator, const ov::frontend::InputModel& input_model);
+    InputModelTFLiteImpl(const GraphIterator::Ptr& graph_iterator,
                          const ov::frontend::InputModel& input_model,
                          const std::shared_ptr<TelemetryExtension>& telemetry);
     std::vector<ov::frontend::Place::Ptr> get_inputs() const;
@@ -102,7 +101,7 @@ private:
     std::vector<ov::frontend::Place::Ptr> m_outputs;
     std::map<std::string, Output<Node>> m_tensor_values;
 
-    std::shared_ptr<GraphIteratorFlatBuffer> m_graph_iterator;
+    std::shared_ptr<GraphIterator> m_graph_iterator;
     const ov::frontend::InputModel& m_input_model;
     std::vector<std::shared_ptr<ov::frontend::tensorflow_lite::InputModel>> m_subgraphs;
     std::shared_ptr<TelemetryExtension> m_telemetry;
@@ -215,7 +214,7 @@ void InputModel::InputModelTFLiteImpl::load_model() {
     }
 }
 
-InputModel::InputModelTFLiteImpl::InputModelTFLiteImpl(const GraphIteratorFlatBuffer::Ptr& graph_iterator,
+InputModel::InputModelTFLiteImpl::InputModelTFLiteImpl(const GraphIterator::Ptr& graph_iterator,
                                                        const ov::frontend::InputModel& input_model)
     : m_graph_iterator(graph_iterator),
       m_input_model(input_model) {
@@ -223,7 +222,7 @@ InputModel::InputModelTFLiteImpl::InputModelTFLiteImpl(const GraphIteratorFlatBu
     load_model();
 }
 
-InputModel::InputModelTFLiteImpl::InputModelTFLiteImpl(const GraphIteratorFlatBuffer::Ptr& graph_iterator,
+InputModel::InputModelTFLiteImpl::InputModelTFLiteImpl(const GraphIterator::Ptr& graph_iterator,
                                                        const ov::frontend::InputModel& input_model,
                                                        const std::shared_ptr<TelemetryExtension>& telemetry)
     : m_graph_iterator(graph_iterator),
@@ -375,8 +374,7 @@ InputModel::InputModelTFLiteImpl::get_subgraphs() {
     return m_subgraphs;
 }
 
-InputModel::InputModel(const GraphIteratorFlatBuffer::Ptr& graph_iterator,
-                       const std::shared_ptr<TelemetryExtension>& telemetry)
+InputModel::InputModel(const GraphIterator::Ptr& graph_iterator, const std::shared_ptr<TelemetryExtension>& telemetry)
     : _impl{std::make_shared<InputModelTFLiteImpl>(graph_iterator, *this, telemetry)} {}
 
 std::vector<std::shared_ptr<ov::frontend::tensorflow::OpPlace>> InputModel::get_op_places() const {
