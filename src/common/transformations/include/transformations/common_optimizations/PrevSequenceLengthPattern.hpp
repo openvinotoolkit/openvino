@@ -32,6 +32,7 @@ public:
         auto seq = pattern::wrap_type<v1::Gather>({kv_past, pattern::any_input(), pattern::any_input()});
  
         ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+        std::cout << "____" << matcher_name << "___Matched___" << std::endl;
             // TODO: Check that seq has axis that really takes sequence len but not any other dimension -- use symbolics or look at the constant input
             auto gather = m.get_match_root();
             auto target_type = gather->get_output_element_type(0);

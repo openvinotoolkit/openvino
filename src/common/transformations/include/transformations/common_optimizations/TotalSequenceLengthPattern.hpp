@@ -36,6 +36,7 @@ public:
 
         ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
             // TODO: Check that seq has axis that really takes sequence len but not any other dimension -- use symbolic infra or look at the constant input
+            std::cout << "____" << matcher_name << "___Matched___" << std::endl;
             auto gather = m.get_match_root();
             auto target_type = gather->get_output_element_type(0);
             std::shared_ptr<Node> replacement;
