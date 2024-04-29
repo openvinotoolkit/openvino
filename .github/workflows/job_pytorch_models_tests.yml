@@ -32,6 +32,10 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
+      # instead of using static paths for models cache
+      # choose one of the replicas dynamically instead
+      # depending on GITHUB_RUN_NUMBER variable
+      NUMBER_OF_REPLICAS: 2
     steps:
       - name: Check sudo
         if: ${{ runner.os == 'Linux' }}
@@ -71,10 +75,10 @@ jobs:
           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
           echo "MODEL_HUB_TESTS_INSTALL_DIR=$GITHUB_WORKSPACE/install/tests/model_hub_tests" >> "$GITHUB_ENV"
+          echo "USE_SYSTEM_CACHE=False" >> "$GITHUB_ENV"
           echo "HF_HUB_CACHE=/mount/testdata$((GITHUB_RUN_NUMBER % NUMBER_OF_REPLICAS))/hugging_face" >> "$GITHUB_ENV"
           echo $HF_HUB_CACHE
           echo "HUGGINGFACE_HUB_CACHE=$HF_HUB_CACHE"
-          echo "USE_SYSTEM_CACHE=False" >> "$GITHUB_ENV"
 
       - name: Extract OpenVINO packages
         run: |
