@@ -2,7 +2,7 @@
 numpy
 bandit
 black
-flake8
+flake8<=7.0.0
 flake8-annotations-complexity
 flake8-broken-line
 flake8-bugbear
