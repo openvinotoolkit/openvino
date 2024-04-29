@@ -42,7 +42,7 @@ void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
         xml_doc.save(stream);
     };
 
-    ov::pass::StreamSerialize serializer(_ostream, serializeInfo);
+    ov::pass::StreamSerialize serializer(_ostream, serializeInfo, ov::util::codec_xor);
     serializer.run_on_model(std::const_pointer_cast<ov::Model>(model->clone()));
 }
 
