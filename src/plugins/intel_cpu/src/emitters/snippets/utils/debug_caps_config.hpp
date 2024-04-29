@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2023-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #ifdef SNIPPETS_DEBUG_CAPS
@@ -18,6 +18,7 @@ public:
     }
 
     bool enable_segfault_detector;
+    std::string LIRSerializePath;
 
 private:
     void readProperties();

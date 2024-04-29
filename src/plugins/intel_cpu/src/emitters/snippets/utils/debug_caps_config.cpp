@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2023-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #ifdef SNIPPETS_DEBUG_CAPS
@@ -18,6 +18,9 @@ void SnippetsDebugCapsConfig::readProperties() {
     };
 
     enable_segfault_detector = readEnv("OV_CPU_SNIPPETS_SEGFAULT_DETECTOR") ? true : false;
+    const char* envVarValue = nullptr;
+    if ((envVarValue = readEnv("OV_CPU_SNIPPETS_LIR_PATH")))
+        LIRSerializePath = envVarValue;
 }
 
 }   // namespace intel_cpu

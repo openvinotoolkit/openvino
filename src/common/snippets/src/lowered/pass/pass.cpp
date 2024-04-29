@@ -4,6 +4,10 @@
 
 #include "snippets/lowered/pass/pass.hpp"
 
+#ifdef SNIPPETS_DEBUG_CAPS
+#include "snippets/lowered/pass/serialize_control_flow.hpp"
+#endif
+
 #include "snippets/utils.hpp"
 
 namespace ov {
@@ -31,6 +35,11 @@ void PassPipeline::run(LinearIR& linear_ir) const {
 }
 
 void PassPipeline::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) const {
+#ifdef SNIPPETS_DEBUG_CAPS
+        auto path = m_pass_config->LIRPath;
+        if (!path.empty() && path.compare(path.size() - 1, 1, "/"))  // user can set folder path to ".../path" or ".../path/"
+            path = path + "/";
+#endif
     for (const auto& pass : m_passes) {
         OPENVINO_ASSERT(pass != nullptr, "PassPipeline has empty pass!");
         if (m_pass_config->is_disabled(pass->get_type_info())) {
@@ -43,6 +52,13 @@ void PassPipeline::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearI
         } else {
             OPENVINO_THROW("Unexpected pass (", pass->get_type_info(), ") is registered in PassPipeline");
         }
+#ifdef SNIPPETS_DEBUG_CAPS
+        if (!path.empty()) {
+            std::string xml_path = path + std::string(pass->get_type_name()) + ".xml";
+            lowered::pass::SerializeControlFlow SerializeLIR(xml_path);
+            SerializeLIR.run(linear_ir);
+        }
+#endif
     }
 }
 

@@ -933,6 +933,10 @@ void Subgraph::SubgraphExecutor::parallel_forNd(const std::function<void(jit_sni
     });
 }
 
+#ifdef SNIPPETS_DEBUG_CAPS
+    const auto target = std::dynamic_pointer_cast<const CPUTargetMachine>(snippetAttrs.snippet->get_generator()->get_target_machine());
+    lowering_config->LIRPath = target->debug_config.LIRSerializePath;
+#endif
 }   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov
