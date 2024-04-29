@@ -30,11 +30,6 @@ elseif(CMAKE_COMPILER_IS_GNUCXX)
     ov_add_compiler_flags(-Wno-error=attributes)
 endif()
 
-if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM)
-    # TODO: remove this deprecated API usage
-    ov_add_compiler_flags(-Wno-error=deprecated-declarations)
-endif()
-
 if(ENABLE_TESTS)
     add_subdirectory(test_utils)
 endif()

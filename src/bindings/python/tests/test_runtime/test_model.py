@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 import math
 from contextlib import nullcontext as does_not_raise
+from copy import copy
 
 import openvino.runtime.opset13 as ops
 from openvino import (
@@ -573,3 +574,10 @@ def test_save_model_with_none():
     with pytest.raises(AttributeError) as e:
         save_model(model=None, output_model="model.xml")
     assert "'model' argument is required and cannot be None." in str(e.value)
+
+
+def test_copy_failed():
+    model = generate_add_model()
+    with pytest.raises(TypeError) as e:
+        copy(model)
+    assert "cannot copy 'openvino.runtime.Model. Please, use deepcopy instead." in str(e.value)
