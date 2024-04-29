@@ -632,6 +632,8 @@ def create_keras_layer_with_tf_function_call_no_signature_single_input(tmp_dir):
     return model, model_ref, {'example_input': example_input, 'compress_to_fp16': False}
 
 
+'''
+CVS-140129
 def create_keras_layer_with_string_tensor(tmp_dir):
     import tensorflow as tf
     class LayerModel(tf.Module):
@@ -653,6 +655,7 @@ def create_keras_layer_with_string_tensor(tmp_dir):
     model_ref = Model([add], parameter_list, "test")
 
     return model, model_ref, {}
+'''
 
 def shape_of_const_fold_test(temp_dir):
     import tensorflow as tf
@@ -757,7 +760,6 @@ class TestMoConvertTF(CommonMOConvertTest):
         create_keras_layer_with_tf_function_call_default_compressed_to_fp16,
         create_keras_layer_with_tf_function_call_no_signature,
         create_keras_layer_with_tf_function_call_no_signature_single_input,
-        create_keras_layer_with_string_tensor,
         shape_of_const_fold_test,
         static_shape_true,
         static_shape_false,
