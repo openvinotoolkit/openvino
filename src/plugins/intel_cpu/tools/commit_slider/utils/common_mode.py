@@ -135,8 +135,6 @@ class Mode(ABC):
         # fetch paths for dlb job
         if cfg["dlbConfig"]["launchedAsJob"]:
             cfg["appPath"] = cfg["dlbConfig"]["appPath"]
-            if cfg["dlbConfig"]["appCmd"] != "" :
-                cfg["appCmd"] = cfg["dlbConfig"]["appCmd"]
         # switch off illegal check
         if not self.traversal.isComparative():
             cfg["checkIfBordersDiffer"] = False
