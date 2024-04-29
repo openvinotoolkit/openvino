@@ -279,7 +279,7 @@ debug_configuration::debug_configuration()
                     is_valid_range = true;
                     dump_prof_data_iter_params.start = start;
                     dump_prof_data_iter_params.end = end;
-                } catch(const std::exception& ex) {
+                } catch(const std::exception &) {
                     is_valid_range = false;
                 }
             }
@@ -325,7 +325,7 @@ debug_configuration::debug_configuration()
         while (ss >> token) {
             try {
                 dump_iteration.insert(static_cast<int64_t>(std::stol(token)));
-            } catch(const std::exception& ex) {
+            } catch(const std::exception &) {
                 dump_iteration.clear();
                 GPU_DEBUG_COUT << "OV_GPU_DumpIteration was ignored. It cannot be parsed to integer array." << std::endl;
                 break;
@@ -348,7 +348,7 @@ debug_configuration::debug_configuration()
                 mem_preallocation_params.max_per_iter_size = std::stol(params[1]);
                 mem_preallocation_params.max_per_dim_diff = std::stol(params[2]);
                 mem_preallocation_params.buffers_preallocation_ratio = std::stof(params[3]);
-            } catch(const std::exception& ex) {
+            } catch(const std::exception &) {
                 correct_params = false;
             }
         }
