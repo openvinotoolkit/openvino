@@ -47,6 +47,7 @@ Here are code examples of how to use these methods with different model formats:
                    * ``torch.nn.Module``
                    * ``torch.jit.ScriptModule``
                    * ``torch.jit.ScriptFunction``
+                   * ``torch.export.ExportedProgram``
 
               .. code-block:: py
                  :force:
