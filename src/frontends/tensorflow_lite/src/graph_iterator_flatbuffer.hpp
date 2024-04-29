@@ -11,10 +11,10 @@
 
 #include "openvino/core/any.hpp"
 #include "openvino/frontend/exception.hpp"
+#include "openvino/frontend/tensorflow_lite/decoder.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "schema_generated.h"
-#include "openvino/frontend/tensorflow_lite/decoder.hpp"
 
 namespace ov {
 namespace frontend {

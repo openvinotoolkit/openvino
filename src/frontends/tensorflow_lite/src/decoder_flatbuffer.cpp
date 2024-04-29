@@ -123,6 +123,50 @@ ov::Any DecoderFlatBuffer::get_attribute(const std::string& name) const {
     return get_value_as_ov_any(m[name]);
 }
 
+TensorMetaInfo DecoderFlatBuffer::create_tensor_meta_info(
+    const ov::frontend::tensorflow_lite::TensorInfo& tensor_info) const {
+    TensorMetaInfo tensor_meta_info;
+    const auto tensor = tensor_info.tensor;
+
+    tensor_meta_info.m_partial_shape =
+        ov::frontend::tensorflow_lite::get_ov_shape(tensor->shape(), tensor->shape_signature());
+    tensor_meta_info.m_element_type = ov::frontend::tensorflow_lite::get_ov_type(tensor->type());
+    tensor_meta_info.m_quantization_info = ov::frontend::tensorflow_lite::get_quantization(tensor->quantization());
+    tensor_meta_info.m_sparsity_info = ov::frontend::tensorflow_lite::get_sparsity(tensor->shape(), tensor->sparsity());
+    tensor_meta_info.m_tensor_data =
+        (tensor_info.buffer && tensor_info.buffer->data() ? tensor_info.buffer->data()->data() : nullptr);
+    tensor_meta_info.m_tensor_names = {tensor->name()->str()};
+
+    return tensor_meta_info;
+}
+
+TensorMetaInfo DecoderFlatBuffer::get_input_tensor_info(size_t idx) const {
+    FRONT_END_GENERAL_CHECK(idx < get_input_size(), "Requested input is out-of-range");
+    const auto& tensor_info = m_input_info.at(idx);
+    return create_tensor_meta_info(tensor_info);
+}
+
+TensorMetaInfo DecoderFlatBuffer::get_output_tensor_info(size_t idx) const {
+    FRONT_END_GENERAL_CHECK(idx < get_output_size(), "Requested output is out-of-range");
+    const auto& tensor_info = m_output_info.at(idx);
+    return create_tensor_meta_info(tensor_info);
+}
+
+DecoderFlatBufferTensors::DecoderFlatBufferTensors(const TensorInfo& info, int64_t input_idx, int64_t output_idx)
+    : m_input_idx(input_idx),
+      m_output_idx(output_idx) {
+    const auto tensor = info.tensor;
+
+    m_tensor_meta_info.m_partial_shape =
+        ov::frontend::tensorflow_lite::get_ov_shape(tensor->shape(), tensor->shape_signature());
+    m_tensor_meta_info.m_element_type = ov::frontend::tensorflow_lite::get_ov_type(tensor->type());
+    m_tensor_meta_info.m_quantization_info = ov::frontend::tensorflow_lite::get_quantization(tensor->quantization());
+    m_tensor_meta_info.m_sparsity_info =
+        ov::frontend::tensorflow_lite::get_sparsity(tensor->shape(), tensor->sparsity());
+    m_tensor_meta_info.m_tensor_data = (info.buffer && info.buffer->data() ? info.buffer->data()->data() : nullptr);
+    m_tensor_meta_info.m_tensor_names = {tensor->name()->str()};
+};
+
 }  // namespace tensorflow_lite
 }  // namespace frontend
 }  // namespace ov

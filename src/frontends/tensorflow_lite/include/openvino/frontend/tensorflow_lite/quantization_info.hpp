@@ -8,10 +8,7 @@
 #include <map>
 #include <string>
 
-#include "common_op_table.hpp"
-#include "decoder_map.hpp"
 #include "openvino/frontend/tensorflow_lite/visibility.hpp"
-#include "openvino/opsets/opset10.hpp"
 
 namespace ov {
 namespace frontend {

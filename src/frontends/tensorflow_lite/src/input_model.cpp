@@ -15,6 +15,36 @@
 
 using namespace ov::frontend::tensorflow;
 
+namespace {
+std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> decode_tensor(
+    const ov::frontend::tensorflow_lite::TensorMetaInfo& tensor_meta_info,
+    const ov::frontend::InputModel& model) {
+    return std::make_shared<ov::frontend::tensorflow_lite::TensorLitePlace>(model,
+                                                                            tensor_meta_info.m_partial_shape,
+                                                                            tensor_meta_info.m_element_type,
+                                                                            tensor_meta_info.m_tensor_names,
+                                                                            tensor_meta_info.m_quantization_info,
+                                                                            tensor_meta_info.m_sparsity_info,
+                                                                            tensor_meta_info.m_tensor_data);
+}
+
+std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> decode_input_tensor(
+    const std::shared_ptr<ov::frontend::tensorflow_lite::DecoderBase>& decoder,
+    size_t idx,
+    const ov::frontend::InputModel& model) {
+    const auto& tensor_meta_info = decoder->get_input_tensor_info(idx);
+    return decode_tensor(tensor_meta_info, model);
+}
+
+std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> decode_output_tensor(
+    const std::shared_ptr<ov::frontend::tensorflow_lite::DecoderBase>& decoder,
+    size_t idx,
+    const ov::frontend::InputModel& model) {
+    const auto& tensor_meta_info = decoder->get_output_tensor_info(idx);
+    return decode_tensor(tensor_meta_info, model);
+}
+}  // namespace
+
 namespace ov {
 namespace frontend {
 namespace tensorflow_lite {
@@ -85,8 +115,10 @@ void InputModel::InputModelTFLiteImpl::load_model() {
     for (; !m_graph_iterator->is_end(); m_graph_iterator->next()) {
         const auto& decoder = m_graph_iterator->get_decoder();
 
-        if (auto tensor_decoder = std::dynamic_pointer_cast<DecoderFlatBufferTensors>(decoder)) {
-            auto tensor_place = tensor_decoder->decode_tensor(m_input_model);
+        if (auto tensor_decoder = std::dynamic_pointer_cast<DecoderBaseTensor>(decoder)) {
+            auto tensor_place = decode_tensor(tensor_decoder->get_tensor_info(), m_input_model);
+            tensor_place->set_input_index(tensor_decoder->get_input_idx());
+            tensor_place->set_output_index(tensor_decoder->get_output_idx());
             FRONT_END_GENERAL_CHECK(tensor_place->is_input() || tensor_place->is_output());
             auto name = tensor_place->get_names()[0];
             if (m_tensor_places.count(name) == 0) {
@@ -105,10 +137,7 @@ void InputModel::InputModelTFLiteImpl::load_model() {
         }
 
         for (size_t i = 0; i < decoder->get_input_size(); ++i) {
-            // TODO: avoid use of DecoderFlatBuffer
-            const auto& decoder_flat_buffer =
-                std::dynamic_pointer_cast<ov::frontend::tensorflow_lite::DecoderFlatBuffer>(decoder);
-            auto place = decoder_flat_buffer->decode_input_tensor(i, m_input_model);
+            auto place = decode_input_tensor(decoder, i, m_input_model);
             auto name = place->get_names()[0];
             if (m_tensor_places.count(name) == 0) {
                 m_tensor_places[name] = place;
@@ -138,10 +167,7 @@ void InputModel::InputModelTFLiteImpl::load_model() {
             }
         }
         for (size_t i = 0; i < decoder->get_output_size(); ++i) {
-            // TODO: avoid use of DecoderFlatBuffer
-            const auto& decoder_flat_buffer =
-                std::dynamic_pointer_cast<ov::frontend::tensorflow_lite::DecoderFlatBuffer>(decoder);
-            auto place = decoder_flat_buffer->decode_output_tensor(i, m_input_model);
+            auto place = decode_output_tensor(decoder, i, m_input_model);
             auto name = place->get_names()[0];
             if (m_tensor_places.count(name) == 0)
                 m_tensor_places[name] = place;

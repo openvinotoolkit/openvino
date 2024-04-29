@@ -90,6 +90,14 @@ public:
         FRONT_END_THROW("incorrect usage");
     }
 
+    TensorMetaInfo get_input_tensor_info(size_t idx) const override {
+        FRONT_END_THROW("incorrect usage");
+    }
+
+    TensorMetaInfo get_output_tensor_info(size_t idx) const override {
+        FRONT_END_THROW("incorrect usage");
+    }
+
     /// \brief Destructor
     ~DecoderMap() = default;
 
