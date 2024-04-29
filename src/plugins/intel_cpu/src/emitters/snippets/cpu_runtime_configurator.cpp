@@ -17,7 +17,7 @@ bool CPURuntimeConfigurator::is_update_needed(const std::shared_ptr<ov::snippets
     if (m_latest_input_shapes.empty())
         return true;
     for (size_t i = 0; i < m_latest_input_shapes.size(); ++i)
-        if (m_latest_input_shapes[i] != *m_io_shapes[i])
+        if (m_latest_input_shapes[i] != m_io_descs[i]->get_shape())
             return true;
     return false;
 }
@@ -45,8 +45,7 @@ void CPURuntimeConfigurator::update(const std::shared_ptr<ov::snippets::lowered:
 void CPURuntimeConfigurator::init_data_info(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) {
     const auto& io_exprs = linear_ir->get_IO_ops();
     m_io_num = io_exprs.size();
-    m_io_shapes.resize(m_io_num);
-    m_io_layouts.resize(m_io_num);
+    m_io_descs.resize(m_io_num);
     m_io_data_sizes.resize(m_io_num);
     m_latest_input_shapes.resize(m_io_num);
     m_in_num = 0;
@@ -62,8 +61,7 @@ void CPURuntimeConfigurator::init_data_info(const std::shared_ptr<ov::snippets::
                 for (const auto& child_input : consumer_inputs) {
                     const auto ma = std::dynamic_pointer_cast<snippets::modifier::MemoryAccess>(child_input.get_expr()->get_node());
                     if (ma && ma->is_memory_access_input_port(child_input.get_index())) {
-                        m_io_shapes[idx] = child_input.get_descriptor_ptr()->get_shape_ptr();
-                        m_io_layouts[idx] = child_input.get_descriptor_ptr()->get_layout();
+                        m_io_descs[idx] = child_input.get_descriptor_ptr();
                         break;
                     }
                 }
@@ -75,16 +73,16 @@ void CPURuntimeConfigurator::init_data_info(const std::shared_ptr<ov::snippets::
                 const auto& shape_infer_seq = ov::snippets::utils::get_first_parent_shape_infer_expr_seq(expr);
                 const auto& mem_desc_expr = shape_infer_seq.empty() ? expr : shape_infer_seq.back();
                 const auto& parent_output = mem_desc_expr->get_input_port_connector(0)->get_source();
-                m_io_shapes[idx] = parent_output.get_descriptor_ptr()->get_shape_ptr();
-                m_io_layouts[idx] = parent_output.get_descriptor_ptr()->get_layout();
+                m_io_descs[idx] = parent_output.get_descriptor_ptr();
                 m_io_data_sizes[idx] = expr->get_node()->get_input_element_type(0).size();
                 break;
             } default : {
                 OPENVINO_THROW("Detected unsupported io_type");
             }
         }
-        OPENVINO_ASSERT(m_io_shapes[idx], "IO Shape is missed!");
-        OPENVINO_ASSERT(m_io_shapes[idx]->size() == m_io_layouts[idx].size(), "Incompatible ranks of shape and layout!");
+        OPENVINO_ASSERT(m_io_descs[idx], "IO Descriptor is missed!");
+        OPENVINO_ASSERT(m_io_descs[idx]->get_shape().size() == m_io_descs[idx]->get_layout().size() || m_io_descs[idx]->get_layout().size() == 0,
+                        "Incompatible ranks of shape and layout!");
         idx++;
     }
 }
@@ -101,11 +99,11 @@ void CPURuntimeConfigurator::update_data_offsets(const std::shared_ptr<CPURuntim
         // case 2:
         //    shape:      s0, s1, s2 == 1, s3
         //    offsets: s1*s3, s3,       0,  1
-        const auto& shape = *m_io_shapes[i];
+        const auto& shape = m_io_descs[i]->get_shape();
         if (shape == m_latest_input_shapes[i])
             continue;
 
-        const auto& layout = m_io_layouts[i];
+        const auto& layout = m_io_descs[i]->get_layout();
         auto& offsets = cpu_config->io_data_offsets[i];
 
         offsets.resize(cpu_config->tensor_rank);
@@ -168,7 +166,7 @@ void CPURuntimeConfigurator::update_parallel_domain(const std::shared_ptr<ov::sn
 void CPURuntimeConfigurator::update_latest_shapes() {
     m_latest_input_shapes.resize(m_in_num);
     for (size_t i = 0; i < m_in_num; ++i) {
-        m_latest_input_shapes[i] = *m_io_shapes[i];
+        m_latest_input_shapes[i] = m_io_descs[i]->get_shape();
     }
 }
 

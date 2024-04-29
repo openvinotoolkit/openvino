@@ -6,6 +6,7 @@
 
 #include "snippets/runtime_configurator.hpp"
 
+#include "snippets/lowered/port_descriptor.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 
 namespace ov {
@@ -40,7 +41,8 @@ protected:
     void update(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) override;
 
     /**
-     * @brief Initializes input and data information of LinearIR: layouts, shapes, data_sizes
+     * @brief Initializes input and data information of LinearIR:
+     *        descriptors (that contains shapes and layouts) and data_sizes
      * @param linear_ir LinearIR
      */
     void init_data_info(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir);
@@ -72,8 +74,7 @@ protected:
 
     size_t m_io_num = 0;
     size_t m_in_num = 0;
-    std::vector<ov::snippets::VectorDimsPtr> m_io_shapes = {};
-    std::vector<std::vector<size_t>> m_io_layouts = {};
+    std::vector<snippets::lowered::PortDescriptorPtr> m_io_descs = {};
     std::vector<size_t> m_io_data_sizes = {};
 
     std::vector<ov::snippets::VectorDims> m_latest_input_shapes = {};
