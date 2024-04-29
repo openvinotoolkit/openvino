@@ -100,7 +100,9 @@ jobs:
           # install git (required to build pip deps from the sources)
           # install 'g++' to build 'detectron2' and 'natten' wheels
           # install libgl1 - tests (probably OpenCV) depend on it
-          sudo -E apt-get install --assume-yes --no-install-recommends g++ git ca-certificates libgl1
+          # build-essentials - to build python modules ('natten' in particular)
+          sudo -E apt-get install --assume-yes --no-install-recommends g++ \
+          git ca-certificates libgl1 build-essentials
 
       - name: Setup Python 3.11
         uses: ./openvino/.github/actions/setup_python
