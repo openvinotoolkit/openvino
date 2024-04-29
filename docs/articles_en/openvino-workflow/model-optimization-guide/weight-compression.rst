@@ -70,10 +70,20 @@ where INT4 is considered as the primary precision and INT8 is the backup one.
 It usually results in a smaller model size and lower inference latency, although the accuracy
 degradation could be higher, depending on the model.
 
+The code snippet below shows how to do 4-bit quantization of the model weights represented in OpenVINO IR using NNCF:
+
+.. tab-set::
+
+   .. tab-item:: OpenVINO
+      :sync: openvino
+
+      .. doxygensnippet:: docs/optimization_guide/nncf/code/weight_compression_openvino.py
+         :language: python
+         :fragment: [compression_4bit]
+
+
 The table below summarizes the benefits and trade-offs for each compression type in terms of
 memory reduction, speed gain, and accuracy loss.
-
-  .. code-block:: python
 
 .. list-table::
    :widths: 25 20 20 20
