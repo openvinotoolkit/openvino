@@ -687,50 +687,17 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(const layout& input_layout,
     return false;
 }
 
-static int get_env(std::string key, int &val);
-static int get_env(std::string key, int &val) {
-        if (const auto env_var = std::getenv(key.c_str())) {
-            val = std::atoi(env_var);
-            return true;
-        }
-        return false;
-}
-
 static bool has_reorder_before_mvn(const program_node& node, size_t cur_depth, size_t max_depth, uint64_t reorder_size_threshold = 0) {
     // MVN with rank size 3 always requires Reorder and Reshape. Due to this pattern, too many Reorder may occur when used with Convolution,
     // which may cause performance degradation. It stands out in Stable-Diffusion Unet and Decoder.
     if (cur_depth > max_depth) return false;
     if (node.is_type<reorder>()) {
-        int val = 0;
-        get_env("PR_TEST", val);
-        if (val == 1) {
-            auto reorder_first_user = node.get_users().front();
-            if (reorder_first_user->is_type<reshape>()) {
-                for (auto& reshape_user : reorder_first_user->get_users()) {
-                    if (reshape_user->is_type<mvn>() && node.get_output_layout().get_linear_size() > reorder_size_threshold) {
-                        GPU_DEBUG_LOG << node.id() << ": " << node.get_output_layout().to_short_string() << " : heavy reorder" << std::endl;
-                        return true;
-                    }
-                }
-            }
-        } else if (val == 2) {
-            auto reorder_first_user = node.get_users().front();
-            if (reorder_first_user->is_type<reshape>()) {
-                auto reshape_first_user = reorder_first_user->get_users().front();
-                if (reshape_first_user->is_type<mvn>() && node.get_output_layout().get_linear_size() > reorder_size_threshold) {
+        auto reorder_first_user = node.get_users().front();
+        if (reorder_first_user->is_type<reshape>()) {
+            for (auto& reshape_user : reorder_first_user->get_users()) {
+                if (reshape_user->is_type<mvn>() && node.get_output_layout().get_linear_size() > reorder_size_threshold) {
                     GPU_DEBUG_LOG << node.id() << ": " << node.get_output_layout().to_short_string() << " : heavy reorder" << std::endl;
                     return true;
-                }
-            }
-        } else {
-            for (auto& reorder_user : node.get_users()) {
-                if (reorder_user->is_type<reshape>()) {
-                    for (auto& reshape_user : reorder_user->get_users()) {
-                        if (reshape_user->is_type<mvn>() && node.get_output_layout().get_linear_size() > reorder_size_threshold) {
-                            GPU_DEBUG_LOG << node.id() << ": " << node.get_output_layout().to_short_string() << " : heavy reorder" << std::endl;
-                            return true;
-                        }
-                    }
                 }
             }
         }
