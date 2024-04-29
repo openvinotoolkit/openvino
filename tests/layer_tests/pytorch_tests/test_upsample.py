@@ -45,6 +45,8 @@ class TestUpsample1D(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122182")
     def test_upsample1d(self, mode, size, scale, ie_device, precision, ir_version):
+        if ie_device == "GPU" and mode == "linear":
+            pytest.xfail(reason="1D linear upsample is unsupported on GPU")
         self._test(*self.create_model(size, scale, mode), ie_device,
                    precision, ir_version, trace_model=True)
 
