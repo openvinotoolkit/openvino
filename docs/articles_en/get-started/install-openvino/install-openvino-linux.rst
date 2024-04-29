@@ -18,6 +18,7 @@ Install OpenVINO™ Runtime on Linux
    Use PyPI <install-openvino-pip>
    Use APT <install-openvino-apt>
    Use YUM <install-openvino-yum>
+   Use ZYPPER <install-openvino-zypper>
    Use Conda Forge <install-openvino-conda>
    Use vcpkg <install-openvino-vcpkg>
    Use Homebrew <install-openvino-brew>
