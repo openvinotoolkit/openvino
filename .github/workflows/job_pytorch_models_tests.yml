@@ -92,14 +92,12 @@ jobs:
 
       - name: Install dependencies
         if: ${{ runner.os == 'Linux' }}
-        env:
-          DEBIAN_FRONTEND: 'noninteractive'
         run: |
           # install git (required to build pip deps from the sources)
           # install 'g++' to build 'detectron2' and 'natten' wheels
           # install libgl1 - tests (probably OpenCV) depend on it
           # install cmake - to build 'natten' Python module
-          sudo apt-get install --assume-yes --no-install-recommends g++ git ca-certificates libgl1 cmake
+          sudo -E apt-get install --assume-yes --no-install-recommends g++ git ca-certificates libgl1 cmake
 
       - name: Setup Python 3.11
         uses: ./openvino/.github/actions/setup_python
