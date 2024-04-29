@@ -1097,8 +1097,6 @@ TEST(fully_connected_gpu, fully_connected_gpu_fb_io_block_fp16) {
     auto input_data = rg.generate_random_1d<ov::float16>(batch_num * in_feature_num, -1, 1);
     auto weights_data = rg.generate_random_1d<ov::float16>(out_feature_num * in_feature_num, -1, 1);
 
-    // auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
-    // auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
     std::vector<ov::float16> empty_bias(out_feature_num, 0);
 
     set_values(input_mem, input_data);
