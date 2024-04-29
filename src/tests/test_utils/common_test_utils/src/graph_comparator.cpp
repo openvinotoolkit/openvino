@@ -91,57 +91,17 @@ ov::ResultVector intersect_results(const ov::ResultVector& results_1, const ov::
     return out_results;
 }
 
-ov::ParameterVector intersect_parameters(const ov::ParameterVector& parameter_1,
-                                         const ov::ParameterVector& parameter_2) {
-    ov::ParameterVector out_param(parameter_2.size());
-    for (size_t idx_1 = 0; idx_1 < parameter_1.size(); ++idx_1) {
-        const auto& names_mp_1 = parameter_1[idx_1]->output(0).get_tensor().get_names();
-
-        for (const auto& param_2 : parameter_2) {
-            const auto& names_mp_2 = param_2->output(0).get_tensor().get_names();
-
-            for (const auto& element : names_mp_1) {
-                if (names_mp_2.count(element) > 0) {
-                    out_param[idx_1] = param_2;
-                    break;
-                }
-            }
-        }
-
-        if (!out_param[idx_1]) {
-            // no intersecting names
-            return {};
-        }
-    }
-    return out_param;
-}
-
-bool less_by_friendly_name(const std::shared_ptr<ov::Node>& l, const std::shared_ptr<ov::Node>& r) {
+bool less_by_friendly_name(const std::shared_ptr<ov::op::v0::Result>& l, const std::shared_ptr<ov::op::v0::Result>& r) {
     const auto& l_name = l->get_friendly_name();
     const auto& r_name = r->get_friendly_name();
     return l_name.size() < r_name.size() || (l_name.size() == r_name.size() && l_name < r_name);
 }
 
-bool less_by_parent_friendly_name(const std::shared_ptr<ov::Node>& l, const std::shared_ptr<ov::Node>& r) {
+bool less_by_parent_friendly_name(const std::shared_ptr<ov::op::v0::Result>& l,
+                                  const std::shared_ptr<ov::op::v0::Result>& r) {
     const auto& l_name = l->get_input_node_shared_ptr(0)->get_friendly_name();
     const auto& r_name = r->get_input_node_shared_ptr(0)->get_friendly_name();
     return l_name.size() < r_name.size() || (l_name.size() == r_name.size() && l_name < r_name);
-}
-
-template <typename T>
-void align_res_param_node_vectors(T& node_vector, T& ref_node_vector, T& new_ref_node_vector, bool check_parent) {
-    if (new_ref_node_vector.empty()) {
-        auto cmp = less_by_friendly_name;
-        if (check_parent &&
-            (std::any_of(node_vector.begin(), node_vector.end(), has_more_than_1_tensor_names) ||
-             std::any_of(ref_node_vector.begin(), ref_node_vector.end(), has_more_than_1_tensor_names))) {
-            cmp = less_by_parent_friendly_name;
-        }
-        std::sort(node_vector.begin(), node_vector.end(), cmp);
-        std::sort(ref_node_vector.begin(), ref_node_vector.end(), cmp);
-    } else {
-        ref_node_vector = new_ref_node_vector;
-    }
 }
 
 std::string typeInfoToStr(const ov::Node::type_info_t& typeInfo) {
@@ -646,58 +606,7 @@ Comparator::Result Comparator::compare(const std::shared_ptr<ov::Model>& f, cons
      * + Check node attributes by Visitor API
      */
 
-    if (should_compare(CmpValues::IN_OUT_NODES_ONLY)) {
-        auto f_parameters = f->get_parameters();
-        auto f_ref_parameters = f_ref->get_parameters();
-
-        if (f_parameters.size() != f_ref_parameters.size()) {
-            return Result::error("Number of parameters is different: " + to_str(f_parameters.size()) + " and " +
-                                 to_str(f_ref_parameters.size()));
-        }
-
-        // by default, we should use tensor_name for comparison
-        // if not all Parameters/Result ops have tensor_names or for some reason we can't find intersecting results,
-        // then we use old logic with friendly_names
-        auto new_ref_parametrs = intersect_parameters(f_parameters, f_ref_parameters);
-        // In case if Parameters/Result source output has more than one name so the Result may have any of this names as
-        // a friendly name An in case of multiple names we sort Result operation using their parent node names
-        align_res_param_node_vectors<ov::ParameterVector>(f_parameters, f_ref_parameters, new_ref_parametrs, false);
-
-        for (size_t i = 0; i < f_parameters.size(); ++i) {
-            q.push({f_parameters[i].get(), f_ref_parameters[i].get()});
-            used.insert(f_parameters[i].get());
-        }
-
-        auto f_results = f->get_results();
-        auto f_ref_results = f_ref->get_results();
-        if (f_results.size() != f_ref_results.size()) {
-            return Result::error("Number of results is different: " + to_str(f_results.size()) + " and " +
-                                 to_str(f_ref_results.size()));
-        }
-
-        auto new_ref_results = intersect_results(f_results, f_ref_results);
-        align_res_param_node_vectors<ov::ResultVector>(f_results, f_ref_results, new_ref_results, false);
-
-        for (size_t i = 0; i < f_results.size(); ++i) {
-            q.push({f_results[i].get(), f_ref_results[i].get()});
-            used.insert(f_results[i].get());
-        }
-
-        std::stringstream errors;
-
-        while (!q.empty()) {
-            ov::Node* const node1 = q.front().first;
-            ov::Node* const node2 = q.front().second;
-            q.pop();
-
-            const auto result = compare(node1, node2, errors);
-            if (!result.valid) {
-                return result;
-            }
-        }
-        const auto msg = errors.str();
-        return msg.empty() ? Result::ok() : Result::error(msg);
-    } else if (should_compare(CmpValues::NODES)) {
+    if (should_compare(CmpValues::NODES)) {
         auto f_results = f->get_results();
         auto f_ref_results = f_ref->get_results();
 
@@ -710,9 +619,21 @@ Comparator::Result Comparator::compare(const std::shared_ptr<ov::Model>& f, cons
         // if not all Result ops have tensor_names or for some reason we can't find intersecting results,
         // then we use old logic with friendly_names
         auto new_ref_results = intersect_results(f_results, f_ref_results);
-        // In case if Result source output has more than one name so the Result may have any of this names as a
-        // friendly name An in case of multiple names we sort Result operation using their parent node names
-        align_res_param_node_vectors<ov::ResultVector>(f_results, f_ref_results, new_ref_results, true);
+
+        if (new_ref_results.empty()) {
+            auto cmp = less_by_friendly_name;
+            // In case if Result source output has more than one name so the Result may have any of this names as a
+            // friendly name An in case of multiple names we sort Result operation using their parent node names
+
+            if (std::any_of(f_results.begin(), f_results.end(), has_more_than_1_tensor_names) ||
+                std::any_of(f_ref_results.begin(), f_ref_results.end(), has_more_than_1_tensor_names)) {
+                cmp = less_by_parent_friendly_name;
+            }
+            std::sort(f_results.begin(), f_results.end(), cmp);
+            std::sort(f_ref_results.begin(), f_ref_results.end(), cmp);
+        } else {
+            f_ref_results = new_ref_results;
+        }
 
         const auto& f_sinks = f->get_sinks();
         const auto& f_ref_sinks = f_ref->get_sinks();
@@ -867,20 +788,18 @@ void Comparator::compare_inputs(ov::Node* node1, ov::Node* node2, std::ostream& 
             }
         }
 
-        if (!should_compare(CmpValues::IN_OUT_NODES_ONLY)) {
-            if (!node1->input(i).get_partial_shape().same_scheme(node2->input(i).get_partial_shape())) {
-                err_log << "Different shape detected\n"
-                        << name(node1) << " Input(" << i << ") " << node1->input(i).get_partial_shape() << " and "
-                        << name(node2) << " Input(" << i << ") " << node2->input(i).get_partial_shape() << std::endl;
-            }
+        if (!node1->input(i).get_partial_shape().same_scheme(node2->input(i).get_partial_shape())) {
+            err_log << "Different shape detected\n"
+                    << name(node1) << " Input(" << i << ") " << node1->input(i).get_partial_shape() << " and "
+                    << name(node2) << " Input(" << i << ") " << node2->input(i).get_partial_shape() << std::endl;
+        }
 
-            if (node1->get_input_source_output(i).get_index() != node2->get_input_source_output(i).get_index()) {
-                auto idx1 = node1->get_input_source_output(i).get_index();
-                auto idx2 = node2->get_input_source_output(i).get_index();
-                err_log << "Different ports detected\n"
-                        << name(node1) << " Input(" << i << ") connected to parent port " << idx1 << " and "
-                        << name(node2) << " Input(" << i << ") connected to parent port " << idx2 << std::endl;
-            }
+        if (node1->get_input_source_output(i).get_index() != node2->get_input_source_output(i).get_index()) {
+            auto idx1 = node1->get_input_source_output(i).get_index();
+            auto idx2 = node2->get_input_source_output(i).get_index();
+            err_log << "Different ports detected\n"
+                    << name(node1) << " Input(" << i << ") connected to parent port " << idx1 << " and " << name(node2)
+                    << " Input(" << i << ") connected to parent port " << idx2 << std::endl;
         }
 
         if (should_compare(CmpValues::RUNTIME_KEYS) && !compare_rt_keys(node1->input(i), node2->input(i), err_log)) {
