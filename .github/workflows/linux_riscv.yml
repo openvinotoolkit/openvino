@@ -61,7 +61,7 @@ jobs:
       OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
       CONAN_USER_HOME: /mount/caches/ccache/ubuntu22_riscv64_master_release/.conan
-      CCACHE_REMOTE_DIR: /mount/caches/ccache/ubuntu22_riscv64
+      CCACHE_REMOTE_DIR: /mount/caches/ccache/ubuntu22_riscv64/${{ github.base_ref || github.ref_name }}
       CCACHE_DIR: /__w/openvino/openvino/ccache
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 2G
@@ -110,6 +110,7 @@ jobs:
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/telemetry
             git submodule update --init -- ${OPENVINO_REPO}/src/plugins/intel_cpu
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/open_model_zoo
+            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/flatbuffers/flatbuffers
           popd
 
       #
@@ -192,8 +193,6 @@ jobs:
             -DENABLE_INTEL_GPU=ON \
             -DENABLE_PYTHON=ON \
             -DENABLE_WHEEL=ON \
-            -DPYTHON_MODULE_EXTENSION=$(riscv64-linux-gnu-python3-config --extension-suffix) \
-            -DPYBIND11_PYTHON_EXECUTABLE_LAST=${OPENVINO_BUILD_DIR}/env/bin/python3.10 \
             -DENABLE_TESTS=ON \
             -DENABLE_PYTHON_PACKAGING=ON \
             -DENABLE_SYSTEM_PROTOBUF=ON \

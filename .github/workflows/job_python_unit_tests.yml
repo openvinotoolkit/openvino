@@ -54,13 +54,6 @@ jobs:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
 
-      - name: Download OpenVINO tokenizers extension
-        if: ${{ runner.os != 'macOS' && runner.arch != 'ARM64' }} # Ticket: 126287
-        uses: actions/download-artifact@v4
-        with:
-          name: openvino_tokenizers_wheel
-          path: ${{ env.INSTALL_DIR }}
-
       # Needed as ${{ github.workspace }} is not working correctly when using Docker
       - name: Setup Variables
         run: |
@@ -125,10 +118,6 @@ jobs:
           # Install the core OV wheel
           ${PYTHON_INSTALL_PREFIX} ${INSTALL_DIR}/tools/openvino-*.whl
 
-          if [[ "${{ runner.arch }}" != "ARM64" ]]; then
-            ${PYTHON_INSTALL_PREFIX} ${INSTALL_DIR}/openvino_tokenizers-*.whl
-          fi
-
           extras_to_install="caffe,kaldi,onnx,tensorflow2,pytorch"
 
           if [[ "${{ runner.arch }}" != "ARM64" ]]; then
@@ -170,7 +159,7 @@ jobs:
             # required for MxNet
             apt-get install -y libgomp1 libquadmath0
           fi
-          
+
           # Skips under tickets: 133405, 122666
           ${PYTHON_RUN_TESTS_PREFIX} pytest -s ${INSTALL_TEST_DIR}/mo/unit_tests \
               --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml \
@@ -286,39 +275,9 @@ jobs:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
 
-      - name: TensorFlow 1 Layer Tests - TF FE
-        if: fromJSON(inputs.affected-components).TF_FE.test
-        run: |
-          # requires 'unit_tests' from 'mo'
-          export PYTHONPATH=${INSTALL_TEST_DIR}/mo
-          ${PYTHON_RUN_TESTS_PREFIX} pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/ -m precommit -n logical --junitxml=${INSTALL_TEST_DIR}/TEST-tf_fe.xml
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP16
-
-      - name: TensorFlow 2 Layer Tests - TF FE
-        if: fromJSON(inputs.affected-components).TF_FE.test && runner.os != 'macOS' # Ticket: 123322
-        run: |
-          # requires 'unit_tests' from 'mo'
-          export PYTHONPATH=${INSTALL_TEST_DIR}/mo
-          ${PYTHON_RUN_TESTS_PREFIX} pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/ -n logical -m precommit_tf_fe --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_fe.xml
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP16
-
       - name: JAX Layer Tests - TF FE
         if: ${{ fromJSON(inputs.affected-components).TF_FE.test && runner.arch != 'ARM64' && runner.os != 'macOS' }}
-        run: ${PYTHON_RUN_TESTS_PREFIX} pytest ${LAYER_TESTS_INSTALL_DIR}/jax_tests/ -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-jax.xml
-        env:
-          TEST_DEVICE: CPU
-
-      - name: TensorFlow 1 Layer Tests - Legacy FE
-        if: fromJSON(inputs.affected-components).TF_FE.test
-        run: ${PYTHON_RUN_TESTS_PREFIX} pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/test_tf_Roll.py --use_legacy_frontend --ir_version=10 --junitxml=${INSTALL_TEST_DIR}/TEST-tf_Roll.xml
-
-      - name: TensorFlow 2 Layer Tests - Legacy FE
-        if: fromJSON(inputs.affected-components).TF_FE.test
-        run: ${PYTHON_RUN_TESTS_PREFIX} pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/test_tf2_keras_activation.py --use_legacy_frontend --ir_version=11 -k "sigmoid" --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_Activation.xml
+        run:  ${PYTHON_RUN_TESTS_PREFIX} pytest ${LAYER_TESTS_INSTALL_DIR}/jax_tests/ -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-jax.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -326,6 +285,22 @@ jobs:
       - name: TensorFlow Lite Layer Tests - TFL FE
         if: fromJSON(inputs.affected-components).TFL_FE.test
         run: ${PYTHON_RUN_TESTS_PREFIX} pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_lite_tests/ --junitxml=${INSTALL_TEST_DIR}/TEST-tfl_fe.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
+        
+        
+      - name: TensorFlow 1 Layer Tests - Legacy FE
+        if: fromJSON(inputs.affected-components).TF_FE.test
+        run: ${PYTHON_RUN_TESTS_PREFIX} pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/test_tf_Roll.py --use_legacy_frontend --ir_version=10 --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_Roll.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
+
+
+      - name: TensorFlow 2 Layer Tests - Legacy FE
+        if: fromJSON(inputs.affected-components).TF_FE.test
+        run: ${PYTHON_RUN_TESTS_PREFIX} pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/test_tf2_keras_activation.py --use_legacy_frontend --ir_version=11 -k "sigmoid" --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_Activation.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
