@@ -246,7 +246,7 @@ def main():
 
     # Components actually changed by a pull request are marked as True (if event is PR;
     # otherwise all components considered changed).
-    changed_components_output = {name: True if not pr and name in changed_by_pr else False
+    changed_components_output = {name: True if not pr or name in changed_by_pr else False
                                  for name in all_possible_components}
     set_github_output("changed_components", json.dumps(changed_components_output))
 
