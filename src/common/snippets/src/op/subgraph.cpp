@@ -25,6 +25,7 @@
 
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/linear_ir_builder.hpp"
 #include "snippets/lowered/pass/assign_registers.hpp"
 #include "snippets/lowered/pass/mark_loops.hpp"
 #include "snippets/lowered/pass/split_loops.hpp"
@@ -380,9 +381,9 @@ std::shared_ptr<Subgraph> Subgraph::clone() const {
     ov::copy_runtime_info(const_pointer_cast<Node>(shared_from_this()), result);
     result->set_friendly_name(get_friendly_name());
     if (m_linear_ir)
-        result->m_linear_ir = m_linear_ir->clone();
+        result->m_linear_ir = lowered::LinearIRBuilder().clone(m_linear_ir);
     if (m_shape_infer_linear_ir)
-        result->m_shape_infer_linear_ir = m_linear_ir->clone();
+        result->m_shape_infer_linear_ir = lowered::LinearIRBuilder().clone(m_shape_infer_linear_ir);
     // Note: we don't update shapeInfer here, since it's initialized in the constructor
     if (m_generator)
         result->m_generator = m_generator->clone();
@@ -529,7 +530,7 @@ snippets::Schedule Subgraph::generate_from_linear_ir(const void* compile_params)
     // actual code emission
     // Note: to not damage the lowered linear IR for the shape-dependent passes, we have to make a copy
     OPENVINO_ASSERT(m_linear_ir, "Attempt to call generate, when linear IR was not initialized");
-    auto linear_ir = *m_linear_ir->clone();
+    auto linear_ir = *lowered::LinearIRBuilder().clone(m_linear_ir);
 
     if (is_dynamic()) {
         ov::snippets::lowered::pass::PassPipeline shape_dependent_pipeline;
@@ -553,21 +554,9 @@ void Subgraph::init_shape_infer_linear_ir() {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::init_shape_infer_linear_ir")
     OPENVINO_ASSERT(m_linear_ir, "LinearIR has not been inited before init_shape_infer_linear_ir!");
 
-    m_shape_infer_linear_ir = m_linear_ir->clone();
+    const auto& cloning_config = lowered::LinearIRBuilder::Config(false);
+    m_shape_infer_linear_ir = lowered::LinearIRBuilder(cloning_config).clone(m_linear_ir);
     OPENVINO_ASSERT(m_shape_infer_linear_ir, "LinearIR has not been successfully copied!");
-    // Set the same pointers of Tensor Shape to the cloned loop
-    for (auto new_it = m_shape_infer_linear_ir->cbegin(), cur_it = m_linear_ir->cbegin(); new_it != m_shape_infer_linear_ir->cend(); ++new_it, ++cur_it) {
-        const auto& new_expr = *new_it;
-        const auto& current_expr = *cur_it;
-        OPENVINO_ASSERT(new_expr->get_node()->get_type_info() == current_expr->get_node()->get_type_info() &&
-                        new_expr->get_input_count() == current_expr->get_input_count() &&
-                        new_expr->get_output_count() == current_expr->get_output_count(),
-                        "Expressions after copying aren't matched!");
-        for (size_t i = 0; i < current_expr->get_input_count(); ++i)
-            new_expr->get_input_port_descriptor(i)->set_shape_ptr(current_expr->get_input_port_descriptor(i)->get_shape_ptr());
-        for (size_t i = 0; i < current_expr->get_output_count(); ++i)
-            new_expr->get_output_port_descriptor(i)->set_shape_ptr(current_expr->get_output_port_descriptor(i)->get_shape_ptr());
-    }
 
     m_shape_infer = m_shape_infer_linear_ir->get_shape_infer_instance();
 }
