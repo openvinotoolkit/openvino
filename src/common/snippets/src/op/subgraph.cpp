@@ -63,8 +63,6 @@
 #include "ov_ops/type_relaxed.hpp"
 #include "openvino/pass/serialize.hpp"
 
-#include "snippets/lowered/pass/serialize_control_flow.hpp"
-
 #include <algorithm>
 #include <memory>
 #include <array>
@@ -426,12 +424,6 @@ void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input
 
     manager.register_positioned_passes(backend_passes);
     manager.run_passes(body_ptr());
-
-    // ov::pass::Manager magr;
-    // std::string xmlo = "data_flow.xml";
-    // std::string bino = "data_flow.bin";
-    // magr.register_pass<ov::pass::Serialize>(xmlo, bino);
-    // magr.run_passes(body_ptr());
 }
 
 void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, size_t min_kernel_work_amount,
@@ -550,11 +542,6 @@ snippets::Schedule Subgraph::generate(const void* compile_params) const {
         shape_dependent_pipeline.register_pass<ov::snippets::lowered::pass::LoadMoveBroadcastToBroadcastLoad>();
         shape_dependent_pipeline.run(linear_ir);
     }
-
-    // std::string xmlo = "LIR_a.xml";
-    // lowered::pass::SerializeControlFlow SerializeLIR(xmlo);
-    // SerializeLIR.run(linear_ir);
-
 
     auto lowering_result = m_generator->generate(linear_ir, compile_params);
 
