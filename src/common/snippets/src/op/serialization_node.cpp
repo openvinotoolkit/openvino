@@ -43,11 +43,17 @@ bool SerializationNode::visit_attributes(AttributeVisitor &visitor) {
     std::vector<size_t> in_regs, out_regs;
     std::vector<std::string> in_reg_types, out_reg_types;
     std::vector<std::pair<std::string, std::vector<size_t>>> shapes;
+    std::vector<std::pair<std::string, std::vector<size_t>>> subtensors;
     for (size_t i = 0; i < m_expr->get_input_count(); i++) {
         const auto& desc = m_expr->get_input_port_descriptor(i);
         const auto &shape = desc->get_shape();
         if (!shape.empty())
             shapes.emplace_back("in_shape_" + std::to_string(i), shape);
+
+        const auto &subtensor = desc->get_subtensor();
+        if (!subtensor.empty())
+            subtensors.emplace_back("in_subtensor_" + std::to_string(i), subtensor);
+
         in_reg_types.emplace_back(regTypeToStr(desc->get_reg().type));
         in_regs.emplace_back(desc->get_reg().idx);
     }
@@ -56,6 +62,11 @@ bool SerializationNode::visit_attributes(AttributeVisitor &visitor) {
         const auto &shape = desc->get_shape();
         if (!shape.empty())
             shapes.emplace_back("out_shape_" + std::to_string(i), shape);
+
+        const auto &subtensor = desc->get_subtensor();
+        if (!subtensor.empty())
+            subtensors.emplace_back("out_subtensor_" + std::to_string(i), subtensor);
+
         out_reg_types.emplace_back(regTypeToStr(desc->get_reg().type));
         out_regs.emplace_back(desc->get_reg().idx);
     }
@@ -69,6 +80,8 @@ bool SerializationNode::visit_attributes(AttributeVisitor &visitor) {
         visitor.on_attribute("out_reg_types", out_reg_types);
     }
     for (auto& s : shapes)
+        visitor.on_attribute(s.first, s.second);
+    for (auto& s : subtensors)
         visitor.on_attribute(s.first, s.second);
 
     auto loop_ids = m_expr->get_loop_ids();
