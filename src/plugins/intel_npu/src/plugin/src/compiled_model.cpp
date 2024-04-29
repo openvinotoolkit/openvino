@@ -42,6 +42,40 @@ using intel_npu::envVarStrToBool;
 
 CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
+                             const std::shared_ptr<IDevice>& device,
+                             const ov::SoPtr<ICompiler>& compiler,
+                             const bool profiling,
+                             const Config& config)
+    : ICompiledModel(model, plugin),
+      _model(model),
+      _config(config),
+      _logger("CompiledModel", config.get<LOG_LEVEL>()),
+      _device(device),
+      _compiler(profiling ? std::optional(compiler) : std::nullopt) {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
+    OPENVINO_ASSERT(compiler != nullptr, "NPU CompiledModel: the pointer towards the compiler object is null");
+
+    try {
+        _networkPtr = std::make_shared<const NetworkDescription>(compiler->compile(model, config));
+    } catch (const std::exception& ex) {
+        OPENVINO_THROW(ex.what());
+    } catch (...) {
+        _logger.error("Unexpected exception");
+        OPENVINO_THROW("NPU CompiledModel: got an unexpected exception from compiler");
+    }
+
+    OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
+    initialize_properties();
+    configure_stream_executors();
+
+    OV_ITT_TASK_NEXT(COMPILED_MODEL, "create_executor");
+    create_executor();
+
+    OV_ITT_TASK_SKIP(COMPILED_MODEL);
+}
+
+CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
+                             const std::shared_ptr<const ov::IPlugin>& plugin,
                              const std::shared_ptr<const NetworkDescription>& networkDescription,
                              const std::shared_ptr<IDevice>& device,
                              const std::optional<ov::SoPtr<ICompiler>>& compiler,
@@ -54,32 +88,15 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
       _device(device),
       _compiler(compiler) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
-
-    if (_networkPtr == nullptr) {
-        OPENVINO_THROW("Network is null!");
-    }
+    OPENVINO_ASSERT(_networkPtr != nullptr,
+                    "NPU CompiledModel: the pointer towards the NetworkDescription object is null");
 
     OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
     initialize_properties();
     configure_stream_executors();
 
     OV_ITT_TASK_NEXT(COMPILED_MODEL, "create_executor");
-    const bool configCreateExecutor = _config.get<CREATE_EXECUTOR>();
-    static const auto envVar = std::getenv("IE_NPU_CREATE_EXECUTOR");
-    const bool IE_NPU_CREATE_EXECUTOR =
-        envVar ? envVarStrToBool("IE_NPU_CREATE_EXECUTOR", envVar) : configCreateExecutor;
-
-    if (IE_NPU_CREATE_EXECUTOR) {
-        _logger.info("Creating the executor inside the \"CompiledModel\" constructor");
-
-        // If no device has been defined, the executor shall keep the default value of "nullptr". In this scenario,
-        // only export operations will be allowed
-        if (_device != nullptr) {
-            _executorPtr = _device->createExecutor(_networkPtr, _config);
-        }
-    } else {
-        _logger.info("Executor will not be created inside the \"CompiledModel\" constructor");
-    }
+    create_executor();
 
     OV_ITT_TASK_SKIP(COMPILED_MODEL);
 }
@@ -320,6 +337,20 @@ void CompiledModel::initialize_properties() {
         if (std::get<0>(property.second)) {
             _supportedProperties.emplace_back(property.first, std::get<1>(property.second));
         }
+    }
+}
+
+void CompiledModel::create_executor() {
+    if (_config.get<CREATE_EXECUTOR>()) {
+        _logger.info("Creating the executor inside the \"CompiledModel\" constructor");
+
+        // If no device has been defined, the executor shall keep the default value of "nullptr". In this scenario,
+        // only export operations will be allowed
+        if (_device != nullptr) {
+            _executorPtr = _device->createExecutor(_networkPtr, _config);
+        }
+    } else {
+        _logger.info("Executor will not be created inside the \"CompiledModel\" constructor");
     }
 }
 
