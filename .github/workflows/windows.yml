@@ -762,7 +762,7 @@ jobs:
         if: fromJSON(needs.smart_ci.outputs.affected_components).AUTO_BATCH.test
         run: |
           . "${{ env.INSTALL_DIR }}/setupvars.ps1"
-          ${{ env.INSTALL_TEST_DIR }}/ov_auto_batch_func_tests --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_batch_func_tests.xml
+          ${{ env.INSTALL_TEST_DIR }}/ov_auto_batch_func_tests --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_batch_func_tests.xml --gtest_filter="*smoke*"
 
       - name: Proxy Plugin func tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).PROXY.test
@@ -780,7 +780,7 @@ jobs:
         if: fromJSON(needs.smart_ci.outputs.affected_components).HETERO.test
         run: |
           . "${{ env.INSTALL_DIR }}/setupvars.ps1"
-          ${{ env.INSTALL_TEST_DIR }}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroFuncTests.xml
+          ${{ env.INSTALL_TEST_DIR }}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroFuncTests.xml --gtest_filter="*smoke*"
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v4

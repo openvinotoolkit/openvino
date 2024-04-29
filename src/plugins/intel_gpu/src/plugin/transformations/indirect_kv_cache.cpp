@@ -17,6 +17,7 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/read_value.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "transformations/utils/utils.hpp"
@@ -56,7 +57,7 @@ IndirectKVCache::IndirectKVCache() {
     auto matmul_1 = wrap_type<ov::intel_gpu::op::Gemm>({any_input(), kv_cache});
     auto matmul = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{matmul_0, matmul_1});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         if (transformation_callback(m.get_match_root())) {
             return false;
         }
