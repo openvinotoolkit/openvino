@@ -173,12 +173,12 @@ void AutoSchedule::init() {
                         auto blobId = ov::ModelCache::compute_hash(
                             m_context->m_model,
                             m_context->m_ov_core->create_compile_config(device, device_config));
-                        std::string gpu_cached_model = ov::util::make_path(cache_dir, blobId + ".blob");
-                        m_compile_context[CPU].m_is_enabled = !ov::util::file_exists(gpu_cached_model);
+                        std::string cached_model_path = ov::util::make_path(cache_dir, blobId + ".blob");
+                        m_compile_context[CPU].m_is_enabled = !ov::util::file_exists(cached_model_path);
                         LOG_DEBUG_TAG("device: %s %s cached blob: %s ",
                                       device.c_str(),
                                       m_compile_context[CPU].m_is_enabled ? "not found" : "found",
-                                      gpu_cached_model.c_str());
+                                      cached_model_path.c_str());
                     }
                 }
                 if (m_compile_context[CPU].m_is_enabled) {
