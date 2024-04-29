@@ -77,6 +77,7 @@ std::string OVPropertiesTestsWithCompileModelProps::getTestCaseName(testing::Tes
 
 void OVPropertiesTestsWithCompileModelProps::SetUp() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    std::tie(target_device, properties) = this->GetParam();
 
     model = ov::test::utils::make_split_concat();
 
