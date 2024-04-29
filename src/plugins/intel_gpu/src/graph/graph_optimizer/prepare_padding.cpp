@@ -185,7 +185,7 @@ void prepare_padding::run(program& p) {
         if (node.get_preferred_impl_type() == impl_types::onednn)
             continue;
 
-        auto needed_padding = get_convolution_needed_padding(node);
+        auto needed_padding = get_needed_padding_for_convolution(node);
 
         auto& input = node.get_dependency(0);
         if (node.get_preferred_impl_type() == impl_types::ocl && input.is_type<mvn>()) {
@@ -198,7 +198,7 @@ void prepare_padding::run(program& p) {
     }
 }
 
-cldnn::padding prepare_padding::get_convolution_needed_padding(convolution_node& node) {
+cldnn::padding prepare_padding::get_needed_padding_for_convolution(convolution_node& node) {
     auto conv = node.get_primitive();
     auto conv_layout = node.get_output_layout();
 
