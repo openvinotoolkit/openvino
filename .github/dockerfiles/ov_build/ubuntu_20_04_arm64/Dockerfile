@@ -40,7 +40,7 @@ RUN apt-get update && \
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"
 ENV SCCACHE_HOME="/opt/sccache" \
-    SCCACHE_PATH="${SCCACHE_HOME}/sccache"
+    SCCACHE_PATH="/opt/sccache/sccache"
 
 RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
     SCCACHE_ARCHIVE="sccache-${SCCACHE_VERSION}-aarch64-unknown-linux-musl.tar.gz" && \
