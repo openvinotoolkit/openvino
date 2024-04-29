@@ -10,6 +10,27 @@ namespace {
 using ov::test::MatMulLayerTest;
 using ov::test::utils::InputLayerType;
 
+class GPUMatMulLayerTest : public MatMulLayerTest {
+protected:
+    void SetUp() override {
+        MatMulLayerTest::SetUp();
+        ov::test::MatMulLayerTestParamsSet params = GetParam();
+        std::vector<ov::test::InputShape> shapes;            // Input Shapes
+        std::pair<bool, bool> transpose_type;              // Transpose inputs
+        ov::element::Type model_type;                  // Model type
+        ov::test::utils::InputLayerType input_layer_type;    // Secondary input type
+        std::map<std::string, std::string>  additional_config; // Additional network configuration
+        std::tie(shapes, transpose_type, model_type, input_layer_type, targetDevice, additional_config) = this->GetParam();
+        // Some rounding float to integer types on GPU may differ from CPU, and as result,
+        // the actual values may differ from reference ones on 1 when the float is very close to an integer,
+        // e.g 6,0000023 calculated on CPU may be cast to 5 by OpenCL convert_uchar function.
+        // That is why the threshold is set 1.f for integer types.
+        if (targetDevice == "GPU" && model_type == ov::element::f16) {
+            rel_threshold = 0.005;
+        }
+    }
+};
+
 const std::vector<ov::element::Type> inputPrecisions = {
     ov::element::f32,
     ov::element::f16,
@@ -102,4 +123,29 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMul_BothTranspose, MatMulLayerTest,
                 ::testing::Values(additional_config)),
         MatMulLayerTest::getTestCaseName);
 
+const std::vector<ov::element::Type> fc_f16_inputPrecisions = {
+    ov::element::f16,
+};
+
+std::vector<std::vector<ov::Shape>> fc_f16_shapeRelatedParams = {
+        { {6528, 69}, {69, 136} }, // Check fully_connected_gpu_fb_io_block_fp16 kernel when fp16
+};
+
+std::vector<InputLayerType> fc_f16_secondaryInputTypes = {
+        InputLayerType::CONSTANT,
+};
+
+TEST_P(GPUMatMulLayerTest, CompareWithRefs) {
+    run();
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMul_fc_fb_io_block_f16, GPUMatMulLayerTest,
+        ::testing::Combine(
+                ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(fc_f16_shapeRelatedParams)),
+                ::testing::Values(std::make_pair(false, false)),
+                ::testing::ValuesIn(fc_f16_inputPrecisions),
+                ::testing::ValuesIn(fc_f16_secondaryInputTypes),
+                ::testing::Values(ov::test::utils::DEVICE_GPU),
+                ::testing::Values(additional_config)),
+        MatMulLayerTest::getTestCaseName);
 } // namespace
