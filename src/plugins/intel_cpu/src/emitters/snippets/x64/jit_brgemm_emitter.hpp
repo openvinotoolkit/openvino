@@ -58,7 +58,6 @@ private:
     std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> m_kernel = nullptr;
 
     bool m_with_scratch = false;
-    bool m_with_comp = false;
 
     size_t m_load_offset_a = 0lu;
     size_t m_load_offset_b = 0lu;
