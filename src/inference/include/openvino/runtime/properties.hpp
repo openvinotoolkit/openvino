@@ -1072,8 +1072,17 @@ struct PCIInfo {
 
 /** @cond INTERNAL */
 inline std::ostream& operator<<(std::ostream& os, const PCIInfo& pci_info) {
-    return os << "{ domain: " << pci_info.domain << "; bus: " << pci_info.bus << "; device: " << std::hex
-              << pci_info.device << "; function: " << pci_info.function << " }";
+    return os << "{domain: " << pci_info.domain << " bus: " << pci_info.bus << " device: 0x" << std::hex
+              << pci_info.device << " function: " << std::dec << pci_info.function << "}";
+}
+
+inline std::istream& operator>>(std::istream& is, PCIInfo& pci_info) {
+    std::string delim;
+    if (!(is >> delim >> pci_info.domain >> delim >> pci_info.bus >> delim >> std::hex >> pci_info.device >> delim >>
+          std::dec >> pci_info.function)) {
+        OPENVINO_THROW("Could not deserialize PCIInfo. Invalid format!");
+    }
+    return is;
 }
 /** @endcond */
 
