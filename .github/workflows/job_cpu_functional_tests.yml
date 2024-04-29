@@ -30,9 +30,16 @@ jobs:
       PARALLEL_TEST_SCRIPT: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py
       PARALLEL_TEST_CACHE: ${{ github.workspace }}/install/tests/test_cache.lst
     steps:
-      - name: Set apt retries
+      - name: checkout action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_apt
+
+      - name: Setup apt
         if: runner.os == 'Linux'
-        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+        uses: ./.github/actions/setup_apt
+        if: runner.os == 'Linux'
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v4

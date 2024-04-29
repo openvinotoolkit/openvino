@@ -35,7 +35,7 @@ jobs:
     steps:
       - name: Check sudo
         if: ${{ runner.os == 'Linux' }}
-        run: if [ "$(id -u)" -eq 0 ]; then apt update && apt --assume-yes install sudo; fi
+        run: if [ "$(id -u)" -eq 0 ]; then apt-get update && apt-get install --assume-yes sudo; fi
 
       - name: Set apt retries
         if: runner.os == 'Linux'

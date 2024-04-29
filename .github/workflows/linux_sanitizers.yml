@@ -53,13 +53,20 @@ jobs:
       CC: clang
 
     steps:
-      - name: Set apt retries
-        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+      - name: checkout action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_apt
+            .github/actions/cache
+
+      - name: Setup apt
+        uses: ./.github/actions/setup_apt
 
       - name: Install git
         run: |
           apt-get update
-          apt-get install --assume-yes --no-install-recommends git ca-certificates
+          apt-get install git ca-certificates
 
       - name: Clone OpenVINO
         uses: actions/checkout@v4
@@ -89,7 +96,7 @@ jobs:
       - name: Install build dependencies
         run: |
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
-          apt --assume-yes install clang lld
+          apt-get install clang lld
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./openvino/.github/actions/setup_python
@@ -98,7 +105,6 @@ jobs:
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
-          show-cache-info: 'true'
 
       - name: Install python dependencies
         run: |
@@ -224,8 +230,15 @@ jobs:
       CC: clang
       CXX: clang++
     steps:
-      - name: Set apt retries
-        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+      - name: checkout action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_apt
+            .github/actions/cache
+
+      - name: Setup apt
+        uses: ./.github/actions/setup_apt
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v4
@@ -261,7 +274,7 @@ jobs:
       - name: Install dependencies (Linux)
         run: |
           $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -c=gpu -y
-          apt update && apt --assume-yes install clang lld
+          apt-get update && apt-get install clang lld
 
       - name: Fetch Sanitizer Suppression Lists
         uses: actions/checkout@v4

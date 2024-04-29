@@ -47,14 +47,18 @@ jobs:
           echo "OPENVINO_TOKENIZERS_REPO=$GITHUB_WORKSPACE/openvino_tokenizers" >> "$GITHUB_ENV"
           echo "EXTENSION_BUILD_DIR=$GITHUB_WORKSPACE/build" >> "$GITHUB_ENV"
 
-      - name: checkout action
+      - name: checkout actions
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
             .github/actions/setup_python
+            .github/actions/setup_apt
             .github/actions/cache
             install_build_dependencies.sh
 
+      - name: Setup apt
+        if: runner.os == 'Linux'
+        uses: ./.github/actions/setup_apt
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./.github/actions/setup_python
         with:

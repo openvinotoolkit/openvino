@@ -26,9 +26,15 @@ jobs:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       DEBIAN_PACKAGES_DIR: ${{ github.workspace }}/packages
     steps:
-      - name: Set apt retries
+      - name: checkout action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_apt
+
+      - name: Setup apt
         if: runner.os == 'Linux'
-        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+        uses: ./.github/actions/setup_apt
 
       - name: Download OpenVINO debian packages
         uses: actions/download-artifact@v4

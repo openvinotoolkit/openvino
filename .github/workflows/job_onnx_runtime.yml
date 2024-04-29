@@ -40,9 +40,18 @@ jobs:
       ONNX_RUNTIME_UTILS: ${{ github.workspace }}/install/onnxruntime
       ONNX_RUNTIME_BUILD_DIR: ${{ github.workspace }}/onnxruntime/build
     steps:
-      - name: Set apt retries
+      - name: checkout action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_apt
+
+      - name: Setup apt
         if: runner.os == 'Linux'
-        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+        uses: ./.github/actions/setup_apt
+
+      - name: Setup apt cache
+        if: runner.os == 'Linux'
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v4

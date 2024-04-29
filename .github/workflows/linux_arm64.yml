@@ -82,11 +82,18 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow"
 
     steps:
-      - name: Set apt retries
-        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+      - name: checkout action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_apt
+            .github/actions/cache
+
+      - name: Setup apt
+        uses: ./.github/actions/setup_apt
 
       - name: Install git
-        run: apt-get update && apt-get install --assume-yes --no-install-recommends git ca-certificates
+        run: apt-get update && apt-get install git ca-certificates
 
       - name: Clone OpenVINO
         uses: actions/checkout@v4
@@ -119,14 +126,14 @@ jobs:
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
 
           # default-jdk - Java API
-          apt install --assume-yes --no-install-recommends default-jdk gcc-10 g++-10
+          apt-get install default-jdk gcc-10 g++-10
 
           # Set gcc-10 as a default one
           update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 30
           update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 30
 
           # For building the latest h5py
-          apt install --assume-yes --no-install-recommends libhdf5-dev
+          apt-get install libhdf5-dev
 
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.4
@@ -139,7 +146,6 @@ jobs:
           version: ${{ env.PYTHON_VERSION }}
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'true'
-          show-cache-info: 'true'
 
       - name: Install python dependencies
         run: |

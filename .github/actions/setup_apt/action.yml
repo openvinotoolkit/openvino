@@ -1,0 +1,27 @@
+name: 'Setup apt'
+description: 'Setups apt manager with common options'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set Retry options
+      shell: bash
+      run: |
+        echo 'Acquire::Retries "3";' >> /etc/apt/apt.conf
+
+    - name: Set Install options
+      shell: bash
+      run: |
+        echo 'APT::Get::Assume-Yes "true";' >> /etc/apt/apt.conf
+        echo 'APT::Get::Fix-Broken "true";' >> /etc/apt/apt.conf
+        echo 'APT::Get::no-install-recommends "true";' >> /etc/apt/apt.conf
+
+    - name: Set Cache options
+      shell: bash
+      run: |
+        echo 'APT::Archives::MinAge "2";' >> /etc/apt/apt.conf
+        echo 'APT::Archives::MaxAge "30";' >> /etc/apt/apt.conf
+        echo 'APT::Archives::MaxSize "500";' >> /etc/apt/apt.conf
+        # do not remove deb packages:
+        rm -f /etc/apt/apt.conf.d/docker-clean
+

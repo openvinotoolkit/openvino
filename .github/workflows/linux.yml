@@ -80,8 +80,15 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow"
 
     steps:
-      - name: Set apt retries
-        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+      - name: checkout action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_apt
+            .github/actions/cache
+
+      - name: Setup apt
+        uses: ./.github/actions/setup_apt
 
       - name: Install git
         run: |
@@ -118,7 +125,7 @@ jobs:
         run: |
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
           # default-jdk - Java API
-          apt install --assume-yes --no-install-recommends default-jdk
+          apt-get install default-jdk
 
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.4
@@ -583,8 +590,15 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).NVIDIA
 
     steps:
-      - name: Set apt retries
-        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+      - name: checkout action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_apt
+            .github/actions/cache
+
+      - name: Setup apt
+        uses: ./.github/actions/setup_apt
 
       - name: Fetch install_build_dependencies.sh
         uses: actions/checkout@v4
@@ -595,7 +609,7 @@ jobs:
           path: ${{ env.OPENVINO_REPO }}
 
       - name: Install Prerequisites
-        run: apt update && apt install -y git ca-certificates
+        run: apt-get update && apt-get install git ca-certificates
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v4
@@ -633,7 +647,7 @@ jobs:
       - name: Install build dependencies
         run: |
           ${OPENVINO_REPO}/install_build_dependencies.sh
-          apt -y --no-install-recommends install software-properties-common curl
+          apt-get install software-properties-common curl
 
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.4
@@ -647,8 +661,8 @@ jobs:
 
           apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/3bf863cc.pub
           add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/ /"
-          apt update
-          apt install -y \
+          apt-get update
+          apt-get install \
             libcudnn8=8.9.4.*-1+cuda11.8 \
             libcudnn8-dev=8.9.4.*-1+cuda11.8 \
             libcudnn8-samples=8.9.4.*-1+cuda11.8 \
@@ -711,6 +725,15 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       GTEST_PARALLEL_SCRIPT: ${{ github.workspace }}/gtest_parallel.py
     steps:
+      - name: checkout actions
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_apt
+            .github/actions/cache
+
+      - name: Setup apt
+        uses: ./.github/actions/setup_apt
       - name: Download OpenVINO package
         uses: actions/download-artifact@v4
         with:
@@ -743,7 +766,7 @@ jobs:
         run: |
           $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -c=gpu -y
 
-          apt-get update && apt-get install -y wget software-properties-common ca-certificates gpg-agent tzdata
+          apt-get update && apt-get install wget software-properties-common ca-certificates gpg-agent tzdata
         env:
           DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
           TZ: "Europe/London" # to prevent tzdata from waiting user input

@@ -75,13 +75,20 @@ jobs:
     if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
 
     steps:
-      - name: Set apt retries
-        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+      - name: Checkout local actions
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_apt
+            .github/actions/cache
+
+      - name: Setup apt
+        uses: ./.github/actions/setup_apt
 
       - name: Install git
         run: |
           apt-get update
-          apt-get install --assume-yes --no-install-recommends git ca-certificates git-lfs
+          apt-get install git ca-certificates git-lfs
 
       - name: Clone OpenVINO
         uses: actions/checkout@v4
@@ -113,7 +120,7 @@ jobs:
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
 
           # use clang as a default compiler
-          apt --assume-yes install clang
+          apt-get install --assume-yes clang
           update-alternatives --install /usr/bin/cc cc /usr/bin/clang 100
           update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++ 100
 
@@ -278,11 +285,18 @@ jobs:
       SCCACHE_AZURE_KEY_PREFIX: ubuntu22_x86_64_cc_Release
 
     steps:
-      - name: Set apt retries
-        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+      - name: Checkout local actions
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_apt
+            .github/actions/cache
+
+      - name: Setup apt
+        uses: ./.github/actions/setup_apt
 
       - name: Install git
-        run: apt-get update && apt-get install --assume-yes --no-install-recommends git ca-certificates git-lfs
+        run: apt-get update && apt-get install git ca-certificates git-lfs
 
       - name: Clone OpenVINO
         uses: actions/checkout@v4
