@@ -6,6 +6,7 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/cc/pass/itt.hpp"
 #include "transformations/utils/utils.hpp"
@@ -27,12 +28,12 @@ public:
     TotalSequenceLengthPattern(const std::shared_ptr<ov::op::v0::Parameter>& max_context_len) {
         MATCHER_SCOPE(TotalSequenceLengthPattern);
 
-        auto kv_past = pattern::wrap_type<v3::ReadValue>({pattern::any_input()});
-        auto kv_gather = pattern::wrap_type<v1::Gather>({kv_past, pattern::any_input(), pattern::any_input()});
+        auto kv_past = pattern::wrap_type<v6::ReadValue>({pattern::any_input()});
+        auto kv_gather = pattern::wrap_type<v8::Gather>({kv_past, pattern::any_input(), pattern::any_input()});
         auto kv_current = pattern::any_input();
         auto kv_concat = pattern::wrap_type<v0::Concat>({kv_gather, kv_current});
-        auto kv_shape = pattern::wrap_type<v0::ShapeOf>({kv_concat});
-        auto seq = pattern::wrap_type<v1::Gather>({kv_shape, pattern::any_input(), pattern::any_input()});
+        auto kv_shape = pattern::wrap_type<v3::ShapeOf>({kv_concat});
+        auto seq = pattern::wrap_type<v8::Gather>({kv_shape, pattern::any_input(), pattern::any_input()});
 
         ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
             // TODO: Check that seq has axis that really takes sequence len but not any other dimension -- use symbolic infra or look at the constant input
@@ -47,7 +48,7 @@ public:
                 replacement = max_context_len;
             }
             replace_node(gather, replacement);
-            std::cout << "DETECTED PATTERN TotalSequenceLengthPattern, CONNECTED TO A DEDICATED PARAMETER" << std::endl;
+            // std::cout << "DETECTED PATTERN TotalSequenceLengthPattern, CONNECTED TO A DEDICATED PARAMETER" << std::endl;
             return true;
         };
 

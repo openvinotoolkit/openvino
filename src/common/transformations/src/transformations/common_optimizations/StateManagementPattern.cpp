@@ -9,16 +9,30 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/sqrt.hpp"
 
 using namespace ov::op;
 
 // Exactly copied the function from another file. Maybe should be moved to some general file
 static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> node, const std::string& name) {
-    // Set name for both node and output tensor (should be only one tensor, and any other names will be overriden by a given single name)
-    node->set_friendly_name(name);
-    OPENVINO_ASSERT(node->get_output_size() == 1); // Should I use assert here? I heard using ASSERTS is not the best thing
-    node->get_output_tensor(0).set_names({name});
-    return node;
+   // Set name for both node and output tensor (should be only one tensor, and any other names will be overriden by a given single name)
+   node->set_friendly_name(name);
+   OPENVINO_ASSERT(node->get_output_size() == 1); // Should I use assert here? I heard using ASSERTS is not the best thing
+   node->get_output_tensor(0).set_names({name});
+   return node;
 }
 
 ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_parameters,
@@ -28,9 +42,9 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                                                          NodeVector& assignes_to_remove) {
     MATCHER_SCOPE(StateManagementPattern);
 
-    auto k_past_var = pattern::wrap_type<v3::ReadValue>({pattern::any_input()});
-    auto k_past_par = pattern::wrap_type<v3::ReadValue>();
-    auto k_past = std::make_shared<pattern::op::Or>(OutputVector{pattern::wrap_type<v1::Gather>({k_past_par, pattern::any_input(), pattern::any_input()}), k_past_par});
+    auto k_past_var = pattern::wrap_type<v6::ReadValue>({pattern::any_input()});
+    auto k_past_par = pattern::wrap_type<v0::Parameter>();
+    auto k_past = std::make_shared<pattern::op::Or>(OutputVector{pattern::wrap_type<v8::Gather>({k_past_var, pattern::any_input(), pattern::any_input()}), k_past_par});
     k_past = std::make_shared<pattern::op::Or>(OutputVector{k_past, pattern::wrap_type<v1::Transpose>({k_past, pattern::any_input()})}); //Transpose is used when kv-cache is stored in a not usual layout, example: bloom
     auto k_current = pattern::any_input();
     auto k_current2 = pattern::any_input();
@@ -39,20 +53,20 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
 
     size_t layer_index = 0;
 
-    auto kv_shaping = [OV_CAPTURE_CPY_AND_THIS](std::shared_ptr<Node> kv_concat) {
+    auto kv_shaping = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& kv_concat) {
         auto interim = pattern::wrap_type<v1::StridedSlice>({kv_concat, pattern::any_input(), pattern::any_input(), pattern::any_input()});
         interim = pattern::wrap_type<v1::StridedSlice>({interim, pattern::any_input(), pattern::any_input(), pattern::any_input()});
         auto unsqueeze = pattern::wrap_type<v0::Unsqueeze>({std::make_shared<pattern::op::Or>(OutputVector{kv_concat, interim}), pattern::any_input()});
         interim = pattern::wrap_type<v1::StridedSlice>({unsqueeze, pattern::any_input(), pattern::any_input(), pattern::any_input()});
         interim = pattern::wrap_type<v1::StridedSlice>({interim, pattern::any_input(), pattern::any_input(), pattern::any_input()});
-        interim = pattern::wrap_type<v1::Broadcast>({std::make_shared<pattern::op::Or>(OutputVector{unsqueeze, interim}), pattern::any_input()});
+        interim = pattern::wrap_type<v3::Broadcast>({std::make_shared<pattern::op::Or>(OutputVector{unsqueeze, interim}), pattern::any_input()});
         interim = pattern::wrap_type<v1::Reshape>({interim, pattern::any_input()});
         return interim;
     };
 
-    auto v_past_var = pattern::wrap_type<v3::ReadValue>({pattern::any_input()});
+    auto v_past_var = pattern::wrap_type<v6::ReadValue>({pattern::any_input()});
     auto v_past_par = pattern::wrap_type<v0::Parameter>();
-    auto v_past = std::make_shared<pattern::op::Or>(OutputVector{pattern::wrap_type<v1::Gather>({v_past_par, pattern::any_input(), pattern::any_input()}), v_past_par});
+    auto v_past = std::make_shared<pattern::op::Or>(OutputVector{pattern::wrap_type<v8::Gather>({v_past_var, pattern::any_input(), pattern::any_input()}), v_past_par});
     v_past = std::make_shared<pattern::op::Or>(OutputVector{v_past, pattern::wrap_type<v1::Transpose>({v_past, pattern::any_input()})});
     auto v_current = pattern::any_input();
     auto v_current2 = pattern::any_input();
@@ -74,7 +88,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
 
     // Optional pattern to capture alibi slopes (based on pattern from bloom)
     auto alibi = pattern::any_input();
-    auto sdpa_mask = pattern::wrap_type<v1::Multiply>({pattern::any_input(), alibi});
+    auto sdpa_mask = pattern::wrap_type<v1::Multiply>({pattern::any_input(), alibi}); // apply input position_ids
     sdpa_mask = pattern::wrap_type<v1::Reshape>({sdpa_mask, pattern::any_input()});
     sdpa_mask = pattern::wrap_type<v1::Reshape>({sdpa_mask, pattern::any_input()});
     sdpa_mask = pattern::wrap_type<v1::Select>({pattern::any_input(), pattern::any_input(), sdpa_mask});
@@ -87,8 +101,11 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         std::make_shared<pattern::op::Or>(OutputVector{sdpa_mask, pattern::any_input()})
     });
 
+    std::cout << "OOO" << std::endl;
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS, &kv_parameters, &model_remaining_params, &sliding_window, &parameters_to_remove, &assignes_to_remove, &layer_index](ov::pass::pattern::Matcher& m) {
+    // ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         std::cout << "____" << matcher_name << "___Matched___" << std::endl;
+
         const auto& pattern_map = m.get_pattern_value_map();
         if (pattern_map.find(sdpa) == pattern_map.end()) {
             return false;
@@ -116,41 +133,41 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         layer_index += 1;
         kv_parameters.push_back(k_parameter);
         kv_parameters.push_back(v_parameter);
-        auto kv_transpose_order = v0::Constant::create(element::i32, Shape{4}, {0, 2, 1, 3});
+        auto kv_transpose_order = v0::Constant::create(element::i64, Shape{4}, {0, 2, 1, 3});
         auto q_transpose = std::make_shared<v1::Transpose>(real_q, kv_transpose_order);
-        auto q_reshape = std::make_shared<v1::Reshape>(q_transpose, v0::Constant::create(element::i32, Shape{3}, {0, 0, -1}), true);
+        auto q_reshape = std::make_shared<v1::Reshape>(q_transpose, v0::Constant::create(element::i64, Shape{3}, {0, 0, -1}), true);
 
         std::shared_ptr<Node> k_transpose_order = kv_transpose_order; // eeeh, is it a right way to assign Constants? Maybe I should clone somehow?
         if (pattern_map.find(k_order) != pattern_map.end()) { // reapply transpose found in the graph by manipulating of indices of our Transpose
-            k_transpose_order = std::make_shared<v1::Gather>(pattern_map.at(v_order), kv_transpose_order, v0::Constant::create(element::i32, Shape{}, {0}));
+            k_transpose_order = std::make_shared<v8::Gather>(pattern_map.at(v_order), kv_transpose_order, v0::Constant::create(element::i64, Shape{}, {0}));
         }
         auto k_transpose = std::make_shared<v1::Transpose>(real_k, k_transpose_order);
-        auto k_reshape = std::make_shared<v1::Reshape>(k_transpose, v0::Constant::create(element::i32, Shape{3}, {0, 0, -1}), true);
+        auto k_reshape = std::make_shared<v1::Reshape>(k_transpose, v0::Constant::create(element::i64, Shape{3}, {0, 0, -1}), true);
 
         std::shared_ptr<Node> v_transpose_order = kv_transpose_order; // eeeh, is it a right way to assign Constants? Maybe I should clone somehow?
         if (pattern_map.find(v_order) != pattern_map.end()) { // reapply transpose found in the graph by manipulating of indices of our Transpose
-            v_transpose_order = std::make_shared<v1::Gather>(pattern_map.at(v_order), kv_transpose_order, v0::Constant::create(element::i32, Shape{}, {0}));
+            v_transpose_order = std::make_shared<v8::Gather>(pattern_map.at(v_order), kv_transpose_order, v0::Constant::create(element::i64, Shape{}, {0}));
         }
         auto v_transpose = std::make_shared<v1::Transpose>(real_v, v_transpose_order);
-        auto v_reshape = std::make_shared<v1::Reshape>(v_transpose, v0::Constant::create(element::i32, Shape{3}, {0, 0, -1}), true);
+        auto v_reshape = std::make_shared<v1::Reshape>(v_transpose, v0::Constant::create(element::i64, Shape{3}, {0, 0, -1}), true);
 
         // TODO: Detect whether SDPA in the model graph has `scale` argument set and use it instead of the computed scale below
         // Most likely `scale` will always be a constant in real inference, but dynamic dimension propagation may not always derive it as a constant
         // That's why a sub-graph computing `scale` is built instead of just a constant node.
         auto hidden_shape = std::make_shared<v0::ShapeOf>(real_q);
-        auto hidden_dim = std::make_shared<v1::Gather>(hidden_shape, v0::Constant::create(element::i32, Shape{}, {-1}), v0::Constant::create(element::i32, Shape{}, {0}));
+        auto hidden_dim = std::make_shared<v8::Gather>(hidden_shape, v0::Constant::create(element::i64, Shape{}, {-1}), v0::Constant::create(element::i64, Shape{}, {0}));
         
         auto scale = std::make_shared<v1::Divide>(v0::Constant::create(element::f32, Shape{}, {1}), std::make_shared<v0::Sqrt>(std::make_shared<v0::Convert>(hidden_dim, element::f32)));
 
         std::shared_ptr<Node> alibi_slopes;
         if (pattern_map.find(alibi) != pattern_map.end()) {
             std::cout << "alibi slopes applied" << std::endl;
-            alibi_slopes = std::make_shared<v1::Reshape>(pattern_map.at(alibi), v0::Constant::create(element::i32, Shape{1}, {-1}), false); //here {-1} is interesting in Python TODO: discuss
+            alibi_slopes = std::make_shared<v1::Reshape>(pattern_map.at(alibi), v0::Constant::create(element::i64, Shape{1}, {-1}), false); //here {-1} is interesting in Python TODO: discuss
             if (alibi_slopes->get_element_type() == element::f32) {
                 alibi_slopes = std::make_shared<v0::Convert>(alibi_slopes, element::f32); //todo
             }
         } else {
-            alibi_slopes = v0::Constant::create(element::f32, Shape{1}, {}); // correctly created?
+            alibi_slopes = v0::Constant::create(element::f32, Shape{0}, {}); // correctly created?
         }
 
         OutputVector params = {
@@ -168,10 +185,10 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(params);
 
         auto pa_shape = std::make_shared<v0::Concat>(OutputVector{
-            v0::Constant::create(element::i32, Shape{1}, {0}),
-            v0::Constant::create(element::i32, Shape{1}, {0}),
-            v0::Constant::create(element::i32, Shape{1}, {-1}),
-            std::make_shared<v0::Unsqueeze>(hidden_dim, v0::Constant::create(element::i32, Shape{}, {0})),
+            v0::Constant::create(element::i64, Shape{1}, {0}),
+            v0::Constant::create(element::i64, Shape{1}, {0}),
+            v0::Constant::create(element::i64, Shape{1}, {-1}),
+            std::make_shared<v0::Unsqueeze>(hidden_dim, v0::Constant::create(element::i64, Shape{}, {0})),
         }, 0);
         auto pa_reshape = std::make_shared<v1::Reshape>(paged_attention, pa_shape, true);
         auto pa_transpose = std::make_shared<v1::Transpose>(pa_reshape, kv_transpose_order);
@@ -216,7 +233,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         add_assign_consumers(std::make_shared<ov::Output<Node>>(pattern_map.at(v_concat)));
 
         replace_node(m.get_match_root(), pa_transpose);
-        std::cout << "INSERTED PageAttentionExtension" << std::endl;
+        // std::cout << "INSERTED PageAttentionExtension" << std::endl;
         return true;
     };
 

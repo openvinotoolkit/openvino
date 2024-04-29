@@ -9,6 +9,8 @@
 #include "openvino/cc/pass/itt.hpp"
 #include "transformations/utils/utils.hpp"
 #include "transformations_visibility.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/shape_of.hpp"
 
 namespace ov {
 namespace pass {
@@ -26,10 +28,10 @@ public:
     PrevSequenceLengthPattern(const std::shared_ptr<ov::op::v1::Subtract>& prev_max_seq_len) {
         MATCHER_SCOPE(PrevSequenceLengthPattern);
  
-        auto kv_past = pattern::wrap_type<v3::ReadValue>({pattern::any_input()});
-        auto kv_gather = pattern::wrap_type<v1::Gather>({kv_past, pattern::any_input(), pattern::any_input()});
+        auto kv_past = pattern::wrap_type<v6::ReadValue>({pattern::any_input()});
+        auto kv_gather = pattern::wrap_type<v8::Gather>({kv_past, pattern::any_input(), pattern::any_input()});
         auto kv_shape = pattern::wrap_type<v0::ShapeOf>({kv_gather});
-        auto seq = pattern::wrap_type<v1::Gather>({kv_past, pattern::any_input(), pattern::any_input()});
+        auto seq = pattern::wrap_type<v8::Gather>({kv_past, pattern::any_input(), pattern::any_input()});
  
         ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         std::cout << "____" << matcher_name << "___Matched___" << std::endl;
@@ -38,13 +40,13 @@ public:
             auto target_type = gather->get_output_element_type(0);
             std::shared_ptr<Node> replacement;
             if (prev_max_seq_len->get_output_element_type(0) != target_type) {
-                std::cout << "Converting " << prev_max_seq_len->get_output_element_type(0) << " of max_context_len to " << target_type << std::endl;
+                // std::cout << "Converting " << prev_max_seq_len->get_output_element_type(0) << " of max_context_len to " << target_type << std::endl;
                 replacement = std::make_shared<v0::Convert>(prev_max_seq_len, target_type);
             } else {
                 replacement = prev_max_seq_len;
             }
             replace_node(gather, replacement);
-            std::cout << "DETECTED PATTERN PrevSequenceLengthPattern, CONNECTED TO A DEDICATED PARAMETER" << std::endl;
+            // std::cout << "DETECTED PATTERN PrevSequenceLengthPattern, CONNECTED TO A DEDICATED PARAMETER" << std::endl;
             return true;
         };
  

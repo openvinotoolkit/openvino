@@ -38,11 +38,11 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         setName(std::make_shared<v0::Parameter>(element::i64, PartialShape{-1}), "context_lens"), // context_lens
         setName(std::make_shared<v0::Parameter>(element::i64, PartialShape{-1, -1}), "block_tables"), // block_tables
     };
-    auto sliding_window = v0::Constant::create(element::i32, Shape{1}, {0}); // sliding_window
+    auto sliding_window = v0::Constant::create(element::i32, Shape{}, {0}); // sliding_window
 
     auto cur_seq_len = std::make_shared<v1::Gather>(std::make_shared<v3::ShapeOf>(model->input("input_ids")),
-                                                    v0::Constant::create(element::i32, Shape{}, {1}),
-                                                    v0::Constant::create(element::i32, Shape{}, {0}));
+                                                    v0::Constant::create(element::i64, Shape{}, {1}),
+                                                    v0::Constant::create(element::i64, Shape{}, {0}));
     auto prev_max_seq_len = std::make_shared<v1::Subtract>(max_context_len, cur_seq_len);
 
     auto has_parameter = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<ov::Model>& model, const std::string& name) -> bool {
@@ -63,7 +63,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     ParameterVector kv_parameters;
     std::vector<std::shared_ptr<Node>> assignes_to_remove; // not really used
     ParameterVector parameters_to_remove;
-    ResultVector results_to_remove; // used, but cannot really track all Results in stateless model
+    ResultVector results_to_remove; // # used, but cannot really track all Results in stateless model
 
     if (!has_parameter(model, "position_ids")) {
         auto position_ids = setName(std::make_shared<v0::Parameter>(element::i64, PartialShape{-1, -1}), "position_ids"); // position_ids
@@ -74,14 +74,15 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     ov::pass::Manager manager;
     manager.set_per_pass_validation(false);
-    manager.register_pass<StateManagementPattern>(kv_parameters, model_remaining_params, sliding_window, parameters_to_remove, assignes_to_remove);
+    manager.register_pass<StateManagementPattern>(kv_parameters, model_remaining_params, sliding_window,
+                                                  parameters_to_remove, assignes_to_remove);
     manager.register_pass<PrevSequenceLengthPattern>(prev_max_seq_len);
     manager.register_pass<TotalSequenceLengthPattern>(max_context_len);
 
     manager.register_pass<PositionIDsReplacer>(position_ids);
 
-    bool rp = manager.run_passes(model);
-    std::cout << "Run passes: " << int(rp) << std::endl;
+    manager.run_passes(model);
+    std::cout << "Run passes: " << std::endl;
 
     if (has_parameter(model, "beam_idx")) {
         if (const auto& parameter = std::dynamic_pointer_cast<v0::Parameter>(model->input("beam_idx").get_node_shared_ptr())) {

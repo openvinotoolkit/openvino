@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/cc/pass/itt.hpp"
@@ -31,13 +32,13 @@ public:
         MATCHER_SCOPE(PositionIDsReplacer);
 
         auto input_ids = pattern::any_input();
-        auto input_embed = pattern::wrap_type<v1::Gather>({pattern::any_input(), input_ids, pattern::any_input()});
+        auto input_embed = pattern::wrap_type<v8::Gather>({pattern::any_input(), input_ids, pattern::any_input()});
 
         auto position_ids_pattern = pattern::any_input();
         auto offset = pattern::wrap_type<v0::Constant>();
         auto add_offset = pattern::wrap_type<v1::Add>({position_ids_pattern, offset});
         auto convert = pattern::wrap_type<v0::Convert>({add_offset});
-        auto position_embed = pattern::wrap_type<v1::Gather>({pattern::any_input(), convert, pattern::any_input()});
+        auto position_embed = pattern::wrap_type<v8::Gather>({pattern::any_input(), convert, pattern::any_input()});
 
         auto add = pattern::wrap_type<v1::Add>({input_embed, position_embed});
 
