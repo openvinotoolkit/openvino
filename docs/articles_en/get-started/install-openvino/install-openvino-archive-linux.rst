@@ -25,7 +25,7 @@ Install OpenVINO™ Runtime on Linux from an Archive File
        Operating System     CPU    GPU    NPU
       ===================  =====  =====  =====
        Debian9 armhf         V     n/a    n/a
-       Ubuntu18 arm64        V     n/a    n/a
+       Ubuntu20 arm64        V     n/a    n/a
        CentOS7 x86_64        V      V     n/a
        Ubuntu18 x86_64       V      V     n/a
        Ubuntu20 x86_64       V      V      V
@@ -40,7 +40,7 @@ Install OpenVINO™ Runtime on Linux from an Archive File
       :sync: system-requirements
 
       | Full requirement listing is available in:
-      | :doc:`System Requirements Page <../../../about-openvino/system-requirements>`
+      | :doc:`System Requirements Page <../../../about-openvino/release-notes-openvino/system-requirements>`
 
    .. tab-item:: Processor Notes
       :sync: processor-notes
@@ -121,7 +121,7 @@ Step 1: Download and Install the OpenVINO Core Components
 
       cd <user_home>/Downloads
 
-4. Download the `OpenVINO Runtime archive file for your system <https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.0/linux/>`_, extract the files, rename the extracted folder and move it to the desired path:
+4. Download the `OpenVINO Runtime archive file for your system <https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.1/linux/>`_, extract the files, rename the extracted folder and move it to the desired path:
 
    .. tab-set::
 
@@ -136,9 +136,9 @@ Step 1: Download and Install the OpenVINO Core Components
                .. code-block:: sh
 
 
-                  curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.0/linux/l_openvino_toolkit_ubuntu22_2024.0.0.14509.34caeefd078_x86_64.tgz --output openvino_2024.0.0.tgz
-                  tar -xf openvino_2024.0.0.tgz
-                  sudo mv l_openvino_toolkit_ubuntu22_2024.0.0.14509.34caeefd078_x86_64 /opt/intel/openvino_2024.0.0
+                  curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.1/linux/l_openvino_toolkit_ubuntu22_2024.1.0.15008.f4afc983258_x86_64.tgz --output openvino_2024.1.0.tgz
+                  tar -xf openvino_2024.1.0.tgz
+                  sudo mv l_openvino_toolkit_ubuntu22_2024.1.0.15008.f4afc983258_x86_64 /opt/intel/openvino_2024.1.0
 
             .. tab-item:: Ubuntu 20.04
                :sync: ubuntu-20
@@ -146,9 +146,9 @@ Step 1: Download and Install the OpenVINO Core Components
                .. code-block:: sh
 
 
-                  curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.0/linux/l_openvino_toolkit_ubuntu20_2024.0.0.14509.34caeefd078_x86_64.tgz --output openvino_2024.0.0.tgz
-                  tar -xf openvino_2024.0.0.tgz
-                  sudo mv l_openvino_toolkit_ubuntu20_2024.0.0.14509.34caeefd078_x86_64 /opt/intel/openvino_2024.0.0
+                  curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.1/linux/l_openvino_toolkit_ubuntu20_2024.1.0.15008.f4afc983258_x86_64.tgz --output openvino_2024.1.0.tgz
+                  tar -xf openvino_2024.1.0.tgz
+                  sudo mv l_openvino_toolkit_ubuntu20_2024.1.0.15008.f4afc983258_x86_64 /opt/intel/openvino_2024.1.0
 
 
             .. tab-item:: Ubuntu 18.04
@@ -157,9 +157,9 @@ Step 1: Download and Install the OpenVINO Core Components
                .. code-block:: sh
 
 
-                  curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.0/linux/l_openvino_toolkit_ubuntu18_2024.0.0.14509.34caeefd078_x86_64.tgz --output openvino_2024.0.0.tgz
-                  tar -xf openvino_2024.0.0.tgz
-                  sudo mv l_openvino_toolkit_ubuntu18_2024.0.0.14509.34caeefd078_x86_64 /opt/intel/openvino_2024.0.0
+                  curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.1/linux/l_openvino_toolkit_ubuntu18_2024.1.0.15008.f4afc983258_x86_64.tgz --output openvino_2024.1.0.tgz
+                  tar -xf openvino_2024.1.0.tgz
+                  sudo mv l_openvino_toolkit_ubuntu18_2024.1.0.15008.f4afc983258_x86_64 /opt/intel/openvino_2024.1.0
 
             .. tab-item:: RHEL 8
                :sync: rhel-8
@@ -167,18 +167,18 @@ Step 1: Download and Install the OpenVINO Core Components
                .. code-block:: sh
 
 
-                  curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.0/linux/l_openvino_toolkit_rhel8_2024.0.0.14509.34caeefd078_x86_64.tgz --output openvino_2024.0.0.tgz
-                  tar -xf openvino_2024.0.0.tgz
-                  sudo mv l_openvino_toolkit_rhel8_2024.0.0.14509.34caeefd078_x86_64 /opt/intel/openvino_2024.0.0
+                  curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.1/linux/l_openvino_toolkit_rhel8_2024.1.0.15008.f4afc983258_x86_64.tgz --output openvino_2024.1.0.tgz
+                  tar -xf openvino_2024.1.0.tgz
+                  sudo mv l_openvino_toolkit_rhel8_2024.1.0.15008.f4afc983258_x86_64 /opt/intel/openvino_2024.1.0
 
             .. tab-item:: CentOS 7
                :sync: centos-7
 
                .. code-block:: sh
 
-                  curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.0/linux/l_openvino_toolkit_centos7_2024.0.0.14509.34caeefd078_x86_64.tgz --output openvino_2024.0.0.tgz
-                  tar -xf openvino_2024.0.0.tgz
-                  sudo mv l_openvino_toolkit_centos7_2024.0.0.14509.34caeefd078_x86_64 /opt/intel/openvino_2024.0.0
+                  curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.1/linux/l_openvino_toolkit_centos7_2024.1.0.15008.f4afc983258_x86_64.tgz --output openvino_2024.1.0.tgz
+                  tar -xf openvino_2024.1.0.tgz
+                  sudo mv l_openvino_toolkit_centos7_2024.1.0.15008.f4afc983258_x86_64 /opt/intel/openvino_2024.1.0
 
 
       .. tab-item:: ARM 64-bit
@@ -187,25 +187,25 @@ Step 1: Download and Install the OpenVINO Core Components
          .. code-block:: sh
 
 
-            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.0/linux/l_openvino_toolkit_ubuntu18_2024.0.0.14509.34caeefd078_arm64.tgz -O openvino_2024.0.0.tgz
-            tar -xf openvino_2024.0.0.tgz
-            sudo mv l_openvino_toolkit_ubuntu18_2024.0.0.14509.34caeefd078_arm64 /opt/intel/openvino_2024.0.0
+            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.1/linux/l_openvino_toolkit_ubuntu20_2024.1.0.15008.f4afc983258_arm64.tgz -O openvino_2024.1.0.tgz
+            tar -xf openvino_2024.1.0.tgz
+            sudo mv l_openvino_toolkit_ubuntu20_2024.1.0.15008.f4afc983258_arm64 /opt/intel/openvino_2024.1.0
 
       .. tab-item:: ARM 32-bit
          :sync: arm-32
 
          .. code-block:: sh
 
-            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.0/linux/l_openvino_toolkit_debian9_2024.0.0.14509.34caeefd078_armhf.tgz -O openvino_2024.0.0.tgz
-            tar -xf openvino_2024.0.0.tgz
-            sudo mv l_openvino_toolkit_debian9_2024.0.0.14509.34caeefd078_armhf /opt/intel/openvino_2024.0.0
+            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.1/linux/l_openvino_toolkit_debian9_2024.1.0.15008.f4afc983258_armhf.tgz -O openvino_2024.1.0.tgz
+            tar -xf openvino_2024.1.0.tgz
+            sudo mv l_openvino_toolkit_debian9_2024.1.0.15008.f4afc983258_armhf /opt/intel/openvino_2024.1.0
 
 
 5. Install required system dependencies on Linux. To do this, OpenVINO provides a script in the extracted installation directory. Run the following command:
 
    .. code-block:: sh
 
-      cd /opt/intel/openvino_2024.0.0
+      cd /opt/intel/openvino_2024.1.0
       sudo -E ./install_dependencies/install_openvino_dependencies.sh
 
 6. (Optional) Install *numpy* Python Library:
@@ -214,11 +214,11 @@ Step 1: Download and Install the OpenVINO Core Components
 
       This step is required only when you decide to use Python API.
 
-   You can use the ``requirements.txt`` file from the ``/opt/intel/openvino_2024.0.0/python`` folder:
+   You can use the ``requirements.txt`` file from the ``/opt/intel/openvino_2024.1.0/python`` folder:
 
    .. code-block:: sh
 
-      cd /opt/intel/openvino_2024.0.0
+      cd /opt/intel/openvino_2024.1.0
       python3 -m pip install -r ./python/requirements.txt
 
 7. For simplicity, it is useful to create a symbolic link as below:
@@ -227,7 +227,7 @@ Step 1: Download and Install the OpenVINO Core Components
 
       cd /opt/intel
 
-      sudo ln -s openvino_2024.0.0 openvino_2024
+      sudo ln -s openvino_2024.1.0 openvino_2024
 
    .. note::
       If you have already installed a previous release of OpenVINO 2024, a symbolic link to the ``openvino_2024`` folder may already exist.

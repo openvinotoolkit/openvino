@@ -502,7 +502,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, deconv_actv_eltw_actv, ::testing::ValuesIn
     deconv_test_params{ CASE_DECONV_FP32_7, 2, 2, 5 },
     deconv_test_params{ CASE_DECONV_FP32_8, 2, 2, 5 },
 
-    deconv_test_params{ CASE_DECONV_FP16_1, 3, 3, 5 },
+    deconv_test_params{ CASE_DECONV_FP16_1, 3, 2, 5 },
     deconv_test_params{ CASE_DECONV_FP16_2, 2, 2, 5 },
     deconv_test_params{ CASE_DECONV_FP16_3, 2, 2, 5 },
     deconv_test_params{ CASE_DECONV_FP16_4, 2, 2, 5 },

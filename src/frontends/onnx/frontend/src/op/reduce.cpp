@@ -185,6 +185,7 @@ ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceSum>(node, square_node, supported_types_v1)};
 }
 }  // namespace set_1
+
 /*
     Opset 11 is skipped because there are no significant difference between opset1 and opset 11.
     Found difference is:
@@ -198,20 +199,32 @@ namespace set_13 {
 ov::OutputVector reduce_sum(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), supported_types_v2, false)};
 }
+ov::OutputVector reduce_l2(const Node& node) {
+    return {make_ov_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0), supported_types_v2)};
+}
 ov::OutputVector reduce_max(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceMax>(node, node.get_ov_inputs().at(0), supported_types_v3)};
 }
 ov::OutputVector reduce_mean(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceMean>(node, node.get_ov_inputs().at(0), supported_types_v2)};
 }
+ov::OutputVector reduce_min(const ov::frontend::onnx::Node& node) {
+    return {make_ov_reduction_op<v1::ReduceMin>(node, node.get_ov_inputs().at(0), supported_types_v3)};
+}
 }  // namespace set_13
 
 namespace set_18 {
+ov::OutputVector reduce_l2(const Node& node) {
+    return {make_ov_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0), supported_types_v2, false)};
+}
 ov::OutputVector reduce_max(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceMax>(node, node.get_ov_inputs().at(0), supported_types_v3, false)};
 }
 ov::OutputVector reduce_mean(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceMean>(node, node.get_ov_inputs().at(0), supported_types_v2, false)};
+}
+ov::OutputVector reduce_min(const ov::frontend::onnx::Node& node) {
+    return {make_ov_reduction_op<v1::ReduceMin>(node, node.get_ov_inputs().at(0), supported_types_v3, false)};
 }
 ov::OutputVector reduce_log_sum(const ov::frontend::onnx::Node& node) {
     const ov::Output<ov::Node> sum_node =
@@ -229,6 +242,21 @@ ov::OutputVector reduce_max(const ov::frontend::onnx::Node& node) {
         // Handling boolean as a uint8
         return {std::make_shared<v0::Convert>(
             make_ov_reduction_op<v1::ReduceMax>(node,
+                                                std::make_shared<ov::op::v0::Convert>(data, element::u8),
+                                                supported_types_v4,
+                                                false),
+            element::boolean)};
+    }
+}
+
+ov::OutputVector reduce_min(const ov::frontend::onnx::Node& node) {
+    auto data = node.get_ov_inputs().at(0);
+    if (data.get_element_type() != element::boolean) {
+        return {make_ov_reduction_op<v1::ReduceMin>(node, data, supported_types_v3, false)};
+    } else {
+        // Handling boolean as a uint8
+        return {std::make_shared<v0::Convert>(
+            make_ov_reduction_op<v1::ReduceMin>(node,
                                                 std::make_shared<ov::op::v0::Convert>(data, element::u8),
                                                 supported_types_v4,
                                                 false),
