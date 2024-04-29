@@ -15,7 +15,6 @@
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/variable.hpp"
-#include "openvino/core/descriptor/tensor.hpp"
 
 TEST(GraphComparatorTests, AllEnablePositiveCheck) {
     FunctionsComparator comparator(FunctionsComparator::no_default());
@@ -698,73 +697,4 @@ TEST(GraphComparatorTests, CheckConsumersCountNegative) {
     comparator.enable(FunctionsComparator::NODES).enable(FunctionsComparator::CONSUMERS_COUNT);
     auto res = comparator.compare(function, function_ref);
     ASSERT_FALSE(res.valid) << res.message;
-}
-
-
-TEST(GraphComparatorTests, InOutNodesOnlyFullModel) {
-    FunctionsComparator comparator(FunctionsComparator::no_default());
-    std::shared_ptr<ov::Model> function, function_ref;
-    {
-        auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 2});
-        auto param2 = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 2});
-        auto add = std::make_shared<ov::op::v1::Add>(param1, param2);
-        function_ref = std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{param1, param2});
-        function = function_ref->clone();
-    }
-    comparator.enable(FunctionsComparator::IN_OUT_NODES_ONLY)
-        .enable(FunctionsComparator::CONST_VALUES)
-        .enable(FunctionsComparator::PRECISIONS)
-        .enable(FunctionsComparator::TENSOR_NAMES);
-
-    auto res = comparator.compare(function, function_ref);
-    ASSERT_TRUE(res.valid) << res.message;
-}
-
-
-TEST(GraphComparatorTests, InOutNodesOnlyDummyModel) {
-    FunctionsComparator comparator(FunctionsComparator::no_default());
-    std::shared_ptr<ov::Model> function, function_ref;
-    {
-        auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 2});
-        param1->set_friendly_name("param1");
-        auto param2 = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 2});
-        param2->set_friendly_name("param2");
-        auto add = std::make_shared<ov::op::v1::Add>(param1, param2);
-        function_ref = std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{param1, param2});
-    }
-    {
-        ov::ParameterVector params;
-        ov::NodeVector results;
-        for (const auto& param : function_ref->get_parameters()) {
-            std::shared_ptr<ov::op::v0::Parameter> parameter =
-                std::make_shared<ov::op::v0::Parameter>(param->get_element_type(), param->get_partial_shape());
-            parameter->set_friendly_name(param->get_friendly_name());
-            parameter->output(0).get_tensor().set_names(param->output(0).get_tensor().get_names());
-            params.push_back(parameter);
-        }
-
-        for (const auto& res : function_ref->get_results()) {
-            std::shared_ptr<ov::Node> constantDummy =
-                std::make_shared<ov::op::v0::Constant>(res->get_element_type(), std::vector<size_t>{1});
-            constantDummy->set_friendly_name(res->get_friendly_name());
-
-            const std::shared_ptr<ov::descriptor::Tensor>& tensorDummy =
-                std::make_shared<ov::descriptor::Tensor>(res->get_element_type(),
-                                                        res->input(0).get_partial_shape(),
-                                                        res->input_value(0).get_tensor_ptr()->get_names());
-
-            std::shared_ptr<ov::Node> result = std::make_shared<ov::op::v0::Result>(constantDummy);
-            result->output(0).set_tensor_ptr(tensorDummy);
-            result->set_friendly_name(res->get_friendly_name());
-            results.push_back(result);
-        }
-        function = std::make_shared<ov::Model>(results, params);
-    }
-    comparator.enable(FunctionsComparator::IN_OUT_NODES_ONLY)
-        .enable(FunctionsComparator::CONST_VALUES)
-        .enable(FunctionsComparator::PRECISIONS)
-        .enable(FunctionsComparator::TENSOR_NAMES);
-
-    auto res = comparator.compare(function, function_ref);
-    ASSERT_TRUE(res.valid) << res.message;
 }
