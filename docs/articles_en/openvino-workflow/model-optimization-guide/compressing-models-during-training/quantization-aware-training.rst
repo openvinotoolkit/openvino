@@ -228,7 +228,7 @@ required in this case. For more details, see the corresponding :doc:`documentati
 Examples
 ####################
 
-* `Quantizing PyTorch model with NNCF <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/302-pytorch-quantization-aware-training>`__
+* `Quantizing PyTorch model with NNCF <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/pytorch-quantization-aware-training>`__
 
-* `Quantizing TensorFlow model with NNCF <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/305-tensorflow-quantization-aware-training>`__
+* `Quantizing TensorFlow model with NNCF <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/tensorflow-quantization-aware-training>`__
 

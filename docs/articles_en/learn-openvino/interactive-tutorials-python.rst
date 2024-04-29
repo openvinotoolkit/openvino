@@ -43,7 +43,7 @@ on how to run and manage the notebooks on your system.
 Additional Resources
 ######################
 
-* `OpenVINO™ Notebooks - Github Repository <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/README.md>`_
+* `OpenVINO™ Notebooks - Github Repository <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md>`_
 * `Binder documentation <https://mybinder.readthedocs.io/en/latest/>`_
 * `Google Colab <https://colab.research.google.com/>`__
 

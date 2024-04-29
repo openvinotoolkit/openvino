@@ -175,7 +175,7 @@ Installing prerequisites
 
       .. code-block:: sh
 
-         :caption: Source: https://github.com/openvinotoolkit/openvino_notebooks/blob/main/Dockerfile
+         :caption: Source: https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/Dockerfile
 
          FROM quay.io/thoth-station/s2i-thoth-ubi8-py38:v0.29.0
 
@@ -485,7 +485,7 @@ If you want to launch only one notebook, such as the *Monodepth* notebook, run t
 
 .. code:: bash
 
-   jupyter lab notebooks/201-vision-monodepth/201-vision-monodepth.ipynb
+   jupyter lab notebooks/vision-monodepth/vision-monodepth.ipynb
 
 Launch All Notebooks
 ++++++++++++++++++++
@@ -605,7 +605,7 @@ or create an
 Additional Resources
 ####################
 
-* `OpenVINO™ Notebooks - Github Repository <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/README.md>`_
+* `OpenVINO™ Notebooks - Github Repository <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md>`_
 
 
 .. |launch-jupyter| image:: https://user-images.githubusercontent.com/15709723/120527271-006fd200-c38f-11eb-9935-2d36d50bab9f.gif
