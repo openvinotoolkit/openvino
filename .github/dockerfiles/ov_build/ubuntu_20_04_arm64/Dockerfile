@@ -31,8 +31,6 @@ RUN apt-get update && \
         python3.11-distutils \
         # For Java API
         default-jdk \
-        # For building the latest h5py
-        libhdf5-dev \
         # Compiler
         gcc-10 \
         g++-10 \
