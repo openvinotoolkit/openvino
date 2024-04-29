@@ -864,6 +864,7 @@ void network::build_insts_deps() {
     GPU_DEBUG_DEFINE_MEM_LOGGER("build_insts_deps");
     for (auto& inst : _primitives) {
         inst.second->build_deps();
+        inst.second->init_users();
         inst.second->configure_shape_of_dependencies();
     }
 }
@@ -917,7 +918,6 @@ std::map<primitive_id, network_output> network::execute(const std::vector<event:
     }
     return result;
 }
-
 
 void network::execute_impl(const std::vector<event::ptr>& events) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "NetworkImpl::Execute");
@@ -999,11 +999,11 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         return std::to_string(iter) + "_";
     };
 
-    // This extra flush command is needed for dynamic models in case of out_of_order operating mode since
-    // it reduces `bubbles` number in pipeline and GPU's idle time by timely flushing new kernels to device.
-    // The freqency of flushing (16) is selected empirically, see details in tickets 116365, 116287.
+    // This extra flush command is needed for dynamic models in both cases of out_of_order / in_order operating mode
+    // since it reduces `bubbles` number in pipeline and GPU's idle time by timely flushing new kernels to device.
+    // The freqency of flushing (16) is selected empirically, see details in tickets 116365, 116287, 139931.
     const bool is_out_of_order_queue = get_stream().get_queue_type() == QueueTypes::out_of_order;
-    const bool needs_flushing = _is_dynamic && is_out_of_order_queue;
+    const bool needs_flushing = _is_dynamic;
     const size_t flush_frequency = needs_flushing ? 16 : 0;
     size_t executed_prims = 0;
 

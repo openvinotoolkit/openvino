@@ -21,13 +21,13 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
 set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
 set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
 
-# compile options
+# compile and linker options
 
 if(OV_COMPILER_IS_APPLECLANG)
     add_link_options(-stdlib=libc++)
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+elseif(CMAKE_COMPILER_IS_GNUCXX)
     # WA for GCC 7.5 "PYBIND11_NOINLINE inline" warning
-    add_compile_options(-Wno-error=attributes)
+    ov_add_compiler_flags(-Wno-error=attributes)
 endif()
 
 if(ENABLE_TESTS)
