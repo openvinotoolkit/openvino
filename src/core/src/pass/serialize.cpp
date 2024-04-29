@@ -1271,6 +1271,14 @@ bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ov::Model>& model
     DataHeader hdr = {};
 
     auto writeHeader = [this](const DataHeader& hdr) {
+        printf("[pass][StreamSerialize][run_on_model]\n    custom_data_offset == %zu\n    custom_data_size == %zu\n"
+               "    consts_offset == %zu\n    consts_size == %zu\n    model_offset == %zu\n    model_size == %zu\n",
+               hdr.custom_data_offset,
+               hdr.custom_data_size,
+               hdr.consts_offset,
+               hdr.consts_size,
+               hdr.model_offset,
+               hdr.model_size);
         m_stream.write((const char*)&hdr, sizeof hdr);
     };
     auto version = static_cast<int64_t>(m_version);
@@ -1288,10 +1296,12 @@ bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ov::Model>& model
 
     // Header
     const size_t header_offset = m_stream.tellp();
+    printf("[pass][StreamSerialize][run_on_model] header_offset: %zu\n", header_offset);
     writeHeader(hdr);
 
     // Custom data
     hdr.custom_data_offset = m_stream.tellp();
+    printf("[pass][StreamSerialize][run_on_model] custom_data_offset: %zu\n", hdr.custom_data_offset);
     if (m_custom_data_serializer) {
         m_custom_data_serializer(m_stream);
     }
@@ -1308,14 +1318,14 @@ bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ov::Model>& model
 
     // IR
     hdr.model_offset = m_stream.tellp();
-    if (m_cache_encrypt) {
-        std::stringstream ss;
-        xml_doc.save(ss);
-        auto str_encode = m_cache_encrypt(ss.str());
-        m_stream.write((char*)str_encode.c_str(), str_encode.length());
-    } else {
-        xml_doc.save(m_stream);
-    }
+    // if (m_cache_encrypt) {
+    //     std::stringstream ss;
+    //     xml_doc.save(ss);
+    //     auto str_encode = m_cache_encrypt(ss.str());
+    //     m_stream.write((char*)str_encode.c_str(), str_encode.length());
+    // } else {
+    xml_doc.save(m_stream);
+    // }
     m_stream.flush();
 
     const size_t file_size = m_stream.tellp();

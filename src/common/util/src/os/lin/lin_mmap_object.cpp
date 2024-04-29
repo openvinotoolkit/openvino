@@ -77,6 +77,7 @@ public:
             throw std::runtime_error("Can not get file size for " + path);
         }
         m_size = sb.st_size;
+        printf("[MapHolder] m_size: %zu\n", m_size);
         if (m_size > 0) {
             m_data = mmap(nullptr, m_size, prot, MAP_PRIVATE, m_handle.get(), 0);
             if (m_data == MAP_FAILED) {

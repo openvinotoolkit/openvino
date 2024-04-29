@@ -28,6 +28,13 @@ void ModelStreamDeserializer::parse(std::shared_ptr<ov::Model>& model) {
     StreamSerialize::DataHeader hdr = {};
     m_istream->read(reinterpret_cast<char*>(&hdr), sizeof hdr);
 
+printf("    hdr_pos: %zu; file_size: %zu; consts_offset: %zu; model_offset: %zu\n", _pos, file_size, hdr.consts_offset, hdr.model_offset);
+printf("    custom_data_offset(%zu) == %zu\n    custom_data_size(%zu) == %zu\n    consts_size(%zu) == %zu\n    model_size(%zu) == %zu\n",
+    hdr.custom_data_offset, sizeof(hdr) + _pos,
+    hdr.custom_data_size, hdr.consts_offset - hdr.custom_data_offset,
+    hdr.consts_size, hdr.model_offset - hdr.consts_offset,
+    hdr.model_size, file_size - hdr.model_offset);
+
     // check if model header contains valid data
     bool isValidModel = (hdr.custom_data_offset == sizeof(hdr) + _pos) &&
                         (hdr.custom_data_size == hdr.consts_offset - hdr.custom_data_offset) &&
@@ -61,7 +68,7 @@ void ModelStreamDeserializer::parse(std::shared_ptr<ov::Model>& model) {
     m_istream->seekg(hdr.model_offset);
     xml_string.resize(hdr.model_size);
     m_istream->read(const_cast<char*>(xml_string.c_str()), hdr.model_size);
-    xml_string = ov::util::codec_xor(xml_string);
+    // xml_string = ov::util::codec_xor(xml_string);
 
     model = m_model_builder(xml_string, std::move(data_blob));
 
