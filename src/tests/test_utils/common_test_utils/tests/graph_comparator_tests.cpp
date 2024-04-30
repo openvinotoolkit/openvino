@@ -35,7 +35,7 @@ TEST(GraphComparatorTests, AllEnablePositiveCheck) {
         .enable(FunctionsComparator::TENSOR_NAMES);
 
     auto res = comparator.compare(function, function_ref);
-    ASSERT_TRUE(res.valid) << res.message;
+    ASSERT_TRUE(res.valid);
 }
 
 TEST(GraphComparatorTests, CheckbyDefault) {
@@ -54,7 +54,7 @@ TEST(GraphComparatorTests, CheckbyDefault) {
         function = std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{input});
     }
     auto res = comparator.compare(function, function_ref);
-    ASSERT_FALSE(res.valid) << res.message;
+    ASSERT_FALSE(res.valid);
 }
 
 TEST(GraphComparatorTests, CheckResultsNumber) {
@@ -75,7 +75,7 @@ TEST(GraphComparatorTests, CheckResultsNumber) {
         function = std::make_shared<ov::Model>(ov::ResultVector{result1, result2}, ov::ParameterVector{input});
     }
     auto res = comparator.compare(function, function_ref);
-    ASSERT_FALSE(res.valid) << res.message;
+    ASSERT_FALSE(res.valid);
 }
 
 TEST(GraphComparatorTests, NamesCheckPositive) {
@@ -101,7 +101,7 @@ TEST(GraphComparatorTests, NamesCheckPositive) {
     }
     comparator.enable(FunctionsComparator::NAMES).enable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
-    ASSERT_TRUE(res.valid) << res.message;
+    ASSERT_TRUE(res.valid);
 }
 
 TEST(GraphComparatorTests, NamesCheckNegative) {
@@ -127,7 +127,7 @@ TEST(GraphComparatorTests, NamesCheckNegative) {
     }
     comparator.enable(FunctionsComparator::NAMES).enable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
-    ASSERT_FALSE(res.valid) << res.message;
+    ASSERT_FALSE(res.valid);
 }
 
 TEST(GraphComparatorTests, ConstCheckWithoutEnable) {
@@ -147,7 +147,7 @@ TEST(GraphComparatorTests, ConstCheckWithoutEnable) {
     }
     comparator.enable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
-    ASSERT_TRUE(res.valid) << res.message;
+    ASSERT_TRUE(res.valid);
 }
 
 TEST(GraphComparatorTests, ConstCheckNegative) {
@@ -167,7 +167,7 @@ TEST(GraphComparatorTests, ConstCheckNegative) {
     }
     comparator.enable(FunctionsComparator::CONST_VALUES).enable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
-    ASSERT_FALSE(res.valid) << res.message;
+    ASSERT_FALSE(res.valid);
 }
 
 TEST(GraphComparatorTests, TensorNamesCheckNegative) {
@@ -183,7 +183,7 @@ TEST(GraphComparatorTests, TensorNamesCheckNegative) {
     }
     comparator.enable(FunctionsComparator::TENSOR_NAMES).enable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
-    ASSERT_FALSE(res.valid) << res.message;
+    ASSERT_FALSE(res.valid);
 }
 
 TEST(GraphComparatorTests, TensorNamesCheckWithoutEnable) {
@@ -199,7 +199,7 @@ TEST(GraphComparatorTests, TensorNamesCheckWithoutEnable) {
     }
     comparator.enable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
-    ASSERT_TRUE(res.valid) << res.message;
+    ASSERT_TRUE(res.valid);
 }
 
 TEST(GraphComparatorTests, CheckAttributesNegative) {
@@ -237,7 +237,7 @@ TEST(GraphComparatorTests, CheckAttributesNegative) {
     }
     comparator.enable(FunctionsComparator::ATTRIBUTES).enable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
-    ASSERT_FALSE(res.valid) << res.message;
+    ASSERT_FALSE(res.valid);
 }
 
 TEST(GraphComparatorTests, CheckPrecisionsNegative) {
@@ -257,7 +257,7 @@ TEST(GraphComparatorTests, CheckPrecisionsNegative) {
     }
     comparator.enable(FunctionsComparator::PRECISIONS).enable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
-    ASSERT_FALSE(res.valid) << res.message;
+    ASSERT_FALSE(res.valid);
 }
 
 TEST(GraphComparatorTests, CheckPrecisionsWithoutEnable) {
@@ -277,7 +277,7 @@ TEST(GraphComparatorTests, CheckPrecisionsWithoutEnable) {
     }
     comparator.enable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
-    ASSERT_TRUE(res.valid) << res.message;
+    ASSERT_TRUE(res.valid);
 }
 
 TEST(GraphComparatorTests, CheckRTInfo) {
@@ -298,7 +298,7 @@ TEST(GraphComparatorTests, CheckRTInfo) {
     }
     comparator.enable(FunctionsComparator::RUNTIME_KEYS).enable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
-    ASSERT_FALSE(res.valid) << res.message;
+    ASSERT_FALSE(res.valid);
 }
 
 TEST(GraphComparatorTests, CheckRTInfoReverse) {
@@ -319,7 +319,7 @@ TEST(GraphComparatorTests, CheckRTInfoReverse) {
     }
     comparator.enable(FunctionsComparator::RUNTIME_KEYS).enable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
-    ASSERT_TRUE(res.valid) << res.message;
+    ASSERT_TRUE(res.valid);
 }
 
 TEST(GraphComparatorTests, CheckRTInfoInput) {
@@ -340,7 +340,7 @@ TEST(GraphComparatorTests, CheckRTInfoInput) {
     }
     comparator.enable(FunctionsComparator::RUNTIME_KEYS).enable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
-    ASSERT_FALSE(res.valid) << res.message;
+    ASSERT_FALSE(res.valid);
 }
 
 TEST(GraphComparatorTests, CheckRTInfoOutput) {
@@ -361,7 +361,7 @@ TEST(GraphComparatorTests, CheckRTInfoOutput) {
     }
     comparator.enable(FunctionsComparator::RUNTIME_KEYS).enable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
-    ASSERT_FALSE(res.valid) << res.message;
+    ASSERT_FALSE(res.valid);
 }
 
 TEST(GraphComparatorTests, CheckTensorIteratorPositive) {
@@ -407,7 +407,7 @@ TEST(GraphComparatorTests, CheckTensorIteratorPositive) {
     comparator.enable(FunctionsComparator::NODES);
     comparator.enable(FunctionsComparator::SUBGRAPH_DESCRIPTORS);
     auto res = comparator.compare(function, function_ref);
-    ASSERT_TRUE(res.valid) << res.message;
+    ASSERT_TRUE(res.valid);
 }
 
 namespace {
@@ -460,7 +460,7 @@ TEST(GraphComparatorTests, CheckLoopPositive) {
     comparator.enable(FunctionsComparator::NODES);
     comparator.enable(FunctionsComparator::SUBGRAPH_DESCRIPTORS);
     const auto res = comparator.compare(function, function_ref);
-    ASSERT_TRUE(res.valid) << res.message;
+    ASSERT_TRUE(res.valid);
 }
 
 TEST(GraphComparatorTests, CheckLoopNegative) {
@@ -502,7 +502,7 @@ TEST(GraphComparatorTests, CheckSinksPositive) {
     }
     comparator.enable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
-    ASSERT_TRUE(res.valid) << res.message;
+    ASSERT_TRUE(res.valid);
 }
 
 TEST(GraphComparatorTests, CheckSinksNegative) {
@@ -553,7 +553,7 @@ TEST(GraphComparatorTests, CheckSinksNegative) {
     }
     comparator.enable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
-    ASSERT_FALSE(res.valid) << res.message;
+    ASSERT_FALSE(res.valid);
 }
 
 TEST(GraphComparatorTests, DisableCheck) {
@@ -569,7 +569,7 @@ TEST(GraphComparatorTests, DisableCheck) {
     comparator.enable(FunctionsComparator::NODES);
     comparator.disable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
-    ASSERT_FALSE(res.valid) << res.message;
+    ASSERT_FALSE(res.valid);
 }
 
 TEST(GraphComparatorTests, CheckAccuracyPositive) {
@@ -589,7 +589,7 @@ TEST(GraphComparatorTests, CheckAccuracyPositive) {
     }
     comparator.enable(FunctionsComparator::ACCURACY);
     auto res = comparator.compare(function, function_ref);
-    ASSERT_TRUE(res.valid) << res.message;
+    ASSERT_TRUE(res.valid);
 }
 
 TEST(GraphComparatorTests, CheckAccuracyNegative) {
@@ -609,7 +609,7 @@ TEST(GraphComparatorTests, CheckAccuracyNegative) {
     }
     comparator.enable(FunctionsComparator::ACCURACY);
     auto res = comparator.compare(function, function_ref);
-    ASSERT_FALSE(res.valid) << res.message;
+    ASSERT_FALSE(res.valid);
 }
 
 TEST(GraphComparatorTests, CheckAccuracyNotEnabled) {
@@ -647,7 +647,7 @@ TEST(GraphComparatorTests, CheckAccuracyNotEnabled) {
     }
     comparator.enable(FunctionsComparator::NODES);
     auto res = comparator.compare(function, function_ref);
-    ASSERT_TRUE(res.valid) << res.message;
+    ASSERT_TRUE(res.valid);
 }
 
 TEST(GraphComparatorTests, CheckConsumersCountPositive) {
@@ -671,7 +671,7 @@ TEST(GraphComparatorTests, CheckConsumersCountPositive) {
     }
     comparator.enable(FunctionsComparator::NODES).enable(FunctionsComparator::CONSUMERS_COUNT);
     auto res = comparator.compare(function, function_ref);
-    ASSERT_TRUE(res.valid) << res.message;
+    ASSERT_TRUE(res.valid);
 }
 
 TEST(GraphComparatorTests, CheckConsumersCountNegative) {
@@ -696,5 +696,5 @@ TEST(GraphComparatorTests, CheckConsumersCountNegative) {
     }
     comparator.enable(FunctionsComparator::NODES).enable(FunctionsComparator::CONSUMERS_COUNT);
     auto res = comparator.compare(function, function_ref);
-    ASSERT_FALSE(res.valid) << res.message;
+    ASSERT_FALSE(res.valid);
 }
