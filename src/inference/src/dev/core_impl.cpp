@@ -1418,21 +1418,21 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
             try {
                 ov::CompiledBlobHeader header;
                 networkStream >> header;
-                if (header.getFileInfo() != ov::ModelCache::calculate_file_info(cacheContent.modelPath)) {
+                if (header.get_file_info() != ov::ModelCache::calculate_file_info(cacheContent.modelPath)) {
                     // Original file is changed, don't use cache
                     OPENVINO_THROW("Original model file is changed");
                 }
                 if (util::contains(plugin.get_property(ov::internal::supported_properties),
                                    ov::internal::compiled_model_runtime_properties_supported.name())) {
                     ov::AnyMap compiled_model_runtime_properties = {
-                        {ov::internal::compiled_model_runtime_properties.name(), std::string(header.getRuntimeInfo())}};
+                        {ov::internal::compiled_model_runtime_properties.name(), std::string(header.get_runtime_info())}};
                     auto res = plugin.get_property(ov::internal::compiled_model_runtime_properties_supported.name(),
                                                    compiled_model_runtime_properties);
                     if (!res.as<bool>()) {
                         OPENVINO_THROW("Original model runtime properties have been changed, not supported anymore!");
                     }
                 } else {
-                    if (header.getIeVersion() != ov::get_openvino_version().buildNumber) {
+                    if (header.get_openvino_version() != ov::get_openvino_version().buildNumber) {
                         // Build number mismatch, don't use this cache
                         OPENVINO_THROW("Version does not match");
                     }

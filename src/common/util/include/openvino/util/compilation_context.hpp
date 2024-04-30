@@ -37,15 +37,15 @@ public:
     CompiledBlobHeader();
     CompiledBlobHeader(const std::string& ieVersion, const std::string& fileInfo, const std::string& runtimeInfo);
 
-    const std::string& getIeVersion() const {
+    const std::string& get_openvino_version() const {
         return m_ieVersion;
     }
 
-    const std::string& getFileInfo() const {
+    const std::string& get_file_info() const {
         return m_fileInfo;
     }
 
-    const std::string& getRuntimeInfo() const {
+    const std::string& get_runtime_info() const {
         return m_runtimeInfo;
     }
 
