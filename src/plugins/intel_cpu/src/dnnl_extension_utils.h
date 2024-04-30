@@ -14,7 +14,7 @@
 #include "onednn/dnnl.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/type/element_type.hpp"
-#include <common/c_types_map.hpp>
+#include "common/c_types_map.hpp"
 
 namespace ov {
 namespace intel_cpu {

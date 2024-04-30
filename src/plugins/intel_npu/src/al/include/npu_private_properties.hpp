@@ -153,6 +153,43 @@ inline std::ostream& operator<<(std::ostream& out, const ElfCompilerBackend& fmt
 
 /**
  * @brief [Only for NPU Plugin]
+ * Type: String. Default is "AUTO".
+ * This option is added for enabling batching on plugin.
+ * Possible values: "AUTO", "COMPILER", "PLUGIN".
+ */
+enum class BatchMode {
+    AUTO = 0,
+    COMPILER = 1,
+    PLUGIN = 2,
+};
+
+/**
+ * @brief Prints a string representation of ov::intel_npu::BatchMode to a stream
+ * @param out An output stream to send to
+ * @param fmt A value for batching on plugin to print to a stream
+ * @return A reference to the `out` stream
+ * @note Configuration API v 2.0
+ */
+inline std::ostream& operator<<(std::ostream& out, const BatchMode& fmt) {
+    switch (fmt) {
+    case BatchMode::AUTO: {
+        out << "AUTO";
+    } break;
+    case BatchMode::COMPILER: {
+        out << "COMPILER";
+    } break;
+    case BatchMode::PLUGIN: {
+        out << "PLUGIN";
+    } break;
+    default:
+        out << static_cast<uint32_t>(fmt);
+        break;
+    }
+    return out;
+}
+
+/**
+ * @brief [Only for NPU Plugin]
  * Type: string, default is MODEL.
  * Type of profiling to execute. Can be Model (default) or INFER (based on npu timestamps)
  * @note Configuration API v 2.0
@@ -320,6 +357,14 @@ static constexpr ov::Property<ProfilingType> profiling_type{"NPU_PROFILING_TYPE"
  * Possible values: "AUTO", "YES", "NO".
  */
 static constexpr ov::Property<ElfCompilerBackend> use_elf_compiler_backend{"NPU_USE_ELF_COMPILER_BACKEND"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: String. Default is "AUTO".
+ * This option is added for enabling batching on plugin, otherwise batching will be handled by compiler.
+ * Possible values: "AUTO", "PLUGIN", "COMPILER".
+ */
+static constexpr ov::Property<BatchMode> batch_mode{"NPU_BATCH_MODE"};
 
 /**
  * @brief [Only for NPU Plugin]
