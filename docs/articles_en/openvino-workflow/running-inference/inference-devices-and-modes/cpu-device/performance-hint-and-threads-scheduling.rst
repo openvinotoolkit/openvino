@@ -40,9 +40,9 @@ In this scenario, default setting of ``ov::hint::scheduling_core_type`` is decid
 +----------------------------+---------------------+---------------------+
 |                            | INT8 model          | FP32 model          |
 +============================+=====================+=====================+
-| P-cores / E-cores < 2      | P-cores             | P-cores             |
+| E-cores / P-cores < 2      | P-cores             | P-cores             |
 +----------------------------+---------------------+---------------------+
-| 2 <= P-cores / E-cores < 4 | P-cores             | P-cores and E-cores |
+| 2 <= E-cores / P-cores < 4 | P-cores             | P-cores and E-cores |
 +----------------------------+---------------------+---------------------+
 | 4 <= E-cores / P-cores     | P-cores and E-cores | P-cores and E-cores |
 +----------------------------+---------------------+---------------------+
