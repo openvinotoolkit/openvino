@@ -1425,7 +1425,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                 if (util::contains(plugin.get_property(ov::internal::supported_properties),
                                    ov::internal::compiled_model_runtime_properties_supported.name())) {
                     ov::AnyMap compiled_model_runtime_properties = {
-                        {ov::internal::compiled_model_runtime_properties.name(), std::string(header.get_runtime_info())}};
+                        {ov::internal::compiled_model_runtime_properties.name(),
+                         std::string(header.get_runtime_info())}};
                     auto res = plugin.get_property(ov::internal::compiled_model_runtime_properties_supported.name(),
                                                    compiled_model_runtime_properties);
                     if (!res.as<bool>()) {
