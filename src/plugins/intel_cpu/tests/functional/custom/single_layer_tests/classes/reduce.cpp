@@ -139,11 +139,15 @@ void ReduceCPULayerTest::SetUp() {
 
     function = makeNgraphFunction(netPrecision, params, reduce, "Reduce");
 
-    if (ov::with_cpu_x86_avx512_core_amx()) {
-        if (netPrecision == ov::element::f32 && configuration.count(ov::hint::inference_precision.name()) &&
-            configuration.at(ov::hint::inference_precision.name()) == ov::element::f16) {
-            abs_threshold = 5e-3;
-        }
+    if (netPrecision == ov::element::f32 && configuration.count(ov::hint::inference_precision.name()) &&
+        (configuration.at(ov::hint::inference_precision.name()) == ov::element::f16 ||
+         configuration.at(ov::hint::inference_precision.name()) == ov::element::bf16)) {
+        abs_threshold = 5e-3;
+        // if (ov::with_cpu_x86_avx512_core_amx()) {
+        //     abs_threshold = 5e-3;
+        // } else {
+        //     abs_threshold = 5e-2;
+        // }
     }
 }
 

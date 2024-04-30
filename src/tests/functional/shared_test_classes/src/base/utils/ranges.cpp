@@ -44,7 +44,7 @@ ov::Tensor ModelRange::generate_input(std::shared_ptr<ov::Node> node, size_t por
 void ModelRange::find_mode_ranges(const std::shared_ptr<ov::Model>& model) {
     for (auto param : model->get_parameters()) {
         std::shared_ptr<ov::test::utils::InputGenerateData> data =
-            std::make_shared<ov::test::utils::InputGenerateData>(rangeByType.get_range(param->get_element_type()));
+            std::make_shared<ov::test::utils::InputGenerateData>(ov::test::utils::rangeByType.get_range(param->get_element_type()));
 
         bool range_corrected = true;
         std::queue<std::shared_ptr<ov::Node>> queue;
@@ -80,6 +80,7 @@ void ModelRange::find_mode_ranges(const std::shared_ptr<ov::Model>& model) {
                 }
             }
         } catch (const std::exception& ex) {
+            (void)ex;
 #ifndef NDEBUG
             std::cout << ex.what() << std::endl;
 #endif

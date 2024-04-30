@@ -971,6 +971,20 @@ ov::Tensor generate(const std::shared_ptr<ov::op::v6::ExperimentalDetectronDetec
     return tensor;
 }
 
+ov::Tensor generate(const std::shared_ptr<ov::op::v0::ReverseSequence>& node,
+                    size_t port,
+                    const ov::element::Type& elemType,
+                    const ov::Shape& targetShape,
+                    std::shared_ptr<InputGenerateData> inGenRangeData = nullptr) {
+    if (port == 1) {
+        auto seq_axis = node->get_sequence_axis();
+        // range - [start_data, start_data + range)
+        InputGenerateData inGenData(1, seq_axis + 1);
+        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData);
+    }
+    return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape, inGenRangeData);
+}
+
 template<typename T>
 ov::Tensor generateInput(const std::shared_ptr<ov::Node>& node,
                          size_t port,

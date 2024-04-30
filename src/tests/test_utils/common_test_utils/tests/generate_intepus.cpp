@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "openvino/op/util/op_types.hpp"
+#include "common_test_utils/type_ranges.hpp"
 #include "shared_test_classes/base/utils/ranges.hpp"
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
 
@@ -14,6 +15,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/floor_mod.hpp"
+#include "openvino/op/reshape.hpp"
 
 using namespace testing;
 using namespace ov::util;
@@ -236,7 +238,7 @@ TEST(RangesTests, intersection_range) {
     ASSERT_EQ(real_range->range, intersection_range_real.range);
     ASSERT_EQ(real_range->resolution, intersection_range_real.resolution);
 
-    ov::Tensor tensor1 = modelRange.generate_input(add, 0, Shape{1});
+    ov::Tensor tensor1 = modelRange.generate_input(relu, 0, Shape{1});
     auto data1 = tensor1.data<float>();
     for (size_t i = 0; i < shape_size(tensor1.get_shape()); ++i) {
         double value = data1[i];

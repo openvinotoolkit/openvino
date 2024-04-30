@@ -7,7 +7,7 @@
 #include "openvino/core/preprocess/color_format.hpp"
 
 #include "functional_test_utils/common_utils.hpp"
-#include "shared_test_classes/base/utils/ranges.hpp"
+#include "ranges.hpp"
 
 namespace ov {
 namespace test {

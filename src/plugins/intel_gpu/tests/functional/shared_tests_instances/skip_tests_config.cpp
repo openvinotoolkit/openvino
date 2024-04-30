@@ -201,8 +201,32 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_RDFT_5d_last_axis/RDFTLayerTest.Inference/IS=\(10.4.8.2.5\)_modelType=f32_Axes=\(0.1.2.3.4\)_SignalSize=\(\).*)",
             // Issue: 136862
             R"(.*smoke_ConditionGPUTest_static/StaticConditionLayerGPUTest.CompareWithRefs/IS=\(3.6\)_netPRC=i8_ifCond=PARAM_targetDevice=GPU_.*)",
+            // // ranges
+            // R"(.*smoke_MaxPool8_ExplicitPad_(Floor|Ceil)Rounding/MaxPoolingV8LayerTest.Inference/IS=\(\[\]\)_TS=\{\(1.3.30.30\)\}_K\(3.3\)_S\(1.1\)_D\(1.1\)_PB\(0.0\)_PE\(0.0\)_IETi32_(A0|A2)_Rounding=(floor|cell)_AutoPad=explicit_modelType=f32_.*)",
+            // R"(.*smoke_ConvolutionBackpropData3D_ExplicitPadding_OutputPaddingDefined/ConvolutionBackpropDataLayerTest.Inference/IS=\(\[\]\)_TS=\{\(1.3.10.10.10\)\}_OS=\(\)_K\(3.3.3\)_S\(3.3.3\)_PB\(0.0.0\)_PE\(0.0.0\)_D=\(1.1.1\)_.*_O=5_AP=valid_netPRC=f16.*)",
+            // R"(.*smoke_ConvolutionBackpropData3D_AutoPadding_OutputPaddingDefined/ConvolutionBackpropDataLayerTest.Inference/IS=\(\[\]\)_TS=\{\(1.3.10.10.10\)\}_OS=\(\)_K\(3.3.3\)_S\(3.3.3\)_PB\(0.0.0\)_.*_D=\(1.1.1\)_.*_O=5_AP=explicit_netPRC=f16_.*)",
+            // R"(.*smoke_Multinomial/MultinomialLayerTestGPU.Inference/static_probs_shape=\[(1,32|2,28)\]_num_samples=(2|4)_inType=f16_convert_type=i64_.*_seed_g=0_seed_o=2_.*)",
+            // R"(.*smoke_ConvolutionBackpropData3D_AutoPadding_OutputPaddingDefined/ConvolutionBackpropDataLayerTest.Inference/IS=\(\[\]\)_TS=\{\(1.3.10.10.10\)\}_OS=\(\)_K\(3.3.3\)_S\(3.3.3\)_PB\(0.0.0\)_.*_D=\(1.1.1\)_.*_O=5_AP=explicit_netPRC=f16_.*)",
+            // R"(.*smoke_gathertree_constant_compareWithRefs_dynamic/GatherTreeLayerGPUTest.Inference/IS=.*_secondaryInputType=CONSTANT_netPRC=f32_.*)",
+            // R"(.*Basic_smoke/GatherTreeLayerTest.Inference/IS=\(5.1.10\)_secondary_input_type=PARAMETER_netPRC=f16_trgDev=GPU.*)",
+            // R"(.*Basic_smoke/GatherTreeLayerTest.Inference/IS=\(20.1.10\)_secondary_input_type=.*_netPRC=f16_trgDev=GPU.*)",
+            // R"(.*Basic_smoke/GatherTreeLayerTest.Inference/IS=\(20.1.10\)_secondary_input_type=CONSTANT_netPRC=f32_trgDev=GPU.*)",
+            // R"(.*Basic_smoke/GatherTreeLayerTest.Inference/IS=\(20.20.10\)_secondary_input_type=.*_netPRC=(f32|f16)_trgDev=GPU.*)",
+            // R"(.*smoke_AvgPool_ExplicitPad_CeilRounding/PoolingLayerTest.Inference/IS=\(\[\]\)_TS=\{\(1.3.30.30\)\}_AvgPool_.*_Rounding=ceil_AutoPad=explicit_modelType=f16.*)",
+            // R"(.*smoke_AvgPool_ExplicitPad_FloorRounding/PoolingLayerTest.Inference/IS=\(\[\]\)_TS=\{\(1.3.30.30\)\}_AvgPool_ExcludePad=.*_Rounding=floor_AutoPad=explicit_modelType=f16.*)",
+            // R"(.*smoke_MAX_and_AVGPool_ValidPad/PoolingLayerTest.Inference/IS=\(\[\]\)_TS=\{\(1.3.50.50\)\}_AvgPool_ExcludePad=0_K\(3.3\).*_PB\(0.0\)_.*_Rounding=floor_AutoPad=valid_modelType=f16.*)",
+            // R"(.*smoke_MaxPool8_ExplicitPad_FloorRounding/MaxPoolingV8LayerTest.Inference/IS=\(\[\]\)_TS=\{\(1.3.30.30\)\}_K\(3.5\)_S\(1.1\)_D\(1.1\)_PB\(0.0\)_PE\(0.0\)_IETi32_A(0|2)_Rounding=floor_AutoPad=explicit_modelType=f32.*)",
+            // R"(.*smoke_MaxPool8_ExplicitPad_CeilRounding/MaxPoolingV8LayerTest.Inference/IS=\(\[\]\)_TS=\{\(1.3.30.30\)\}_K\(3.*\)_S\(1.1\)_D\(1.1\)_PB\(0.0\)_PE\(0.0\)_IETi32_A(0|2)_Rounding=ceil_AutoPad=explicit_modelType=f32.*)",
+            // R"(.*smoke_TestsROIAlign_average/ROIAlignLayerTest.Inference/IS=\(\[\]\)_TS=\{\(3.8.16.16\)\}_coordShape=\(2.4\)_pooledH=2_pooledW=2_spatialScale=1_poolingRatio=2_poolingMode=avg_modelType=f32.*)",
+            // R"(.*Basic_smoke/GatherTreeLayerTest.Inference/IS=\(5.1.10\)_secondary_input_type=PARAMETER_netPRC=f16.*)",
+            // R"(.*Basic_smoke/GatherTreeLayerTest.Inference/IS=\(20.(20|1).10\)_secondary_input_type=CONSTANT_netPRC=(f16|f32).*)",
+            // R"(.*Basic_smoke/GatherTreeLayerTest.Inference/IS=\(20.1.10\)_secondary_input_type=PARAMETER_netPRC=f16.*)",
+            // R"(.*smoke_TestsROIAlign_avg_asym/ROIAlignV9LayerTest.Inference/IS=\(\[\]\)_TS=\{\(2.8.20.20\)\}_coordShape=\(2.4\)_pooledH=2_pooledW=2_spatialScale=1_poolingRatio=2_poolingMode=avg_ROIMode=asymmetric_modelType=f32.*)",
+            // R"(.*smoke_Grn_Basic/GrnLayerTest.Inference/IS=\(\[\]\)_TS=\{\((2.16.15.20|1.3.30.30)\)\}_modelType=f16_bias=(1.1|0.33).*)",
 #if defined(_WIN32)
             // by calc abs_threshold with expected value
+            // R"(.*Basic_smoke/GatherTreeLayerTest.Inference/IS=\(20.20.10\)_secondary_input_type=PARAMETER_netPRC=f16.*)",
+            // R"(.*Basic_smoke/GatherTreeLayerTest.Inference/IS=\(5.1.10\)_secondary_input_type=CONSTANT_netPRC=f16.*)",
             R"(.*smoke_RemoteTensor/OVRemoteTensorBatched_Test.NV12toBGR_buffer/(num_batch_4|num_batch_2).*)",
             R"(.*smoke_Check/ConstantResultSubgraphTest.Inference/SubgraphType=SINGLE_COMPONENT_IS=\[1,3,10,10\]_IT=i16_Device=GPU.*)",
 #endif

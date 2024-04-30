@@ -262,7 +262,7 @@ TEST(VariablesTest, smoke_set_get_state_with_convert) {
     auto variables = request.query_state();
     ASSERT_EQ(variables.size(), 1);
     auto variable = variables.front();
-    ASSERT_EQ(variable.get_name(), "v0");
+ASSERT_EQ(variable.get_name(), "v0");
     auto state_tensor = variable.get_state();
     ASSERT_EQ(state_tensor.get_shape(), virable_shape);
     ASSERT_EQ(state_tensor.get_element_type(), et);

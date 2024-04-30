@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/type_ranges.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/acos.hpp"
@@ -112,176 +113,41 @@
 #include "openvino/op/topk.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/op/cum_sum.hpp"
+#include "openvino/op/mvn.hpp"
+#include "openvino/op/gru_cell.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/if.hpp"
+#include "openvino/op/tensor_iterator.hpp"
+#include "openvino/op/group_normalization.hpp"
+#include "openvino/op/reverse_sequence.hpp"
+#include "openvino/op/gather_tree.hpp"
+#include "openvino/op/deformable_psroi_pooling.hpp"
+#include "openvino/op/softmax.hpp"
+#include "openvino/op/psroi_pooling.hpp"
+#include "ov_ops/augru_sequence.hpp"
+#include "ov_ops/augru_cell.hpp"
+#include "openvino/op/roll.hpp"
+#include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/squared_difference.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/loop.hpp"
+#include "openvino/op/squared_difference.hpp"
+#include "openvino/op/avg_pool.hpp"
+#include "openvino/op/ctc_loss.hpp"
+#include "openvino/op/grid_sample.hpp"
+#include "openvino/op/multinomial.hpp"
+#include "openvino/op/embeddingbag_offsets_sum.hpp"
+#include "openvino/op/generate_proposals.hpp"
+#include "openvino/op/roi_pooling.hpp"
+#include "openvino/op/shuffle_channels.hpp"
+#include "openvino/op/slice.hpp"
 
 namespace ov {
 namespace test {
 namespace utils {
-
-static ov::test::utils::InputGenerateData get_range_by_type(ov::element::Type temp_type) {
-    double min_start = 0 - (int32_t)round(testing::internal::Random::kMaxRange / 2);
-    uint32_t max_range = testing::internal::Random::kMaxRange - 1;
-
-    ov::test::utils::InputGenerateData inData(min_start, max_range);
-#define CASE_T(X)                                                                             \
-    case X: {                                                                                 \
-        auto lowest = std::numeric_limits<element_type_traits<X>::value_type>::lowest();      \
-        auto max = std::numeric_limits<element_type_traits<X>::value_type>::max();            \
-        double tmp_range = static_cast<double>(max) - static_cast<double>(lowest);            \
-        if (tmp_range < testing::internal::Random::kMaxRange) {                               \
-            inData.start_from = lowest;                                                       \
-            inData.range = (uint32_t)round(tmp_range);                                        \
-        } else {                                                                              \
-            inData.range = testing::internal::Random::kMaxRange - 1;                          \
-            inData.start_from = lowest > min_start ? static_cast<double>(lowest) : min_start; \
-        }                                                                                     \
-        break;                                                                                \
-    }
-
-    switch (temp_type) {
-    case (ov::element::Type_t::undefined): {
-        inData.start_from = min_start;
-        inData.range = max_range;
-        break;
-    }
-    case (ov::element::Type_t::dynamic): {
-        inData.start_from = min_start;
-        inData.range = max_range;
-        break;
-    }
-    case (ov::element::Type_t::boolean): {
-        inData.start_from = 0;
-        inData.range = 2;
-        break;
-    }
-    case (ov::element::Type_t::bf16): {
-        ov::bfloat16 lowest_tmp = std::numeric_limits<ov::bfloat16>::lowest();
-        ov::bfloat16 max_tmp = std::numeric_limits<ov::bfloat16>::max();
-
-        double lowest = 0 - static_cast<double>(lowest_tmp.to_bits());
-        double max = max_tmp.to_bits();
-
-        double tmp_range = max - lowest;
-        if (tmp_range < testing::internal::Random::kMaxRange) {
-            inData.start_from = lowest;
-            inData.range = (uint32_t)round(tmp_range);
-        } else {
-            inData.start_from = lowest > min_start ? lowest : min_start;
-            inData.range = testing::internal::Random::kMaxRange - 1;
-        }
-
-        break;
-    }
-    case ov::element::Type_t::f16: {
-        ov::float16 lowest_tmp = std::numeric_limits<ov::float16>::lowest();
-        ov::float16 max_tmp = std::numeric_limits<ov::float16>::max();
-
-        double lowest = 0 - static_cast<double>(lowest_tmp.to_bits());
-        double max = max_tmp.to_bits();
-
-        double tmp_range = max - lowest;
-        if (tmp_range < testing::internal::Random::kMaxRange) {
-            inData.start_from = lowest;
-            inData.range = (uint32_t)round(tmp_range);
-        } else {
-            inData.start_from = lowest > min_start ? lowest : min_start;
-            inData.range = testing::internal::Random::kMaxRange - 1;
-        }
-
-        break;
-    }
-    case ov::element::Type_t::f8e4m3: {
-        ov::float8_e4m3 lowest_tmp = std::numeric_limits<ov::float8_e4m3>::lowest();
-        ov::float8_e4m3 max_tmp = std::numeric_limits<ov::float8_e4m3>::max();
-
-        double lowest = 0 - static_cast<double>(lowest_tmp.to_bits());
-        double max = max_tmp.to_bits();
-
-        double tmp_range = max - lowest;
-        if (tmp_range < testing::internal::Random::kMaxRange) {
-            inData.start_from = lowest;
-            inData.range = (uint32_t)round(tmp_range);
-        } else {
-            inData.start_from = lowest > min_start ? lowest : min_start;
-            inData.range = testing::internal::Random::kMaxRange - 1;
-        }
-
-        break;
-    }
-    case ov::element::Type_t::f8e5m2: {
-        ov::float8_e5m2 lowest_tmp = std::numeric_limits<ov::float8_e5m2>::lowest();
-        ov::float8_e5m2 max_tmp = std::numeric_limits<ov::float8_e5m2>::max();
-
-        double lowest = 0 - static_cast<double>(lowest_tmp.to_bits());
-        double max = max_tmp.to_bits();
-
-        double tmp_range = max - lowest;
-        if (tmp_range < testing::internal::Random::kMaxRange) {
-            inData.start_from = lowest;
-            inData.range = (uint32_t)round(tmp_range);
-        } else {
-            inData.start_from = lowest > min_start ? lowest : min_start;
-            inData.range = testing::internal::Random::kMaxRange - 1;
-        }
-
-        break;
-    }
-    case ov::element::Type_t::string: {
-        auto lowest = std::numeric_limits<char>::lowest();
-        auto max = std::numeric_limits<char>::max();
-
-        double tmp_range = static_cast<double>(max) - static_cast<double>(lowest);
-        if (tmp_range < testing::internal::Random::kMaxRange) {
-            inData.start_from = lowest;
-            inData.range = (uint32_t)round(tmp_range);
-        } else {
-            inData.start_from = lowest > min_start ? lowest : min_start;
-            inData.range = testing::internal::Random::kMaxRange - 1;
-        }
-
-        break;
-    }
-        CASE_T(ov::element::Type_t::f32)
-        CASE_T(ov::element::Type_t::f64)
-        CASE_T(ov::element::Type_t::i4)
-        CASE_T(ov::element::Type_t::i8)
-        CASE_T(ov::element::Type_t::i16)
-        CASE_T(ov::element::Type_t::i32)
-        CASE_T(ov::element::Type_t::i64)
-        CASE_T(ov::element::Type_t::u1)
-        CASE_T(ov::element::Type_t::u2)
-        CASE_T(ov::element::Type_t::u3)
-        CASE_T(ov::element::Type_t::u4)
-        CASE_T(ov::element::Type_t::u6)
-        CASE_T(ov::element::Type_t::u8)
-        CASE_T(ov::element::Type_t::nf4)
-        CASE_T(ov::element::Type_t::u16)
-        CASE_T(ov::element::Type_t::u32)
-        CASE_T(ov::element::Type_t::u64)
-        break;
-    }
-
-    return inData;
-}
-
-struct RangeByType {
-    std::map<ov::element::Type, ov::test::utils::InputGenerateData> data;
-
-    RangeByType() {
-        for (auto& type : ov::element::Type::get_known_types()) {
-            data[*type] = get_range_by_type(*type);
-        }
-    }
-
-    ov::test::utils::InputGenerateData get_range(ov::element::Type type) {
-        if (data.count(type) > 0) {
-            return data.at(type);
-        } else {
-            throw std::runtime_error("Couln't find Type in typeMap: " + type.to_string());
-        }
-    }
-};
-
-static RangeByType rangeByType;
 
 struct Range {
     std::vector<ov::test::utils::InputGenerateData> int_port_ranges;
@@ -390,6 +256,8 @@ static std::map<ov::NodeTypeInfo, Range> inputRanges = {
     {ov::op::v5::Round::get_type_info_static(), Range({{0, 15}}, {{-10, 20, 4}})},
     {ov::op::v7::Gelu::get_type_info_static(), Range({{0, 15}}, {{-1, 2, 32768}})},
     {ov::op::v8::MaxPool::get_type_info_static(), Range({{0, 10, 1, 1}}, {{0, 10, 1, 1}})},
+    {ov::op::v1::MaxPool::get_type_info_static(), Range({{0, 10, 1, 1}}, {{0, 10, 1, 1}})},
+    {ov::op::v1::AvgPool::get_type_info_static(), Range({{0, 10, 1, 1}}, {{0, 10, 1, 1}})},
     {ov::op::v9::SoftSign::get_type_info_static(), Range({{0, 15}}, {{-100, 200, 32768}})},
     // new temp
     {ov::op::v1::Convolution::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
@@ -402,9 +270,10 @@ static std::map<ov::NodeTypeInfo, Range> inputRanges = {
     {ov::op::v0::RegionYolo::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
     {ov::op::v0::MatMul::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
     {ov::op::v11::Interpolate::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v4::Interpolate::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
     {ov::op::v0::LRN::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
     {ov::op::v1::Pad::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
-    {ov::op::v3::Broadcast::get_type_info_static(), Range({{0, 2000}}, {{0, 2000, 32768}})},
+    {ov::op::v3::Broadcast::get_type_info_static(), Range({{0, 200}}, {{0, 2000, 32768}})},
     {ov::op::v5::NonMaxSuppression::get_type_info_static(), Range({{0, 15}, {0, 1, 1000, 1, true}},
                                                                   {{0, 8, 32}, {0, 1, 1000, 1, true}})},
     {ov::op::v9::NonMaxSuppression::get_type_info_static(), Range({{0, 15}, {0, 1, 1000, 1, true}},
@@ -427,12 +296,12 @@ static std::map<ov::NodeTypeInfo, Range> inputRanges = {
     {ov::op::v1::ReduceLogicalAnd::get_type_info_static(), Range({{0, 2}}, {{0, 2}})},
     {ov::op::v1::ReduceLogicalOr::get_type_info_static(), Range({{0, 2}}, {{0, 2}})},
     {ov::op::v1::Reshape::get_type_info_static(), Range({{-1000, 2000}, {0, 256, 1, 1, true}}, {{-100, 200, 32768}})},
-    {ov::op::v4::Interpolate::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
     {ov::op::v3::TopK::get_type_info_static(), Range({{-1000, 2000}, {0, 1000, 1, 1, true}}, {{-1000, 2000, 32768}})},
     {ov::op::v11::TopK::get_type_info_static(), Range({{-1000, 2000}, {0, 1000, 1, 1, true}}, {{-1000, 2000, 32768}})},
     {ov::op::v4::Range::get_type_info_static(), Range({{0, 15}, {1, 1000, 1, 1, true}},
                                                       {{-1000, 2000, 32768}, {1, 1000, 1, 1, true}})},
-    {ov::op::v11::Interpolate::get_type_info_static(), Range({{0, 15}}, {{-1000, 2000, 32768}})},
+    {ov::op::v3::ROIAlign::get_type_info_static(), Range({{0, 15}, {0, 1000, 1, 1, true}, {0, 1000, 1, 1, true}},
+                                                         {{-1000, 2000, 32768}, {0, 1000, 1, 1, true}, {0, 1000, 1, 1, true}})},
     {ov::op::v9::ROIAlign::get_type_info_static(), Range({{0, 15}, {0, 1000, 1, 1, true}, {0, 1000, 1, 1, true}},
                                                          {{-1000, 2000, 32768}, {0, 1000, 1, 1, true}, {0, 1000, 1, 1, true}})},
     {ov::op::v0::Convert::get_type_info_static(), Range({{0, 1000}}, {{-100, 200, 32768}})},
@@ -451,6 +320,36 @@ static std::map<ov::NodeTypeInfo, Range> inputRanges = {
     {ov::op::v7::Einsum::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
     {ov::op::v8::RandomUniform::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
     {ov::op::v9::Eye::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v0::CumSum::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v0::MVN::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v6::MVN::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v3::GRUCell::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v5::GRUSequence::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v8::If::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v0::TensorIterator::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v12::GroupNormalization::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v0::ReverseSequence::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v1::GatherTree::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v1::DeformablePSROIPooling::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v1::Softmax::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v8::Softmax::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v0::PSROIPooling::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::internal::AUGRUSequence::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::internal::AUGRUCell::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v7::Roll::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v4::LSTMCell::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v13::ScaledDotProductAttention::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v1::Transpose::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v5::Loop::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v0::SquaredDifference::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v4::CTCLoss::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v9::GridSample::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v13::Multinomial::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v3::EmbeddingBagOffsetsSum::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v9::GenerateProposals::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v0::ROIPooling::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v0::ShuffleChannels::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
+    {ov::op::v8::Slice::get_type_info_static(), Range({{0, 15}}, {{0, 8, 32}})},
 };
 
 class ModelRange {

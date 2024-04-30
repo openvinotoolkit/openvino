@@ -78,12 +78,12 @@ struct InputGenerateData {
             // could not find range - -----start_new---range*res new-----start_curr-----range*res curr---
             if (start_from > new_max) {
                 success = false;
-// #ifndef NDEBUG
+#ifndef NDEBUG
                 std::cout << " FAIL TO FIND RANGE: current->start_from > new_range->start_from + new_range->range "
                           << " current->start_from: " << std::to_string(start_from)
                           << " new_range->start_from: " << std::to_string(new_range->start_from)
                           << " new_range max: " << std::to_string(new_max) << std::endl;
-// #endif
+#endif
             } else if (current_max > new_max) {
                 range = (uint32_t)round(new_max - start_from);
                 resolution = new_range->resolution > resolution ? new_range->resolution : resolution;
@@ -95,12 +95,12 @@ struct InputGenerateData {
             // could not find range - -----start_curr---range*res curr-----start_new-----range*res new---
             if (current_max < new_range->start_from) {
                 success = false;
-// #ifndef NDEBUG
+#ifndef NDEBUG
                 std::cout << " FAIL TO FIND RANGE: current->start_from + current->range < new_range->start_from "
                           << " new_range start_from: " << std::to_string(new_range->start_from)
                           << " current->start_from: " << std::to_string(start_from)
                           << " current max: " << std::to_string(current_max) << std::endl;
-// #endif
+#endif
             } else if (current_max >= new_max) {
                 start_from = new_range->start_from;
                 range = new_range->range;
@@ -136,12 +136,12 @@ struct InputGenerateData {
             // could not find range - -----start_new---range*res new-----start_curr-----range*res curr---
             if (start_from > new_max) {
                 success = false;
-// #ifndef NDEBUG
+#ifndef NDEBUG
                 std::cout << " FAIL TO FIND RANGE: current->start_from > new_range->start_from + new_range->range "
                           << " current->start_from: " << std::to_string(start_from)
                           << " new_range->start_from: " << std::to_string(new_range.start_from)
                           << " new_range max: " << std::to_string(new_max) << std::endl;
-// #endif
+#endif
             } else if (current_max > new_max) {
                 range = (uint32_t)round(new_max - start_from);
                 resolution = new_range.resolution > resolution ? new_range.resolution : resolution;
@@ -153,12 +153,12 @@ struct InputGenerateData {
             // could not find range - -----start_curr---range*res curr-----start_new-----range*res new---
             if (current_max < new_range.start_from) {
                 success = false;
-// #ifndef NDEBUG
+#ifndef NDEBUG
                 std::cout << " FAIL TO FIND RANGE: current->start_from + current->range < new_range->start_from "
                           << " new_range start_from: " << std::to_string(new_range.start_from)
                           << " current->start_from: " << std::to_string(start_from)
                           << " current max: " << std::to_string(current_max) << std::endl;
-// #endif
+#endif
             } else if (current_max >= new_max) {
                 start_from = new_range.start_from;
                 range = new_range.range;

@@ -62,6 +62,7 @@ void GRUSequenceTest::SetUp() {
     ov::op::RecurrentSequenceDirection direction;
     InputLayerType wbr_type;
     ov::test::utils::SequenceTestsMode mode;
+    // ov::element::Type_t in_type = ov::element::undefined;
     std::tie(mode, shapes, activations, clip, linear_before_reset, direction, wbr_type,
             inType, targetDevice) = this->GetParam();
     outType = inType;
@@ -82,7 +83,6 @@ void GRUSequenceTest::SetUp() {
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]),
                                std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[1])};
-
     const auto& w_shape = ov::Shape{num_directions, 3 * hidden_size, input_size};
     const auto& r_shape = ov::Shape{num_directions, 3 * hidden_size, hidden_size};
     const auto& b_shape = ov::Shape{num_directions, (linear_before_reset ? 4 : 3) * hidden_size};
