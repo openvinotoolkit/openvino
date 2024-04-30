@@ -5,13 +5,12 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-
 #include <openvino/core/model.hpp>
 #include <openvino/opsets/opset10.hpp>
+#include <openvino/pass/manager.hpp>
 #include <ov_ops/rms.hpp>
 #include <transformations/common_optimizations/rms_fusion.hpp>
 #include <transformations/utils/utils.hpp>
-#include <openvino/pass/manager.hpp>
 #include <string>
 
 #include "common_test_utils/ov_test_utils.hpp"

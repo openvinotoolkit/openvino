@@ -13,8 +13,8 @@
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/utils/utils.hpp"
 #include "openvino/pass/manager.hpp"
+#include "transformations/utils/utils.hpp"
 #include "ov_ops/rms.hpp"
 
 namespace ov {
