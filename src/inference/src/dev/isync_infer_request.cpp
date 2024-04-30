@@ -306,3 +306,8 @@ void ov::ISyncInferRequest::check_tensors() const {
         check_tensor(outputs[i], m_tensors.at(outputs[i].get_tensor_ptr()));
     }
 }
+
+void ov::ISyncInferRequest::Reset_m_compiled_model()
+{
+    m_compiled_model.reset();
+}

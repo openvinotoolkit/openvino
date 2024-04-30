@@ -158,7 +158,7 @@ protected:
 
     std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, std::vector<ov::SoPtr<ov::ITensor>>> m_batched_tensors;
     ov::SoPtr<ov::ITensor>& get_tensor_ptr(const ov::Output<const ov::Node>& port) const;
-
+    void Reset_m_compiled_model();
 private:
     std::shared_ptr<const ov::ICompiledModel> m_compiled_model;
     // Mutable to return reference to ov::Tensor

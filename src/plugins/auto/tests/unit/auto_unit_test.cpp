@@ -134,6 +134,8 @@ ov::mock_auto_plugin::tests::BaseTest::~BaseTest() {
     mockExeNetworkActual = {};
     config.clear();
     metaDevices.clear();
+    inferReqInternal->Reset_m_compiled_model();
+    inferReqInternalActual->Reset_m_compiled_model();
     inferReqInternal.reset();
     inferReqInternalActual.reset();
     mock_plugin_cpu.reset();
