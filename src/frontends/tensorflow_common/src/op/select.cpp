@@ -105,26 +105,21 @@ OutputVector translate_select_op(const NodeContext& node) {
     auto complex_type_mark_y = as_type_ptr<ComplexTypeMark>(y.get_node_shared_ptr());
     auto x_rank = compute_subgraph_scalar_rank(x, element::i32);
 
-    if (complex_type_mark_x || complex_type_mark_y) {
+    if (complex_type_mark_x && complex_type_mark_y) {
         x = complex_type_mark_x->input_value(0);
         y = complex_type_mark_y->input_value(0);
         auto cond_shape = make_shared<v3::ShapeOf>(x, element::i32);
         auto const_1 = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
         auto new_cond_shape = make_shared<v0::Concat>(OutputVector{const_1, cond_shape}, 0);
 
-        auto prep_cond = make_shared<v1::Reshape>(condition, new_cond_shape, false)->output(0);
         auto const_0 = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
-        prep_cond = make_shared<v0::Squeeze>(prep_cond, const_0);
 
-        auto select_real = translate_select_base_op(node, prep_cond, x, y);
-        auto select_imag = translate_select_base_op(node, prep_cond, x, y);
+        auto select = translate_select_base_op(node, prep_cond, x, y);
 
-        auto concat_result = make_shared<v0::Concat>(OutputVector{select_real, select_imag}, -1);
-
-        set_node_name(node.get_name(), concat_result);
+        set_node_name(node.get_name(), select);
 
         auto complex_result =
-            make_shared<ComplexTypeMark>(concat_result->output(0), complex_type_mark_x->get_complex_part_type());
+            make_shared<ComplexTypeMark>(select->output(0), complex_type_mark_x->get_complex_part_type());
         return {complex_result};
     }
 
