@@ -98,7 +98,7 @@ public:
         }
     }
 
-    ROIAlignSamplingSpace get_sampling_space_for_index(unsigned int index) {
+    ROIAlignSamplingSpace get_sampling_space_for_index(unsigned int index) const {
         T x1 = (rois[coordinate_index({index, 0}, shape)] + offset_src) * spatial_scale + offset_dst;
         T y1 = (rois[coordinate_index({index, 1}, shape)] + offset_src) * spatial_scale + offset_dst;
         T x2 = (rois[coordinate_index({index, 2}, shape)] + offset_src) * spatial_scale + offset_dst;
@@ -130,8 +130,8 @@ public:
     class ROIAlignRotatedSamplingSpace : public SamplingSpaceBase<T> {
     public:
         Point<T> transform_sampling_point_to_image_space(const Point<T>& point) const {
-            float y = point.y * cos_angle - point.x * sin_angle + center_y;
-            float x = point.y * sin_angle + point.x * cos_angle + center_x;
+            const T y = point.y * cos_angle - point.x * sin_angle + center_y;
+            const T x = point.y * sin_angle + point.x * cos_angle + center_x;
             return {x, y};
         }
 
@@ -139,8 +139,8 @@ public:
         friend class ROIAlignRotatedOpDefPolicy<T>;
         ROIAlignRotatedSamplingSpace(T center_x_,
                                      T center_y_,
-                                     float cos_angle_,
-                                     float sin_angle_,
+                                     T cos_angle_,
+                                     T sin_angle_,
                                      T start_x_,
                                      T start_y_,
                                      T size_x_,
@@ -153,8 +153,8 @@ public:
 
         T center_x;
         T center_y;
-        float cos_angle;
-        float sin_angle;
+        T cos_angle;
+        T sin_angle;
     };
 
     ROIAlignRotatedOpDefPolicy() {}
@@ -162,17 +162,17 @@ public:
     void init(const T* rois_, const Shape& shape_, float spatial_scale_, AlignedMode aligned_mode, bool clockwise_) {
         rois = rois_;
         shape = shape_;
-        spatial_scale = spatial_scale_;
+        spatial_scale = static_cast<T>(spatial_scale_);
         clockwise = clockwise_;
 
         if (aligned_mode != AlignedMode::ASYMMETRIC) {
-            OPENVINO_THROW(std::string("ROIAlignRotated: Not supported aligned_mode"));
+            OPENVINO_THROW("ROIAlignRotated: Not supported aligned_mode");
         }
     }
 
-    ROIAlignRotatedSamplingSpace get_sampling_space_for_index(unsigned int index) {
-        const T center_x = (rois[coordinate_index({index, 0}, shape)]) * spatial_scale - 0.5f;
-        const T center_y = (rois[coordinate_index({index, 1}, shape)]) * spatial_scale - 0.5f;
+    ROIAlignRotatedSamplingSpace get_sampling_space_for_index(unsigned int index) const {
+        const T center_x = (rois[coordinate_index({index, 0}, shape)]) * spatial_scale - T{0.5f};
+        const T center_y = (rois[coordinate_index({index, 1}, shape)]) * spatial_scale - T{0.5f};
         const T width = (rois[coordinate_index({index, 2}, shape)]) * spatial_scale;
         const T height = (rois[coordinate_index({index, 3}, shape)]) * spatial_scale;
         T angle = (rois[coordinate_index({index, 4}, shape)]);
@@ -180,11 +180,11 @@ public:
         if (clockwise) {
             angle = -angle;
         }
-        const float cos_angle = cos(angle);
-        const float sin_angle = sin(angle);
+        const T cos_angle = cos(angle);
+        const T sin_angle = sin(angle);
 
-        const T x1 = -width / 2.0f;
-        const T y1 = -height / 2.0f;
+        const T x1 = -width / T{2.0};
+        const T y1 = -height / T{2.0};
 
         return {center_x, center_y, cos_angle, sin_angle, x1, y1, width, height};
     }
@@ -192,7 +192,7 @@ public:
 private:
     const T* rois;
     Shape shape;
-    float spatial_scale;
+    T spatial_scale;
     bool clockwise;
 };
 };  // namespace roi_policy

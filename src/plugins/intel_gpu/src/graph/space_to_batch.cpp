@@ -25,7 +25,7 @@ layout space_to_batch_inst::calc_output_layout(space_to_batch_node const& node, 
     auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
 
     if (impl_param.has_fused_primitives())
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
 
     const size_t spatial_num = format::spatial_num(input_format);
 
@@ -142,7 +142,7 @@ std::vector<layout> space_to_batch_inst::calc_output_layouts(space_to_batch_node
 
     auto output_type = desc->output_data_types[0].value_or(input0_layout.data_type);
     if (impl_param.has_fused_primitives())
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
 
     return { layout{output_shapes[0], output_type, input0_layout.format} };
 }

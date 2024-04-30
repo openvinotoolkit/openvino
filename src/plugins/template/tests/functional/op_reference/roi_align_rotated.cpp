@@ -15,6 +15,8 @@ using namespace ov;
 
 namespace {
 
+constexpr double PI = 3.141592653589793238462643383279;
+
 struct ROIAlignRotatedParams {
     PartialShape inputShape;
     int32_t pooledH;
@@ -45,9 +47,9 @@ ROIAlignRotatedParams PrepareTestCaseParams(const PartialShape& inputShape,
 
     constexpr size_t rois_second_dim_size = 5;  //< By definition of the ROIAlignRotated op
 
-    const size_t numOfRois = roisVals.size() / rois_second_dim_size;
-    const size_t channels = static_cast<size_t>(inputShape[1].get_length());
-    const element::Type_t elementType = element::from<T>();
+    const auto numOfRois = roisVals.size() / rois_second_dim_size;
+    const auto channels = static_cast<size_t>(inputShape[1].get_length());
+    const auto elementType = element::from<T>();
 
     ret.inputShape = inputShape;
     ret.pooledH = pooledH;
@@ -108,8 +110,7 @@ private:
                                                                               params.samplingRatio,
                                                                               params.spatialScale,
                                                                               params.clockwise);
-        auto f = std::make_shared<Model>(NodeVector{roi_align_rot}, ParameterVector{featureMap});
-        return f;
+        return std::make_shared<Model>(NodeVector{roi_align_rot}, ParameterVector{featureMap});
     }
 };
 

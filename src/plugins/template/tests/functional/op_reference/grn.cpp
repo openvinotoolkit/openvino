@@ -23,8 +23,8 @@ struct GrnParams {
           pshape(shape),
           inType(iType),
           outType(iType),
-          inputData(CreateTensor(iType, iValues)),
-          refData(CreateTensor(iType, oValues)) {}
+          inputData(CreateTensor(pshape.get_shape(), iType, iValues)),
+          refData(CreateTensor(pshape.get_shape(), iType, oValues)) {}
     float bias;
     PartialShape pshape;
     element::Type inType;
@@ -36,13 +36,13 @@ struct GrnParams {
 class ReferenceGrnLayerTest : public testing::TestWithParam<GrnParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params.bias, params.pshape, params.inType);
         inputData = {params.inputData};
         refOutData = {params.refData};
     }
     static std::string getTestCaseName(const testing::TestParamInfo<GrnParams>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
         result << "bias=" << param.bias << "_";
         result << "shape=" << param.pshape << "_";

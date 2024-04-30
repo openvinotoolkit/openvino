@@ -71,6 +71,10 @@ void Mvn1LayerTest::SetUp() {
         mvn = std::make_shared<ov::op::v0::MVN>(param, axes, normalize_variance, eps);
     }
 
+    if (model_type == ov::element::f32) {
+        abs_threshold = 5e-7;
+    }
+
     auto result = std::make_shared<ov::op::v0::Result>(mvn);
     function = std::make_shared<ov::Model>(result, ov::ParameterVector{param}, "MVN1");
 }

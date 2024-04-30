@@ -41,8 +41,8 @@ public:
     void set_split_lengths(int64_t split_lengths) { m_split_lengths = split_lengths; }
 
 private:
-    int64_t m_axis;
-    int64_t m_split_lengths;
+    int64_t m_axis = 0;
+    int64_t m_split_lengths = 0;
     ov::element::Type m_output_type;
 };
 

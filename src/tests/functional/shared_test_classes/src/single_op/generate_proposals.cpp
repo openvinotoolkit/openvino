@@ -116,6 +116,9 @@ void GenerateProposalsLayerTest::compare(const std::vector<ov::Tensor>& expected
         const auto expectedBuffer = static_cast<uint8_t*>(expected[i].data());
         const auto outputSize = i == 0 ? 4 : 1;
 
+        rel_threshold = ov::test::utils::tensor_comparation::calculate_default_rel_threshold(
+            expected[i].get_element_type(), actual[i].get_element_type());
+
         if (outType == ov::element::f32) {
             ov::test::utils::compare_raw_data(reinterpret_cast<const float*>(expectedBuffer),
                                               reinterpret_cast<const float*>(actualBuffer),

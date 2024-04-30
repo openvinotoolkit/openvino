@@ -63,8 +63,8 @@ TEST_F(TypePropExperimentalDetectronTopKROIsV6, static_rank_rois_and_probabiliti
 TEST_F(TypePropExperimentalDetectronTopKROIsV6, interval_num_of_rois_and_dynamic_probabilities) {
     auto input_rois_shape = PartialShape{{20, 30}, 4};
     auto rois_prop_shape = PartialShape{-1};
-    set_shape_labels(input_rois_shape, 10);
-    set_shape_labels(input_rois_shape, 20);
+    set_shape_symbols(input_rois_shape);
+    set_shape_symbols(rois_prop_shape);
 
     const auto input_rois = std::make_shared<Parameter>(element::dynamic, input_rois_shape);
     const auto rois_probs = std::make_shared<Parameter>(element::dynamic, rois_prop_shape);
@@ -72,14 +72,14 @@ TEST_F(TypePropExperimentalDetectronTopKROIsV6, interval_num_of_rois_and_dynamic
 
     EXPECT_EQ(op->get_output_element_type(0), element::dynamic);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({20, 4}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), ElementsAre(nullptr, nullptr));
 }
 
 TEST_F(TypePropExperimentalDetectronTopKROIsV6, interval_num_of_rois_and_probabilities) {
     auto input_rois_shape = PartialShape{{20, 30}, 4};
     auto rois_prop_shape = PartialShape{{10, 35}};
-    set_shape_labels(input_rois_shape, 10);
-    set_shape_labels(input_rois_shape, 20);
+    set_shape_symbols(input_rois_shape);
+    set_shape_symbols(rois_prop_shape);
 
     const auto input_rois = std::make_shared<Parameter>(element::dynamic, input_rois_shape);
     const auto rois_probs = std::make_shared<Parameter>(element::dynamic, rois_prop_shape);
@@ -87,14 +87,14 @@ TEST_F(TypePropExperimentalDetectronTopKROIsV6, interval_num_of_rois_and_probabi
 
     EXPECT_EQ(op->get_output_element_type(0), element::dynamic);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({20, 4}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), ElementsAre(nullptr, nullptr));
 }
 
 TEST_F(TypePropExperimentalDetectronTopKROIsV6, dynamic_num_rois_and_interval_probabilities) {
     auto input_rois_shape = PartialShape{-1, 4};
     auto rois_prop_shape = PartialShape{{10, 15}};
-    set_shape_labels(input_rois_shape, 10);
-    set_shape_labels(input_rois_shape, 20);
+    set_shape_symbols(input_rois_shape);
+    set_shape_symbols(rois_prop_shape);
 
     const auto input_rois = std::make_shared<Parameter>(element::dynamic, input_rois_shape);
     const auto rois_probs = std::make_shared<Parameter>(element::dynamic, rois_prop_shape);
@@ -102,7 +102,7 @@ TEST_F(TypePropExperimentalDetectronTopKROIsV6, dynamic_num_rois_and_interval_pr
 
     EXPECT_EQ(op->get_output_element_type(0), element::dynamic);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({200, 4}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), ElementsAre(nullptr, nullptr));
 }
 
 TEST_F(TypePropExperimentalDetectronTopKROIsV6, element_type_of_inputs_are_not_same) {

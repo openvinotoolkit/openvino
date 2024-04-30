@@ -12,6 +12,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/type.hpp"
 #include "snippets/utils.hpp"
+#include "snippets/op/subgraph.hpp"
 
 namespace ov {
 namespace snippets {
@@ -190,6 +191,17 @@ LinearIR::container LinearIR::deep_copy_range(LinearIR::container::const_iterato
         result.push_back(new_expr);
         expression_map[expr.get()] = new_expr;
     }
+
+    // Checking that the cloning was successful: the cloned part of LinearIR is identical to the original one
+    for (auto result_it = result.cbegin(), original_it = begin; result_it != result.cend(); ++result_it, ++original_it) {
+        const auto& result_expr = *result_it;
+        const auto& original_expr = *original_it;
+        OPENVINO_ASSERT(result_expr->get_node()->get_type_info() == original_expr->get_node()->get_type_info() &&
+                        result_expr->get_input_count() == original_expr->get_input_count() &&
+                        result_expr->get_output_count() == original_expr->get_output_count(),
+                        "Expressions after copying aren't matched!");
+    }
+
     return result;
 }
 
@@ -365,10 +377,15 @@ VectorDims LinearIR::get_master_shape() const {
     }
     // Note: Snippets would benefit from a more generic master_shape calculation approach.
     //  It will be implemented in the scope of ROI propagation activity (ticket 120505)
-    const auto& source = out_exprs[0]->get_input_port_connector(0)->get_source();
-    if (!m_config.m_enable_domain_optimization && out_exprs.size() == 1 &&
-        ov::is_type<snippets::op::Brgemm>(source.get_expr()->get_node())) {
-        master_shape = utils::get_preordered_vdims(source);
+    if (out_exprs.size() == 1) {
+        const auto& source = out_exprs[0]->get_input_port_connector(0)->get_source();
+        if (!m_config.m_enable_domain_optimization && ov::is_type<snippets::op::Brgemm>(source.get_expr()->get_node())) {
+            master_shape = utils::get_preordered_vdims(source);
+        } else {
+            const auto& shape_infer_seq = utils::get_first_parent_shape_infer_expr_seq(out_exprs[0]);
+            const auto& expr = shape_infer_seq.empty() ? out_exprs[0] : shape_infer_seq.back();
+            master_shape = utils::get_preordered_vdims(expr->get_input_port_connector(0)->get_source());
+        }
     } else {
         for (const auto& oe : out_exprs) {
             const auto& port_desc = oe->get_input_port_descriptor(0);

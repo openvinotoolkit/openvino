@@ -31,7 +31,7 @@ TEST_F(AdaptiveAvgPoolV8Test, default_ctor) {
 
 TEST_F(AdaptiveAvgPoolV8Test, static_dim_shape_prop) {
     auto data_shape = PartialShape{1, 6, 8, 9};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
 
     const auto data = make_shared<Parameter>(element::f32, data_shape);
     const auto out_shape = Constant::create<int64_t>(element::i64, Shape{2}, {5, 7});
@@ -39,12 +39,13 @@ TEST_F(AdaptiveAvgPoolV8Test, static_dim_shape_prop) {
 
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({1, 6, 5, 7}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 11, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(symbols[0], symbols[1], nullptr, nullptr));
 }
 
 TEST_F(AdaptiveAvgPoolV8Test, dynamic_batch) {
     PartialShape data_shape{Dimension::dynamic(), 6, 8, 9};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
 
     const auto data = make_shared<Parameter>(element::f32, data_shape);
     const auto out_shape = Constant::create<int64_t>(element::i64, Shape{2}, {5, 7});
@@ -52,31 +53,35 @@ TEST_F(AdaptiveAvgPoolV8Test, dynamic_batch) {
 
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({-1, 6, 5, 7}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 11, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(symbols[0], symbols[1], nullptr, nullptr));
 }
 
 TEST_F(AdaptiveAvgPoolV8Test, dynamic_channel) {
     PartialShape data_shape{1, Dimension::dynamic(), {10, 20}, 9};
-    set_shape_labels(data_shape, 20);
+    auto symbols = set_shape_symbols(data_shape);
 
     const auto data = make_shared<Parameter>(element::f32, data_shape);
     const auto out_shape = Constant::create<int64_t>(element::i64, Shape{2}, {5, 7});
     const auto op = make_op(data, out_shape);
 
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({1, -1, 5, 7}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(20, 21, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(symbols[0], symbols[1], nullptr, nullptr));
 }
 
 TEST_F(AdaptiveAvgPoolV8Test, dynamic_spatial) {
     PartialShape data_shape{1, 6, -1, -1};
-    set_shape_labels(data_shape, 20);
+
+    auto symbols = set_shape_symbols(data_shape);
 
     const auto data = make_shared<Parameter>(element::f32, data_shape);
     const auto out_shape = Constant::create<int64_t>(element::i64, Shape{2}, {5, 7});
     const auto op = make_op(data, out_shape);
 
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({1, 6, 5, 7}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(20, 21, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(symbols[0], symbols[1], nullptr, nullptr));
 }
 
 TEST_F(AdaptiveAvgPoolV8Test, dynamic_output_shape) {
@@ -103,18 +108,19 @@ TEST_F(AdaptiveAvgPoolV8Test, data_dynamic_rank) {
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic());
 }
 
-TEST_F(AdaptiveAvgPoolV8Test, preserve_partial_values_and_labels_on_output_shape_input) {
+TEST_F(AdaptiveAvgPoolV8Test, preserve_partial_values_and_symbols_on_output_shape_input) {
     auto data_shape = PartialShape{{1, 2}, {2, 4}, 5, {10, 20}, -1};
-    set_shape_labels(data_shape, 10);
+    auto d_symbols = set_shape_symbols(data_shape);
     auto out_shape = PartialShape{{2, 6}, 3, {12, 13}};
-    set_shape_labels(out_shape, 20);
+    auto o_symbols = set_shape_symbols(out_shape);
 
     const auto data = make_shared<Parameter>(element::f32, data_shape);
     const auto spatial_dim_shape = make_shared<ShapeOf>(make_shared<Parameter>(element::i64, out_shape));
     const auto op = make_op(data, spatial_dim_shape);
 
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({{1, 2}, {2, 4}, {2, 6}, 3, {12, 13}}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 11, 20, 21, 22));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(d_symbols[0], d_symbols[1], o_symbols[0], o_symbols[1], o_symbols[2]));
 }
 
 TEST_F(AdaptiveAvgPoolV8Test, out_spatial_shape_size_not_match_data_spatial_dimensions) {

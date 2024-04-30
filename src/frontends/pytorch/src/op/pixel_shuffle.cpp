@@ -30,7 +30,7 @@ OutputVector translate_pixel_shuffle(const NodeContext& context) {
     // aten::pixel_shuffle(Tensor self, int upscale_factor) -> Tensor
     num_inputs_check(context, 2, 2);
     auto x = context.get_input(0);
-    auto upscale_factor = context.get_input(1);
+    auto upscale_factor = get_input_as_i32(context, 1);
     auto neg_1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
     auto neg_3 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-3}));
     auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
@@ -73,7 +73,7 @@ OutputVector translate_pixel_unshuffle(const NodeContext& context) {
     // aten::pixel_unshuffle(Tensor self, int upscale_factor) -> Tensor
     num_inputs_check(context, 2, 2);
     auto x = context.get_input(0);
-    auto upscale_factor = context.get_input(1);
+    auto upscale_factor = get_input_as_i32(context, 1);
     auto neg_1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
     auto neg_3 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-3}));
     auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));

@@ -482,8 +482,8 @@ public:
             }
         }
         if (is_body_target) {
-            auto body_name = std::get<0>(bnames);
-            auto portmap_name = std::get<1>(bnames);
+            const auto& body_name = std::get<0>(bnames);
+            const auto& portmap_name = std::get<1>(bnames);
             std::vector<std::string> result_mapping =
                 map_type_from_body(m_xml_node.parent(), "Result", m_version, body_name);
             std::vector<std::string> parameter_mapping =
@@ -783,28 +783,6 @@ std::string escape_delim(const std::string& name, const char delim = ',') {
     return result_name;
 }
 
-std::string generate_unique_name(const std::unordered_set<std::string>& unique_names,
-                                 const std::string& base_name,
-                                 int suffix) {
-    std::string new_name = base_name + std::to_string(suffix);
-    if (unique_names.find(new_name) == unique_names.end()) {
-        return new_name;
-    } else {
-        suffix++;
-        return generate_unique_name(unique_names, base_name, suffix);
-    }
-}
-
-// TODO: remove when CNNNetwork will be supporting not-unique names
-std::string get_node_unique_name(std::unordered_set<std::string>& unique_names, const ov::Node* n) {
-    std::string name = n->get_friendly_name();
-    if (unique_names.find(name) != unique_names.end()) {
-        name = generate_unique_name(unique_names, name, 0);
-    }
-    unique_names.insert(name);
-    return name;
-}
-
 void visit_exec_graph_node(pugi::xml_node& layer, const ov::Node* n) {
     auto data = layer.child("data");
     for (const auto& param : n->get_rt_info()) {
@@ -936,7 +914,6 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
     pugi::xml_node layers = netXml.append_child("layers");
 
     const std::unordered_map<ov::Node*, int> layer_ids = create_layer_ids(model);
-    std::unordered_set<std::string> unique_names;
 
     const bool exec_graph = is_exec_graph(model);
 
@@ -976,7 +953,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         // If determinism is not required, include auto-generated names into xml
         // layer name is not critical for hash computing
         if (!deterministic) {
-            layer.append_attribute("name").set_value(get_node_unique_name(unique_names, node).c_str());
+            layer.append_attribute("name").set_value(node->get_friendly_name().c_str());
         }
         layer.append_attribute("type").set_value(translate_type_name(node_type_name).c_str());
         if (!exec_graph) {
@@ -1027,12 +1004,12 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
                 pugi::xml_node port = input.append_child("port");
                 port.append_attribute("id").set_value(port_id++);
 
-                auto rt_info = i.get_tensor().get_rt_info();
+                const auto& rt_info = i.get_tensor().get_rt_info();
                 auto port_element_type =
                     is_fp16_compression_postponed(rt_info) ? ov::element::f16 : i.get_element_type();
 
                 port.append_attribute("precision").set_value(get_precision_name(port_element_type).c_str());
-                for (auto d : i.get_partial_shape()) {
+                for (const auto& d : i.get_partial_shape()) {
                     pugi::xml_node dim = port.append_child("dim");
                     if (d.is_dynamic()) {
                         dim.append_child(pugi::xml_node_type::node_pcdata).set_value("-1");
