@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/pass/graph_rewrite.hpp"
+
 #include "transformations_visibility.hpp"
 #include "openvino/pass/manager.hpp"
 
@@ -19,13 +20,11 @@ class TRANSFORMATIONS_API RMSFusion;
 namespace ov {
 namespace pass {
 
-
-
 class RMSFusion : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("RMSFusion", "0");
     RMSFusion();
 };
 
-}   // namespace pass
-}   // namespace ov
+}  // namespace pass
+}  // namespace ov
