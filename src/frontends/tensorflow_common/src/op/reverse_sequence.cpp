@@ -44,7 +44,7 @@ OutputVector translate_reverse_sequence_op(const NodeContext& node) {
         auto complex_result =
             make_shared<ComplexTypeMark>(reverse_sequence, complex_type_mark->get_complex_part_type());
 
-        set_node_name(node.get_name(), complex_result);
+        set_node_name(node.get_name(), reverse_sequence);
 
         return {complex_result};
     }
