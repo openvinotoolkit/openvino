@@ -17,10 +17,6 @@
 
 namespace ov {
 namespace reference {
-using Reduction = ov::op::v14::ScatterNDUpdate::Reduction;
-template <typename T>
-using reduction_function = T (*)(const T, const T);
-
 namespace func {
 // TODO move this functions to other reference implementations to reduce binary size. Binary for
 // ScatterElementsUpdate-12 can also be updated. Ticket: CVS-138266
@@ -44,55 +40,58 @@ constexpr T logical_or(const T a, const T b) {
 }
 
 }  // namespace func
-
+namespace scatter_nd_update {
+template <typename T>
+using reduction_function = T (*)(const T, const T);
 template <typename T,
           typename std::enable_if<!std::is_same<typename std::decay<T>::type, char>::value>::type* = nullptr>
-reduction_function<T> reduction_functor_for(const Reduction reduction_type) {
+reduction_function<T> reduction_functor_for(const ov::op::v15::ScatterNDUpdate::Reduction reduction_type) {
     using U = typename std::decay<T>::type;
     switch (reduction_type) {
-    case Reduction::MAX:
+    case ov::op::v15::ScatterNDUpdate::Reduction::MAX:
         return func::max<U>;
-    case Reduction::MIN:
+    case ov::op::v15::ScatterNDUpdate::Reduction::MIN:
         return func::min<U>;
-    case Reduction::PROD:
+    case ov::op::v15::ScatterNDUpdate::Reduction::PROD:
         return func::multiply<U>;
-    case Reduction::SUM:
+    case ov::op::v15::ScatterNDUpdate::Reduction::SUM:
         return func::add<U>;
-    case Reduction::SUB:
+    case ov::op::v15::ScatterNDUpdate::Reduction::SUB:
         return func::subtract<U>;
-    case Reduction::NONE:
+    case ov::op::v15::ScatterNDUpdate::Reduction::NONE:
     default:
         return nullptr;
     }
 }
 
 template <typename T, typename std::enable_if<std::is_same<typename std::decay<T>::type, char>::value>::type* = nullptr>
-reduction_function<T> reduction_functor_for(const Reduction reduction_type) {
+reduction_function<T> reduction_functor_for(const ov::op::v15::ScatterNDUpdate::Reduction reduction_type) {
     using U = typename std::decay<T>::type;
     switch (reduction_type) {
-    case Reduction::MIN:
-    case Reduction::PROD:
+    case ov::op::v15::ScatterNDUpdate::Reduction::MIN:
+    case ov::op::v15::ScatterNDUpdate::Reduction::PROD:
         return func::logical_and<U>;
-    case Reduction::SUM:
-    case Reduction::MAX:
+    case ov::op::v15::ScatterNDUpdate::Reduction::SUM:
+    case ov::op::v15::ScatterNDUpdate::Reduction::MAX:
         return func::logical_or<U>;
-    case Reduction::SUB:
+    case ov::op::v15::ScatterNDUpdate::Reduction::SUB:
         return func::logical_xor<U>;
-    case Reduction::NONE:
+    case ov::op::v15::ScatterNDUpdate::Reduction::NONE:
     default:
         return nullptr;
     }
 }
-
+}  // namespace scatter_nd_update
 template <typename dataType, typename indicesType>
-void scatterNdUpdate(const dataType* const inputData,
-                     const indicesType* const indices,
-                     const dataType* const updates,
-                     dataType* const outBuf,
-                     const Shape& dataShape,
-                     const Shape& indicesShape,
-                     const Shape& updatesShape,
-                     const Reduction reduction_type = Reduction::NONE) {
+void scatterNdUpdate(
+    const dataType* const inputData,
+    const indicesType* const indices,
+    const dataType* const updates,
+    dataType* const outBuf,
+    const Shape& dataShape,
+    const Shape& indicesShape,
+    const Shape& updatesShape,
+    const ov::op::v15::ScatterNDUpdate::Reduction reduction_type = ov::op::v15::ScatterNDUpdate::Reduction::NONE) {
     const auto update_chunk_shape = span(dataShape).drop_front(indicesShape.back());
     const auto update_el_number = shape_size(update_chunk_shape);
 
@@ -105,7 +104,7 @@ void scatterNdUpdate(const dataType* const inputData,
         };
         return padding;
     }();
-    const auto reduction = reduction_functor_for<dataType>(reduction_type);
+    const auto reduction = scatter_nd_update::reduction_functor_for<dataType>(reduction_type);
     std::vector<indicesType> indicesCopy(indices, indices + shape_size(indicesShape));
     const auto num_of_updates = shape_size(span(indicesShape).drop_back(1));
     for (size_t i = 0; i != num_of_updates; ++i) {

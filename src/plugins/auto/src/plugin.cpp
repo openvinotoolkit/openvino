@@ -12,6 +12,9 @@
 
 #include <transformations/utils/utils.hpp>
 
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/group_conv.hpp"
 #include "openvino/runtime/auto/properties.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/internal_properties.hpp"
@@ -816,16 +819,26 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
 
     std::vector<DeviceInformation> filter_device;
     std::vector<std::string> stateful_node_names;
+    auto support_dynamic_devices_info = [&]() -> std::vector<DeviceInformation> {
+        std::vector<DeviceInformation> ret;
+        std::vector<std::string> devices_support_dynamic = {"CPU", "GPU"};
+        for (auto& item : meta_devices) {
+            auto dev_iter = std::find_if(devices_support_dynamic.begin(),
+                                         devices_support_dynamic.end(),
+                                         [item](const std::string& device) {
+                                             return item.device_name.find(device) != std::string::npos;
+                                         });
+            if (dev_iter != devices_support_dynamic.end())
+                ret.push_back(item);
+        }
+        return ret;
+    };
 
-    // Check if CPU is in candidate list
-    auto cpuiter = std::find_if(meta_devices.begin(), meta_devices.end(), [](const DeviceInformation& device_info) {
-        return device_info.device_name.find("CPU") != std::string::npos;
-    });
     // If CPU is in candidate list, load dynamic model to CPU first
     // For MULTI do not only load stateful model to CPU
     // For AUTO CTPUT only load stateful model to CPU
-    if (model->is_dynamic() && cpuiter != meta_devices.end()) {
-        filter_device.push_back(*cpuiter);
+    if (model->is_dynamic()) {
+        filter_device = support_dynamic_devices_info();
         return filter_device;
     }
     // If CPU is not in candidate list, continue to run selection logic regardless of whether the input model is a
