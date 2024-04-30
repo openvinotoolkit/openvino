@@ -4,11 +4,6 @@
 
 set (TARGET_NAME "openvino_runtime")
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # TODO: Add IMPLEMENT_OPENVINO_API to openvino_runtime_obj
-    ov_add_compiler_flags(/wd4273)
-endif()
-
 file (GLOB LIBRARY_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp/*.cpp
