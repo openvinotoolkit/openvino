@@ -30,10 +30,10 @@ memory::ptr memory_pool::alloc_memory(const layout& layout, allocation_type type
 
 memory_pool::~memory_pool() {}
 
-bool memory_pool::has_conflict(const memory_set& a,
+bool memory_pool::has_conflict(const memory_set& mem_cand,
                                const std::unordered_set<size_t>& restrictions,
                                uint32_t b_network_id) {
-    for (auto const& mem_usr : a) {
+    for (const auto& mem_usr : mem_cand) {
         if (restrictions.find(mem_usr._unique_id) != restrictions.end())
             return true;
     }
@@ -114,10 +114,7 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
                                                   allocation_type type,
                                                   bool reset) {
     auto it = _non_padded_pool.lower_bound(layout.bytes_count());
-//    std::cout << "Get memory from pool for " << prim_id << " (" << layout.bytes_count() << ")" << std::endl;
     while (it != _non_padded_pool.end()) {
-//        std::cout << "   --- check mem " << it->second._memory->get_layout().bytes_count() << std::endl;
-//        std::cout << "       # mem deps  :  " << restrictions.size() << " , # mem users: " << it->second._users.size() << std::endl;
         if (it->second._network_id == network_id &&
             it->second._type == type &&
             it->second._memory->get_layout().format != format::fs_b_yx_fsv32 &&

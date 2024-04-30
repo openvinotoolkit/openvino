@@ -21,11 +21,10 @@ namespace cldnn {
 struct memory;
 struct shared_mem_params;
 class engine;
+
 using primitive_id = std::string;
-//struct memory_user;
-//struct memory_user_comparer;
-//using memory_set = std::set<memory_user, memory_user_comparer>;
 using memory_ptr = std::shared_ptr<memory>;
+
 struct memory_user {
     size_t _unique_id;
     uint32_t _network_id;
