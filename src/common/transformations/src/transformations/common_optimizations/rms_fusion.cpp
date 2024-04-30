@@ -12,10 +12,10 @@
 #include "openvino/op/power.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/sqrt.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/utils/utils.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/rms.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace pass {
