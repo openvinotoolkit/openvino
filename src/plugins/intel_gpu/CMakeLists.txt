@@ -52,7 +52,6 @@ include(thirdparty/cmake/rapidjson.cmake)
 if(CMAKE_COMPILER_IS_GNUCXX)
     ov_add_compiler_flags(-Werror)
 endif()
-ov_add_compiler_flags(-Rno-debug-disables-optimization)
 
 add_subdirectory(src/runtime)
 add_subdirectory(src/kernel_selector)
@@ -70,7 +69,6 @@ target_compile_options(${TARGET_NAME} PRIVATE
     $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_graph openvino::pugixml)
-target_link_options(${TARGET_NAME} PUBLIC -static-intel)
 
 target_include_directories(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include/)

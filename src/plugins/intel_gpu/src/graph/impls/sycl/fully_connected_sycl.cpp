@@ -286,7 +286,7 @@ struct fully_connected_sycl : typed_primitive_sycl_impl<fully_connected> {
 
             return to_ocl_event(stream, run_fc_int8_woq(sycl_queue, barrier, in, wei, dzp, ds, out, M, N, K, group_size, groups_num, out_shape, dzp_scalar));
         } else {
-            OPENVINO_THROW("No instance for given types found");
+            OPENVINO_THROW("No instance for given types found: ", in_t, " ", wei_t, " ", out_t, " ", ds_t, " ", dzp_t);
         }
     }
 
