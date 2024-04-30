@@ -26,9 +26,9 @@ class TestBlockLSTM(CommonTFLayerTest):
             cs_prev = rng.uniform(0, 1, [batch_size, hidden_size]).astype(np.float32)
             h_prev = rng.uniform(0, 1, [batch_size, hidden_size]).astype(np.float32)
             w = rng.uniform(0, 1, [input_size + hidden_size, 4 * hidden_size]).astype(np.float32)
-            wci = rng.uniform(0, 1, [4 * hidden_size]).astype(np.float32)
-            wcf = rng.uniform(0, 1, [4 * hidden_size]).astype(np.float32)
-            wco = rng.uniform(0, 1, [4 * hidden_size]).astype(np.float32)
+            wci = rng.uniform(0, 1, [hidden_size]).astype(np.float32)
+            wcf = rng.uniform(0, 1, [hidden_size]).astype(np.float32)
+            wco = rng.uniform(0, 1, [hidden_size]).astype(np.float32)
             b = rng.uniform(0, 1, [4 * hidden_size]).astype(np.float32)
             _, _, _, _, _, _, h_output = tf.raw_ops.BlockLSTM(x=x, seq_len_max=seq_len_max, cs_prev=cs_prev,
                                                               h_prev=h_prev, w=w, wci=wci,
