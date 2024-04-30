@@ -3,7 +3,7 @@ FROM openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
 USER root
 
 # APT configuration
-RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries && \
+RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf && \
     echo 'APT::Get::Assume-Yes "true";' >> /etc/apt/apt.conf && \
     echo 'APT::Get::Fix-Broken "true";' >> /etc/apt/apt.conf && \
     echo 'APT::Get::no-install-recommends "true";' >> /etc/apt/apt.conf
@@ -29,18 +29,21 @@ RUN apt-get update && \
         && \
     rm -rf /var/lib/apt/lists/*
 
-# Setup pip
-RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python3.11 get-pip.py --no-cache-dir pip==24.0 && \
-    rm -f get-pip.py
-
 # Install openvino dependencies
 ADD scripts/install_dependencies/install_openvino_dependencies.sh /install_openvino_dependencies.sh
 RUN chmod +x /install_openvino_dependencies.sh && \
     /install_openvino_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
+# Setup pip
+ENV PIP_VERSION="24.0"
+RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
+    python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    rm -f get-pip.py
+
 # Use Python 3.11 as default instead of Python 3.8
 # Using venv here 'cause other methods to switch the default Python on Ubuntu 20 break both system and wheels build
 RUN python3.11 -m venv venv
 ENV PATH="/venv/bin:$PATH"
+
+ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}

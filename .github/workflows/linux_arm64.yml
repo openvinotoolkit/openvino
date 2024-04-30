@@ -131,15 +131,6 @@ jobs:
       # Dependencies
       #
 
-      - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: ./openvino/.github/actions/setup_python
-        with:
-          version: ${{ env.PYTHON_VERSION }}
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
-          show-cache-info: 'true'
-          skip-python-install: 'true'
-
       - name: Install python dependencies
         run: |
           # For Python API: build and wheel packaging
