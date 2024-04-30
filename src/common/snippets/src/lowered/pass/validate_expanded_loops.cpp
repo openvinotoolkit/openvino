@@ -23,7 +23,7 @@ bool ValidateExpandedLoops::run(LinearIR& linear_ir) {
         if (const auto loop_end = ov::as_type_ptr<op::LoopEnd>(expr->get_node())) {
             const auto loop_id = loop_end->get_id();
             unique_loop_ids.insert(loop_id);
-            OPENVINO_ASSERT(std::dynamic_pointer_cast<ExpandedLoopInfo>(loop_manager->get_loop_info(loop_id)),
+            OPENVINO_ASSERT(ov::as_type_ptr<ExpandedLoopInfo>(loop_manager->get_loop_info(loop_id)),
                             "ValidateExpandedLoops expects only ExpandedLoopInfo in LoopManager");
         }
     }

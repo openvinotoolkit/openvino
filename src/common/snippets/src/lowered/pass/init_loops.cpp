@@ -170,7 +170,7 @@ bool InitLoops::run(LinearIR& linear_ir) {
     const auto& loop_manager = linear_ir.get_loop_manager();
     const auto& loops = loop_manager->get_map();
     for (const auto& loop : loops) {
-        init_loop_info(std::dynamic_pointer_cast<UnifiedLoopInfo>(loop.second), loop.first);
+        init_loop_info(ov::as_type_ptr<UnifiedLoopInfo>(loop.second), loop.first);
     }
 
     return true;

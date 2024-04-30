@@ -80,7 +80,7 @@ bool ValidateUnifiedLoops::run(LinearIR& linear_ir) {
     };
 
     for (const auto& pair : loops) {
-        const auto& loop_info = std::dynamic_pointer_cast<UnifiedLoopInfo>(pair.second);
+        const auto& loop_info = ov::as_type_ptr<UnifiedLoopInfo>(pair.second);
         OPENVINO_ASSERT(loop_info,
                         "ValidateUnifiedLoops expects only UnifiedLoopInfo in LoopManager");
         const auto& entry_points = loop_info->get_entry_points();
