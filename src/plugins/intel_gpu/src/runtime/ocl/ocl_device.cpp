@@ -265,8 +265,8 @@ device_info init_device_info(const cl::Device& device) {
             info.gfx_ver.major > 12 || (info.gfx_ver.major == 12 && info.gfx_ver.minor >= 70)) {
             info.has_separate_cache = true;
         }
-        GPU_DEBUG_INFO << "GPU version: " << (int)info.gfx_ver.major << "." << (int)info.gfx_ver.minor << "." << (int)info.gfx_ver.revision <<
-            (info.has_separate_cache ? " with separate cache" : "") << std::endl;
+        GPU_DEBUG_INFO << "GPU version: " << static_cast<int>(info.gfx_ver.major) << "." << static_cast<int>(info.gfx_ver.minor) << "." << static_cast<int>(info.gfx_ver.revision)
+            << (info.has_separate_cache ? " with separate cache" : "") << std::endl;
         GPU_DEBUG_GET_INSTANCE(debug_config);
         GPU_DEBUG_IF(debug_config->disable_onednn)
             info.supports_immad = false;
