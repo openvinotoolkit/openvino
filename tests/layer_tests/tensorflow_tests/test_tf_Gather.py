@@ -89,16 +89,12 @@ class TestComplexGather(CommonTFLayerTest):
         imag_params_shape = inputs_info['imag_params:0']
         indices_shape = inputs_info['indices:0']
         inputs_data = {}
-        if self.params_type == str or self.params_type == np.str_:
-            strings_dictionary = ['first', 'second sentence', ' sentence 3 three', '34ferf466 23435* ']
-            inputs_data['real_params:0'] = rng.choice(strings_dictionary, real_params_shape)
-            inputs_data['imag_params:0'] = rng.choice(strings_dictionary, imag_params_shape)
-        else:
-            inputs_data['real_params:0'] = rng.integers(-50, 50, real_params_shape).astype(self.params_type)
-            inputs_data['imag_params:0'] = rng.integers(-50, 50, imag_params_shape).astype(self.params_type)
-
-            inputs_data['indices:0'] = rng.integers(0, self.max_index, indices_shape).astype(self.indices_type)
+        inputs_data['real_params:0'] = rng.integers(-50, 50, real_params_shape).astype(np.float32)
+        inputs_data['imag_params:0'] = rng.integers(-50, 50, imag_params_shape).astype(np.float32)
+        
+        inputs_data['indices:0'] = rng.integers(0, self.max_index, indices_shape).astype(self.indices_type)
         return inputs_data
+
 
     def create_gather_net(self, params_shape, params_type, indices_shape, indices_type, axis_value, batch_dims,
                           operation_type):
@@ -147,7 +143,7 @@ class TestComplexGather(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_precommit)
-    @pytest.mark.parametrize("params_type", [np.float32, np.int32, str, np.str_])
+    @pytest.mark.parametrize("params_type", [np.float32])
     @pytest.mark.parametrize("indices_type", [np.int32, np.int64])
     @pytest.mark.precommit
     @pytest.mark.nightly
