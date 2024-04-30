@@ -74,10 +74,10 @@ void LoopInfo::init_from_ports(const std::function<void(const LoopPort&)>& initi
     std::for_each(m_exit_points.cbegin(), m_exit_points.cend(), initializer);
 }
 
-std::vector<LoopPort> LoopInfo::clone_loop_ports(const ExpressionMap& expr_map, const std::vector<LoopPort>& port_ports) {
+std::vector<LoopPort> LoopInfo::clone_loop_ports(const ExpressionMap& expr_map, const std::vector<LoopPort>& loop_ports) {
     std::vector<LoopPort> cloned_port_points;
-    cloned_port_points.reserve(port_ports.size());
-    for (const auto& p : port_ports) {
+    cloned_port_points.reserve(loop_ports.size());
+    for (const auto& p : loop_ports) {
         const auto& expr = p.expr_port->get_expr().get();
         OPENVINO_ASSERT(expr_map.count(expr), "Can't clone LoopInfo: old expression is not in the map");
         const auto& new_expr = expr_map.at(expr);

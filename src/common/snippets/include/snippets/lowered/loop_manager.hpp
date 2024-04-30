@@ -31,9 +31,9 @@ public:
      * @param index loop ID
      * @return the LoopInfo shared ptr
      */
-    template<typename T = LoopInfo>
+    template<typename T = LoopInfo,
+             typename std::enable_if<std::is_base_of<LoopInfo, T>::value, bool>::type = true>
     std::shared_ptr<T> get_loop_info(size_t index) const {
-        static_assert(std::is_base_of<LoopInfo, T>::value, "LoopInfo not derived from lowered::LoopInfo");
         const auto it = m_map.find(index);
         OPENVINO_ASSERT(it != m_map.end(), "LoopInfo hasn't been found!");
         const auto loop_info = std::dynamic_pointer_cast<T>(it->second);
@@ -138,7 +138,7 @@ public:
         return loop_id;
     }
     /**
-     * @brief Create new Loop and replace with it: create new LoopInfo, update loop IDs in expressions and
+     * @brief Create new Loop and replace with it: add new LoopInfo, update loop IDs in expressions and
      *        remove the old LoopInfo from the map if no one expression isn't mark by this `old_id`
      * @param linear_ir linear IR
      * @param loop_begin_pos the first expression iterator. Must be the iterator of the `linear_ir`.

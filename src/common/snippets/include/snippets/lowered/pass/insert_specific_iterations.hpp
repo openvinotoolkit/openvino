@@ -55,7 +55,7 @@ public:
 
 private:
     /**
-     * @brief Decomposes the original Loop to the several speicifc iterations
+     * @brief Decomposes the original Loop to the several specific iterations
      * @param linear_ir target Linear IR
      * @param begin iterator of LoopBegin
      * @param end iterator of LoopEnd

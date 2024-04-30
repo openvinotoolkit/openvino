@@ -42,7 +42,8 @@ size_t InsertSpecificIterations::get_decomposed_loop_work_amount(const UnifiedLo
 
     switch (type) {
         case (SpecificLoopIterType::FIRST_ITER):
-            return increment;
+            // We don't set always `increment` for first iterations since in dynamic `work_amount` can be less than `increment`
+            return is_dynamic ? remaining_work_amount : increment;
         case (SpecificLoopIterType::MAIN_BODY):
             return is_dynamic ? remaining_work_amount : (remaining_work_amount / increment) * increment;
         case (SpecificLoopIterType::LAST_ITER):
@@ -90,8 +91,8 @@ LoopManager::LoopBounds InsertSpecificIterations::insert_copy_loop(LinearIR& lin
     auto clone_ports = [&expression_map](const std::vector<LoopPort>& ports, std::vector<LoopPort>& new_ports) {
         new_ports.resize(ports.size());
         for (size_t i = 0; i < ports.size(); ++i) {
-            const auto& entry = ports[i];
-            new_ports[i] = *entry.clone_with_new_expr(expression_map[entry.expr_port->get_expr().get()]);
+            const auto& port = ports[i];
+            new_ports[i] = *port.clone_with_new_expr(expression_map[port.expr_port->get_expr().get()]);
         }
     };
     const auto original_loop_info = loop_manager->get_loop_info(loop_id);

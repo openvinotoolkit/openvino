@@ -14,7 +14,7 @@ namespace lowered {
 
 /**
  * @interface LoopInfo
- * @brief The base class that contains the base common information about a Loop in Linear Intermediate IR (Linear IR):
+ * @brief The base class that contains the common information about a Loop in Linear Intermediate Representation (Linear IR):
  *        work amount of the Loop, step of loop counter increment, entry and exit ports of the Loop.
  * @ingroup snippets
  */
@@ -86,12 +86,12 @@ protected:
     /**
      * @brief Helper to clone Loop ports using `ExpressionMap`
      * @param expr_map expression map [the current expr -> the new expr]
-     * @param port_ports the loop ports that will be cloned
+     * @param loop_ports the loop ports that will be cloned
      * @return vector with new cloned loop ports
      */
-    static std::vector<LoopPort> clone_loop_ports(const ExpressionMap& expr_map, const std::vector<LoopPort>& port_ports);
+    static std::vector<LoopPort> clone_loop_ports(const ExpressionMap& expr_map, const std::vector<LoopPort>& loop_ports);
     /**
-     * @brief Helper to initialize some values from loop ports
+     * @brief Applies provided initializer function to entry and exit points
      * @param initializer function that can access to LoopPort
      */
     void init_from_ports(const std::function<void(const LoopPort&)>& initializer) const;
@@ -110,7 +110,7 @@ using LoopInfoPtr = std::shared_ptr<LoopInfo>;
 /**
  * @interface UnifiedLoopInfo
  * @brief The structure describes unified (entire) Loop before decomposition into specific loop iterations.
- *        Contains passes for specific loop iterations that will be called in decomposition for each iteration (in `InsertSpecificIterations` pass).
+ *        Contains passes for specific loop iterations that will be called for each iteration during the decomposition stage (`InsertSpecificIterations` pass).
  * @ingroup snippets
  */
 class UnifiedLoopInfo : public LoopInfo {
@@ -232,7 +232,7 @@ public:
      */
     SpecificLoopIterType get_type() const;
     /**
-     * @brief Returns passes of the corresponding halder
+     * @brief Returns passes of the corresponding handler
      * @return pass pipeline
      */
     const pass::PassPipeline& get_handlers_by_type() const;

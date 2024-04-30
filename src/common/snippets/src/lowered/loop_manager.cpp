@@ -236,7 +236,7 @@ size_t LoopManager::replace_with_new_loop(const LinearIR& linear_ir, LinearIR::c
     const auto explicit_loop_bounds = is_bound_explicit_loop_begin && is_bound_explicit_loop_end;
     OPENVINO_ASSERT(std::all_of(m_map.cbegin(), m_map.cend(),
                     [&loop_info](const std::pair<size_t, LoopInfoPtr>& p) { return loop_info != p.second; }),
-                    "Failed to replace with new Loop: this Loop is already existed!");
+                    "Failed to replace with new Loop: this Loop already exists!");
 
     // [137819] Should be before loop id replacing!!!
     // Check that other expression in LinearIR doesn't have the old loop ID - otherwise completely removed from loop manager

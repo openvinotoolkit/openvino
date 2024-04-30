@@ -13,8 +13,9 @@ namespace pass {
 
 /**
  * @interface NormalizeLoopIDs
- * @brief Sort loop IDs in LoopEnd expressions order and make them dense with expression loop IDs updates.
- *        After optimizations on Loops IDs might be unevenly: some numbers are missed and unsorted.
+ * @brief Sort loop IDs in the order of LoopEnd expressions execution and set them evenly: without missed numbers in IDs.
+ *        Loops might have an arbitrary IDs ordering as a result of optimizations:
+ *        IDs can be unsorted or non-consecutive (some are missing).
  *        For example,
  *             [Loop -> ID -> new ID]
  *              Loop0 -> 3 -> 0
