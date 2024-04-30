@@ -111,6 +111,10 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
     endif()
 endif()
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
+    set(OV_COMPILER_IS_INTEL_LLVM ON)
+endif()
+
 get_property(OV_GENERATOR_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 
 function(ov_get_compiler_definition definition var)
@@ -119,7 +123,7 @@ function(ov_get_compiler_definition definition var)
     endif()
 
     execute_process(COMMAND echo "#include <string>"
-                    COMMAND "${CMAKE_CXX_COMPILER}" -x c++ - -E -dM
+                    COMMAND "${CMAKE_CXX_COMPILER}" -x c++ - -E -dM ${CMAKE_CXX_FLAGS}
                     COMMAND grep -E "^#define ${definition} "
                     OUTPUT_VARIABLE output_value
                     ERROR_VARIABLE error_message
