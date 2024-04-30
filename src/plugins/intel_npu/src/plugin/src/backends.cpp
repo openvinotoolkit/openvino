@@ -160,7 +160,7 @@ bool NPUBackends::isBatchingSupported() const {
         return _backend->isBatchingSupported();
     }
 
-    OPENVINO_THROW("No available backend");
+    return false;
 }
 
 std::shared_ptr<IDevice> NPUBackends::getDevice(const std::string& specificName) const {
