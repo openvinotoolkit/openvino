@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "compilation_context.hpp"
+#include "openvino/util/compilation_context.hpp"
 
 #include <gtest/gtest.h>
 

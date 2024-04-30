@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "check_network_batchable.hpp"
-#include "compilation_context.hpp"
 #include "itt.hpp"
 #include "model_reader.hpp"
 #include "openvino/core/any.hpp"
@@ -29,6 +28,7 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
+#include "openvino/util/compilation_context.hpp"
 #include "ov_plugins.hpp"
 #ifdef PROXY_PLUGIN_ENABLED
 #    include "openvino/proxy/plugin.hpp"
@@ -732,7 +732,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     // Skip caching for proxy plugin. HW plugin will load network from the cache
     if (cacheManager && device_supports_model_caching(plugin) && !is_proxy_device(plugin)) {
         CacheContent cacheContent{cacheManager};
-        cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
+        {
+            OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ModelCache::compute_hash - Model");
+            cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
+        }
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
             return compile_model_and_cache(plugin,
@@ -765,7 +768,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     // Skip caching for proxy plugin. HW plugin will load network from the cache
     if (cacheManager && device_supports_model_caching(plugin) && !is_proxy_device(plugin)) {
         CacheContent cacheContent{cacheManager};
-        cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
+        {
+            OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ModelCache::compute_hash - Model");
+            cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
+        }
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, context, [&]() {
             return compile_model_and_cache(plugin, model, parsed._config, context, cacheContent);
@@ -790,7 +796,11 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     if (cacheManager && device_supports_model_caching(plugin) && !is_proxy_device(plugin)) {
         // Skip caching for proxy plugin. HW plugin will load network from the cache
         CacheContent cacheContent{cacheManager, model_path};
-        cacheContent.blobId = ov::ModelCache::compute_hash(model_path, create_compile_config(plugin, parsed._config));
+        {
+            OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ModelCache::compute_hash - Model");
+            cacheContent.blobId =
+                ov::ModelCache::compute_hash(model_path, create_compile_config(plugin, parsed._config));
+        }
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         compiled_model =
             load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
@@ -817,8 +827,11 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     // Skip caching for proxy plugin. HW plugin will load network from the cache
     if (cacheManager && device_supports_model_caching(plugin) && !is_proxy_device(plugin)) {
         CacheContent cacheContent{cacheManager};
-        cacheContent.blobId =
-            ov::ModelCache::compute_hash(model_str, weights, create_compile_config(plugin, parsed._config));
+        {
+            OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ModelCache::compute_hash - Model");
+            cacheContent.blobId =
+                ov::ModelCache::compute_hash(model_str, weights, create_compile_config(plugin, parsed._config));
+        }
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         compiled_model =
             load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {

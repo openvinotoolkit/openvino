@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "compilation_context.hpp"
-
 #include <sys/stat.h>
 #include <sys/types.h>
 
@@ -11,7 +9,6 @@
 #    include <unistd.h>
 #endif
 
-#include "itt.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/util/file_util.hpp"
@@ -19,6 +16,7 @@
 #include "transformations/hash.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
+#include "openvino/util/compilation_context.hpp"
 
 #ifdef _WIN32
 #    define stat _stat
@@ -64,8 +62,6 @@ std::string ModelCache::calculate_file_info(const std::string& filePath) {
 }
 
 std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& compileOptions) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ModelCache::compute_hash - Model");
-
     OPENVINO_ASSERT(model);
 
     uint64_t seed = 0;
@@ -94,7 +90,6 @@ std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& mod
 }
 
 std::string ModelCache::compute_hash(const std::string& modelName, const ov::AnyMap& compileOptions) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ModelCache::compute_hash - ModelName");
     uint64_t seed = 0;
     try {
         seed = hash_combine(seed, ov::util::get_absolute_file_path(modelName));
@@ -111,7 +106,6 @@ std::string ModelCache::compute_hash(const std::string& modelName, const ov::Any
 std::string ModelCache::compute_hash(const std::string& modelStr,
                                      const ov::Tensor& tensor,
                                      const ov::AnyMap& compileOptions) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ModelCache::compute_hash - Model Memory");
     uint64_t seed = 0;
     // model string
     seed = hash_combine(seed, modelStr);

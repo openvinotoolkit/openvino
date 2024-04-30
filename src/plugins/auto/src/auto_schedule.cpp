@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "openvino/util/file_util.hpp"
-#include "compilation_context.hpp"
+#include "openvino/util/compilation_context.hpp"
 #include "auto_schedule.hpp"
 #include "async_infer_request.hpp"
 #include "plugin.hpp"
