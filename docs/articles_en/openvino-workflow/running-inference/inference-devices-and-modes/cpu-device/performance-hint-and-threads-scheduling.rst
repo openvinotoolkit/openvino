@@ -44,7 +44,7 @@ In this scenario, default setting of ``ov::hint::scheduling_core_type`` is decid
 +----------------------------+---------------------+---------------------+
 | 2 <= P-cores / E-cores < 4 | P-cores             | P-cores and E-cores |
 +----------------------------+---------------------+---------------------+
-| 4 <= P-cores / E-cores     | P-cores and E-cores | P-cores and E-cores |
+| 4 <= E-cores / P-cores     | P-cores and E-cores | P-cores and E-cores |
 +----------------------------+---------------------+---------------------+
 
 Then the default settings of low-level performance properties on Windows and Linux is as follows.
