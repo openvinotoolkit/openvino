@@ -102,7 +102,7 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
         output_type = *desc->output_data_types[0];
 
     if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
     }
 
     auto reshape_to_2d = [](const ov::PartialShape& shape, int64_t feature) {
@@ -144,7 +144,7 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
         output_type = *desc->output_data_types[0];
 
     if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
     }
 
     ov::op::v0::MatMul op;

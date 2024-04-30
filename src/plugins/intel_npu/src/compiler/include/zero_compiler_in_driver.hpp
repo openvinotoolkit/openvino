@@ -13,13 +13,10 @@
 namespace intel_npu {
 namespace driverCompilerAdapter {
 
-#define NotSupportLogHandle(T)                                                                                 \
-    (std::is_same<T, ze_graph_dditable_ext_t>::value || std::is_same<T, ze_graph_dditable_ext_1_1_t>::value || \
-     std::is_same<T, ze_graph_dditable_ext_1_2_t>::value || std::is_same<T, ze_graph_dditable_ext_1_3_t>::value)
+#define NotSupportLogHandle(T) \
+    (std::is_same<T, ze_graph_dditable_ext_1_2_t>::value || std::is_same<T, ze_graph_dditable_ext_1_3_t>::value)
 
-#define NotSupportQuery(T)                                                                                     \
-    (std::is_same<T, ze_graph_dditable_ext_t>::value || std::is_same<T, ze_graph_dditable_ext_1_1_t>::value || \
-     std::is_same<T, ze_graph_dditable_ext_1_2_t>::value)
+#define NotSupportQuery(T) (std::is_same<T, ze_graph_dditable_ext_1_2_t>::value)
 
 // ext version == 1.3 && 1.4, support API (pfnQueryNetworkCreate, pfnQueryNetworkDestroy,
 // pfnQueryNetworkGetSupportedLayers)
@@ -31,9 +28,13 @@ namespace driverCompilerAdapter {
 
 // For ext version >= 1.5, pfnCreate2 api is avaible
 #define NotSupportGraph2(T)                                                                                        \
-    (std::is_same<T, ze_graph_dditable_ext_t>::value || std::is_same<T, ze_graph_dditable_ext_1_1_t>::value ||     \
-     std::is_same<T, ze_graph_dditable_ext_1_2_t>::value || std::is_same<T, ze_graph_dditable_ext_1_3_t>::value || \
+    (std::is_same<T, ze_graph_dditable_ext_1_2_t>::value || std::is_same<T, ze_graph_dditable_ext_1_3_t>::value || \
      std::is_same<T, ze_graph_dditable_ext_1_4_t>::value)
+
+// For ext version >= 1.6, originalShape is avaible
+#define NotSupportOriginalShape(T)                                                                                 \
+    (std::is_same<T, ze_graph_dditable_ext_1_2_t>::value || std::is_same<T, ze_graph_dditable_ext_1_3_t>::value || \
+     std::is_same<T, ze_graph_dditable_ext_1_4_t>::value || std::is_same<T, ze_graph_dditable_ext_1_5_t>::value)
 
 /**
  * Adapter to use CiD through ZeroAPI
@@ -71,8 +72,9 @@ public:
      * --outputs_precisions="<output1Name>:<output1Precision>"
      * --outputs_layouts="<output1Name>:<output1Layout>"
      *
-     * Since the layout information is no longer an important part of the metadata values when using the 2.0 OV API, the
-     * layout fields shall be filled with default values in order to assure the backward compatibility with the driver.
+     * Since the layout information is no longer an important part of the metadata values when using the 2.0 OV
+     * API, the layout fields shall be filled with default values in order to assure the backward compatibility
+     * with the driver.
      */
     static std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model);
 
@@ -84,21 +86,22 @@ private:
 
     /**
      * @brief Extracts the layout value or the state descriptor from the given Level Zero structure.
-     * @details Extracting the layout information is required only when using older driver versions which rely on this
-     * legacy attribute. Since this information is not found within the parameter/result nodes, we need to extract this
-     * value here.
+     * @details Extracting the layout information is required only when using older driver versions which rely on
+     * this legacy attribute. Since this information is not found within the parameter/result nodes, we need to
+     * extract this value here.
      *
-     * The state variables are also not found in the previously mentioned nodes, thus if the given Level Zero parameter
-     * corresponds to an input/output, we shall extract the layout value from it. Else it represents a state variable
-     * and the descriptor will be extracted and stored in an OpenVINO specific format.
+     * The state variables are also not found in the previously mentioned nodes, thus if the given Level Zero
+     * parameter corresponds to an input/output, we shall extract the layout value from it. Else it represents a
+     * state variable and the descriptor will be extracted and stored in an OpenVINO specific format.
      * @param parameters Holds the already extracted input node descriptors. The transposed shape attribute of the
      * corresponding entry may be updated according to the extracted layout value.
      * @param results Holds the already extracted output node descriptors. The transposed shape attribute of the
      * corresponding entry may be updated according to the extracted layout value.
      * @param states The state descriptors shall be stored here in an OpenVINO specific format.
-     * @param stateNames The output location of the state variables' names in the order found within the compiled model.
-     * @param arg The Level Zero specific structure from which the layout value or state variable descriptor shall be
-     * extracted.
+     * @param stateNames The output location of the state variables' names in the order found within the compiled
+     * model.
+     * @param arg The Level Zero specific structure from which the layout value or state variable descriptor shall
+     * be extracted.
      */
     template <typename T>
     void getLayoutOrStateDescriptor(IONodeDescriptorMap& parameters,
@@ -107,34 +110,18 @@ private:
                                     std::vector<std::string>& stateNames,
                                     const T& arg) const;
 
-    /**
-     * @brief Extracts the node or state descriptor from the given Level Zero structure.
-     * @details The first version of the "ze_graph_dditable" extension does not directly support extracting the
-     * information corresponding to the parameter/result nodes. However, the same information can be extracted from the
-     * legacy I/O structures, with the exception of the node and tensor names fields.
-     *
-     * Thus, the current function is a best effort method of assuring the backward compatibility with the driver.
-     * The missing names have been replaced with the only one available in the structure (i.e. "arg.name"), this
-     * could potentially lead to issues further in the application's flow.
-     * @param parameters The parameter node descriptors shall be stored here in an OpenVINO specific format.
-     * @param results The result node descriptors shall be stored here in an OpenVINO specific format.
-     * @param states The state descriptors shall be stored here in an OpenVINO specific format.
-     * @param inputNames The output location of the input names in the order found within the compiled model.
-     * @param outputNames The output location of the output names in the order found within the compiled model.
-     * @param stateNames The output location of the state variables' names in the order found within the compiled model.
-     * @param arg The Level Zero specific structure from which the node or state variable descriptor shall be
-     * extracted.
-     */
-    template <typename T = TableExtension,
-              std::enable_if_t<std::is_same<T, ze_graph_dditable_ext_t>::value, bool> = true>
-    void getNodeOrStateDescriptorLegacy(IONodeDescriptorMap& parameters,
-                                        IONodeDescriptorMap& results,
-                                        IONodeDescriptorMap& states,
-                                        std::vector<std::string>& inputNames,
-                                        std::vector<std::string>& outputNames,
-                                        std::vector<std::string>& stateNames,
-                                        const ze_graph_argument_properties_t& arg) const;
+    template <typename T = TableExtension, typename std::enable_if_t<NotSupportOriginalShape(T), bool> = true>
+    void getMetadata(TableExtension* graphDdiTableExt,
+                     ze_graph_handle_t graphHandle,
+                     uint32_t index,
+                     std::vector<std::string>& inputNames,
+                     std::vector<std::string>& outputNames,
+                     std::vector<std::string>& stateNames,
+                     IONodeDescriptorMap& parameters,
+                     IONodeDescriptorMap& results,
+                     IONodeDescriptorMap& state) const;
 
+    template <typename T = TableExtension, typename std::enable_if_t<!NotSupportOriginalShape(T), bool> = true>
     void getMetadata(TableExtension* graphDdiTableExt,
                      ze_graph_handle_t graphHandle,
                      uint32_t index,
