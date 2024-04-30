@@ -291,8 +291,14 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto kv_cache_kernel_params = get_concat_kernel_params(impl_param, impl_param.is_dynamic());
-        (_kernels_data[concat_stage].update_dispatch_data_func)(kv_cache_kernel_params, _kernels_data[concat_stage]);
+        auto& params = static_cast<kernel_params_t&>(*_kernels_data[concat_stage].params);
+        const auto inputs_count = 2;
+        for (size_t i = 0; i < inputs_count; ++i) {
+            params.inputs[i] = convert_data_tensor(impl_param.input_layouts[i]);
+        }
+        params.outputs[0] = convert_data_tensor(impl_param.output_layouts[0]);
+
+        (_kernels_data[concat_stage].update_dispatch_data_func)(params, _kernels_data[concat_stage]);
         _kernels_data[concat_stage].kernels[0].skip_execution = impl_param._can_be_optimized || impl_param.get_input_layout(0).count() == 0;
     }
 };
