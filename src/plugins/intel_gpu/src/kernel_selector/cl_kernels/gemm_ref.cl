@@ -135,6 +135,8 @@ KERNEL(gemm_ref)(
                 b0 = BEAM_TABLE_BATCH_NUM > 1 ? beam_table[FUNC_CALL(get_bt_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, ki)] : b;
             #elif INDIRECT_AXIS == 1
                 b0 = BEAM_TABLE_FEATURE_NUM > 1 ? beam_table[FUNC_CALL(get_bt_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, ki)] : b;
+            #else
+            #   error gemm_ref.cl : Unsupported indirect axis for beam table
             #endif
         #endif
         #if INDIRECT_INPUT1
@@ -142,6 +144,8 @@ KERNEL(gemm_ref)(
                 b1 = BEAM_TABLE_BATCH_NUM > 1 ? beam_table[FUNC_CALL(get_bt_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, ki, x)] : b;
             #elif INDIRECT_AXIS == 1
                 b1 = BEAM_TABLE_FEATURE_NUM > 1 ? beam_table[FUNC_CALL(get_bt_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, ki, x)] : b;
+            #else
+            #   error gemm_ref.cl : Unsupported indirect axis for beam table
             #endif
         #endif
 
