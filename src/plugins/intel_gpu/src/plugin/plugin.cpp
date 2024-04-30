@@ -157,7 +157,10 @@ Plugin::Plugin() {
     m_compiled_model_runtime_properties["OV_VERSION"] = ov_version.buildNumber;
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const {
+std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(
+    const std::shared_ptr<const ov::Model>& model,
+    const ov::AnyMap& orig_config,
+    const std::function<std::string(const std::string&)>& encrypt) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model");
     std::string device_id = get_device_id(orig_config);
 
@@ -176,9 +179,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                          const ov::AnyMap& orig_config,
-                                                          const ov::SoPtr<ov::IRemoteContext>& context) const {
+std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(
+    const std::shared_ptr<const ov::Model>& model,
+    const ov::AnyMap& orig_config,
+    const ov::SoPtr<ov::IRemoteContext>& context,
+    const std::function<std::string(const std::string&)>& encrypt) const {
     auto context_impl = get_context_impl(context);
     auto device_id = ov::DeviceIDParser{context_impl->get_device_name()}.get_device_id();
 
@@ -276,15 +281,20 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return res;
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model, const ov::AnyMap& config) const {
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(
+    std::istream& model,
+    const ov::AnyMap& config,
+    const std::function<std::string(const std::string&)>& decrypt) const {
     std::string device_id = get_device_id(config);
     auto context = get_default_context(device_id);
-    return import_model(model, { context, nullptr }, config);
+    return import_model(model, {context, nullptr}, config, decrypt);
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
-                                                         const ov::SoPtr<ov::IRemoteContext>& context,
-                                                         const ov::AnyMap& orig_config) const {
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(
+    std::istream& model,
+    const ov::SoPtr<ov::IRemoteContext>& context,
+    const ov::AnyMap& orig_config,
+    const std::function<std::string(const std::string&)>& decrypt) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork");
 
     auto context_impl = get_context_impl(context);

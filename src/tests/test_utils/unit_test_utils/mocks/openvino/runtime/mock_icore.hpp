@@ -32,19 +32,36 @@ public:
                 (const));
     MOCK_METHOD(ov::SoPtr<ov::ICompiledModel>,
                 compile_model,
-                (const std::shared_ptr<const ov::Model>&, const std::string&, const ov::AnyMap&),
+                (const std::shared_ptr<const ov::Model>&,
+                 const std::string&,
+                 const ov::AnyMap&,
+                 const std::function<std::string(const std::string&)>&,
+                 const std::function<std::string(const std::string&)>&),
                 (const));
     MOCK_METHOD(ov::SoPtr<ov::ICompiledModel>,
                 compile_model,
-                (const std::shared_ptr<const ov::Model>&, const ov::SoPtr<ov::IRemoteContext>&, const ov::AnyMap&),
+                (const std::shared_ptr<const ov::Model>&,
+                 const ov::SoPtr<ov::IRemoteContext>&,
+                 const ov::AnyMap&,
+                 const std::function<std::string(const std::string&)>&,
+                 const std::function<std::string(const std::string&)>&),
                 (const));
     MOCK_METHOD(ov::SoPtr<ov::ICompiledModel>,
                 compile_model,
-                (const std::string&, const std::string&, const ov::AnyMap&),
+                (const std::string&,
+                 const std::string&,
+                 const ov::AnyMap&,
+                 const std::function<std::string(const std::string&)>&,
+                 const std::function<std::string(const std::string&)>&),
                 (const));
     MOCK_METHOD(ov::SoPtr<ov::ICompiledModel>,
                 compile_model,
-                (const std::string&, const ov::Tensor&, const std::string&, const ov::AnyMap&),
+                (const std::string&,
+                 const ov::Tensor&,
+                 const std::string&,
+                 const ov::AnyMap&,
+                 const std::function<std::string(const std::string&)>&,
+                 const std::function<std::string(const std::string&)>&),
                 (const));
     MOCK_METHOD(std::shared_ptr<ov::Model>, read_model, (const std::string&, const ov::Tensor&, bool), (const));
     MOCK_METHOD(std::shared_ptr<ov::Model>, read_model, (const std::string&, const std::string&), (const));

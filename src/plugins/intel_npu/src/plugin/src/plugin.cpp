@@ -461,8 +461,10 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
     OPENVINO_THROW("Unsupported configuration key: ", name);
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                          const ov::AnyMap& properties) const {
+std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(
+    const std::shared_ptr<const ov::Model>& model,
+    const ov::AnyMap& properties,
+    const std::function<std::string(const std::string&)>& encrypt) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::compile_model");
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "merge_configs");
     auto localConfig = merge_configs(_globalConfig, any_copy(properties));
@@ -537,9 +539,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     return compiledModel;
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& /*model*/,
-                                                          const ov::AnyMap& /*properties*/,
-                                                          const ov::SoPtr<ov::IRemoteContext>& /*context*/) const {
+std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(
+    const std::shared_ptr<const ov::Model>& /*model*/,
+    const ov::AnyMap& /*properties*/,
+    const ov::SoPtr<ov::IRemoteContext>& /*context*/,
+    const std::function<std::string(const std::string&)>& encrypt) const {
     OPENVINO_THROW_NOT_IMPLEMENTED("The remote context feature is not supported by the NPU plugin");
 }
 
@@ -551,7 +555,10 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& /*re
     OPENVINO_THROW_NOT_IMPLEMENTED("The remote context feature is not supported by the NPU plugin");
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, const ov::AnyMap& properties) const {
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(
+    std::istream& stream,
+    const ov::AnyMap& properties,
+    const std::function<std::string(const std::string&)>& decrypt) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
 
     OV_ITT_TASK_CHAIN(PLUGIN_IMPORT_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "merge_configs");
@@ -608,9 +615,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     return compiledModel;
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& /*stream*/,
-                                                         const ov::SoPtr<ov::IRemoteContext>& /*context*/,
-                                                         const ov::AnyMap& /*properties*/) const {
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(
+    std::istream& /*stream*/,
+    const ov::SoPtr<ov::IRemoteContext>& /*context*/,
+    const ov::AnyMap& /*properties*/,
+    const std::function<std::string(const std::string&)>& decrypt) const {
     OPENVINO_THROW_NOT_IMPLEMENTED("The remote context feature is not supported by the NPU plugin");
 }
 

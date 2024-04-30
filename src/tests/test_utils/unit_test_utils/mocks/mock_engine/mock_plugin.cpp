@@ -25,10 +25,12 @@ public:
     explicit MockInternalPlugin(ov::IPlugin* target) : m_plugin(target) {}
     explicit MockInternalPlugin() = default;
 
-    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                      const ov::AnyMap& properties) const override {
+    std::shared_ptr<ov::ICompiledModel> compile_model(
+        const std::shared_ptr<const ov::Model>& model,
+        const ov::AnyMap& properties,
+        const std::function<std::string(const std::string&)>& encrypt = {}) const override {
         if (m_plugin)
-            return m_plugin->compile_model(model, properties);
+            return m_plugin->compile_model(model, properties, encrypt);
         OPENVINO_NOT_IMPLEMENTED;
     }
 
@@ -39,11 +41,13 @@ public:
         OPENVINO_NOT_IMPLEMENTED;
     }
 
-    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                      const ov::AnyMap& properties,
-                                                      const ov::SoPtr<ov::IRemoteContext>& context) const override {
+    std::shared_ptr<ov::ICompiledModel> compile_model(
+        const std::shared_ptr<const ov::Model>& model,
+        const ov::AnyMap& properties,
+        const ov::SoPtr<ov::IRemoteContext>& context,
+        const std::function<std::string(const std::string&)>& encrypt = {}) const override {
         if (m_plugin)
-            return m_plugin->compile_model(model, properties, context);
+            return m_plugin->compile_model(model, properties, context, encrypt);
         OPENVINO_NOT_IMPLEMENTED;
     }
 
@@ -72,17 +76,22 @@ public:
         OPENVINO_NOT_IMPLEMENTED;
     }
 
-    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const override {
+    std::shared_ptr<ov::ICompiledModel> import_model(
+        std::istream& model,
+        const ov::AnyMap& properties,
+        const std::function<std::string(const std::string&)>& decrypt = {}) const override {
         if (m_plugin)
-            return m_plugin->import_model(model, properties);
+            return m_plugin->import_model(model, properties, decrypt);
         OPENVINO_NOT_IMPLEMENTED;
     }
 
-    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
-                                                     const ov::SoPtr<ov::IRemoteContext>& context,
-                                                     const ov::AnyMap& properties) const override {
+    std::shared_ptr<ov::ICompiledModel> import_model(
+        std::istream& model,
+        const ov::SoPtr<ov::IRemoteContext>& context,
+        const ov::AnyMap& properties,
+        const std::function<std::string(const std::string&)>& decrypt = {}) const override {
         if (m_plugin)
-            return m_plugin->import_model(model, context, properties);
+            return m_plugin->import_model(model, context, properties, decrypt);
         OPENVINO_NOT_IMPLEMENTED;
     }
 
@@ -127,9 +136,10 @@ ov::Any MockPlugin::get_property(const std::string& name, const ov::AnyMap& argu
 }
 
 std::shared_ptr<ov::ICompiledModel> MockPlugin::compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                              const ov::AnyMap& properties) const {
+                                                              const ov::AnyMap& properties,
+                                                              const std::function<std::string(const std::string&)>& encrypt) const {
     set_parameters_if_need();
-    return m_plugin->compile_model(model, properties);
+    return m_plugin->compile_model(model, properties, encrypt);
 }
 
 std::shared_ptr<ov::ICompiledModel> MockPlugin::compile_model(const std::string& model_path,
@@ -140,9 +150,10 @@ std::shared_ptr<ov::ICompiledModel> MockPlugin::compile_model(const std::string&
 
 std::shared_ptr<ov::ICompiledModel> MockPlugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                               const ov::AnyMap& properties,
-                                                              const ov::SoPtr<ov::IRemoteContext>& context) const {
+                                                              const ov::SoPtr<ov::IRemoteContext>& context,
+                                                              const std::function<std::string(const std::string&)>& encrypt) const {
     set_parameters_if_need();
-    return m_plugin->compile_model(model, properties, context);
+    return m_plugin->compile_model(model, properties, context, encrypt);
 }
 
 ov::SoPtr<ov::IRemoteContext> MockPlugin::create_context(const ov::AnyMap& remote_properties) const {
@@ -155,15 +166,20 @@ ov::SoPtr<ov::IRemoteContext> MockPlugin::get_default_context(const ov::AnyMap& 
     return m_plugin->get_default_context(remote_properties);
 }
 
-std::shared_ptr<ov::ICompiledModel> MockPlugin::import_model(std::istream& model, const ov::AnyMap& properties) const {
+std::shared_ptr<ov::ICompiledModel> MockPlugin::import_model(
+    std::istream& model,
+    const ov::AnyMap& properties,
+    const std::function<std::string(const std::string&)>& decrypt) const {
     set_parameters_if_need();
-    return m_plugin->import_model(model, properties);
+    return m_plugin->import_model(model, properties, decrypt);
 }
-std::shared_ptr<ov::ICompiledModel> MockPlugin::import_model(std::istream& model,
-                                                             const ov::SoPtr<ov::IRemoteContext>& context,
-                                                             const ov::AnyMap& properties) const {
+std::shared_ptr<ov::ICompiledModel> MockPlugin::import_model(
+    std::istream& model,
+    const ov::SoPtr<ov::IRemoteContext>& context,
+    const ov::AnyMap& properties,
+    const std::function<std::string(const std::string&)>& decrypt) const {
     set_parameters_if_need();
-    return m_plugin->import_model(model, context, properties);
+    return m_plugin->import_model(model, context, properties, decrypt);
 }
 ov::SupportedOpsMap MockPlugin::query_model(const std::shared_ptr<const ov::Model>& model,
                                             const ov::AnyMap& properties) const {

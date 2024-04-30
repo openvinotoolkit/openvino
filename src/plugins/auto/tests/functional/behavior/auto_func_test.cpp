@@ -373,8 +373,10 @@ public:
 
 class MockPluginBase : public ov::IPlugin {
 public:
-    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                      const ov::AnyMap& properties) const override {
+    std::shared_ptr<ov::ICompiledModel> compile_model(
+        const std::shared_ptr<const ov::Model>& model,
+        const ov::AnyMap& properties,
+        const std::function<std::string(const std::string&)>& encrypt = {}) const override {
         OPENVINO_ASSERT(model);
         if (!support_model(model, query_model(model, properties)))
             OPENVINO_THROW("Unsupported model");
@@ -387,9 +389,11 @@ public:
         OPENVINO_NOT_IMPLEMENTED;
     }
 
-    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                      const ov::AnyMap& properties,
-                                                      const ov::SoPtr<ov::IRemoteContext>& context) const override {
+    std::shared_ptr<ov::ICompiledModel> compile_model(
+        const std::shared_ptr<const ov::Model>& model,
+        const ov::AnyMap& properties,
+        const ov::SoPtr<ov::IRemoteContext>& context,
+        const std::function<std::string(const std::string&)>& encrypt = {}) const override {
         if (!support_model(model, query_model(model, properties)))
             OPENVINO_THROW("Unsupported model");
 
@@ -412,7 +416,10 @@ public:
         OPENVINO_NOT_IMPLEMENTED;
     }
 
-    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const override {
+    std::shared_ptr<ov::ICompiledModel> import_model(
+        std::istream& model,
+        const ov::AnyMap& properties,
+        const std::function<std::string(const std::string&)>& decrypt = {}) const override {
         std::string xmlString, xmlInOutString;
         ov::Tensor weights;
 
@@ -442,9 +449,11 @@ public:
         return compile_model(ov_model, properties);
     }
 
-    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
-                                                     const ov::SoPtr<ov::IRemoteContext>& context,
-                                                     const ov::AnyMap& properties) const override {
+    std::shared_ptr<ov::ICompiledModel> import_model(
+        std::istream& model,
+        const ov::SoPtr<ov::IRemoteContext>& context,
+        const ov::AnyMap& properties,
+        const std::function<std::string(const std::string&)>& decrypt = {}) const override {
         std::string xmlString, xmlInOutString;
         ov::Tensor weights;
 
@@ -715,17 +724,21 @@ void ov::auto_plugin::tests::AutoFuncTests::register_plugin_mock_gpu_compile_slo
                                                                                     const ov::AnyMap& properties) {
     class MockPluginCompileSlower : public MockPluginSupportBatchAndContext {
     public:
-        std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                          const ov::AnyMap& properties) const override {
+        std::shared_ptr<ov::ICompiledModel> compile_model(
+            const std::shared_ptr<const ov::Model>& model,
+            const ov::AnyMap& properties,
+            const std::function<std::string(const std::string&)>& encrypt = {}) const override {
             OPENVINO_ASSERT(model);
             if (!support_model(model, query_model(model, properties)))
                 OPENVINO_THROW("Unsupported model");
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));  // add delay for test
             return std::make_shared<MockCompiledModel>(model, shared_from_this(), properties);
         }
-        std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                          const ov::AnyMap& properties,
-                                                          const ov::SoPtr<ov::IRemoteContext>& context) const override {
+        std::shared_ptr<ov::ICompiledModel> compile_model(
+            const std::shared_ptr<const ov::Model>& model,
+            const ov::AnyMap& properties,
+            const ov::SoPtr<ov::IRemoteContext>& context,
+            const std::function<std::string(const std::string&)>& encrypt = {}) const override {
             if (!support_model(model, query_model(model, properties)))
                 OPENVINO_THROW("Unsupported model");
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));  // add delay for test
@@ -742,17 +755,21 @@ void ov::auto_plugin::tests::AutoFuncTests::register_plugin_mock_cpu_compile_slo
                                                                                     const ov::AnyMap& properties) {
     class MockCPUPluginCompileSlower : public MockPlugin {
     public:
-        std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                          const ov::AnyMap& properties) const override {
+        std::shared_ptr<ov::ICompiledModel> compile_model(
+            const std::shared_ptr<const ov::Model>& model,
+            const ov::AnyMap& properties,
+            const std::function<std::string(const std::string&)>& encrypt = {}) const override {
             OPENVINO_ASSERT(model);
             if (!support_model(model, query_model(model, properties)))
                 OPENVINO_THROW("Unsupported model");
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));  // add delay for test
             return std::make_shared<MockCompiledModel>(model, shared_from_this(), properties);
         }
-        std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                          const ov::AnyMap& properties,
-                                                          const ov::SoPtr<ov::IRemoteContext>& context) const override {
+        std::shared_ptr<ov::ICompiledModel> compile_model(
+            const std::shared_ptr<const ov::Model>& model,
+            const ov::AnyMap& properties,
+            const ov::SoPtr<ov::IRemoteContext>& context,
+            const std::function<std::string(const std::string&)>& encrypt = {}) const override {
             if (!support_model(model, query_model(model, properties)))
                 OPENVINO_THROW("Unsupported model");
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));  // add delay for test

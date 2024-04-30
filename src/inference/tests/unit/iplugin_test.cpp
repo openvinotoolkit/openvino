@@ -64,7 +64,7 @@ protected:
 
     void getInferRequestWithMockImplInside(std::shared_ptr<ov::IAsyncInferRequest>& request) {
         std::shared_ptr<ov::ICompiledModel> compiled_model;
-        EXPECT_CALL(*mock_plugin_impl.get(), compile_model(A<const std::shared_ptr<const ov::Model>&>(), _))
+        EXPECT_CALL(*mock_plugin_impl.get(), compile_model(A<const std::shared_ptr<const ov::Model>&>(), _, _))
             .WillOnce(Return(mock_compiled_model));
         EXPECT_CALL(*mock_compiled_model.get(), create_sync_infer_request()).WillOnce(Return(mock_infer_request));
         ON_CALL(*mock_compiled_model.get(), create_infer_request()).WillByDefault([&]() {

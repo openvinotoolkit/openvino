@@ -99,13 +99,17 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
             ON_CALL(*core,
                     compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                                   ::testing::Matcher<const std::string&>(StrEq(deviceName)),
-                                  (_)))
+                                  (_),
+                                  _,
+                                  _))
                 .WillByDefault(Return(mockExeNetwork));
         } else {
             ON_CALL(*core,
                     compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                                   ::testing::Matcher<const std::string&>(StrEq(deviceName)),
-                                  (_)))
+                                  (_),
+                                  _,
+                                  _))
                 .WillByDefault(ov::Throw("compile error"));
         }
         DeviceInformation devInfo;
@@ -163,7 +167,9 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
     EXPECT_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                               ::testing::Matcher<const std::string&>(_),
-                              ::testing::Matcher<const ov::AnyMap&>(_)))
+                              ::testing::Matcher<const ov::AnyMap&>(_),
+                              ::testing::Matcher<const std::function<std::string(const std::string&)>&>(_),
+                              ::testing::Matcher<const std::function<std::string(const std::string&)>&>(_)))
         .Times(loadCount);
 
     // if loadSuccess will get the optimalNum requset of per device, in this test is 2;

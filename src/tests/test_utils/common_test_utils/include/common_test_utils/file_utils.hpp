@@ -178,14 +178,18 @@ std::function<T> make_std_function(const std::shared_ptr<void> so, const std::st
 }  // namespace
 
 class MockPlugin : public ov::IPlugin {
-    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                      const ov::AnyMap& properties) const override {
+    std::shared_ptr<ov::ICompiledModel> compile_model(
+        const std::shared_ptr<const ov::Model>& model,
+        const ov::AnyMap& properties,
+        const std::function<std::string(const std::string&)>& encrypt = {}) const override {
         OPENVINO_NOT_IMPLEMENTED;
     }
 
-    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                      const ov::AnyMap& properties,
-                                                      const ov::SoPtr<ov::IRemoteContext>& context) const override {
+    std::shared_ptr<ov::ICompiledModel> compile_model(
+        const std::shared_ptr<const ov::Model>& model,
+        const ov::AnyMap& properties,
+        const ov::SoPtr<ov::IRemoteContext>& context,
+        const std::function<std::string(const std::string&)>& encrypt = {}) const override {
         OPENVINO_NOT_IMPLEMENTED;
     }
 
@@ -219,13 +223,18 @@ class MockPlugin : public ov::IPlugin {
         OPENVINO_NOT_IMPLEMENTED;
     }
 
-    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const override {
+    std::shared_ptr<ov::ICompiledModel> import_model(
+        std::istream& model,
+        const ov::AnyMap& properties,
+        const std::function<std::string(const std::string&)>& decrypt = {}) const override {
         OPENVINO_NOT_IMPLEMENTED;
     }
 
-    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
-                                                     const ov::SoPtr<ov::IRemoteContext>& context,
-                                                     const ov::AnyMap& properties) const override {
+    std::shared_ptr<ov::ICompiledModel> import_model(
+        std::istream& model,
+        const ov::SoPtr<ov::IRemoteContext>& context,
+        const ov::AnyMap& properties,
+        const std::function<std::string(const std::string&)>& decrypt = {}) const override {
         OPENVINO_NOT_IMPLEMENTED;
     }
 

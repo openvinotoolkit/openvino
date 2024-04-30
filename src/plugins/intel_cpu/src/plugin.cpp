@@ -6,6 +6,7 @@
 
 #include "internal_properties.hpp"
 #include "itt.h"
+#include "openvino/util/codec_xor.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -231,8 +232,10 @@ static Config::SnippetsMode getSnippetsMode(const ov::AnyMap& modelConfig, const
         OPENVINO_THROW("Wrong value for property key SNIPPETS_MODE. Expected values: ENABLE/DISABLE/IGNORE_CALLBACK");
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                          const ov::AnyMap& orig_config) const {
+std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(
+    const std::shared_ptr<const ov::Model>& model,
+    const ov::AnyMap& orig_config,
+    const std::function<std::string(const std::string&)>& encrypt) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Plugin::compile_model");
     CREATE_DEBUG_TIMER(debugLoadTimer);
 
@@ -322,7 +325,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             denormals_as_zero(false);
         }
     }
-    return std::make_shared<CompiledModel>(cloned_model, shared_from_this(), conf, false);
+    return std::make_shared<CompiledModel>(cloned_model, shared_from_this(), conf, false, encrypt);
 }
 
 void Plugin::set_property(const ov::AnyMap& config) {
@@ -577,12 +580,19 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return res;
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& networkModel, const ov::AnyMap& config) const {
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(
+    std::istream& networkModel,
+    const ov::AnyMap& config,
+    const std::function<std::string(const std::string&)>& decrypt) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
+    auto cache_decrypt = decrypt;
+    if (!cache_decrypt) {
+        cache_decrypt = ov::util::codec_xor;
+    }
 
     ModelDeserializer deserializer(networkModel, [this](const std::string& model, const ov::Tensor& weights) {
         return get_core()->read_model(model, weights, true);
-    });
+    }, cache_decrypt);
 
     std::shared_ptr<ov::Model> model;
     deserializer >> model;

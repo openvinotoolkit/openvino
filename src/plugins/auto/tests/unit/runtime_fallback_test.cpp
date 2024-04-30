@@ -99,6 +99,8 @@ public:
         ON_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                               ::testing::Matcher<const std::string&>(StrEq("GPU.0")),
+                              _,
+                              _,
                               _))
             .WillByDefault(InvokeWithoutArgs([this]() {
                 std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -107,6 +109,8 @@ public:
         ON_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                               ::testing::Matcher<const std::string&>(StrEq("GPU.1")),
+                              _,
+                              _,
                               _))
             .WillByDefault(InvokeWithoutArgs([this]() {
                 std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -115,6 +119,8 @@ public:
         ON_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                               ::testing::Matcher<const std::string&>(StrEq("OTHER")),
+                              _,
+                              _,
                               _))
             .WillByDefault(InvokeWithoutArgs([this]() {
                 std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -124,7 +130,9 @@ public:
         ON_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                               ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
-                              (_)))
+                              (_),
+                              _,
+                              _))
             .WillByDefault(Return(mockExeNetwork));
 
         mockExecutor = std::make_shared<ov::threading::ImmediateExecutor>();
@@ -161,6 +169,8 @@ TEST_P(AutoRuntimeFallback, releaseResource) {
         ON_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                               ::testing::Matcher<const std::string&>(StrEq("GPU.1")),
+                              _,
+                              _,
                               _))
             .WillByDefault(ov::Throw("compile model error"));
     }
@@ -227,7 +237,9 @@ TEST_P(AutoRuntimeFallback, releaseResource) {
     EXPECT_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                               ::testing::Matcher<const std::string&>(_),
-                              ::testing::Matcher<const ov::AnyMap&>(_)))
+                              ::testing::Matcher<const ov::AnyMap&>(_),
+                              ::testing::Matcher<const std::function<std::string(const std::string&)>&>(_),
+                              ::testing::Matcher<const std::function<std::string(const std::string&)>&>(_)))
         .Times(loadNetworkNum);
 
     std::shared_ptr<ov::ICompiledModel> exeNetwork;
@@ -314,6 +326,8 @@ TEST_P(AutoCTPUTRuntimeFallback, ctputDeviceInferFailTest) {
         ON_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                               ::testing::Matcher<const std::string&>(StrEq("GPU.1")),
+                              _,
+                              _,
                               _))
             .WillByDefault(ov::Throw("compile model error"));
     }
@@ -370,7 +384,9 @@ TEST_P(AutoCTPUTRuntimeFallback, ctputDeviceInferFailTest) {
     EXPECT_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                               ::testing::Matcher<const std::string&>(_),
-                              ::testing::Matcher<const ov::AnyMap&>(_)))
+                              ::testing::Matcher<const ov::AnyMap&>(_),
+                              ::testing::Matcher<const std::function<std::string(const std::string&)>&>(_),
+                              ::testing::Matcher<const std::function<std::string(const std::string&)>&>(_)))
         .Times(loadNetworkNum);
 
     std::shared_ptr<ov::ICompiledModel> exeNetwork;

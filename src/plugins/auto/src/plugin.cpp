@@ -83,14 +83,18 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& remo
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
-                                                         const ov::AnyMap& properties) const {
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(
+    std::istream& model,
+    const ov::AnyMap& properties,
+    const std::function<std::string(const std::string&)>& decrypt) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
-                                                         const ov::SoPtr<ov::IRemoteContext>& context,
-                                                         const ov::AnyMap& properties) const {
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(
+    std::istream& model,
+    const ov::SoPtr<ov::IRemoteContext>& context,
+    const ov::AnyMap& properties,
+    const std::function<std::string(const std::string&)>& decrypt) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
@@ -309,14 +313,18 @@ Plugin::Plugin() {
     set_device_name("AUTO");
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                              const ov::AnyMap& properties,
-                                                              const ov::SoPtr<ov::IRemoteContext>& context) const {
+std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(
+    const std::shared_ptr<const ov::Model>& model,
+    const ov::AnyMap& properties,
+    const ov::SoPtr<ov::IRemoteContext>& context,
+    const std::function<std::string(const std::string&)>& encrypt) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                          const ov::AnyMap& properties) const {
+std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(
+    const std::shared_ptr<const ov::Model>& model,
+    const ov::AnyMap& properties,
+    const std::function<std::string(const std::string&)>& encrypt) const {
     auto model_precision = get_model_precision(model);
     return compile_model_impl({}, model, properties, model_precision);
 }

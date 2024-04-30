@@ -102,6 +102,8 @@ private:
         std::shared_ptr<ov::ICacheManager> cacheManager;
         std::string blobId = {};
         std::string modelPath = {};
+        std::function<std::string(const std::string&)> encrypt = nullptr;
+        std::function<std::string(const std::string&)> decrypt = nullptr;
     };
 
     // Core settings (cache config, etc)
@@ -252,22 +254,34 @@ public:
 
     std::shared_ptr<ov::Model> read_model(const std::string& model_path, const std::string& bin_path) const override;
 
-    ov::SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                const std::string& device_name,
-                                                const ov::AnyMap& config = {}) const override;
+    ov::SoPtr<ov::ICompiledModel> compile_model(
+        const std::shared_ptr<const ov::Model>& model,
+        const std::string& device_name,
+        const ov::AnyMap& config = {},
+        const std::function<std::string(const std::string&)>& encryption_func = {},
+        const std::function<std::string(const std::string&)>& decryption_func = {}) const override;
 
-    ov::SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                const ov::SoPtr<ov::IRemoteContext>& context,
-                                                const ov::AnyMap& config = {}) const override;
+    ov::SoPtr<ov::ICompiledModel> compile_model(
+        const std::shared_ptr<const ov::Model>& model,
+        const ov::SoPtr<ov::IRemoteContext>& context,
+        const ov::AnyMap& config = {},
+        const std::function<std::string(const std::string&)>& encryption_func = {},
+        const std::function<std::string(const std::string&)>& decryption_func = {}) const override;
 
-    ov::SoPtr<ov::ICompiledModel> compile_model(const std::string& model_path,
-                                                const std::string& device_name,
-                                                const ov::AnyMap& config) const override;
+    ov::SoPtr<ov::ICompiledModel> compile_model(
+        const std::string& model_path,
+        const std::string& device_name,
+        const ov::AnyMap& config,
+        const std::function<std::string(const std::string&)>& encryption_func = {},
+        const std::function<std::string(const std::string&)>& decryption_func = {}) const override;
 
-    ov::SoPtr<ov::ICompiledModel> compile_model(const std::string& model_str,
-                                                const ov::Tensor& weights,
-                                                const std::string& device_name,
-                                                const ov::AnyMap& config) const override;
+    ov::SoPtr<ov::ICompiledModel> compile_model(
+        const std::string& model_str,
+        const ov::Tensor& weights,
+        const std::string& device_name,
+        const ov::AnyMap& config,
+        const std::function<std::string(const std::string&)>& encryption_func = {},
+        const std::function<std::string(const std::string&)>& decryption_func = {}) const override;
 
     ov::SoPtr<ov::ICompiledModel> import_model(std::istream& model,
                                                const std::string& device_name = {},

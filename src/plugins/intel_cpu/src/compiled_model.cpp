@@ -16,6 +16,7 @@
 #include "transformations/transformation_pipeline.h"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/codec_xor.hpp"
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -43,13 +44,15 @@ struct ImmediateSerialExecutor : public ov::threading::ITaskExecutor {
 CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              const Config& cfg,
-                             const bool loaded_from_cache)
+                             const bool loaded_from_cache,
+                             const std::function<std::string(const std::string&)>& encrypt)
     : ov::ICompiledModel::ICompiledModel(model, plugin),
       m_model(model),
       m_plugin(plugin),
       m_cfg{cfg},
       m_name{model->get_name()},
-      m_loaded_from_cache(loaded_from_cache) {
+      m_loaded_from_cache(loaded_from_cache),
+      m_cache_encrypt(encrypt) {
     m_mutex = std::make_shared<std::mutex>();
     const auto& core = m_plugin->get_core();
     if (!core)
@@ -74,6 +77,10 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         set_task_executor(m_task_executor);
     if (m_callback_executor)
         set_callback_executor(m_callback_executor);
+
+    if (!m_cache_encrypt) {
+        m_cache_encrypt = ov::util::codec_xor;
+    }
 
     int streams = std::max(1, m_cfg.streamExecutorConfig.get_streams());
     std::vector<Task> tasks;
@@ -305,7 +312,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
 }
 
 void CompiledModel::export_model(std::ostream& modelStream) const {
-    ModelSerializer serializer(modelStream);
+    ModelSerializer serializer(modelStream, m_cache_encrypt);
     serializer << m_model;
 }
 

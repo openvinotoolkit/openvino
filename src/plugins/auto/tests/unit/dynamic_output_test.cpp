@@ -61,6 +61,8 @@ void DynamicOutputInferenceTest::SetUp() {
     ON_CALL(*core,
             compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                           ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_GPU)),
+                          _,
+                          _,
                           _))
         .WillByDefault(InvokeWithoutArgs([this]() {
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -70,6 +72,8 @@ void DynamicOutputInferenceTest::SetUp() {
         *core,
         compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                       ::testing::Matcher<const std::string&>(StrEq(std::string(ov::test::utils::DEVICE_GPU) + ".0")),
+                      _,
+                      _,
                       _))
         .WillByDefault(InvokeWithoutArgs([this]() {
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -79,6 +83,8 @@ void DynamicOutputInferenceTest::SetUp() {
         *core,
         compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                       ::testing::Matcher<const std::string&>(StrEq(std::string(ov::test::utils::DEVICE_GPU) + ".1")),
+                      _,
+                      _,
                       _))
         .WillByDefault(InvokeWithoutArgs([this]() {
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -87,7 +93,9 @@ void DynamicOutputInferenceTest::SetUp() {
     ON_CALL(*core,
             compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                           ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
-                          (_)))
+                          (_),
+                          _,
+                          _))
         .WillByDefault(Return(mockExeNetwork));
 }
 
@@ -100,14 +108,18 @@ TEST_P(DynamicOutputInferenceTest, CanSelectCorrectTargetDeviceandInitizeBlobWit
         EXPECT_CALL(*core,
                     compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                                   ::testing::Matcher<const std::string&>(HasSubstr(iter)),
-                                  ::testing::Matcher<const ov::AnyMap&>(_)))
+                                  ::testing::Matcher<const ov::AnyMap&>(_),
+                                  ::testing::Matcher<const std::function<std::string(const std::string&)>&>(_),
+                                  ::testing::Matcher<const std::function<std::string(const std::string&)>&>(_)))
             .Times(1);
     }
     if (priorityList.as<std::string>().find("CPU") != std::string::npos) {
         EXPECT_CALL(*core,
                     compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                                   ::testing::Matcher<const std::string&>(StrEq("GPU")),
-                                  ::testing::Matcher<const ov::AnyMap&>(_)))
+                                  ::testing::Matcher<const ov::AnyMap&>(_),
+                                  ::testing::Matcher<const std::function<std::string(const std::string&)>&>(_),
+                                  ::testing::Matcher<const std::function<std::string(const std::string&)>&>(_)))
             .Times(0);
     }
     ASSERT_NO_THROW(exeNetwork = plugin->compile_model(model, config));

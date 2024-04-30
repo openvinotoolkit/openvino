@@ -185,12 +185,16 @@ public:
         ON_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                               ::testing::Matcher<const std::string&>(StrEq("CPU")),
+                              _,
+                              _,
                               _))
             .WillByDefault(Return(mockExeNetwork));
 
         ON_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                               ::testing::Matcher<const std::string&>(StrEq("GPU")),
+                              _,
+                              _,
                               _))
             .WillByDefault(Return(mockExeNetworkActual));
     }
@@ -252,7 +256,9 @@ TEST_P(NumStreamsAndDefaultPerfHintMockTest, NumStreamsAndDefaultPerfHintTest) {
         EXPECT_CALL(*core,
                     compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                                   ::testing::Matcher<const std::string&>(deviceName),
-                                  ::testing::Matcher<const ov::AnyMap&>(ComparePerfHint(HW_PerfHint))))
+                                  ::testing::Matcher<const ov::AnyMap&>(ComparePerfHint(HW_PerfHint)),
+                                  _,
+                                  _))
             .Times(1);
     }
 
@@ -315,7 +321,9 @@ TEST_P(PerHintAndDefaultPerfHintMockTest, PerfHintAndDefaultPerfHintTest) {
         EXPECT_CALL(*core,
                     compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                                   ::testing::Matcher<const std::string&>(StrEq(deviceName)),
-                                  ::testing::Matcher<const ov::AnyMap&>(ComparePerfHint(HW_PerfHint))))
+                                  ::testing::Matcher<const ov::AnyMap&>(ComparePerfHint(HW_PerfHint)),
+                                  _,
+                                  _))
             .Times(1);
     }
 
@@ -378,7 +386,9 @@ TEST_P(SecPropAndDefaultPerfHintMockTest, SecPropAndDefaultPerfHintTest) {
         EXPECT_CALL(*core,
                     compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                                   ::testing::Matcher<const std::string&>(StrEq(deviceName)),
-                                  ::testing::Matcher<const ov::AnyMap&>(ComparePerfHint(HW_PerfHint))))
+                                  ::testing::Matcher<const ov::AnyMap&>(ComparePerfHint(HW_PerfHint)),
+                                  ::testing::Matcher<const std::function<std::string(const std::string&)>&>(_),
+                                  ::testing::Matcher<const std::function<std::string(const std::string&)>&>(_)))
             .Times(1);
     }
 

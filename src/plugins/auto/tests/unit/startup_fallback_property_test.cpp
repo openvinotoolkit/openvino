@@ -34,6 +34,8 @@ public:
         ON_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                               ::testing::Matcher<const std::string&>(_),
+                              _,
+                              _,
                               _))
             .WillByDefault(Return(mockExeNetwork));
         metaDevices = {{ov::test::utils::DEVICE_CPU, {}, -1}, {ov::test::utils::DEVICE_GPU, {}, -1}};
@@ -56,6 +58,8 @@ TEST_P(AutoStartupFallback, propertytest) {
     EXPECT_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                               ::testing::Matcher<const std::string&>(ov::test::utils::DEVICE_GPU),
+                              _,
+                              _,
                               _))
         .Times(1);
     if (startup_fallback) {
@@ -63,7 +67,9 @@ TEST_P(AutoStartupFallback, propertytest) {
         EXPECT_CALL(*core,
                     compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                                   ::testing::Matcher<const std::string&>(ov::test::utils::DEVICE_CPU),
-                                  ::testing::Matcher<const ov::AnyMap&>(MapContains(test_map))))
+                                  ::testing::Matcher<const ov::AnyMap&>(MapContains(test_map)),
+                                  ::testing::Matcher<const std::function<std::string(const std::string&)>&>(_),
+                                  ::testing::Matcher<const std::function<std::string(const std::string&)>&>(_)))
             .Times(1);
     }
 

@@ -15,21 +15,30 @@ public:
     Plugin();
     ~Plugin();
 
-    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                      const ov::AnyMap& properties) const override;
-    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                      const ov::AnyMap& properties,
-                                                      const ov::SoPtr<ov::IRemoteContext>& context) const override {
+    std::shared_ptr<ov::ICompiledModel> compile_model(
+        const std::shared_ptr<const ov::Model>& model,
+        const ov::AnyMap& properties,
+        const std::function<std::string(const std::string&)>& encrypt = {}) const override;
+    std::shared_ptr<ov::ICompiledModel> compile_model(
+        const std::shared_ptr<const ov::Model>& model,
+        const ov::AnyMap& properties,
+        const ov::SoPtr<ov::IRemoteContext>& context,
+        const std::function<std::string(const std::string&)>& encrypt = {}) const override {
         OPENVINO_THROW_NOT_IMPLEMENTED(
             "Not Implemented compile_model with RemoteContext is not supported by CPU plugin!");
     };
 
     void set_property(const ov::AnyMap& properties) override;
     ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override;
-    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const override;
-    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
-                                                     const ov::SoPtr<ov::IRemoteContext>& context,
-                                                     const ov::AnyMap& properties) const override {
+    std::shared_ptr<ov::ICompiledModel> import_model(
+        std::istream& model,
+        const ov::AnyMap& properties,
+        const std::function<std::string(const std::string&)>& decrypt = {}) const override;
+    std::shared_ptr<ov::ICompiledModel> import_model(
+        std::istream& model,
+        const ov::SoPtr<ov::IRemoteContext>& context,
+        const ov::AnyMap& properties,
+        const std::function<std::string(const std::string&)>& decrypt = {}) const override {
         OPENVINO_THROW_NOT_IMPLEMENTED(
             "Not Implemented import_model with RemoteContext is not supported by CPU plugin!");
     };

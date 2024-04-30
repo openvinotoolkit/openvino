@@ -26,11 +26,16 @@ public:
     }
     MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>,
                 compile_model,
-                (const std::shared_ptr<const ov::Model>&, const ov::AnyMap&),
+                (const std::shared_ptr<const ov::Model>&,
+                 const ov::AnyMap&,
+                 const std::function<std::string(const std::string&)>&),
                 (const, override));
     MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>,
                 compile_model,
-                (const std::shared_ptr<const ov::Model>&, const ov::AnyMap&, const ov::SoPtr<ov::IRemoteContext>&),
+                (const std::shared_ptr<const ov::Model>&,
+                 const ov::AnyMap&,
+                 const ov::SoPtr<ov::IRemoteContext>&,
+                 const std::function<std::string(const std::string&)>&),
                 (const, override));
     MOCK_METHOD(ov::Any, get_property, (const std::string&, const ov::AnyMap&), (const, override));
     MOCK_METHOD(void, set_property, (const ov::AnyMap&), (override));
@@ -38,11 +43,14 @@ public:
     MOCK_METHOD(ov::SoPtr<ov::IRemoteContext>, get_default_context, (const ov::AnyMap&), (const, override));
     MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>,
                 import_model,
-                (std::istream&, const ov::AnyMap&),
+                (std::istream&, const ov::AnyMap&, const std::function<std::string(const std::string&)>&),
                 (const, override));
     MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>,
                 import_model,
-                (std::istream&, const ov::SoPtr<ov::IRemoteContext>&, const ov::AnyMap&),
+                (std::istream&,
+                 const ov::SoPtr<ov::IRemoteContext>&,
+                 const ov::AnyMap&,
+                 const std::function<std::string(const std::string&)>&),
                 (const, override));
     MOCK_METHOD(ov::SupportedOpsMap,
                 query_model,

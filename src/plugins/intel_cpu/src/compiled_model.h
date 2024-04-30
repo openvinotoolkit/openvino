@@ -25,7 +25,8 @@ public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const Config& cfg,
-                  const bool loaded_from_cache);
+                  const bool loaded_from_cache,
+                  const std::function<std::string(const std::string&)>& encrypt = {});
 
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
 
@@ -64,6 +65,7 @@ private:
     };
 
     const bool m_loaded_from_cache;
+    std::function<std::string(const std::string&)> m_cache_encrypt;
     // WARNING: Do not use m_graphs directly.
     mutable std::deque<GraphGuard> m_graphs;
     mutable SocketsWeights m_socketWeights;

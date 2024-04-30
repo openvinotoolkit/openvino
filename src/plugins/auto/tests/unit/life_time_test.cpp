@@ -15,6 +15,8 @@ public:
         ON_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                               ::testing::Matcher<const std::string&>("GPU.0"),
+                              _,
+                              _,
                               _))
             .WillByDefault(Return(mock_compiled_model));
         mock_states = {ov::SoPtr<ov::IVariableState>(std::make_shared<NiceMock<ov::MockIVariableState>>(),

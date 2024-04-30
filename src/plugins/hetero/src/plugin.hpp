@@ -28,12 +28,16 @@ public:
 
     ~Plugin() = default;
 
-    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                      const ov::AnyMap& properties) const override;
+    std::shared_ptr<ov::ICompiledModel> compile_model(
+        const std::shared_ptr<const ov::Model>& model,
+        const ov::AnyMap& properties,
+        const std::function<std::string(const std::string&)>& encrypt = {}) const override;
 
-    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                      const ov::AnyMap& properties,
-                                                      const ov::SoPtr<IRemoteContext>& context) const override;
+    std::shared_ptr<ov::ICompiledModel> compile_model(
+        const std::shared_ptr<const ov::Model>& model,
+        const ov::AnyMap& properties,
+        const ov::SoPtr<IRemoteContext>& context,
+        const std::function<std::string(const std::string&)>& encrypt = {}) const override;
 
     void set_property(const ov::AnyMap& properties) override;
 
@@ -43,11 +47,16 @@ public:
 
     ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override;
 
-    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const override;
+    std::shared_ptr<ov::ICompiledModel> import_model(
+        std::istream& model,
+        const ov::AnyMap& properties,
+        const std::function<std::string(const std::string&)>& decrypt = {}) const override;
 
-    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
-                                                     const ov::SoPtr<ov::IRemoteContext>& context,
-                                                     const ov::AnyMap& properties) const override;
+    std::shared_ptr<ov::ICompiledModel> import_model(
+        std::istream& model,
+        const ov::SoPtr<ov::IRemoteContext>& context,
+        const ov::AnyMap& properties,
+        const std::function<std::string(const std::string&)>& decrypt = {}) const override;
 
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const ov::AnyMap& properties) const override;

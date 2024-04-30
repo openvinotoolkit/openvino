@@ -29,8 +29,10 @@ ov::hetero::Plugin::Plugin() {
     set_device_name("HETERO");
 }
 
-std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                                      const ov::AnyMap& properties) const {
+std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(
+    const std::shared_ptr<const ov::Model>& model,
+    const ov::AnyMap& properties,
+    const std::function<std::string(const std::string&)>& encrypt) const {
     OV_ITT_SCOPED_TASK(itt::domains::Hetero, "Plugin::compile_model");
 
     auto config = Configuration{properties, m_cfg};
@@ -41,18 +43,23 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(const std:
 std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(
     const std::shared_ptr<const ov::Model>& model,
     const ov::AnyMap& properties,
-    const ov::SoPtr<ov::IRemoteContext>& context) const {
+    const ov::SoPtr<ov::IRemoteContext>& context,
+    const std::function<std::string(const std::string&)>& encrypt) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istream& model,
-                                                                     const ov::SoPtr<ov::IRemoteContext>& context,
-                                                                     const ov::AnyMap& properties) const {
+std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(
+    std::istream& model,
+    const ov::SoPtr<ov::IRemoteContext>& context,
+    const ov::AnyMap& properties,
+    const std::function<std::string(const std::string&)>& decrypt) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istream& model,
-                                                                     const ov::AnyMap& properties) const {
+std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(
+    std::istream& model,
+    const ov::AnyMap& properties,
+    const std::function<std::string(const std::string&)>& decrypt) const {
     OV_ITT_SCOPED_TASK(itt::domains::Hetero, "Plugin::import_model");
 
     // check ov::loaded_from_cache property and erase it due to not needed any more.

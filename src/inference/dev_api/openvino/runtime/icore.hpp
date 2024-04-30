@@ -64,11 +64,16 @@ public:
      * @param device_name Name of device to load model to
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation
+     * @param encryption_func Optional function for model cache encryption.
+     * @param decryption_func Optional function for model cache decryption.
      * @return A pointer to compiled model
      */
-    virtual ov::SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                        const std::string& device_name,
-                                                        const ov::AnyMap& config = {}) const = 0;
+    virtual ov::SoPtr<ov::ICompiledModel> compile_model(
+        const std::shared_ptr<const ov::Model>& model,
+        const std::string& device_name,
+        const ov::AnyMap& config = {},
+        const std::function<std::string(const std::string&)>& encryption_func = {},
+        const std::function<std::string(const std::string&)>& decryption_func = {}) const = 0;
 
     /**
      * @brief Creates a compiled model from a model object.
@@ -80,11 +85,16 @@ public:
      * @param context  "Remote" (non-CPU) accelerator device-specific execution context to use
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation
+     * @param encryption_func Optional function for model cache encryption.
+     * @param decryption_func Optional function for model cache decryption.
      * @return A pointer to compiled model
      */
-    virtual ov::SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                        const ov::SoPtr<ov::IRemoteContext>& context,
-                                                        const ov::AnyMap& config = {}) const = 0;
+    virtual ov::SoPtr<ov::ICompiledModel> compile_model(
+        const std::shared_ptr<const ov::Model>& model,
+        const ov::SoPtr<ov::IRemoteContext>& context,
+        const ov::AnyMap& config = {},
+        const std::function<std::string(const std::string&)>& encryption_func = {},
+        const std::function<std::string(const std::string&)>& decryption_func = {}) const = 0;
 
     /**
      * @brief Creates a compiled model from a model file.
@@ -96,11 +106,16 @@ public:
      * @param device_name Name of device to load model to
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation
+     * @param encryption_func Optional function for model cache encryption.
+     * @param decryption_func Optional function for model cache decryption.
      * @return A pointer to compiled model
      */
-    virtual ov::SoPtr<ov::ICompiledModel> compile_model(const std::string& model_path,
-                                                        const std::string& device_name,
-                                                        const ov::AnyMap& config) const = 0;
+    virtual ov::SoPtr<ov::ICompiledModel> compile_model(
+        const std::string& model_path,
+        const std::string& device_name,
+        const ov::AnyMap& config,
+        const std::function<std::string(const std::string&)>& encryption_func = {},
+        const std::function<std::string(const std::string&)>& decryption_func = {}) const = 0;
 
     /**
      * @brief Creates a compiled model from a model memory.
@@ -113,12 +128,17 @@ public:
      * @param device_name Name of device to load model to
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation
+     * @param encryption_func Optional function for model cache encryption.
+     * @param decryption_func Optional function for model cache decryption.
      * @return A pointer to compiled model
      */
-    virtual ov::SoPtr<ov::ICompiledModel> compile_model(const std::string& model_str,
-                                                        const ov::Tensor& weights,
-                                                        const std::string& device_name,
-                                                        const ov::AnyMap& config) const = 0;
+    virtual ov::SoPtr<ov::ICompiledModel> compile_model(
+        const std::string& model_str,
+        const ov::Tensor& weights,
+        const std::string& device_name,
+        const ov::AnyMap& config,
+        const std::function<std::string(const std::string&)>& encryption_func = {},
+        const std::function<std::string(const std::string&)>& decryption_func = {}) const = 0;
 
     /**
      * @brief Creates a compiled model from a previously exported model

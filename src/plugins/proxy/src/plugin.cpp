@@ -381,8 +381,10 @@ ov::SoPtr<ov::IRemoteContext> ov::proxy::Plugin::create_proxy_context(
     return remote_context;
 }
 
-std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                                     const ov::AnyMap& properties) const {
+std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(
+    const std::shared_ptr<const ov::Model>& model,
+    const ov::AnyMap& properties,
+    const std::function<std::string(const std::string&)>& encrypt) const {
     auto dev_name = get_fallback_device(get_device_from_config(properties));
     auto device_config = construct_device_config(dev_name, m_configs, properties);
     std::shared_ptr<const ov::IPlugin> plugin = shared_from_this();
@@ -406,7 +408,8 @@ std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(const std::
 std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(
     const std::shared_ptr<const ov::Model>& model,
     const ov::AnyMap& properties,
-    const ov::SoPtr<ov::IRemoteContext>& context) const {
+    const ov::SoPtr<ov::IRemoteContext>& context,
+    const std::function<std::string(const std::string&)>& encrypt) const {
     auto ctx = ov::proxy::RemoteContext::get_hardware_context(context);
     auto dev_name = ctx->get_device_name();
     auto device_config = construct_device_config(dev_name, m_configs, properties);
@@ -470,8 +473,10 @@ ov::SoPtr<ov::IRemoteContext> ov::proxy::Plugin::get_default_context(const ov::A
     return remote_context;
 }
 
-std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(std::istream& model,
-                                                                    const ov::AnyMap& properties) const {
+std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(
+    std::istream& model,
+    const ov::AnyMap& properties,
+    const std::function<std::string(const std::string&)>& decrypt) const {
     auto dev_name = get_fallback_device(get_device_from_config(properties));
     auto device_config = construct_device_config(dev_name, m_configs, properties);
     auto device_model = get_core()->import_model(model, dev_name, device_config);
@@ -480,9 +485,11 @@ std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(std::istream
     return std::make_shared<ov::proxy::CompiledModel>(device_model, shared_from_this(), remote_context);
 }
 
-std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(std::istream& model,
-                                                                    const ov::SoPtr<ov::IRemoteContext>& context,
-                                                                    const ov::AnyMap& properties) const {
+std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(
+    std::istream& model,
+    const ov::SoPtr<ov::IRemoteContext>& context,
+    const ov::AnyMap& properties,
+    const std::function<std::string(const std::string&)>& decrypt) const {
     auto ctx = ov::proxy::RemoteContext::get_hardware_context(context);
     auto dev_name = ctx->get_device_name();
     auto device_config = construct_device_config(dev_name, m_configs, properties);

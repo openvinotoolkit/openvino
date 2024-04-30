@@ -104,10 +104,13 @@ public:
      * @brief Compiles model from ov::Model object
      * @param model A model object acquired from ov::Core::read_model or source construction
      * @param properties A ov::AnyMap of properties relevant only for this load operation
+     * @param encrypt Optional function for model cache encryption.
      * @return Created Compiled Model object
      */
-    virtual std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                              const ov::AnyMap& properties) const = 0;
+    virtual std::shared_ptr<ov::ICompiledModel> compile_model(
+        const std::shared_ptr<const ov::Model>& model,
+        const ov::AnyMap& properties,
+        const std::function<std::string(const std::string&)>& encrypt = {}) const = 0;
 
     /**
      * @brief Compiles model from ov::Model object
@@ -124,11 +127,14 @@ public:
      * @param properties A ov::AnyMap of properties relevant only for this load operation
      * @param context A pointer to plugin context derived from RemoteContext class used to
      *        execute the model
+     * @param encrypt Optional function for model cache encryption
      * @return Created Compiled Model object
      */
-    virtual std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                              const ov::AnyMap& properties,
-                                                              const ov::SoPtr<ov::IRemoteContext>& context) const = 0;
+    virtual std::shared_ptr<ov::ICompiledModel> compile_model(
+        const std::shared_ptr<const ov::Model>& model,
+        const ov::AnyMap& properties,
+        const ov::SoPtr<ov::IRemoteContext>& context,
+        const std::function<std::string(const std::string&)>& encrypt = {}) const = 0;
 
     /**
      * @brief Sets properties for plugin, acceptable keys can be found in openvino/runtime/properties.hpp
@@ -167,10 +173,13 @@ public:
      *        and removes OpenVINO Runtime magic and plugin name
      * @param model Reference to model output stream
      * @param properties A ov::AnyMap of properties
+     * @param decrypt decryption function for cache model
      * @return An Compiled model
      */
-    virtual std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
-                                                             const ov::AnyMap& properties) const = 0;
+    virtual std::shared_ptr<ov::ICompiledModel> import_model(
+        std::istream& model,
+        const ov::AnyMap& properties,
+        const std::function<std::string(const std::string&)>& decrypt = {}) const = 0;
 
     /**
      * @brief Creates an compiled model from an previously exported model using plugin implementation
@@ -179,11 +188,14 @@ public:
      * @param context A pointer to plugin context derived from RemoteContext class used to
      *        execute the network
      * @param properties A ov::AnyMap of properties
+     * @param decrypt decryption function for cache model
      * @return An Compiled model
      */
-    virtual std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
-                                                             const ov::SoPtr<ov::IRemoteContext>& context,
-                                                             const ov::AnyMap& properties) const = 0;
+    virtual std::shared_ptr<ov::ICompiledModel> import_model(
+        std::istream& model,
+        const ov::SoPtr<ov::IRemoteContext>& context,
+        const ov::AnyMap& properties,
+        const std::function<std::string(const std::string&)>& decrypt = {}) const = 0;
 
     /**
      * @brief Queries a plugin about supported layers in model

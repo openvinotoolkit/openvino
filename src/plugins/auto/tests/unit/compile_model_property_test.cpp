@@ -113,11 +113,15 @@ public:
         ON_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                               ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
+                              _,
+                              _,
                               _))
             .WillByDefault(Return(mockExeNetwork));
         ON_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                               ::testing::Matcher<const std::string&>(StrNe(ov::test::utils::DEVICE_CPU)),
+                              _,
+                              _,
                               _))
             .WillByDefault(Return(mockExeNetworkActual));
     }
@@ -149,7 +153,9 @@ TEST_P(LoadNetworkWithSecondaryConfigsMockTest, LoadNetworkWithSecondaryConfigsT
         EXPECT_CALL(*core,
                     compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                                   ::testing::Matcher<const std::string&>(deviceName),
-                                  ::testing::Matcher<const ov::AnyMap&>(MapContains(deviceConfigs))))
+                                  ::testing::Matcher<const ov::AnyMap&>(MapContains(deviceConfigs)),
+                                  ::testing::Matcher<const std::function<std::string(const std::string&)>&>(_),
+                                  ::testing::Matcher<const std::function<std::string(const std::string&)>&>(_)))
             .Times(1);
     }
 
@@ -171,12 +177,16 @@ TEST_P(AutoLoadExeNetworkFailedTest, checkLoadFailMassage) {
     ON_CALL(*core,
             compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                           ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_GPU)),
-                          ::testing::Matcher<const ov::AnyMap&>(_)))
+                          ::testing::Matcher<const ov::AnyMap&>(_),
+                          ::testing::Matcher<const std::function<std::string(const std::string&)>&>(_),
+                          ::testing::Matcher<const std::function<std::string(const std::string&)>&>(_)))
         .WillByDefault(ov::Throw(gpu_failed));
     ON_CALL(*core,
             compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                           ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
-                          ::testing::Matcher<const ov::AnyMap&>(_)))
+                          ::testing::Matcher<const ov::AnyMap&>(_),
+                          ::testing::Matcher<const std::function<std::string(const std::string&)>&>(_),
+                          ::testing::Matcher<const std::function<std::string(const std::string&)>&>(_)))
         .WillByDefault(ov::Throw(cpu_failed));
 
     const auto auto_failed = std::string{"[AUTO] compile model failed"};
@@ -265,11 +275,15 @@ public:
         ON_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                               ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
+                              _,
+                              _,
                               _))
             .WillByDefault(Return(mockExeNetwork));
         ON_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                               ::testing::Matcher<const std::string&>(StrNe(ov::test::utils::DEVICE_CPU)),
+                              _,
+                              _,
                               _))
             .WillByDefault(Return(mockExeNetworkActual));
         std::vector<ov::PropertyName> supported_props = {};

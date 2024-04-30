@@ -716,9 +716,12 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
     }
 }
 
-ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<const ov::Model>& model_,
-                                                          const std::string& device_name,
-                                                          const ov::AnyMap& config) const {
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(
+    const std::shared_ptr<const ov::Model>& model_,
+    const std::string& device_name,
+    const ov::AnyMap& config,
+    const std::function<std::string(const std::string&)>& encryption_func,
+    const std::function<std::string(const std::string&)>& decryption_func) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "Core::compile_model::model");
     std::string deviceName = device_name;
     ov::AnyMap config_with_batch = config;
@@ -733,6 +736,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     if (cacheManager && device_supports_model_caching(plugin) && !is_proxy_device(plugin)) {
         CacheContent cacheContent{cacheManager};
         cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
+        cacheContent.encrypt = encryption_func;
+        cacheContent.decrypt = decryption_func;
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
             return compile_model_and_cache(plugin,
@@ -747,9 +752,12 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     return res;
 }
 
-ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<const ov::Model>& model_,
-                                                          const ov::SoPtr<ov::IRemoteContext>& context,
-                                                          const ov::AnyMap& config) const {
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(
+    const std::shared_ptr<const ov::Model>& model_,
+    const ov::SoPtr<ov::IRemoteContext>& context,
+    const ov::AnyMap& config,
+    const std::function<std::string(const std::string&)>& encryption_func,
+    const std::function<std::string(const std::string&)>& decryption_func) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "Core::compile_model::RemoteContext");
     if (!context)
         OPENVINO_THROW("Remote context is null");
@@ -766,6 +774,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     if (cacheManager && device_supports_model_caching(plugin) && !is_proxy_device(plugin)) {
         CacheContent cacheContent{cacheManager};
         cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
+        cacheContent.encrypt = encryption_func;
+        cacheContent.decrypt = decryption_func;
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, context, [&]() {
             return compile_model_and_cache(plugin, model, parsed._config, context, cacheContent);
@@ -776,9 +786,12 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     return res;
 }
 
-ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& model_path,
-                                                          const std::string& device_name,
-                                                          const ov::AnyMap& config) const {
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(
+    const std::string& model_path,
+    const std::string& device_name,
+    const ov::AnyMap& config,
+    const std::function<std::string(const std::string&)>& encryption_func,
+    const std::function<std::string(const std::string&)>& decryption_func) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "Core::compile_model::Path");
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
     // in case of compile_model(file_name), we need to clear-up core-level properties
@@ -791,6 +804,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         // Skip caching for proxy plugin. HW plugin will load network from the cache
         CacheContent cacheContent{cacheManager, model_path};
         cacheContent.blobId = ov::ModelCache::compute_hash(model_path, create_compile_config(plugin, parsed._config));
+        cacheContent.encrypt = encryption_func;
+        cacheContent.decrypt = decryption_func;
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         compiled_model =
             load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
@@ -803,10 +818,13 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     return compiled_model;
 }
 
-ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& model_str,
-                                                          const ov::Tensor& weights,
-                                                          const std::string& device_name,
-                                                          const ov::AnyMap& config) const {
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(
+    const std::string& model_str,
+    const ov::Tensor& weights,
+    const std::string& device_name,
+    const ov::AnyMap& config,
+    const std::function<std::string(const std::string&)>& encryption_func,
+    const std::function<std::string(const std::string&)>& decryption_func) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::compile_model::from_memory");
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
     // in case of compile_model(file_name), we need to clear-up core-level properties
@@ -819,6 +837,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         CacheContent cacheContent{cacheManager};
         cacheContent.blobId =
             ov::ModelCache::compute_hash(model_str, weights, create_compile_config(plugin, parsed._config));
+        cacheContent.encrypt = encryption_func;
+        cacheContent.decrypt = decryption_func;
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         compiled_model =
             load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
@@ -1363,7 +1383,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& 
                                                                     const CacheContent& cacheContent) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "CoreImpl::compile_model_and_cache");
     ov::SoPtr<ov::ICompiledModel> compiled_model =
-        context ? plugin.compile_model(model, context, parsedConfig) : plugin.compile_model(model, parsedConfig);
+        context ? plugin.compile_model(model, context, parsedConfig, cacheContent.encrypt)
+                : plugin.compile_model(model, parsedConfig, cacheContent.encrypt);
     if (cacheContent.cacheManager && device_supports_model_caching(plugin)) {
         try {
             // need to export network for further import from "cache"
@@ -1430,8 +1451,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
 
             ov::AnyMap update_config = config;
             update_config[ov::loaded_from_cache.name()] = true;
-            compiled_model = context ? plugin.import_model(networkStream, context, update_config)
-                                     : plugin.import_model(networkStream, update_config);
+            compiled_model = context ? plugin.import_model(networkStream, context, update_config, cacheContent.decrypt)
+                                     : plugin.import_model(networkStream, update_config, cacheContent.decrypt);
         });
     } catch (const HeaderException&) {
         // For these exceptions just remove old cache and set that import didn't work

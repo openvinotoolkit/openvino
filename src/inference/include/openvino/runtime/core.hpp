@@ -120,9 +120,14 @@ public:
      * @param model Model object acquired from Core::read_model.
      * @param properties Optional map of pairs: (property name, property value) relevant only for this load
      * operation.
+     * @param encryption_func Optional function for model cache encryption.
+     * @param decryption_func Optional function for model cache decryption.
      * @return A compiled model.
      */
-    CompiledModel compile_model(const std::shared_ptr<const ov::Model>& model, const AnyMap& properties = {});
+    CompiledModel compile_model(const std::shared_ptr<const ov::Model>& model,
+                                const AnyMap& properties = {},
+                                const std::function<std::string(const std::string&)>& encryption_func = {},
+                                const std::function<std::string(const std::string&)>& decryption_func = {});
 
     /**
      * @brief Creates and loads a compiled model from a source model to the default OpenVINO device selected by AUTO
@@ -145,6 +150,31 @@ public:
         return compile_model(model, AnyMap{std::forward<Properties>(properties)...});
     }
 
+        /**
+     * @brief Creates and loads a compiled model from a source model to the default OpenVINO device selected by AUTO
+     * plugin.
+     *
+     * Users can create as many compiled models as they need and use
+     * them simultaneously (up to the limitation of the hardware resources)
+     *
+     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
+     * @param model Model object acquired from Core::read_model
+     * @param encryption_func function for model cache encryption.
+     * @param decryption_func function for model cache decryption.
+     * @param properties Optional pack of pairs: (property name, property value) relevant only for this
+     * load operation
+     *
+     * @return A compiled model
+     */
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(
+        const std::shared_ptr<const ov::Model>& model,
+        const std::function<std::string(const std::string&)>& encryption_func,
+        const std::function<std::string(const std::string&)>& decryption_func,
+        Properties&&... properties) {
+        return compile_model(model, AnyMap{std::forward<Properties>(properties)...}, encryption_func, decryption_func);
+    }
+
     /**
      * @brief Creates a compiled model from a source model object.
      *
@@ -155,11 +185,15 @@ public:
      * @param device_name Name of a device to load a model to.
      * @param properties Optional map of pairs: (property name, property value) relevant only for this load
      * operation.
+     * @param encryption_func Optional function for model cache encryption.
+     * @param decryption_func Optional function for model cache decryption.
      * @return A compiled model.
      */
     CompiledModel compile_model(const std::shared_ptr<const ov::Model>& model,
                                 const std::string& device_name,
-                                const AnyMap& properties = {});
+                                const AnyMap& properties = {},
+                                const std::function<std::string(const std::string&)>& encryption_func = {},
+                                const std::function<std::string(const std::string&)>& decryption_func = {});
 
     /**
      * @brief Creates a compiled model from a source model object.
@@ -182,6 +216,30 @@ public:
     }
 
     /**
+     * @brief Creates a compiled model from a source model object.
+     *
+     * Users can create as many compiled models as they need and use
+     * them simultaneously (up to the limitation of the hardware resources)
+     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
+     * @param model Model object acquired from Core::read_model
+     * @param device_name Name of device to load model to
+     * @param encryption_func function for model cache encryption.
+     * @param decryption_func function for model cache decryption.
+     * @param properties Optional pack of pairs: (property name, property value) relevant only for this
+     * load operation
+     * @return A compiled model
+     */
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(
+        const std::shared_ptr<const ov::Model>& model,
+        const std::string& device_name,
+        const std::function<std::string(const std::string&)>& encryption_func,
+        const std::function<std::string(const std::string&)>& decryption_func,
+        Properties&&... properties) {
+        return compile_model(model, device_name, AnyMap{std::forward<Properties>(properties)...}, decryption_func, encryption_func);
+    }
+
+    /**
      * @brief Reads and loads a compiled model from the IR/ONNX/PDPD file to the default OpenVINO device selected by the
      * AUTO plugin.
      *
@@ -190,15 +248,23 @@ public:
      *
      * @param model_path Path to a model.
      * @param properties Optional map of pairs: (property name, property value) relevant only for this load
+     * @param encryption_func Optional function for model cache encryption.
+     * @param decryption_func Optional function for model cache decryption.
      * operation.
      *
      * @return A compiled model.
      * @{
      */
-    CompiledModel compile_model(const std::string& model_path, const AnyMap& properties = {});
+    CompiledModel compile_model(const std::string& model_path,
+                                const AnyMap& properties = {},
+                                const std::function<std::string(const std::string&)>& encryption_func = {},
+                                const std::function<std::string(const std::string&)>& decryption_func = {});
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-    CompiledModel compile_model(const std::wstring& model_path, const AnyMap& properties = {});
+    CompiledModel compile_model(const std::wstring& model_path,
+                                const AnyMap& properties = {},
+                                const std::function<std::string(const std::string&)>& encryption_func = {},
+                                const std::function<std::string(const std::string&)>& decryption_func = {});
 #endif
     /// @}
 
@@ -232,6 +298,51 @@ public:
 #endif
     /// @}
 
+
+    /**
+     * @brief Reads and loads a compiled model from IR / ONNX / PDPD file to the default OpenVINO device selected by
+     * AUTO plugin.
+     *
+     * This can be more efficient than using read_model + compile_model(Model) flow
+     * especially for cases when caching is enabled and cached model is available
+     *
+     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
+     * @param model_path path to model with string or wstring
+     * @param encryption_func function for model cache encryption.
+     * @param decryption_func function for model cache decryption.
+     * @param properties Optional pack of pairs: (property name, property value) relevant only for this
+     * load operation
+     *
+     * @return A compiled model
+     * @{
+     */
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(
+        const std::string& model_path,
+        const std::function<std::string(const std::string&)>& encryption_func,
+        const std::function<std::string(const std::string&)>& decryption_func,
+        Properties&&... properties) {
+        return compile_model(model_path,
+                             AnyMap{std::forward<Properties>(properties)...},
+                             encryption_func,
+                             decryption_func);
+    }
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(
+        const std::wstring& model_path,
+        const std::function<std::string(const std::string&)>& encryption_func,
+        const std::function<std::string(const std::string&)>& decryption_func,
+        Properties&&... properties) {
+        return compile_model(model_path,
+                             AnyMap{std::forward<Properties>(properties)...},
+                             encryption_func,
+                             decryption_func);
+    }
+#endif
+    /// @}
+
     /**
      * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD file.
      *
@@ -241,6 +352,8 @@ public:
      * @param model_path Path to a model.
      * @param device_name Name of a device to load a model to.
      * @param properties Optional map of pairs: (property name, property value) relevant only for this load
+     * @param encryption_func Optional function for model cache encryption.
+     * @param decryption_func Optional function for model cache decryption.
      * operation.
      *
      * @return A compiled model.
@@ -248,12 +361,16 @@ public:
      */
     CompiledModel compile_model(const std::string& model_path,
                                 const std::string& device_name,
-                                const AnyMap& properties = {});
+                                const AnyMap& properties = {},
+                                const std::function<std::string(const std::string&)>& encryption_func = {},
+                                const std::function<std::string(const std::string&)>& decryption_func = {});
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     CompiledModel compile_model(const std::wstring& model_path,
                                 const std::string& device_name,
-                                const AnyMap& properties = {});
+                                const AnyMap& properties = {},
+                                const std::function<std::string(const std::string&)>& encryption_func = {},
+                                const std::function<std::string(const std::string&)>& decryption_func = {});
 #endif
     /// @}
 
@@ -290,6 +407,54 @@ public:
     /// @}
 
     /**
+     * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD file.
+     *
+     * This can be more efficient than using read_model + compile_model(Model) flow
+     * especially for cases when caching is enabled and cached model is available.
+     *
+     * @tparam Properties Should be a pack of `std::pair<std::string, ov::Any>` types.
+     * @param model_path Path to a model.
+     * @param device_name Name of a device to load a model to.
+     * @param encryption_func function for model cache encryption.
+     * @param decryption_func function for model cache decryption.
+     * @param properties Optional pack of pairs: (property name, property value) relevant only for this
+     * load operation.
+     *
+     * @return A compiled model.
+     * @{
+     */
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(
+        const std::string& model_path,
+        const std::string& device_name,
+        const std::function<std::string(const std::string&)>& encryption_func,
+        const std::function<std::string(const std::string&)>& decryption_func,
+        Properties&&... properties) {
+        return compile_model(model_path,
+                             device_name,
+                             AnyMap{std::forward<Properties>(properties)...},
+                             encryption_func,
+                             decryption_func);
+    }
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(
+        const std::wstring& model_path,
+        const std::string& device_name,
+        const std::function<std::string(const std::string&)>& encryption_func,
+        const std::function<std::string(const std::string&)>& decryption_func,
+        Properties&&... properties) {
+        return compile_model(model_path,
+                             device_name,
+                             AnyMap{std::forward<Properties>(properties)...},
+                             encryption_func,
+                             decryption_func);
+    }
+#endif
+    /// @}
+
+    /**
      * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD memory.
      * @param model String with a model in IR/ONNX/PDPD format.
      * @param weights Shared pointer to a constant tensor with weights.
@@ -297,6 +462,8 @@ public:
      * @param device_name Name of a device to load a model to.
      * @param properties Optional map of pairs: (property name, property value) relevant only for this load
      * operation.
+     * @param encryption_func Optional function for model cache encryption.
+     * @param decryption_func Optional function for model cache decryption.
      * @note Created model object shares the weights with the @p weights object.
      * Thus, do not create @p weights on temporary data that can be freed later, since the model
      * constant data will point to an invalid memory.
@@ -305,7 +472,9 @@ public:
     CompiledModel compile_model(const std::string& model,
                                 const ov::Tensor& weights,
                                 const std::string& device_name,
-                                const AnyMap& properties = {});
+                                const AnyMap& properties = {},
+                                const std::function<std::string(const std::string&)>& encryption_func = {},
+                                const std::function<std::string(const std::string&)>& decryption_func = {});
 
     /**
      * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD memory.
@@ -328,16 +497,50 @@ public:
     }
 
     /**
+     * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD memory.
+     * @param model String with a model in IR/ONNX/PDPD format.
+     * @param weights Shared pointer to a constant tensor with weights.
+     * Reading ONNX/PDPD models does not support loading weights from the @p weights tensors.
+     * @param device_name Name of a device to load a model to.
+     * @param encryption_func function for model cache encryption.
+     * @param decryption_func function for model cache decryption.
+     * @tparam Properties Should be a pack of `std::pair<std::string, ov::Any>` types.
+     * @note Created model object shares the weights with the @p weights object.
+     * Thus, do not create @p weights on temporary data that can be freed later, since the model
+     * constant data will point to an invalid memory.
+     * @return A compiled model.
+     */
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(
+        const std::string& model,
+        const ov::Tensor& weights,
+        const std::string& device_name,
+        const std::function<std::string(const std::string&)>& encryption_func,
+        const std::function<std::string(const std::string&)>& decryption_func,
+        Properties&&... properties) {
+        return compile_model(model,
+                             weights,
+                             device_name,
+                             AnyMap{std::forward<Properties>(properties)...},
+                             encryption_func,
+                             decryption_func);
+    }
+
+    /**
      * @brief Creates a compiled model from a source model within a specified remote context.
      * @param model Model object acquired from Core::read_model.
      * @param context A reference to a RemoteContext object.
      * @param properties Optional map of pairs: (property name, property value) relevant only for this load
      * operation.
+     * @param encryption_func Optional function for model cache encryption.
+     * @param decryption_func Optional function for model cache decryption.
      * @return A compiled model object.
      */
     CompiledModel compile_model(const std::shared_ptr<const ov::Model>& model,
                                 const RemoteContext& context,
-                                const AnyMap& properties = {});
+                                const AnyMap& properties = {},
+                                const std::function<std::string(const std::string&)>& encryption_func = {},
+                                const std::function<std::string(const std::string&)>& decryption_func = {});
 
     /**
      * @brief Creates a compiled model from a source model within a specified remote context.
@@ -354,6 +557,31 @@ public:
         const RemoteContext& context,
         Properties&&... properties) {
         return compile_model(model, context, AnyMap{std::forward<Properties>(properties)...});
+    }
+
+    /**
+     * @brief Creates a compiled model from a source model within a specified remote context.
+     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
+     * @param model Model object acquired from Core::read_model
+     * @param context Pointer to RemoteContext object
+     * @param encryption_func function for model cache encryption.
+     * @param decryption_func function for model cache decryption.
+     * @param properties Optional pack of pairs: (property name, property value) relevant only for this
+     * load operation
+     * @return A compiled model object
+     */
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(
+        const std::shared_ptr<const ov::Model>& model,
+        const RemoteContext& context,
+        const std::function<std::string(const std::string&)>& encryption_func,
+        const std::function<std::string(const std::string&)>& decryption_func,
+        Properties&&... properties) {
+        return compile_model(model,
+                             context,
+                             AnyMap{std::forward<Properties>(properties)...},
+                             encryption_func,
+                             decryption_func);
     }
 
     /**

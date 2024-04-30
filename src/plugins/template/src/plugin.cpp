@@ -86,8 +86,9 @@ void transform_model(const std::shared_ptr<ov::Model>& model) {
 // ! [plugin:compile_model]
 std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
     const std::shared_ptr<const ov::Model>& model,
-    const ov::AnyMap& properties) const {
-    return compile_model(model, properties, {});
+    const ov::AnyMap& properties,
+    const std::function<std::string(const std::string&)>& encrypt) const {
+    return compile_model(model, properties, {}, encrypt);
 }
 // ! [plugin:compile_model]
 
@@ -95,7 +96,8 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
 std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
     const std::shared_ptr<const ov::Model>& model,
     const ov::AnyMap& properties,
-    const ov::SoPtr<ov::IRemoteContext>& context) const {
+    const ov::SoPtr<ov::IRemoteContext>& context,
+    const std::function<std::string(const std::string&)>& encrypt) const {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::compile_model");
 
     auto fullConfig = Configuration{properties, m_cfg};
@@ -120,9 +122,11 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
 // ! [plugin:compile_model_with_remote]
 
 // ! [plugin:import_model]
-std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(std::istream& model,
-                                                                              const ov::AnyMap& properties) const {
-    return import_model(model, {}, properties);
+std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
+    std::istream& model,
+    const ov::AnyMap& properties,
+    const std::function<std::string(const std::string&)>& decrypt) const {
+    return import_model(model, {}, properties, decrypt);
 }
 // ! [plugin:import_model]
 
@@ -130,7 +134,8 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(st
 std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
     std::istream& model,
     const ov::SoPtr<ov::IRemoteContext>& context,
-    const ov::AnyMap& properties) const {
+    const ov::AnyMap& properties,
+    const std::function<std::string(const std::string&)>& decrypt) const {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::import_model");
 
     // check ov::loaded_from_cache property and erase it due to not needed any more.

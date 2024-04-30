@@ -43,21 +43,28 @@ public:
     void set_property(const ov::AnyMap& config);
 
     SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                            const ov::AnyMap& properties) const;
+                                            const ov::AnyMap& properties,
+                                            const std::function<std::string(const std::string&)>& encrypt = {}) const;
 
     SoPtr<ov::ICompiledModel> compile_model(const std::string& model_path, const ov::AnyMap& properties) const;
 
     SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                             const ov::SoPtr<ov::IRemoteContext>& context,
-                                            const ov::AnyMap& properties) const;
+                                            const ov::AnyMap& properties,
+                                            const std::function<std::string(const std::string&)>& encrypt = {}) const;
 
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& properties) const;
 
-    SoPtr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const;
+    SoPtr<ov::ICompiledModel> import_model(
+        std::istream& model,
+        const ov::AnyMap& properties,
+        const std::function<std::string(const std::string&)>& decrypt = {}) const;
 
-    SoPtr<ov::ICompiledModel> import_model(std::istream& networkModel,
-                                           const ov::SoPtr<ov::IRemoteContext>& context,
-                                           const ov::AnyMap& config) const;
+    SoPtr<ov::ICompiledModel> import_model(
+        std::istream& networkModel,
+        const ov::SoPtr<ov::IRemoteContext>& context,
+        const ov::AnyMap& config,
+        const std::function<std::string(const std::string&)>& decrypt = {}) const;
 
     ov::SoPtr<ov::IRemoteContext> create_context(const AnyMap& params) const;
 

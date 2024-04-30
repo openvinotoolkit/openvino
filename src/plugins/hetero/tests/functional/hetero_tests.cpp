@@ -462,8 +462,10 @@ public:
 
     virtual const ov::Version& get_const_version() = 0;
 
-    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                      const ov::AnyMap& properties) const override {
+    std::shared_ptr<ov::ICompiledModel> compile_model(
+        const std::shared_ptr<const ov::Model>& model,
+        const ov::AnyMap& properties,
+        const std::function<std::string(const std::string&)>& encrypt = {}) const override {
         OPENVINO_ASSERT(model);
         if (!support_model(model, query_model(model, properties)))
             OPENVINO_THROW("Unsupported model");
@@ -476,9 +478,11 @@ public:
         OPENVINO_NOT_IMPLEMENTED;
     }
 
-    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                      const ov::AnyMap& properties,
-                                                      const ov::SoPtr<ov::IRemoteContext>& context) const override {
+    std::shared_ptr<ov::ICompiledModel> compile_model(
+        const std::shared_ptr<const ov::Model>& model,
+        const ov::AnyMap& properties,
+        const ov::SoPtr<ov::IRemoteContext>& context,
+        const std::function<std::string(const std::string&)>& encrypt = {}) const override {
         if (!support_model(model, query_model(model, properties)))
             OPENVINO_THROW("Unsupported model");
 
@@ -503,7 +507,10 @@ public:
         return std::make_shared<MockRemoteContext>(get_device_name());
     }
 
-    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const override {
+    std::shared_ptr<ov::ICompiledModel> import_model(
+        std::istream& model,
+        const ov::AnyMap& properties,
+        const std::function<std::string(const std::string&)>& decrypt = {}) const override {
         std::string xmlString, xmlInOutString;
         ov::Tensor weights;
 
@@ -532,9 +539,11 @@ public:
         return compile_model(ov_model, properties);
     }
 
-    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
-                                                     const ov::SoPtr<ov::IRemoteContext>& context,
-                                                     const ov::AnyMap& properties) const override {
+    std::shared_ptr<ov::ICompiledModel> import_model(
+        std::istream& model,
+        const ov::SoPtr<ov::IRemoteContext>& context,
+        const ov::AnyMap& properties,
+        const std::function<std::string(const std::string&)>& decrypt = {}) const override {
         std::string xmlString, xmlInOutString;
         ov::Tensor weights;
 

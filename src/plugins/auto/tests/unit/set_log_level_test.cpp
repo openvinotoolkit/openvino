@@ -31,7 +31,9 @@ public:
         ON_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                               ::testing::Matcher<const std::string&>(_),
-                              ::testing::Matcher<const ov::AnyMap&>(_)))
+                              ::testing::Matcher<const ov::AnyMap&>(_),
+                              ::testing::Matcher<const std::function<std::string(const std::string&)>&>(_),
+                              ::testing::Matcher<const std::function<std::string(const std::string&)>&>(_)))
             .WillByDefault(Return(mockExeNetwork));
 
         metaDevices = {{ov::test::utils::DEVICE_CPU, {}, -1}, {ov::test::utils::DEVICE_GPU, {}, -1}};

@@ -49,9 +49,11 @@ void ov::Plugin::set_property(const ov::AnyMap& config) {
     OV_PLUGIN_CALL_STATEMENT(m_ptr->set_property(config));
 }
 
-ov::SoPtr<ov::ICompiledModel> ov::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                        const ov::AnyMap& properties) const {
-    OV_PLUGIN_CALL_STATEMENT(return {m_ptr->compile_model(model, properties), m_so});
+ov::SoPtr<ov::ICompiledModel> ov::Plugin::compile_model(
+    const std::shared_ptr<const ov::Model>& model,
+    const ov::AnyMap& properties,
+    const std::function<std::string(const std::string&)>& encrypt) const {
+    OV_PLUGIN_CALL_STATEMENT(return {m_ptr->compile_model(model, properties, encrypt), m_so});
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::Plugin::compile_model(const std::string& model_path,
@@ -59,10 +61,12 @@ ov::SoPtr<ov::ICompiledModel> ov::Plugin::compile_model(const std::string& model
     OV_PLUGIN_CALL_STATEMENT(return {m_ptr->compile_model(model_path, properties), m_so});
 }
 
-ov::SoPtr<ov::ICompiledModel> ov::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                        const ov::SoPtr<ov::IRemoteContext>& context,
-                                                        const ov::AnyMap& properties) const {
-    OV_PLUGIN_CALL_STATEMENT(return {m_ptr->compile_model(model, properties, context), m_so});
+ov::SoPtr<ov::ICompiledModel> ov::Plugin::compile_model(
+    const std::shared_ptr<const ov::Model>& model,
+    const ov::SoPtr<ov::IRemoteContext>& context,
+    const ov::AnyMap& properties,
+    const std::function<std::string(const std::string&)>& encrypt) const {
+    OV_PLUGIN_CALL_STATEMENT(return {m_ptr->compile_model(model, properties, context, encrypt), m_so});
 }
 
 ov::SupportedOpsMap ov::Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
@@ -70,14 +74,19 @@ ov::SupportedOpsMap ov::Plugin::query_model(const std::shared_ptr<const ov::Mode
     OV_PLUGIN_CALL_STATEMENT(return m_ptr->query_model(model, properties));
 }
 
-ov::SoPtr<ov::ICompiledModel> ov::Plugin::import_model(std::istream& model, const ov::AnyMap& properties) const {
-    OV_PLUGIN_CALL_STATEMENT(return {m_ptr->import_model(model, properties), m_so});
+ov::SoPtr<ov::ICompiledModel> ov::Plugin::import_model(
+    std::istream& model,
+    const ov::AnyMap& properties,
+    const std::function<std::string(const std::string&)>& decrypt) const {
+    OV_PLUGIN_CALL_STATEMENT(return {m_ptr->import_model(model, properties, decrypt), m_so});
 }
 
-ov::SoPtr<ov::ICompiledModel> ov::Plugin::import_model(std::istream& networkModel,
-                                                       const ov::SoPtr<ov::IRemoteContext>& context,
-                                                       const ov::AnyMap& config) const {
-    OV_PLUGIN_CALL_STATEMENT(return {m_ptr->import_model(networkModel, context, config), m_so});
+ov::SoPtr<ov::ICompiledModel> ov::Plugin::import_model(
+    std::istream& networkModel,
+    const ov::SoPtr<ov::IRemoteContext>& context,
+    const ov::AnyMap& config,
+    const std::function<std::string(const std::string&)>& decrypt) const {
+    OV_PLUGIN_CALL_STATEMENT(return {m_ptr->import_model(networkModel, context, config, decrypt), m_so});
 }
 
 ov::SoPtr<ov::IRemoteContext> ov::Plugin::create_context(const AnyMap& params) const {
