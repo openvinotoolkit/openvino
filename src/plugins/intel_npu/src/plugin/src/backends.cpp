@@ -158,9 +158,9 @@ uint32_t NPUBackends::getDriverExtVersion() const {
 bool NPUBackends::isBatchingSupported() const {
     if (_backend != nullptr) {
         return _backend->isBatchingSupported();
+    } else {
+        return false;
     }
-
-    OPENVINO_THROW("No available backend");
 }
 
 std::shared_ptr<IDevice> NPUBackends::getDevice(const std::string& specificName) const {
