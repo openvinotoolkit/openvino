@@ -19,6 +19,8 @@ KERNEL(beam_table_update)(
     const unsigned int in_offset = beam_idx[b] * INPUT0_BATCH_PITCH + s;
 #elif INDIRECT_AXIS == 1
     const unsigned int in_offset = b * INPUT0_BATCH_PITCH + beam_idx[s];
+#else
+#   error beam_table_update_ref.cl : Unsupported indirect axis for beam table
 #endif
 
     if (s >= OUTPUT_BATCH_PITCH)
@@ -29,6 +31,8 @@ KERNEL(beam_table_update)(
         state_new[out_offset] = TO_OUTPUT_TYPE(b);
     #elif INDIRECT_AXIS == 1
         state_new[out_offset] = TO_OUTPUT_TYPE(s);
+    #else
+    #   error beam_table_update_ref.cl : Unsupported indirect axis for beam table
     #endif
     } else {
     #if INDIRECT_AXIS == 0
@@ -43,6 +47,8 @@ KERNEL(beam_table_update)(
         } else {
            state_new[out_offset] = TO_OUTPUT_TYPE(s);
         }
+    #else
+    #   error beam_table_update_ref.cl : Unsupported indirect axis for beam table
     #endif
     }
 }
