@@ -102,7 +102,7 @@ class TestSegmentSumComplex(CommonTFLayerTest):
             tf.compat.v1.global_variables_initializer().run()
             tf_net = sess.graph_def
 
-        return tf_net, 
+        return tf_net, None 
 
     test_data_basic = [
         dict(data_shape=[2, 3], segment_ids_shape=[2]),
