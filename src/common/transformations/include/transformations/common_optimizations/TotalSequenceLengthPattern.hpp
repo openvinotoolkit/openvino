@@ -48,7 +48,7 @@ public:
                 replacement = max_context_len;
             }
             replace_node(gather, replacement);
-            // std::cout << "DETECTED PATTERN TotalSequenceLengthPattern, CONNECTED TO A DEDICATED PARAMETER" << std::endl;
+            std::cout << "DETECTED PATTERN TotalSequenceLengthPattern, CONNECTED TO A DEDICATED PARAMETER" << std::endl;
             return true;
         };
 

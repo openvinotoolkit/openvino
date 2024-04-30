@@ -19,6 +19,7 @@
 #include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
 #include <transformations/smart_reshape/smart_reshape.hpp>
 #include <openvino/pass/sdpa_to_paged_attention.hpp>
+#include <transformations/print_model.hpp>
 
 #include "openvino/pass/low_latency.hpp"
 #include "openvino/pass/manager.hpp"
@@ -137,6 +138,17 @@ void regmodule_offline_transformations(py::module m) {
             ov::pass::Manager manager;
             manager.register_pass<ov::pass::SDPAToPagedAttention>();
             manager.run_passes(model);
+            std::cout << "___AFTER CALLING SDPAToPagedAttention___" << std::endl;
         },
         py::arg("model"));
+
+    m_offline_transformations.def(
+        "print_model",
+        [](std::shared_ptr<ov::Model> model, const std::string& file_name) {
+            ov::pass::Manager manager;
+            manager.register_pass<ov::pass::PrintModel>(file_name);
+            manager.run_passes(model);
+        },
+        py::arg("model"),
+        py::arg("file_name"));
 }

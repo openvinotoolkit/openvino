@@ -39,7 +39,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                                                          const ParameterVector& model_remaining_params,
                                                          const std::shared_ptr<ov::op::v0::Constant>& sliding_window,
                                                          ParameterVector& parameters_to_remove,
-                                                         NodeVector& assignes_to_remove) {
+                                                         NodeVector& assignes_to_remove,
+                                                         int& layer_index) {
     MATCHER_SCOPE(StateManagementPattern);
 
     auto k_past_var = pattern::wrap_type<v6::ReadValue>({pattern::any_input()});
@@ -50,8 +51,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
     auto k_current2 = pattern::any_input();
     auto k_current_reshaped = pattern::wrap_type<v1::Reshape>({k_current2, pattern::any_input()});
     auto k_concat = pattern::wrap_type<v0::Concat>({k_past, std::make_shared<pattern::op::Or>(OutputVector{k_current_reshaped, k_current})});
-
-    size_t layer_index = 0;
 
     auto kv_shaping = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& kv_concat) {
         auto interim = pattern::wrap_type<v1::StridedSlice>({kv_concat, pattern::any_input(), pattern::any_input(), pattern::any_input()});
@@ -101,7 +100,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         std::make_shared<pattern::op::Or>(OutputVector{sdpa_mask, pattern::any_input()})
     });
 
-    std::cout << "OOO" << std::endl;
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS, &kv_parameters, &model_remaining_params, &sliding_window, &parameters_to_remove, &assignes_to_remove, &layer_index](ov::pass::pattern::Matcher& m) {
     // ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         std::cout << "____" << matcher_name << "___Matched___" << std::endl;
@@ -114,7 +112,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
 
         // takes option that has 4D instead of fine-grained Reshape analysis
         // it avoids complication in the pattern, but we don't really have many options
-        auto take_4d = [OV_CAPTURE_CPY_AND_THIS](std::shared_ptr<Node> option1, std::shared_ptr<Node> option2, std::shared_ptr<Node> option3) {
+        auto take_4d = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& option1, const std::shared_ptr<Node>& option2, const std::shared_ptr<Node>& option3) {
             if (pattern_map.find(option1) != pattern_map.end() && pattern_map.at(option1).get_partial_shape().rank().get_length() == 4) {
                 return pattern_map.at(option1);
             } else if (pattern_map.at(option2).get_partial_shape().rank().get_length() == 4) {
@@ -128,8 +126,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         auto real_v = take_4d(v_current, v_current_reshaped, v_current2);
         const ov::element::Type kv_cache_type = real_q.get_element_type();
         std::string layer_index_str = std::to_string(layer_index);
-        auto k_parameter = setName(std::make_shared<v0::Parameter>(kv_cache_type, PartialShape{-1, -1, -1, -1, -1}), std::string("key_cache") + std::to_string(layer_index));
-        auto v_parameter = setName(std::make_shared<v0::Parameter>(kv_cache_type, PartialShape{-1, -1, -1, -1}), std::string("key_cache") + std::to_string(layer_index));
+        auto k_parameter = setName(std::make_shared<v0::Parameter>(kv_cache_type, PartialShape{-1, -1, -1, -1, -1}), std::string("key_cache.") + std::to_string(layer_index));
+        auto v_parameter = setName(std::make_shared<v0::Parameter>(kv_cache_type, PartialShape{-1, -1, -1, -1}), std::string("value_cache.") + std::to_string(layer_index));
         layer_index += 1;
         kv_parameters.push_back(k_parameter);
         kv_parameters.push_back(v_parameter);
@@ -139,7 +137,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
 
         std::shared_ptr<Node> k_transpose_order = kv_transpose_order; // eeeh, is it a right way to assign Constants? Maybe I should clone somehow?
         if (pattern_map.find(k_order) != pattern_map.end()) { // reapply transpose found in the graph by manipulating of indices of our Transpose
-            k_transpose_order = std::make_shared<v8::Gather>(pattern_map.at(v_order), kv_transpose_order, v0::Constant::create(element::i64, Shape{}, {0}));
+            k_transpose_order = std::make_shared<v8::Gather>(pattern_map.at(k_order), kv_transpose_order, v0::Constant::create(element::i64, Shape{}, {0}));
         }
         auto k_transpose = std::make_shared<v1::Transpose>(real_k, k_transpose_order);
         auto k_reshape = std::make_shared<v1::Reshape>(k_transpose, v0::Constant::create(element::i64, Shape{3}, {0, 0, -1}), true);
@@ -154,9 +152,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         // TODO: Detect whether SDPA in the model graph has `scale` argument set and use it instead of the computed scale below
         // Most likely `scale` will always be a constant in real inference, but dynamic dimension propagation may not always derive it as a constant
         // That's why a sub-graph computing `scale` is built instead of just a constant node.
-        auto hidden_shape = std::make_shared<v0::ShapeOf>(real_q);
+        auto hidden_shape = std::make_shared<v3::ShapeOf>(real_q);
         auto hidden_dim = std::make_shared<v8::Gather>(hidden_shape, v0::Constant::create(element::i64, Shape{}, {-1}), v0::Constant::create(element::i64, Shape{}, {0}));
-        
         auto scale = std::make_shared<v1::Divide>(v0::Constant::create(element::f32, Shape{}, {1}), std::make_shared<v0::Sqrt>(std::make_shared<v0::Convert>(hidden_dim, element::f32)));
 
         std::shared_ptr<Node> alibi_slopes;
@@ -219,12 +216,12 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
 
         auto add_assign_consumers = [OV_CAPTURE_CPY_AND_THIS, &assignes_to_remove](const std::shared_ptr<ov::Output<Node>>& output) {
             for (auto& consumer : output->get_target_inputs()) {
-                auto consumer_node = consumer.get_node();
+                auto consumer_node = consumer.get_node()->shared_from_this();
                 auto consumer_type = consumer_node->get_type_info().name;
                 if (std::strcmp(consumer_type, "Assign") == 0) { // stateful model
-                    assignes_to_remove.push_back(std::shared_ptr<Node>(consumer_node));
+                    assignes_to_remove.push_back(consumer_node);
                 } else if (std::strcmp(consumer_type, "Result") == 0) { // stateless model
-                    assignes_to_remove.push_back(std::shared_ptr<Node>(consumer_node));
+                    assignes_to_remove.push_back(consumer_node);
                 }
             }
         };
@@ -233,7 +230,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         add_assign_consumers(std::make_shared<ov::Output<Node>>(pattern_map.at(v_concat)));
 
         replace_node(m.get_match_root(), pa_transpose);
-        // std::cout << "INSERTED PageAttentionExtension" << std::endl;
+        std::cout << "INSERTED PageAttentionExtension" << std::endl;
         return true;
     };
 
