@@ -6637,6 +6637,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_mmdeploy_roi_align_rotated) {
 
     test_case.run_with_tolerance_as_fp(0.0001f);
 }
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_min_18) {
     // Credit: This function is a modified version of PR 23475's test function.
     // TEMPLATE plugin has an issue with evaluation for u8 type
