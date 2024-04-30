@@ -31,8 +31,8 @@ KERNEL (permute_f_y_axes)(
     const int x_start = get_global_id(0) * BLOCK_SIZE;
     const int y_idx = get_global_id(1);
 
-    __attribute__((opencl_unroll_hint(J_TIMES)))
-    for (int j = 0; j < J_TIMES; ++j) {
+    __attribute__((opencl_unroll_hint(J_TIMES_SIMPLE)))
+    for (int j = 0; j < J_TIMES_SIMPLE; ++j) {
         const int x_idx = x_start + j * VEC_SIZE;
         IN_VEC_TYPE res = READ_VEC(0, &input[INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx)]);
 #if HAS_FUSED_OPS

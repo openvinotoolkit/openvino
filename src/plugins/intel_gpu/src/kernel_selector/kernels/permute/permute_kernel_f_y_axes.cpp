@@ -132,10 +132,12 @@ JitConstants PermuteKernel_f_y_axes::GetJitConstants(const permute_params& param
     const size_t vector_size = std::min(tile_width, static_cast<size_t>(4));
     const size_t tile_size = GetTileSize(params);
     const size_t j_times = tile_size / vector_size;
+    const size_t j_times_simple = tile_width / vector_size;
     const size_t feature_block_size = GetFeatureBlockSize(params);
     jit.AddConstant(MakeJitConstant("BLOCK_SIZE", tile_width));
     jit.AddConstant(MakeJitConstant("VEC_SIZE", vector_size));
     jit.AddConstant(MakeJitConstant("J_TIMES", j_times));
+    jit.AddConstant(MakeJitConstant("J_TIMES_SIMPLE", j_times_simple));
     jit.AddConstant(MakeJitConstant("TILE_SIZE", tile_size));
     jit.AddConstant(MakeJitConstant("FEATURE_BLOCK_SIZE", feature_block_size));
 
@@ -190,8 +192,8 @@ CommonDispatchData PermuteKernel_f_y_axes::SetDefault(const permute_params& para
     return dispatchData;
 }
 
-bool PermuteKernel_f_y_axes::Validate(const Params& p, const optional_params& o) const {
-    if (!Parent::Validate(p, o)) {
+bool PermuteKernel_f_y_axes::Validate(const Params& p) const {
+    if (!Parent::Validate(p)) {
         return false;
     }
 
@@ -238,9 +240,7 @@ bool PermuteKernel_f_y_axes::Validate(const Params& p, const optional_params& o)
     return true;
 }
 
-KernelsPriority PermuteKernel_f_y_axes::GetKernelsPriority(const Params& /*params*/,
-                                                           const optional_params& /*options*/) const {
+KernelsPriority PermuteKernel_f_y_axes::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_3;
 }
-
 }  // namespace kernel_selector

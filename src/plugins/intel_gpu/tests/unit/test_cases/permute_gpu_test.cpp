@@ -2311,7 +2311,7 @@ struct TiledPerformancePermuteTest : TiledPermuteTest
         }
         std::cout << std::endl;
     }
-
+    /*
     template<data_types Data_Type>
     void execute_perf_test(const std::vector<cldnn::tensor::value_type>& sizes, cldnn::format format_fsv,
                             const std::string & kernel_name, std::vector<uint16_t> permute_order)
@@ -2404,13 +2404,16 @@ struct TiledPerformancePermuteTest : TiledPermuteTest
                   << frm_str << " " << input_type << " " << exectime_opt << std::endl;
 
     }
+    */
 };
 
+/*
 // No need to run performance tests on CI
 TEST_P(TiledPerformancePermuteTest, DISABLED_f32) {
     auto p = GetParam();
     execute_perf_test<cldnn::data_types::f32>(p.sizes, p.format_fsv, "permute_f_y_axes", {0, 2, 1, 3});
 }
+*/
 
 INSTANTIATE_TEST_SUITE_P(, TiledPerformancePermuteTest,
     ::testing::ValuesIn(std::vector<TiledPermuteParam> {
