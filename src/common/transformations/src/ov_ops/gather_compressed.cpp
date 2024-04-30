@@ -71,7 +71,7 @@ void GatherCompressed::validate_and_infer_types() {
                                                                         get_input_partial_shape(1),
                                                                         get_input_partial_shape(2)});
 
-    auto output_type = m_output_type == ov::element::undefined ? get_input_element_type(0) : m_output_type;
+    auto output_type = get_input_element_type(3);
     set_output_type(0, output_type, out_shapes[0]);
 }
 
