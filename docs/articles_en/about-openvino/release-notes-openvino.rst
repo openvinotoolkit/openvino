@@ -474,18 +474,18 @@ Jupyter Notebooks
 
 The following notebooks have been updated or newly added:
 
-* `Mobile language assistant with MobileVLM <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/279-mobilevlm-language-assistant>`__
-* `Depth estimation with DepthAnything <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/280-depth-anything>`__
-* `Kosmos-2 <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/281-kosmos2-multimodal-large-language-model>`__
-* `Zero-shot Image Classification with SigLIP <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/282-siglip-zero-shot-image-classification>`__
-* `Personalized image generation with PhotoMaker <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/283-photo-maker>`__
-* `Voice tone cloning with OpenVoice <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/284-openvoice>`__
-* `Line-level text detection with Surya <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/285-surya-line-level-text-detection>`__
-* `InstantID: Zero-shot Identity-Preserving Generation using OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/286-instant-id>`__
-* `Tutorial for Big Image Transfer  (BIT) model quantization using NNCF <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/127-big-transfer-quantization>`__
-* `Tutorial for OpenVINO Tokenizers integration into inference pipelines <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/128-openvino-tokenizers>`__
-* `LLM chatbot <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/254-llm-chatbot/254-llm-chatbot.ipynb>`__ and
-  `LLM RAG pipeline <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/254-llm-chatbot/254-rag-chatbot.ipynb>`__
+* `Mobile language assistant with MobileVLM <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/mobilevlm-language-assistant>`__
+* `Depth estimation with DepthAnything <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/depth-anything>`__
+* `Kosmos-2 <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/kosmos2-multimodal-large-language-model>`__
+* `Zero-shot Image Classification with SigLIP <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/siglip-zero-shot-image-classification>`__
+* `Personalized image generation with PhotoMaker <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/photo-maker>`__
+* `Voice tone cloning with OpenVoice <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/openvoice>`__
+* `Line-level text detection with Surya <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/surya-line-level-text-detection>`__
+* `InstantID: Zero-shot Identity-Preserving Generation using OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/instant-id>`__
+* `Tutorial for Big Image Transfer  (BIT) model quantization using NNCF <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/big-transfer-quantization>`__
+* `Tutorial for OpenVINO Tokenizers integration into inference pipelines <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/openvino-tokenizers>`__
+* `LLM chatbot <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/llm-chatbot/llm-chatbot.ipynb>`__ and
+  `LLM RAG pipeline <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/llm-chatbot/rag-chatbot.ipynb>`__
   have received integration with new models: minicpm-2b-dpo, gemma-7b-it, qwen1.5-7b-chat, baichuan2-7b-chat
 
 
