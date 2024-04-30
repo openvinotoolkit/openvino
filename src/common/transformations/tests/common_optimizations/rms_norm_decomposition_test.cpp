@@ -9,9 +9,9 @@
 #include <openvino/opsets/opset10.hpp>
 #include <openvino/pass/manager.hpp>
 #include <ov_ops/rms.hpp>
+#include <string>
 #include <transformations/common_optimizations/rms_fusion.hpp>
 #include <transformations/utils/utils.hpp>
-#include <string>
 
 #include "common_test_utils/ov_test_utils.hpp"
 

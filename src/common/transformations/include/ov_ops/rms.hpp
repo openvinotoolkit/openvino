@@ -45,9 +45,6 @@ private:
 };
 
 
-
-
-
-}  // namespace intenal
+}  // namespace internal
 }  // namespace op
 }  // namespace ov
