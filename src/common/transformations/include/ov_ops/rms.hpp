@@ -44,7 +44,6 @@ private:
     ov::element::Type m_output_type;
 };
 
-
 }  // namespace internal
 }  // namespace op
 }  // namespace ov
