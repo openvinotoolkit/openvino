@@ -8,11 +8,10 @@ namespace ov {
 namespace op {
 namespace internal {
 
-RMS::RMS(const Output<Node>& data,
-         const Output<Node>& gamma,
-         double epsilson,
-         const ov::element::Type output_type)
-    : Op({data, gamma}), m_epsilon(epsilson), m_output_type(output_type) {
+RMS::RMS(const Output<Node>& data, const Output<Node>& gamma, double epsilson, const ov::element::Type output_type)
+    : Op({data, gamma}),
+      m_epsilon(epsilson),
+      m_output_type(output_type) {
     validate_and_infer_types();
 }
 
@@ -29,9 +28,7 @@ void RMS::validate_and_infer_types() {
 
 std::shared_ptr<Node> RMS::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     check_new_args_count(this, new_args);
-    return std::make_shared<RMS>(new_args.at(0),
-                                 new_args.at(1),
-                                 m_epsilon);
+    return std::make_shared<RMS>(new_args.at(0), new_args.at(1), m_epsilon);
 }
 
 }  // namespace internal
