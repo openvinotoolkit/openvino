@@ -24,7 +24,8 @@ bool SplitLoops::can_be_split(const UnifiedLoopInfoPtr& loop_to_split, const Uni
     const auto parent_dim_idx = loop_to_fuse->get_dim_idx();
     const auto& handlers = loop_to_split->get_handlers();
     const bool equal_dim_idxes = current_dim_idx != LoopInfo::UNDEFINED_DIM_IDX && current_dim_idx == parent_dim_idx;
-    const bool only_main_body = handlers.get_first_iter_handlers().empty() && handlers.get_last_iter_handlers().empty();
+    const bool only_main_body = handlers.get_passes<SpecificLoopIterType::FIRST_ITER>().empty() &&
+                                handlers.get_passes<SpecificLoopIterType::LAST_ITER>().empty();
     return loop_to_split->get_work_amount() == loop_to_fuse->get_work_amount() &&
            loop_to_split->get_increment() != loop_to_fuse->get_increment() && equal_dim_idxes && only_main_body;
 }
@@ -87,7 +88,7 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
                 const auto tail_size = work_amount % increment;
                 auto new_handlers = loop_to_split->get_handlers();
                 if (tail_size != 0) {
-                    new_handlers.register_handler<SpecificLoopIterType::LAST_ITER, TransformInnerSplitLoop>(tail_size);
+                    new_handlers.register_pass<SpecificLoopIterType::LAST_ITER, TransformInnerSplitLoop>(tail_size);
                 }
                 new_loop_info->set_handlers(new_handlers);
                 break;

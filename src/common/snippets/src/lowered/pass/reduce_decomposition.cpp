@@ -99,7 +99,7 @@ bool ReduceDecomposition::run(LinearIR& linear_ir, LinearIR::constExprIt begin, 
         const auto tail_size = utils::is_dynamic_value(work_amount) ? 1lu : work_amount % increment;
         if (tail_size != 0) {
             const auto loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(reduce_loop_id);
-            loop_info->register_handler<SpecificLoopIterType::LAST_ITER, SetFillOffset>(tail_size);
+            loop_info->register_pass_to_handler<SpecificLoopIterType::LAST_ITER, SetFillOffset>(tail_size);
         }
         const auto horizon = push_node(get_horizon_node(accumulation.second, reduce_type_info));
 

@@ -28,38 +28,13 @@ SpecificIterationHandlers::SpecificIterationHandlers(lowered::pass::PassPipeline
       m_main_body_handlers(std::move(main_body_handlers)),
       m_last_iter_handlers(std::move(last_iter_handlers)) {}
 
-const pass::PassPipeline& SpecificIterationHandlers::get_first_iter_handlers() const {
-    return m_first_iter_handlers;
-}
-
-const pass::PassPipeline& SpecificIterationHandlers::get_main_iter_handlers() const {
-    return m_main_body_handlers;
-}
-
-const pass::PassPipeline& SpecificIterationHandlers::get_last_iter_handlers() const {
-    return m_last_iter_handlers;
-}
-
-const pass::PassPipeline& SpecificIterationHandlers::get_handlers_by_type(SpecificLoopIterType Type) const {
-    switch (Type) {
-        case (SpecificLoopIterType::FIRST_ITER):
-            return get_first_iter_handlers();
-        case (SpecificLoopIterType::MAIN_BODY):
-            return get_main_iter_handlers();
-        case (SpecificLoopIterType::LAST_ITER):
-            return get_last_iter_handlers();
-        default:
-            OPENVINO_THROW("Unknown SpecificLoopIterType type!");
-    }
-}
-
 SpecificIterationHandlers SpecificIterationHandlers::merge_handlers(
     const SpecificIterationHandlers& lhs,
     const SpecificIterationHandlers& rhs) {
     return SpecificIterationHandlers(
-        pass::PassPipeline::merge_pipelines(lhs.get_first_iter_handlers(), rhs.get_first_iter_handlers()),
-        pass::PassPipeline::merge_pipelines(lhs.get_main_iter_handlers(), rhs.get_main_iter_handlers()),
-        pass::PassPipeline::merge_pipelines(lhs.get_last_iter_handlers(), rhs.get_last_iter_handlers()));
+        pass::PassPipeline::merge_pipelines(lhs.m_first_iter_handlers, rhs.m_first_iter_handlers),
+        pass::PassPipeline::merge_pipelines(lhs.m_main_body_handlers, rhs.m_main_body_handlers),
+        pass::PassPipeline::merge_pipelines(lhs.m_last_iter_handlers, rhs.m_last_iter_handlers));
 }
 
 } // namespace lowered

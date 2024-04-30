@@ -199,8 +199,17 @@ SpecificLoopIterType ExpandedLoopInfo::get_type() const {
     return m_type;
 }
 
-const pass::PassPipeline& ExpandedLoopInfo::get_handlers_by_type() const {
-    return get_unified_loop_info()->get_handlers().get_handlers_by_type(m_type);
+const pass::PassPipeline& ExpandedLoopInfo::get_handler_passes() const {
+    switch (m_type) {
+        case SpecificLoopIterType::FIRST_ITER:
+            return get_unified_loop_info()->get_handlers().get_passes<SpecificLoopIterType::FIRST_ITER>();
+        case SpecificLoopIterType::MAIN_BODY:
+            return get_unified_loop_info()->get_handlers().get_passes<SpecificLoopIterType::MAIN_BODY>();
+        case SpecificLoopIterType::LAST_ITER:
+            return get_unified_loop_info()->get_handlers().get_passes<SpecificLoopIterType::LAST_ITER>();
+        default:
+            OPENVINO_THROW("Unknown SpecificLoopIterType");
+    }
 }
 
 const std::vector<int64_t>& ExpandedLoopInfo::get_ptr_increments() const {

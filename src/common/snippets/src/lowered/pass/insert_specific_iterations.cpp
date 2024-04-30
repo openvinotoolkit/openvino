@@ -25,7 +25,8 @@ bool InsertSpecificIterations::is_decomposed_loop_needed(const UnifiedLoopInfoPt
 
     switch (type) {
         case (SpecificLoopIterType::FIRST_ITER):
-            return !unified_loop_info->get_handlers().get_first_iter_handlers().empty() && (is_dynamic || remaining_work_amount >= increment);
+            return !unified_loop_info->get_handlers().get_passes<SpecificLoopIterType::FIRST_ITER>().empty() &&
+                   (is_dynamic || remaining_work_amount >= increment);
         case (SpecificLoopIterType::MAIN_BODY):
             return is_dynamic || remaining_work_amount >= increment;
         case (SpecificLoopIterType::LAST_ITER):
@@ -115,7 +116,7 @@ void InsertSpecificIterations::init_decomposed_loop(LinearIR& linear_ir, LinearI
         static_loop_end->set_finalization_offsets(decomposed_loop_info->get_finalization_offsets());
     }
     // Note: handlers must be run on the range started with the first operation in the loop body.
-    const auto handlers = decomposed_loop_info->get_handlers_by_type();
+    const auto handlers = decomposed_loop_info->get_handler_passes();
     handlers.run(linear_ir, std::next(begin), end);
 }
 

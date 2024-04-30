@@ -174,8 +174,8 @@ public:
      * @param args - arguments of the transformation
      */
     template <SpecificLoopIterType Type, typename T, class... Args>
-    void register_handler(Args&&... args) {
-        m_handlers.register_handler<Type, T>(args...);
+    void register_pass_to_handler(Args&&... args) {
+        m_handlers.register_pass<Type, T>(args...);
     }
 
     /**
@@ -235,7 +235,7 @@ public:
      * @brief Returns passes of the corresponding handler
      * @return pass pipeline
      */
-    const pass::PassPipeline& get_handlers_by_type() const;
+    const pass::PassPipeline& get_handler_passes() const;
 
     /**
      * @brief Returns dense vector with pointer increments
@@ -264,7 +264,7 @@ private:
     std::vector<int64_t> m_finalization_offsets = {};
     std::vector<int64_t> m_data_sizes = {};
 
-    SpecificLoopIterType m_type = {};
+    const SpecificLoopIterType m_type = {};
     std::shared_ptr<UnifiedLoopInfo> m_unified_loop_info = {};
 };
 using ExpandedLoopInfoPtr = std::shared_ptr<ExpandedLoopInfo>;
