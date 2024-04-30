@@ -11,12 +11,12 @@
 
 #include "openvino/core/parallel.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/util/compilation_context.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "transformations/hash.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
-#include "openvino/util/compilation_context.hpp"
 
 #ifdef _WIN32
 #    define stat _stat
