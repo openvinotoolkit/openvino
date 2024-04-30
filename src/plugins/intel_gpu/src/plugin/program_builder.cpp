@@ -103,8 +103,9 @@ ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& 
     CustomLayer::LoadFromFile(custom_layers_config, m_custom_layers, custom_layers_config.empty());
 
     auto ops = model->get_ordered_ops();
-    // [TODO] We found a performance issue when multiple kernels are built as a single program.
-    // The below WA code needs to be removed after it is fixed.
+    // In the case of dynamic models, because most of the layers are mapped to shape agnostic kernels,
+    // smaller # of kernels are built compared to static models.
+    // So having smaller batch size is even better for dynamic model as we can do more parallel build.
     if (model->is_dynamic()) {
         m_config.set_property(ov::intel_gpu::max_kernels_per_batch(4));
     } else {
