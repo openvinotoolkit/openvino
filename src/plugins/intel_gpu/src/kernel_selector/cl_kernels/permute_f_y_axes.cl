@@ -149,7 +149,7 @@ KERNEL (permute_f_y_axes)(
     __attribute__((opencl_unroll_hint(J_TIMES)))
     for (int j = 0; j < J_TIMES; ++j) {
         const int j_vec = j * VEC_SIZE;
-        const int f = f_begin + j_vec;
+        const int f = (f_begin + j_vec) % INPUT0_FEATURE_NUM;;
         const int y_idx = y_begin + bf_local;
         const int output_idx = OUTPUT_GET_INDEX(b_idx, y_idx, f, x_idx);
         WRITE_VEC(READ_VEC(0, &transpose_buf[bf_local][j_vec]), 0, &output[output_idx]);
