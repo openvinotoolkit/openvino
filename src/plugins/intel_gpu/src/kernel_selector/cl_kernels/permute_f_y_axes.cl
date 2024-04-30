@@ -95,7 +95,7 @@ KERNEL (permute_f_y_axes)(
         __attribute__((opencl_unroll_hint(TILE_SIZE)))
         for (int i = 0; i < TILE_SIZE; ++i) {
             const int x_idx = x_begin + i;
-            const int f = f_begin + j;
+            const int f = (f_begin + j) % INPUT0_FEATURE_NUM;
             const int y_idx = y_begin + bf_local;
             const uint output_offset = OUTPUT_GET_INDEX(b_idx, y_idx, f, x_idx) - get_sub_group_local_id();
             DT_OUTPUT_BLOCK_WRITE(output, output_offset, transpose_buf[j][bf_local][i]);
@@ -171,7 +171,7 @@ KERNEL (permute_f_y_axes)(
     }
     __attribute__((opencl_unroll_hint(TILE_SIZE)))
     for (int j = 0; j < TILE_SIZE; ++j) {
-        const int f = f_begin + j;
+        const int f = (f_begin + j) % INPUT0_FEATURE_NUM;
         const int y_idx = y_begin + bf_local;
         const uint output_offset = OUTPUT_GET_INDEX(b_idx, y_idx, f, x_idx) - get_sub_group_local_id();
         DT_OUTPUT_BLOCK_WRITE(output, output_offset, transpose_buf[j][bf_local]);
