@@ -17,12 +17,11 @@ class TestConcat(CommonTFLayerTest):
             for ind, input_shape in enumerate(input_shapes):
                 placeholders.append(tf.compat.v1.placeholder(tf.float32, input_shape, 'input_{}'.format(ind)))
             if len(input_shapes) == 1:
-                concat = tf.concat(values=placeholders, axis=axis, name='concat')
+                tf.concat(values=placeholders, axis=axis, name='concat')
             elif is_v2:
-                concat = tf.raw_ops.ConcatV2(values=placeholders, axis=axis, name='concat')
+                tf.raw_ops.ConcatV2(values=placeholders, axis=axis, name='concat')
             else:
-                concat = tf.raw_ops.Concat(values=placeholders, concat_dim=axis, name='concat')
-            tf.math.add(concat, 2, name='x_output')
+                tf.raw_ops.Concat(values=placeholders, concat_dim=axis, name='concat')
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 

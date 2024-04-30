@@ -26,14 +26,9 @@ class TestNestedWhile(CommonTFLayerTest):
 
             while_condition = lambda x, v, i, a_combined, b_combined: i < v.shape[0]
 
-            loop = tf.while_loop(while_condition, body, [x, v, i, a_combined, b_combined],
+            tf.while_loop(while_condition, body, [x, v, i, a_combined, b_combined],
                           name="while_node")
 
-            tf.math.add(loop[0], 2, name='x_output0')
-            tf.math.add(loop[1], 2, name='x_output1')
-            tf.math.add(loop[2], 2, name='x_output2')
-            tf.math.add(loop[3], 2, name='x_output3')
-            tf.math.add(loop[4], 2, name='x_output4')
         return g, None
 
     def create_nested_while(self):
@@ -69,14 +64,9 @@ class TestNestedWhile(CommonTFLayerTest):
 
             while_condition = lambda x, v, i, a_combined, b_combined: i < v.shape[0]
 
-            loop = tf.while_loop(while_condition, body, [x, v, i, a_combined, b_combined],
+            tf.while_loop(while_condition, body, [x, v, i, a_combined, b_combined],
                           name="while_node")
 
-            tf.math.add(loop[0], 2, name='x_output0')
-            tf.math.add(loop[1], 2, name='x_output1')
-            tf.math.add(loop[2], 2, name='x_output2')
-            tf.math.add(loop[3], 2, name='x_output3')
-            tf.math.add(loop[4], 2, name='x_output4')
         return g, None
 
     @pytest.mark.nightly
