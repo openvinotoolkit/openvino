@@ -13,8 +13,8 @@
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/utils/utils.hpp"
 #include "openvino/pass/manager.hpp"
+#include "transformations/utils/utils.hpp"
 #include "ov_ops/rms.hpp"
 
 namespace ov {
@@ -91,7 +91,7 @@ RMSFusion::RMSFusion() {
         if ((axes_val[0] != -1) &&
             (axes_val[0] != (static_cast<int64_t>(mean_node->get_input_partial_shape(0).size()) - 1)))
             return false;
-        
+
         auto node = m.get_match_root();
         if (transformation_callback(node)) {
             return false;
