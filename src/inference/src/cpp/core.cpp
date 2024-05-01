@@ -78,9 +78,7 @@ Core::Core(const std::string& xml_config_file) {
 }
 
 std::map<std::string, Version> Core::get_versions(const std::string& device_name) const {
-    OV_CORE_CALL_STATEMENT({ return _impl->get_versions(device_name); })
-}
-
+    OV_CORE_CALL_STATEMENT({ return _impl->get_versions(device_name); })}
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 std::shared_ptr<ov::Model> Core::read_model(const std::wstring& model_path, const std::wstring& bin_path) const {
     OV_CORE_CALL_STATEMENT(

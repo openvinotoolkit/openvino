@@ -12,6 +12,7 @@
 #include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
 #include "snippets/pass/mha_tokenization.hpp"
 #include "snippets/utils.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace {
 bool is_supported_tensor(const ov::descriptor::Tensor& t) {
@@ -207,7 +208,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
                                                           ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()));
 
     register_matcher(std::make_shared<ov::pass::pattern::Matcher>(m_matmul0, matcher_name),
-        [=](ov::pass::pattern::Matcher &m) {
+        [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher &m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::TokenizeMHASnippets")
         auto& pattern_to_output = m.get_pattern_value_map();
 

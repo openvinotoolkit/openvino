@@ -6,6 +6,7 @@
 #include <pugixml.hpp>
 
 #include "openvino/pass/serialize.hpp"
+#include "openvino/util/codec_xor.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov {
@@ -24,9 +25,14 @@ static void setInfo(pugi::xml_node& root, std::shared_ptr<ov::Model>& model) {
     }
 }
 
+<<<<<<< HEAD
 ModelSerializer::ModelSerializer(std::ostream& ostream, cache_encrypt fn)
     : _ostream(ostream),
       _cache_encrypt(fn) {}
+=======
+ModelSerializer::ModelSerializer(std::ostream& ostream)
+    : _ostream(ostream) {}
+>>>>>>> master
 
 void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
     auto serializeInfo = [&](std::ostream& stream) {
@@ -42,7 +48,11 @@ void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
         xml_doc.save(stream);
     };
 
+<<<<<<< HEAD
     ov::pass::StreamSerialize serializer(_ostream, serializeInfo, _cache_encrypt);
+=======
+    ov::pass::StreamSerialize serializer(_ostream, serializeInfo, ov::util::codec_xor);
+>>>>>>> master
     serializer.run_on_model(std::const_pointer_cast<ov::Model>(model->clone()));
 }
 

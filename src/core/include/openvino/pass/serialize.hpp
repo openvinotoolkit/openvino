@@ -67,7 +67,7 @@ public:
 
     StreamSerialize(std::ostream& stream,
                     const std::function<void(std::ostream&)>& custom_data_serializer = {},
-                    const std::function<std::string(const std::string&)>& cache_encrpt = {},
+                    const std::function<std::string(const std::string&)>& cache_encrypt = {},
                     Serialize::Version version = Serialize::Version::UNSPECIFIED);
 
 private:
