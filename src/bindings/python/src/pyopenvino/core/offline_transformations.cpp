@@ -132,11 +132,9 @@ void regmodule_offline_transformations(py::module m) {
     m_offline_transformations.def(
         "paged_attention_transformation",
         [](std::shared_ptr<ov::Model> model) {
-            std::cout << "___CALLING SDPAToPagedAttention___" << std::endl;
             ov::pass::Manager manager;
             manager.register_pass<ov::pass::SDPAToPagedAttention>();
             manager.run_passes(model);
-            std::cout << "___AFTER CALLING SDPAToPagedAttention___" << std::endl;
         },
         py::arg("model"));
 }
