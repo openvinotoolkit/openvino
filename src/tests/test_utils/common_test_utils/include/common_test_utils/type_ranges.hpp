@@ -16,7 +16,7 @@ namespace test {
 namespace utils {
 
 static ov::test::utils::InputGenerateData get_range_by_type(
-    ov::element::Type temp_type,
+    ov::element::Type elemType,
     uint32_t max_range_limit = testing::internal::Random::kMaxRange) {
     double min_start = 0 - static_cast<int32_t>(round(max_range_limit / 2));
 
@@ -31,7 +31,7 @@ static ov::test::utils::InputGenerateData get_range_by_type(
         }
     };
 
-#define CASE_OV(X)                                                        \
+#define CASE_OV_TYPE(X)                                                   \
     case X: {                                                             \
         using dataType = typename ov::element_type_traits<X>::value_type; \
         dataType lowest_tmp = std::numeric_limits<dataType>::lowest();    \
@@ -43,7 +43,7 @@ static ov::test::utils::InputGenerateData get_range_by_type(
         break;                                                            \
     }
 
-#define CASE_FUNDAMENTAL(X)                                                                  \
+#define CASE_C_TYPE(X)                                                                       \
     case X: {                                                                                \
         auto lowest = std::numeric_limits<ov::element_type_traits<X>::value_type>::lowest(); \
         auto max = std::numeric_limits<ov::element_type_traits<X>::value_type>::max();       \
@@ -52,7 +52,7 @@ static ov::test::utils::InputGenerateData get_range_by_type(
         break;                                                                               \
     }
 
-    switch (temp_type) {
+    switch (elemType) {
     case (ov::element::Type_t::undefined): {
         inData.start_from = min_start;
         inData.range = max_range_limit;
@@ -77,27 +77,27 @@ static ov::test::utils::InputGenerateData get_range_by_type(
 
         break;
     }
-        CASE_OV(ov::element::Type_t::f8e4m3)
-        CASE_OV(ov::element::Type_t::f8e5m2)
-        CASE_OV(ov::element::Type_t::bf16)
-        CASE_OV(ov::element::Type_t::f16)
-        CASE_FUNDAMENTAL(ov::element::Type_t::f32)
-        CASE_FUNDAMENTAL(ov::element::Type_t::f64)
-        CASE_FUNDAMENTAL(ov::element::Type_t::i4)
-        CASE_FUNDAMENTAL(ov::element::Type_t::i8)
-        CASE_FUNDAMENTAL(ov::element::Type_t::i16)
-        CASE_FUNDAMENTAL(ov::element::Type_t::i32)
-        CASE_FUNDAMENTAL(ov::element::Type_t::i64)
-        CASE_FUNDAMENTAL(ov::element::Type_t::u1)
-        CASE_FUNDAMENTAL(ov::element::Type_t::u2)
-        CASE_FUNDAMENTAL(ov::element::Type_t::u3)
-        CASE_FUNDAMENTAL(ov::element::Type_t::u4)
-        CASE_FUNDAMENTAL(ov::element::Type_t::u6)
-        CASE_FUNDAMENTAL(ov::element::Type_t::u8)
-        CASE_FUNDAMENTAL(ov::element::Type_t::nf4)
-        CASE_FUNDAMENTAL(ov::element::Type_t::u16)
-        CASE_FUNDAMENTAL(ov::element::Type_t::u32)
-        CASE_FUNDAMENTAL(ov::element::Type_t::u64)
+        CASE_OV_TYPE(ov::element::Type_t::f8e4m3)
+        CASE_OV_TYPE(ov::element::Type_t::f8e5m2)
+        CASE_OV_TYPE(ov::element::Type_t::bf16)
+        CASE_OV_TYPE(ov::element::Type_t::f16)
+        CASE_C_TYPE(ov::element::Type_t::f32)
+        CASE_C_TYPE(ov::element::Type_t::f64)
+        CASE_C_TYPE(ov::element::Type_t::i4)
+        CASE_C_TYPE(ov::element::Type_t::i8)
+        CASE_C_TYPE(ov::element::Type_t::i16)
+        CASE_C_TYPE(ov::element::Type_t::i32)
+        CASE_C_TYPE(ov::element::Type_t::i64)
+        CASE_C_TYPE(ov::element::Type_t::u1)
+        CASE_C_TYPE(ov::element::Type_t::u2)
+        CASE_C_TYPE(ov::element::Type_t::u3)
+        CASE_C_TYPE(ov::element::Type_t::u4)
+        CASE_C_TYPE(ov::element::Type_t::u6)
+        CASE_C_TYPE(ov::element::Type_t::u8)
+        CASE_C_TYPE(ov::element::Type_t::nf4)
+        CASE_C_TYPE(ov::element::Type_t::u16)
+        CASE_C_TYPE(ov::element::Type_t::u32)
+        CASE_C_TYPE(ov::element::Type_t::u64)
         break;
     }
 
