@@ -78,7 +78,7 @@ jobs:
           echo "USE_SYSTEM_CACHE=False" >> "$GITHUB_ENV"
           echo "HF_HUB_CACHE=/mount/testdata$((GITHUB_RUN_NUMBER % NUMBER_OF_REPLICAS))/hugging_face" >> "$GITHUB_ENV"
           echo $HF_HUB_CACHE
-          echo "HUGGINGFACE_HUB_CACHE=$HF_HUB_CACHE"
+          echo "HUGGINGFACE_HUB_CACHE=$HF_HUB_CACHE" >> "$GITHUB_ENV"
 
       - name: Extract OpenVINO packages
         run: |
