@@ -36,9 +36,8 @@ ov::Shape generate_mid_shape(const ov::PartialShape& partial_shape) {
             size_t range = s.get_max_length() - s.get_min_length();
             if (range > std::numeric_limits<char>::max()) {
                 ov::test::utils::fill_data_random(&range, 1, std::numeric_limits<char>::max(), s.get_min_length(), 1);
-            } else {
-                ov::test::utils::fill_data_random(&dimValue, 1, range, s.get_min_length(), 1);
             }
+            ov::test::utils::fill_data_random(&dimValue, 1, range, s.get_min_length(), 1);
         } else {
             dimValue = s.get_length();
         }
@@ -74,17 +73,35 @@ InputShape generate(const std::shared_ptr<ov::op::v1::Convolution>& node,
     std::map<size_t, size_t> restrict_dims;
     for (size_t port = 0; port < node->get_input_size(); ++port) {
         if (port != in_port_id) {
-            auto constant_ptr = std::dynamic_pointer_cast<ov::op::v0::Constant>(node->get_input_node_shared_ptr(port));
-            if (constant_ptr == nullptr) {
-                OPENVINO_THROW("Expected non-null Constant node but got nullptr!");
+            auto kernel_ptr = node->get_input_node_shared_ptr(port);
+            // Layout of kernel is [C_OUT, C_IN, Z, Y, X], layout of input is [N, C_IN, Z, Y, X]
+            for (size_t dim = kernel_ptr->get_shape().size() - 1; dim >= 2; --dim) {
+                restrict_dims.insert({dim, kernel_ptr->get_shape()[dim]});
             }
-            restrict_dims.insert({2, constant_ptr->get_shape()[2]});
             break;
         }
     }
 
     InputShape input_shape = generate(std::dynamic_pointer_cast<ov::Node>(node), in_port_id);
-    std::vector<ov::Shape>& staticShapes2 = input_shape.second;
+    clip_restrict_dims(input_shape, restrict_dims);
+    return input_shape;
+}
+
+InputShape generate(const std::shared_ptr<ov::op::v1::ConvolutionBackpropData>& node,
+                   size_t in_port_id) {
+     std::map<size_t, size_t> restrict_dims;
+    for (size_t port = 0; port < node->get_input_size(); ++port) {
+        if (port != in_port_id) {
+            auto kernel_ptr = node->get_input_node_shared_ptr(port);
+            // Layout of kernel is [C_OUT, C_IN, Z, Y, X], layout of input is [N, C_IN, Z, Y, X]
+            for (size_t dim = kernel_ptr->get_shape().size() - 1; dim >= 2; --dim) {
+                restrict_dims.insert({dim, kernel_ptr->get_shape()[dim]});
+            }
+            break;
+        }
+    }
+
+    InputShape input_shape = generate(std::dynamic_pointer_cast<ov::Node>(node), in_port_id);
     clip_restrict_dims(input_shape, restrict_dims);
     return input_shape;
 }
