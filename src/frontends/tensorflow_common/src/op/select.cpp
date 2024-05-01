@@ -45,8 +45,7 @@ OutputVector translate_select_base_op(const NodeContext& node,
         auto select = make_shared<v1::Select>(prep_cond, complex_x, complex_y);
         set_node_name(node.get_name(), select);
 
-        auto complex_result =
-            make_shared<ComplexTypeMark>(select->output(0), complex_type_mark_x->get_complex_part_type());
+        auto complex_result = make_shared<ComplexTypeMark>(select, complex_type_mark_x->get_complex_part_type());
         return {complex_result};
     }
     // at this point all inputs are NumPy broadcastable
@@ -103,7 +102,6 @@ OutputVector translate_select_op(const NodeContext& node) {
 
     auto complex_type_mark_x = as_type_ptr<ComplexTypeMark>(x.get_node_shared_ptr());
     auto complex_type_mark_y = as_type_ptr<ComplexTypeMark>(y.get_node_shared_ptr());
-    auto x_rank = compute_subgraph_scalar_rank(x, element::i32);
 
     if (complex_type_mark_x && complex_type_mark_y) {
         x = complex_type_mark_x->input_value(0);
@@ -118,8 +116,7 @@ OutputVector translate_select_op(const NodeContext& node) {
 
         set_node_name(node.get_name(), select);
 
-        auto complex_result =
-            make_shared<ComplexTypeMark>(select->output(0), complex_type_mark_x->get_complex_part_type());
+        auto complex_result = make_shared<ComplexTypeMark>(select, complex_type_mark_x->get_complex_part_type());
         return {complex_result};
     }
 
