@@ -199,6 +199,8 @@ py::object from_ov_any(const ov::Any& any) {
         std::stringstream luid_stream;
         luid_stream << any.as<ov::device::LUID>();
         return py::cast(luid_stream.str());
+    } else if (any.is<ov::device::PCIInfo>()) {
+        return py::cast(any.as<ov::device::PCIInfo>());
         // Custom FrontEnd Types
     } else if (any.is<ov::frontend::type::List>()) {
         return py::cast(any.as<ov::frontend::type::List>());
