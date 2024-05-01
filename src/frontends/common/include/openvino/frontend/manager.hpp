@@ -11,11 +11,10 @@
 #include "openvino/core/any.hpp"
 #include "openvino/frontend/frontend.hpp"
 #include "openvino/frontend/visibility.hpp"
-#include "openvino/runtime/common.hpp"
 
 namespace ov {
 // Forward declaration
-OPENVINO_RUNTIME_API void shutdown();
+FRONTEND_API void shutdown();
 namespace frontend {
 // -------------- FrontEndManager -----------------
 using FrontEndFactory = std::function<FrontEnd::Ptr()>;
@@ -91,7 +90,7 @@ private:
 
     std::unique_ptr<Impl> m_impl;
 
-    friend OPENVINO_RUNTIME_API void ov::shutdown();
+    friend FRONTEND_API void ov::shutdown();
     /// \brief Shutdown the manager by try releasing frontend libraries
     static void shutdown();
 };

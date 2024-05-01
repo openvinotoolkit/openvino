@@ -1247,11 +1247,9 @@ pass::Serialize::Serialize(const std::string& xmlPath, const std::string& binPat
 
 pass::StreamSerialize::StreamSerialize(std::ostream& stream,
                                        const std::function<void(std::ostream&)>& custom_data_serializer,
-                                       const std::function<std::string(const std::string&)>& cache_encrypt,
                                        Serialize::Version version)
     : m_stream(stream),
       m_custom_data_serializer(custom_data_serializer),
-      m_cache_encrypt(cache_encrypt),
       m_version(version) {
     if (version != Serialize::Version::UNSPECIFIED && version != Serialize::Version::IR_V10 &&
         version != Serialize::Version::IR_V11) {
@@ -1308,14 +1306,7 @@ bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ov::Model>& model
 
     // IR
     hdr.model_offset = m_stream.tellp();
-    if (m_cache_encrypt) {
-        std::stringstream ss;
-        xml_doc.save(ss);
-        auto str_encode = m_cache_encrypt(ss.str());
-        m_stream.write((char*)str_encode.c_str(), str_encode.length());
-    } else {
-        xml_doc.save(m_stream);
-    }
+    xml_doc.save(m_stream);
     m_stream.flush();
 
     const size_t file_size = m_stream.tellp();
