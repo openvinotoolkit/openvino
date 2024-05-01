@@ -181,14 +181,16 @@ public:
     virtual event::ptr set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0);
     void check_memory_to_set(const memory& mem, const layout& layout) const;
     const std::list<const cldnn::program_node *>& get_users() const { return _node->get_users(); }
-    std::vector<primitive_inst*> get_user_insts() const {
+    const std::vector<primitive_inst*>& get_user_insts() const { return _users; }
+    void init_users() {
         std::vector<primitive_id> users;
         for (auto u : get_users()) {
             users.push_back(u->id());
         }
-        return _network.get_primitives(users);
+        _users = _network.get_primitives(users);
     }
-    std::set<size_t> get_runtime_memory_dependencies() { return _runtime_memory_dependencies; }
+
+    const std::set<size_t>& get_runtime_memory_dependencies() const { return _runtime_memory_dependencies; }
 
     const kernel_impl_params* get_impl_params() const { return _impl_params.get(); }
     // return pointer to const to prevent arbitrary 'execute' call -> use primitive_inst.execute() instead
@@ -276,8 +278,6 @@ public:
 
     std::vector<memory::ptr> get_intermediates_memories() const { return _intermediates_memory; }
 
-    void rebuild_deps(std::unordered_map<primitive_id, primitive_inst*> const& primitives);
-    void rebuild_exec_deps(std::unordered_map<primitive_id, primitive_inst*> const& primitives);
     std::string get_implementation_name() const;
 
     void add_profiling_data(instrumentation::pipeline_stage stage, bool cache_hit, std::string memalloc_info, int64_t time, bool per_iter_mode = false);
@@ -319,10 +319,11 @@ protected:
     // this is a set of dependencies in terms of memory, if execution of this primitive requires data from another one,
     // it should be added to this set
     std::vector<std::pair<primitive_inst*, int32_t>> _deps;
-    std::vector<std::pair<cldnn::primitive_id, int32_t>> _dep_ids;
 
     // List of depandant shape_of primitives for shape_of subgraphs
     std::vector<primitive_inst*> dependant_shape_of_insts;
+
+    std::vector<primitive_inst*> _users;
     // this is a set of dependencies in terms of execution
     // execution of all primitives from this set should be enough to guarantee that all memory deps (see _deps)
     // will be valid when executing this primitive. Most of the time this set will be equal to the _deps minus all
@@ -331,7 +332,6 @@ protected:
     // manner) in general - this member is introduced to relax logical connection between primitives which have to be
     // executed and memories which are used by this primitive
     std::vector<primitive_inst*> _exec_deps;
-    std::vector<cldnn::primitive_id> _exec_dep_ids;
 
     // List of primitive ids that this primitive can't share memory buffers with
     std::set<size_t> _runtime_memory_dependencies;
@@ -426,7 +426,7 @@ protected:
         auto output_type = impl_param.desc->output_data_types[0].value_or(in_layout.data_type);
 
         if (impl_param.has_fused_primitives()) {
-            output_type = impl_param.get_fused_output_layout().data_type;
+            output_type = impl_param.get_output_element_type();
         }
 
         return { layout(in_layout.get<ShapeType>(), output_type, in_layout.format) };

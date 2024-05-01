@@ -42,10 +42,10 @@ OutputVector translate_sum(const NodeContext& context) {
     }
     auto data = context.get_input(0);
     auto data_dtype = simplified_type_interpret(context.get_input_type(0));
-    // PyTorch sum converts bool and uint8 to i64 for preventing overflow
-    if ((data.get_element_type() == element::boolean || data.get_element_type() == element::u8) ||
-        (data_dtype.is<element::Type>() &&
-         (data_dtype.as<element::Type>() == element::boolean || data_dtype.as<element::Type>() == element::u8))) {
+    // PyTorch sum converts any integer type or bool to i64 for preventing overflow
+    if ((data.get_element_type().is_static() && data.get_element_type().is_integral()) ||
+        (data_dtype.is<element::Type>() && data_dtype.as<element::Type>().is_static() &&
+         data_dtype.as<element::Type>().is_integral())) {
         data = context.mark_node(std::make_shared<ov::op::v0::Convert>(data, element::i64));
     }
     if (context.input_is_none(axis_idx)) {
@@ -57,7 +57,8 @@ OutputVector translate_sum(const NodeContext& context) {
         keep_dims = context.const_input<bool>(keep_dims_idx);
     }
 
-    Output<Node> sum = context.mark_node(std::make_shared<ov::op::v1::ReduceSum>(data, axes, keep_dims));
+    auto reduce = std::make_shared<ov::op::v1::ReduceSum>(data, axes, keep_dims);
+    Output<Node> sum = context.mark_node(reduce);
 
     if (!context.input_is_none(dtype_idx)) {
         sum = apply_dtype(context, dtype_idx, sum);
@@ -77,17 +78,22 @@ OutputVector translate_sum_fx(const NodeContext& context) {
     if (context.has_attribute("dtype")) {
         auto dtype = context.get_attribute<element::Type>("dtype");
         data = context.mark_node(std::make_shared<ov::op::v0::Convert>(data, dtype));
-    } else if ((data.get_element_type() == element::boolean || data.get_element_type() == element::u8) ||
-               (data_dtype.is<element::Type>() && (data_dtype.as<element::Type>() == element::boolean ||
-                                                   data_dtype.as<element::Type>() == element::u8))) {
-        // PyTorch sum converts bool and uint8 to i64 for preventing overflow
+    } else if ((data.get_element_type().is_static() && data.get_element_type().is_integral()) ||
+               (data_dtype.is<element::Type>() && data_dtype.as<element::Type>().is_static() &&
+                data_dtype.as<element::Type>().is_integral())) {
+        // PyTorch sum converts any integer type or bool to i64 for preventing overflow
         data = context.mark_node(std::make_shared<ov::op::v0::Convert>(data, element::i64));
     }
     Output<Node> axes;
     if (context.input_is_none(1)) {
         axes = get_axes_range(context, 0);
     } else {
-        axes = context.get_input(static_cast<int>(1));
+        axes = context.get_input(1);
+        // empty constant means default axes
+        if (const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(axes.get_node_shared_ptr())) {
+            if (constant->get_byte_size() == 0)
+                axes = get_axes_range(context, 0);
+        }
     }
     if (!context.input_is_none(2)) {
         keep_dims = context.const_input<bool>(2);

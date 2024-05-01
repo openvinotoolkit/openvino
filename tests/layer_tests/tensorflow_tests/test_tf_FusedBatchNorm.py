@@ -102,7 +102,7 @@ class TestFusedBatchNorm(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122182")
     def test_fused_batch_norm_basic(self, params, ie_device, precision, ir_version, temp_dir,

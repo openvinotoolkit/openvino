@@ -53,7 +53,7 @@ OutputVector translate_fake_quantize_per_channel_affine(const NodeContext& conte
     auto input_node = context.get_input(0);
     auto scale = std::make_shared<v0::Convert>(context.get_input(1), element::f32);
     auto zero_point = std::make_shared<v0::Convert>(context.get_input(2), element::f32);
-    auto axis = context.get_input(3);
+    auto axis = get_input_as_i32(context, 3);
     auto out_low_const = context.const_input<int64_t>(4);
     auto out_high_const = context.const_input<int64_t>(5);
     // Calculate levels value - distance between bounds.

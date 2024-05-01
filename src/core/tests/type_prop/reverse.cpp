@@ -175,13 +175,13 @@ using namespace ov::opset10;
 //
 TEST_F(TypePropReverseV1Test, partial_rank_static_dynamic_axes_ok) {
     PartialShape param_shape{Dimension::dynamic(), {10, 300}, 2, 3};
-    set_shape_labels(param_shape, 10);
+    auto symbols = set_shape_symbols(param_shape);
     auto param = make_shared<Parameter>(element::f32, param_shape);
     auto rev = make_op(param, Constant::create(element::i64, {2}, {0, 2}), op::v1::Reverse::Mode::INDEX);
 
     EXPECT_EQ(rev->get_element_type(), element::f32);
     EXPECT_EQ(rev->get_output_partial_shape(0), param_shape);
-    EXPECT_THAT(get_shape_labels(rev->get_output_partial_shape(0)), ElementsAre(10, 11, 12, 13));
+    EXPECT_THAT(get_shape_symbols(rev->get_output_partial_shape(0)), symbols);
 }
 
 TEST_F(TypePropReverseV1Test, axes_index_is_not_1d_tensor) {
@@ -278,14 +278,14 @@ TEST_F(TypePropReverseV1Test, param_static_rank_partial_shape_axes_out_of_input_
 
 TEST_F(TypePropReverseV1Test, param_static_rank_partial_shape_axes_negatives) {
     PartialShape param_shape{-1, {2, -1}, {-1, 3}, 5};
-    set_shape_labels(param_shape, 10);
+    auto symbols = set_shape_symbols(param_shape);
     auto param = make_shared<ov::op::v0::Parameter>(element::f32, param_shape);
 
     auto op = make_op(param, Constant::create(element::i64, {3}, {0, -1, 2}), op::v1::Reverse::Mode::INDEX);
 
     EXPECT_EQ(op->get_element_type(), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), param_shape);
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 11, 12, 13));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), symbols);
 }
 
 TEST_F(TypePropReverseV1Test, more_axes_index_than_input_rank) {

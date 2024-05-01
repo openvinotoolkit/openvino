@@ -57,7 +57,7 @@ Providing just a path to the model or model object as ``openvino.convert_model``
           import openvino as ov
 
           ov_model = ov.convert_model(original_model)
-          ov.save_model(ov_model, 'model.xml' compress_to_fp16=False)
+          ov.save_model(ov_model, 'model.xml', compress_to_fp16=False)
 
     .. tab-item:: CLI
        :sync: cli
@@ -77,7 +77,7 @@ For details on how plugins handle compressed ``FP16`` models, see
 
 - ``extension`` parameter which makes possible conversion of the models consisting of operations that are not supported by OpenVINO out-of-the-box. It requires implementing of an OpenVINO extension first, please refer to :doc:`Frontend Extensions <../../documentation/openvino-extensibility/frontend-extensions>` guide.
 
-- ``share_weigths`` parameter with default value ``True`` allows reusing memory with original weights. For models loaded in Python and then passed to ``openvino.convert_model``, that means that OpenVINO model will share the same areas in program memory where the original weights are located. For models loaded from files by ``openvino.convert_model``, file memory mapping is used to avoid extra memory allocation. When enabled, the original model cannot be destroyed (Python object cannot be deallocated and original model file cannot be deleted) for the whole lifetime of OpenVINO model. If it is not desired, set ``share_weights=False`` when calling ``openvino.convert_model``.
+- ``share_weigths`` parameter with default value ``True`` allows reusing memory with original weights. For models loaded in Python and then passed to ``openvino.convert_model``, that means that OpenVINO model will share the same areas in program memory where the original weights are located. For models loaded from files by ``openvino.convert_model``, file memory mapping is used to avoid extra memory allocation. When enabled, the original model cannot be modified (Python object cannot be deallocated and original model file cannot be deleted) for the whole lifetime of OpenVINO model. Even model inference by original framework can lead to model modification. If it is not desired, set ``share_weights=False`` when calling ``openvino.convert_model``.
 
 .. note:: ``ovc`` does not have ``share_weights`` option and always uses sharing to reduce conversion time and consume less amount of memory during the conversion.
 

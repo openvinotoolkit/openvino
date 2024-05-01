@@ -5,7 +5,6 @@
 
 #include "compare.hpp"
 #include "dimension_util.hpp"
-#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/reshape.hpp"
 #include "utils.hpp"
 
@@ -83,8 +82,9 @@ struct Product<T, typename std::enable_if<std::is_same<T, Dimension>::value>::ty
     void calculate() {
         // dimensions compare to remove same from product calculation
         auto dim_full_eq = [](const T& lhs, const T& rhs) -> bool {
-            return (lhs == rhs) && DimensionTracker::get_label(lhs) == DimensionTracker::get_label(rhs) &&
-                   (lhs.is_static() || DimensionTracker::has_label(lhs));
+            bool symbols_equal_or_both_null =
+                ov::symbol::are_equal(lhs.get_symbol(), rhs.get_symbol()) || (!lhs.has_symbol() && !rhs.has_symbol());
+            return (lhs == rhs) && symbols_equal_or_both_null && (lhs.is_static() || lhs.has_symbol());
         };
 
         auto outs = outputs;
@@ -154,7 +154,7 @@ TDim resolve_minus_one_dim(const Product<TDim>& product) {
         }
 
         if (product_out.get_min_length() != 1 || product_out.get_max_length() != 1) {
-            DimensionTracker::reset_tracking_info(minus_one_dim);
+            minus_one_dim.set_symbol(nullptr);
         }
     }
     return minus_one_dim;
@@ -215,31 +215,29 @@ std::pair<TShape, int64_t> get_pattern_and_minus_one_idx(const Node* const op,
 }
 
 /**
- * @brief Set the pattern labels on pattern shape if this input is labeled.
+ * @brief Set the pattern symbols on pattern shape if this input has symbols.
  *
  * @param op     Pointer to reshape node.
- * @param shape  Pointer to shape for labels set.
+ * @param shape  Pointer to shape for symbols set.
  */
 template <class TShape, typename std::enable_if<std::is_same<TShape, PartialShape>::value>::type* = nullptr>
-void set_pattern_labels(const Node* const op, TShape& shape) {
+void set_pattern_symbols(const Node* const op, TShape& shape) {
     if (op->get_input_size() > 0) {
-        auto labels = op->get_input_source_output(1).get_tensor().get_value_label();
+        auto symbols = op->get_input_source_output(1).get_tensor().get_value_symbol();
 
-        if (!labels.empty()) {
-            auto label_iter = labels.begin();
+        if (!symbols.empty()) {
+            auto symbol_iter = symbols.begin();
             for (auto& d : shape) {
-                if (*label_iter != no_label) {
-                    DimensionTracker::set_label(d, *label_iter);
-                }
-                ++label_iter;
+                d.set_symbol(*symbol_iter);
+                ++symbol_iter;
             }
         }
     }
 }
 
-/** @brief Shapes other than PartialShape have no labels. */
+/** @brief Shapes other than PartialShape have no symbols. */
 template <class TShape, typename std::enable_if<!std::is_same<TShape, PartialShape>::value>::type* = nullptr>
-void set_pattern_labels(const Node* const, TShape&) {}
+void set_pattern_symbols(const Node* const, TShape&) {}
 
 }  // namespace reshape
 
@@ -271,7 +269,7 @@ std::vector<TRShape> shape_infer(const Reshape* op,
         auto& output_pattern = pattern_and_minus_one_idx.first;
         const auto minus_one_idx = pattern_and_minus_one_idx.second;
 
-        reshape::set_pattern_labels(op, output_pattern);
+        reshape::set_pattern_symbols(op, output_pattern);
 
         if (pattern_shape_rank.get_max_length() == 0) {
             NODE_VALIDATION_CHECK(op,

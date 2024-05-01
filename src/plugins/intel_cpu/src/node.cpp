@@ -110,6 +110,10 @@ Node::Node(const std::shared_ptr<ov::Node>& op,
         originalLayers = getRTInfoValue(rtInfo, "originalLayersNames");
     }
 
+    if (rtInfo.count("parallelDomain")) {
+        parallelDomain = getRTInfoValue(rtInfo, "parallelDomain");
+    }
+
     if (originalLayers.empty()) {
         addOriginalLayer(name);
     }
@@ -902,6 +906,32 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryD
     return ptr;
 }
 
+void Node::toNumaNode(int numaNodeID) {
+    if (!isExecutable())
+        return;
+
+    return toNumaNodeImpl(numaNodeID);
+}
+
+void Node::toNumaNodeImpl(int numaNodeID) {
+    if (curNumaNode == numaNodeID)
+        return;
+
+    // create scratch pad from specified numa node
+    if (scratchpadMem) {
+        scratchpadMem = context->getScratchPad(numaNodeID)->createScratchPadMem(scratchpadMem->getDescPtr());
+        primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
+    }
+
+    // mbind constant prim args to numa nodes
+    if (primArgs.count(DNNL_ARG_WEIGHTS))
+        mbind_move(primArgs[DNNL_ARG_WEIGHTS], numaNodeID);
+    if (primArgs.count(DNNL_ARG_BIAS))
+        mbind_move(primArgs[DNNL_ARG_BIAS], numaNodeID);
+
+    curNumaNode = numaNodeID;
+}
+
 bool Node::isInPlace() const {
     if (inplace == InPlaceType::Unknown) {
         auto selected_pd = getSelectedPrimitiveDescriptor();
@@ -1677,7 +1707,7 @@ void Node::fuseDQScales(const float* scaleData, const size_t scaleSize) {
              DQScales[i] *= scaleData[i];
          }
      }
-     if (std::all_of(DQScales.begin(), DQScales.end(), [=](float val){ return (val == DQScales[0]);}))
+     if (std::all_of(DQScales.begin(), DQScales.end(), [OV_CAPTURE_CPY_AND_THIS](float val){ return (val == DQScales[0]);}))
         DQScales.resize(1);
 }
 
@@ -1828,7 +1858,7 @@ void Node::resolveInPlaceDirection() {
                     return InplaceDirectionType::NONE;
                 };
                 auto result = searchNonCyclicDirection(this, inPlaceInpPort);
-                if (one_of(result, InplaceDirectionType::UP, InplaceDirectionType::NONE)) {
+                if (InplaceDirectionType::UP == result) {
                     auto config = getSelectedPrimitiveDescriptor()->getConfig();
                     config.inConfs[inpPort].inPlace(-1);
                     initDescriptor(config);
@@ -1836,6 +1866,68 @@ void Node::resolveInPlaceDirection() {
                     auto config = getSelectedPrimitiveDescriptor()->getConfig();
                     config.outConfs[inPlaceInpPort].inPlace(-1);
                     initDescriptor(config);
+                } else if (InplaceDirectionType::NONE == result) {
+                    // resolve cyclic inplace to downstream instead of upstream for the node
+                    // when there is only one output referencing to the edges of it,
+                    // thus benefits zero-copy of outputs.
+                    size_t numConflicts = 0;
+
+                    // the parent node does not use inPlace memory, but it is an Input.
+                    if (Type::Input == pParent->getType() || Type::MemoryInput == pParent->getType()) {
+                        auto config = getSelectedPrimitiveDescriptor()->getConfig();
+                        config.inConfs[inpPort].inPlace(-1);
+                        initDescriptor(config);
+                        continue;
+                    }
+
+                    // search descendants
+                    if (numConflicts <= 1) {
+                        // note: there are only non-inplace or cyclic-inplace descendants at the moment.
+                        std::function<void(const Node* node, int portIdx)> searchReferencingOutput;
+                        searchReferencingOutput = [&](const Node* node, int portIdx) -> void {
+                            if (numConflicts > 1) return;  // early stop
+                            auto childEdges = node->getChildEdgesAtPort(portIdx);
+                            for (auto& edge : childEdges) {
+                                auto pChild = edge->getChild().get();
+                                if (Type::Output == pChild->getType()) {
+                                    numConflicts++;
+                                } else {
+                                    auto result = inPlaceDirection(pChild, PortType::INPUT, edge->getOutputNum());
+                                    if (InplaceDirectionType::CYCLIC == result) {
+                                        return searchReferencingOutput(pChild, pChild->inPlaceInputPort(edge->getOutputNum()));
+                                    }
+                                }
+                            }
+                        };
+                        searchReferencingOutput(this, inPlaceInpPort);
+                    }
+
+                    // search siblings
+                    if (numConflicts <= 1) {
+                        // note: the parent node does not use inPlace memory at the moment, let's check the siblings
+                        for (auto& peerEdge : pParent->getChildEdgesAtPort(pEdge->getInputNum())) {
+                            auto peerNode = peerEdge->getChild().get();
+                            if (peerNode == this) continue;
+                            if (Type::Output == peerNode->getType()) {
+                                numConflicts++;
+                            } else {
+                                auto result = inPlaceDirection(peerNode, PortType::INPUT, peerEdge->getOutputNum());
+                                if (one_of(result, InplaceDirectionType::DOWN, InplaceDirectionType::CYCLIC)) {
+                                    numConflicts++;
+                                }
+                            }
+                        }
+                    }
+
+                    if (numConflicts == 1) { // downstream to make the only output edge be referenced.
+                        auto config = getSelectedPrimitiveDescriptor()->getConfig();
+                        config.outConfs[inPlaceInpPort].inPlace(-1);
+                        initDescriptor(config);
+                    } else { // the default direction of upstream
+                        auto config = getSelectedPrimitiveDescriptor()->getConfig();
+                        config.inConfs[inpPort].inPlace(-1);
+                        initDescriptor(config);
+                    }
                 } else {
                     OPENVINO_THROW("A node without an inPlace memory cyclic dependency has not been found");
                 }

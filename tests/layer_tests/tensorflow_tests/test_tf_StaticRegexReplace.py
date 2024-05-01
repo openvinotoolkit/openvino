@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
+from common.utils.tf_utils import run_in_jenkins
 
 rng = np.random.default_rng()
 
@@ -35,10 +36,10 @@ class TestStaticRegexReplace(CommonTFLayerTest):
         return tf_net, ref_net
 
     @pytest.mark.parametrize('input_shape', [[], [2], [3, 4], [1, 3, 2]])
-    @pytest.mark.parametrize('pattern', ['(\s)|(-)', '[A-Z]{2,}', '^\s+|\s+$'])
+    @pytest.mark.parametrize('pattern', [r'(\s)|(-)', r'[A-Z]{2,}', r'^\s+|\s+$'])
     @pytest.mark.parametrize('rewrite', ['', 'replacement word'])
     @pytest.mark.parametrize('replace_global', [None, True, False])
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['arm', 'armv7l',
                                                                                                      'aarch64',
@@ -47,6 +48,8 @@ class TestStaticRegexReplace(CommonTFLayerTest):
     def test_static_regex_replace(self, input_shape, pattern, rewrite, replace_global,
                                   ie_device, precision, ir_version, temp_dir,
                                   use_legacy_frontend):
+        if ie_device == 'GPU' or run_in_jenkins():
+            pytest.skip("operation extension is not supported on GPU")
         self._test(*self.create_static_regex_replace_net(input_shape=input_shape, pattern=pattern, rewrite=rewrite,
                                                          replace_global=replace_global),
                    ie_device, precision, ir_version, temp_dir=temp_dir,

@@ -75,8 +75,9 @@ IRFFTNComplexReplacer::IRFFTNComplexReplacer() {
         bool s_use_default = is_none_node(irfftn_op->input_value(1));
         // Can be None constant, when used check s_use_default.
         auto raw_s_input_maybe = concat_list_construct(irfftn_op->input_value(1));
+        raw_s_input_maybe = std::make_shared<v0::Convert>(raw_s_input_maybe, element::i32);
 
-        // Handle dim parameter containing vector of intigers indicating dimensions to be transformed.
+        // Handle dim parameter containing vector of integers indicating dimensions to be transformed.
         std::shared_ptr<ov::Node> dim;
         if (!dim_use_default) {
             // Dim values is provided, load from input.

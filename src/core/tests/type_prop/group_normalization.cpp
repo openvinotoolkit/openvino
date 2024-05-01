@@ -22,19 +22,19 @@ TEST(type_prop, group_normalization_basic) {
     EXPECT_EQ(gn->get_shape(), (Shape{1, 12, 6, 6}));
 }
 
-TEST(type_prop, group_normalization_labels) {
+TEST(type_prop, group_normalization_symbols) {
     auto data_shape = PartialShape{1, 12, 6, 6};
     auto scale_shape = PartialShape{12};
     auto bias_shape = PartialShape{12};
-    set_shape_labels(data_shape, 43);
-    set_shape_labels(scale_shape, 100);
-    set_shape_labels(bias_shape, 200);
+    auto symbols = set_shape_symbols(data_shape);
+    set_shape_symbols(scale_shape);
+    set_shape_symbols(bias_shape);
     const auto data = std::make_shared<opset12::Parameter>(element::f32, data_shape);
     const auto scale = std::make_shared<opset12::Parameter>(element::f32, scale_shape);
     const auto bias = std::make_shared<opset12::Parameter>(element::f32, bias_shape);
 
     const auto gn = std::make_shared<opset12::GroupNormalization>(data, scale, bias, 4, 0.00001f);
-    EXPECT_THAT(get_shape_labels(gn->get_output_partial_shape(0)), ElementsAre(43, 44, 45, 46));
+    EXPECT_THAT(get_shape_symbols(gn->get_output_partial_shape(0)), symbols);
 }
 
 TEST(type_prop, group_normalization_dynamic_channels) {
@@ -101,9 +101,9 @@ TEST(type_prop, group_normalization_dynamic_intervals) {
     auto data_shape = PartialShape{2, Dimension{10, 20}, 6, 6};
     auto scale_shape = PartialShape{Dimension{10, 20}};
     auto bias_shape = PartialShape{Dimension{10, 20}};
-    set_shape_labels(data_shape, 42);
-    set_shape_labels(scale_shape, 21);
-    set_shape_labels(bias_shape, 37);
+    auto symbols = set_shape_symbols(data_shape);
+    set_shape_symbols(scale_shape);
+    set_shape_symbols(bias_shape);
     const auto data = std::make_shared<opset12::Parameter>(element::f32, data_shape);
     const auto scale = std::make_shared<opset12::Parameter>(element::f32, scale_shape);
     const auto bias = std::make_shared<opset12::Parameter>(element::f32, bias_shape);
@@ -111,7 +111,7 @@ TEST(type_prop, group_normalization_dynamic_intervals) {
     const auto gn = std::make_shared<opset12::GroupNormalization>(data, scale, bias, 2, 0.00001f);
     EXPECT_EQ(gn->get_element_type(), element::f32);
     EXPECT_EQ(gn->get_output_partial_shape(0), (PartialShape{2, Dimension{10, 20}, 6, 6}));
-    EXPECT_THAT(get_shape_labels(gn->get_output_partial_shape(0)), ElementsAre(42, 43, 44, 45));
+    EXPECT_THAT(get_shape_symbols(gn->get_output_partial_shape(0)), symbols);
 }
 
 TEST(type_prop, group_normalization_incorrect_scale_shape) {

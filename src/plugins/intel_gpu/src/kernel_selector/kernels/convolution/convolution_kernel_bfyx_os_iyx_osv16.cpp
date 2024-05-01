@@ -205,6 +205,14 @@ bool ConvolutionKernel_bfyx_os_iyx_osv16::Validate(const Params& p) const {
         return false;
     }
 
+    // To prevent big sized filter which causes lots of CL build time.
+    const size_t acceptable_filter_size = 1024;     // This acceptable size was decided by heuristics
+    const auto& params = static_cast<const convolution_params&>(p);
+    auto filter_size = params.filterSize.x * params.filterSize.y;
+    if (filter_size > acceptable_filter_size) {
+        return false;
+    }
+
     return true;
 }
 
@@ -218,7 +226,7 @@ JitConstants ConvolutionKernel_bfyx_os_iyx_osv16::GetJitConstants(const convolut
     const size_t of_threads_per_batch = RoundUp(of_maps_per_group, sub_group_size);
     size_t leftovers = of_threads_per_batch - of_maps_per_group;
 
-    auto jit = Parent::GetJitConstants(params, dispatchData);
+    auto jit = Parent::GetJitConstantsWithLoopUnroll(params, dispatchData);
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetUnitType(params);

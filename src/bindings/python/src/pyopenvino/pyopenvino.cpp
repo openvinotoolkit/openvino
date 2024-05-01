@@ -52,6 +52,7 @@
 #include "pyopenvino/graph/ops/constant.hpp"
 #include "pyopenvino/graph/ops/if.hpp"
 #include "pyopenvino/graph/ops/loop.hpp"
+#include "pyopenvino/graph/ops/paged_attention_extension.hpp"
 #include "pyopenvino/graph/ops/parameter.hpp"
 #include "pyopenvino/graph/ops/result.hpp"
 #include "pyopenvino/graph/ops/tensor_iterator.hpp"
@@ -62,6 +63,7 @@
 #include "pyopenvino/graph/rt_map.hpp"
 #include "pyopenvino/graph/shape.hpp"
 #include "pyopenvino/graph/strides.hpp"
+#include "pyopenvino/graph/symbol.hpp"
 #include "pyopenvino/graph/types/regmodule_graph_types.hpp"
 #include "pyopenvino/graph/util.hpp"
 #include "pyopenvino/utils/utils.hpp"
@@ -215,6 +217,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
 
     regclass_graph_PyRTMap(m);
     regmodule_graph_types(m);
+    regclass_graph_Symbol(m);     // Symbol must be registered before Dimension
     regclass_graph_Dimension(m);  // Dimension must be registered before PartialShape
     regclass_graph_Layout(m);
     regclass_graph_Shape(m);
@@ -232,6 +235,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
     py::module m_op = m.def_submodule("op", "Package ngraph.impl.op that wraps ov::op");  // TODO(!)
     regclass_graph_op_Assign(m_op);
     regclass_graph_op_Constant(m_op);
+    regclass_graph_op_PagedAttentionExtension(m_op);
     regclass_graph_op_Parameter(m_op);
     regclass_graph_op_Result(m_op);
     regclass_graph_op_If(m_op);

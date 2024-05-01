@@ -18,18 +18,23 @@ namespace intel_cpu {
 template <typename Attrs>
 class ExecutorImplementation {
 public:
+    using SupportsPredicate = std::function<bool(const executor::Config<Attrs>&)>;
+    using RequiresFallbackPredicate = std::function<ov::optional<executor::Config<Attrs>>(const executor::Config<Attrs>&)>;
+    using AcceptsShapePredicate = std::function<bool(const MemoryArgs& memory)>;
+    using CreateFunction = std::function<ExecutorPtr(const Attrs& attrs,
+                                                     const PostOps& postOps,
+                                                     const MemoryArgs& memory,
+                                                     const ExecutorContext::CPtr context)>;
+
     ExecutorImplementation(
         const char* name,
         const ExecutorType type,
         const OperationType operationType,
         const ShapeTolerance shapeRelation,
-        std::function<bool(const executor::Config<Attrs>&)> supports,
-        std::function<ov::optional<executor::Config<Attrs>>(const executor::Config<Attrs>&)> requiresFallback,
-        std::function<bool(const MemoryArgs& memory)> acceptsShape,
-        std::function<ExecutorPtr(const Attrs& attrs,
-                                  const PostOps& postOps,
-                                  const MemoryArgs& memory,
-                                  const ExecutorContext::CPtr context)> create)
+        SupportsPredicate supports,
+        RequiresFallbackPredicate requiresFallback,
+        AcceptsShapePredicate acceptsShape,
+        CreateFunction create)
         : m_name(name),
           m_type(type),
           m_operationType(operationType),
@@ -92,18 +97,13 @@ public:
 
 private:
     const char* m_name;
-    const ExecutorType m_type;
-    const OperationType m_operationType;
-    const ShapeTolerance m_shapeRelation;
-    // @todo create aliases for std::functions
-    const std::function<bool(const executor::Config<Attrs>&)> m_supports = {};
-    const std::function<ov::optional<executor::Config<Attrs>>(const executor::Config<Attrs>&)> m_requiresFallback = {};
-    const std::function<bool(const MemoryArgs& memory)> m_acceptsShape = {};
-    const std::function<ExecutorPtr(const Attrs& attrs,
-                                    const PostOps& postOps,
-                                    const MemoryArgs& memory,
-                                    const ExecutorContext::CPtr context)>
-        m_create = {};
+    ExecutorType m_type;
+    OperationType m_operationType;
+    ShapeTolerance m_shapeRelation;
+    SupportsPredicate m_supports;
+    RequiresFallbackPredicate m_requiresFallback;
+    AcceptsShapePredicate m_acceptsShape;
+    CreateFunction m_create;
 };
 
 template <typename Attrs>
