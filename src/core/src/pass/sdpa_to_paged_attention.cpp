@@ -43,8 +43,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                     v0::Constant::create(element::i64, Shape{}, {0}));
     auto prev_max_seq_len = std::make_shared<v1::Subtract>(max_context_len, cur_seq_len);
 
-    auto has_parameter = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<ov::Model>& model,
-                                                   const std::string& name) -> bool {
+    auto has_parameter = [=](const std::shared_ptr<ov::Model>& model, const std::string& name) -> bool {
         for (auto& t : model->inputs()) {
             const auto& names = t.get_names();
             if (names.find(name) != names.end()) {

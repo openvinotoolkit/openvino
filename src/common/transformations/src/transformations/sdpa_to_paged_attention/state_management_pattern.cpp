@@ -60,7 +60,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
     auto k_concat = pattern::wrap_type<v0::Concat>(
         {k_past, std::make_shared<pattern::op::Or>(OutputVector{k_current_reshaped, k_current})});
 
-    auto kv_shaping = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& kv_concat) {
+    auto kv_shaping = [=](const std::shared_ptr<Node>& kv_concat) {
         auto interim = pattern::wrap_type<v1::StridedSlice>(
             {kv_concat, pattern::any_input(), pattern::any_input(), pattern::any_input()});
         interim = pattern::wrap_type<v1::StridedSlice>(
@@ -119,7 +119,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
          std::make_shared<pattern::op::Or>(OutputVector{v_concat, v_shaped, v_shaped_transposed, v_simply_shaped}),
          std::make_shared<pattern::op::Or>(OutputVector{sdpa_mask, pattern::any_input()})});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS,
+    ov::matcher_pass_callback callback = [=,
                                           &kv_parameters,
                                           &model_remaining_params,
                                           &sliding_window,
@@ -254,8 +254,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
             parameters_to_remove.push_back(param);
         }
 
-        auto add_assign_consumers = [OV_CAPTURE_CPY_AND_THIS,
-                                     &assignes_to_remove](const std::shared_ptr<ov::Output<Node>>& output) {
+        auto add_assign_consumers = [=, &assignes_to_remove](const std::shared_ptr<ov::Output<Node>>& output) {
             for (auto& consumer : output->get_target_inputs()) {
                 auto consumer_node = consumer.get_node()->shared_from_this();
                 auto consumer_type = consumer_node->get_type_info().name;
