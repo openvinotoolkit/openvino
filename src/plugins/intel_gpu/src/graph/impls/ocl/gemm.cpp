@@ -188,11 +188,20 @@ public:
                                       (primitive->input_rank == primitive->weight_rank);
         if (is_broadcastable) {
             auto transpose_pshape = [](const ov::PartialShape pshape, const std::vector<int64_t>& order) {
-                auto transposed_pshape = ov::PartialShape::dynamic(pshape.rank());
-                for (size_t i = 0; i < order.size(); i++) {
-                    transposed_pshape[i] = pshape[order[i]];
+                if (order.size() < pshape.size()) {
+                    auto transposed_pshape = pshape;
+                    auto rank_diff = pshape.size() - order.size();
+                    for (size_t i = 0; i < order.size(); i++) {
+                        transposed_pshape[i + rank_diff] = pshape[rank_diff + order[i]];
+                    }
+                    return transposed_pshape;
+                } else {
+                    auto transposed_pshape = ov::PartialShape::dynamic(pshape.rank());
+                    for (size_t i = 0; i < order.size(); i++) {
+                        transposed_pshape[i] = pshape[order[i]];
+                    }
+                    return transposed_pshape;
                 }
-                return transposed_pshape;
             };
             size_t max_rank = input0_pshape.size();
             auto default_order = ov::intel_gpu::op::Gemm::default_order(max_rank);
