@@ -40,9 +40,9 @@ void Generator::generate(lowered::LinearIR& linear_ir, LoweringResult& result, c
     lowered_pipeline.register_pass<lowered::pass::AssignRegisters>(reg_type_mapper);
     lowered_pipeline.register_pass<lowered::pass::InsertSpecificIterations>();
     lowered_pipeline.register_pass<lowered::pass::NormalizeLoopIDs>();
+    lowered_pipeline.register_pass<lowered::pass::ValidateExpandedLoops>();
     lowered_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
     lowered_pipeline.register_pass<lowered::pass::OptimizeLoopSingleEvaluation>();
-    lowered_pipeline.register_pass<lowered::pass::ValidateExpandedLoops>();
     lowered_pipeline.run(linear_ir);
     linear_ir.init_emitters(target);
 

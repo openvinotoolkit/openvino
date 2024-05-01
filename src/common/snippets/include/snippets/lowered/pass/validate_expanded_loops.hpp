@@ -21,6 +21,10 @@ public:
     OPENVINO_RTTI("ValidateExpandedLoops", "Pass")
     ValidateExpandedLoops() = default;
     bool run(LinearIR& linear_ir) override;
+
+private:
+    static void validate_loop_information(const LinearIR& linear_ir);
+    static void validate_loop_expressions(const LinearIR& linear_ir);
 };
 
 } // namespace pass

@@ -69,9 +69,9 @@ static void apply_transformations(LinearIR& linear_ir, const std::shared_ptr<pas
     pipeline.register_pass<pass::InsertLoops>();
     pipeline.register_pass<pass::InsertSpecificIterations>();
     pipeline.register_pass<pass::NormalizeLoopIDs>(!is_loop_decomp_disabled);
+    pipeline.register_pass<pass::ValidateExpandedLoops>();
     pipeline.register_pass<pass::CleanupLoopOffsets>();
     pipeline.register_pass<pass::OptimizeLoopSingleEvaluation>();
-    pipeline.register_pass<pass::ValidateExpandedLoops>();
     pipeline.run(linear_ir);
 }
 
