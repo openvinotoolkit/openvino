@@ -21,9 +21,9 @@ namespace intel_cpu {
 #define GET_OFF_LOOP_ARGS(field) offsetof(jit_snippets_call_args::loop_args_t, field)
 
 struct amx_tile_config_t {
-    size_t M = 0;
-    size_t K = 0;
-    size_t N = 0;
+    dnnl_dim_t M = 0;
+    dnnl_dim_t K = 0;
+    dnnl_dim_t N = 0;
 };
 
 struct jit_snippets_call_args {

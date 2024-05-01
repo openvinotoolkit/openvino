@@ -103,18 +103,7 @@ static std::string init_info_jit_store_convert_emitter(const jit_store_convert_e
 std::string init_info_jit_brgemm_emitter(const jit_brgemm_emitter *emitter) {
     std::stringstream ss;
     ss << "Emitter_type_name:jit_brgemm_emitter"
-       << " m_ctx.M:" << emitter->m_ctx.M
-       << " m_ctx.K:" << emitter->m_ctx.K
-       << " m_ctx.N:" << emitter->m_ctx.N
-       << " m_ctx.LDA:" << emitter->m_ctx.LDA
-       << " m_ctx.LDB:" << emitter->m_ctx.LDB
-       << " m_ctx.LDC:" << emitter->m_ctx.LDC
-       << " m_ctx.dt_in0:" << emitter->m_ctx.dt_in0
-       << " m_ctx.dt_in1:" << emitter->m_ctx.dt_in1
-       << " m_ctx.palette:" << emitter->m_ctx.palette
-       << " m_ctx.is_with_amx:" << emitter->m_ctx.is_with_amx
-       << " m_ctx.is_with_comp:" << emitter->m_ctx.is_with_comp
-       << " m_ctx.beta:" << emitter->m_ctx.beta
+       <<  emitter->m_kernel_executor->config_to_string()
        << " m_load_offset_a:" << emitter->m_load_offset_a
        << " m_load_offset_b:" << emitter->m_load_offset_b
        << " m_load_offset_scratch:" << emitter->m_load_offset_scratch
