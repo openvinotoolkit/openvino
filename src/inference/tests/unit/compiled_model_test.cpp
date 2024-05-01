@@ -185,3 +185,39 @@ TEST_F(CompiledModelBaseTests, canReportErrorInExport) {
     EXPECT_CALL(*mock_compiled_model.get(), export_model(_)).WillOnce(Throw(std::runtime_error("compare")));
     OV_EXPECT_THROW_HAS_SUBSTRING(compiled_model.export_model(out_model), std::runtime_error, "compare");
 }
+
+class CompiledModelZeroBatch : public ::testing::Test {
+protected:
+    std::shared_ptr<ov::Model> model;
+    std::shared_ptr<ov::IPlugin> plugin;
+
+    void SetUp() override {
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{0, 3, 2, 2});
+        param->set_friendly_name("Param");
+        param->output(0).set_names({"param"});
+        auto relu = std::make_shared<ov::op::v0::Relu>(param);
+        relu->set_friendly_name("ReLU");
+        relu->output(0).set_names({"relu"});
+        model = std::make_shared<ov::Model>(ov::OutputVector{relu->output(0)}, ov::ParameterVector{param});
+        plugin = std::make_shared<ov::MockIPlugin>();
+    }
+};
+
+TEST_F(CompiledModelZeroBatch, BatchSizeZeroThrows) {
+    model->get_parameters()[0]->set_layout("NCWH");
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::MockICompiledModel(model, plugin),
+                                  std::runtime_error,
+                                  "Batch size for parameter Param");
+}
+
+TEST_F(CompiledModelZeroBatch, BatchSizeDynamicNoThrow) {
+    model->get_parameters()[0]->set_layout("NCWH");
+    ov::set_batch(model, ov::Dimension::dynamic());
+    ASSERT_NO_THROW(ov::MockICompiledModel(model, plugin));
+}
+
+TEST_F(CompiledModelZeroBatch, BatchSizeZeroNoLayoutThrows) {
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::MockICompiledModel(model, plugin),
+                                  std::runtime_error,
+                                  "Batch size for parameter Param");
+}

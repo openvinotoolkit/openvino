@@ -50,6 +50,19 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
 
         std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, std::shared_ptr<ov::descriptor::Tensor>> tensor_map;
         for (const auto& param : model->get_parameters()) {
+            {
+                const auto& p_shape = param->get_partial_shape();
+                const auto& layout = param->get_layout();
+                const auto batch_idx = ov::layout::has_batch(layout) ? ov::layout::batch_idx(layout) : 0;
+                const auto batch_dim = p_shape[batch_idx];
+                OPENVINO_ASSERT(batch_dim.is_dynamic() || batch_dim.get_length() > 0,
+                                "Batch size for parameter ",
+                                param->get_friendly_name(),
+                                " has wrong value ",
+                                batch_dim.get_length(),
+                                ". Batch size must be a positive value.");
+            }
+            
             const auto& param_name = param->get_friendly_name();
             auto new_param = ov::as_type_ptr<ov::op::v0::Parameter>(param->copy_with_new_inputs({}));
             new_param->set_friendly_name(param_name);
