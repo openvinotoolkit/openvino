@@ -512,7 +512,7 @@ ov::PartialShape layout::transform(const ov::PartialShape& pshape, const cldnn::
     if (format::is_default_format(old_fmt) && new_fmt == format::bfvuwzyx) {
         ov::PartialShape res = pshape;
         size_t num_to_insert = layout::max_rank() - pshape.size();
-        size_t pos_to_insert = pshape.size() > 1 ? 2 : 1;
+        size_t pos_to_insert = std::min<size_t>(pshape.size(), 2);
         res.insert(res.begin() + pos_to_insert, num_to_insert, 1);
 
         return res;
