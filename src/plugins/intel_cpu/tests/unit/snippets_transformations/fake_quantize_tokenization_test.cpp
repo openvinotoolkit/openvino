@@ -16,7 +16,6 @@
 #include "transformations/snippets/x64/pass/snippets_mark_skipped.hpp"
 #endif
 #include "function_helper.hpp"
-#include "utils.hpp"
 
 namespace ov {
 namespace test {
@@ -25,7 +24,7 @@ namespace snippets {
 class FakeQuantizeTokenizationTest : public TransformationTestsF {
 public:
     void register_passes() {
-        ov::snippets::pass::SnippetsTokenization::Config config = get_default_config();
+        ov::snippets::pass::SnippetsTokenization::Config config = { 1, std::numeric_limits<size_t>::max(), true, true, { 3, 4 } };
         manager.register_pass<ov::intel_cpu::SnippetsMarkSkipped>();
         manager.register_pass<ov::snippets::pass::EnumerateNodes>();
         manager.register_pass<ov::snippets::pass::TokenizeSnippets>(config);

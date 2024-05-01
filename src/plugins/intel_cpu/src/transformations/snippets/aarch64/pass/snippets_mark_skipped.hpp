@@ -24,7 +24,7 @@ public:
 /*
 NotSet - not part of a fusing chain
 FusedTerminator - the node is fused, but the chain can't be continued
-FusedWithConvolution, FusedWithConvolutionMatMulDeconvBias, FusedWithMisc - fusing chains with different continuation rules
+FusedWithConvolution, FusedWithMisc - fusing chains with different continuation rules
 IgnoredAfterInputs - node must be skipped, since can't be handled properly at this time. Also a continuable fusing chain.
 Order of SnippetsNodeType is important!:
 * SnippetsNodeType >= FusedTerminator is a Fused chain
@@ -36,7 +36,7 @@ Order of SnippetsNodeType is important!:
 enum class NodeFusingType : int64_t {
     NotSet,
     FusedTerminator,
-    FusedWithConvolution,  FusedWithBinaryConvolution, FusedWithConvolutionMatMulDeconvBias,
+    FusedWithConvolution,  FusedWithBinaryConvolution,
     FusedWithMatMul, FusedWithFC, FusedWithMisc};
 
 }   // namespace intel_cpu

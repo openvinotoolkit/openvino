@@ -311,27 +311,11 @@ void Snippet::initSupportedPrimitiveDescriptors() {
         return {config, impl_type};
     };
 
-    bool isPlanarPrioritized = false;
-#if defined(OPENVINO_ARCH_ARM64)
-    for (size_t i = 0; i < getParentEdges().size(); i++) {
-        const auto& parentNode = getParentEdgeAt(i)->getParent();
-        const auto& desc = parentNode->getSupportedPrimitiveDescriptors();
-        if (parentNode->getType() == Type::FullyConnected || parentNode->getType() == Type::MatMul) {
-            if (desc.size() == 1 && desc[0].getConfig().outConfs[0].getMemDesc()->hasLayoutType(ov::intel_cpu::LayoutType::ncsp)) {
-                isPlanarPrioritized = true;
-            }
-        }
-    }
-#endif
-
-    if (isPlanarPrioritized)
-        supportedPrimitiveDescriptors.emplace_back(initDesc(Planar));
     if (isChannelsFirstApplicable)
         supportedPrimitiveDescriptors.emplace_back(initDesc(ChannelsFirst));
     if (isBlockedApplicable)
         supportedPrimitiveDescriptors.emplace_back(initDesc(Blocked));
-    if (!isPlanarPrioritized)
-        supportedPrimitiveDescriptors.emplace_back(initDesc(Planar));
+    supportedPrimitiveDescriptors.emplace_back(initDesc(Planar));
 }
 
 void Snippet::selectOptimalPrimitiveDescriptor() {
