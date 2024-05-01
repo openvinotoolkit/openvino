@@ -16,7 +16,7 @@ deep learning models:
 :doc:`NPU <../../openvino-workflow/running-inference/inference-devices-and-modes/npu-device>`.
 
 | For their usage guides, see :doc:`Devices and Modes <../../openvino-workflow/running-inference/inference-devices-and-modes>`.
-| For a detailed list of devices, see :doc:`System Requirements <../system-requirements>`.
+| For a detailed list of devices, see :doc:`System Requirements <../release-notes-openvino/system-requirements>`.
 
 Beside running inference with a specific device,
 OpenVINO offers the option of running automated inference with the following inference modes:

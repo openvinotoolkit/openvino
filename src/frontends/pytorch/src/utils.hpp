@@ -59,7 +59,9 @@ std::shared_ptr<Node> get_node_axes_range(const NodeContext& context, const Outp
 
 Output<Node> normalize_axis(const NodeContext& context, const Output<Node>& axis, const Output<Node>& input_node);
 
-std::shared_ptr<Node> numel(const NodeContext& context, const Output<Node>& x);
+std::shared_ptr<Node> numel(const NodeContext& context,
+                            const Output<Node>& x,
+                            element::Type output_type = element::i32);
 
 element::Type convert_dtype(int64_t dtype_value);
 
@@ -104,6 +106,8 @@ void copy_runtime_info_and_name(const std::shared_ptr<Node>& from,
                                 const ov::NodeVector& additional_rt_info_src = {});
 
 Output<Node> get_input_with_floating_type(const NodeContext& context, size_t idx);
+
+Output<Node> get_input_as_i32(const NodeContext& context, size_t idx);
 
 std::tuple<Output<Node>, Output<Node>> get_inputs_with_promoted_types(const NodeContext& context,
                                                                       size_t lhs_idx,

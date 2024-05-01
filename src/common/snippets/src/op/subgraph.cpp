@@ -18,6 +18,7 @@
 #include "snippets/pass/canonicalization.hpp"
 #include "snippets/pass/align_element_types.hpp"
 #include "snippets/pass/reduce_to_snippets_reduce.hpp"
+#include "snippets/pass/gn_decomposition.hpp"
 
 #include "snippets/utils.hpp"
 
@@ -77,7 +78,14 @@ auto Subgraph::is_domain_sensitive_op(const std::shared_ptr<ov::Node>& op) -> bo
            ov::is_type<ov::op::v8::Softmax>(op) ||
            ov::is_type<ov::op::v0::MatMul>(op) ||
            ov::is_type<ov::op::v1::Broadcast>(op) || // Broadcast is domain sensetive op because the output shape depends on
-           ov::is_type<ov::op::v3::Broadcast>(op);   // the both input and broadcast shapes (the both - are inputs of op). Note: is used only in MHA pattern
+           ov::is_type<ov::op::v3::Broadcast>(op) ||   // the both input and broadcast shapes (the both - are inputs of op). Note: is used only in MHA pattern
+           ov::is_type<ov::op::v12::GroupNormalization>(op) ||
+           ov::is_type<op::Reshape>(op);
+}
+
+auto Subgraph::is_shape_infer_op(const std::shared_ptr<ov::Node>& op) -> bool {
+    return ov::is_type<snippets::op::Reshape>(op) ||
+           ov::is_type<snippets::op::RankNormalization>(op);
 }
 
 void Subgraph::init_config() {
@@ -86,6 +94,7 @@ void Subgraph::init_config() {
     for (const auto& op : ops) {
         update(config.m_is_quantized, ov::is_type<ov::op::v0::FakeQuantize>(op));
         update(config.m_has_domain_sensitive_ops, is_domain_sensitive_op(op));
+        update(config.m_has_broadcast_sensitive_ops, ov::is_type<ov::op::v12::GroupNormalization>(op) || ov::is_type<op::Reshape>(op));
     }
 }
 
@@ -257,16 +266,10 @@ auto Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Node>& node) -> s
 }
 
 void Subgraph::fill_empty_output_names(const Output<Node>& target_output_node, const Output<Node>& replacement_output_node) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     auto& out_tensor = target_output_node.get_tensor();
-    const std::string new_name = ov::op::util::get_ie_output_name(replacement_output_node);
-    if (ov::descriptor::get_ov_tensor_legacy_name(out_tensor).empty()) {
-        ov::descriptor::set_ov_tensor_legacy_name(out_tensor, new_name);
-    }
     if (!replacement_output_node.get_names().empty()) {
         out_tensor.set_names(replacement_output_node.get_names());
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 auto Subgraph::constant_input_should_be_inside_body(const std::shared_ptr<ov::Node>& node) -> bool {
@@ -319,7 +322,8 @@ VectorDims Subgraph::infer_master_shape() {
         OPENVINO_ASSERT(!output_dims.empty(), "Can't calculate master_shape before the first shape inference");
     } else {
         for (const auto& res : body_ptr()->get_results()) {
-            const auto& res_input = res->input(0);
+            const auto& shape_infer_leaf = utils::get_leaf_node_of_first_parent_shape_infer_seq(res);
+            const auto& res_input = shape_infer_leaf ? shape_infer_leaf->input(0) : res->input(0);
             OPENVINO_ASSERT(res_input.get_partial_shape().is_static(), "Result have dynamic shape in static pipeline");
             // We need to account to the shape's layout stored in Output<Node> rt_info
             const auto& planar_shape = utils::get_preordered_pshape(res_input.get_source_output());
@@ -383,7 +387,9 @@ void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::data_flow_transformations")
 
     ov::snippets::pass::Manager manager;
-    if (!blocked_input_shapes.empty())
+    // If subgraph has its own specific canonicalization, which is different with common behavior, will skip the this common one.
+    // for example in GN, scale and bias shape [c] are canonicalized to [1,c,1,1], not [1,1,1,c]. Common canonicalization is disabled in this case.
+    if (!blocked_input_shapes.empty() && !config.m_has_broadcast_sensitive_ops)
         manager.register_pass<snippets::pass::Canonicalization>(blocked_input_shapes);
     if (!input_precisions.empty() && !output_precisions.empty())
         manager.register_pass<snippets::pass::AlignElementTypes>(input_precisions, output_precisions);
@@ -393,6 +399,7 @@ void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input
         manager.register_pass<snippets::pass::FuseTransposeBrgemm>();
         manager.register_pass<snippets::pass::TransposeDecomposition>();
         manager.register_pass<snippets::pass::SoftmaxDecomposition>();
+        manager.register_pass<snippets::pass::GNDecomposition>();
     }
     manager.register_pass<snippets::pass::BroadcastToMoveBroadcast>();
     manager.register_pass<snippets::pass::ReduceToSnippetsReduce>();
@@ -415,12 +422,13 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::control_flow_transformations")
 
     // Domain optimization must be the first pass, because all other transformations may depend on PortDescriptor shapes
-    size_t loop_depth = 1;
-    lowered::pass::OptimizeDomain(loop_depth).run(linear_ir);
-    linear_ir.set_loop_depth(loop_depth);
+    size_t loop_depth = linear_ir.get_config().m_loop_depth;
+    if (!lowered_pass_config->is_disabled<lowered::pass::OptimizeDomain>()) {
+        lowered::pass::OptimizeDomain(loop_depth).run(linear_ir);
+        linear_ir.set_loop_depth(loop_depth);
+    }
 
     const size_t vector_size = get_generator()->get_target_machine()->get_lanes();
-    const int32_t buffer_allocation_rank = static_cast<int32_t>(linear_ir.get_config().m_loop_depth);
 
     lowered::pass::PassPipeline pipeline(lowered_pass_config);
     pipeline.register_pass<lowered::pass::MarkLoops>(vector_size);
@@ -428,7 +436,7 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
     pipeline.register_pass<lowered::pass::FuseLoops>();
     pipeline.register_pass<lowered::pass::SplitLoops>();
     pipeline.register_pass<lowered::pass::MoveResultOutOfLoop>();
-    pipeline.register_pass<lowered::pass::InsertBuffers>(buffer_allocation_rank);
+    pipeline.register_pass<lowered::pass::InsertBuffers>(static_cast<int32_t>(loop_depth));
     pipeline.register_pass<lowered::pass::InsertLoadStore>(vector_size);
     pipeline.register_pass<lowered::pass::MoveScalarToConsumer>();
     pipeline.register_pass<lowered::pass::InsertBroadcastMove>();

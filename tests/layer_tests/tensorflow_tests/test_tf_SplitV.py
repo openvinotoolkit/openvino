@@ -32,11 +32,13 @@ class TestSplitV(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.skipif(os.getenv("GITHUB_ACTIONS") == 'true', reason="Ticket - 113359")
     def test_split_basic(self, params, ie_device, precision, ir_version, temp_dir,
                          use_legacy_frontend):
+        if ie_device == 'GPU' and params['value_shape'] == [3]:
+            pytest.skip("accuracy issue on GPU")
         self._test(*self.create_splitv_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)

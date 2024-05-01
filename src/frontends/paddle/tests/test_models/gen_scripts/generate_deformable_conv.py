@@ -90,7 +90,7 @@ def deformable_conv(name: str, x, weight, offset, mask, bias, stride=1, padding=
             feed=feed_dict,
             fetch_list=node_out)
 
-        # Save inputs in order of OpenVINO model, to facilite Fuzzy test,
+        # Save inputs in order of OpenVINO model, to facilitate Fuzzy test,
         # which accepts inputs and outputs in this order as well.
         saveModel(name, exe, feedkeys=list(feed_dict.keys()), fetchlist=[node_out],
                   inputs=inputs_list, outputs=outs, target_dir=sys.argv[1] if len(sys.argv) > 1 else '.')

@@ -14,7 +14,7 @@ using namespace ov;
 namespace {
 struct ClampParams {
     template <class IT>
-    ClampParams(const ov::PartialShape& shape,
+    ClampParams(const ov::Shape& shape,
                 const ov::element::Type& iType,
                 const std::vector<IT>& iValues,
                 const std::vector<IT>& oValues,
@@ -22,16 +22,16 @@ struct ClampParams {
                 const double max)
         : min(min),
           max(max),
-          pshape(shape),
+          shape(shape),
           inType(iType),
           outType(iType),
-          inputData(CreateTensor(iType, iValues)),
-          refData(CreateTensor(iType, oValues)) {}
+          inputData(CreateTensor(shape, iType, iValues)),
+          refData(CreateTensor(shape, iType, oValues)) {}
 
     double min = 0;
     double max = 0;
 
-    ov::PartialShape pshape;
+    ov::Shape shape;
     ov::element::Type inType;
     ov::element::Type outType;
     ov::Tensor inputData;
@@ -41,15 +41,15 @@ struct ClampParams {
 class ReferenceClampLayerTest : public testing::TestWithParam<ClampParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
-        function = CreateFunction(params.pshape, params.inType, params.outType, params.min, params.max);
+        const auto& params = GetParam();
+        function = CreateFunction(params.shape, params.inType, params.outType, params.min, params.max);
         inputData = {params.inputData};
         refOutData = {params.refData};
     }
     static std::string getTestCaseName(const testing::TestParamInfo<ClampParams>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
-        result << "shape=" << param.pshape << "_";
+        result << "shape=" << param.shape << "_";
         result << "iType=" << param.inType << "_";
         result << "oType=" << param.outType << "_";
         result << "min=" << param.min << "_";
@@ -58,7 +58,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(const ov::PartialShape& input_shape,
+    static std::shared_ptr<Model> CreateFunction(const ov::Shape& input_shape,
                                                  const ov::element::Type& input_type,
                                                  const ov::element::Type& expected_output_type,
                                                  const double min,
@@ -81,25 +81,25 @@ std::vector<ClampParams> generateClampFloatParams() {
     auto pinf = std::numeric_limits<float>::infinity();
     auto ninf = -std::numeric_limits<float>::infinity();
     std::vector<ClampParams> clampParams{
-        ClampParams(ov::PartialShape{5, 2},
+        ClampParams(ov::Shape{5, 2},
                     IN_ET,
                     std::vector<T>{-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
                     std::vector<T>{0.2, 0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6},
                     0.2,
                     0.6),
-        ClampParams(ov::PartialShape{5, 2},
+        ClampParams(ov::Shape{5, 2},
                     IN_ET,
                     std::vector<T>{min, max, ninf, pinf, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.000001},
                     std::vector<T>{10.0, 20.0, 10.0, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0},
                     10.0,
                     20.0),
-        ClampParams(ov::PartialShape{5, 2},
+        ClampParams(ov::Shape{5, 2},
                     IN_ET,
                     std::vector<T>{min, max, ninf, pinf, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.000001},
                     std::vector<T>{10.0, max, 10.0, pinf, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.000001},
                     10.0,
                     pinf),
-        ClampParams(ov::PartialShape{5, 2},
+        ClampParams(ov::Shape{5, 2},
                     IN_ET,
                     std::vector<T>{min, max, ninf, pinf, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.000001},
                     std::vector<T>{min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0},
@@ -115,31 +115,31 @@ std::vector<ClampParams> generateClampIntParams() {
     auto max = std::numeric_limits<T>::max();
     auto pinf = std::numeric_limits<float>::infinity();
     auto ninf = -std::numeric_limits<float>::infinity();
-    std::vector<ClampParams> clampParams{ClampParams(ov::PartialShape{6},
+    std::vector<ClampParams> clampParams{ClampParams(ov::Shape{6},
                                                      IN_ET,
                                                      std::vector<T>{-1, 3, -10, 20, 6, 2},
                                                      std::vector<T>{1, 3, 1, 5, 5, 2},
                                                      0.4,
                                                      5.6),
-                                         ClampParams(ov::PartialShape{6},
+                                         ClampParams(ov::Shape{6},
                                                      IN_ET,
                                                      std::vector<T>{-6, 1, -2, 0, -1, 2},
                                                      std::vector<T>{-5, -1, -2, -1, -1, -1},
                                                      -5.6,
                                                      -0.4),
-                                         ClampParams(ov::PartialShape{4, 2},
+                                         ClampParams(ov::Shape{4, 2},
                                                      IN_ET,
                                                      std::vector<T>{min, max, 9, 10, 11, 19, 20, 21},
                                                      std::vector<T>{10, 20, 10, 10, 11, 19, 20, 20},
                                                      10.0,
                                                      20.0),
-                                         ClampParams(ov::PartialShape{4, 2},
+                                         ClampParams(ov::Shape{4, 2},
                                                      IN_ET,
                                                      std::vector<T>{min, max, 9, 10, 11, 19, 20, 21},
                                                      std::vector<T>{10, max, 10, 10, 11, 19, 20, 21},
                                                      10.0,
                                                      pinf),
-                                         ClampParams(ov::PartialShape{4, 2},
+                                         ClampParams(ov::Shape{4, 2},
                                                      IN_ET,
                                                      std::vector<T>{min, max, 9, 10, 11, 19, 20, 21},
                                                      std::vector<T>{min, 20, 9, 10, 11, 19, 20, 20},
@@ -155,19 +155,19 @@ std::vector<ClampParams> generateClampUintParams() {
     T max = (static_cast<T>(1) << (std::numeric_limits<T>::digits - 1)) - 1;
     auto pinf = static_cast<double>(max);
     auto ninf = -std::numeric_limits<float>::infinity();
-    std::vector<ClampParams> clampParams{ClampParams(ov::PartialShape{4, 2},
+    std::vector<ClampParams> clampParams{ClampParams(ov::Shape{4, 2},
                                                      IN_ET,
                                                      std::vector<T>{min, max, 9, 10, 11, 19, 20, 21},
                                                      std::vector<T>{10, 20, 10, 10, 11, 19, 20, 20},
                                                      10.0,
                                                      20.0),
-                                         ClampParams(ov::PartialShape{4, 2},
+                                         ClampParams(ov::Shape{4, 2},
                                                      IN_ET,
                                                      std::vector<T>{min, max, 9, 10, 11, 19, 20, 21},
                                                      std::vector<T>{10, max, 10, 10, 11, 19, 20, 21},
                                                      10.0,
                                                      pinf),
-                                         ClampParams(ov::PartialShape{4, 2},
+                                         ClampParams(ov::Shape{4, 2},
                                                      IN_ET,
                                                      std::vector<T>{min, max, 9, 10, 11, 19, 20, 21},
                                                      std::vector<T>{min, 20, 9, 10, 11, 19, 20, 20},

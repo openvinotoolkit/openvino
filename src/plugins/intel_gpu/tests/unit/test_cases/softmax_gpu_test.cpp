@@ -3,6 +3,9 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
+
+#include "openvino/reference/softmax.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/softmax.hpp>
@@ -1200,4 +1203,52 @@ TEST(softmax_gpu_bfyx_f32, bf_opt_normalize_f_dynamic) {
             }
         }
     }
+}
+
+static void run_softmax_bfyx_opt(const int64_t b, const int64_t f, const int64_t y, const int64_t x, const uint64_t axis) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    ov::intel_gpu::ImplementationDesc softmax_bf_kernel = {format::bfyx, "softmax_gpu_bf"};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"softmax", softmax_bf_kernel}}));
+
+    const int64_t buf_size = b * f * y * x;
+    auto input_layout_dynamic = layout{ov::PartialShape{ov::Dimension::dynamic(), f, ov::Dimension::dynamic(), ov::Dimension::dynamic()},
+                                        data_types::f16, format::bfyx};
+    auto input_layout_static = layout{ov::PartialShape{b, f, y, x}, data_types::f16, format::bfyx};
+
+    std::string softmax_id = "softmax";
+    topology topology;
+    topology.add(input_layout("input", input_layout_dynamic));
+    topology.add(softmax(softmax_id, input_info("input"), axis));
+
+    cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+
+    auto input_mem = engine.allocate_memory(input_layout_static);
+
+    auto input_data = rg.generate_random_1d<ov::float16>(buf_size, -20, 20);
+    set_values(input_mem, input_data);
+
+    std::map<cldnn::primitive_id, cldnn::network_output> outputs;
+    cldnn::memory::ptr output = nullptr;
+
+    network->set_input_data("input", input_mem);
+    outputs = network->execute();
+    output = outputs.at(softmax_id).get_memory();
+    ASSERT_NE(output, nullptr);
+
+    std::vector<ov::float16> output_ref(buf_size);
+    ov::reference::softmax<ov::float16>(input_data.data(), output_ref.data(), input_layout_static.get_shape(), ov::AxisSet{axis});
+    ASSERT_NE(output, nullptr);
+    const float threshold_fp16 = 1e-1;
+    cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
+    for (size_t idx = 0; idx < static_cast<size_t>(buf_size); idx++) {
+        ASSERT_NEAR(float(output_ptr[idx]), float(output_ref[idx]), threshold_fp16) << idx << ", " << std::fixed << setprecision(8) << output_ptr[idx] << " vs " << output_ref[idx];
+    }
+}
+
+TEST(softmax_gpu_bfyx_f16, opt_softmax_bf_axis_3) {
+    run_softmax_bfyx_opt(1, 4, 2, 3083, 3);
 }

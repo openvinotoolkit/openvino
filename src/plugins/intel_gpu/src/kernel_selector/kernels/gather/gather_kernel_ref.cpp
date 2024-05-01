@@ -253,7 +253,7 @@ JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const
     if (!dyn_gather_idx_dim)
         jit.AddConstant(MakeJitConstant("AXIS_DIM", GetGatherMaxIndexDim(params)));
 
-    if (params.is_shape_agnostic)
+    if (params.is_shape_agnostic && params.inputs[0].is_dynamic())
         jit.AddConstant(MakeJitConstant("GATHER_AXIS_SHAPE_INFO_INDEX", GetGatherAxisIndexInShapeInfo(params)));
 
     if (!params.fused_ops.empty()) {

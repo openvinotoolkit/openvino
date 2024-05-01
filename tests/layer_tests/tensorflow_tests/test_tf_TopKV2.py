@@ -46,7 +46,7 @@ class TestTopKV2(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.xfail(condition=platform.system() in ('Linux', 'Darwin') and platform.machine() in ('arm', 'armv7l',
                                                                                                      'aarch64',

@@ -47,10 +47,18 @@ public:
      */
     Napi::Value get_data(const Napi::CallbackInfo& info);
 
+    /**
+     * @brief Setter that fills underlaying Tensor's memory by copying data from TypedArray.
+     * @throw Exception if data's size from TypedArray does not match the size of the tensor's data.
+     */
+    void set_data(const Napi::CallbackInfo& info, const Napi::Value& value);
+
     /** @return Napi::Array containing a tensor shape. */
     Napi::Value get_shape(const Napi::CallbackInfo& info);
     /** @return Napi::String containing ov::element type. */
     Napi::Value get_element_type(const Napi::CallbackInfo& info);
+    /** @return Napi::Number containing tensor size as total number of elements. */
+    Napi::Value get_size(const Napi::CallbackInfo& info);
 
 private:
     ov::Tensor _tensor;

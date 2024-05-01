@@ -17,7 +17,7 @@ using namespace ov::op;
 
 OutputVector translate_size(const NodeContext& context) {
     num_inputs_check(context, 1, 2);
-    auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(context.get_input(0), element::i32));
+    auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(context.get_input(0), element::i64));
     if (context.input_is_none(1)) {
         return shape->outputs();
     } else {

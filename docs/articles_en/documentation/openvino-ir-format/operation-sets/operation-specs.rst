@@ -23,6 +23,7 @@ Operation Specifications
    Atan-1 <operation-specs/arithmetic/atan-1>
    Atanh-3 <operation-specs/arithmetic/atanh-3>
    AvgPool-1 <operation-specs/pooling/avg-pool-1>
+   AvgPool-14 <operation-specs/pooling/avg-pool-14>
    BatchNormInference-1 <operation-specs/normalization/batch-norm-inference-1>
    BatchNormInference-5 <operation-specs/normalization/batch-norm-inference-5>
    BatchToSpace-2 <operation-specs/movement/batch-to-space-2>
@@ -41,6 +42,7 @@ Operation Specifications
    Concat-1 <operation-specs/movement/concat-1>
    Constant-1 <operation-specs/infrastructure/constant-1>
    ConvertLike-1 <operation-specs/type/convert-like-1>
+   ConvertPromoteTypes-14 <operation-specs/type/convert-promote-types-14>
    Convert-1 <operation-specs/type/convert-1>
    ConvolutionBackpropData-1 <operation-specs/convolution/convolution-backprop-data-1>
    Convolution-1 <operation-specs/convolution/convolution-1>
@@ -127,6 +129,7 @@ Operation Specifications
    MatrixNms-8 <operation-specs/sort/matrix-non-max-suppression-8>
    MaxPool-1 <operation-specs/pooling/max-pool-1>
    MaxPool-8 <operation-specs/pooling/max-pool-8>
+   MaxPool-14 <operation-specs/pooling/max-pool-14>
    Maximum-1 <operation-specs/arithmetic/maximum-1>
    Minimum-1 <operation-specs/arithmetic/minimum-1>
    Mish-4 <operation-specs/activation/mish-4>
@@ -185,6 +188,7 @@ Operation Specifications
    RNNSequence-5 <operation-specs/sequence/rnn-sequence-5>
    ROIAlign-3 <operation-specs/detection/roi-align-3>
    ROIAlign-9 <operation-specs/detection/roi-align-9>
+   ROIAlignRotated-14 <operation-specs/detection/roi-align-rotated-14>
    ROIPooling-1 <operation-specs/detection/roi-pooling-1>
    Roll-7 <operation-specs/movement/roll-7>
    Round-5 <operation-specs/arithmetic/round-5>
@@ -227,4 +231,3 @@ Operation Specifications
    Unique-10 <operation-specs/movement/unique-10>
    Unsqueeze-1 <operation-specs/shape/unsqueeze-1>
    VariadicSplit-1 <operation-specs/movement/variadic-split-1>
-

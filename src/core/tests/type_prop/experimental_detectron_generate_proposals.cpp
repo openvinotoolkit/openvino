@@ -94,10 +94,10 @@ TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, interval
     auto anchors_shape = PartialShape{{1, 201600}, {1, 4}};
     auto deltas_shape = PartialShape{{1, 12}, {1, 200}, {336, -1}};
     auto scores_shape = PartialShape{{1, 3}, {100, 200}, {2, 336}};
-    set_shape_labels(im_info_shape, 10);
-    set_shape_labels(anchors_shape, 20);
-    set_shape_labels(deltas_shape, 30);
-    set_shape_labels(scores_shape, 40);
+    set_shape_symbols(im_info_shape);
+    set_shape_symbols(anchors_shape);
+    set_shape_symbols(deltas_shape);
+    set_shape_symbols(scores_shape);
 
     const auto im_info = std::make_shared<Parameter>(element::f16, im_info_shape);
     const auto anchors = std::make_shared<Parameter>(element::f16, anchors_shape);
@@ -110,10 +110,10 @@ TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, interval
     EXPECT_THAT(op->outputs(),
                 ElementsAre(Property("ROIs shape",
                                      &Output<Node>::get_partial_shape,
-                                     AllOf(PartialShape({44, 4}), ResultOf(get_shape_labels, Each(ov::no_label)))),
+                                     AllOf(PartialShape({44, 4}), ResultOf(get_shape_symbols, Each(nullptr)))),
                             Property("ROIs Score shape",
                                      &Output<Node>::get_partial_shape,
-                                     AllOf(PartialShape({44}), ResultOf(get_shape_labels, Each(ov::no_label))))));
+                                     AllOf(PartialShape({44}), ResultOf(get_shape_symbols, Each(nullptr))))));
 }
 
 TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, all_inputs_dynamic_rank) {
@@ -128,10 +128,10 @@ TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, all_inpu
     EXPECT_THAT(op->outputs(),
                 ElementsAre(Property("ROIs shape",
                                      &Output<Node>::get_partial_shape,
-                                     AllOf(PartialShape({100, 4}), ResultOf(get_shape_labels, Each(ov::no_label)))),
+                                     AllOf(PartialShape({100, 4}), ResultOf(get_shape_symbols, Each(nullptr)))),
                             Property("ROIs Score shape",
                                      &Output<Node>::get_partial_shape,
-                                     AllOf(PartialShape({100}), ResultOf(get_shape_labels, Each(ov::no_label))))));
+                                     AllOf(PartialShape({100}), ResultOf(get_shape_symbols, Each(nullptr))))));
 }
 
 TEST_F(TypePropExperimentalDetectronGenerateProposalsSingleImageV6Test, input_not_floating_point) {

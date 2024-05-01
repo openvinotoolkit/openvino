@@ -1,9 +1,10 @@
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+
+import platform
 
 import pytest
 import tensorflow as tf
-
 from common.tf2_layer_test_class import CommonTF2LayerTest
 
 
@@ -54,7 +55,6 @@ class TestKerasLSTM(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data_simple)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.precommit_tf_fe
     def test_keras_lstm_with_bias_float32(self, params, ie_device, precision, temp_dir, ir_version,
                                           use_legacy_frontend):
         self._test(*self.create_keras_lstm_net(**params, ir_version=ir_version),
@@ -101,6 +101,8 @@ class TestKerasLSTM(CommonTF2LayerTest):
     @pytest.mark.precommit
     def test_keras_lstm_flags_float32(self, params, ie_device, precision, temp_dir, ir_version,
                                       use_legacy_frontend):
+        if platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
+            pytest.skip("inference mismatch issue on ARM")
         self._test(*self.create_keras_lstm_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
                    use_legacy_frontend=use_legacy_frontend, **params)

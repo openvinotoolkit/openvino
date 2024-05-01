@@ -6,6 +6,7 @@ import os
 import shutil
 import sys
 from distutils.dir_util import copy_tree
+from distutils.errors import DistutilsFileError
 from utils.helpers import safeClearDir, getParams
 
 args, cfgData, customCfgPath = getParams()
@@ -21,7 +22,10 @@ elif args.isWorkingDir:
     from utils.helpers import checkArgAndGetCommits
 
     commitList = []
-    if args.commitSeq is None:
+    if "commitList" in cfgData["runConfig"] and\
+        "explicitList" in cfgData["runConfig"]["commitList"]:
+            commitList = cfgData["runConfig"]["commitList"]["explicitList"]
+    elif args.commitSeq is None:
         if "getCommitListCmd" in cfgData["runConfig"]["commitList"]:
             commitListCmd = cfgData["runConfig"]["commitList"]
             commitListCmd = commitListCmd["getCommitListCmd"]
@@ -69,7 +73,11 @@ else:
     tempCachePath = cfgData["cachePath"].format(workPath=workPath)
     permCachePath = cfgData["cachePath"].format(workPath=curPath)
     safeClearDir(permCachePath, cfgData)
-    copy_tree(tempCachePath, permCachePath)
+    try:
+        copy_tree(tempCachePath, permCachePath)
+    except DistutilsFileError:
+        # prevent exception raising while cache is empty
+        pass
 
     try:
         shutil.copyfile(

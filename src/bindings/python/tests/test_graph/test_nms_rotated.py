@@ -19,7 +19,8 @@ from openvino.runtime.utils.types import make_constant_node
         ([1, 300, 5], [1, 1, 300], [300], 0.1, 0.4, [PartialShape([Dimension(0, 300), Dimension(3)]), PartialShape([Dimension(0, 300), Dimension(3)])]),
     ],
 )
-def test_nms_rotated_default_attrs(boxes_shape, scores_shape, max_output_boxes, iou_threshold, score_threshold, expected_shape):
+@pytest.mark.parametrize("op_name", ["nms_rotated", "nmsRotated", "nmsRotatedOpset13"])
+def test_nms_rotated_default_attrs(boxes_shape, scores_shape, max_output_boxes, iou_threshold, score_threshold, expected_shape, op_name):
     boxes_parameter = ov_opset13.parameter(boxes_shape, name="Boxes", dtype=np.float32)
     scores_parameter = ov_opset13.parameter(scores_shape, name="Scores", dtype=np.float32)
 
@@ -27,8 +28,10 @@ def test_nms_rotated_default_attrs(boxes_shape, scores_shape, max_output_boxes, 
     iou_threshold = make_constant_node(iou_threshold, np.float32)
     score_threshold = make_constant_node(score_threshold, np.float32)
 
-    node = ov_opset13.nms_rotated(boxes_parameter, scores_parameter, max_output_boxes, iou_threshold, score_threshold)
+    node = ov_opset13.nms_rotated(boxes_parameter, scores_parameter, max_output_boxes,
+                                  iou_threshold, score_threshold, name=op_name)
     assert node.get_type_name() == "NMSRotated"
+    assert node.get_friendly_name() == op_name
     assert node.get_output_size() == 3
     assert node.get_output_partial_shape(0) == expected_shape[0]
     assert node.get_output_partial_shape(1) == expected_shape[1]
@@ -45,8 +48,9 @@ def test_nms_rotated_default_attrs(boxes_shape, scores_shape, max_output_boxes, 
          [PartialShape([Dimension(0, 100), Dimension(3)]), PartialShape([Dimension(0, 100), Dimension(3)])]),
     ],
 )
+@pytest.mark.parametrize("op_name", ["nms_rotated", "nmsRotated", "nmsRotatedOpset13", "nmsRotatedcustomAttrs"])
 def test_nms_rotated_custom_attrs(boxes_shape, scores_shape, max_output_boxes, iou_threshold, score_threshold,
-                                  sort_result_descending, output_type, clockwise, expected_shape):
+                                  sort_result_descending, output_type, clockwise, expected_shape, op_name):
     boxes_parameter = ov_opset13.parameter(boxes_shape, name="Boxes", dtype=np.float32)
     scores_parameter = ov_opset13.parameter(scores_shape, name="Scores", dtype=np.float32)
 
@@ -55,8 +59,9 @@ def test_nms_rotated_custom_attrs(boxes_shape, scores_shape, max_output_boxes, i
     score_threshold = make_constant_node(score_threshold, np.float32)
 
     node = ov_opset13.nms_rotated(boxes_parameter, scores_parameter, max_output_boxes, iou_threshold,
-                                  score_threshold, sort_result_descending, output_type, clockwise)
+                                  score_threshold, sort_result_descending, output_type, clockwise, name=op_name)
     assert node.get_type_name() == "NMSRotated"
+    assert node.get_friendly_name() == op_name
     assert node.get_output_size() == 3
     assert node.get_output_partial_shape(0) == expected_shape[0]
     assert node.get_output_partial_shape(1) == expected_shape[1]
