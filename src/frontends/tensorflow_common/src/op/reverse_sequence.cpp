@@ -40,10 +40,8 @@ OutputVector translate_reverse_sequence_op(const NodeContext& node) {
         auto base_input = complex_type_mark->input_value(0);
         // Reverse sequence for real and imaginary parts
         auto reverse_sequence = make_shared<v0::ReverseSequence>(base_input, seq_lengths, batch_dim, seq_dim);
-
         auto complex_result =
             make_shared<ComplexTypeMark>(reverse_sequence, complex_type_mark->get_complex_part_type());
-
         set_node_name(node.get_name(), reverse_sequence);
 
         return {complex_result};
