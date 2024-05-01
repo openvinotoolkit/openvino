@@ -310,7 +310,8 @@ SerializedIR LevelZeroCompilerInDriver<TableExtension>::serializeIR(
 }
 
 template <typename TableExtension>
-std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std::shared_ptr<const ov::Model>& model) {
+std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std::shared_ptr<const ov::Model>& model,
+                                                                       const bool useIndices) {
     const ov::ParameterVector& parameters = model->get_parameters();
     const ov::ResultVector& results = model->get_results();
 
@@ -323,21 +324,32 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std
     inputsLayoutSS << INPUTS_LAYOUTS_KEY << KEY_VALUE_SEPARATOR << VALUE_DELIMITER;
 
     if (!parameters.empty()) {
-        const std::string& firstInputName = parameters.at(0)->get_friendly_name();
+        size_t parameterIndex = 0;
 
         for (const std::shared_ptr<ov::op::v0::Parameter>& parameter : parameters) {
-            const std::string& name = parameter->get_friendly_name();
             const ov::element::Type& precision = parameter->get_element_type();
             const size_t rank = parameter->get_shape().size();
 
-            if (name != firstInputName) {
+            if (parameterIndex != 0) {
                 inputsPrecisionSS << VALUES_SEPARATOR;
                 inputsLayoutSS << VALUES_SEPARATOR;
             }
 
-            inputsPrecisionSS << name << NAME_VALUE_SEPARATOR << ovPrecisionToLegacyPrecisionString(precision);
-            // Ticket: E-88902
-            inputsLayoutSS << name << NAME_VALUE_SEPARATOR << rankToLegacyLayoutString(rank);
+            if (useIndices) {
+                inputsPrecisionSS << parameterIndex;
+                inputsLayoutSS << parameterIndex;
+            } else {
+                const std::string& name = parameter->get_friendly_name();
+
+                inputsPrecisionSS << name;
+                // Ticket: E-88902
+                inputsLayoutSS << name;
+            }
+
+            inputsPrecisionSS << NAME_VALUE_SEPARATOR << ovPrecisionToLegacyPrecisionString(precision);
+            inputsLayoutSS << NAME_VALUE_SEPARATOR << rankToLegacyLayoutString(rank);
+
+            ++parameterIndex;
         }
     }
 
@@ -347,20 +359,31 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std
     outputsPrecisionSS << OUTPUTS_PRECISIONS_KEY << KEY_VALUE_SEPARATOR << VALUE_DELIMITER;
     outputsLayoutSS << OUTPUTS_LAYOUTS_KEY << KEY_VALUE_SEPARATOR << VALUE_DELIMITER;
 
-    const std::string& firstOutputName = results.at(0)->get_input_node_ptr(0)->get_friendly_name();
+    size_t resultIndex = 0;
 
     for (const std::shared_ptr<ov::op::v0::Result>& result : results) {
-        const std::string& name = result->get_input_node_ptr(0)->get_friendly_name();
         const ov::element::Type_t precision = result->get_element_type();
         const size_t rank = result->get_shape().size();
 
-        if (name != firstOutputName) {
+        if (resultIndex != 0) {
             outputsPrecisionSS << VALUES_SEPARATOR;
             outputsLayoutSS << VALUES_SEPARATOR;
         }
 
-        outputsPrecisionSS << name << NAME_VALUE_SEPARATOR << ovPrecisionToLegacyPrecisionString(precision);
-        outputsLayoutSS << name << NAME_VALUE_SEPARATOR << rankToLegacyLayoutString(rank);
+        if (useIndices) {
+            outputsPrecisionSS << resultIndex;
+            outputsLayoutSS << resultIndex;
+        } else {
+            const std::string& name = result->get_input_node_ptr(0)->get_friendly_name();
+
+            outputsPrecisionSS << name;
+            outputsLayoutSS << name;
+        }
+
+        outputsPrecisionSS << NAME_VALUE_SEPARATOR << ovPrecisionToLegacyPrecisionString(precision);
+        outputsLayoutSS << NAME_VALUE_SEPARATOR << rankToLegacyLayoutString(rank);
+
+        ++resultIndex;
     }
 
     outputsPrecisionSS << VALUE_DELIMITER;
@@ -731,8 +754,9 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std:
     ze_graph_format_t format = ZE_GRAPH_FORMAT_NGRAPH_LITE;
 
     std::string buildFlags;
+    const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 6));
 
-    buildFlags += serializeIOInfo(model);
+    buildFlags += serializeIOInfo(model, useIndices);
     buildFlags += " ";
     buildFlags += serializeConfig(config, compilerVersion);
 

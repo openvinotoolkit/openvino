@@ -74,16 +74,18 @@ public:
     /**
      * @brief Serialize input / output information to string format.
      * @details Format:
-     * --inputs_precisions="<input1Name>:<input1Precision> [<input2Name>:<input2Precision>]"
-     * --inputs_layouts="<input1Name>:<input1Layout> [<input2Name>:<input2Layout>]"
-     * --outputs_precisions="<output1Name>:<output1Precision>"
-     * --outputs_layouts="<output1Name>:<output1Layout>"
+     * --inputs_precisions="0:<input1Precision> [1:<input2Precision>]"
+     * --inputs_layouts="0:<input1Layout> [1:<input2Layout>]"
+     * --outputs_precisions="0:<output1Precision>"
+     * --outputs_layouts="0:<output1Layout>"
      *
+     * For older compiler versions, the name of the inputs/outputs may be used instead of their indices.
+     * 
      * Since the layout information is no longer an important part of the metadata values when using the 2.0 OV
      * API, the layout fields shall be filled with default values in order to assure the backward compatibility
      * with the driver.
      */
-    static std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model);
+    static std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices);
 
 private:
     NetworkMetadata getNetworkMeta(ze_graph_handle_t graphHandle) const;

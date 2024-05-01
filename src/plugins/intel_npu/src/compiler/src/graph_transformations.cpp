@@ -47,7 +47,12 @@ void IRSerializer::serializeModelToStream(std::ostream& xml, std::ostream& weigh
     // precision/layout preprocessing requirement. We are setting this value to "true" since the API version is no
     // longer a cause for altering the metadata. This is due to the preprocessing performed in the OpenVINO framework's
     // implementaion, the "ov::Model" object is preprocessed before reaching the NPU plugin.
-    const auto new_api_key = "is_new_api";
+    const auto newAPIKey = "is_new_api";
+
+    // Flag used for indicating an NPU plugin version which switched the identification convention of inputs/outputs
+    // from names to indices. The flag is required in order to inform the driver-compiler adapter to expect indices when
+    // attempting to deserialize the I/O metadata.
+    const auto useIndicesForIOMetadata = "use_indices_for_io_metadata";
 
     // We modify the original model object here therefore a mutex is required
     static std::mutex rtInfoMutex;
@@ -55,12 +60,14 @@ void IRSerializer::serializeModelToStream(std::ostream& xml, std::ostream& weigh
     {
         std::lock_guard<std::mutex> lock(rtInfoMutex);
 
-        _model->set_rt_info(true, new_api_key);
+        _model->set_rt_info(true, newAPIKey);
+        _model->set_rt_info(true, useIndicesForIOMetadata);
 
         manager.run_passes(_model);
 
         auto& rtInfo = _model->get_rt_info();
-        rtInfo.erase(new_api_key);
+        rtInfo.erase(newAPIKey);
+        rtInfo.erase(useIndicesForIOMetadata);
     }
     _logger.debug("serializeModelToStream end");
 }
