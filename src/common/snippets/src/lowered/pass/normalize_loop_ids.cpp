@@ -14,11 +14,38 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
+void NormalizeLoopIDs::update_linear_ir(lowered::LinearIR& linear_ir, const IDMapper& loop_id_map) {
+    std::pair<std::vector<size_t>, std::vector<size_t>> previous_loop_ids;
+    for (const auto& expr : linear_ir) {
+        if (const auto loop_end = ov::as_type_ptr<op::LoopEnd>(expr->get_node())) {
+            const auto current_id = loop_end->get_id();
+            OPENVINO_ASSERT(loop_id_map.count(current_id) > 0, "ID of the LoopEnd has not been found in the map!");
+            loop_end->set_id(loop_id_map.at(loop_end->get_id()));
+        }
+
+        auto expr_loop_ids = expr->get_loop_ids();
+        if (expr_loop_ids.empty())
+            continue;
+        if (expr_loop_ids == previous_loop_ids.first) {
+            expr->set_loop_ids(previous_loop_ids.second);
+            continue;
+        }
+
+        previous_loop_ids.first = expr_loop_ids;
+        std::for_each(expr_loop_ids.begin(), expr_loop_ids.end(), [&loop_id_map](size_t& id) {
+            OPENVINO_ASSERT(loop_id_map.count(id) > 0, "Expression is marked by LoopID that has not been found in the map!");
+            id = loop_id_map.at(id);
+        });
+        expr->set_loop_ids(expr_loop_ids);
+        previous_loop_ids.second = expr_loop_ids;
+    }
+}
+
 bool NormalizeLoopIDs::run(lowered::LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::NormalizeLoopIDs");
 
-    // [ original Loop ID -> new normalized and sorted ]
-    std::map<size_t, size_t> loop_id_map;
+    // Firstly, we create map of the current and the target Loop IDs
+    IDMapper loop_id_map;
     for (const auto& expr : linear_ir) {
         const auto& node = expr->get_node();
         if (const auto loop_end = ov::as_type_ptr<op::LoopEnd>(node)) {
@@ -32,8 +59,15 @@ bool NormalizeLoopIDs::run(lowered::LinearIR& linear_ir) {
         }
     }
 
-    const auto& loop_manager = linear_ir.get_loop_manager();
-    return loop_manager->reassign_identifiers(linear_ir, loop_id_map);
+    // Secondly, we blend `LoopInfo` in the LoopManager::m_map by new Loop IDs
+    const auto updated = linear_ir.get_loop_manager()->reassign_identifiers(loop_id_map);
+    if (!updated)
+        return false;
+
+    // Thirdly, we should update expressions in LinearIR
+    update_linear_ir(linear_ir, loop_id_map);
+
+    return true;
 }
 
 } // namespace pass

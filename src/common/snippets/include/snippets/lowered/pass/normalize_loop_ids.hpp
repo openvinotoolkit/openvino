@@ -34,6 +34,11 @@ public:
     bool run(lowered::LinearIR& linear_ir) override;
 
 private:
+    // [ original Loop ID -> new normalized and sorted ]
+    using IDMapper = std::map<size_t, size_t>;
+
+    static void update_linear_ir(lowered::LinearIR& linear_ir, const IDMapper& loop_ids);
+
     bool m_has_specific_loops = true;
 };
 
