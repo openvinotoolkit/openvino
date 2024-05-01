@@ -32,13 +32,15 @@ namespace intel_npu {
  */
 struct IODescriptor {
     std::string nameFromCompiler;
-    std::string nodeFriendlyName;
-    std::unordered_set<std::string> outputTensorNames;
     ov::element::Type_t precision;
-    ov::PartialShape shape;
+    ov::PartialShape shapeFromCompiler;
     bool isStateInput;
     bool isStateOutput;
     bool isShapeTensor;
+
+    std::string nodeFriendlyName;
+    std::unordered_set<std::string> outputTensorNames;
+    ov::PartialShape shapeFromIRModel;
 };
 
 /**
