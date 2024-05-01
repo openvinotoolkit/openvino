@@ -46,7 +46,7 @@ size_t jit_brgemm_emitter::get_out_leading_dim(const VectorDims& shape, const st
 jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa,
                                        const ov::snippets::lowered::ExpressionPtr& expr,
                                        const snippets::KernelExecutorTablePtr& kernel_table,
-                                       const ov::intel_cpu::MultiCachePtr& compiled_kernel_cache) :
+                                       const ov::intel_cpu::MultiCacheWeakPtr& compiled_kernel_cache) :
                                        jit_emitter(h, isa) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());

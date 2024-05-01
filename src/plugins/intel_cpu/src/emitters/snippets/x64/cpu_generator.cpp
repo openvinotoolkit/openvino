@@ -155,8 +155,8 @@ public:
 };
 
 intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                                              const ov::intel_cpu::MultiCachePtr& cache)
-    : TargetMachine(), h(new jit_snippet()), isa(host_isa), compiled_kernel_cache(cache) {
+                                              ov::intel_cpu::MultiCacheWeakPtr cache)
+    : TargetMachine(), h(new jit_snippet()), isa(host_isa), compiled_kernel_cache(std::move(cache)) {
     kernel_executor_table = std::make_shared<ov::snippets::KernelExecutorTable>();
     // data movement
     jitters[op::v0::Parameter::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
@@ -331,8 +331,8 @@ bool intel_cpu::CompiledSnippetCPU::empty() const {
     return get_code_size() == 0;
 }
 
-intel_cpu::CPUGenerator::CPUGenerator(dnnl::impl::cpu::x64::cpu_isa_t isa_,  const ov::intel_cpu::MultiCachePtr& cache) :
-    Generator(std::make_shared<CPUTargetMachine>(isa_, cache)) {
+intel_cpu::CPUGenerator::CPUGenerator(dnnl::impl::cpu::x64::cpu_isa_t isa_,  ov::intel_cpu::MultiCacheWeakPtr cache) :
+    Generator(std::make_shared<CPUTargetMachine>(isa_, std::move(cache))) {
 }
 intel_cpu::CPUGenerator::CPUGenerator(const std::shared_ptr<CPUTargetMachine>& target) : Generator(target) {
 }

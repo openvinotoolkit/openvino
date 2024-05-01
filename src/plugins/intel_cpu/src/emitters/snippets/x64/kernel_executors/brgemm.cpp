@@ -77,7 +77,7 @@ std::string BrgemmKernelConfig::to_string() const {
 }
 #endif
 
-BrgemmKernelExecutor::BrgemmKernelExecutor(ov::intel_cpu::MultiCachePtr kernel_cache, const std::shared_ptr<BrgemmKernelConfig>& config) :
+BrgemmKernelExecutor::BrgemmKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, const std::shared_ptr<BrgemmKernelConfig>& config) :
         CPUKernelExecutor<BrgemmKernelConfig, brgemm_kernel_t>(std::move(kernel_cache), config) {
     if (config->is_completed())
         update_kernel();

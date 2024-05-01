@@ -49,7 +49,7 @@ public:
         void* scratch = nullptr;
         amx_tile_config_t* amx_tile_config = nullptr;
     };
-    BrgemmKernelExecutor(ov::intel_cpu::MultiCachePtr kernel_cache, const std::shared_ptr<BrgemmKernelConfig>& config);
+    BrgemmKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, const std::shared_ptr<BrgemmKernelConfig>& config);
 
     /** Function that will be called in runtime to execute the kernel */
     static void execute(const BrgemmKernelExecutor* desc, call_args* args);

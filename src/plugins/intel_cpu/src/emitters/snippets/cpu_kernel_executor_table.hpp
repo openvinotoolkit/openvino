@@ -13,7 +13,7 @@ namespace intel_cpu {
 template<typename Conf, typename KernelType>
 class CPUKernelExecutor : public snippets::KernelExecutor<Conf, KernelType> {
 public:
-     CPUKernelExecutor(ov::intel_cpu::MultiCachePtr kernel_cache, std::shared_ptr<Conf> c) :
+     CPUKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, std::shared_ptr<Conf> c) :
                        snippets::KernelExecutor<Conf, KernelType>(c), m_kernel_cache(std::move(kernel_cache)) {}
      struct Key {
          explicit Key(std::shared_ptr<Conf> c) : config{std::move(c)} {}
@@ -23,11 +23,12 @@ public:
      };
     void update_kernel() override {
         OPENVINO_ASSERT(m_config && m_config->is_completed(), "Update kernel was called with invalid config");
-        OPENVINO_ASSERT(m_kernel_cache, "Invalid kernel cache pointer in CPUKernelExecutor::update_kernel()");
-        const auto& lookup_result = m_kernel_cache->getOrCreate(Key(m_config),
-                                                                [this](const Key& k) {
-                                                                    return compile_kernel(k.config);
-                                                                });
+        const auto& cache = m_kernel_cache.lock();
+        OPENVINO_ASSERT(cache, "Invalid kernel cache pointer in CPUKernelExecutor::update_kernel()");
+        const auto& lookup_result = cache->getOrCreate(Key(m_config),
+                                                       [this](const Key& k) {
+                                                            return compile_kernel(k.config);
+                                                       });
         m_kernel = lookup_result.first;
         OPENVINO_ASSERT(m_kernel, "Failed to compile kernel executor");
     }
@@ -38,7 +39,7 @@ protected:
     using snippets::KernelExecutor<Conf, KernelType>::m_kernel;
     using snippets::KernelExecutor<Conf, KernelType>::compile_kernel;
     /** CPU plugin cache implementation is used to avoid redundant recompilations */
-    ov::intel_cpu::MultiCachePtr m_kernel_cache;
+    ov::intel_cpu::MultiCacheWeakPtr m_kernel_cache;
 };
 
 }   // namespace intel_cpu
