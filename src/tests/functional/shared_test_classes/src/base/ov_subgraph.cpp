@@ -559,21 +559,20 @@ void SubgraphBaseTest::compare_nodes(const std::shared_ptr<ov::Node>& node1, con
     }
 
     for (size_t i = 0; i < node1->get_input_size(); ++i) {
-        auto intput1 = node1->get_input_node_shared_ptr(i);
-        auto intput2 = node2->get_input_node_shared_ptr(i);
-        const auto equal_value = ::attributes::detail::equal::Equal<std::shared_ptr<ov::op::v0::Constant>>::equal_value;
-        if (ov::op::util::is_constant(intput1.get()) && ov::op::util::is_constant(intput2.get()) &&
-            !equal_value(ov::as_type_ptr<ov::op::v0::Constant>(intput1), ov::as_type_ptr<ov::op::v0::Constant>(intput2))) {
-            err_log << "Different Constant values detected\n"
-                    << intput1->get_friendly_name() << " & " << intput2->get_friendly_name() << "\n"
-                    << node1->description() << " Input(" << i << ") and " << node2->description() << " Input(" << i
-                    << ")" << std::endl;
-        }
-
         if (node1->input(i).get_element_type() != node2->input(i).get_element_type()) {
             err_log << "Different element type detected\n"
                     << node1->get_friendly_name() << " Input(" << i << ") " << node1->input(i).get_element_type() << " and "
                     << node2->get_friendly_name() << " Input(" << i << ") " << node2->input(i).get_element_type() << std::endl;
+        }
+
+        const auto const_in_1 = ov::as_type_ptr<ov::op::v0::Constant>(node1->get_input_node_shared_ptr(i));
+        const auto const_in_2 = ov::as_type_ptr<ov::op::v0::Constant>(node2->get_input_node_shared_ptr(i));
+        const auto equal_value = ::attributes::detail::equal::Equal<std::shared_ptr<ov::op::v0::Constant>>::equal_value;
+        if (const_in_1 && const_in_2 && !equal_value(const_in_1, const_in_2)) {
+            err_log << "Different Constant values detected\n"
+                    << const_in_1->get_friendly_name() << " & " << const_in_2->get_friendly_name() << "\n"
+                    << node1->description() << " Input(" << i << ") and " << node2->description() << " Input(" << i
+                    << ")" << std::endl;
         }
     }
 
@@ -598,12 +597,6 @@ void SubgraphBaseTest::compare_nodes(const std::shared_ptr<ov::Node>& node1, con
     }
 }
 
-bool sort_less_by_friendly_name(const std::shared_ptr<ov::Node>& l, const std::shared_ptr<ov::Node>& r) {
-    const auto& l_name = l->get_friendly_name();
-    const auto& r_name = r->get_friendly_name();
-    return l_name.size() < r_name.size() || (l_name.size() == r_name.size() && l_name < r_name);
-}
-
 void SubgraphBaseTest::compare_models_param_res(const std::shared_ptr<ov::Model>& f, const std::shared_ptr<ov::Model>& f_ref) {
     if (is_report_stages) {
         std::cout << "[ COMPARATION ] `compare_models_param_res(f, ref_f)` is started"<< std::endl;
@@ -613,9 +606,6 @@ void SubgraphBaseTest::compare_models_param_res(const std::shared_ptr<ov::Model>
     std::queue<std::pair<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>>> queue;
     auto parameters = f->get_parameters();
     auto ref_parameters = f_ref->get_parameters();
-
-    std::sort(parameters.begin(), parameters.end(), sort_less_by_friendly_name);
-    std::sort(ref_parameters.begin(), ref_parameters.end(), sort_less_by_friendly_name);
     match_parameters(parameters, ref_parameters);
 
     for (auto& matched : matched_parameters) {
@@ -629,8 +619,6 @@ void SubgraphBaseTest::compare_models_param_res(const std::shared_ptr<ov::Model>
                                 to_str(f_ref_results.size()));
     }
 
-    std::sort(f_results.begin(), f_results.end(), sort_less_by_friendly_name);
-    std::sort(f_ref_results.begin(), f_ref_results.end(), sort_less_by_friendly_name);
     for (size_t i = 0; i < f_results.size(); ++i) {
         queue.push({f_results[i], f_ref_results[i]});
     }
