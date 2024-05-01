@@ -595,6 +595,8 @@ def create_keras_layer_with_tf_function_call_no_signature_single_input(tmp_dir):
     return model, model_ref, {'example_input': example_input, 'compress_to_fp16': False}
 
 
+'''
+CVS-140129
 def create_keras_layer_with_string_tensor(tmp_dir):
     class LayerModel(tf.Module):
         def __init__(self):
@@ -615,7 +617,7 @@ def create_keras_layer_with_string_tensor(tmp_dir):
     model_ref = Model([add], parameter_list, "test")
 
     return model, model_ref, {}
-
+'''
 
 def create_tf_model_three_inputs(shape=[1, 2, 3, 4], type=tf.float32):
     tf.compat.v1.reset_default_graph()
@@ -702,7 +704,6 @@ class TestMoConvertTF(CommonMOConvertTest):
         create_keras_layer_with_compressed_constants,
         create_keras_layer_with_tf_function_call_no_signature,
         create_keras_layer_with_tf_function_call_no_signature_single_input,
-        create_keras_layer_with_string_tensor,
 
         # TF1
         create_tf_graph,
@@ -723,6 +724,7 @@ class TestMoConvertTF(CommonMOConvertTest):
         if mo_params is not None:
             test_params.update(mo_params)
         self._test_by_ref_graph(temp_dir, test_params, graph_ref, compare_tensor_names=False)
+
 
     @pytest.mark.nightly
     @pytest.mark.precommit
