@@ -11,6 +11,7 @@
 #include "openvino/op/equal.hpp"
 #include "openvino/op/gather_nd.hpp"
 #include "openvino/op/less.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/subtract.hpp"
 
@@ -45,7 +46,7 @@ OutputVector translate_gather_op(const NodeContext& node) {
         auto gather = make_shared<v8::Gather>(params, indices, axis, 0);
         set_node_name(node.get_name(), gather);
         auto complex_reshape = make_shared<ComplexTypeMark>(gather, complex_type_mark->get_complex_part_type());
-        return {complex_reshape->output(0)};
+        return {complex_reshape};
     }
 
     return translate_basic_gather_op(node, axis, 0);
@@ -90,7 +91,7 @@ OutputVector translate_gather_v2_op(const NodeContext& node) {
         // Set the node's name and apply complex type marking if needed
         set_node_name(node.get_name(), gather);
         auto complex_gather = make_shared<ComplexTypeMark>(gather, complex_type_mark->get_complex_part_type());
-        return {complex_gather->output(0)};
+        return {complex_gather};
     }
 
     return translate_basic_gather_op(node, axis, batch_dims);
