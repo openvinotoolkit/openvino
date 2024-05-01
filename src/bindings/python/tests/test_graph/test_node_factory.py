@@ -98,8 +98,8 @@ def test_node_factory_validate_missing_arguments():
         raise AssertionError("Validation of missing arguments has unexpectedly passed.")
 
 
-@pytest.mark.template_extension()
-@pytest.mark.dynamic_library()
+@pytest.mark.template_extension
+@pytest.mark.dynamic_library
 @pytest.mark.xfail(condition=platform == "darwin", reason="Ticket - 132696")
 def test_extension_added_from_library():
     if platform == "win32":

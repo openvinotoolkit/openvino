@@ -10,6 +10,7 @@
 using namespace testing;
 using namespace ov::test::utils;
 
+#if defined(ENABLE_OV_IR_FRONTEND)
 namespace {
 
 std::string getOVExtensionPath() {
@@ -30,6 +31,7 @@ std::string getRelativeOVExtensionPath() {
 }
 
 }  // namespace
+#endif
 
 class CustomNewIdentity : public ov::op::Op {
 public:

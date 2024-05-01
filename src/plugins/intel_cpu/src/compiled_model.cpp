@@ -55,15 +55,17 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     if (!core)
         OPENVINO_THROW("Unable to get API version. Core is unavailable");
 
+    ov::threading::IStreamsExecutor::Ptr stream_executor = nullptr;
     if (cfg.exclusiveAsyncRequests) {
         // special case when all InferRequests are muxed into a single queue
         m_task_executor = m_plugin->get_executor_manager()->get_executor("CPU");
     } else {
-        m_task_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(m_cfg.streamExecutorConfig);
+        stream_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(m_cfg.streamExecutorConfig);
+        m_task_executor = stream_executor;
     }
     if (0 != m_cfg.streamExecutorConfig.get_streams()) {
         m_callback_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(
-            IStreamsExecutor::Config{"CPUCallbackExecutor", 1, 0, IStreamsExecutor::ThreadBindingType::NONE});
+            IStreamsExecutor::Config{"CPUCallbackExecutor", 1, 0});
     } else {
         m_callback_executor = m_task_executor;
     }
@@ -101,6 +103,16 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     } else {
         CompiledModel::get_graph();
     }
+    // init sub stream threads of executor
+    int sub_streams = m_cfg.streamExecutorConfig.get_sub_streams();
+    if (sub_streams > 0 && stream_executor != nullptr) {
+        std::vector<Task> tasks;
+        tasks.resize(sub_streams);
+        for (auto&& task : tasks) {
+            task = [] {};
+        }
+        stream_executor->run_sub_stream_and_wait(tasks);
+    }
 }
 
 CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
@@ -125,7 +137,7 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
                         (m_cfg.lpTransformsMode == Config::On) &&
                         ov::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);
 
-                    ctx = std::make_shared<GraphContext>(m_cfg, weightsCache, isQuantizedFlag);
+                    ctx = std::make_shared<GraphContext>(m_cfg, weightsCache, isQuantizedFlag, streamsExecutor);
                 }
                 const std::shared_ptr<const ov::Model> model = m_model;
                 graphLock._graph.CreateGraph(model, ctx);
@@ -190,12 +202,11 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     };
 
     if (name == ov::supported_properties) {
-        return std::vector<ov::PropertyName>{
+        std::vector<ov::PropertyName> ro_properties{
             RO_property(ov::supported_properties.name()),
             RO_property(ov::model_name.name()),
             RO_property(ov::optimal_number_of_infer_requests.name()),
             RO_property(ov::num_streams.name()),
-            RO_property(ov::affinity.name()),
             RO_property(ov::inference_num_threads.name()),
             RO_property(ov::enable_profiling.name()),
             RO_property(ov::hint::inference_precision.name()),
@@ -213,6 +224,12 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::hint::dynamic_quantization_group_size.name()),
             RO_property(ov::hint::kv_cache_precision.name()),
         };
+
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        ro_properties.insert(ro_properties.end(), RO_property(ov::affinity.name()));
+        OPENVINO_SUPPRESS_DEPRECATED_END
+
+        return ro_properties;
     }
 
     if (name == ov::model_name) {

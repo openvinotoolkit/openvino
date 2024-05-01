@@ -144,7 +144,7 @@ public:
 
         r_params.input = convert_weights_tensor(weights_params->get_input_layout(), weights_params->get_grouped());
         r_params.output = convert_weights_tensor(weights_params->get_output_layout());
-        r_params.layerID = impl_param.desc->id + "_reorder_weigths";
+        r_params.layerID = impl_param.desc->id + "_reorder_weights";
         r_params.uniqueID = std::to_string(impl_param.unique_id) + "_weight";
         r_params.rotate_180 = weights_params->should_be_transposed();
 

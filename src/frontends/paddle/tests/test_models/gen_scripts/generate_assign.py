@@ -10,7 +10,7 @@ import paddle
 from save_model import exportModel
 
 '''
-assign w/ ouput
+assign w/ output
 '''
 @paddle.jit.to_static
 def test_assign_output(array):
@@ -24,7 +24,7 @@ array = np.array([[1, 1],
 exportModel('assign_output', test_assign_output, [array], target_dir=sys.argv[1])
 
 '''
-assign w/o ouput
+assign w/o output
 '''
 @paddle.jit.to_static
 def test_assign_none(data):
