@@ -135,8 +135,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         // takes option that has 4D instead of fine-grained Reshape analysis
         // it avoids complication in the pattern, but we don't really have many options
         auto take_4d = [=](const std::shared_ptr<Node>& option1,
-                                                 const std::shared_ptr<Node>& option2,
-                                                 const std::shared_ptr<Node>& option3) {
+                           const std::shared_ptr<Node>& option2,
+                           const std::shared_ptr<Node>& option3) {
             if (pattern_map.find(option1) != pattern_map.end() &&
                 pattern_map.at(option1).get_partial_shape().rank().get_length() == 4) {
                 return pattern_map.at(option1);
