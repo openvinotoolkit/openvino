@@ -66,6 +66,9 @@ typedef struct {
     size_t size;     //!< devices' number
 } ov_available_devices_t;
 
+
+typedef char *(OPENVINO_C_API_CALLBACK* crypto_func)(const char*, const int, int *);
+
 /**
  * @brief Get version of OpenVINO.
  * @ingroup ov_core_c_api
@@ -392,6 +395,111 @@ ov_core_compile_model_with_context(const ov_core_t* core,
  */
 OPENVINO_C_API(ov_status_e)
 ov_core_get_default_context(const ov_core_t* core, const char* device_name, ov_remote_context_t** context);
+
+
+/**
+ * @brief Creates a compiled model from a source model object.
+ * Users can create as many compiled models as they need and use
+ * them simultaneously (up to the limitation of the hardware resources).
+ * @ingroup ov_core_c_api
+ * @param core A pointer to the ov_core_t instance.
+ * @param model Model object acquired from Core::read_model.
+ * @param device_name Name of a device to load a model to.
+ * @param property_args_size How many properties args will be passed, each property contains 2 args: key and value.
+ * @param encrypt encryption function for model cache
+ * @param decrypt decryption function for model cache
+ * @param compiled_model A pointer to the newly created compiled_model.
+ * @param ... property paramater: Optional pack of pairs: <char* property_key, char* property_value> relevant only
+ * for this load operation operation. Supported property key please see ov_property.h.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_core_compile_model_with_cache_crypto(const ov_core_t* core,
+                                        const ov_model_t* model,
+                                        const char* device_name,
+                                        const size_t property_args_size,
+                                        const crypto_func encrypt,
+                                        const crypto_func decrypt,
+                                        ov_compiled_model_t** compiled_model,
+                                        ...);
+
+/**
+ * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD file.
+ * This can be more efficient than using the ov_core_read_model_from_XXX + ov_core_compile_model flow,
+ * especially for cases when caching is enabled and a cached model is available.
+ * @ingroup ov_core_c_api
+ * @param core A pointer to the ov_core_t instance.
+ * @param model_path Path to a model.
+ * @param device_name Name of a device to load a model to.
+ * @param property_args_size How many properties args will be passed, each property contains 2 args: key and value.
+ * @param encrypt encryption function for model cache
+ * @param decrypt decryption function for model cache
+ * @param compiled_model A pointer to the newly created compiled_model.
+ * @param ... Optional pack of pairs: <char* property_key, char* property_value> relevant only
+ * for this load operation operation. Supported property key please see ov_property.h.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_core_compile_model_from_file_with_cache_crypto(const ov_core_t* core,
+                                                  const char* model_path,
+                                                  const char* device_name,
+                                                  const size_t property_args_size,
+                                                  const crypto_func encrypt,
+                                                  const crypto_func decrypt,
+                                                  ov_compiled_model_t** compiled_model,
+                                                  ...);
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+/**
+ * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD file.
+ * This can be more efficient than using the ov_core_read_model_from_XXX + ov_core_compile_model flow,
+ * especially for cases when caching is enabled and a cached model is available.
+ * @ingroup ov_core_c_api
+ * @param core A pointer to the ov_core_t instance.
+ * @param model_path Path to a model.
+ * @param device_name Name of a device to load a model to.
+ * @param property_args_size How many properties args will be passed, each property contains 2 args: key and value.
+ * @param encrypt encryption function for model cache
+ * @param decrypt decryption function for model cache
+ * @param compiled_model A pointer to the newly created compiled_model.
+ * @param ... Optional pack of pairs: <char* property_key, char* property_value> relevant only
+ * for this load operation operation. Supported property key please see ov_property.h.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_core_compile_model_from_file_unicode_with_cache_crypto(const ov_core_t* core,
+                                                          const wchar_t* model_path,
+                                                          const char* device_name,
+                                                          const size_t property_args_size,
+                                                          const crypto_func encrypt,
+                                                          const crypto_func decrypt,
+                                                          ov_compiled_model_t** compiled_model,
+                                                          ...);
+
+#endif
+
+/**
+ * @brief Creates a compiled model from a source model within a specified remote context.
+ * @ingroup ov_core_c_api
+ * @param core A pointer to the ov_core_t instance.
+ * @param model Model object acquired from ov_core_read_model.
+ * @param context A pointer to the newly created remote context.
+ * @param property_args_size How many args will be for this compiled model.
+ * @param encrypt encryption function for model cache
+ * @param decrypt decryption function for model cache
+ * @param compiled_model A pointer to the newly created compiled_model.
+ * @param ... variadic parmameters Actual property parameter for remote context
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_core_compile_model_with_context_and_cache_crypto(const ov_core_t* core,
+                                                    const ov_model_t* model,
+                                                    const ov_remote_context_t* context,
+                                                    const size_t property_args_size,
+                                                    const crypto_func encrypt,
+                                                    const crypto_func decrypt,
+                                                    ov_compiled_model_t** compiled_model,
+                                                    ...);
 
 /**
  * @brief Shut down the OpenVINO by deleting all static-duration objects allocated by the library and releasing
