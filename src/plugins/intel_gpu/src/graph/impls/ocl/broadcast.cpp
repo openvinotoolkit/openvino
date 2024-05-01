@@ -70,7 +70,7 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
         auto output_rank = output_pshape.size();
 
         if (primitive->axes_mapping.empty()) {
-            bool use_new_shape_infer = impl_params.prog->get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+            bool use_new_shape_infer = impl_params.prog->is_new_shape_infer();
             if (!broadcastable(input_pshape, output_pshape, use_new_shape_infer)) {
                 input_pshape = extend_shape_to_rank_from_begin(input_pshape, output_pshape.size());
             } else {

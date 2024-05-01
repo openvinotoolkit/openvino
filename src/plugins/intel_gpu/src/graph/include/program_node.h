@@ -82,7 +82,7 @@ public:
     }
 
     bool is_shape_infer_dep(void) const {
-        if (!myprog.get_config().get_property(ov::intel_gpu::allow_new_shape_infer))
+        if (!myprog.is_new_shape_infer())
             return false;
         for (auto u : users) {
             for (auto dep_idx : u->get_shape_infer_dependencies()) {

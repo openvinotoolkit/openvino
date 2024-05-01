@@ -129,7 +129,7 @@ public:
 
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
         auto updated_impl_params = canonicalize_fused_shapes(impl_params);
-        bool use_new_shape_infer = impl_params.prog->get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+        bool use_new_shape_infer = impl_params.prog->is_new_shape_infer();
 
         auto& output_layout = updated_impl_params.output_layouts[0];
         auto out_pshape = output_layout.get_partial_shape();

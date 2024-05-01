@@ -248,7 +248,7 @@ inline bool broadcastable(const ov::PartialShape& first_pshape, const ov::Partia
 
 inline kernel_impl_params canonicalize_fused_shapes(const kernel_impl_params& impl_params) {
     auto updated_impl_params = impl_params;
-    bool use_new_shape_infer = impl_params.prog->get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+    bool use_new_shape_infer = impl_params.prog->is_new_shape_infer();
 
     for (auto& fd : updated_impl_params.fused_desc) {
         if (fd.is_type<eltwise>() && fd.total_num_deps == 2 && fd.has_outer_dep()) {
