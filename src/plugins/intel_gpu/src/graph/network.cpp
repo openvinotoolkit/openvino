@@ -1442,6 +1442,10 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
     if (!get_engine().get_device_info().has_separate_cache)
         return;
 
+
+    if (node.is_shape_infer_dep())
+        return;
+
     if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
         // Allocate and transfer memory
         auto device_mem = inst_mem.get_engine()->allocate_memory(inst_mem.get_layout(), allocation_type::usm_device, false);
