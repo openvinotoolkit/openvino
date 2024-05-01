@@ -83,9 +83,9 @@ class TestSegmentSumComplex(CommonTFLayerTest):
         inputs_data = {}
         inputs_data["data_real:0"] = rng.random(data_real_shape).astype(np.float32)
         inputs_data["data_imag:0"] = rng.random(data_imag_shape).astype(np.float32)
-        inputs_data["segment_ids:0"] = np.sort(rng.integers(
+        inputs_data["segment_ids:0"] = rng.integers(
             low=0, high=data_real_shape[0], size=segment_ids_shape
-        ).astype(np.int32))
+        ).astype(np.int32)
         return inputs_data
 
     def create_segment_sum_net(self, data_shape, segment_ids_shape):
