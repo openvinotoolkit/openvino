@@ -79,7 +79,7 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const LoopManagerPtr& loop
     if (resetting_data_indexes.empty())
         return false;
 
-    const auto loop_info = loop_manager->get_loop_info(loop_end->get_id());
+    const auto loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_end->get_id());
 
     // TODO [133463]: We have to update LoopEnd and LoopInfo since the both entities must be valid.
     //                To avoid the both changes, we have to insert Loop ops to LinearIR in the end of pipeline.

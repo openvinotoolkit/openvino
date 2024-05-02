@@ -61,6 +61,14 @@ void LoopInfo::set_increment(size_t increment) {
     m_increment = increment;
 }
 
+void LoopInfo::set_dim_idx(size_t dim_idx) {
+    auto set_common_dim_idx = [dim_idx](LoopPort& port) {
+        port.dim_idx = dim_idx;
+    };
+    update_entry_points(set_common_dim_idx);
+    update_exit_points(set_common_dim_idx);
+}
+
 void LoopInfo::set_entry_points(std::vector<LoopPort> entry_points) {
     m_entry_points = std::move(entry_points);
 }
@@ -143,14 +151,6 @@ void UnifiedLoopInfo::set_handlers(SpecificIterationHandlers handlers) {
     m_handlers = std::move(handlers);
 }
 
-void UnifiedLoopInfo::set_dim_idx(size_t dim_idx) {
-    auto set_common_dim_idx = [dim_idx](LoopPort& port) {
-        port.dim_idx = dim_idx;
-    };
-    update_entry_points(set_common_dim_idx);
-    update_exit_points(set_common_dim_idx);
-}
-
 ExpandedLoopInfo::ExpandedLoopInfo(size_t work_amount, size_t increment,
                                    const std::vector<LoopPort>& entries, const std::vector<LoopPort>& exits,
                                    SpecificLoopIterType type, std::shared_ptr<UnifiedLoopInfo> unified_loop_info)
@@ -223,6 +223,19 @@ const std::vector<int64_t>& ExpandedLoopInfo::get_finalization_offsets() const {
 const std::vector<int64_t>& ExpandedLoopInfo::get_data_sizes() const {
     return m_data_sizes;
 }
+
+void ExpandedLoopInfo::set_entry_points(std::vector<LoopPort> entry_points) {
+    OPENVINO_ASSERT(m_entry_points.size() == entry_points.size(),
+                    "Failed to set entry points to ExpandedLoopInfo: count of new ports is not equal to the current port count");
+    m_entry_points = std::move(entry_points);
+}
+
+void ExpandedLoopInfo::set_exit_points(std::vector<LoopPort> exit_points) {
+    OPENVINO_ASSERT(m_exit_points.size() == exit_points.size(),
+                    "Failed to set exit points to ExpandedLoopInfo: count of new ports is not equal to the current port count");
+    m_exit_points = std::move(exit_points);
+}
+
 
 } // namespace lowered
 } // namespace snippets

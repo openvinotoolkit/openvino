@@ -152,7 +152,7 @@ public:
     size_t replace_with_new_loop(const LinearIR& linear_ir, LinearIR::constExprIt loop_begin_pos, LinearIR::constExprIt loop_end_pos,
                                  const LoopInfoPtr& loop_info, const size_t old_id);
     /**
-     * @brief Fuse two LoopInfos: fuse their informations to the one
+     * @brief Fuse two UnifiedLoopInfos: fuse their informations to the one
      * @param linear_ir linear IR
      * @param loop_id_upper Loop ID of the Loop that is earlier in the linear IR
      * @param loop_id_lower Loop ID of the Loop that is later in the linear IR
@@ -160,7 +160,7 @@ public:
      */
     void fuse_loops(const LinearIR& linear_ir, size_t loop_id_upper, size_t loop_id_lower, bool fuse_into_upper = true);
     /**
-     * @brief Fuse two loops: fuse their LoopInfos and update loop IDs in expressions
+     * @brief Fuse two Unified loops: fuse their UnifiedLoopInfos and update loop IDs in expressions
      * @param loop_begin_target the first expression iterator of the Loop that will be left after fusion
      * @param loop_end_target the next ietartor for the last expression of the Loop that will be left after fusion
      * @param loop_id_upper Loop ID of the Loop that is earlier in the linear IR
@@ -170,7 +170,7 @@ public:
     void fuse_loops(LinearIR::constExprIt loop_begin_target, LinearIR::constExprIt loop_end_target,
                     size_t loop_id_upper, size_t loop_id_lower, bool fuse_into_upper = true);
     /**
-     * @brief Update Loop ports for one Loop. The method saves the order of ports since
+     * @brief Update Loop ports for one Unified Loop. The method saves the order of ports since
      *        the order of expression defines Loop bounds before explicit loop insertion (the most first and the most last expressions).
      *        Note:
      *         - Update LoopPort - insert new loop target ports instead of existing.

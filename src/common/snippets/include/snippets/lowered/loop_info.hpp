@@ -72,15 +72,35 @@ public:
      */
     void set_increment(size_t increment);
     /**
+     * @brief Sets `dim_idx` to all entry and exit points
+     * @param dim_idx - index
+     */
+    void set_dim_idx(size_t dim_idx);
+    /**
      * @brief Set m_entry_points value
      * @param entry_points - vector of loop input ports
      */
-    void set_entry_points(std::vector<LoopPort> entry_points);
+    virtual void set_entry_points(std::vector<LoopPort> entry_points);
     /**
      * @brief Set m_exit_points value
      * @param exit_points - vector of loop output ports
      */
-    void set_exit_points(std::vector<LoopPort> exit_points);
+    virtual void set_exit_points(std::vector<LoopPort> exit_points);
+
+    /**
+     * @brief Update the parameters of existing loop input ports
+     * @param updater - function that updates ports
+     */
+    inline void update_entry_points(const std::function<void(LoopPort&)>& updater) {
+        std::for_each(m_entry_points.begin(), m_entry_points.end(), updater);
+    }
+    /**
+     * @brief Update the parameters of existing loop output ports
+     * @param updater - function that updates ports
+     */
+    inline void update_exit_points(const std::function<void(LoopPort&)>& updater) {
+        std::for_each(m_exit_points.begin(), m_exit_points.end(), updater);
+    }
 
     // Note that get_type_info_static and get_type_info are needed to mimic OPENVINO_RTTI interface,
     // so the standard OPENVINO_RTTI(...) macros could be used in derived classes.
@@ -178,11 +198,6 @@ public:
      * @param handlers - transformations for loop specific iterations
      */
     void set_handlers(SpecificIterationHandlers handlers);
-    /**
-     * @brief Sets `dim_idx` to all entry and exit points
-     * @param dim_idx - index
-     */
-    void set_dim_idx(size_t dim_idx);
 
     /**
      * @brief Register loop specific iteration handler
@@ -193,21 +208,6 @@ public:
     template <SpecificLoopIterType Type, typename T, class... Args>
     void register_pass_to_handler(Args&&... args) {
         m_handlers.register_pass<Type, T>(args...);
-    }
-
-    /**
-     * @brief Update the parameters of existing loop input ports
-     * @param updater - function that updates ports
-     */
-    inline void update_entry_points(const std::function<void(LoopPort&)>& updater) {
-        std::for_each(m_entry_points.begin(), m_entry_points.end(), updater);
-    }
-    /**
-     * @brief Update the parameters of existing loop output ports
-     * @param updater - function that updates ports
-     */
-    inline void update_exit_points(const std::function<void(LoopPort&)>& updater) {
-        std::for_each(m_exit_points.begin(), m_exit_points.end(), updater);
     }
 
 private:
@@ -270,6 +270,17 @@ public:
      * @return const ref of `m_data_sizes`
      */
     const std::vector<int64_t>& get_data_sizes() const;
+
+    /**
+     * @brief Set m_entry_points value
+     * @param entry_points - vector of loop input ports
+     */
+    void set_entry_points(std::vector<LoopPort> entry_points) override;
+    /**
+     * @brief Set m_exit_points value
+     * @param exit_points - vector of loop output ports
+     */
+    void set_exit_points(std::vector<LoopPort> exit_points) override;
 
 private:
     // ExpandedLoopInfo has LoopPorts to have opportunity to work with Loops
