@@ -95,12 +95,12 @@ std::vector<layout> const program_node::get_input_layouts() const {
     return layouts;
 }
 
-layout program_node::get_input_layout(size_t idx) const {
+const layout& program_node::get_input_layout(size_t idx) const {
     const auto& d = get_dependency_with_port(idx);
     return d.first->get_output_layout(true, d.second);
 }
 
-ov::PartialShape program_node::get_input_pshape(size_t idx) const {
+const ov::PartialShape& program_node::get_input_pshape(size_t idx) const {
     return get_input_layout(idx).get_partial_shape();
 }
 
@@ -394,7 +394,7 @@ std::vector<layout> program_node::calc_output_layouts() const {
     return {type()->calc_output_layout(*this, *get_kernel_impl_params())};
 }
 
-layout program_node::get_output_layout(bool invalidate_users_if_changed, size_t idx) {
+const layout& program_node::get_output_layout(bool invalidate_users_if_changed, size_t idx) {
     if (valid_output_layouts[idx])
         return output_layouts[idx];
 
@@ -403,14 +403,14 @@ layout program_node::get_output_layout(bool invalidate_users_if_changed, size_t 
     return output_layouts[idx];
 }
 
-layout program_node::get_output_layout(size_t idx) const {
+const layout& program_node::get_output_layout(size_t idx) const {
     if (!valid_output_layouts[idx])
         throw std::runtime_error("Output layout not calculated for " + id() + " node");
 
     return output_layouts[idx];
 }
 
-std::vector<layout> program_node::get_output_layouts(bool invalidate_users_if_changed) {
+const std::vector<layout>& program_node::get_output_layouts(bool invalidate_users_if_changed) {
     if (is_all_valid_output_layouts())
         return output_layouts;
 
@@ -419,7 +419,7 @@ std::vector<layout> program_node::get_output_layouts(bool invalidate_users_if_ch
     return output_layouts;
 }
 
-std::vector<layout> program_node::get_output_layouts() const {
+const std::vector<layout>& program_node::get_output_layouts() const {
     if (!is_all_valid_output_layouts()) {
         throw std::runtime_error("Output layouts not calculated for " + id() + " node");
     }
@@ -671,6 +671,7 @@ void program_node::save(cldnn::BinaryOutputBuffer& ob) const {
     ob << constant;
     ob << data_flow;
     ob << in_shape_of_subgraph;
+    ob << runtime_skippable;
 
     ob << output;
     ob << user_mark;
@@ -836,6 +837,7 @@ void program_node::load(cldnn::BinaryInputBuffer& ib) {
     ib >> constant;
     ib >> data_flow;
     ib >> in_shape_of_subgraph;
+    ib >> runtime_skippable;
 
     ib >> output;
     ib >> user_mark;

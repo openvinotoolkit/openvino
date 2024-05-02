@@ -117,10 +117,10 @@ jobs:
       - name: Install build dependencies
         run: |
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
-          
+
           # default-jdk - Java API
           apt install --assume-yes --no-install-recommends default-jdk gcc-10 g++-10
-          
+
           # Set gcc-10 as a default one
           update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 30
           update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 30
@@ -333,16 +333,25 @@ jobs:
 
   ONNX_Runtime:
     name: ONNX Runtime Integration
-    # Enable back once https://github.com/microsoft/onnxruntime/pull/19184 is merged
-    if: ${{ 'false' }}
-    # if: fromJSON(needs.smart_ci.outputs.affected_components).ONNX_RT ||
-    #     fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE
+    if: fromJSON(needs.smart_ci.outputs.affected_components).ONNX_RT ||
+        fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE
     needs: [ Build, Smart_CI ]
     uses: ./.github/workflows/job_onnx_runtime.yml
     with:
       runner: 'aks-linux-16-cores-arm'
       container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
       sccache-azure-key-prefix: 'ubuntu22_aarch64_onnxruntime'
+
+  Openvino_tokenizers:
+    name: OpenVINO tokenizers extension
+    needs: [ Build, Smart_CI ]
+    uses: ./.github/workflows/job_tokenizers.yml
+    with:
+      runner: 'aks-linux-16-cores-arm'
+      shell: bash
+      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"]}'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+    if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
 
   CXX_Unit_Tests:
     name: C++ unit tests
@@ -362,6 +371,16 @@ jobs:
       container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"]}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
 
+  TensorFlow_Layer_Tests:
+    name: TensorFlow Layer Tests
+    needs: [ Build, Smart_CI, Openvino_tokenizers ]
+    uses: ./.github/workflows/job_tensorflow_layer_tests.yml
+    with:
+      runner: 'aks-linux-16-cores-arm'
+      shell: bash
+      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"]}'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+
   CPU_Functional_Tests:
     name: CPU functional tests
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
@@ -376,7 +395,7 @@ jobs:
     if: ${{ 'false' }} # TODO: Enable once the dependencies are ready for arm (no tensorflow-text available for arm from PyPI)
     # if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
     #     fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
-    needs: [ Build, Smart_CI ]
+    needs: [ Build, Smart_CI, Openvino_tokenizers]
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
       runner: 'aks-linux-16-cores-arm'
@@ -397,7 +416,7 @@ jobs:
   Overall_Status:
     name: ci/gha_overall_status_linux_arm64
     needs: [Smart_CI, Build, Debian_Packages, Samples, ONNX_Runtime, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests,
-            TensorFlow_Models_Tests, PyTorch_Models_Tests]
+            TensorFlow_Models_Tests, PyTorch_Models_Tests, Openvino_tokenizers, TensorFlow_Layer_Tests]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
