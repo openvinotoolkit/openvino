@@ -99,6 +99,16 @@ public:
      * @param target_ports new ports. Ther order of ports is important. Can contains `actual_port`
      */
     virtual void replace_with_new_ports(const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports);
+    /**
+     * @brief Sort ALL entry Loop Ports by `new_order`: `m_entry_points[new_order[i]] = m_entry_points[i]`
+     * @param new_order vector of new indexes
+     */
+    virtual void sort_entry_ports(const std::vector<size_t>& new_order);
+    /**
+     * @brief Sort ALL exit Loop Ports by `new_order`: `m_exit_points[new_order[i]] = m_exit_points[i]`
+     * @param new_order vector of new indexes
+     */
+    virtual void sort_exit_ports(const std::vector<size_t>& new_order);
 
     /**
      * @brief Update the parameters of existing loop input ports

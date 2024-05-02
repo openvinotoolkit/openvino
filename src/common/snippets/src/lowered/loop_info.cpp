@@ -107,6 +107,28 @@ void LoopInfo::replace_with_new_ports(const ExpressionPort& actual_port, const s
     ports.insert(port_it, target_loop_ports.cbegin(), target_loop_ports.cend());
 }
 
+namespace {
+void sort_ports(const std::vector<size_t>& new_order, std::vector<LoopPort>& ports) {
+    OPENVINO_ASSERT(new_order.size() == ports.size(),
+                    "Failed to sort ports: `new_order` must contain new indexes for ALL ports");
+    OPENVINO_ASSERT(std::set<size_t>(new_order.cbegin(), new_order.cend()).size() == new_order.size(),
+                    "Failed to sort ports: new order must contain unique indexes");
+    std::vector<LoopPort> ordered_ports(ports.size());
+    for (size_t i = 0; i < ports.size(); ++i) {
+        ordered_ports[new_order[i]] = ports[i];
+    }
+    ports = std::move(ordered_ports);
+}
+}  // namespace
+
+void LoopInfo::sort_entry_ports(const std::vector<size_t>& new_order) {
+    sort_ports(new_order, m_entry_points);
+}
+
+void LoopInfo::sort_exit_ports(const std::vector<size_t>& new_order) {
+    sort_ports(new_order, m_exit_points);
+}
+
 void LoopInfo::init_from_ports(const std::function<void(const LoopPort&)>& initializer) const {
     std::for_each(m_entry_points.cbegin(), m_entry_points.cend(), initializer);
     std::for_each(m_exit_points.cbegin(), m_exit_points.cend(), initializer);

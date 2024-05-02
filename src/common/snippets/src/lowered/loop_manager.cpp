@@ -395,28 +395,31 @@ void LoopManager::expression_replacement(LinearIR::constExprIt new_expr_begin, L
 }
 
 void LoopManager::sort_loop_ports(LinearIR::constExprIt& loop_begin_pos, LinearIR::constExprIt& loop_end_pos, size_t loop_id) {
-    // The method sorts Loop ports again
     // [113536] Update this logic please, when expression numeration will be implemented
-    auto push = [](const std::vector<LoopPort>& ports, std::vector<LoopPort>& sorted_ports, const ExpressionPtr& expr) {
-        for (const auto& port : ports) {
-            if (port.expr_port->get_expr() == expr) {
-                sorted_ports.push_back(port);
+    const auto& loop_info = get_loop_info(loop_id);
+    const auto& loop_entries = loop_info->get_entry_points();
+    const auto& loop_exits = loop_info->get_exit_points();
+
+    std::vector<size_t> new_entry_order, new_exit_order;
+    new_entry_order.reserve(loop_entries.size());
+    new_exit_order.reserve(loop_exits.size());
+
+    auto update_order = [&](const std::vector<LoopPort>& ports, const ExpressionPtr& expr) {
+        for (size_t i = 0; i < ports.size(); ++i) {
+            if (ports[i].expr_port->get_expr() == expr) {
+                auto& order = ports[i].expr_port->get_type() == ExpressionPort::Input ? new_entry_order : new_exit_order;
+                order.push_back(i);
             }
         }
     };
-    auto loop_info = get_loop_info(loop_id);
-    const auto& loop_entries = loop_info->get_entry_points();
-    const auto& loop_exits = loop_info->get_exit_points();
-    std::vector<LoopPort> entries, exits;
-    entries.reserve(loop_entries.size());
-    exits.reserve(loop_exits.size());
+
     for (auto it = loop_begin_pos; it != loop_end_pos; ++it) {
         const auto& expr = *it;
-        push(loop_entries, entries, expr);
-        push(loop_exits, exits, expr);
+        update_order(loop_entries, expr);
+        update_order(loop_exits, expr);
     }
-    loop_info->set_entry_points(entries);
-    loop_info->set_exit_points(exits);
+    loop_info->sort_entry_ports(new_entry_order);
+    loop_info->sort_exit_ports(new_exit_order);
 }
 
 bool LoopManager::reassign_identifiers(const LinearIR& linear_ir, const std::map<size_t, size_t>& loop_id_map) {
