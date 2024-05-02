@@ -2283,12 +2283,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_permute_f_y_axes_tile,
 
 TEST_P(permute_f_y_axes_tile, combined) {
     auto p = GetParam();
-    run_test<cldnn::data_types::f32>(p.sizes, p.format_fsv, "permute_ref", {0, 2, 1, 3});
-    run_test<cldnn::data_types::f16>(p.sizes, p.format_fsv, "permute_ref", {0, 2, 1, 3});
-    run_test<cldnn::data_types::u8>(p.sizes, p.format_fsv, "permute_ref", {0, 2, 1, 3});
-    run_test<cldnn::data_types::i8>(p.sizes, p.format_fsv, "permute_ref", {0, 2, 1, 3});
-    run_test<cldnn::data_types::i32>(p.sizes, p.format_fsv, "permute_ref", {0, 2, 1, 3});
-    run_test<cldnn::data_types::i64>(p.sizes, p.format_fsv, "permute_ref", {0, 2, 1, 3});
+    run_test<cldnn::data_types::f32>(p.sizes, p.format_fsv, "permute_f_y_axes", {0, 2, 1, 3});
+    run_test<cldnn::data_types::f16>(p.sizes, p.format_fsv, "permute_f_y_axes", {0, 2, 1, 3});
+    run_test<cldnn::data_types::u8>(p.sizes, p.format_fsv, "permute_f_y_axes", {0, 2, 1, 3});
+    run_test<cldnn::data_types::i8>(p.sizes, p.format_fsv, "permute_f_y_axes", {0, 2, 1, 3});
+    run_test<cldnn::data_types::i32>(p.sizes, p.format_fsv, "permute_f_y_axes", {0, 2, 1, 3});
+    run_test<cldnn::data_types::i64>(p.sizes, p.format_fsv, "permute_f_y_axes", {0, 2, 1, 3});
 }
 
 struct TiledPerformancePermuteTest : TiledPermuteTest
