@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "openvino/core/runtime_attribute.hpp"
 #include "openvino/frontend/tensorflow_lite/visibility.hpp"
 
 namespace ov {

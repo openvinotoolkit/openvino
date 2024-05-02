@@ -8,6 +8,7 @@
 #include <map>
 #include <string>
 
+#include "openvino/core/runtime_attribute.hpp"
 #include "openvino/frontend/tensorflow_lite/visibility.hpp"
 
 namespace ov {
