@@ -103,17 +103,6 @@ public:
     virtual void replace_with_new_ports(const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports);
 
     /**
-     * @brief Sort ALL entry Loop Ports by `new_order`: `m_entry_points[new_order[i]] = m_entry_points[i]`
-     * @param new_order vector of new indexes
-     */
-    virtual void sort_entry_ports(const std::vector<size_t>& new_order);
-    /**
-     * @brief Sort ALL exit Loop Ports by `new_order`: `m_exit_points[new_order[i]] = m_exit_points[i]`
-     * @param new_order vector of new indexes
-     */
-    virtual void sort_exit_ports(const std::vector<size_t>& new_order);
-
-    /**
      * @brief Update the parameters of existing loop input ports
      * @param updater - function that updates ports
      */
@@ -252,6 +241,17 @@ public:
         m_handlers.register_pass<Type, T>(args...);
     }
 
+    /**
+     * @brief Sort ALL entry Loop Ports by `new_order`: `m_entry_points[new_order[i]] = m_entry_points[i]`
+     * @param new_order vector of new indexes
+     */
+    void sort_entry_ports(const std::vector<size_t>& new_order);
+    /**
+     * @brief Sort ALL exit Loop Ports by `new_order`: `m_exit_points[new_order[i]] = m_exit_points[i]`
+     * @param new_order vector of new indexes
+     */
+    void sort_exit_ports(const std::vector<size_t>& new_order);
+
 private:
     SpecificIterationHandlers m_handlers = {};
 };
@@ -314,17 +314,20 @@ public:
     const std::vector<int64_t>& get_data_sizes() const;
 
     /**
-     * @brief Sort ALL entry Loop Ports by `new_order`: `m_entry_points[new_order[i]] = m_entry_points[i]`
-     *        Note: sorts the correspondings data pointer shifts parameters: `m_ptr_increments` etc
-     * @param new_order vector of new indexes
+     * @brief Replace the current LoopPort `actual_port` with new `target_ports`
+     *        Attention: ExpandedLoopInfo supports only replace one port with one port!
+     * @param actual_port actual port
+     * @param target_ports vector with the single target port!
      */
-    void sort_entry_ports(const std::vector<size_t>& new_order) override;
+    void replace_with_new_ports(const LoopPort& actual_port, const std::vector<LoopPort>& target_ports) override;
     /**
-     * @brief Sort ALL exit Loop Ports by `new_order`: `m_exit_points[new_order[i]] = m_exit_points[i]`
-     *        Note: sorts the correspondings data pointer shifts parameters: `m_ptr_increments` etc
-     * @param new_order vector of new indexes
+     * @briefReplace the current LoopPort `actual_port` with new `target_ports`
+     *        Note: If there is no LoopPort with this ExpressionPort `actual_port`, does nothing
+     *        Attention: ExpandedLoopInfo supports only replace one port with one port!
+     * @param actual_port actual port
+     * @param target_ports vector with the single target port!
      */
-    void sort_exit_ports(const std::vector<size_t>& new_order) override;
+    void replace_with_new_ports(const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports) override;
 
 private:
     // ExpandedLoopInfo has LoopPorts to have opportunity to work with Loops

@@ -211,7 +211,7 @@ public:
      */
     void update_loop_ports(const ExpressionPtr& expr);
     /**
-     * @brief Sort Loop Ports by expression locations in Linear IR
+     * @brief Sort Unified Loop Ports by expression locations in Linear IR
      * @param loop_begin_pos the first expression iterator of the Loop
      * @param loop_end_pos the next iterator after the last expression
      * @param loop_id target Loop ID

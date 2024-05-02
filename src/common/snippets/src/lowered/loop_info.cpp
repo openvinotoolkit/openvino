@@ -107,29 +107,6 @@ void LoopInfo::replace_with_new_ports(const ExpressionPort& actual_port, const s
     ports.insert(port_it, target_loop_ports.cbegin(), target_loop_ports.cend());
 }
 
-namespace {
-template<typename T>
-void sort(const std::vector<size_t>& new_order, std::vector<T>& values) {
-    OPENVINO_ASSERT(new_order.size() == values.size(),
-                    "Failed to sort values: `new_order` must contain new indexes for ALL values");
-    OPENVINO_ASSERT(std::set<size_t>(new_order.cbegin(), new_order.cend()).size() == new_order.size(),
-                    "Failed to sort values: new order must contain unique indexes");
-    std::vector<T> ordered_values(values.size());
-    for (size_t i = 0; i < values.size(); ++i) {
-        ordered_values[new_order[i]] = values[i];
-    }
-    values = std::move(ordered_values);
-}
-}  // namespace
-
-void LoopInfo::sort_entry_ports(const std::vector<size_t>& new_order) {
-    sort(new_order, m_entry_points);
-}
-
-void LoopInfo::sort_exit_ports(const std::vector<size_t>& new_order) {
-    sort(new_order, m_exit_points);
-}
-
 void LoopInfo::init_from_ports(const std::function<void(const LoopPort&)>& initializer) const {
     std::for_each(m_entry_points.cbegin(), m_entry_points.cend(), initializer);
     std::for_each(m_exit_points.cbegin(), m_exit_points.cend(), initializer);
@@ -202,6 +179,29 @@ std::vector<int64_t> UnifiedLoopInfo::get_data_sizes() const {
 
 void UnifiedLoopInfo::set_handlers(SpecificIterationHandlers handlers) {
     m_handlers = std::move(handlers);
+}
+
+namespace {
+template<typename T>
+void order(const std::vector<size_t>& new_order, std::vector<T>& values) {
+    OPENVINO_ASSERT(new_order.size() == values.size(),
+                    "Failed to sort values: `new_order` must contain new indexes for ALL values");
+    OPENVINO_ASSERT(std::set<size_t>(new_order.cbegin(), new_order.cend()).size() == new_order.size(),
+                    "Failed to sort values: new order must contain unique indexes");
+    std::vector<T> ordered_values(values.size());
+    for (size_t i = 0; i < values.size(); ++i) {
+        ordered_values[new_order[i]] = values[i];
+    }
+    values = std::move(ordered_values);
+}
+}  // namespace
+
+void UnifiedLoopInfo::sort_entry_ports(const std::vector<size_t>& new_order) {
+    order(new_order, m_entry_points);
+}
+
+void UnifiedLoopInfo::sort_exit_ports(const std::vector<size_t>& new_order) {
+    order(new_order, m_exit_points);
 }
 
 ExpandedLoopInfo::ExpandedLoopInfo(size_t work_amount, size_t increment,
@@ -277,33 +277,14 @@ const std::vector<int64_t>& ExpandedLoopInfo::get_data_sizes() const {
     return m_data_sizes;
 }
 
-namespace {
-void sort_expanded_params(std::vector<int64_t>& params, const std::vector<size_t>& new_order, size_t start_idx, size_t end_idx) {
-    std::vector<int64_t> sub_params(params.cbegin() + start_idx, params.cbegin() + end_idx);
-    sort(new_order, sub_params);
-    std::copy(sub_params.cbegin(), sub_params.cend(), params.begin() + start_idx);
+void ExpandedLoopInfo::replace_with_new_ports(const LoopPort& actual_port, const std::vector<LoopPort>& target_ports) {
+    OPENVINO_ASSERT(target_ports.size() == 1, "ExpandedLoopInfo supports replace one port with only one port!");
+    LoopInfo::replace_with_new_ports(actual_port, target_ports);
 }
 
-}  // namespace
-
-void ExpandedLoopInfo::sort_entry_ports(const std::vector<size_t>& new_order) {
-    LoopInfo::sort_entry_ports(new_order);
-
-    size_t start_idx = 0;
-    size_t end_idx = get_entry_count();
-    sort_expanded_params(m_ptr_increments, new_order, start_idx, end_idx);
-    sort_expanded_params(m_finalization_offsets, new_order, start_idx, end_idx);
-    sort_expanded_params(m_data_sizes, new_order, start_idx, end_idx);
-}
-
-void ExpandedLoopInfo::sort_exit_ports(const std::vector<size_t>& new_order) {
-    LoopInfo::sort_exit_ports(new_order);
-
-    size_t start_idx = get_entry_count();
-    size_t end_idx = get_entry_count() + get_exit_count();
-    sort_expanded_params(m_ptr_increments, new_order, start_idx, end_idx);
-    sort_expanded_params(m_finalization_offsets, new_order, start_idx, end_idx);
-    sort_expanded_params(m_data_sizes, new_order, start_idx, end_idx);
+void ExpandedLoopInfo::replace_with_new_ports(const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports) {
+    OPENVINO_ASSERT(target_ports.size() == 1, "ExpandedLoopInfo supports replace one port with only one port!");
+    LoopInfo::replace_with_new_ports(actual_port, target_ports);
 }
 
 } // namespace lowered
