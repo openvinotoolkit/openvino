@@ -80,7 +80,7 @@ public:
      * --outputs_layouts="0:<output1Layout>"
      *
      * For older compiler versions, the name of the inputs/outputs may be used instead of their indices.
-     * 
+     *
      * Since the layout information is no longer an important part of the metadata values when using the 2.0 OV
      * API, the layout fields shall be filled with default values in order to assure the backward compatibility
      * with the driver.
@@ -94,53 +94,19 @@ private:
                              ze_graph_compiler_version_info_t compilerVersion) const;
     std::string serializeConfig(const Config& config, ze_graph_compiler_version_info_t& compilerVersion) const;
 
-    /**
-     * @brief Extracts the layout value or the state descriptor from the given Level Zero structure.
-     * @details Extracting the layout information is required only when using older driver versions which rely on
-     * this legacy attribute. Since this information is not found within the parameter/result nodes, we need to
-     * extract this value here.
-     *
-     * The state variables are also not found in the previously mentioned nodes, thus if the given Level Zero
-     * parameter corresponds to an input/output, we shall extract the layout value from it. Else it represents a
-     * state variable and the descriptor will be extracted and stored in an OpenVINO specific format.
-     * @param parameters Holds the already extracted input node descriptors. The transposed shape attribute of the
-     * corresponding entry may be updated according to the extracted layout value.
-     * @param results Holds the already extracted output node descriptors. The transposed shape attribute of the
-     * corresponding entry may be updated according to the extracted layout value.
-     * @param states The state descriptors shall be stored here in an OpenVINO specific format.
-     * @param stateNames The output location of the state variables' names in the order found within the compiled
-     * model.
-     * @param arg The Level Zero specific structure from which the layout value or state variable descriptor shall
-     * be extracted.
-     */
-    template <typename T>
-    void getLayoutOrStateDescriptor(std::vector<IODescriptor>& parameters,
-                                    std::vector<IODescriptor>& results,
-                                    std::vector<IODescriptor>& states,
-                                    std::vector<std::string>& stateNames,
-                                    const T& arg) const;
-
     template <typename T = TableExtension, typename std::enable_if_t<NotSupportOriginalShape(T), bool> = true>
     void getMetadata(TableExtension* graphDdiTableExt,
                      ze_graph_handle_t graphHandle,
                      uint32_t index,
-                     std::vector<std::string>& inputNames,
-                     std::vector<std::string>& outputNames,
-                     std::vector<std::string>& stateNames,
-                     std::vector<IODescriptor>& parameters,
-                     std::vector<IODescriptor>& results,
-                     std::vector<IODescriptor>& state) const;
+                     std::vector<IODescriptor>& inputs,
+                     std::vector<IODescriptor>& outputs) const;
 
     template <typename T = TableExtension, typename std::enable_if_t<!NotSupportOriginalShape(T), bool> = true>
     void getMetadata(TableExtension* graphDdiTableExt,
                      ze_graph_handle_t graphHandle,
                      uint32_t index,
-                     std::vector<std::string>& inputNames,
-                     std::vector<std::string>& outputNames,
-                     std::vector<std::string>& stateNames,
-                     std::vector<IODescriptor>& parameters,
-                     std::vector<IODescriptor>& results,
-                     std::vector<IODescriptor>& state) const;
+                     std::vector<IODescriptor>& inputs,
+                     std::vector<IODescriptor>& outputs) const;
 
     // ext version >= 1.5, support API (pfnCreate2, pfnQueryNetworkCreate2, pfnQueryContextMemory)
     template <typename T = TableExtension, typename std::enable_if_t<SupportAPIGraphQueryNetworkV2(T), bool> = true>
