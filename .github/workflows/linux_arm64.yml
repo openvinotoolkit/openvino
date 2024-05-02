@@ -304,7 +304,7 @@ jobs:
       image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
 
   Samples:
-    needs: [ Build, Smart_CI ]
+    needs: [ Build, Docker, Smart_CI ]
     if: fromJSON(needs.smart_ci.outputs.affected_components).samples
     uses: ./.github/workflows/job_samples_tests.yml
     with:
