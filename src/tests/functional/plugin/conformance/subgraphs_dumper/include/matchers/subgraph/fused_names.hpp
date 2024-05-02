@@ -19,7 +19,7 @@ public:
     std::vector<ExtractedPattern> extract(const std::shared_ptr<ov::Model> &modele) override;
 
 protected:
-    std::unordered_set<std::string> extract_compiled_model_names(const std::shared_ptr<ov::Model>& model);
+    std::unordered_set<std::string> extract_not_trasformed_node_names(const std::shared_ptr<ov::Model>& model);
     void set_target_device(const std::string& _device);
 
     std::string device;
