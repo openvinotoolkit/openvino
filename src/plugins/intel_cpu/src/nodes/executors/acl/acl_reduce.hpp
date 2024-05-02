@@ -37,7 +37,6 @@ private:
     arm_compute::Coordinates axesMean;
     arm_compute::Tensor srcTensor;
     arm_compute::Tensor dstTensor;
-    int axis;
 };
 
 class AclReduceExecutorBuilder : public ReduceExecutorBuilder {
