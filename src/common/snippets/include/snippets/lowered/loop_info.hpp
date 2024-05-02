@@ -103,34 +103,48 @@ public:
     virtual void replace_with_new_ports(const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports);
 
     /**
-     * @brief Update the parameters of existing loop input ports
-     * @param updater - function that updates ports
+     * @brief Iterates through entry loop ports and call `caller` for each of them
+     * @param caller - function that called for each entry loop port
      */
-    inline void update_entry_points(const std::function<void(LoopPort&)>& updater) {
-        std::for_each(m_entry_points.begin(), m_entry_points.end(), updater);
+    inline void iterate_through_entry_points(const std::function<void(LoopPort&)>& caller) {
+        std::for_each(m_entry_points.begin(), m_entry_points.end(), caller);
     }
     /**
-     * @brief Update the parameters of existing loop input ports
-     * @param updater - function that updates ports and need index of the port
+     * @brief Iterates through entry loop ports and call `caller` for each of them
+     * @param caller - function that called for each entry loop port
      */
-    inline void update_entry_points(const std::function<void(LoopPort&, size_t idx)>& updater) {
-        for (size_t i = 0; i < m_entry_points.size(); ++i)
-            updater(m_entry_points[i], i);
+    inline void iterate_through_entry_points(const std::function<void(const LoopPort&)>& caller) const {
+        std::for_each(m_entry_points.cbegin(), m_entry_points.cend(), caller);
     }
     /**
-     * @brief Update the parameters of existing loop output ports
-     * @param updater - function that updates ports
+     * @brief Iterates through exit loop ports and call `caller` for each of them
+     * @param caller - function that called for each exit loop port
      */
-    inline void update_exit_points(const std::function<void(LoopPort&)>& updater) {
-        std::for_each(m_exit_points.begin(), m_exit_points.end(), updater);
+    inline void iterate_through_exit_points(const std::function<void(LoopPort&)>& caller) {
+        std::for_each(m_exit_points.begin(), m_exit_points.end(), caller);
     }
     /**
-     * @brief Update the parameters of existing loop output ports
-     * @param updater - function that updates ports and need index of the port
+     * @brief Iterates through exit loop ports and call `caller` for each of them
+     * @param caller - function that called for each exit loop port
      */
-    inline void update_exit_points(const std::function<void(LoopPort&, size_t idx)>& updater) {
-        for (size_t i = 0; i < m_exit_points.size(); ++i)
-            updater(m_exit_points[i], i);
+    inline void iterate_through_exit_points(const std::function<void(const LoopPort&)>& caller) const {
+        std::for_each(m_exit_points.cbegin(), m_exit_points.cend(), caller);
+    }
+    /**
+     * @brief Iterates through entry and exit loop ports and call `caller` for each of them
+     * @param caller - function that called for each exit loop port
+     */
+    inline void iterate_through_points(const std::function<void(LoopPort&)>& caller) {
+        iterate_through_entry_points(caller);
+        iterate_through_exit_points(caller);
+    }
+    /**
+     * @brief Iterates through entry and exit loop ports and call `caller` for each of them
+     * @param caller - function that called for each exit loop port
+     */
+    inline void iterate_through_points(const std::function<void(const LoopPort&)>& caller) const {
+        iterate_through_entry_points(caller);
+        iterate_through_exit_points(caller);
     }
 
     // Note that get_type_info_static and get_type_info are needed to mimic OPENVINO_RTTI interface,
@@ -157,11 +171,6 @@ protected:
      * @return vector with new cloned loop ports
      */
     static std::vector<LoopPort> clone_loop_ports(const ExpressionMap& expr_map, const std::vector<LoopPort>& loop_ports);
-    /**
-     * @brief Applies provided initializer function to entry and exit points
-     * @param initializer function that can access to LoopPort
-     */
-    void init_from_ports(const std::function<void(const LoopPort&)>& initializer) const;
 
     size_t m_work_amount = 0;
     size_t m_increment = 0;

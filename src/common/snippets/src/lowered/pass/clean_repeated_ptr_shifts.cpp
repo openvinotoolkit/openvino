@@ -99,18 +99,16 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const LoopManagerPtr& loop
     }
     loop_end->set_is_incremented(new_is_incremented);
 
-    auto loop_port_updater = [&resetting_data_indexes, input_count](LoopPort& loop_port, size_t idx) {
-        auto idx_shift = loop_port.expr_port->get_type() == ExpressionPort::Output ? input_count : 0;
-        if (resetting_data_indexes.count(idx + idx_shift)) {
+    const auto loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_end->get_id());
+    size_t loop_port_idx = 0;
+    loop_info->iterate_through_points([&resetting_data_indexes, &loop_port_idx](LoopPort& loop_port) {
+        if (resetting_data_indexes.count(loop_port_idx)) {
             loop_port.ptr_increment = 0;
             loop_port.finalization_offset = 0;
             loop_port.is_incremented = false;
         }
-    };
-
-    const auto loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_end->get_id());
-    loop_info->update_entry_points(loop_port_updater);
-    loop_info->update_exit_points(loop_port_updater);
+        ++loop_port_idx;
+    });
 
     return true;
 }
