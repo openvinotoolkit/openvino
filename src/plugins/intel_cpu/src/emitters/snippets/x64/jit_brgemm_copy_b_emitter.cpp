@@ -149,13 +149,6 @@ void jit_brgemm_copy_b_emitter::emit_kernel_call(const matmul::jit_brgemm_matmul
         h->uni_vmovq(reg, xmm);
         if (bytes_offset) h->add(reg, bytes_offset);
     };
-#ifdef _WIN32
-    const auto push_value = [&](size_t value, size_t index) {
-        // Firstly we need to move integer to GPR. Then we can move value from GPR to stack
-        h->mov(abi_not_param1, value);
-        h->mov(h->qword[h->rsp + index * gpr_size], abi_not_param1);
-    };
-#endif
 
     internal_call_preamble();
     // save function address in gpr to pass in call instruction
@@ -185,15 +178,10 @@ void jit_brgemm_copy_b_emitter::emit_kernel_call(const matmul::jit_brgemm_matmul
     }
 
 #ifdef _WIN32
-    // Before function call we should allocate stack area for
-    //  - register parameters - ABI parameters (shadow space)
-    //  - stack parameters - remaining parameters
-    const size_t num_args_passed_on_stack = 6;  // count of function kernel_overload() parameters
-    size_t abi_param_count = sizeof(abi_param_regs) / sizeof(abi_param_regs[0]);
-
-    h->sub(h->rsp, num_args_passed_on_stack * gpr_size);
-    push_value(N, abi_param_count + 0);
-    push_value(K, abi_param_count + 1);
+    // Note: ABI requires that the remaining parameters (except the first for) are pushed to the stack in right-to-left order
+    //  Shadow space will be allocated inside internal_call_rsp_align()
+    h->push(K);
+    h->push(N);
 #else
     h->mov(abi_param5, N);
     h->mov(abi_param6, K);
@@ -204,7 +192,7 @@ void jit_brgemm_copy_b_emitter::emit_kernel_call(const matmul::jit_brgemm_matmul
     internal_call_rsp_restore();
 
 #ifdef _WIN32
-        h->add(h->rsp, gpr_size * num_args_passed_on_stack);
+        h->add(h->rsp, gpr_size * 2);
 #endif
     internal_call_postamble();
 }
