@@ -26,11 +26,9 @@ void InsertLoops::insertion(LinearIR& linear_ir, const LoopManagerPtr& loop_mana
 
     std::vector<PortConnectorPtr> loop_end_inputs;
     loop_end_inputs.reserve(loop_entries.size() + loop_exits.size());
-    auto init_inputs = [&loop_end_inputs](const LoopPort& port) {
+    loop_info->iterate_through_ports([&loop_end_inputs](const LoopPort& port) {
         loop_end_inputs.push_back(port.expr_port->get_port_connector_ptr());
-    };
-    std::for_each(loop_entries.cbegin(), loop_entries.cend(), init_inputs);
-    std::for_each(loop_exits.cbegin(), loop_exits.cend(), init_inputs);
+    });
 
     const auto is_incremented = loop_info->get_is_incremented();
     const auto io_data_sizes = loop_info->get_data_sizes();
@@ -63,14 +61,14 @@ void InsertLoops::insertion(LinearIR& linear_ir, const LoopManagerPtr& loop_mana
 }
 
 bool InsertLoops::is_loop_dynamic(const UnifiedLoopInfoPtr& loop_info) {
-    auto is_loop_port_dynamic = [](const LoopPort& port) {
-        return port.is_dynamic();
+    auto is_loop_port_dynamic = [](const UnifiedLoopInfo::LoopPortDesc& shifts) {
+        return utils::is_dynamic_value(shifts.ptr_increment) || utils::is_dynamic_value(shifts.finalization_offset);
     };
-    const auto& entry_points = loop_info->get_entry_points();
-    const auto& exit_points = loop_info->get_exit_points();
+    const auto& entry_shifts = loop_info->get_entry_port_descs();
+    const auto& exit_shifts = loop_info->get_exit_port_descs();
     return utils::is_dynamic_value(loop_info->get_work_amount()) ||
-           std::any_of(entry_points.cbegin(), entry_points.cend(), is_loop_port_dynamic) ||
-           std::any_of(exit_points.cbegin(), exit_points.cend(), is_loop_port_dynamic);
+           std::any_of(entry_shifts.cbegin(), entry_shifts.cend(), is_loop_port_dynamic) ||
+           std::any_of(exit_shifts.cbegin(), exit_shifts.cend(), is_loop_port_dynamic);
 }
 
 bool InsertLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {

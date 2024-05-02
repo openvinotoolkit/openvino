@@ -62,6 +62,11 @@ public:
      */
     size_t get_increment() const;
     /**
+     * @brief Returns vector with boolean values `is_incremented` of loop ports
+     * @return vector with boolean values
+     */
+    std::vector<bool> get_is_incremented() const;
+    /**
      * @brief Returns vector of loop input ports
      * @return m_entry_points
      */
@@ -103,48 +108,20 @@ public:
     virtual void replace_with_new_ports(const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports);
 
     /**
-     * @brief Iterates through entry loop ports and call `caller` for each of them
-     * @param caller - function that called for each entry loop port
+     * @brief Iterates through all loop ports and call `caller` for each of them
+     * @param caller - function that called for each loop port
      */
-    inline void iterate_through_entry_points(const std::function<void(LoopPort&)>& caller) {
+    inline void iterate_through_ports(const std::function<void(LoopPort&)>& caller) {
         std::for_each(m_entry_points.begin(), m_entry_points.end(), caller);
-    }
-    /**
-     * @brief Iterates through entry loop ports and call `caller` for each of them
-     * @param caller - function that called for each entry loop port
-     */
-    inline void iterate_through_entry_points(const std::function<void(const LoopPort&)>& caller) const {
-        std::for_each(m_entry_points.cbegin(), m_entry_points.cend(), caller);
-    }
-    /**
-     * @brief Iterates through exit loop ports and call `caller` for each of them
-     * @param caller - function that called for each exit loop port
-     */
-    inline void iterate_through_exit_points(const std::function<void(LoopPort&)>& caller) {
         std::for_each(m_exit_points.begin(), m_exit_points.end(), caller);
     }
     /**
-     * @brief Iterates through exit loop ports and call `caller` for each of them
-     * @param caller - function that called for each exit loop port
+     * @brief Iterates through all loop ports and call `caller` for each of them
+     * @param caller - function that called for each loop port
      */
-    inline void iterate_through_exit_points(const std::function<void(const LoopPort&)>& caller) const {
+    inline void iterate_through_ports(const std::function<void(const LoopPort&)>& caller) const {
+        std::for_each(m_entry_points.cbegin(), m_entry_points.cend(), caller);
         std::for_each(m_exit_points.cbegin(), m_exit_points.cend(), caller);
-    }
-    /**
-     * @brief Iterates through entry and exit loop ports and call `caller` for each of them
-     * @param caller - function that called for each exit loop port
-     */
-    inline void iterate_through_points(const std::function<void(LoopPort&)>& caller) {
-        iterate_through_entry_points(caller);
-        iterate_through_exit_points(caller);
-    }
-    /**
-     * @brief Iterates through entry and exit loop ports and call `caller` for each of them
-     * @param caller - function that called for each exit loop port
-     */
-    inline void iterate_through_points(const std::function<void(const LoopPort&)>& caller) const {
-        iterate_through_entry_points(caller);
-        iterate_through_exit_points(caller);
     }
 
     // Note that get_type_info_static and get_type_info are needed to mimic OPENVINO_RTTI interface,
@@ -171,6 +148,13 @@ protected:
      * @return vector with new cloned loop ports
      */
     static std::vector<LoopPort> clone_loop_ports(const ExpressionMap& expr_map, const std::vector<LoopPort>& loop_ports);
+    /**
+     * @brief Find LoopPort in entry and exit ports
+     * @param loop_port target port
+     * @return iterator of the corresponding collection
+     */
+    template<typename T>
+    std::vector<LoopPort>::iterator find_loop_port(const T& loop_port);
 
     size_t m_work_amount = 0;
     size_t m_increment = 0;
@@ -192,7 +176,20 @@ using LoopInfoPtr = std::shared_ptr<LoopInfo>;
 class UnifiedLoopInfo : public LoopInfo {
 public:
     OPENVINO_RTTI("UnifiedLoopInfo", "0", LoopInfo)
+    struct LoopPortDesc {
+        LoopPortDesc(int64_t inc = 0, int64_t fo = 0, int64_t ds = 0)
+            : ptr_increment(inc), finalization_offset(fo), data_size(ds) {}
+        int64_t ptr_increment = 0;
+        int64_t finalization_offset = 0;
+        int64_t data_size = 0;
+    };
+    using LoopPortInfo = std::pair<LoopPort, LoopPortDesc>;
+
     UnifiedLoopInfo() = default;
+    UnifiedLoopInfo(size_t work_amount, size_t increment,
+                    const std::vector<LoopPort>& entries, const std::vector<LoopPort>& exits,
+                    const std::vector<LoopPortDesc>& in_shifts, const std::vector<LoopPortDesc>& out_shifts,
+                    const SpecificIterationHandlers& handlers = SpecificIterationHandlers());
     UnifiedLoopInfo(size_t work_amount, size_t increment,
                     const std::vector<LoopPort>& entries, const std::vector<LoopPort>& exits,
                     const SpecificIterationHandlers& handlers = SpecificIterationHandlers());
@@ -213,11 +210,6 @@ public:
      */
     const SpecificIterationHandlers& get_handlers() const;
     /**
-     * @brief Returns vector with boolean values `is_incremented` of loop ports
-     * @return vector with boolean values
-     */
-    std::vector<bool> get_is_incremented() const;
-    /**
      * @brief Returns vector with pointer increments of loop ports
      * @return vector with ptr increments
      */
@@ -232,6 +224,26 @@ public:
      * @return vector with data sizes
      */
     std::vector<int64_t> get_data_sizes() const;
+    /**
+     * @brief Returns vector with data pointer shift params of entry loop ports
+     * @return vector with params
+     */
+    const std::vector<LoopPortDesc>& get_entry_port_descs() const;
+    /**
+     * @brief Returns vector with data pointer shift params of exit loop ports
+     * @return vector with params
+     */
+    const std::vector<LoopPortDesc>& get_exit_port_descs() const;
+    /**
+     * @brief Returns vector with full LoopPort info [Port and descriptor] of entry loop ports
+     * @return vector with port information
+     */
+    std::vector<LoopPortInfo> get_entry_ports_info() const;
+    /**
+     * @brief Returns vector with full LoopPort info [Port and descriptor] of entry loop ports
+     * @return vector with port information
+     */
+    std::vector<LoopPortInfo> get_exit_ports_info() const;
 
     /**
      * @brief Set m_handlers value
@@ -261,8 +273,68 @@ public:
      */
     void sort_exit_ports(const std::vector<size_t>& new_order);
 
+    /**
+     * @brief Replace the current LoopPort `actual_port` with new `target_ports`
+     * @param actual_port actual port
+     * @param target_ports new ports. Ther order of ports is important. Can contains `actual_port`
+     */
+    void replace_with_new_ports(const LoopPort& actual_port, const std::vector<LoopPort>& target_ports) override;
+    /**
+     * @brief Replace the current LoopPort that contains ExpressionPort `actual_port` with new `target_ports`
+     *        Note: If there is no LoopPort with this ExpressionPort `actual_port`, does nothing
+     * @param actual_port actual port
+     * @param target_ports new ports. Ther order of ports is important. Can contains `actual_port`
+     */
+    void replace_with_new_ports(const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports) override;
+
+    /**
+     * @brief Iterates through all LoopPortDesc and call `caller` for each of them
+     * @param caller - function that called for each LoopPortDesc
+     */
+    inline void iterate_through_port_descs(const std::function<void(LoopPortDesc&)>& caller) {
+        std::for_each(m_entry_port_descs.begin(), m_entry_port_descs.end(), caller);
+        std::for_each(m_exit_port_descs.begin(), m_exit_port_descs.end(), caller);
+    }
+    /**
+     * @brief Iterates through all loop ports and call `caller` for each of them
+     * @param caller - function that called for each loop port
+     */
+    inline void iterate_through_port_descs(const std::function<void(const LoopPortDesc&)>& caller) const {
+        std::for_each(m_entry_port_descs.cbegin(), m_entry_port_descs.cend(), caller);
+        std::for_each(m_exit_port_descs.cbegin(), m_exit_port_descs.cend(), caller);
+    }
+    /**
+     * @brief Iterates through all pairs <LoopPort, LoopPortDesc> and call `caller` for each of them
+     * @param caller - function that called for each pair
+     */
+    inline void iterate_through_port_info(const std::function<void(LoopPort&, LoopPortDesc&)>& caller) {
+        OPENVINO_ASSERT(m_entry_points.size() == m_entry_port_descs.size(), "Incompatible count of entry point and descs");
+        OPENVINO_ASSERT(m_exit_points.size() == m_exit_port_descs.size(), "Incompatible count of exit point and descs");
+        for (size_t i = 0; i < get_entry_count(); ++i)
+            caller(m_entry_points[i], m_entry_port_descs[i]);
+        for (size_t i = 0; i < get_exit_count(); ++i)
+            caller(m_exit_points[i], m_exit_port_descs[i]);
+    }
+    /**
+     * @brief Iterates through all pairs <LoopPort, LoopPortDesc> and call `caller` for each of them
+     * @param caller - function that called for each pair
+     */
+    inline void iterate_through_port_info(const std::function<void(const LoopPort&, const LoopPortDesc&)>& caller) const {
+        OPENVINO_ASSERT(m_entry_points.size() == m_entry_port_descs.size(), "Incompatible count of entry point and descs");
+        OPENVINO_ASSERT(m_exit_points.size() == m_exit_port_descs.size(), "Incompatible count of exit point and descs");
+        for (size_t i = 0; i < get_entry_count(); ++i)
+            caller(m_entry_points[i], m_entry_port_descs[i]);
+        for (size_t i = 0; i < get_exit_count(); ++i)
+            caller(m_exit_points[i], m_exit_port_descs[i]);
+    }
+
 private:
+    template<typename T>
+    void replace_with_new_port_descs(const T& actual_port, size_t actual_port_idx, const std::vector<T>& target_ports, bool is_entry);
+
     SpecificIterationHandlers m_handlers = {};
+    std::vector<LoopPortDesc> m_entry_port_descs = {};
+    std::vector<LoopPortDesc> m_exit_port_descs = {};
 };
 using UnifiedLoopInfoPtr = std::shared_ptr<UnifiedLoopInfo>;
 
@@ -276,9 +348,6 @@ class ExpandedLoopInfo : public LoopInfo {
 public:
     OPENVINO_RTTI("ExpandedLoopInfo", "0", LoopInfo)
     ExpandedLoopInfo() = default;
-    ExpandedLoopInfo(size_t work_amount, size_t increment,
-                     const std::vector<LoopPort>& entries, const std::vector<LoopPort>& exits,
-                     SpecificLoopIterType type, std::shared_ptr<UnifiedLoopInfo> original_loop_info);
     ExpandedLoopInfo(size_t work_amount, size_t increment,
                      const std::vector<LoopPort>& entries, const std::vector<LoopPort>& exits,
                      std::vector<int64_t> ptr_increments, std::vector<int64_t> final_offsets, std::vector<int64_t> data_sizes,
@@ -305,7 +374,6 @@ public:
      * @return pass pipeline
      */
     const pass::PassPipeline& get_handler_passes() const;
-
     /**
      * @brief Returns dense vector with pointer increments
      * @return const ref of `m_ptr_increments`
@@ -353,6 +421,16 @@ private:
     std::shared_ptr<UnifiedLoopInfo> m_unified_loop_info = {};
 };
 using ExpandedLoopInfoPtr = std::shared_ptr<ExpandedLoopInfo>;
+
+template<typename T>
+void UnifiedLoopInfo::replace_with_new_port_descs(const T& actual_port, size_t actual_port_idx, const std::vector<T>& target_ports, bool is_entry) {
+    auto& data_ptr_shifts = is_entry ? m_entry_port_descs : m_exit_port_descs;
+    // Create LoopPortDesc for `target_ports`
+    std::vector<LoopPortDesc> target_shifts(target_ports.size(), data_ptr_shifts[actual_port_idx]);
+    // Update LoopPortDesc
+    auto shift_it = data_ptr_shifts.erase(data_ptr_shifts.begin() + actual_port_idx);
+    data_ptr_shifts.insert(shift_it, target_shifts.cbegin(), target_shifts.cend());
+}
 
 } // namespace lowered
 } // namespace snippets

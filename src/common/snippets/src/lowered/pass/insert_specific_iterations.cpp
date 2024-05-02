@@ -148,6 +148,9 @@ bool InsertSpecificIterations::decompose(LinearIR& linear_ir, LinearIR::constExp
             auto decomposed_loop_begin_it = begin, decomposed_loop_end_it = end;
             auto decomposed_loop_entry_ports = unified_loop_info->get_entry_points();
             auto decomposed_loop_exit_ports = unified_loop_info->get_exit_points();
+            auto decomposed_ptr_increments = unified_loop_info->get_ptr_increments();
+            auto decomposed_finalization_offsets = unified_loop_info->get_finalization_offsets();
+            auto decomposed_data_sizes = unified_loop_info->get_data_sizes();
             // Need to copy body if there are other specific sup-loops
             // Otherwise we should update the current body
             if (remaining_work_amount > 0) {
@@ -158,17 +161,17 @@ bool InsertSpecificIterations::decompose(LinearIR& linear_ir, LinearIR::constExp
 
                 // Only latest loop iterations must have summarized finalization offsets!
                 // Since we inserted copy before the latest iterations, these copies should have reseted offsets
-                auto nullify_finalization_offset = [](LoopPort& port) {
-                    if (!utils::is_dynamic_value(port.finalization_offset))
-                        port.finalization_offset = 0;
+                auto nullify_finalization_offset = [](int64_t& offset) {
+                    if (!utils::is_dynamic_value(offset))
+                        offset = 0;
                 };
-                std::for_each(decomposed_loop_entry_ports.begin(), decomposed_loop_entry_ports.end(), nullify_finalization_offset);
-                std::for_each(decomposed_loop_exit_ports.begin(), decomposed_loop_exit_ports.end(), nullify_finalization_offset);
+                std::for_each(decomposed_finalization_offsets.begin(), decomposed_finalization_offsets.end(), nullify_finalization_offset);
             }
 
             const auto decomposed_loop_info = std::make_shared<ExpandedLoopInfo>(work_amount, increment,
-                                                                                   decomposed_loop_entry_ports, decomposed_loop_exit_ports,
-                                                                                   iter_type, unified_loop_info);
+                                                                                 decomposed_loop_entry_ports, decomposed_loop_exit_ports,
+                                                                                 decomposed_ptr_increments, decomposed_finalization_offsets,
+                                                                                 decomposed_data_sizes, iter_type, unified_loop_info);
             init_decomposed_loop(linear_ir, decomposed_loop_begin_it, decomposed_loop_end_it, decomposed_loop_info, loop_id, decomposed_loop_end);
 
             decomposed = true;

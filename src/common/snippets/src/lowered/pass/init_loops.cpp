@@ -72,10 +72,9 @@ inline void init_is_incremented(LoopPort& port, size_t loop_id) {
     }
 }
 
-inline void init_ptr_increment(LoopPort& loop_port, size_t work_amount) {
-    loop_port.ptr_increment = 0;
+inline int64_t get_ptr_increment(const LoopPort& loop_port, size_t work_amount) {
     if (!loop_port.is_incremented)
-        return;
+        return 0;
 
     const auto& expr_port = loop_port.expr_port;
     const auto& layout = expr_port->get_descriptor_ptr()->get_layout();
@@ -90,24 +89,24 @@ inline void init_ptr_increment(LoopPort& loop_port, size_t work_amount) {
     }
     // When we cannot say about broadcasting by last dim
     if (dim == shape.size() - 1 && utils::is_dynamic_value(shape.back())) {
-        loop_port.ptr_increment = utils::get_dynamic_value<int64_t>();
+        return utils::get_dynamic_value<int64_t>();
     } else if (!(shape[dim] == 1 && work_amount != 1)) {
-        loop_port.ptr_increment = get_stride(dim, shape);
+        return get_stride(dim, shape);
     }
+    return 0;
 }
 
-inline void init_finalization_offset(LoopPort& loop_port, size_t work_amount) {
-    loop_port.finalization_offset =
-        utils::is_dynamic_value(work_amount) || utils::is_dynamic_value(loop_port.ptr_increment) ? utils::get_dynamic_value<int64_t>()
-                                                                                                 : -1 * loop_port.ptr_increment * work_amount;
+inline int64_t get_finalization_offset(size_t work_amount, uint64_t ptr_increment) {
+    return utils::is_dynamic_value(work_amount) || utils::is_dynamic_value(ptr_increment) ? utils::get_dynamic_value<int64_t>()
+                                                                                          : -1 * ptr_increment * work_amount;
 }
 
-inline void init_data_size(LoopPort& loop_port) {
+inline int64_t get_data_size(const LoopPort& loop_port) {
     const auto& expr_port = loop_port.expr_port;
     if (expr_port->get_type() == ExpressionPort::Input) {
-        loop_port.data_size = static_cast<int64_t>(expr_port->get_expr()->get_node()->get_input_element_type(expr_port->get_index()).size());
+        return static_cast<int64_t>(expr_port->get_expr()->get_node()->get_input_element_type(expr_port->get_index()).size());
     } else if (expr_port->get_type() == ExpressionPort::Output) {
-        loop_port.data_size = static_cast<int64_t>(expr_port->get_expr()->get_node()->get_output_element_type(expr_port->get_index()).size());
+        return static_cast<int64_t>(expr_port->get_expr()->get_node()->get_output_element_type(expr_port->get_index()).size());
     } else {
         OPENVINO_THROW("Unsupported expression port type!");
     }
@@ -142,23 +141,21 @@ void InitLoops::init_loop_info(const UnifiedLoopInfoPtr& loop_info, const size_t
 
     const auto work_amount = loop_info->get_work_amount();
 
-    auto init_runtime_parameters = [&work_amount](LoopPort& loop_port) {
-        init_ptr_increment(loop_port, work_amount);
-        init_finalization_offset(loop_port, work_amount);
+    auto init_runtime_parameters = [&work_amount](LoopPort& loop_port, UnifiedLoopInfo::LoopPortDesc& ptr_shifts_params) {
+        ptr_shifts_params.ptr_increment = get_ptr_increment(loop_port, work_amount);
+        ptr_shifts_params.finalization_offset = get_finalization_offset(work_amount, ptr_shifts_params.ptr_increment);
     };
 
-    auto init_all_parameters = [loop_id, &init_runtime_parameters](LoopPort& loop_port) {
+    auto init_all_parameters = [loop_id, &init_runtime_parameters](LoopPort& loop_port, UnifiedLoopInfo::LoopPortDesc& ptr_shifts_params) {
         init_is_incremented(loop_port, loop_id);
-        init_data_size(loop_port);
-        init_runtime_parameters(loop_port);
+        ptr_shifts_params.data_size = get_data_size(loop_port);
+        init_runtime_parameters(loop_port, ptr_shifts_params);
     };
 
     if (only_runtime_args) {
-        loop_info->iterate_through_entry_points(init_runtime_parameters);
-        loop_info->iterate_through_exit_points(init_runtime_parameters);
+        loop_info->iterate_through_port_info(init_runtime_parameters);
     } else {
-        loop_info->iterate_through_entry_points(init_all_parameters);
-        loop_info->iterate_through_exit_points(init_all_parameters);
+        loop_info->iterate_through_port_info(init_all_parameters);
     }
 }
 
