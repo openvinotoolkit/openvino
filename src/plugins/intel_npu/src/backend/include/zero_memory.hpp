@@ -88,16 +88,16 @@ private:
     static const std::size_t _alignment = STANDARD_PAGE_SIZE;
 };
 
-// For graph arguments (inputs and outputs) memory should be located on a host side. For discrete HW
-// generation the arguments has to be moved to device side to make it accessible.
-// MemoryManagementUnit allow to keeps device allocations in case of discrete HW.
-// Usage: we should append graph arguments with corresponding names with `appendArgument` call
-// to prepare size statistics and lookup table. To commit memory allocation we should call `allocate`
+// Graph arguments (inputs and outputs) need to be allocated in the host memory.
+// For discrete platforms, graph arguments need to be copied into the device memory.
+// MemoryMangementUnit is used to allocate memory in the device memory.
+// Usage: we should append graph arguments with corresponding names with `appendArgument` call to prepare size
+// statistics and lookup table. To commit memory allocation we should call `allocate`
 struct MemoryManagementUnit {
     MemoryManagementUnit() = default;
 
     void appendArgument(const std::string& name, const std::size_t argSize);
-    /* Allocate Device memories */
+
     void allocate(const ze_device_handle_t device_handle, const ze_context_handle_t context);
 
     std::size_t getSize() const;

@@ -21,7 +21,7 @@ layout gather_elements_inst::calc_output_layout(gather_elements_node const& node
     auto input_layout = input_layout_origin.get_tensor().sizes(input_layout_origin.format);
     auto indices_layout = indices_layout_origin.get_tensor().sizes(indices_layout_origin.format);
 
-    auto output_type = (impl_param.has_fused_primitives()) ? impl_param.get_fused_output_layout().data_type :
+    auto output_type = (impl_param.has_fused_primitives()) ? impl_param.get_output_element_type() :
                        input_layout_origin.data_type;
     auto output_shape = op->output_shape;
     auto output_format = op->output_format;
@@ -36,7 +36,7 @@ std::vector<layout> gather_elements_inst::calc_output_layouts(gather_elements_no
 
     auto output_type = input_layout.data_type;
     if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
     }
 
     ov::op::v6::GatherElements op;
