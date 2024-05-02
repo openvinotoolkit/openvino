@@ -133,9 +133,9 @@ ov::SoPtr<ov::ITensor> SyncInferRequest::get_tensor(const ov::Output<const ov::N
     OPENVINO_ASSERT(foundPort.found(), "Cannot find tensor for port ", port);
 
     if (foundPort.is_input()) {
-        return _inputTensors.at(foundPort.idx)
+        return _inputTensors.at(foundPort.idx);
     }
-    return _outputTensors.at(foundPort.idx)
+    return _outputTensors.at(foundPort.idx);
 }
 
 void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
@@ -215,9 +215,26 @@ void SyncInferRequest::check_tensors() const {
     }
 }
 
+// void SyncInferRequest::attach_state_input_to_state_outputs_buffers(const std::vector<IODescriptor>& inputDescriptors)
+// {
+//     std::unordered_map<std::string, ov::SoPtr<ov::IVariableState>> stateNameToTensor;
+//     for (const ov::SoPtr<ov::IVariableState>& variableState : _variableStates) {
+//         stateNameToTensor.emplace(variableState->get_name(), variableState->get_state());
+//     }
+
+//     for (const auto& inputDescriptor : inputDescriptors) {
+//         if (inputDescriptor.isStateInput) {
+//         }
+//     }
+// }
+
 void SyncInferRequest::allocate_tensor(const IODescriptor& descriptor,
                                        const bool isInput,
                                        const ov::Allocator& allocator) {
+    if (descriptor.isStateInput) {
+        return;
+    }
+
     std::shared_ptr<ov::ITensor> tensor;
 
     check_network_precision(descriptor.precision);

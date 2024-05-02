@@ -34,20 +34,14 @@ struct IODescriptor {
     std::string nameFromCompiler;
     ov::element::Type_t precision;
     ov::PartialShape shapeFromCompiler;
-    bool isStateInput;
-    bool isStateOutput;
-    bool isShapeTensor;
+    bool isStateInput = false;
+    bool isStateOutput = false;
+    bool isShapeTensor = false;
 
     std::string nodeFriendlyName;
     std::unordered_set<std::string> outputTensorNames;
     ov::PartialShape shapeFromIRModel;
 };
-
-/**
- * @brief A helper map to represent descriptions for inputs and outputs
- * of a network
- */
-using std::vector<IODescriptor> = std::vector<IODescriptor>;
 
 struct NetworkMetadata final {
     std::string name;

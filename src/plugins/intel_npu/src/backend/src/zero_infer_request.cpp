@@ -17,6 +17,8 @@ using namespace intel_npu;
 namespace {
 
 constexpr std::size_t BATCH_AXIS = 0;
+constexpr bool IS_INPUT = true;
+constexpr bool IS_OUTPUT = false;
 
 /**
  * @brief Checks that the metadata of the provided descriptor corresponds to the values registered in the Level Zero
@@ -35,7 +37,7 @@ void checkLevelZeroAttributesMatch(const IODescriptor& nodeDescriptor,
         OPENVINO_THROW("Precision mismatch for parameter " + name);
     }
 
-    const std::vector<size_t>& ovDimensions = nodeDescriptor.transposedShape.get_max_shape();
+    const std::vector<size_t>& ovDimensions = nodeDescriptor.shapeFromCompiler.get_max_shape();
 
     if (ovDimensions.size() > ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE) {
         OPENVINO_THROW(
@@ -43,101 +45,75 @@ void checkLevelZeroAttributesMatch(const IODescriptor& nodeDescriptor,
             "Given: " + std::to_string(ovDimensions.size()));
     }
 
+    for (size_t index = 0; index < ovDimensions.size(); ++index) {
+        if (!nodeDescriptor.shapeFromCompiler.is_dynamic() && ovDimensions[index] != zeDescriptor.info.dims[index]) {
+            OPENVINO_THROW("Shape mismatch for parameter " + name);
+        }
+    }
+
     for (size_t index = ovDimensions.size(); index < ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE; ++index) {
         if (zeDescriptor.info.dims[index] != 0 && zeDescriptor.info.dims[index] != 1) {
             OPENVINO_THROW("Shape mismatch for parameter " + name);
         }
     }
-
-    for (size_t index = 1; index < ovDimensions.size(); ++index) {
-        if (ovDimensions[index] != zeDescriptor.info.dims[index] && !nodeDescriptor.transposedShape.is_dynamic()) {
-            OPENVINO_THROW("Shape mismatch for parameter " + name);
-        }
-    }
-}
-
-std::optional<size_t> getBatchSizeForNode(const IODescriptor& nodeDescriptor,
-                                          const ZeroExecutor::ArgumentDescriptor& zeDescriptor) {
-    Logger logger("GetBatchSizeForNode", Logger::global().level());
-
-    if (nodeDescriptor.originalShape.rank().get_length() == 0) {
-        logger.info("Networks with empty shapes are not supported when batching is handled by the plugin");
-        return std::nullopt;
-    }
-
-    if (nodeDescriptor.originalShape.is_dynamic()) {
-        logger.info("Dynamic networks are not supported when batching is handled by the plugin");
-        return std::nullopt;
-    }
-
-    const std::vector<size_t>& ovDimensions = nodeDescriptor.originalShape.get_shape();
-
-    if (ovDimensions[BATCH_AXIS] == zeDescriptor.info.dims[BATCH_AXIS] &&
-        ovDimensions[BATCH_AXIS] != DEFAULT_BATCH_SIZE) {
-        logger.info("Batching on the plugin is not used, batching is handled by the compiler");
-        return std::nullopt;
-    }
-
-    if (zeDescriptor.info.dims[BATCH_AXIS] == DEFAULT_BATCH_SIZE) {
-        return ovDimensions[BATCH_AXIS];
-    }
-
-    return DEFAULT_BATCH_SIZE;
 }
 
 /**
- * @brief Get the batch size to be handled on the plugin.
- * @details Analyze the shape from the compiled model with the shape from the originalShape and get the originalShape if
- * it is different.
- * @param metadata A map to represent descriptions for inputs and outputs of a network.
- * @param executorInputDescriptors A map to represent Level zero inputs descriptors.
- * @param executorOutputDescriptors A map to represent Level zero outputs descriptors.
+ * @brief Determines if batching can be addressed inside the plugin. In the positive case, the batch size used by the
+ * model will also be deduced and stored within the network metadata.
+ * @details Batching can be handled by the plugin only if:
+ *  - The batch axis is the first axis.
+ *  - The batch size viewed by the compiler takes the default value of 1.
+ *  - The batch size found in the IR model corresponds for all inputs/outputs and takes a value different than the
+ * default one. If any of the previous conditions is not fulfilled, the functon will not update the
+ * "canUsePluginBatching" and "batchSize" attributes found inside the network metadata object and thus no custom
+ * algorithm will be applied inside the plugin in order to address batching.
+ *
+ * @param metadata The metadata used by the compiled model. The parameter will be used for extracting the shape used
+ * inside the compiler. If the function determines batching can be handled by the plugin, the flag as well as the batch
+ * size attributes found inside this object will be updated.
  */
-
-std::optional<size_t> getBatchSize(
-    const NetworkMetadata& metadata,
-    const std::unordered_map<std::string, ZeroExecutor::ArgumentDescriptor>& executorInputDescriptors,
-    const std::unordered_map<std::string, ZeroExecutor::ArgumentDescriptor>& executorOutputDescriptors) {
-    std::set<size_t> batch_size;
-
+size_t getBatchSize(const NetworkMetadata& metadata) {
     Logger logger("getBatchSize", Logger::global().level());
 
-    for (const std::string& inputName : metadata.inputNames) {
-        auto batchSizeForNode =
-            getBatchSizeForNode(metadata.parameters.at(inputName), executorInputDescriptors.at(inputName));
+    const ov::PartialShape& firstOutputShape = metadata.outputs.at(0).shapeFromIRModel;
+    if (firstOutputShape.is_dynamic() || firstOutputShape.rank().get_length() == 0) {
+        logger.warning("");  // TODO
+        return DEFAULT_BATCH_SIZE;
+    }
 
-        if (batchSizeForNode.has_value()) {
-            batch_size.insert(*batchSizeForNode);
-        } else {
-            return std::nullopt;
+    const size_t candidateBatchSize = firstOutputShape[0].get_length();
+    if (candidateBatchSize == 0 || candidateBatchSize == DEFAULT_BATCH_SIZE) {
+        return DEFAULT_BATCH_SIZE;
+    }
+
+    auto checkDescriptorsUseCandidateBatchSize = [candidateBatchSize](const std::vector<IODescriptor>& descriptors) {
+        for (const IODescriptor& descriptor : descriptors) {
+            const ov::PartialShape& shapeFromCompiler = descriptor.shapeFromCompiler;
+            const ov::PartialShape& shapeFromIRModel = descriptor.shapeFromCompiler;
+
+            if (shapeFromCompiler.is_dynamic() || shapeFromCompiler.rank().get_length() == 0 ||
+                *shapeFromCompiler.begin() != DEFAULT_BATCH_SIZE) {
+                return false;
+            }
+
+            if (!descriptor.isStateInput && !descriptor.isShapeTensor) {
+                if (shapeFromIRModel.is_dynamic() || shapeFromIRModel.rank().get_length() == 0 ||
+                    *shapeFromIRModel.begin() != candidateBatchSize) {
+                    return false;
+                }
+            }
         }
+
+        return true;
+    };
+
+    if (!checkDescriptorsUseCandidateBatchSize(metadata.inputs) ||
+        !checkDescriptorsUseCandidateBatchSize(metadata.outputs)) {
+        return DEFAULT_BATCH_SIZE;
     }
 
-    for (const std::string& outputName : metadata.outputNames) {
-        if (!executorOutputDescriptors.count(outputName)) {
-            OPENVINO_THROW("Invalid graph output descriptor key: " + outputName);
-        }
-        auto batchSizeForNode =
-            getBatchSizeForNode(metadata.results.at(outputName), executorOutputDescriptors.at(outputName));
-
-        if (batchSizeForNode.has_value()) {
-            batch_size.insert(*batchSizeForNode);
-        } else {
-            return std::nullopt;
-        }
-    }
-
-    if (batch_size.size() != 1) {
-        logger.info("Batching works only when we have the same batch size for all tensors!");
-        return std::nullopt;
-    }
-
-    auto it = batch_size.begin();
-    if (*it) {
-        return *it;
-    }
-
-    return std::nullopt;
+    return candidateBatchSize;
 }
 
 }  // namespace
@@ -157,10 +133,9 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
                       _executor->getInitStructs()->getDevice(),
                       _executor->getInitStructs()->getProfilingDdiTable()) {
     _logger.debug("ZeroInferRequest::ZeroInferRequest - SyncInferRequest");
-    const std::unordered_map<std::string, ZeroExecutor::ArgumentDescriptor>& executorInputDescriptors =
-        _executor->inputs_desc_map();
-    const std::unordered_map<std::string, ZeroExecutor::ArgumentDescriptor>& executorOutputDescriptors =
-        _executor->outputs_desc_map();
+    const std::vector<ZeroExecutor::ArgumentDescriptor>& executorInputDescriptors = _executor->get_input_descriptors();
+    const std::vector<ZeroExecutor::ArgumentDescriptor>& executorOutputDescriptors =
+        _executor->get_output_descriptors();
 
     auto proftype = config.get<PROFILING_TYPE>();
     if (proftype == ov::intel_npu::ProfilingType::INFER) {
@@ -181,30 +156,17 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
     auto allocator = zeroMemory::HostMemAllocator(backendPtr);
 
-    _logger.debug("ZeroInferRequest::ZeroInferRequest - performing I/O buffer allocation using Level Zero API");
-    for (const std::string& inputName : _metadata.inputNames) {
-        if (!executorInputDescriptors.count(inputName)) {
-            OPENVINO_THROW("Invalid graph input descriptor key: " + inputName);
-        }
-    }
-
-    for (const std::string& outputName : _metadata.outputNames) {
-        if (!executorOutputDescriptors.count(outputName)) {
-            OPENVINO_THROW("Invalid graph output descriptor key: " + outputName);
-        }
-    }
-
     if (config.get<BATCH_MODE>() != ov::intel_npu::BatchMode::COMPILER) {
-        auto batchSize = getBatchSize(_metadata, executorInputDescriptors, executorOutputDescriptors);
-
-        if (batchSize.has_value()) {
-            _batchSize = *batchSize;
-        }
+        _batchSize = getBatchSize(_metadata);
     }
 
-    for (const std::string& inputName : _metadata.inputNames) {
-        IODescriptor& parameterDescriptor = _metadata.parameters.at(inputName);
-        checkLevelZeroAttributesMatch(parameterDescriptor, executorInputDescriptors.at(inputName), inputName);
+    _logger.debug("ZeroInferRequest::ZeroInferRequest - checking level zero attributes and allocating tensors");
+
+    size_t inputIndex = 0;
+    for (const IODescriptor& inputDescriptor : _metadata.inputs) {
+        checkLevelZeroAttributesMatch(inputDescriptor,
+                                      executorInputDescriptors.at(inputIndex),
+                                      inputDescriptor.nameFromCompiler);  // TODO move earlier
 
         ov::Allocator inputAllocator;
         if (properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED) {
@@ -213,78 +175,20 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
             inputAllocator = zeroMemory::HostMemAllocator(backendPtr);
         };
 
-        // When batching is handled by the plugin we need to modify transposed shape with the original batch size since
-        // it will be forced to 1 at the compilation time
-        if (_batchSize > DEFAULT_BATCH_SIZE) {
-            parameterDescriptor.transposedShape[BATCH_AXIS] = _batchSize;
-        }
-
         // The I/O buffers already allocated using the Level Zero API are being reused here
-        allocate_tensor(inputName, parameterDescriptor, TensorType::InputOrOutput, inputAllocator);
+        allocate_tensor(inputDescriptor, IS_INPUT, inputAllocator);
 
-        if (contains(_metadata.shapeNames, inputName)) {
-            const std::string shapeBufferName = SHAPE_TENSOR_PREFIX + inputName;
-            const IODescriptor& shapeDescriptor = _metadata.shapes.at(inputName);
-
-            checkLevelZeroAttributesMatch(shapeDescriptor,
-                                          executorInputDescriptors.at(shapeBufferName),
-                                          shapeBufferName);
-
-            allocate_tensor(inputName, shapeDescriptor, TensorType::Shape, inputAllocator);
-        }
+        ++inputIndex;
     }
 
-    _logger.debug("ZeroInferRequest::ZeroInferRequest - checking level zero attributes and allocate tensor");
-    for (const std::string& outputName : _metadata.outputNames) {
-        IODescriptor& resultDescriptor = _metadata.results.at(outputName);
-        checkLevelZeroAttributesMatch(resultDescriptor, executorOutputDescriptors.at(outputName), outputName);
+    size_t outputIndex = 0;
+    for (const IODescriptor& outputDescriptor : _metadata.outputs) {
+        checkLevelZeroAttributesMatch(outputDescriptor,
+                                      executorOutputDescriptors.at(outputIndex),
+                                      outputDescriptor.nameFromCompiler);
+        allocate_tensor(outputDescriptor, IS_OUTPUT, allocator);
 
-        // When batching is handled by the plugin we need to modify transposed shape with the original batch size since
-        // it will be forced to 1 at the compilation time
-        if (_batchSize > DEFAULT_BATCH_SIZE) {
-            resultDescriptor.transposedShape[BATCH_AXIS] = _batchSize;
-        }
-
-        allocate_tensor(outputName, resultDescriptor, TensorType::InputOrOutput, allocator);
-
-        const auto& shapeNameMatch = _nodeFriendlyNameToNameFromCompiler.find(outputName);
-        if (shapeNameMatch != _nodeFriendlyNameToNameFromCompiler.end()) {
-            if (contains(_metadata.shapeNames, shapeNameMatch->second)) {
-                const std::string shapeBufferName = SHAPE_TENSOR_PREFIX + shapeNameMatch->second;
-                const IODescriptor& shapeDescriptor = _metadata.shapes.at(shapeNameMatch->second);
-
-                checkLevelZeroAttributesMatch(shapeDescriptor,
-                                              executorOutputDescriptors.at(shapeBufferName),
-                                              shapeBufferName);
-
-                allocate_tensor(shapeNameMatch->second, shapeDescriptor, TensorType::Shape, allocator);
-            }
-        }
-    }
-
-    _logger.debug("ZeroInferRequest::ZeroInferRequest - capturing latest tensor value in output");
-    for (const std::string& stateName : _metadata.stateNames) {
-        const std::string& stateInputBufferName = READVALUE_PREFIX + stateName;
-        const std::string& stateOutputBufferName = ASSIGN_PREFIX + stateName;
-
-        if (!executorInputDescriptors.count(stateInputBufferName)) {
-            OPENVINO_THROW("Invalid graph input descriptor key: " + stateInputBufferName);
-        }
-        if (!executorOutputDescriptors.count(stateOutputBufferName)) {
-            OPENVINO_THROW("Invalid graph output descriptor key: " + stateOutputBufferName);
-        }
-
-        const IODescriptor& stateDescriptor = _metadata.states.at(stateName);
-        checkLevelZeroAttributesMatch(stateDescriptor,
-                                      executorInputDescriptors.at(stateInputBufferName),
-                                      stateInputBufferName);
-        checkLevelZeroAttributesMatch(stateDescriptor,
-                                      executorOutputDescriptors.at(stateOutputBufferName),
-                                      stateOutputBufferName);
-
-        // Only one buffer per state variable is required, we'll use the "output" one since this one captures the latest
-        // tensor value
-        allocate_tensor(stateName, stateDescriptor, TensorType::State, allocator);
+        ++outputIndex;
     }
 
     _logger.debug("ZeroInferRequest::ZeroInferRequest - constructing pipeline");
@@ -294,7 +198,8 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
                              _profilingPool,
                              _profilingQuery,
                              _npuProfiling,
-                             _copyAllTensors,
+                             _copyInputTensors,
+                             _copyOutputTensors,
                              _batchSize);
     _logger.debug("ZeroInferRequest::ZeroInferRequest - SyncInferRequest completed");
 }
@@ -308,19 +213,21 @@ void ZeroInferRequest::infer_async() {
     _logger.debug("InferRequest::infer_async started");
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "infer_async");
 
-    for (const auto& name : _prefixedInputNames) {
-        auto& inputTensor = _allTensors.at(name);
-        const auto& wrapperInputTensor = _copyAllTensors.at(name);
+    size_t inputIndex = 0;
+    for (const std::shared_ptr<ov::ITensor>& inputTensor : _inputTensors) {
+        const std::shared_ptr<ov::ITensor>& wrapperInputTensor = _copyInputTensors.at(inputIndex);
 
-        if (isShapeTensorName(name)) {
-            const auto actualTensorName = name.substr(SHAPE_TENSOR_PREFIX.size());
-            const auto& inputDims = _allTensors.at(actualTensorName)->get_shape();
+        // TODO
+        // if (isShapeTensorName(name)) {
+        //     const auto actualTensorName = name.substr(SHAPE_TENSOR_PREFIX.size());
+        //     const auto& inputDims = _allTensors.at(actualTensorName)->get_shape();
 
-            for (size_t i = 0; i < inputTensor->get_size(); ++i) {
-                const auto reverseIdx = inputDims.size() - 1 - i;
-                inputTensor->data<uint32_t>()[i] = static_cast<uint32_t>(inputDims[reverseIdx]);
-            }
-        }
+        //     // TODO optimize this
+        //     for (size_t i = 0; i < inputTensor->get_size(); ++i) {
+        //         const auto reverseIdx = inputDims.size() - 1 - i;
+        //         inputTensor->data<uint32_t>()[i] = static_cast<uint32_t>(inputDims[reverseIdx]);
+        //     }
+        // }
 
         const uint8_t* tensorBuffer = reinterpret_cast<uint8_t*>(inputTensor->data());
         uint8_t* copyTensorBuffer = reinterpret_cast<uint8_t*>(wrapperInputTensor->data());
@@ -332,6 +239,8 @@ void ZeroInferRequest::infer_async() {
 
             std::memcpy(copyTensorBuffer, tensorBuffer, inputTensor->get_byte_size());
         }
+
+        ++inputIndex;
     }
 
     for (size_t i = 0; i < _batchSize; i++) {
@@ -346,25 +255,26 @@ void ZeroInferRequest::get_result() {
         _pipeline->pull(i);
     }
 
-    for (const auto& name : _prefixedOutputNames) {
-        const auto& outputTensor = _allTensors.at(name);
-        const auto& wrapperOutputTensor = _copyAllTensors.at(name);
+    size_t outputIndex = 0;
+    for (const std::shared_ptr<ov::ITensor>& outputTensor : _outputTensors) {
+        const std::shared_ptr<ov::ITensor>& wrapperOutputTensor = _copyOutputTensors.at(outputIndex);
 
-        if (isShapeTensorName(name)) {
-            const auto actualTensorName = name.substr(SHAPE_TENSOR_PREFIX.size());
-            const auto& shapeNameMatch = _nameFromCompilerToNodeFriendlyName.find(actualTensorName);
-            if (shapeNameMatch != _nameFromCompilerToNodeFriendlyName.end()) {
-                ov::Shape actualDims;
-                actualDims.reserve(outputTensor->get_size());
+        // TODO
+        // if (isShapeTensorName(name)) {
+        //     const auto actualTensorName = name.substr(SHAPE_TENSOR_PREFIX.size());
+        //     const auto& shapeNameMatch = _nameFromCompilerToNodeFriendlyName.find(actualTensorName);
+        //     if (shapeNameMatch != _nameFromCompilerToNodeFriendlyName.end()) {
+        //         ov::Shape actualDims;
+        //         actualDims.reserve(outputTensor->get_size());
 
-                for (size_t i = 0; i < outputTensor->get_size(); ++i) {
-                    const auto reverseIdx = outputTensor->get_size() - 1 - i;
-                    actualDims.push_back(outputTensor->data<uint32_t>()[reverseIdx]);
-                }
-                auto& tensorToBeReshaped = _allTensors.at(shapeNameMatch->second);
-                tensorToBeReshaped->set_shape(actualDims);
-            }
-        }
+        //         for (size_t i = 0; i < outputTensor->get_size(); ++i) {
+        //             const auto reverseIdx = outputTensor->get_size() - 1 - i;
+        //             actualDims.push_back(outputTensor->data<uint32_t>()[reverseIdx]);
+        //         }
+        //         auto& tensorToBeReshaped = _allTensors.at(shapeNameMatch->second);
+        //         tensorToBeReshaped->set_shape(actualDims);
+        //     }
+        // }
 
         uint8_t* tensorBuffer = reinterpret_cast<uint8_t*>(outputTensor->data());
         const uint8_t* copyTensorBuffer = reinterpret_cast<uint8_t*>(wrapperOutputTensor->data());
@@ -382,6 +292,8 @@ void ZeroInferRequest::get_result() {
         _pipeline->reset(i);
     }
     _logger.debug("InferRequest::get_result finished");
+
+    ++outputIndex;
 }
 
 void ZeroInferRequest::check_network_precision(const ov::element::Type_t precision) {

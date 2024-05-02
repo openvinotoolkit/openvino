@@ -89,22 +89,10 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
         zeroUtils::throwOnFail("pfnGetArgumentProperties3",
                                _graph_ddi_table_ext->pfnGetArgumentProperties3(_graph, index, &arg3));
 
-        if (ZE_GRAPH_ARGUMENT_TYPE_INPUT == arg3.type) {
-            if (isStateInputName(arg3.name) || isShapeTensorName(arg3.name)) {
-                _inputs_desc_map.emplace(std::make_pair(std::string(arg3.name), ArgumentDescriptor{arg3, index}));
-
-            } else {
-                _inputs_desc_map.emplace(
-                    std::make_pair(std::string(arg3.debug_friendly_name), ArgumentDescriptor{arg3, index}));
-            }
+        if (arg3.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT) {
+            _input_descriptors.push_back(ArgumentDescriptor{arg3, index});
         } else {
-            if (isStateOutputName(arg3.name) || isShapeTensorName(arg3.name)) {
-                _outputs_desc_map.emplace(std::make_pair(std::string(arg3.name), ArgumentDescriptor{arg3, index}));
-
-            } else {
-                _outputs_desc_map.emplace(
-                    std::make_pair(std::string(arg3.debug_friendly_name), ArgumentDescriptor{arg3, index}));
-            }
+            _output_descriptors.push_back(ArgumentDescriptor{arg3, index});
         }
     }
 
