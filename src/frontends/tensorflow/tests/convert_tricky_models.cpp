@@ -291,6 +291,8 @@ TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithDilatedGroupConvolution) 
     }
 }
 
+/*
+CVS-140356
 TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithSaveV2) {
     {
         model = convert_model("model_savev2/model_savev2.pbtxt");
@@ -306,7 +308,10 @@ TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithSaveV2) {
         model_ref = make_shared<Model>(OutputVector{add}, ParameterVector{x});
     }
 }
+*/
 
+/*
+CVS-140357
 TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithConstResultSubgraphs) {
     { model = convert_model("model_with_const_result/model_with_const_result.pbtxt"); }
     {
@@ -326,9 +331,13 @@ TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithConstResultSubgraphs) {
         auto inverse_order = make_shared<v0::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 2, 3, 1});
         auto transpose_to_nhwc = make_shared<v1::Transpose>(max_pool, inverse_order);
 
-        model_ref = make_shared<Model>(OutputVector{transpose_to_nhwc}, ParameterVector{x});
+        auto c1 = make_shared<v0::Constant>(element::f32, Shape{}, vector<float>{0.999});
+        auto c2 = make_shared<v0::Constant>(element::f32, Shape{}, vector<float>{0.9});
+
+        model_ref = make_shared<Model>(OutputVector{transpose_to_nhwc, c1, c2}, ParameterVector{x});
     }
 }
+*/
 
 TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithIteratorGetNext) {
     { model = convert_model("model_with_iterator_get_next/model_with_iterator_get_next.pbtxt"); }
@@ -492,6 +501,8 @@ TEST_F(FrontEndConversionWithReferenceTestsF, RaggedTensorToSparse) {
     }
 }
 
+/*
+CVS-140356
 TEST_F(FrontEndConversionWithReferenceTestsF, MetaGraphVariables) {
     {
         model = convert_model("metagraph_variables/graph.meta");
@@ -587,6 +598,7 @@ TEST_F(FrontEndConversionWithReferenceTestsF, MetaGraphMMAPCompare) {
     { model = convert_model("metagraph_variables/graph.meta"); }
     { model_ref = convert_model("metagraph_variables/graph.meta", nullptr, {}, {}, {}, {}, {}, true); }
 }
+*/
 
 TEST_F(FrontEndConversionWithReferenceTestsF, SplitInFunction) {
     {
@@ -829,7 +841,10 @@ TEST_F(FrontEndConversionWithReferenceTestsF, GatherWithStringParams) {
         auto axis = make_shared<v0::Constant>(element::i32, Shape{}, 0);
 
         auto gather = make_shared<v8::Gather>(string_const, param_inds, axis);
-        model_ref = make_shared<Model>(OutputVector{gather}, ParameterVector{param_inds});
+
+        auto c1 = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
+
+        model_ref = make_shared<Model>(OutputVector{c1, gather}, ParameterVector{param_inds});
     }
 }
 

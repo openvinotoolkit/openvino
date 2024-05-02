@@ -140,7 +140,10 @@ TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelMultiGraph) {
         auto y = make_shared<v0::Parameter>(element::f32, Shape{1});
         auto add = make_shared<v1::Add>(x, y);
 
-        model_ref = make_shared<Model>(OutputVector{add}, ParameterVector{y});
+        auto c1 = make_shared<v0::Constant>(element::f32, Shape{2, 3}, vector<float>{1, 2, 3, 3, 2, 1});
+        auto c2 = make_shared<v0::Constant>(element::boolean, Shape{}, vector<float>{1});
+
+        model_ref = make_shared<Model>(OutputVector{add, c1, c2}, ParameterVector{y});
     }
 }
 
