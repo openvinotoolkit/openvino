@@ -36,8 +36,8 @@ bool AclReduceExecutor::init(const ReduceAttrs& reduceAttrs,
 
     this->reduceAttrs = reduceAttrs;
 
-    auto srcDims = srcDescs[0]->getShape().getDims();
-    auto dstDims = dstDescs[0]->getShape().getDims();
+    auto srcDims = srcDescs[0]->getShape().getStaticDims();
+    auto dstDims = dstDescs[0]->getShape().getStaticDims();
     auto srcShape = shapeCast(srcDims);
     auto dstShape = shapeCast(dstDims);
     if (srcDescs[0]->hasLayoutType(LayoutType::nspc) && dstDescs[0]->hasLayoutType(LayoutType::nspc)) {
