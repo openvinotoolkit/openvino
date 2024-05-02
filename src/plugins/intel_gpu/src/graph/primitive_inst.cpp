@@ -94,7 +94,27 @@ bool is_output_buffer(const primitive_inst* prim, bool runtime_alloc) {
     }
     return false;
 }
+// TODO: Will remove macro when final confirm, remained it for the discussion
+#if 1
+bool is_user_cpu(const program_node* user) {
+    // If the user is dynamic and runtime skippable node, we still need its parents' completion event
+    // even though the user's program_node is can_be_optimized
+    if (user->can_be_optimized() && !(user->is_dynamic() && user->is_runtime_skippable()))
+        return false;
 
+    if (user->can_be_optimized() || user->is_runtime_skippable()) {
+        auto users = user->get_users();
+        for (const auto& u : users) {
+            if (is_user_cpu(u)) {
+                return true;
+            }
+        }
+    }
+    bool is_cpu = user->get_selected_impl() ? user->get_selected_impl()->is_cpu()
+                                            : user->get_preferred_impl_type() == impl_types::cpu;
+    return is_cpu;
+}
+#else
 bool is_user_cpu(const program_node* user) {
     if (user->can_be_optimized()) {
         auto users = user->get_users();
@@ -112,6 +132,7 @@ bool is_user_cpu(const program_node* user) {
                                             : user->get_preferred_impl_type() == impl_types::cpu;
     return is_cpu;
 }
+#endif
 bool has_cpu_user_not_shape_of(const program_node* user) {
     if (user->can_be_optimized()) {
         auto users = user->get_users();
@@ -139,14 +160,6 @@ bool has_any_cpu_user_not_shape_of(const std::list<const program_node*>& users) 
 bool is_any_user_cpu(const std::list<const program_node*>& users) {
     for (const auto& user : users) {
         if (is_user_cpu(user))
-            return true;
-    }
-    return false;
-}
-
-bool has_runtime_skippable_users(const std::list<const program_node*>& users) {
-    for (const auto& user : users) {
-        if (user->is_runtime_skippable())
             return true;
     }
     return false;
@@ -1512,7 +1525,7 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
     , _can_be_optimized(node.can_be_optimized())
     , _can_share_buffer(node.can_share_buffer())
     , _is_constant(node.is_constant())
-    , _needs_completion_event(is_any_user_cpu(node.get_users()) || node.is_output() || has_runtime_skippable_users(node.get_users())) {
+    , _needs_completion_event(is_any_user_cpu(node.get_users()) || node.is_output()) {
     // When dynamic shape node has huge upper boundary which causes bigger mem size than system max allocable mem size, do not allocate in build time.
     auto output_layout = node.get_output_layout();
     auto& engine = network.get_engine();
