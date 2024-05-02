@@ -273,23 +273,22 @@ void LoopManager::fuse_loops(LinearIR::constExprIt loop_begin_target, LinearIR::
     auto exit_points_lower = loop_info_lower->get_exit_points();
     fuse_loop_ports(exit_points_upper, entry_points_lower, loop_id_upper);
 
-    std::vector<LoopPort> new_entries = entry_points_upper;
-    new_entries.insert(new_entries.end(), entry_points_lower.begin(), entry_points_lower.end());
-    std::vector<LoopPort> new_exits = exit_points_upper;
-    new_exits.insert(new_exits.end(), exit_points_lower.begin(), exit_points_lower.end());
-
-    auto& loop_info = fuse_into_upper ? loop_info_upper : loop_info_lower;
-    loop_info->set_entry_points(new_entries);
-    loop_info->set_exit_points(new_exits);
-
-    loop_info->set_handlers(SpecificIterationHandlers::merge_handlers(loop_info_upper->get_handlers(), loop_info_lower->get_handlers()));
-    // Since fusion can be called for broadcastable loops (one of the loops has work_amount = increment = 1),
-    // maximum value is set to the fused loop
-    loop_info->set_work_amount(std::max(loop_info_upper->get_work_amount(), loop_info_lower->get_work_amount()));
-    loop_info->set_increment(std::max(loop_info_upper->get_increment(), loop_info_lower->get_increment()));
-
     const auto& from = fuse_into_upper ? loop_id_lower : loop_id_upper;
     const auto& to = fuse_into_upper ? loop_id_upper : loop_id_lower;
+
+    // Since fusion can be called for broadcastable loops (one of the loops has work_amount = increment = 1),
+    // maximum value is set to the fused loop
+    const auto work_amount = std::max(loop_info_upper->get_work_amount(), loop_info_lower->get_work_amount());
+    const auto increment = std::max(loop_info_upper->get_increment(), loop_info_lower->get_increment());
+    const auto handlers = SpecificIterationHandlers::merge_handlers(loop_info_upper->get_handlers(), loop_info_lower->get_handlers());
+
+    auto new_entries = entry_points_upper;
+    new_entries.insert(new_entries.end(), entry_points_lower.begin(), entry_points_lower.end());
+    auto new_exits = exit_points_upper;
+    new_exits.insert(new_exits.end(), exit_points_lower.begin(), exit_points_lower.end());
+
+    m_map[to] = std::make_shared<UnifiedLoopInfo>(work_amount, increment, new_entries, new_exits, handlers);
+
     for (auto it = loop_begin_target; it != loop_end_target; ++it) {
         const auto& expr = *it;
         replace_loop_id(expr, from, to);

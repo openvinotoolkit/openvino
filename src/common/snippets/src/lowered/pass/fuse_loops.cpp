@@ -208,15 +208,15 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
             if (prev_fused_loops.count(current_loop_id) != 0)
                 continue;
 
-            const auto current_loop_info = loop_manager->get_loop_info(current_loop_id);
-            LinearIR::constExprIt current_loop_begin_pos, current_loop_end_pos;
-            std::tie(current_loop_begin_pos, current_loop_end_pos) = loop_manager->get_loop_bounds(linear_ir, current_loop_id);
-
             // We fuse upper Loops into the current till we can do it.
             // After that we fuse lower Loops into the current till we can do it.
             // If we have fused on outputs we should verify possible fusions on inputs again because of new entry points
             bool need_fusion_checks = true;
             while (need_fusion_checks) {
+                const auto current_loop_info = loop_manager->get_loop_info(current_loop_id);
+                LinearIR::constExprIt current_loop_begin_pos, current_loop_end_pos;
+                std::tie(current_loop_begin_pos, current_loop_end_pos) = loop_manager->get_loop_bounds(linear_ir, current_loop_id);
+
                 // Loop_0 (Upper)                 |
                 //   |               =>           |
                 // Loop_1 (Current)     Loop_0 + Loop_1 => new `Loop_1`
