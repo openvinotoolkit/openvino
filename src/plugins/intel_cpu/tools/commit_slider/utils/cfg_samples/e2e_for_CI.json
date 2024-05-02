@@ -1,5 +1,5 @@
 {
-   "appCmd":"source {venvName}/bin/activate && cd {appPath} && {py} -m pip install openvino-dev[caffe,kaldi,mxnet,onnx,pytorch,tensorflow2]=={wheelVersion} --find-links={precommitPath}wheels/ && {py} -m pip install -r requirements_dev.txt && {testCmd}",
+   "appCmd":"source {venvName}/bin/activate && cd {appPath} && {py} -m pip install --upgrade pip && {py} -m pip install openvino-dev[caffe,kaldi,mxnet,onnx,pytorch,tensorflow2]=={wheelVersion} --find-links={precommitPath}wheels/ && {py} -m pip install -r requirements_dev.txt && {testCmd}",
    "venvCfg":{
       "venvEnabled":true,
       "venvDir":"{workPath}/venv/",

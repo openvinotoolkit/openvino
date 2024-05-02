@@ -22,10 +22,14 @@ class CfgManager():
         logPath = self.cfg["logPath"]
         tmplName = self.cfg["template"]["name"]
         fullCfg = {}
+
+        # todo: generalize tmplcfg generator
         if tmplName == "bm_simple":
             fullCfg = self.generatebmSimpleTemplate()
         elif tmplName == "e2e":
             fullCfg = self.generateE2ETemplate()
+        elif tmplName == "bm_functional":
+            fullCfg = self.generatebmFunctionalTemplate()
         else:
             raise Exception(
                 "Unknown template '{}'".format(tmplName)
@@ -53,7 +57,7 @@ class CfgManager():
             tmpJSON["runConfig"][devParam] = tmpl[devParam]
         return tmpJSON
 
-def generateE2ETemplate(self):
+    def generateE2ETemplate(self):
         tmpl = self.cfg["template"]
         tmpJSON = self.readJsonTmpl("e2e_for_CI.json")
 
@@ -76,4 +80,18 @@ def generateE2ETemplate(self):
         tmpJSON["dlbConfig"]["subPath"] = subPath
         tmpJSON["cachedPathConfig"]["subPath"] = subPath
 
+        return tmpJSON
+
+    def generatebmFunctionalTemplate(self):
+        tmpl = self.cfg["template"]
+        tmpJSON = self.readJsonTmpl("bm_output.json")
+        stopPattern = "stopPattern"
+        if "appCmd" in tmpl:
+            tmpJSON["appCmd"] = tmpl["appCmd"]
+        else:
+            raise("No 'appcmd' in template")
+        if stopPattern in tmpl:
+            tmpJSON["runConfig"][stopPattern] = tmpl[stopPattern]
+        else:
+            raise("No 'stopPattern' in template")
         return tmpJSON
