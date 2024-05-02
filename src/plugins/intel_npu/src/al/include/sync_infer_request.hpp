@@ -92,56 +92,28 @@ public:
      */
     void initialize_states();
 
-    /**
-     * @return The state tensors accessible by their names.
-     */
-    std::unordered_map<std::string, std::shared_ptr<VariableState>>& get_variable_states() {
-        return _variableStates;
-    }
-
-    /**
-     * @return The names used by the inputs in the order registered inside the model.
-     */
-    std::vector<std::string> get_input_names() {
-        return _metadata.inputNames;
-    }
-
-    /**
-     * @return The names used by the outputs in the order registered inside the model.
-     */
-    std::vector<std::string> get_output_names() {
-        return _metadata.outputNames;
-    }
-
-    /**
-     * @return The names used by the state variables in the order registered inside the model.
-     */
-    std::vector<std::string> get_state_names() {
-        return _metadata.stateNames;
-    }
-
-    /**
-     * @return The names used by the shape variables in the order registered inside the model.
-     */
-    std::vector<std::string> get_shape_names() {
-        return _metadata.shapeNames;
-    }
-
-    /**
-     * @return A map holding references towards all tensors used by the current inference request object.
-     */
-    std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& get_all_tensors() {
-        return _allTensors;
-    }
-
-    /**
-     * @return A map holding references towards all shapes tensors used by the current inference request object.
-     */
-    std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& get_shapes_tensors() {
-        return _shapesTensors;
-    }
-
 protected:
+    struct FoundPort {
+        size_t idx;
+        enum class Type { NOT_FOUND = 0, INPUT, OUTPUT } type;
+
+        bool found() {
+            return type != Type::NOT_FOUND;
+        }
+        bool is_input() {
+            return type == Type::INPUT;
+        }
+        bool is_output() {
+            return !is_input();
+        }
+    };
+
+    /**
+     * @brief Finds input or output port
+     * @return structure which contains index of Input/Output or report that port wasn't found
+     */
+    FoundPort find_port(const ov::Output<const ov::Node>& port) const;
+
     /**
      * @brief Basic checks for input/output tensor
      *
@@ -163,11 +135,6 @@ protected:
     virtual void check_network_precision(const ov::element::Type_t precision) = 0;
 
     /**
-     * @brief Indicates a kind of provided tensor. Marks special tensors, used for internal implementation
-     */
-    enum class TensorType { InputOrOutput, Shape, State };
-
-    /**
      * @brief Allocates a tensor on host and stores the reference inside the "_allTensors" attribute. If a buffer
      * address is provided, then the tensor is built upon it and no additional data buffer is allocated.
      * @param tensorName The name by which the tensor shall be identified
@@ -176,19 +143,19 @@ protected:
      * tensor to this structure would be required in order to correctly answer the state queries.
      * @param allocator If provided, the tensor uses the custom allocator instead of using the default one.
      */
-    void allocate_tensor(std::string tensorName,
-                         const IODescriptor& descriptor,
-                         TensorType tensorType = TensorType::InputOrOutput,
-                         const ov::Allocator& allocator = {});
+    void allocate_tensor(const IODescriptor& descriptor, const bool isInput, const ov::Allocator& allocator = {});
 
-    // Mutable to return reference to ov::Tensor
-    mutable std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> _allTensors;
-    mutable std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> _shapesTensors;
+    std::vector<std::shared_ptr<ov::ITensor>> _inputTensors;
+    std::vector<std::shared_ptr<ov::ITensor>> _outputTensors;
+    std::vector<std::shared_ptr<ov::ITensor>> _shapesInputTensors;
+    std::vector<std::shared_ptr<ov::ITensor>> _shapesOutputTensors;
+
     // A copy of each tensor is needed to maintain the original L0 memory allocation in case the user provides another
     // memory area for the tensor.
-    std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> _copyAllTensors;
+    std::vector<std::shared_ptr<ov::ITensor>> _copyInputTensors;
+    std::vector<std::shared_ptr<ov::ITensor>> _copyOutputTensors;
 
-    std::unordered_map<std::string, std::shared_ptr<VariableState>> _variableStates;
+    std::vector<ov::SoPtr<ov::IVariableState>> _variableStates;
 
     // This is intel_npu::ICompiledModel pointer, but need to use OV base class because
     // ov::IInferRequest::get_compiled_model returns a refernce to shared_ptr!
@@ -197,11 +164,14 @@ protected:
     NetworkMetadata _metadata;
 
     // Stored in order to avoid additional processing when launching inferences
-    std::vector<std::string> _inputAndStateInputNames;
-    std::vector<std::string> _outputAndStateOutputNames;
+    std::vector<std::string> _prefixedInputNames;
+    std::vector<std::string> _prefixedOutputNames;
 
-    std::unordered_map<std::string, std::string> _nodeNameToLegacyName;
-    std::unordered_map<std::string, std::string> _legacyNameToNodeName;
+    std::unordered_map<std::string, std::string> _nodeFriendlyNameToNameFromCompiler;
+    std::unordered_map<std::string, std::string> _nameFromCompilerToNodeFriendlyName;
+
+    mutable std::unordered_map<size_t, FoundPort> _cachedPorts;
+    mutable std::mutex _cacheMutex;
 };
 
 }  // namespace intel_npu

@@ -247,8 +247,8 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
         allocate_tensor(outputName, resultDescriptor, TensorType::InputOrOutput, allocator);
 
-        const auto& shapeNameMatch = _nodeNameToLegacyName.find(outputName);
-        if (shapeNameMatch != _nodeNameToLegacyName.end()) {
+        const auto& shapeNameMatch = _nodeFriendlyNameToNameFromCompiler.find(outputName);
+        if (shapeNameMatch != _nodeFriendlyNameToNameFromCompiler.end()) {
             if (contains(_metadata.shapeNames, shapeNameMatch->second)) {
                 const std::string shapeBufferName = SHAPE_TENSOR_PREFIX + shapeNameMatch->second;
                 const IODescriptor& shapeDescriptor = _metadata.shapes.at(shapeNameMatch->second);
@@ -308,7 +308,7 @@ void ZeroInferRequest::infer_async() {
     _logger.debug("InferRequest::infer_async started");
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "infer_async");
 
-    for (const auto& name : _inputAndStateInputNames) {
+    for (const auto& name : _prefixedInputNames) {
         auto& inputTensor = _allTensors.at(name);
         const auto& wrapperInputTensor = _copyAllTensors.at(name);
 
@@ -346,14 +346,14 @@ void ZeroInferRequest::get_result() {
         _pipeline->pull(i);
     }
 
-    for (const auto& name : _outputAndStateOutputNames) {
+    for (const auto& name : _prefixedOutputNames) {
         const auto& outputTensor = _allTensors.at(name);
         const auto& wrapperOutputTensor = _copyAllTensors.at(name);
 
         if (isShapeTensorName(name)) {
             const auto actualTensorName = name.substr(SHAPE_TENSOR_PREFIX.size());
-            const auto& shapeNameMatch = _legacyNameToNodeName.find(actualTensorName);
-            if (shapeNameMatch != _legacyNameToNodeName.end()) {
+            const auto& shapeNameMatch = _nameFromCompilerToNodeFriendlyName.find(actualTensorName);
+            if (shapeNameMatch != _nameFromCompilerToNodeFriendlyName.end()) {
                 ov::Shape actualDims;
                 actualDims.reserve(outputTensor->get_size());
 

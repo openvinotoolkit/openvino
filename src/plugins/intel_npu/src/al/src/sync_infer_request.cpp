@@ -8,6 +8,7 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/plugin_itt.hpp"
+#include "openvino/util/common_util.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace intel_npu {
@@ -18,43 +19,91 @@ SyncInferRequest::SyncInferRequest(const std::shared_ptr<const ICompiledModel>& 
     OPENVINO_ASSERT(_compiledModel);
 
     const std::vector<ov::Output<const ov::Node>>& outputs = get_outputs();
-
     if (outputs.empty()) {
         OPENVINO_THROW("Inference request creation: no output found for network " + _metadata.name);
     }
 
-    // Map the node names to the legacy ones used by the I/O tensors in order to allow an easier access to the tensors'
-    // contents
-    for (const auto& [name, resultDescriptor] : _metadata.results) {
-        _nodeNameToLegacyName[name] = resultDescriptor.legacyName;
-        _legacyNameToNodeName[resultDescriptor.legacyName] = name;
+    // Create map of empty tensors and cache ports from the compiled model
+    auto portType = SyncInferRequest::FoundPort::Type::INPUT;
+    for (const auto& ports : {get_inputs(), get_outputs()}) {
+        for (size_t i = 0; i < ports.size(); i++) {
+            const auto& port = ports[i];
+            size_t portHash = ov::util::hash_combine(std::vector<size_t>{std::hash<const ov::Node*>()(port.get_node()),
+                                                                         std::hash<size_t>()(port.get_index())});
+            _cachedPorts[portHash] = {i, portType};
+        }
+        portType = SyncInferRequest::FoundPort::Type::OUTPUT;
     }
 
-    _inputAndStateInputNames = _metadata.inputNames;
-    _outputAndStateOutputNames = _metadata.outputNames;
-
-    for (const std::string& stateName : _metadata.stateNames) {
-        // State variables shall be identified by specific prefixes in order to avoid a potential tensor name collision
-        _inputAndStateInputNames.push_back(READVALUE_PREFIX + stateName);
-        _outputAndStateOutputNames.push_back(ASSIGN_PREFIX + stateName);
+    for (const IODescriptor& inputDescriptor : _metadata.inputs) {
+        if (inputDescriptor.isStateInput) {
+            _prefixedInputNames.push_back(READVALUE_PREFIX + inputDescriptor.nameFromCompiler);
+        } else if (inputDescriptor.isShapeTensor) {
+            _prefixedInputNames.push_back(SHAPE_TENSOR_PREFIX + inputDescriptor.nameFromCompiler);
+        } else {
+            _prefixedInputNames.push_back(inputDescriptor.nameFromCompiler);
+        }
     }
 
-    const auto contains = [](const auto& container, const auto& value) {
-        return std::find(container.begin(), container.end(), value) != container.end();
+    for (const IODescriptor& outputDescriptor : _metadata.outputs) {
+        if (outputDescriptor.isStateOutput) {
+            _prefixedOutputNames.push_back(ASSIGN_PREFIX + outputDescriptor.nameFromCompiler);
+        } else if (outputDescriptor.isShapeTensor) {
+            _prefixedOutputNames.push_back(SHAPE_TENSOR_PREFIX + outputDescriptor.nameFromCompiler);
+        } else {
+            _prefixedOutputNames.push_back(outputDescriptor.nameFromCompiler);
+        }
+
+        // Map the node names to the legacy ones used by the I/O tensors in order to allow an easier access to the
+        // tensors' contents
+        _nodeFriendlyNameToNameFromCompiler[outputDescriptor.nodeFriendlyName] = outputDescriptor.nameFromCompiler;
+        _nameFromCompilerToNodeFriendlyName[outputDescriptor.nameFromCompiler] = outputDescriptor.nodeFriendlyName;
+    }
+}
+
+SyncInferRequest::FoundPort SyncInferRequest::find_port(const ov::Output<const ov::Node>& port) const {
+    // check if the tensor names of target port is a subset of source port's tensor names
+    auto check_tensor_names = [](const std::unordered_set<std::string>& source,
+                                 const std::unordered_set<std::string>& target) {
+        for (auto const& name : target) {
+            if (source.find(name) == source.end())
+                return false;
+        }
+        return true;
     };
 
-    for (const auto& shapeName : _metadata.shapeNames) {
-        if (contains(_inputAndStateInputNames, shapeName)) {
-            _inputAndStateInputNames.push_back(SHAPE_TENSOR_PREFIX + shapeName);
-        }
-
-        const auto& shapeNameMatch = _legacyNameToNodeName.find(shapeName);
-        if (shapeNameMatch != _legacyNameToNodeName.end()) {
-            if (contains(_outputAndStateOutputNames, shapeNameMatch->second)) {
-                _outputAndStateOutputNames.push_back(SHAPE_TENSOR_PREFIX + shapeName);
-            }
+    // This function is hotspot, need optimization.
+    auto check_nodes = [](const ov::Node* node1, const ov::Node* node2) {
+        return node1 == node2 ||
+               (node1->outputs().size() == node2->outputs().size() &&
+                node1->inputs().size() == node2->inputs().size() && node1->get_type_info() == node2->get_type_info() &&
+                node1->get_friendly_name() == node2->get_friendly_name());
+    };
+    // Find port without caching work slow because we need each time iterate over all ports and compare different
+    // strings So use WA with caching in order to make 2+ calls for the same ports faster.
+    // Calculate hash for the port
+    size_t port_hash = ov::util::hash_combine(
+        std::vector<size_t>{std::hash<const ov::Node*>()(port.get_node()), std::hash<size_t>()(port.get_index())});
+    {
+        std::lock_guard<std::mutex> lock(_cacheMutex);
+        if (_cachedPorts.find(port_hash) != _cachedPorts.end()) {
+            // Cached port for the hash was found
+            return _cachedPorts[port_hash];
         }
     }
+    SyncInferRequest::FoundPort::Type type = SyncInferRequest::FoundPort::Type::INPUT;
+    for (const auto& ports : {get_inputs(), get_outputs()}) {
+        for (size_t i = 0; i < ports.size(); i++) {
+            if (ports[i].get_index() == port.get_index() && check_nodes(ports[i].get_node(), port.get_node()) &&
+                check_tensor_names(ports[i].get_names(), port.get_names())) {
+                std::lock_guard<std::mutex> lock(_cacheMutex);
+                _cachedPorts[port_hash] = {i, type};
+                return _cachedPorts[port_hash];
+            }
+        }
+        type = SyncInferRequest::FoundPort::Type::OUTPUT;
+    }
+    return {0, SyncInferRequest::FoundPort::Type::NOT_FOUND};
 }
 
 const std::vector<ov::Output<const ov::Node>>& SyncInferRequest::get_inputs() const {
@@ -70,34 +119,41 @@ const std::shared_ptr<const ov::ICompiledModel>& SyncInferRequest::get_compiled_
 }
 
 void SyncInferRequest::initialize_states() {
-    for (const std::string& stateName : _metadata.stateNames) {
-        _variableStates.at(stateName)->reset();
+    for (const ov::SoPtr<ov::IVariableState>& variableState : _variableStates) {
+        variableState->reset();
     }
 }
 
 std::vector<ov::SoPtr<ov::IVariableState>> SyncInferRequest::query_state() const {
-    std::vector<ov::SoPtr<ov::IVariableState>> queryResult;
-
-    for (const std::string& stateName : _metadata.stateNames) {
-        queryResult.push_back(_variableStates.at(stateName));
-    }
-
-    return queryResult;
+    return _variableStates;
 }
 
 ov::SoPtr<ov::ITensor> SyncInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
-    return _allTensors.at(port.get_node()->get_friendly_name());
+    auto foundPort = find_port(port);
+    OPENVINO_ASSERT(foundPort.found(), "Cannot find tensor for port ", port);
+
+    if (foundPort.is_input()) {
+        return _inputTensors.at(foundPort.idx)
+    }
+    return _outputTensors.at(foundPort.idx)
 }
 
 void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::Plugin, "set_tensor");
+
+    auto foundPort = find_port(port);
+    OPENVINO_ASSERT(foundPort.found(), "Cannot find tensor for port ", port);
     try {
         check_tensor(port, tensor);
     } catch (const ov::Exception& ex) {
         OPENVINO_THROW("Failed to set tensor. ", ex.what());
     }
 
-    _allTensors[port.get_node()->get_friendly_name()] = tensor._ptr;
+    if (foundPort.is_input()) {
+        _inputTensors.at(foundPort.idx) = tensor._ptr;
+    } else {
+        _outputTensors.at(foundPort.idx) = tensor._ptr;
+    }
 }
 
 std::vector<ov::SoPtr<ov::ITensor>> SyncInferRequest::get_tensors(const ov::Output<const ov::Node>& /*port*/) const {
@@ -150,48 +206,44 @@ void SyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
 void SyncInferRequest::check_tensors() const {
     const auto& inputs = _compiledModel->inputs();
     for (size_t i = 0; i < inputs.size(); i++) {
-        check_tensor(inputs[i], _allTensors.at(inputs[i].get_node()->get_friendly_name()));
+        check_tensor(inputs[i], _inputTensors.at(i));
     }
 
     const auto& outputs = _compiledModel->outputs();
     for (size_t i = 0; i < outputs.size(); i++) {
-        check_tensor(outputs[i], _allTensors.at(outputs[i].get_node()->get_friendly_name()));
+        check_tensor(outputs[i], _outputTensors.at(i));
     }
 }
 
-void SyncInferRequest::allocate_tensor(std::string tensorName,
-                                       const IODescriptor& descriptor,
-                                       TensorType tensorType,
+void SyncInferRequest::allocate_tensor(const IODescriptor& descriptor,
+                                       const bool isInput,
                                        const ov::Allocator& allocator) {
     std::shared_ptr<ov::ITensor> tensor;
 
     check_network_precision(descriptor.precision);
 
     if (allocator) {
-        tensor = ov::make_tensor(descriptor.precision, descriptor.transposedShape.get_max_shape(), allocator);
+        tensor = ov::make_tensor(descriptor.precision, descriptor.shapeFromCompiler.get_max_shape(), allocator);
     } else {
-        tensor = ov::make_tensor(descriptor.precision, descriptor.transposedShape.get_max_shape());
+        tensor = ov::make_tensor(descriptor.precision, descriptor.shapeFromCompiler.get_max_shape());
     }
 
-    if (tensorType == TensorType::Shape) {
-        _shapesTensors[tensorName] = tensor;
-        tensorName = SHAPE_TENSOR_PREFIX + tensorName;
-    }
+    if (isInput) {
+        _inputTensors.push_back(tensor);
+        _copyInputTensors.push_back(tensor);
 
-    if (tensorType == TensorType::State) {
-        _variableStates[tensorName] = std::make_shared<VariableState>(tensorName, tensor);
-
-        // State variables shall be identified by specific prefixes in order to avoid a potential tensor name collision.
-        // Additionally, only one buffer is required in the whole flow, acting as an input before running the inference
-        // and as an output after performing it. Thus both the "state input" and "state output" entries shall point to
-        // the same buffer.
-        _copyAllTensors[READVALUE_PREFIX + tensorName] = std::move(tensor);
-        _copyAllTensors[ASSIGN_PREFIX + tensorName] = _copyAllTensors[READVALUE_PREFIX + tensorName];
-        _allTensors[READVALUE_PREFIX + tensorName] = _copyAllTensors[READVALUE_PREFIX + tensorName];
-        _allTensors[ASSIGN_PREFIX + tensorName] = _copyAllTensors[READVALUE_PREFIX + tensorName];
+        if (descriptor.isShapeTensor) {
+            _shapesInputTensors.push_back(tensor);
+        }
     } else {
-        _copyAllTensors[tensorName] = std::move(tensor);
-        _allTensors[tensorName] = _copyAllTensors[tensorName];
+        _outputTensors.push_back(tensor);
+        _copyOutputTensors.push_back(tensor);
+
+        if (descriptor.isStateOutput) {
+            _variableStates.push_back(std::make_shared<VariableState>(descriptor.nameFromCompiler, tensor));
+        } else if (descriptor.isShapeTensor) {
+            _shapesOutputTensors.push_back(tensor);
+        }
     }
 }
 }  // namespace intel_npu
