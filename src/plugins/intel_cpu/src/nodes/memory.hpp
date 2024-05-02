@@ -62,9 +62,9 @@ public:
         return getType() == Type::MemoryOutput;
     }
 
-    void execute(dnnl::stream strm) final;
-    void executeDynamicImpl(dnnl::stream strm) final;
-    bool isExecutable() const final;
+    void execute(dnnl::stream strm) override final; // NOLINT
+    void executeDynamicImpl(dnnl::stream strm) override final; // NOLINT
+    bool isExecutable() const override final; // NOLINT
 
     void registerInputNode(MemoryInputBase* node);
     void deregisterSibling(MemoryInputBase* node);
@@ -140,17 +140,17 @@ public:
 
     void initSupportedPrimitiveDescriptors() override;
 
-    void execute(dnnl::stream strm) final;
-    void executeDynamicImpl(dnnl::stream strm) final;
+    void execute(dnnl::stream strm) override final; // NOLINT
+    void executeDynamicImpl(dnnl::stream strm) override final; // NOLINT
     bool needShapeInfer() const override { return false; }
     bool needPrepareParams() const override { return false; }
-    bool isExecutable() const final;
+    bool isExecutable() const override final; // NOLINT
 
     void registerOutputNode(MemoryOutputBase* node);
     void deregisterSibling(MemoryOutputBase* node);
 
     MemoryOutputBase& getOutputNode();
-    void assignState(MemStatePtr newState) final;
+    void assignState(MemStatePtr newState) override final; // NOLINT
 
 protected:
     virtual void runStatic(dnnl::stream strm) = 0;
