@@ -1245,14 +1245,18 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph &graph) {
         const auto &paddings = conv->getPaddingL();
         const auto &inDims = node->getInputShapeAtPort(0).getDims();
         const auto &outDims = node->getOutputShapeAtPort(0).getDims();
-        bool isSupportedParams = conv->getGroupNum() == 1 &&
-                inDims.size() == 4 &&
-                dimsEqualStrong(inDims[inDims.size() - 1], outDims[outDims.size() - 1]) &&
-                dimsEqualStrong(inDims[inDims.size() - 2], outDims[outDims.size() - 2]) &&
-                is1x1Convolution(conv) &&  // TODO [oneDNN] : fusing is permitted only with 1x1 convolutions
-                everyone_is(1u, strides[strides.size() - 1], strides[strides.size() - 2]) &&
-                everyone_is(0u, paddings[paddings.size() - 1], paddings[paddings.size() - 2]) &&
-                !conv->canBeExecutedInInt8();
+        bool isSupportedParams =
+            conv->getGroupNum() == 1 && inDims.size() == 4 &&
+            dimsEqualStrong(inDims[inDims.size() - 1], outDims[outDims.size() - 1]) &&
+            dimsEqualStrong(inDims[inDims.size() - 2], outDims[outDims.size() - 2]) &&
+            is1x1Convolution(conv) &&  // TODO [oneDNN] : fusing is permitted only with 1x1 convolutions
+            everyone_is(1u,
+                        static_cast<unsigned int>(strides[strides.size() - 1]),
+                        static_cast<unsigned int>(strides[strides.size() - 2])) &&
+            everyone_is(0u,
+                        static_cast<unsigned int>(paddings[paddings.size() - 1]),
+                        static_cast<unsigned int>(paddings[paddings.size() - 2])) &&
+            !conv->canBeExecutedInInt8();
         if (!isSupportedParams) return false;
 
         return node->getChildEdges().size() == 1 && isConvolutionNode(node->getChildEdgeAt(0)->getChild());
@@ -1295,16 +1299,24 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph &graph) {
 
         const auto weightRank = convChild->getWeightDims().size();
         const auto stridesSize = convChild->getStride().size();
-        bool isSupportedParams = dimsEqualStrong(convChild->outputShapes[0].getDims()[1], convChild->getGroupNum()) &&
-                                 convChild->outputShapes[0].getDims()[1] != 1 &&
-                                 everyone_is(3u, convChild->getWeightDims()[weightRank - 1], convChild->getWeightDims()[weightRank - 2]) &&
-                                 everyone_is(1u, convChild->getPaddingL()[stridesSize - 1], convChild->getPaddingL()[stridesSize - 2]) &&
-                                 everyone_is(1u, convChild->getPaddingR()[stridesSize - 1], convChild->getPaddingR()[stridesSize - 2]) &&
-                                 everyone_is(1u, convChild->getDilation()[stridesSize - 1] + 1, convChild->getDilation()[stridesSize - 2] + 1) &&
-                                 convChild->getStride()[stridesSize - 1] == convChild->getStride()[stridesSize - 2] &&
-                                 withBias &&
-                                 one_of(convChild->getStride()[stridesSize - 1], 1u, 2u) &&
-                                 childNode->getOutputShapeAtPort(0).getRank() == 4;
+        bool isSupportedParams =
+            dimsEqualStrong(convChild->outputShapes[0].getDims()[1], convChild->getGroupNum()) &&
+            convChild->outputShapes[0].getDims()[1] != 1 &&
+            everyone_is(3u,
+                        static_cast<unsigned int>(convChild->getWeightDims()[weightRank - 1]),
+                        static_cast<unsigned int>(convChild->getWeightDims()[weightRank - 2])) &&
+            everyone_is(1u,
+                        static_cast<unsigned int>(convChild->getPaddingL()[stridesSize - 1]),
+                        static_cast<unsigned int>(convChild->getPaddingL()[stridesSize - 2])) &&
+            everyone_is(1u,
+                        static_cast<unsigned int>(convChild->getPaddingR()[stridesSize - 1]),
+                        static_cast<unsigned int>(convChild->getPaddingR()[stridesSize - 2])) &&
+            everyone_is(1u,
+                        static_cast<unsigned int>(convChild->getDilation()[stridesSize - 1] + 1),
+                        static_cast<unsigned int>(convChild->getDilation()[stridesSize - 2] + 1)) &&
+            convChild->getStride()[stridesSize - 1] == convChild->getStride()[stridesSize - 2] && withBias &&
+            one_of(convChild->getStride()[stridesSize - 1], 1u, 2u) &&
+            childNode->getOutputShapeAtPort(0).getRank() == 4;
 
         return isSupportedParams;
     };
