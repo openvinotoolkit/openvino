@@ -43,31 +43,26 @@ if __name__ == '__main__':
         path_to_errors_file=errors_file
     )
     log_analyzer.analyze()
-    # Needed to run a step after for statistics
-    with open(file=os.environ['GITHUB_ENV'],
-              mode='a') as fh:
-        fh.write('PIPELINE_RETRIGGERED=true\n')
-        fh.write(f'FOUND_ERROR_TICKET=123456\n')
 
-    # if log_analyzer.found_matching_error:
-    #     LOGGER.info(f'FOUND MATCHING ERROR, RETRIGGERING {run.html_url}')
-    #     if is_dry_run:
-    #         LOGGER.info(f'RUNNING IN DRY RUN MODE, NOT RETRIGGERING, EXITING')
-    #         sys.exit(0)
-    #
-    #     status = run.rerun()
-    #     if status:
-    #         LOGGER.info(f'RUN RETRIGGERED SUCCESSFULLY: {run.html_url}')
-    #     else:
-    #         LOGGER.info(f'RUN WAS NOT RETRIGGERED, SEE ABOVE')
-    #
-    #     # Needed to run a step after for statistics
-    #     with open(file=os.environ['GITHUB_ENV'],
-    #               mode='a') as fh:
-    #         fh.write('PIPELINE_RETRIGGERED=true\n')
-    #         fh.write(f'FOUND_ERROR_TICKET={log_analyzer.found_error_ticket}\n')
-    #
-    #     # "status" is True (which is 1) if everything is ok, False (which is 0) otherwise
-    #     sys.exit(not status)
-    # else:
-    #     LOGGER.info(f'NO ERROR WAS FOUND, NOT RETRIGGERING')
+    if log_analyzer.found_matching_error:
+        LOGGER.info(f'FOUND MATCHING ERROR, RETRIGGERING {run.html_url}')
+        if is_dry_run:
+            LOGGER.info(f'RUNNING IN DRY RUN MODE, NOT RETRIGGERING, EXITING')
+            sys.exit(0)
+
+        status = run.rerun()
+        if status:
+            LOGGER.info(f'RUN RETRIGGERED SUCCESSFULLY: {run.html_url}')
+        else:
+            LOGGER.info(f'RUN WAS NOT RETRIGGERED, SEE ABOVE')
+
+        # Needed to run a step after for statistics
+        with open(file=os.environ['GITHUB_ENV'],
+                  mode='a') as fh:
+            fh.write('PIPELINE_RETRIGGERED=true\n')
+            fh.write(f'FOUND_ERROR_TICKET={log_analyzer.found_error_ticket}\n')
+
+        # "status" is True (which is 1) if everything is ok, False (which is 0) otherwise
+        sys.exit(not status)
+    else:
+        LOGGER.info(f'NO ERROR WAS FOUND, NOT RETRIGGERING')
