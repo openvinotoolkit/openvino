@@ -103,15 +103,18 @@ struct NodeDescriptor {
     std::shared_ptr<ov::Node> node;
     std::unordered_set<size_t> input_idx, output_idx;
     size_t subgraph_id = std::numeric_limits<size_t>::max();
-    bool is_defined = false;
 
     NodeDescriptor(const std::shared_ptr<ov::Node>& in_node) : node(in_node) {}
+
+    bool is_defined() {
+        return subgraph_id != std::numeric_limits<size_t>::max();
+    }
 };
 
 std::vector<FusedNamesExtractor::ExtractedPattern>
 FusedNamesExtractor::extract(const std::shared_ptr<ov::Model> &model) {
     std::vector<FusedNamesExtractor::ExtractedPattern> matched_patterns;
-    std::vector<NodeDescriptor> transformed_ops;
+    std::vector<NodeDescriptor>  transformed_ops;
     {
         const auto not_transformed_ops = extract_not_trasformed_node_names(model);
         {
@@ -145,33 +148,43 @@ FusedNamesExtractor::extract(const std::shared_ptr<ov::Model> &model) {
         }
     }
 
-    
+    std::unordered_map<size_t, ov::NodeVector> subgraphs;
+    const auto backward_propagation = [&transformed_ops, &subgraphs](size_t node_id) {
+        std::deque<size_t> deque{node_id};
+        const size_t subgraph_id = transformed_ops[node_id].subgraph_id;
+        while (!deque.empty()) {
+            size_t front_node_id = deque.front();
+            deque.pop_front();
+            for (const auto& out_node_id : transformed_ops[front_node_id].output_idx) {
+                if (transformed_ops[out_node_id].subgraph_id == subgraph_id) {
+                    continue;
+                }
+                if (subgraphs.count(transformed_ops[out_node_id].subgraph_id)) {
+                    const auto node_vector = subgraphs[transformed_ops[out_node_id].subgraph_id];
+                    subgraphs[subgraph_id].insert(subgraphs[subgraph_id].end(), node_vector.begin(), node_vector.end());
+                    subgraphs.erase(transformed_ops[out_node_id].subgraph_id);
+                }
+                transformed_ops[out_node_id].subgraph_id = subgraph_id;
+                deque.push_back(out_node_id);
+            }
+        }
+    };
+
     size_t subgraph_id = 0;
     for (size_t i = 0; i < transformed_ops.size(); ++i) {
-        if (transformed_ops[i].is_defined) {
-            continue;
+        auto& transformed_op = transformed_ops[i];
+        if (!transformed_op.is_defined()) {
+            transformed_op.subgraph_id = subgraph_id++;
+            subgraphs.insert({transformed_op.subgraph_id, {transformed_op.node}});
+        } else {
+            backward_propagation(i);
         }
-        size_t cnt = 0;
-        std::deque<size_t> deque{i};
-        while (!deque.empty()) {
-            auto front = deque.front();
-            deque.pop_front();
-            transformed_ops[front].is_defined = true;
-            transformed_ops[front].subgraph_id = subgraph_id;
-            ++cnt;
-            for (auto f : transformed_ops[front].input_idx) {
-                if (!transformed_ops[f].is_defined) {
-                    deque.push_back(f);
-                }
-            }
-            for (auto f : transformed_ops[front].output_idx) {
-                if (!transformed_ops[f].is_defined) {
-                    deque.push_back(f);
-                }
-            }
+        for (const auto& in_idx : transformed_op.input_idx) {
+            transformed_ops[in_idx].subgraph_id = transformed_op.subgraph_id;
+            subgraphs[transformed_op.subgraph_id].push_back(transformed_ops[in_idx].node);
         }
-        ++subgraph_id;
     }
+
 
     auto a = 0;
     // ov::NodeVector nodes;
