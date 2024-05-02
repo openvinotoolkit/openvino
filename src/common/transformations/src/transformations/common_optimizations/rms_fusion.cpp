@@ -72,6 +72,11 @@ RMSFusion::RMSFusion() {
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
+        auto node = m.get_match_root();
+        if (transformation_callback(node)) {
+            return false;
+        }
+        
         auto x_output = pattern_map.at(x);
 
         auto const_eps_node =
@@ -91,11 +96,6 @@ RMSFusion::RMSFusion() {
         if ((axes_val[0] != -1) &&
             (axes_val[0] != (static_cast<int64_t>(mean_node->get_input_partial_shape(0).size()) - 1)))
             return false;
-
-        auto node = m.get_match_root();
-        if (transformation_callback(node)) {
-            return false;
-        }
 
         auto output_type = m.get_match_root()->get_output_element_type(0);
 
