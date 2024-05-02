@@ -3083,6 +3083,7 @@ TEST_F(fully_connected_gpu_tests, compressed_scale_fp16_cached) {
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_zp_scalar) {
+    // Testing support for decompression zero points with group size that is not a power of two
     this->test_compressed_int8_scale_zp_scalar(false);
 }
 
