@@ -37,6 +37,7 @@ public:
     bool is_supported() const override { return true; }
     ov::snippets::CompiledSnippetPtr get_snippet() override { return std::make_shared<DummyCompiledSnippet>(); }
     size_t get_lanes() const override { return 10; }
+    std::shared_ptr<TargetMachine> clone() const override { return std::make_shared<DummyTargetMachine>(); }
 };
 
 class DummyGenerator : public ov::snippets::Generator {

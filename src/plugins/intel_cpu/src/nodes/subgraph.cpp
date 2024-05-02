@@ -143,7 +143,7 @@ Snippet::Snippet(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
     snippetAttrs.bodyHash = get_body_hash(tmp_snippet);
 
 #if defined(OPENVINO_ARCH_X86_64)
-    snippetAttrs.snippet->set_generator(std::make_shared<CPUGenerator>(host_isa));
+    snippetAttrs.snippet->set_generator(std::make_shared<CPUGenerator>(host_isa, context->getParamsCache()));
 #else
     OPENVINO_THROW("CPU plugin: Snippets code-generator is not supported on non-x64 platforms");
 
