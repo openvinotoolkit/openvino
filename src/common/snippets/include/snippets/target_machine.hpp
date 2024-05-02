@@ -10,6 +10,7 @@
 
 #include "emitter.hpp"
 #include "snippets/lowered/expression.hpp"
+#include "kernel_executor_table.hpp"
 
 namespace ov {
 namespace snippets {
@@ -62,10 +63,12 @@ public:
      * @return true, if supported
      */
     bool has(const ov::DiscreteTypeInfo& type) const;
+    virtual std::shared_ptr<TargetMachine> clone() const = 0;
     virtual ~TargetMachine() = default;
 
 protected:
     std::map<const ov::DiscreteTypeInfo, jitters_value> jitters;
+    std::shared_ptr<KernelExecutorTable> kernel_executor_table;
 };
 
 } // namespace snippets
