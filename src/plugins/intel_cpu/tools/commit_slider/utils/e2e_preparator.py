@@ -11,7 +11,7 @@ try:
 except:
     import subprocess
     import sys
-    p = subprocess.Popen('{py} -m pip install pyyaml'.format(
+    p = subprocess.Popen('{} -m pip install pyyaml'.format(
             sys.executable
         ),
         shell=True,
