@@ -25,41 +25,22 @@ struct TensorMetaInfo {
 
 class TENSORFLOW_LITE_API DecoderBase : public ov::frontend::DecoderBase {
 public:
-    using OpTypeByName = std::unordered_map<std::string, std::string>;
-    /// \brief Get attribute value by name
-    ///
-    /// \param name Attribute name
-    /// \return Shared pointer to appropriate value converted to openvino data type if it exists, 'nullptr' otherwise
-    virtual ov::Any get_attribute(const std::string& name) const = 0;
-
-    /// \brief Get a number of inputs
-    virtual size_t get_input_size() const = 0;
-
     /// \brief Get a number of outputs
     virtual size_t get_output_size() const = 0;
 
-    /// \brief Get a producer name and its output port index
-    ///
-    /// \param input_port_idx              Input port index by which data is consumed
-    /// \param producer_name               A producer name
-    /// \param producer_output_port_name   Output port name if exists
-    /// \param producer_output_port_index  Output port index from which data is generated
-    virtual void get_input_node(size_t input_port_idx,
-                                std::string& producer_name,
-                                std::string& producer_output_port_name,
-                                size_t& producer_output_port_index) const = 0;
-
-    /// \brief Get operation type
-    virtual const std::string& get_op_type() const = 0;
-
-    /// \brief Get node name
-    virtual const std::string& get_op_name() const = 0;
-
+    /// \brief Get output tensor name by index
     virtual std::string get_output_tensor_name(size_t idx) const = 0;
+
+    /// \brief Get output tensor type by index
     virtual ov::element::Type get_output_tensor_type(size_t idx) const = 0;
+
+    /// \brief Get input tensor name by index
     virtual std::string get_input_tensor_name(size_t idx) const = 0;
 
+    /// \brief Get input tensor info
     virtual TensorMetaInfo get_input_tensor_info(size_t idx) const = 0;
+
+    /// \brief Get output tensor info
     virtual TensorMetaInfo get_output_tensor_info(size_t idx) const = 0;
 
     /// \brief Destructor
@@ -70,8 +51,13 @@ class TENSORFLOW_LITE_API DecoderBaseOperation : public ov::frontend::tensorflow
 
 class TENSORFLOW_LITE_API DecoderBaseTensor : public ov::frontend::tensorflow_lite::DecoderBase {
 public:
+    /// \brief Get tensor info
     virtual TensorMetaInfo get_tensor_info() const = 0;
+
+    /// \brief Get input index for tensor
     virtual int64_t get_input_idx() const = 0;
+
+    /// \brief Get output index for tensor
     virtual int64_t get_output_idx() const = 0;
 };
 
