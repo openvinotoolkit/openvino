@@ -5,7 +5,6 @@
 #pragma once
 
 #include "pass.hpp"
-#include "snippets/lowered/linear_ir.hpp"
 
 namespace ov {
 namespace snippets {
