@@ -291,6 +291,10 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        // If model loaded from cache, params are not initialized, so we create a new object and reuse it in the future
+        if (_kernels_data[concat_stage].params == nullptr) {
+            _kernels_data[concat_stage].params = std::make_shared<kernel_params_t>(get_concat_kernel_params(impl_param, true));
+        }
         auto& params = static_cast<kernel_params_t&>(*_kernels_data[concat_stage].params);
         const auto inputs_count = 2;
         for (size_t i = 0; i < inputs_count; ++i) {
